@@ -27,7 +27,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { SearchableSet } from '../searchable-set';
-import { AttendeeRole, AttendanceType, getPricingTierKey, IlcEvent, initProduct, PricingTierType, Product } from '../../../functions/src/data-model/events';
+import { AttendeeRole, AttendanceType, getPricingTierKey, getVideoDelta, IlcEvent, initProduct, PricingTierType, Product } from '../../../functions/src/data-model/events';
 
 @Component({
   selector: 'app-product-edit',
@@ -206,7 +206,7 @@ export class ProductEditComponent implements OnInit {
         this.lateDeltaPrice.set(existing.lateDeltaPrice ?? 0);
         this.hasDoorDelta.set(Boolean(existing.hasDoorDelta));
         this.doorDeltaPrice.set(existing.doorDeltaPrice ?? 0);
-        this.videoDeltaPrice.set(existing.videoDeltaPrice ?? 0);
+        this.videoDeltaPrice.set(existing.videoDeltaPrice !== undefined ? existing.videoDeltaPrice : getVideoDelta(existing));
       } else {
         const newProduct = initProduct();
         if (evId) {

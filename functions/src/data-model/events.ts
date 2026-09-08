@@ -332,6 +332,78 @@ export type Product = {
   lastUpdated?: string;
 };
 
+/**
+ * Calculates the price difference for adding video recording access to an event.
+ * If product.videoDeltaPrice is set to a positive number, returns that value.
+ * If product.videoDeltaPrice is 0, returns 0.
+ * If product.videoDeltaPrice is undefined, inspects enabled tiers with video vs without video.
+ * Returns 0 if video is included for free or product does not allow video.
+ */
+export function getVideoDelta(
+  product: Product,
+  role?: AttendeeRole,
+  attendance?: AttendanceType,
+  tierType?: PricingTierType,
+): number {
+  if (!product.allowVideo) return 0;
+  if (typeof product.videoDeltaPrice === 'number' && product.videoDeltaPrice > 0) {
+    return product.videoDeltaPrice;
+  }
+
+  if (!product.tiers) return 0;
+
+  const rolesToCheck = role
+    ? [role, AttendeeRole.NonMember, AttendeeRole.Member, AttendeeRole.Instructor]
+    : [AttendeeRole.NonMember, AttendeeRole.Member, AttendeeRole.Instructor];
+
+  const attendancesToCheck = attendance && attendance !== AttendanceType.VideoOnly
+    ? [attendance, AttendanceType.Online, AttendanceType.InPerson]
+    : [AttendanceType.Online, AttendanceType.InPerson];
+
+  const tierTypesToCheck = tierType
+    ? [tierType, PricingTierType.Standard, PricingTierType.EarlyBird]
+    : [PricingTierType.Standard, PricingTierType.EarlyBird];
+
+  for (const att of attendancesToCheck) {
+    for (const r of rolesToCheck) {
+      for (const tt of tierTypesToCheck) {
+        const noVidKey = getPricingTierKey(r, att, false, tt);
+        const withVidKey = getPricingTierKey(r, att, true, tt);
+        const noVidTier = product.tiers[noVidKey];
+        const withVidTier = product.tiers[withVidKey];
+        if (
+          noVidTier?.enabled &&
+          withVidTier?.enabled &&
+          typeof withVidTier.price === 'number' &&
+          typeof noVidTier.price === 'number'
+        ) {
+          const diff = withVidTier.price - noVidTier.price;
+          if (diff > 0) {
+            return diff;
+          }
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * Returns true if the event allows video and video recording is included for free
+ * (i.e. no extra charge for video access).
+ */
+export function isVideoIncludedForFree(
+  product: Product,
+  role?: AttendeeRole,
+  attendance?: AttendanceType,
+  tierType?: PricingTierType,
+): boolean {
+  if (!product.allowVideo) return false;
+  if (attendance === AttendanceType.VideoOnly) return false;
+  return getVideoDelta(product, role, attendance, tierType) <= 0;
+}
+
 export function initProduct(): Product {
   const tiers: Record<string, { enabled: boolean; price: number }> = {};
   const roles: AttendeeRole[] = [

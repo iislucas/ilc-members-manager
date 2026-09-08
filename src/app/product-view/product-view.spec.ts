@@ -441,4 +441,67 @@ describe('ProductViewComponent', () => {
     const upgradePillTabs = fixture.nativeElement.querySelectorAll('.pill-tab');
     expect(upgradePillTabs.length).toBe(3);
   });
+
+  it('should display +$10 badge and checkbox when tiers have a $10 video difference even if videoDeltaPrice is undefined', async () => {
+    await component.loadProduct();
+    // Simulate event bYNhrIRH0VfdgctHt6AO configuration
+    const eventProduct: Product = {
+      ...mockProduct,
+      videoDeltaPrice: undefined,
+      tiers: {
+        'member_online_novideo': { enabled: true, price: 45 },
+        'member_online_video': { enabled: true, price: 55 },
+        'member_in_person_novideo': { enabled: true, price: 70 },
+        'member_in_person_video': { enabled: true, price: 80 },
+        'non_member_online_novideo': { enabled: true, price: 45 },
+        'non_member_online_video': { enabled: true, price: 55 },
+      },
+    };
+    component.product.set(eventProduct);
+    component.selectedAttendance.set('online' as any);
+    fixture.detectChanges();
+
+    expect(component.videoDelta()).toBe(10);
+    expect(component.isVideoIncludedForFree()).toBe(false);
+    expect(component.videoAddonPriceFormatted()).toBe('+$10');
+
+    // UI should render checkbox and badge with +$10, not (+Free)
+    const toggleGroup = fixture.nativeElement.querySelector('.video-toggle-group');
+    expect(toggleGroup).toBeTruthy();
+    expect(toggleGroup.querySelector('input[type="checkbox"]')).toBeTruthy();
+    const addonBadge = toggleGroup.querySelector('.chip-addon-badge');
+    expect(addonBadge?.textContent?.trim()).toBe('+$10');
+    expect(toggleGroup.textContent).not.toContain('Free');
+  });
+
+  it('should display included notice and no checkbox when video is free for everyone', async () => {
+    await component.loadProduct();
+    // Event with video allowed and no extra charge (equal tier prices or videoDeltaPrice = 0)
+    const freeVideoProduct: Product = {
+      ...mockProduct,
+      videoDeltaPrice: 0,
+      tiers: {
+        'member_in_person_novideo': { enabled: true, price: 80 },
+        'member_in_person_video': { enabled: true, price: 80 },
+        'non_member_in_person_novideo': { enabled: true, price: 100 },
+        'non_member_in_person_video': { enabled: true, price: 100 },
+      },
+    };
+    component.product.set(freeVideoProduct);
+    component.selectedAttendance.set('in_person' as any);
+    fixture.detectChanges();
+
+    expect(component.videoDelta()).toBe(0);
+    expect(component.isVideoIncludedForFree()).toBe(true);
+    expect(component.includeVideo()).toBe(true);
+
+    // UI should display video-already-included notice and NO checkbox
+    const toggleGroup = fixture.nativeElement.querySelector('.video-toggle-group');
+    expect(toggleGroup).toBeTruthy();
+    expect(toggleGroup.querySelector('input[type="checkbox"]')).toBeFalsy();
+    expect(toggleGroup.querySelector('.video-already-included')).toBeTruthy();
+    expect(toggleGroup.textContent).toContain('Class Video Recording Included');
+    expect(toggleGroup.textContent).toContain('All attendees receive access to the recorded session after the event at no extra cost');
+    expect(toggleGroup.textContent).not.toContain('(+Free)');
+  });
 });

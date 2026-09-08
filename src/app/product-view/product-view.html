@@ -274,7 +274,7 @@
           <!-- 3. Video Recording Add-on (for in-person or online) -->
           @if (prod.allowVideo && selectedAttendance() !== AttendanceType.VideoOnly && !isPastEvent()) {
             <div class="option-group">
-              <label class="group-label">3. Video Recording Add-on</label>
+              <label class="group-label">3. {{ isVideoIncludedForFree() ? 'Class Video Recording' : 'Video Recording Add-on' }}</label>
               <div class="video-toggle-group">
                 @if (existingRegistration()?.hasVideoAccess && !isPendingInPerson()) {
                   <div class="video-already-included">
@@ -282,6 +282,14 @@
                     <div class="video-included-text">
                       <strong>Class Video Recording Included</strong>
                       <span class="subtext">You already have access to the recorded session in your current registration.</span>
+                    </div>
+                  </div>
+                } @else if (isVideoIncludedForFree()) {
+                  <div class="video-already-included">
+                    <app-icon name="check_circle"></app-icon>
+                    <div class="video-included-text">
+                      <strong>Class Video Recording Included</strong>
+                      <span class="subtext">All attendees receive access to the recorded session after the event at no extra cost.</span>
                     </div>
                   </div>
                 } @else {
@@ -297,7 +305,7 @@
                         @if (isUpgrade() && !isPendingInPerson() && videoUpgradeDeltaFormatted(); as delta) {
                           <span class="chip-upgrade-badge">{{ delta }}</span>
                         } @else if (videoAddonPriceFormatted(); as price) {
-                          <span class="chip-addon-badge">(+{{ price }})</span>
+                          <span class="chip-addon-badge">{{ price }}</span>
                         }
                       </span>
                       <span class="subtext">Watch the recorded session anytime after the event.</span>

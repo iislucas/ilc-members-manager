@@ -29,7 +29,9 @@ import {
   Product,
   firestoreDocToProduct,
   getPricingTierKey,
+  getVideoDelta,
   isEventPast,
+  isVideoIncludedForFree,
   EventRegistration,
   AttendeeRole,
   AttendanceType,
@@ -302,6 +304,10 @@ export const createProductCheckoutSession = onCall<
     }
   }
 
+  if (isVideoIncludedForFree(product, role, tierLookupAttendance, pricingTierType)) {
+    includeVideo = true;
+  }
+
   let tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo, pricingTierType);
   let tier = product.tiers[tierKey];
 
@@ -319,6 +325,27 @@ export const createProductCheckoutSession = onCall<
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, PricingTierType.Standard);
       tier = product.tiers[tierKey];
+    }
+  }
+
+  // If tier with video is not configured but video is included/free, fall back to novideo tier
+  if ((!tier || !tier.enabled) && includeVideo) {
+    let fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, pricingTierType);
+    tier = product.tiers[fallbackNovideoKey];
+    if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+      fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, pricingTierType);
+      tier = product.tiers[fallbackNovideoKey];
+    }
+    if ((!tier || !tier.enabled) && pricingTierType === PricingTierType.EarlyBird) {
+      fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, PricingTierType.Standard);
+      tier = product.tiers[fallbackNovideoKey];
+      if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+        fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, PricingTierType.Standard);
+        tier = product.tiers[fallbackNovideoKey];
+      }
+    }
+    if (tier && tier.enabled) {
+      tierKey = fallbackNovideoKey;
     }
   }
 
@@ -626,12 +653,6 @@ export const updateProductRegistration = onCall<
     existingReg.status !== EventRegistrationStatus.Paid
   );
 
-  // If user previously had video access and already paid, they keep video access.
-  // For unpaid in-person registrations, video access can be toggled on/off freely.
-  const hasVideoAccess = isUnpaidInPerson
-    ? Boolean(data.includeVideo)
-    : Boolean(existingReg.hasVideoAccess || data.includeVideo);
-
   // 7. Verify Pricing Tier - Hard server-side check that this does not require an unpaid upgrade
   const tierLookupAttendance: AttendanceType =
     attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : attendance;
@@ -643,6 +664,14 @@ export const updateProductRegistration = onCall<
       pricingTierType = PricingTierType.EarlyBird;
     }
   }
+
+  // If user previously had video access and already paid, they keep video access.
+  // If video is included for free for everyone, video access is automatically granted.
+  // For unpaid in-person registrations, video access can be toggled on/off freely.
+  const isFreeVideo = isVideoIncludedForFree(product, role, tierLookupAttendance, pricingTierType);
+  const hasVideoAccess = isFreeVideo || (isUnpaidInPerson
+    ? Boolean(data.includeVideo)
+    : Boolean(existingReg.hasVideoAccess || data.includeVideo));
 
   let tierKey = getPricingTierKey(role, tierLookupAttendance, hasVideoAccess, pricingTierType);
   let tier = product.tiers[tierKey];
@@ -658,6 +687,27 @@ export const updateProductRegistration = onCall<
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, hasVideoAccess, PricingTierType.Standard);
       tier = product.tiers[tierKey];
+    }
+  }
+
+  // If tier with video is not configured but video is included/free, fall back to novideo tier
+  if ((!tier || !tier.enabled) && hasVideoAccess) {
+    let fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, pricingTierType);
+    tier = product.tiers[fallbackNovideoKey];
+    if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+      fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, pricingTierType);
+      tier = product.tiers[fallbackNovideoKey];
+    }
+    if ((!tier || !tier.enabled) && pricingTierType === PricingTierType.EarlyBird) {
+      fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, PricingTierType.Standard);
+      tier = product.tiers[fallbackNovideoKey];
+      if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+        fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, PricingTierType.Standard);
+        tier = product.tiers[fallbackNovideoKey];
+      }
+    }
+    if (tier && tier.enabled) {
+      tierKey = fallbackNovideoKey;
     }
   }
 
@@ -835,7 +885,8 @@ export const registerEventInPerson = onCall<
 
   const role = data.role || AttendeeRole.NonMember;
   const attendance = data.attendance || AttendanceType.InPerson;
-  const includeVideo = Boolean(data.includeVideo);
+  const isFreeVideo = isVideoIncludedForFree(product, role, attendance);
+  const includeVideo = isFreeVideo || Boolean(data.includeVideo);
 
   if (attendance !== AttendanceType.InPerson && attendance !== AttendanceType.InPersonAndOnline) {
     throw new HttpsError('invalid-argument', 'In-person payment is only available for in-person attendance.');
@@ -949,6 +1000,27 @@ export const registerEventInPerson = onCall<
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, PricingTierType.Standard);
       tier = product.tiers[tierKey];
+    }
+  }
+
+  // If tier with video is not configured but video is included/free, fall back to novideo tier
+  if ((!tier || !tier.enabled) && includeVideo) {
+    let fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, PricingTierType.InPerson);
+    tier = product.tiers[fallbackNovideoKey];
+    if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+      fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, PricingTierType.InPerson);
+      tier = product.tiers[fallbackNovideoKey];
+    }
+    if (!tier || !tier.enabled) {
+      fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, PricingTierType.Standard);
+      tier = product.tiers[fallbackNovideoKey];
+      if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+        fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, PricingTierType.Standard);
+        tier = product.tiers[fallbackNovideoKey];
+      }
+    }
+    if (tier && tier.enabled) {
+      tierKey = fallbackNovideoKey;
     }
   }
 

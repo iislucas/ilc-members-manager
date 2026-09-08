@@ -34,8 +34,10 @@ import {
   EventRegistration,
   EventRegistrationStatus,
   getPricingTierKey,
+  getVideoDelta,
   IlcEvent,
   isEventPast,
+  isVideoIncludedForFree,
   PricingTierType,
   Product,
   RegistrationPaymentMethod,
@@ -240,6 +242,9 @@ export class ProductViewComponent implements OnInit {
   });
 
   includeVideo = linkedSignal<boolean>(() => {
+    if (this.isVideoIncludedForFree()) {
+      return true;
+    }
     const reg = this.existingRegistration();
     if (reg) {
       return Boolean(reg.hasVideoAccess);
@@ -324,7 +329,7 @@ export class ProductViewComponent implements OnInit {
     const role = reg.role || this.selectedRole();
     const attendance =
       reg.attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : reg.attendance;
-    const includeVid = Boolean(reg.hasVideoAccess);
+    const includeVid = Boolean(reg.hasVideoAccess || this.isVideoIncludedForFree());
 
     const tierType = this.isEarlyBirdActive() ? PricingTierType.EarlyBird : PricingTierType.Standard;
     let key = getPricingTierKey(role, attendance, includeVid, tierType);
@@ -337,6 +342,16 @@ export class ProductViewComponent implements OnInit {
       const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVid, tierType);
       if (p.tiers[fallbackKey]?.enabled) {
         tier = p.tiers[fallbackKey];
+      }
+    }
+    if ((!tier || !tier.enabled) && includeVid) {
+      key = getPricingTierKey(role, attendance, false, tierType);
+      tier = p.tiers[key];
+      if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+        const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, false, tierType);
+        if (p.tiers[fallbackKey]?.enabled) {
+          tier = p.tiers[fallbackKey];
+        }
       }
     }
     const currentTierPrice = tier && tier.enabled && typeof tier.price === 'number' ? tier.price : 0;
@@ -353,26 +368,34 @@ export class ProductViewComponent implements OnInit {
     }
 
     const role = this.selectedRole();
-    const includeVid = attendance === AttendanceType.VideoOnly ? true : (reg.hasVideoAccess || this.includeVideo());
+    const includeVid =
+      attendance === AttendanceType.VideoOnly
+        ? true
+        : Boolean(reg.hasVideoAccess || this.isVideoIncludedForFree() || this.includeVideo());
     const p = this.product();
     if (!p) return null;
 
     const tierType = this.isEarlyBirdActive() ? PricingTierType.EarlyBird : PricingTierType.Standard;
-    let key = getPricingTierKey(role, attendance, includeVid, tierType);
-    let tier = p.tiers[key];
-    if ((!tier || !tier.enabled) && this.isEarlyBirdActive()) {
-      key = getPricingTierKey(role, attendance, includeVid, PricingTierType.Standard);
-      tier = p.tiers[key];
+    let targetTier = p.tiers[getPricingTierKey(role, attendance, includeVid, tierType)];
+    if ((!targetTier || !targetTier.enabled) && this.isEarlyBirdActive()) {
+      targetTier = p.tiers[getPricingTierKey(role, attendance, includeVid, PricingTierType.Standard)];
     }
-    if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+    if ((!targetTier || !targetTier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVid, tierType);
       if (p.tiers[fallbackKey]?.enabled) {
-        tier = p.tiers[fallbackKey];
+        targetTier = p.tiers[fallbackKey];
       }
     }
-    if (!tier || !tier.enabled) return null;
+    if ((!targetTier || !targetTier.enabled) && includeVid) {
+      targetTier = p.tiers[getPricingTierKey(role, attendance, false, tierType)];
+      if ((!targetTier || !targetTier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+        const fbKey = getPricingTierKey(AttendeeRole.NonMember, attendance, false, tierType);
+        if (p.tiers[fbKey]?.enabled) targetTier = p.tiers[fbKey];
+      }
+    }
+    if (!targetTier || !targetTier.enabled) return null;
 
-    const diff = (tier.price || 0) - this.existingTierPrice();
+    const diff = (targetTier.price || 0) - this.existingTierPrice();
     if (diff <= 0) {
       return 'Included';
     }
@@ -380,28 +403,51 @@ export class ProductViewComponent implements OnInit {
     const formatted = new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency: (p.currency || 'usd').toUpperCase(),
+      minimumFractionDigits: diff % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
     }).format(diff);
 
-    return `+${formatted} upgrade`;
+    return `+${formatted}`;
   }
+
+  videoDelta = computed(() => {
+    const p = this.product();
+    if (!p) return 0;
+    const role = this.selectedRole();
+    const attendance = this.selectedAttendance();
+    const tierType = this.isEarlyBirdActive() ? PricingTierType.EarlyBird : PricingTierType.Standard;
+    return getVideoDelta(p, role, attendance, tierType);
+  });
+
+  isVideoIncludedForFree = computed(() => {
+    const p = this.product();
+    if (!p) return false;
+    const role = this.selectedRole();
+    const attendance = this.selectedAttendance();
+    const tierType = this.isEarlyBirdActive() ? PricingTierType.EarlyBird : PricingTierType.Standard;
+    return isVideoIncludedForFree(p, role, attendance, tierType);
+  });
 
   videoAddonPriceFormatted = computed(() => {
     const p = this.product();
     if (!p) return '';
-    const delta = p.videoDeltaPrice ?? 0;
-    if (delta <= 0) return 'Free';
-    return `${new Intl.NumberFormat(undefined, {
+    const delta = this.videoDelta();
+    if (delta <= 0) return '';
+    const formatted = new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency: (p.currency || 'usd').toUpperCase(),
-    }).format(delta)}`;
+      minimumFractionDigits: delta % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(delta);
+    return `+${formatted}`;
   });
 
   videoUpgradeDeltaFormatted = computed(() => {
     if (!this.isUpgrade()) return '';
     const reg = this.existingRegistration();
-    if (!reg || reg.hasVideoAccess) return '';
+    if (!reg || reg.hasVideoAccess || this.isVideoIncludedForFree()) return '';
     if (this.isPendingInPerson()) {
-      return `+${this.videoAddonPriceFormatted()}`;
+      return this.videoAddonPriceFormatted();
     }
 
     const role = this.selectedRole();
@@ -420,7 +466,19 @@ export class ProductViewComponent implements OnInit {
         tierWithVideo = p.tiers[fallbackKey];
       }
     }
-    if (!tierWithVideo || !tierWithVideo.enabled) return '';
+    if (!tierWithVideo || !tierWithVideo.enabled) {
+      const delta = this.videoDelta();
+      if (delta > 0) {
+        const formatted = new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: (p.currency || 'usd').toUpperCase(),
+          minimumFractionDigits: delta % 1 === 0 ? 0 : 2,
+          maximumFractionDigits: 2,
+        }).format(delta);
+        return `+${formatted} upgrade`;
+      }
+      return '';
+    }
 
     const diff = (tierWithVideo.price || 0) - this.existingTierPrice();
     if (diff <= 0) {
@@ -430,6 +488,8 @@ export class ProductViewComponent implements OnInit {
     return `+${new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency: (p.currency || 'usd').toUpperCase(),
+      minimumFractionDigits: diff % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
     }).format(diff)} upgrade`;
   });
 
@@ -437,7 +497,10 @@ export class ProductViewComponent implements OnInit {
   getPricingKey(tierType: PricingTierType = PricingTierType.Standard): string {
     const role = this.selectedRole();
     const attendance = this.selectedAttendance();
-    const includeVideo = this.selectedAttendance() === AttendanceType.VideoOnly ? true : this.includeVideo();
+    const includeVideo =
+      this.selectedAttendance() === AttendanceType.VideoOnly
+        ? true
+        : Boolean(this.isVideoIncludedForFree() || this.includeVideo());
     const p = this.product();
 
     const primaryKey = getPricingTierKey(role, attendance, includeVideo, tierType);
@@ -448,6 +511,18 @@ export class ProductViewComponent implements OnInit {
       const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVideo, tierType);
       if (p?.tiers[fallbackKey]?.enabled) {
         return fallbackKey;
+      }
+    }
+    if (includeVideo) {
+      const novideoKey = getPricingTierKey(role, attendance, false, tierType);
+      if (p && p.tiers[novideoKey]?.enabled) {
+        return novideoKey;
+      }
+      if (role === AttendeeRole.Member || role === AttendeeRole.Instructor) {
+        const fallbackNoVidKey = getPricingTierKey(AttendeeRole.NonMember, attendance, false, tierType);
+        if (p?.tiers[fallbackNoVidKey]?.enabled) {
+          return fallbackNoVidKey;
+        }
       }
     }
     return primaryKey;
@@ -780,7 +855,10 @@ export class ProductViewComponent implements OnInit {
         existingRegistrationDocId: reg.docId,
         role: this.selectedRole(),
         attendance: this.selectedAttendance(),
-        includeVideo: this.selectedAttendance() === AttendanceType.VideoOnly ? true : this.includeVideo(),
+        includeVideo:
+          this.selectedAttendance() === AttendanceType.VideoOnly
+            ? true
+            : Boolean(this.isVideoIncludedForFree() || this.includeVideo()),
         attendeeDetails: {
           name: this.attendeeName().trim(),
           email: this.attendeeEmail().trim().toLowerCase(),
@@ -797,7 +875,7 @@ export class ProductViewComponent implements OnInit {
         notes: this.attendeeNotes().trim(),
         role: this.selectedRole(),
         attendance: this.selectedAttendance(),
-        hasVideoAccess: Boolean(reg.hasVideoAccess || this.includeVideo()),
+        hasVideoAccess: Boolean(reg.hasVideoAccess || this.isVideoIncludedForFree() || this.includeVideo()),
         lastUpdated: new Date().toISOString(),
       });
 
@@ -839,7 +917,10 @@ export class ProductViewComponent implements OnInit {
         productId: prod.docId,
         role: this.selectedRole(),
         attendance: this.selectedAttendance(),
-        includeVideo: this.selectedAttendance() === AttendanceType.VideoOnly ? true : this.includeVideo(),
+        includeVideo:
+          this.selectedAttendance() === AttendanceType.VideoOnly
+            ? true
+            : Boolean(this.isVideoIncludedForFree() || this.includeVideo()),
         origin: window.location.origin,
         isUpgrade: isUpgrade,
         existingRegistrationDocId: isUpgrade && existingReg ? existingReg.docId : undefined,
@@ -885,7 +966,10 @@ export class ProductViewComponent implements OnInit {
         productId: prod.docId,
         role: this.selectedRole(),
         attendance: this.selectedAttendance(),
-        includeVideo: this.includeVideo(),
+        includeVideo:
+          this.selectedAttendance() === AttendanceType.VideoOnly
+            ? true
+            : Boolean(this.isVideoIncludedForFree() || this.includeVideo()),
         attendeeDetails: {
           name: this.attendeeName().trim(),
           email: this.attendeeEmail().trim().toLowerCase(),
