@@ -10,7 +10,7 @@ import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins, getMemberByEmail, hasActiveMembership } from './common';
+import { allowedOrigins, getMemberByEmail, hasActiveMembership, hasActiveInstructorLicense } from './common';
 import { environment } from './environment/environment';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
 import {
@@ -32,6 +32,7 @@ import {
   getVideoDelta,
   isEventPast,
   isVideoIncludedForFree,
+  hasSpecialRolePrice,
   EventRegistration,
   AttendeeRole,
   AttendanceType,
@@ -97,28 +98,42 @@ export const createProductCheckoutSession = onCall<
     }
   }
 
-  // 3. Verify role authorization
-  if (role === AttendeeRole.Member) {
-    if (!member || !hasActiveMembership(member)) {
+  // 3. Verify role authorization (only checked if event restricts non-members or has special pricing for that role)
+  if (!product.allowNonMembers) {
+    if (!member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
       throw new HttpsError(
         'permission-denied',
-        'Active membership is required to register at the member rate.',
+        'Active membership is required to register for this event.',
       );
     }
+  }
+
+  if (role === AttendeeRole.Member) {
+    if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
+      if (!member || !hasActiveMembership(member)) {
+        throw new HttpsError(
+          'permission-denied',
+          'Active membership is required to register at the member rate.',
+        );
+      }
+    }
   } else if (role === AttendeeRole.Instructor) {
-    const today = new Date().toISOString().split('T')[0];
-    const hasActiveLicense = Boolean(
-      member?.instructorId &&
-      member.instructorLicenseExpires &&
-      (member.instructorLicenseExpires === 'life' ||
-       member.instructorLicenseExpires === '9999-12-31' ||
-       member.instructorLicenseExpires >= today)
-    );
-    if (!hasActiveLicense) {
-      throw new HttpsError(
-        'permission-denied',
-        'Active instructor license is required to register at the instructor rate.',
-      );
+    if (hasSpecialRolePrice(product, AttendeeRole.Instructor)) {
+      if (!member || !hasActiveInstructorLicense(member)) {
+        throw new HttpsError(
+          'permission-denied',
+          'Active instructor license is required to register at the instructor rate.',
+        );
+      }
+    } else if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
+      // If there is no dedicated instructor price but there is a special member price,
+      // instructors must have active membership or an active instructor license.
+      if (!member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
+        throw new HttpsError(
+          'permission-denied',
+          'Active membership is required to register at the member rate.',
+        );
+      }
     }
   }
 
@@ -919,28 +934,42 @@ export const registerEventInPerson = onCall<
     }
   }
 
-  // 4. Verify role authorization
-  if (role === AttendeeRole.Member) {
-    if (!member || !hasActiveMembership(member)) {
+  // 4. Verify role authorization (only checked if event restricts non-members or has special pricing for that role)
+  if (!product.allowNonMembers) {
+    if (!member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
       throw new HttpsError(
         'permission-denied',
-        'Active membership is required to register at the member rate.',
+        'Active membership is required to register for this event.',
       );
     }
+  }
+
+  if (role === AttendeeRole.Member) {
+    if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
+      if (!member || !hasActiveMembership(member)) {
+        throw new HttpsError(
+          'permission-denied',
+          'Active membership is required to register at the member rate.',
+        );
+      }
+    }
   } else if (role === AttendeeRole.Instructor) {
-    const today = new Date().toISOString().split('T')[0];
-    const hasActiveLicense = Boolean(
-      member?.instructorId &&
-      member.instructorLicenseExpires &&
-      (member.instructorLicenseExpires === 'life' ||
-       member.instructorLicenseExpires === '9999-12-31' ||
-       member.instructorLicenseExpires >= today)
-    );
-    if (!hasActiveLicense) {
-      throw new HttpsError(
-        'permission-denied',
-        'Active instructor license is required to register at the instructor rate.',
-      );
+    if (hasSpecialRolePrice(product, AttendeeRole.Instructor)) {
+      if (!member || !hasActiveInstructorLicense(member)) {
+        throw new HttpsError(
+          'permission-denied',
+          'Active instructor license is required to register at the instructor rate.',
+        );
+      }
+    } else if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
+      // If there is no dedicated instructor price but there is a special member price,
+      // instructors must have active membership or an active instructor license.
+      if (!member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
+        throw new HttpsError(
+          'permission-denied',
+          'Active membership is required to register at the member rate.',
+        );
+      }
     }
   }
 

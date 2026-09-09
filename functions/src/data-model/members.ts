@@ -31,12 +31,36 @@ export type MembershipFields = {
  */
 export function hasActiveMembership(
   member: MembershipFields,
-  today: string,
+  today: string = new Date().toISOString().split('T')[0],
 ): boolean {
   if (member.membershipType === MembershipType.Life) return true;
   if (member.membershipType !== MembershipType.Annual) return false;
   const expires = member.currentMembershipExpires;
   return !!expires && expires >= today;
+}
+
+/** Fields needed to check instructor license validity. */
+export type InstructorLicenseFields = {
+  instructorId?: number | string | null;
+  instructorLicenseType?: InstructorLicenseType;
+  instructorLicenseExpires?: string;
+};
+
+/**
+ * Whether the member currently has an active instructor license.
+ * Requires an instructorId, and either Life license type or an expiration
+ * date ('life', '9999-12-31', or >= today).
+ */
+export function hasActiveInstructorLicense(
+  member: InstructorLicenseFields,
+  today: string = new Date().toISOString().split('T')[0],
+): boolean {
+  if (!member.instructorId) return false;
+  if (member.instructorLicenseType === InstructorLicenseType.Life) return true;
+  const expires = member.instructorLicenseExpires;
+  if (!expires) return false;
+  if (expires === 'life' || expires === '9999-12-31') return true;
+  return expires >= today;
 }
 
 /**

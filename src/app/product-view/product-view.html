@@ -138,45 +138,47 @@
             </div>
           }
 
-          <!-- 1. Attendee Status (Preselected & Verified) -->
-          <div class="option-group">
-            <label class="group-label">1. Attendee Status</label>
-            <div class="attendee-status-card">
-              <div class="status-main-row">
-                <div
-                  class="status-badge-chip"
-                  [class.badge-instructor]="selectedRole() === AttendeeRole.Instructor"
-                  [class.badge-member]="selectedRole() === AttendeeRole.Member"
-                >
-                  <app-icon
-                    [name]="
-                      selectedRole() === AttendeeRole.Instructor
-                        ? 'military_tech'
-                        : selectedRole() === AttendeeRole.Member
-                          ? 'check_circle'
-                          : 'public'
-                    "
-                  ></app-icon>
-                  <span class="status-name">{{ attendeeStatusLabel() }}</span>
-                </div>
-                @if (selectedRole() !== AttendeeRole.Instructor) {
-                  <a
-                    [href]="routingService.hrefForView(Views.MyOrders)"
-                    class="upgrade-membership-link"
-                    title="Manage subscription & upgrade membership"
+          <!-- 1. Attendee Status (Preselected & Verified, only listed if special pricing exists) -->
+          @if (hasSpecialPricing()) {
+            <div class="option-group">
+              <label class="group-label">1. Attendee Status</label>
+              <div class="attendee-status-card">
+                <div class="status-main-row">
+                  <div
+                    class="status-badge-chip"
+                    [class.badge-instructor]="selectedRole() === AttendeeRole.Instructor"
+                    [class.badge-member]="selectedRole() === AttendeeRole.Member"
                   >
-                    <span>Upgrade membership</span>
-                    <app-icon name="launch"></app-icon>
-                  </a>
-                }
+                    <app-icon
+                      [name]="
+                        selectedRole() === AttendeeRole.Instructor
+                          ? 'military_tech'
+                          : selectedRole() === AttendeeRole.Member
+                            ? 'check_circle'
+                            : 'public'
+                      "
+                    ></app-icon>
+                    <span class="status-name">{{ attendeeStatusLabel() }}</span>
+                  </div>
+                  @if (selectedRole() !== AttendeeRole.Instructor) {
+                    <a
+                      [href]="routingService.hrefForView(Views.MyOrders)"
+                      class="upgrade-membership-link"
+                      title="Manage subscription & upgrade membership"
+                    >
+                      <span>Upgrade membership</span>
+                      <app-icon name="launch"></app-icon>
+                    </a>
+                  }
+                </div>
+                <p class="status-description">{{ attendeeStatusSubtitle() }}</p>
               </div>
-              <p class="status-description">{{ attendeeStatusSubtitle() }}</p>
             </div>
-          </div>
+          }
 
           <!-- 2. Attendance Mode Selection -->
           <div class="option-group">
-            <label class="group-label">2. Attendance Mode</label>
+            <label class="group-label">{{ attendanceModeStepLabel() }}</label>
             <div class="pill-tabs">
               @if (prod.allowInPerson) {
                 <button
@@ -274,7 +276,7 @@
           <!-- 3. Video Recording Add-on (for in-person or online) -->
           @if (prod.allowVideo && selectedAttendance() !== AttendanceType.VideoOnly && !isPastEvent()) {
             <div class="option-group">
-              <label class="group-label">3. {{ isVideoIncludedForFree() ? 'Class Video Recording' : 'Video Recording Add-on' }}</label>
+              <label class="group-label">{{ videoStepLabel() }}</label>
               <div class="video-toggle-group">
                 @if (existingRegistration()?.hasVideoAccess && !isPendingInPerson()) {
                   <div class="video-already-included">

@@ -1,7 +1,8 @@
 /* common.spec.ts — tests for shared membership helpers. */
 import { describe, it, expect } from 'vitest';
-import { hasActiveMembership } from './common';
+import { hasActiveMembership, hasActiveInstructorLicense } from './common';
 import { Member, MembershipType } from './data-model/members';
+import { InstructorLicenseType } from './data-model/curriculum';
 
 describe('hasActiveMembership', () => {
   const today = new Date().toISOString().split('T')[0];
@@ -38,5 +39,42 @@ describe('hasActiveMembership', () => {
       const m = { membershipType: type, currentMembershipExpires: future } as Member;
       expect(hasActiveMembership(m)).toBe(false);
     }
+  });
+});
+
+describe('hasActiveInstructorLicense', () => {
+  const today = new Date().toISOString().split('T')[0];
+  const future = '2999-01-01';
+  const past = '2000-01-01';
+
+  it('is false if member has no instructorId', () => {
+    expect(hasActiveInstructorLicense({ instructorId: null, instructorLicenseExpires: future })).toBe(false);
+    expect(hasActiveInstructorLicense({ instructorId: 0, instructorLicenseExpires: future })).toBe(false);
+    expect(hasActiveInstructorLicense({ instructorId: undefined, instructorLicenseExpires: future })).toBe(false);
+  });
+
+  it('is true for Life license type regardless of expiry', () => {
+    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseType: InstructorLicenseType.Life })).toBe(true);
+  });
+
+  it('is true for life sentinel string expiry', () => {
+    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseExpires: 'life' })).toBe(true);
+    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseExpires: '9999-12-31' })).toBe(true);
+  });
+
+  it('is true for future license expiry', () => {
+    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseExpires: future })).toBe(true);
+  });
+
+  it('is true for license expiring today', () => {
+    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseExpires: today })).toBe(true);
+  });
+
+  it('is false for expired license', () => {
+    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseExpires: past })).toBe(false);
+  });
+
+  it('is false for empty license expiry', () => {
+    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseExpires: '' })).toBe(false);
   });
 });
