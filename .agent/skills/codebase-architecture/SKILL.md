@@ -68,13 +68,16 @@ Firestore collections and their TypeScript types (organized modularly in [functi
 | `/schools/{docId}` | `School` | [`data-model/schools.ts`](../../functions/src/data-model/schools.ts) | School record; has sub-collections |
 | `/instructors/{docId}` | `InstructorPublicData` | [`data-model/members.ts`](../../functions/src/data-model/members.ts) | Public profile, mirrored from Member |
 | `/gradings/{docId}` | `Grading` | [`data-model/gradings.ts`](../../functions/src/data-model/gradings.ts) | One per grading purchase |
-| `/events/{docId}` | `IlcEvent`, `Product` | [`data-model/events.ts`](../../functions/src/data-model/events.ts) | Calendar-synced + member-proposed & products |
+| `/events/{docId}` | `IlcEvent` | [`data-model/events.ts`](../../functions/src/data-model/events.ts) | Calendar-synced + member-proposed |
+| `/products/{docId}` | `Product` | [`data-model/events.ts`](../../functions/src/data-model/events.ts) | Class, workshop & event pricing models/tiers |
 | `/videos/{docId}` | `VideoItem` | [`data-model/vod.ts`](../../functions/src/data-model/vod.ts) | Published & curated VOD catalog items |
 | `/orders/{docId}` | `SheetsImportOrder \| SquareSpaceOrder \| StripeOrder` | [`data-model/orders.ts`](../../functions/src/data-model/orders.ts) | Order history & subscriptions |
 | `/acl/{email}` | `ACL` | [`data-model/system.ts`](../../functions/src/data-model/system.ts) | Permissions per login email |
 | `/system/{doc}` | `Counters`, `CacheMetadata`, etc. | [`data-model/system.ts`](../../functions/src/data-model/system.ts), [`content-cache.ts`](../../functions/src/data-model/content-cache.ts) | Counters, country codes, cache metadata |
 
 ### Subcollections
+- `/events/{id}/registrations/{registrationId}` — `EventRegistration` (paid/in-person attendee records)
+- `/members/{id}/registrations/{registrationId}` — `EventRegistration` (attendee record mirror for member)
 - `/instructors/{id}/members/{memberDocId}` — cached student list
 - `/instructors/{id}/gradings/{gradingDocId}` — cached gradings for instructor
 - `/schools/{id}/members/{memberDocId}` — cached school members

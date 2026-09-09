@@ -18,6 +18,7 @@ export enum FirestoreCollection {
   VideoGrants = 'video_grants',
   Statistics = 'statistics',
   MembersPost = 'members-post',
+  ArticlesPost = 'articles-post',
   NewsPost = 'news-post',
 }
 
