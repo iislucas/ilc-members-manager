@@ -372,7 +372,7 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
       expect(updatedMemberData['classVideoLibraryExpirationDate']).not.toBe('2027-08-15');
 
       // Subscription map check
-      const subEntry = updatedMemberData['stripeSubscriptions.sub_video_month_999'] as any;
+      const subEntry = (updatedMemberData.stripeSubscriptions as any)?.['sub_video_month_999'];
       expect(subEntry).toBeDefined();
       expect(subEntry.interval).toBe(SubscriptionInterval.Month);
       expect(subEntry.currentPeriodStart).toBe('2026-08-15');
@@ -416,7 +416,7 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
       expect(updatedMemberData['classVideoLibraryLastRenewalDate']).toBe('2026-08-15');
       expect(updatedMemberData['classVideoLibraryExpirationDate']).toBe('2027-08-15');
 
-      const subEntry = updatedMemberData['stripeSubscriptions.sub_video_ann_888'] as any;
+      const subEntry = (updatedMemberData.stripeSubscriptions as any)?.['sub_video_ann_888'];
       expect(subEntry.interval).toBe(SubscriptionInterval.Year);
       expect(subEntry.currentPeriodEnd).toBe('2027-08-15');
     });
@@ -781,8 +781,12 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
         expect.objectContaining({
           membershipNextAutoRenewDate: '2027-08-15',
           currentMembershipExpires: '2027-08-15',
-          'stripeSubscriptions.sub_membership_active.status': 'active',
-          'stripeSubscriptions.sub_membership_active.currentPeriodEnd': '2027-08-15',
+          stripeSubscriptions: expect.objectContaining({
+            sub_membership_active: expect.objectContaining({
+              status: 'active',
+              currentPeriodEnd: '2027-08-15',
+            }),
+          }),
         }),
       );
     });
@@ -820,8 +824,12 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
       expect(mockMemberRef.update).toHaveBeenCalledWith(
         expect.objectContaining({
           membershipNextAutoRenewDate: '',
-          'stripeSubscriptions.sub_membership_cancel.cancelAtPeriodEnd': true,
-          'stripeSubscriptions.sub_membership_cancel.nextAutoRenewDate': '',
+          stripeSubscriptions: expect.objectContaining({
+            sub_membership_cancel: expect.objectContaining({
+              cancelAtPeriodEnd: true,
+              nextAutoRenewDate: '',
+            }),
+          }),
         }),
       );
       // Expiration must remain intact even when canceling auto-renew

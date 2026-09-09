@@ -127,6 +127,28 @@ export type IlcEvent = {
   updatedByEmail?: string; // Email of the user who last updated this event
 };
 
+export type SubmitProposedEventRequest = {
+  title: string;
+  start: string;
+  end: string;
+  description?: string;
+  location?: string;
+  status?: EventStatus;
+  leadingInstructorId?: string;
+  ownerDocId?: string;
+  managerDocIds?: string[];
+  contactDocIds?: string[];
+  ownerContactName?: string;
+  ownerContactEmail?: string;
+  ownerContactUrl?: string;
+  productId?: string;
+  onlineJoiningLink?: string;
+  purchaseDetailsMarkdown?: string;
+  inPersonDetailsMarkdown?: string;
+  recordedVideoId?: string;
+  recordedVideoUrl?: string;
+};
+
 export function initEvent(): IlcEvent {
   return {
     docId: '',

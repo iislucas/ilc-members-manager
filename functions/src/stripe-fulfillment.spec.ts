@@ -1460,10 +1460,12 @@ describe('stripe-fulfillment', () => {
             classVideoLibraryLastRenewalDate: '2026-08-15',
             classVideoLibraryExpirationDate: '2026-09-15',
             classVideoLibraryNextAutoRenewDate: '2026-09-15',
-            'stripeSubscriptions.sub_vid_month_123': expect.objectContaining({
-              interval: 'month',
-              currentPeriodStart: '2026-08-15',
-              currentPeriodEnd: '2026-09-15',
+            stripeSubscriptions: expect.objectContaining({
+              sub_vid_month_123: expect.objectContaining({
+                interval: 'month',
+                currentPeriodStart: '2026-08-15',
+                currentPeriodEnd: '2026-09-15',
+              }),
             }),
           }),
         );
@@ -1507,10 +1509,12 @@ describe('stripe-fulfillment', () => {
             classVideoLibraryLastRenewalDate: '2026-08-15',
             classVideoLibraryExpirationDate: '2027-08-15',
             classVideoLibraryNextAutoRenewDate: '2027-08-15',
-            'stripeSubscriptions.sub_vid_year_456': expect.objectContaining({
-              interval: 'year',
-              currentPeriodStart: '2026-08-15',
-              currentPeriodEnd: '2027-08-15',
+            stripeSubscriptions: expect.objectContaining({
+              sub_vid_year_456: expect.objectContaining({
+                interval: 'year',
+                currentPeriodStart: '2026-08-15',
+                currentPeriodEnd: '2027-08-15',
+              }),
             }),
           }),
         );
@@ -1550,8 +1554,12 @@ describe('stripe-fulfillment', () => {
           expect.objectContaining({
             membershipNextAutoRenewDate: '2027-08-15',
             currentMembershipExpires: '2027-08-15',
-            'stripeSubscriptions.sub_mem_789.status': 'active',
-            'stripeSubscriptions.sub_mem_789.currentPeriodEnd': '2027-08-15',
+            stripeSubscriptions: expect.objectContaining({
+              sub_mem_789: expect.objectContaining({
+                status: 'active',
+                currentPeriodEnd: '2027-08-15',
+              }),
+            }),
           }),
         );
       });

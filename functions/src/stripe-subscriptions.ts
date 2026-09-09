@@ -21,7 +21,7 @@ import {
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
 } from './stripe-types';
-import { Member } from './data-model/members';
+import { Member, MemberUpdates } from './data-model/members';
 
 export function getSubscriptionCurrentPeriodEnd(
   subscription: Stripe.Subscription,
@@ -123,24 +123,31 @@ export const cancelSubscriptionRenewal = onCall<
 
   // Update member doc
   const memberRef = db.collection('members').doc(member.docId);
-  const updates: Record<string, unknown> = {
+  const updates: MemberUpdates = {
     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
   };
 
   if (member.membershipSubscriptionId === subscriptionId) {
-    updates['membershipNextAutoRenewDate'] = '';
+    updates.membershipNextAutoRenewDate = '';
   }
   if (member.instructorLicenseSubscriptionId === subscriptionId) {
-    updates['instructorLicenseNextAutoRenewDate'] = '';
+    updates.instructorLicenseNextAutoRenewDate = '';
   }
   if (member.classVideoLibrarySubscriptionId === subscriptionId) {
-    updates['classVideoLibraryNextAutoRenewDate'] = '';
+    updates.classVideoLibraryNextAutoRenewDate = '';
   }
 
   if (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId]) {
-    updates[`stripeSubscriptions.${subscriptionId}.cancelAtPeriodEnd`] = true;
-    updates[`stripeSubscriptions.${subscriptionId}.nextAutoRenewDate`] = '';
-    updates[`stripeSubscriptions.${subscriptionId}.canceledAt`] = today;
+    const existingSub = member.stripeSubscriptions[subscriptionId];
+    updates.stripeSubscriptions = {
+      ...member.stripeSubscriptions,
+      [subscriptionId]: {
+        ...existingSub,
+        cancelAtPeriodEnd: true,
+        nextAutoRenewDate: '',
+        canceledAt: today,
+      },
+    };
   }
 
   await memberRef.update(updates);
@@ -192,25 +199,31 @@ export const resumeSubscriptionRenewal = onCall<
 
   // Update member doc
   const memberRef = db.collection('members').doc(member.docId);
-  const updates: Record<string, unknown> = {
+  const updates: MemberUpdates = {
     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
   };
 
   if (member.membershipSubscriptionId === subscriptionId) {
-    updates['membershipNextAutoRenewDate'] = nextAutoRenewDate;
+    updates.membershipNextAutoRenewDate = nextAutoRenewDate;
   }
   if (member.instructorLicenseSubscriptionId === subscriptionId) {
-    updates['instructorLicenseNextAutoRenewDate'] = nextAutoRenewDate;
+    updates.instructorLicenseNextAutoRenewDate = nextAutoRenewDate;
   }
   if (member.classVideoLibrarySubscriptionId === subscriptionId) {
-    updates['classVideoLibraryNextAutoRenewDate'] = nextAutoRenewDate;
+    updates.classVideoLibraryNextAutoRenewDate = nextAutoRenewDate;
   }
 
   if (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId]) {
-    updates[`stripeSubscriptions.${subscriptionId}.cancelAtPeriodEnd`] = false;
-    updates[`stripeSubscriptions.${subscriptionId}.nextAutoRenewDate`] =
-      nextAutoRenewDate;
-    updates[`stripeSubscriptions.${subscriptionId}.canceledAt`] = '';
+    const existingSub = member.stripeSubscriptions[subscriptionId];
+    updates.stripeSubscriptions = {
+      ...member.stripeSubscriptions,
+      [subscriptionId]: {
+        ...existingSub,
+        cancelAtPeriodEnd: false,
+        nextAutoRenewDate,
+        canceledAt: '',
+      },
+    };
   }
 
   await memberRef.update(updates);

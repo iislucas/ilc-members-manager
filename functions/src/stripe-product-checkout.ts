@@ -38,8 +38,11 @@ import {
   PricingTierType,
   RegistrationPaymentMethod,
   EventRegistrationStatus,
+  IlcEvent,
 } from './data-model/events';
+import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 import { Member } from './data-model/members';
+import { ACL } from './data-model/system';
 import { NotificationKind } from './data-model/notifications';
 import { createMemberNotification } from './notifications';
 
@@ -797,10 +800,11 @@ export const updateProductRegistration = onCall<
 
   if (existingReg.memberDocId) {
     try {
-      const eventTitle = (eventSnap.data()?.['title'] as string) || product.title || 'Event';
-      const purchaseDetailsMarkdown = product.purchaseDetailsMarkdown || (eventSnap.data()?.['purchaseDetailsMarkdown'] as string) || '';
-      const inPersonDetailsMarkdown = product.inPersonDetailsMarkdown || (eventSnap.data()?.['inPersonDetailsMarkdown'] as string) || '';
-      const onlineJoiningLink = product.onlineJoiningLink || (eventSnap.data()?.['onlineJoiningLink'] as string) || '';
+      const event = eventSnap.data() as IlcEvent | undefined;
+      const eventTitle = event?.title || product.title || 'Event';
+      const purchaseDetailsMarkdown = product.purchaseDetailsMarkdown || event?.purchaseDetailsMarkdown || '';
+      const inPersonDetailsMarkdown = product.inPersonDetailsMarkdown || event?.inPersonDetailsMarkdown || '';
+      const onlineJoiningLink = product.onlineJoiningLink || event?.onlineJoiningLink || '';
 
       let message = `Your registration for **[${eventTitle}](/events/${product.eventDocId})** has been updated!`;
       if (
@@ -1077,10 +1081,11 @@ export const registerEventInPerson = onCall<
   // Send member notification
   if (memberDocId) {
     try {
-      const eventTitle = (eventSnap.data()?.['title'] as string) || product.title;
+      const event = eventSnap.data() as IlcEvent | undefined;
+      const eventTitle = event?.title || product.title;
       const formattedAmount = (inPersonPriceCents / 100).toFixed(2);
       const curr = (product.currency || 'usd').toUpperCase();
-      const inPersonDetails = (product.inPersonDetailsMarkdown as string) || (eventSnap.data()?.['inPersonDetailsMarkdown'] as string) || '';
+      const inPersonDetails = (product.inPersonDetailsMarkdown as string) || event?.inPersonDetailsMarkdown || '';
       let message = `You are registered to pay in person for **[${eventTitle}](/events/${product.eventDocId})**! Total due upon arrival: **${curr} ${formattedAmount}**.`;
       if (inPersonDetails) {
         message += `\n\n### In-Person Arrival Details\n${inPersonDetails}`;
@@ -1119,11 +1124,11 @@ export const markEventRegistrationPaid = onCall<
   const db = admin.firestore();
 
   // Verify permission: admin or event owner/manager
-  const eventSnap = await db.collection('events').doc(eventId).get();
+  const eventSnap = await db.collection(FirestoreCollection.Events).doc(eventId).get();
   if (!eventSnap.exists) {
     throw new HttpsError('not-found', 'Event not found.');
   }
-  const eventData = eventSnap.data() || {};
+  const event = eventSnap.data() as IlcEvent;
   const callerEmail = (request.auth?.token?.email || '').toLowerCase().trim();
   const isAdmin = request.auth?.token?.admin === true;
 
@@ -1136,10 +1141,10 @@ export const markEventRegistrationPaid = onCall<
     } catch {
       // Not a member
     }
-    const ownerDocId = eventData['ownerDocId'];
-    const managerDocIds: string[] = eventData['managerDocIds'] || [];
-    const ownerEmails: string[] = (eventData['ownerEmails'] || []).map((e: string) => e.toLowerCase().trim());
-    const managerEmails: string[] = (eventData['managerEmails'] || []).map((e: string) => e.toLowerCase().trim());
+    const ownerDocId = event.ownerDocId;
+    const managerDocIds: string[] = event.managerDocIds || [];
+    const ownerEmails: string[] = (event.ownerEmails || []).map((e: string) => e.toLowerCase().trim());
+    const managerEmails: string[] = (event.managerEmails || []).map((e: string) => e.toLowerCase().trim());
 
     if (callerMemberDocId && (callerMemberDocId === ownerDocId || managerDocIds.includes(callerMemberDocId))) {
       isManager = true;
@@ -1152,7 +1157,7 @@ export const markEventRegistrationPaid = onCall<
     throw new HttpsError('permission-denied', 'You are not authorized to mark registrations as paid for this event.');
   }
 
-  const regRef = db.collection('events').doc(eventId).collection('registrations').doc(registrationId);
+  const regRef = db.collection(FirestoreCollection.Events).doc(eventId).collection(FirestoreSubcollection.Registrations).doc(registrationId);
   const regSnap = await regRef.get();
   if (!regSnap.exists) {
     throw new HttpsError('not-found', 'Registration not found.');
@@ -1173,7 +1178,7 @@ export const markEventRegistrationPaid = onCall<
   batch.update(regRef, updates);
 
   if (reg.memberDocId) {
-    const memberRegRef = db.collection('members').doc(reg.memberDocId).collection('registrations').doc(registrationId);
+    const memberRegRef = db.collection(FirestoreCollection.Members).doc(reg.memberDocId).collection(FirestoreSubcollection.Registrations).doc(registrationId);
     batch.update(memberRegRef, updates);
   }
 
@@ -1198,18 +1203,19 @@ export const unmarkEventRegistrationPaid = onCall<
   const callerEmail = (request.auth.token.email || '').toLowerCase().trim();
 
   // Verify caller permissions (admin, owner, or manager)
-  const aclSnap = await db.collection('acl').doc(callerEmail).get();
-  const isAdmin = aclSnap.exists && aclSnap.data()?.['isAdmin'] === true;
-  const callerMemberDocId = aclSnap.exists ? (aclSnap.data()?.['memberDocIds']?.[0] as string | undefined) : undefined;
+  const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
+  const acl = aclSnap.data() as ACL | undefined;
+  const isAdmin = acl?.isAdmin === true;
+  const callerMemberDocId = acl?.memberDocIds?.[0];
 
   let isManager = false;
-  const eventSnap = await db.collection('events').doc(eventId).get();
+  const eventSnap = await db.collection(FirestoreCollection.Events).doc(eventId).get();
   if (eventSnap.exists) {
-    const eventData = eventSnap.data() || {};
-    const ownerDocId = eventData['ownerDocId'] || '';
-    const managerDocIds: string[] = eventData['managerDocIds'] || [];
-    const ownerEmails: string[] = (eventData['ownerEmails'] || []).map((e: string) => e.toLowerCase().trim());
-    const managerEmails: string[] = (eventData['managerEmails'] || []).map((e: string) => e.toLowerCase().trim());
+    const event = eventSnap.data() as IlcEvent;
+    const ownerDocId = event.ownerDocId || '';
+    const managerDocIds: string[] = event.managerDocIds || [];
+    const ownerEmails: string[] = (event.ownerEmails || []).map((e: string) => e.toLowerCase().trim());
+    const managerEmails: string[] = (event.managerEmails || []).map((e: string) => e.toLowerCase().trim());
 
     if (callerMemberDocId && (callerMemberDocId === ownerDocId || managerDocIds.includes(callerMemberDocId))) {
       isManager = true;
@@ -1222,7 +1228,7 @@ export const unmarkEventRegistrationPaid = onCall<
     throw new HttpsError('permission-denied', 'You are not authorized to manage registrations for this event.');
   }
 
-  const regRef = db.collection('events').doc(eventId).collection('registrations').doc(registrationId);
+  const regRef = db.collection(FirestoreCollection.Events).doc(eventId).collection(FirestoreSubcollection.Registrations).doc(registrationId);
   const regSnap = await regRef.get();
   if (!regSnap.exists) {
     throw new HttpsError('not-found', 'Registration not found.');
@@ -1237,7 +1243,9 @@ export const unmarkEventRegistrationPaid = onCall<
 
   const amountDueToRestore = reg.amountPaidCents || reg.amountDueCents || 0;
 
-  const updates: Record<string, unknown> = {
+  const updates: Omit<Partial<EventRegistration>, 'paidAt'> & {
+    paidAt?: admin.firestore.FieldValue | string;
+  } = {
     status: EventRegistrationStatus.PendingInPerson,
     amountDueCents: amountDueToRestore,
     amountPaidCents: 0,
@@ -1249,7 +1257,7 @@ export const unmarkEventRegistrationPaid = onCall<
   batch.update(regRef, updates);
 
   if (reg.memberDocId) {
-    const memberRegRef = db.collection('members').doc(reg.memberDocId).collection('registrations').doc(registrationId);
+    const memberRegRef = db.collection(FirestoreCollection.Members).doc(reg.memberDocId).collection(FirestoreSubcollection.Registrations).doc(registrationId);
     batch.update(memberRegRef, updates);
   }
 

@@ -8,7 +8,13 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { AttendanceType, EventRegistrationStatus } from './data-model/events';
+import {
+  AttendanceType,
+  EventRegistrationStatus,
+  EventRegistration,
+  IlcEvent,
+} from './data-model/events';
+import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 
 export const onEventRegistrationWritten = onDocumentWritten(
   '/events/{eventId}/registrations/{registrationId}',
@@ -19,38 +25,36 @@ export const onEventRegistrationWritten = onDocumentWritten(
     const db = admin.firestore();
     try {
       const regsSnap = await db
-        .collection('events')
+        .collection(FirestoreCollection.Events)
         .doc(eventId)
-        .collection('registrations')
+        .collection(FirestoreSubcollection.Registrations)
         .get();
 
       let inPersonCount = 0;
       regsSnap.forEach((doc) => {
-        const data = doc.data();
-        const status = data['status'];
-        const attendance = data['attendance'];
+        const reg = doc.data() as EventRegistration;
 
         if (
-          status === EventRegistrationStatus.Cancelled ||
-          status === EventRegistrationStatus.Refunded
+          reg.status === EventRegistrationStatus.Cancelled ||
+          reg.status === EventRegistrationStatus.Refunded
         ) {
           return;
         }
 
         if (
-          attendance === AttendanceType.InPerson ||
-          attendance === AttendanceType.InPersonAndOnline
+          reg.attendance === AttendanceType.InPerson ||
+          reg.attendance === AttendanceType.InPersonAndOnline
         ) {
           inPersonCount++;
         }
       });
 
-      const eventRef = db.collection('events').doc(eventId);
+      const eventRef = db.collection(FirestoreCollection.Events).doc(eventId);
       const eventDoc = await eventRef.get();
       if (!eventDoc.exists) return;
 
-      const eventData = eventDoc.data() || {};
-      const productId = eventData['productId'] as string | undefined;
+      const eventData = eventDoc.data() as IlcEvent | undefined;
+      const productId = eventData?.productId;
 
       const batch = db.batch();
       batch.update(eventRef, {
@@ -59,7 +63,7 @@ export const onEventRegistrationWritten = onDocumentWritten(
       });
 
       if (productId) {
-        const prodRef = db.collection('products').doc(productId);
+        const prodRef = db.collection(FirestoreCollection.Products).doc(productId);
         const prodDoc = await prodRef.get();
         if (prodDoc.exists) {
           batch.update(prodRef, {

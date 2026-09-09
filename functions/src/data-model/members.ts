@@ -130,6 +130,8 @@ export interface MemberSubscriptionItem {
   stripeProductId?: string;
 }
 
+export type StripeSubscriptions = Record<string, MemberSubscriptionItem>;
+
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
   // Note this is needed by SearchableSet.
@@ -221,7 +223,7 @@ export type Member = {
   stripeCustomerId: string; // Stripe cus_... ID or empty
 
   // Structured active subscriptions map
-  stripeSubscriptions?: Record<string, MemberSubscriptionItem>;
+  stripeSubscriptions?: StripeSubscriptions;
 
   // Notes only for ILC HQ.
   notes: string;
@@ -234,6 +236,10 @@ export type Member = {
 
 export type MemberFsDoc = Omit<Member, 'lastUpdated' | 'docId'> & {
   lastUpdated: FsTimestamp;
+};
+
+export type MemberUpdates = Omit<Partial<Member>, 'lastUpdated' | 'docId'> & {
+  lastUpdated?: FsTimestamp;
 };
 
 export function initMember(): Member {
@@ -299,16 +305,16 @@ export function initMember(): Member {
 }
 
 export function firestoreDocToMember(doc: GenericFsDoc): Member {
-  const docData = doc.data() as MemberFsDoc & {
-    managingOrgId?: string;
-    sifuInstructorId?: string;
-  };
+  const docData = (doc.data() || {}) as Partial<MemberFsDoc>;
   const lastUpdated = normalizeLastUpdated(docData.lastUpdated);
 
-  const primarySchoolId = docData.primarySchoolId || docData.managingOrgId || '';
-  const primaryInstructorId = docData.primaryInstructorId || docData.sifuInstructorId || '';
-
-  return { ...initMember(), ...docData, primarySchoolId, primaryInstructorId, lastUpdated, docId: doc.id };
+  return {
+    ...initMember(),
+    ...docData,
+    emails: Array.isArray(docData.emails) ? docData.emails : [],
+    lastUpdated,
+    docId: doc.id,
+  };
 }
 
 // Public information about instructors; mirrored from the member data into
