@@ -1743,6 +1743,57 @@ describe('Firestore Rules', () => {
       await assertFails(otherRef.get());
       await assertFails(otherRef.set({ lastPositionSeconds: 0 }));
     });
+
+    it('should allow member to read and write own videoTimeRanges and deny others', async () => {
+      const ownerDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      const otherDb = testEnv
+        .authenticatedContext('student2', { email: 'student2@ilc.com' })
+        .firestore();
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+
+      const timeRangesRef = ownerDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('videoTimeRanges')
+        .doc('video-pub');
+
+      await assertSucceeds(
+        timeRangesRef.set({
+          videoId: 'video-pub',
+          memberDocId: 'FirestoreDocID-student1',
+          ranges: [
+            {
+              id: 'tr-1',
+              name: 'Drill 1',
+              startSeconds: 10,
+              endSeconds: 30,
+            },
+          ],
+          lastUpdated: '2026-09-10T00:00:00.000Z',
+        }),
+      );
+      await assertSucceeds(timeRangesRef.get());
+
+      const otherRef = otherDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('videoTimeRanges')
+        .doc('video-pub');
+
+      await assertFails(otherRef.get());
+      await assertFails(otherRef.set({ ranges: [] }));
+
+      const unauthRef = unauthDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('videoTimeRanges')
+        .doc('video-pub');
+
+      await assertFails(unauthRef.get());
+      await assertFails(unauthRef.set({ ranges: [] }));
+    });
   });
 
   describe('Products and Event Registrations Rules', () => {

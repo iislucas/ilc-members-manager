@@ -48,6 +48,7 @@ export const BACKUP_SUBCOLLECTION_GROUPS: string[] = [
   FirestoreSubcollection.VideoGrants,
   FirestoreSubcollection.PushSubscriptions,
   FirestoreSubcollection.Registrations,
+  FirestoreSubcollection.VideoTimeRanges,
 ];
 
 // Collections where cached and authored documents coexist. The blog-post

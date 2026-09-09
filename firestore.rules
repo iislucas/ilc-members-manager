@@ -148,6 +148,16 @@ service cloud.firestore {
         allow read, write: if isProgressOwner() || isAdmin();
       }
 
+      // Member video time ranges / annotations
+      match /videoTimeRanges/{videoId} {
+        function isTimeRangeOwner() {
+          return request.auth != null &&
+                 ((request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
+                  (memberDocId in getUserMemberDocIds()));
+        }
+        allow read, write: if isTimeRangeOwner() || isAdmin();
+      }
+
       // Member event registrations
       match /registrations/{registrationId} {
         function isRegistrationOwner() {

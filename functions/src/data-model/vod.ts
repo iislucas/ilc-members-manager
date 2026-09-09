@@ -554,3 +554,60 @@ export function initSystemVideoTagsDoc(): SystemVideoTagsDoc {
 }
 
 export const initSystemTagsDoc = initSystemVideoTagsDoc;
+
+// ==================================================================
+// # Video Time-Ranges & Annotations
+// ==================================================================
+
+export type VideoTimeRange = {
+  id: string; // Unique identifier (e.g. timestamp or uuid)
+  name: string; // Short title / label for the time range
+  description?: string; // Optional longer notes / description
+  startSeconds: number; // Start timestamp in seconds
+  endSeconds: number; // End timestamp in seconds
+  createdAt?: string; // ISO timestamp
+  updatedAt?: string; // ISO timestamp
+};
+
+export type MemberVideoTimeRanges = {
+  docId: string; // Matches videoId
+  videoId: string; // Matches VideoItem docId
+  memberDocId: string; // Member docId who created these annotations
+  ranges: VideoTimeRange[]; // List of customer time ranges
+  lastUpdated: string; // ISO timestamp
+};
+
+export type MemberVideoTimeRangesFsDoc = Omit<MemberVideoTimeRanges, 'docId'>;
+
+export function initMemberVideoTimeRanges(videoId = '', memberDocId = ''): MemberVideoTimeRanges {
+  return {
+    docId: videoId,
+    videoId,
+    memberDocId,
+    ranges: [],
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+export function firestoreDocToMemberVideoTimeRanges(doc: GenericFsDoc): MemberVideoTimeRanges {
+  const data = (doc.data() || {}) as Partial<MemberVideoTimeRangesFsDoc>;
+  const rawRanges = Array.isArray(data.ranges) ? data.ranges : [];
+  const normalizedRanges: VideoTimeRange[] = rawRanges.map((r, idx) => ({
+    id: r.id || `tr_${idx}_${Date.now()}`,
+    name: r.name || '',
+    description: r.description || '',
+    startSeconds: typeof r.startSeconds === 'number' ? r.startSeconds : 0,
+    endSeconds: typeof r.endSeconds === 'number' ? r.endSeconds : 0,
+    createdAt: r.createdAt || new Date().toISOString(),
+    updatedAt: r.updatedAt || new Date().toISOString(),
+  }));
+
+  return {
+    ...initMemberVideoTimeRanges(doc.id, data.memberDocId || ''),
+    ...data,
+    docId: doc.id,
+    ranges: normalizedRanges,
+    lastUpdated: normalizeLastUpdated(data.lastUpdated),
+  };
+}
+

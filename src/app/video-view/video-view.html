@@ -78,10 +78,12 @@
           [manifestUrl]="activeManifestUrl()"
           [posterUrl]="activePosterUrl()"
           [initialPositionSeconds]="isPlayingTrailer() ? 0 : initialPositionSeconds()"
+          [activeLoopRange]="activeLoopRange()"
           [autoplay]="false"
           (timeUpdated)="isPlayingTrailer() ? null : onTimeUpdated($event)"
           (videoCompleted)="isPlayingTrailer() ? null : onVideoCompleted()"
           (statsUpdated)="streamingStats.set($event)"
+          (loopRangeCleared)="onStopLoop()"
         ></app-video-player>
 
         <!-- Unauthorized Purchase Callout underneath Trailer Player -->
@@ -565,6 +567,15 @@
             </div>
           </div>
         }
+
+        <!-- Personal Time Ranges & Loops Component -->
+        <app-video-time-ranges
+          [video]="v"
+          [currentPlayerTime]="currentPlayerTime()"
+          [activeLoopRange]="activeLoopRange()"
+          (playRange)="onPlayTimeRange($event)"
+          (stopLoop)="onStopLoop()"
+        ></app-video-time-ranges>
       </div>
 
       <!-- Sidebar Column: Series Playlist + Related Recordings -->

@@ -317,4 +317,30 @@ describe('VideoPlayerComponent', () => {
     component.manifestUrl = 'https://example.com/vod/new.m3u8';
     expect(reloadSpy).toHaveBeenCalled();
   });
+
+  it('should compute loopRangeStyle and handle clearLoopRange', () => {
+    component.duration.set(100);
+    expect(component.loopRangeStyle()).toBeNull();
+
+    component.activeLoopRange = {
+      name: 'Loop Section',
+      startSeconds: 20,
+      endSeconds: 50,
+    };
+
+    expect(component.loopRangeStyle()).toEqual({
+      left: '20%',
+      width: '30%',
+    });
+
+    let cleared = false;
+    component.loopRangeCleared.subscribe(() => {
+      cleared = true;
+    });
+
+    component.clearLoopRange();
+    expect(component.activeLoopRange).toBeNull();
+    expect(component.loopRangeStyle()).toBeNull();
+    expect(cleared).toBe(true);
+  });
 });
