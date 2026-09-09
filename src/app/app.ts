@@ -24,6 +24,7 @@ import { HomeComponent } from './home/home';
 import { ClassCalendarComponent } from './class-calendar/class-calendar';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
 import { SquarespaceArticleComponent } from './squarespace/squarespace-article.component';
+import { SquarespaceArticleEditComponent } from './squarespace/squarespace-article-edit.component';
 import { GradingListComponent } from './grading-list/grading-list';
 import { GradingViewComponent } from './grading-view/grading-view';
 import { SettingsComponent } from './settings/settings.component';
@@ -95,6 +96,7 @@ import { UpdateNotificationComponent } from './update-notification/update-notifi
     ClassCalendarComponent,
     SquarespaceContentComponent,
     SquarespaceArticleComponent,
+    SquarespaceArticleEditComponent,
     GradingListComponent,
     GradingViewComponent,
     SettingsComponent,

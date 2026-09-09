@@ -1,0 +1,315 @@
+import {
+  Component,
+  effect,
+  inject,
+  input,
+  signal,
+  computed,
+  ChangeDetectionStrategy,
+} from '@angular/core';
+import {
+  getFirestore,
+  doc,
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc,
+  updateDoc,
+} from 'firebase/firestore';
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from 'firebase/storage';
+import { FIREBASE_APP, Views, AppPathPatterns } from '../app.config';
+import { FirebaseStateService } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
+import { SpinnerComponent } from '../spinner/spinner.component';
+import { IconComponent } from '../icons/icon.component';
+import { MarkdownEditor } from '../markdown-editor/markdown-editor';
+import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
+import { htmlToMarkdown } from './html-to-markdown';
+import {
+  CachedBlogPost,
+  initCachedBlogPost,
+  BlogPostStatus,
+  BlogPostSourceKind,
+} from '../../../functions/src/data-model/content-cache';
+import { isDraftPost } from './squarespace-content.component';
+import { marked } from 'marked';
+
+@Component({
+  selector: 'app-squarespace-article-edit',
+  standalone: true,
+  imports: [SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, IconComponent],
+  templateUrl: './squarespace-article-edit.component.html',
+  styleUrl: './squarespace-article-edit.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class SquarespaceArticleEditComponent {
+  public firebaseService = inject(FirebaseStateService);
+  public routingService = inject(RoutingService<AppPathPatterns>);
+  private firebaseApp = inject(FIREBASE_APP);
+  private db = getFirestore(this.firebaseApp);
+
+  // The Firestore collection name, e.g. 'articles-post', 'members-post', or 'instructors-post'.
+  collection = input.required<string>();
+  blogPostPath = input.required<string>();
+
+  post = signal<CachedBlogPost | null>(null);
+  docId = signal<string>('');
+  title = signal<string>('');
+  urlId = signal<string>('');
+  publishDateStr = signal<string>('');
+  isDraft = signal<boolean>(false);
+  categoriesStr = signal<string>('');
+  tagsStr = signal<string>('');
+  author = signal<string>('');
+  assetUrl = signal<string>('');
+  excerpt = signal<string>('');
+  bodyMarkdown = signal<string>('');
+
+  isEditingCrop = signal<boolean>(false);
+  isUploadingImage = signal<boolean>(false);
+  imageUploadError = signal<string | null>(null);
+  showManualUrl = signal<boolean>(false);
+
+  loading = signal<boolean>(true);
+  isSaving = signal<boolean>(false);
+  error = signal<string | null>(null);
+
+  viewHref = computed(() => {
+    const coll = this.collection();
+    const slug = this.urlId() || this.blogPostPath();
+    if (!slug) return '';
+    if (coll === 'members-post') {
+      return this.routingService.hrefForView(Views.MembersAreaPost, { blogPostPath: slug });
+    } else if (coll === 'instructors-post') {
+      return this.routingService.hrefForView(Views.InstructorsAreaPost, { blogPostPath: slug });
+    }
+    return this.routingService.hrefForView(Views.ArticlesPost, { blogPostPath: slug });
+  });
+
+  areaLabel = computed(() => {
+    const coll = this.collection();
+    if (coll === 'members-post') return 'Members Area';
+    if (coll === 'instructors-post') return 'Instructors Area';
+    return 'Articles & Guides';
+  });
+
+  constructor() {
+    effect(() => {
+      const coll = this.collection();
+      const slug = this.blogPostPath();
+      if (coll && slug) {
+        this.loadPost(coll, slug);
+      } else {
+        this.error.set('Configuration error: No article specified.');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  async loadPost(coll: string, slug: string) {
+    if (!this.firebaseService.isAdmin()) {
+      this.error.set('You do not have permission to edit articles.');
+      this.loading.set(false);
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set(null);
+
+    try {
+      const postsRef = collection(this.db, coll);
+      const q = query(postsRef, where('urlId', '==', slug));
+      const snap = await getDocs(q);
+      let docSnap = snap.docs[0];
+
+      if (!docSnap) {
+        const direct = await getDoc(doc(this.db, coll, slug));
+        if (direct.exists()) {
+          docSnap = direct;
+        }
+      }
+
+      if (!docSnap) {
+        this.error.set('Article not found.');
+        this.loading.set(false);
+        return;
+      }
+
+      const data: CachedBlogPost = {
+        ...initCachedBlogPost(),
+        ...(docSnap.data() as CachedBlogPost),
+      };
+
+      this.docId.set(docSnap.id);
+      this.post.set(data);
+      this.title.set(data.title || '');
+      this.urlId.set(data.urlId || '');
+
+      const ts = data.publishOn || data.addedOn || Date.now();
+      const dateObj = new Date(ts);
+      const yyyy = dateObj.getFullYear();
+      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const dd = String(dateObj.getDate()).padStart(2, '0');
+      this.publishDateStr.set(`${yyyy}-${mm}-${dd}`);
+
+      this.isDraft.set(isDraftPost(data));
+      this.categoriesStr.set((data.categories || []).join(', '));
+      this.tagsStr.set((data.tags || []).join(', '));
+      this.author.set(data.author || '');
+      this.assetUrl.set(data.assetUrl || '');
+      this.excerpt.set(data.excerpt || '');
+
+      if (data.bodyMarkdown && data.bodyMarkdown.trim()) {
+        this.bodyMarkdown.set(data.bodyMarkdown);
+      } else if (data.body) {
+        this.bodyMarkdown.set(htmlToMarkdown(data.body));
+      } else {
+        this.bodyMarkdown.set('');
+      }
+
+      this.loading.set(false);
+    } catch (err: unknown) {
+      console.error('Error loading article for edit:', err);
+      this.error.set((err as Error).message || 'Failed to load article.');
+      this.loading.set(false);
+    }
+  }
+
+  onMarkdownChange(val: string) {
+    this.bodyMarkdown.set(val);
+  }
+
+  generateSlugFromTitle() {
+    const t = this.title();
+    if (!t) return;
+    const slug = t
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    this.urlId.set(slug);
+  }
+
+  async onImageCropped(event: { thumbBlob: Blob; largeBlob: Blob; originalFile?: File }) {
+    const coll = this.collection();
+    const docId = this.docId();
+    if (!docId) {
+      this.imageUploadError.set('Cannot upload image: document ID is missing.');
+      return;
+    }
+
+    this.isUploadingImage.set(true);
+    this.imageUploadError.set(null);
+
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const filename = `hero_${Date.now()}`;
+      const imageStorageRef = storageRef(storage, `${coll}/${docId}/images/${filename}`);
+      await uploadBytes(imageStorageRef, event.largeBlob);
+      const downloadUrl = await getDownloadURL(imageStorageRef);
+
+      this.assetUrl.set(downloadUrl);
+      this.isEditingCrop.set(false);
+    } catch (err: unknown) {
+      console.error('Error uploading image:', err);
+      this.imageUploadError.set((err as Error).message || 'Failed to upload image.');
+    } finally {
+      this.isUploadingImage.set(false);
+    }
+  }
+
+  cancelCrop() {
+    this.isEditingCrop.set(false);
+  }
+
+  removeImage() {
+    this.assetUrl.set('');
+    this.isEditingCrop.set(false);
+  }
+
+  cancel() {
+    const href = this.viewHref();
+    if (href) {
+      this.routingService.navigateTo(href);
+    }
+  }
+
+  async save() {
+    const trimmedTitle = this.title().trim();
+    const trimmedSlug = this.urlId().trim();
+
+    if (!trimmedTitle) {
+      this.error.set('Article title is required.');
+      return;
+    }
+    if (!trimmedSlug) {
+      this.error.set('Article URL slug is required.');
+      return;
+    }
+
+    this.isSaving.set(true);
+    this.error.set(null);
+
+    try {
+      const rawMarkdown = this.bodyMarkdown();
+      const compiledHtml = (await marked.parse(rawMarkdown)) as string;
+      const cats = this.categoriesStr()
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const tags = this.tagsStr()
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const isDraftVal = this.isDraft();
+
+      let publishTimestamp = this.post()?.publishOn || Date.now();
+      if (this.publishDateStr()) {
+        const parsed = new Date(this.publishDateStr() + 'T12:00:00Z').getTime();
+        if (!isNaN(parsed)) {
+          publishTimestamp = parsed;
+        }
+      }
+
+      await updateDoc(doc(this.db, this.collection(), this.docId()), {
+        title: trimmedTitle,
+        urlId: trimmedSlug,
+        bodyMarkdown: rawMarkdown,
+        body: compiledHtml,
+        excerpt: this.excerpt().trim(),
+        assetUrl: this.assetUrl().trim(),
+        author: this.author().trim(),
+        categories: cats,
+        tags: tags,
+        isDraft: isDraftVal,
+        status: isDraftVal ? BlogPostStatus.Draft : BlogPostStatus.Published,
+        kind: BlogPostSourceKind.FirebaseSourced,
+        publishOn: publishTimestamp,
+        lastUpdated: new Date().toISOString(),
+      });
+
+      this.isSaving.set(false);
+
+      // Navigate to the article view
+      const coll = this.collection();
+      let targetPath = `/articles/post/${trimmedSlug}`;
+      if (coll === 'members-post') {
+        targetPath = `/members-area/post/${trimmedSlug}`;
+      } else if (coll === 'instructors-post') {
+        targetPath = `/instructors-area/post/${trimmedSlug}`;
+      }
+      this.routingService.navigateTo(targetPath);
+    } catch (err: unknown) {
+      console.error('Error saving article:', err);
+      this.error.set((err as Error).message || 'Failed to save article.');
+      this.isSaving.set(false);
+    }
+  }
+}

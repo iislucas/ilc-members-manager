@@ -242,6 +242,16 @@ export class SquarespaceContentComponent implements OnDestroy {
         }
     }
 
+    editHrefFor(entry: ProcessedBlogEntry): string {
+        const collectionName = this.path();
+        if (collectionName === 'members-post') {
+            return this.routingService.hrefForView(Views.MembersAreaPostEdit, { blogPostPath: entry.urlId });
+        } else if (collectionName === 'instructors-post') {
+            return this.routingService.hrefForView(Views.InstructorsAreaPostEdit, { blogPostPath: entry.urlId });
+        }
+        return this.routingService.hrefForView(Views.ArticlesPostEdit, { blogPostPath: entry.urlId });
+    }
+
     private isActiveMember(): boolean {
         const user = this.firebaseService.user();
         if (!user) return false;

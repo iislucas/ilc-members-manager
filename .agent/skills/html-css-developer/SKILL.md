@@ -18,7 +18,7 @@ The app is a **functional, data-dense management portal** — not a marketing si
 
 1. **Clarity over decoration**: Clean layouts, readable typography, moderate whitespace.
 2. **Yin/Yang Palette with Red Accent & Blue Highlights**: The brand uses crisp black/white cards and surfaces (`$theme-bg-color: #ffffff`, `$theme-border-color: #181818`, `$button-bg-color: #f4f4f5`), medium grey header (`$header-bg-color: #808080`) with 3px black bottom border (`$header-border-color: #000`), classic dark red brand accents (`$heading-accent-color: #950000`), medium grey footer (`$footer-bg-color: #808080`) with 3px top border, and light blue interactive highlights (`$row-highlight-bg: #f4f9ff`, `$row-highlight-border: #4da3ff`, `$theme-tag-*`). Positive call-to-action buttons (e.g. "Renew Now", "Manage Billing", checkout buttons) use brand red accent styling (`#950000`) with white text — **never solid black backgrounds**.
-3. **Subtle depth**: Light box-shadows (`$shadow-color`) and border-based separation rather than heavy gradients.
+3. **Flat, natural page layouts**: Views and edit forms sit directly on the clean page background within `.centered-container`. **Never** wrap an entire page or edit form in a `.card` class or apply blurry drop-shadows and beveled page borders (`box-shadow`, `border`, rounded card frames around whole-page containers). Faux window/card borders around full-page layouts look dated and clutter the UI. Box-shadows are reserved strictly for small, discrete interactive elements (like buttons or small standalone stat cards), never full-page views.
 4. **Responsive simplicity**: Grid/flexbox layouts that collapse gracefully at 600px. No complex responsive breakpoint system — just a single mobile breakpoint.
 5. **Reuse global styles**: Shared UI patterns (buttons, chips, cards, menus, inputs, errors) are defined once in `styles.scss`. Component SCSS should only handle layout and component-specific positioning.
 
@@ -643,30 +643,32 @@ The global `button` selector in `styles.scss` defines `box-shadow: 0 2px 4px $sh
 - Never invent a new button class in component SCSS.
 
 ### Avoid These
-
+ 
 - ❌ `height: 100%` / `width: 100%` — prefer flexbox `flex-grow: 1` and `align-items: stretch`
 - ❌ `@import` — always use `@use`
 - ❌ `::ng-deep` — avoid unless absolutely necessary (e.g., styling third-party editor content like ProseMirror)
 - ❌ Inline styles — use SCSS classes
 - ❌ `ngClass` / `ngStyle` — use native class/style bindings
 - ❌ Custom button classes in component SCSS — use global button classes (`.subtle-button`, `.inline-link-button`, etc.)
-
----
-
-## 11. Checklist for HTML/CSS Changes
-
-Before submitting any styling change:
-
-1. **Reuse first**: Does a global class in `styles.scss` already do what you need? (buttons, chips, cards, menus, inputs, errors, search boxes). If yes, use it — do not recreate it.
-2. **Variables**: Are you using SCSS variables from `scss_variables.scss` instead of hardcoding hex colors?
-3. **No local button/chip styles**: If your component SCSS contains `background-color`, `border-radius`, or `box-shadow` for a button or chip, you are almost certainly duplicating a global style.
-4. **`@use` imports**: If you're using `@extend` or SCSS variables, did you add the `@use` import?
-5. **Responsive**: Does the layout work at `max-width: 600px`? Did you add a `@media` query if needed?
-6. **Flexbox**: Are you using `flex-wrap: wrap` on row containers that might overflow on small screens?
-7. **Form sections**: If editing a form, are you using `edit-form.scss` and its `.form-section` grid pattern?
-8. **Icons**: Are you using `<app-icon name="...">` (not raw SVGs, not image tags)?
-9. **Transitions**: Did you add a `transition` for any interactive state changes (hover, focus, active)?
-10. **Class naming**: Are your class names descriptive and scoped to the component? (e.g., `.member-view-actions`, not `.actions`)
-11. **No height/width 100%**: Prefer flex-based sizing.
-12. **Positive action buttons**: Did you ensure positive/CTA buttons use lighter blue accent styling or primary blue, and NEVER solid black backgrounds?
-13. **No accidental button drop-shadows**: Did you ensure inline text buttons, fold/unfold toggles, or secondary actions use `.inline-link-button` or `.subtle-button` instead of a custom or unclassed `<button>` that inherits the global `box-shadow`?
+- ❌ **Bevel blur shadow page borders / Full-page cards**: Never enclose entire page views, article views, or forms in a `.card` wrapper or apply `box-shadow` and borders around full-page containers. Let forms sit directly in `.centered-container`.
+ 
+ ---
+ 
+ ## 11. Checklist for HTML/CSS Changes
+ 
+ Before submitting any styling change:
+ 
+ 1. **Reuse first**: Does a global class in `styles.scss` already do what you need? (buttons, chips, cards, menus, inputs, errors, search boxes). If yes, use it — do not recreate it.
+ 2. **Variables**: Are you using SCSS variables from `scss_variables.scss` instead of hardcoding hex colors?
+ 3. **No local button/chip styles**: If your component SCSS contains `background-color`, `border-radius`, or `box-shadow` for a button or chip, you are almost certainly duplicating a global style.
+ 4. **`@use` imports**: If you're using `@extend` or SCSS variables, did you add the `@use` import?
+ 5. **Responsive**: Does the layout work at `max-width: 600px`? Did you add a `@media` query if needed?
+ 6. **Flexbox**: Are you using `flex-wrap: wrap` on row containers that might overflow on small screens?
+ 7. **Form sections**: If editing a form, are you using `edit-form.scss` and its `.form-section` grid pattern?
+ 8. **Icons**: Are you using `<app-icon name="...">` (not raw SVGs, not image tags)?
+ 9. **Transitions**: Did you add a `transition` for any interactive state changes (hover, focus, active)?
+ 10. **Class naming**: Are your class names descriptive and scoped to the component? (e.g., `.member-view-actions`, not `.actions`)
+ 11. **No height/width 100%**: Prefer flex-based sizing.
+ 12. **Positive action buttons**: Did you ensure positive/CTA buttons use lighter blue accent styling or primary blue, and NEVER solid black backgrounds?
+ 13. **No accidental button drop-shadows**: Did you ensure inline text buttons, fold/unfold toggles, or secondary actions use `.inline-link-button` or `.subtle-button` instead of a custom or unclassed `<button>` that inherits the global `box-shadow`?
+ 14. **No bevel blur shadow page borders**: Verify that forms, articles, and full-page views sit directly on the page background without an artificial card border or blurred drop-shadow wrapping the page.

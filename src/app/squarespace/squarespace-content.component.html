@@ -74,6 +74,12 @@
                             Read more
                             <app-icon name="arrow_forward"></app-icon>
                         </button>
+                        @if (firebaseService.isAdmin()) {
+                        <a class="subtle-button edit-card-btn" [href]="editHrefFor(entry)">
+                            <app-icon name="edit"></app-icon>
+                            Edit
+                        </a>
+                        }
                     </div>
                 </div>
             </article>

@@ -1,0 +1,270 @@
+<div class="article-edit-container centered-container">
+  @if (loading()) {
+    <div class="loading-state">
+      <app-spinner>Loading article for editing...</app-spinner>
+    </div>
+  } @else if (error()) {
+    <div class="error-state">
+      <div class="error-icon">⚠️</div>
+      <h3>Unable to Load Article</h3>
+      <p>{{ error() }}</p>
+      <div class="error-actions">
+        <button type="button" class="subtle-button" (click)="loadPost(collection(), blogPostPath())">
+          Try Again
+        </button>
+        @if (viewHref(); as href) {
+          <a class="subtle-button" [href]="href">Back to Article</a>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="edit-form">
+      <div class="article-edit-header">
+        <div class="header-left">
+          <span class="area-badge">{{ areaLabel() }}</span>
+          <h2 class="article-title-heading">{{ title() || 'Untitled Article' }}</h2>
+        </div>
+        <div class="header-actions">
+          @if (isSaving()) {
+            <app-spinner>Saving article...</app-spinner>
+          } @else {
+            <button type="button" class="primary-button" (click)="save()">Save Changes</button>
+            @if (viewHref(); as href) {
+              <a class="subtle-button" [href]="href">Cancel</a>
+            }
+          }
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Article Metadata</h3>
+
+        <label for="post-title">Title *</label>
+        <div class="rhs">
+          <input
+            type="text"
+            id="post-title"
+            class="long"
+            [value]="title()"
+            (input)="title.set($any($event.target).value)"
+            placeholder="Article title"
+          />
+        </div>
+
+        <label for="post-url-id">URL Slug *</label>
+        <div class="rhs">
+          <div class="slug-input-group">
+            <input
+              type="text"
+              id="post-url-id"
+              class="long"
+              [value]="urlId()"
+              (input)="urlId.set($any($event.target).value)"
+              placeholder="e.g. my-article-title"
+            />
+            <button
+              type="button"
+              class="subtle-button auto-slug-btn"
+              (click)="generateSlugFromTitle()"
+              title="Generate slug from title"
+            >
+              <app-icon name="refresh" />
+              Auto-generate
+            </button>
+          </div>
+          <p class="note">The URL slug determines the path to this article: e.g. <code>/articles/post/{{ urlId() || 'slug' }}</code></p>
+        </div>
+
+        <label for="post-publish-date">Publish Date</label>
+        <div class="rhs">
+          <input
+            type="date"
+            id="post-publish-date"
+            [value]="publishDateStr()"
+            (input)="publishDateStr.set($any($event.target).value)"
+          />
+          <p class="note">Articles are sorted by this date (newest first) in article lists.</p>
+        </div>
+
+        <label for="post-draft">Publication Status</label>
+        <div class="rhs draft-toggle-wrapper">
+          <label class="checkbox-label" for="post-draft">
+            <input
+              type="checkbox"
+              id="post-draft"
+              [checked]="isDraft()"
+              (change)="isDraft.set(!isDraft())"
+            />
+            <span>Mark as Draft</span>
+          </label>
+          @if (isDraft()) {
+            <span class="draft-pill">Draft (Hidden from public &amp; members)</span>
+          } @else {
+            <span class="published-pill">Published</span>
+          }
+        </div>
+
+        <label for="post-categories">Categories</label>
+        <div class="rhs">
+          <input
+            type="text"
+            id="post-categories"
+            class="long"
+            [value]="categoriesStr()"
+            (input)="categoriesStr.set($any($event.target).value)"
+            placeholder="e.g. General, Training, Philosophy (comma separated)"
+          />
+        </div>
+
+        <label for="post-tags">Tags</label>
+        <div class="rhs">
+          <input
+            type="text"
+            id="post-tags"
+            class="long"
+            [value]="tagsStr()"
+            (input)="tagsStr.set($any($event.target).value)"
+            placeholder="e.g. basics, meditation, form (comma separated)"
+          />
+        </div>
+
+        <label for="post-author">Author</label>
+        <div class="rhs">
+          <input
+            type="text"
+            id="post-author"
+            [value]="author()"
+            (input)="author.set($any($event.target).value)"
+            placeholder="Author name"
+          />
+        </div>
+
+        <label class="align-top">Hero Image</label>
+        <div class="rhs hero-image-section">
+          @if (assetUrl() && !isEditingCrop()) {
+            <div class="current-image-preview">
+              <img [src]="assetUrl()" alt="Hero Preview" />
+              <div class="image-actions">
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="isEditingCrop.set(true)"
+                >
+                  <app-icon name="edit" /> Change Image
+                </button>
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="removeImage()"
+                >
+                  <app-icon name="close" /> Remove Image
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (!assetUrl() || isEditingCrop()) {
+            <div class="uploader-box">
+              <app-image-upload-preview
+                [initialImageUrl]="assetUrl() || null"
+                [uploadPromptText]="'Select article hero image (3:2 ratio recommended)'"
+                (imageCropped)="onImageCropped($event)"
+                (cancel)="cancelCrop()"
+              />
+              @if (assetUrl()) {
+                <div class="cancel-crop-action">
+                  <button type="button" class="subtle-button" (click)="cancelCrop()">
+                    Cancel
+                  </button>
+                </div>
+              }
+            </div>
+          }
+
+          @if (isUploadingImage()) {
+            <div class="uploading-state">
+              <app-spinner>Uploading image...</app-spinner>
+            </div>
+          }
+
+          @if (imageUploadError(); as err) {
+            <div class="inline-error">
+              <span>{{ err }}</span>
+              <button type="button" class="icon-only-button" (click)="imageUploadError.set(null)" title="Dismiss">
+                <app-icon name="close" />
+              </button>
+            </div>
+          }
+
+          @if (!showManualUrl()) {
+            <div class="manual-toggle">
+              <button
+                type="button"
+                class="inline-link-button"
+                (click)="showManualUrl.set(true)"
+              >
+                Or edit image URL directly
+              </button>
+            </div>
+          } @else {
+            <div class="manual-url-row">
+              <div class="manual-url-header">
+                <label for="post-asset-url" class="sub-label">Image URL:</label>
+                <button
+                  type="button"
+                  class="inline-link-button"
+                  (click)="showManualUrl.set(false)"
+                >
+                  Hide
+                </button>
+              </div>
+              <input
+                type="text"
+                id="post-asset-url"
+                class="long"
+                [value]="assetUrl()"
+                (input)="assetUrl.set($any($event.target).value)"
+                placeholder="https://..."
+              />
+            </div>
+          }
+        </div>
+
+        <label for="post-excerpt" class="align-top">Excerpt</label>
+        <div class="rhs">
+          <textarea
+            id="post-excerpt"
+            class="long"
+            rows="3"
+            [value]="excerpt()"
+            (input)="excerpt.set($any($event.target).value)"
+            placeholder="Short summary displayed on article lists..."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="form-section markdown-section">
+        <h3>Article Content (Markdown)</h3>
+        <p class="note">Edit the full article body below using the Markdown editor with formatting tools, links, and preview.</p>
+        <div class="editor-wrapper">
+          <app-markdown-editor
+            [initialValue]="bodyMarkdown()"
+            [bordered]="true"
+            (changed)="onMarkdownChange($event)"
+          ></app-markdown-editor>
+        </div>
+      </div>
+
+      <div class="bottom-actions">
+        @if (isSaving()) {
+          <app-spinner>Saving article...</app-spinner>
+        } @else {
+          <button type="button" class="primary-button" (click)="save()">Save Changes</button>
+          @if (viewHref(); as href) {
+            <a class="subtle-button" [href]="href">Cancel</a>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>
