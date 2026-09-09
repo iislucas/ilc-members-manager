@@ -1,4 +1,4 @@
-<div class="markdown-editor-container" [class.fullscreen]="isFullscreen()" #editorContainer>
+<div class="markdown-editor-container" [class.fullscreen]="isFullscreen()" [class.bordered]="bordered()" #editorContainer>
   <!-- Toggle Button for formatting toolbar (T button) -->
   <div class="top-right-menu" [class.toolbar-open]="menuOpen()">
     <button type="button" 
@@ -138,7 +138,7 @@
   }
 
   <div class="editor-content-wrapper" #contentWrapper>
-    <div class="editor-content" #editorRef></div>
+    <div class="editor-content" #editorRef [style.padding]="resolvedTextPadding()"></div>
   </div>
 
   @if (linkPopupOpen()) {

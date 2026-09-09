@@ -84,10 +84,9 @@ export enum Views {
   InstructorLicensePurchase = 'instructorLicensePurchase',
   SchoolLicensePurchase = 'schoolLicensePurchase',
   ClassVideoLibraryPurchase = 'classVideoLibraryPurchase',
-  ProductView = 'productView',
-  ManageProducts = 'manageProducts',
-  ManageProductNew = 'manageProductNew',
-  ManageProductEdit = 'manageProductEdit',
+  EventRegister = 'eventRegister',
+  ManageEventRegistrations = 'manageEventRegistrations',
+  ManageEventRegistration = 'manageEventRegistration',
   EventRegistrations = 'eventRegistrations',
 }
 
@@ -111,7 +110,7 @@ export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
   Views.InstructorLicensePurchase,
   Views.SchoolLicensePurchase,
   Views.ClassVideoLibraryPurchase,
-  Views.ProductView,
+  Views.EventRegister,
   Views.Articles,
   Views.ArticlesCategory,
   Views.ArticlesPost,
@@ -289,10 +288,9 @@ export const initPathPatterns = {
   ]),
   [Views.ManageVodUpload]: pathPattern`manage-vod/upload`,
   [Views.ManageVideoTags]: pathPattern`manage-video-tags`,
-  [Views.ProductView]: pathPattern`products/${pv('productId')}`,
-  [Views.ManageProducts]: addUrlParams(pathPattern`manage-products`, ['q']),
-  [Views.ManageProductNew]: pathPattern`manage-products/new`,
-  [Views.ManageProductEdit]: pathPattern`manage-products/${pv('productId')}/edit`,
+  [Views.EventRegister]: pathPattern`events/${pv('eventId')}/register`,
+  [Views.ManageEventRegistrations]: addUrlParams(pathPattern`manage-event-registrations`, ['q']),
+  [Views.ManageEventRegistration]: pathPattern`manage-events/${pv('eventId')}/registration`,
   [Views.EventRegistrations]: addUrlParams(pathPattern`events/${pv('eventId')}/registrations`, ['q', 'filter']),
 };
 

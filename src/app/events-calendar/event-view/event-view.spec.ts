@@ -61,7 +61,8 @@ describe('EventViewComponent', () => {
   const mockRoutingService = {
     matchedPatternId: signal(Views.EventView),
     hrefForView: vi.fn().mockImplementation((view, params) => {
-      if (view === Views.ProductView) return `/products/${params?.productId || ''}`;
+      if (view === Views.EventRegister) return `/events/${params?.eventId || ''}/register`;
+      if (view === Views.ManageEventRegistration) return `/manage-events/${params?.eventId || ''}/registration`;
       if (view === Views.EventRegistrations) return `/events/${params?.eventId || ''}/registrations`;
       if (view === Views.VideoView) return `/videos/${params?.videoId || ''}`;
       return `/mock/${view}`;
@@ -108,7 +109,7 @@ describe('EventViewComponent', () => {
 
   it('should generate product and video URLs correctly', async () => {
     await component.loadEvent();
-    expect(component.registerUrl()).toBe('/products/prod-1');
+    expect(component.registerUrl()).toBe('/events/event-1/register');
     expect(component.videoWatchUrl()).toBe('/videos/video-123');
     expect(component.registrationsUrl()).toBe('/events/event-1/registrations');
   });

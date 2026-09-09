@@ -99,12 +99,25 @@
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon-wrapper video-icon">
-          <app-icon name="play_circle"></app-icon>
+        <div class="stat-icon-wrapper paid-online-icon">
+          <app-icon name="check_circle"></app-icon>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Video Access</span>
-          <span class="stat-value">{{ videoCount() }}</span>
+          <span class="stat-label">Paid Online</span>
+          <span class="stat-value">{{ paidOnlineCount() }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper in-person-pay-icon">
+          <app-icon name="schedule"></app-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Pay at Door</span>
+          <span class="stat-value">{{ pendingInPersonCount() }}</span>
+          @if (totalPendingRevenue() > 0) {
+            <span class="stat-sub">{{ formatAmount(totalPendingRevenue() * 100, revenueCurrency()) }} due</span>
+          }
         </div>
       </div>
 
@@ -113,7 +126,7 @@
           <app-icon name="payments"></app-icon>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Total Revenue</span>
+          <span class="stat-label">Revenue Collected</span>
           <span class="stat-value">
             {{ formatAmount(totalRevenue() * 100, revenueCurrency()) }}
           </span>
@@ -127,7 +140,7 @@
         <app-icon name="search"></app-icon>
         <input
           type="text"
-          placeholder="Search by name, email, or phone..."
+          placeholder="Search by name, email, phone, or member ID..."
           [value]="searchTerm()"
           (input)="searchTerm.set($any($event.target).value)"
         />
@@ -166,6 +179,22 @@
         >
           Video ({{ videoCount() }})
         </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="selectedFilter() === 'paid_online'"
+          (click)="selectedFilter.set('paid_online')"
+        >
+          Paid Online ({{ paidOnlineCount() }})
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="selectedFilter() === 'pay_in_person'"
+          (click)="selectedFilter.set('pay_in_person')"
+        >
+          Pay at Door ({{ pendingInPersonCount() }})
+        </button>
       </div>
     </div>
 
@@ -186,14 +215,54 @@
           <table class="roster-table">
             <thead>
               <tr>
-                <th>Attendee</th>
-                <th>Contact</th>
-                <th>Role</th>
-                <th>Attendance</th>
-                <th>Video</th>
-                <th>Paid</th>
-                <th>Date</th>
-                <th>Status</th>
+                <th class="sortable" (click)="toggleSort(RegistrationSortField.Attendee)" title="Sort by Attendee">
+                  <div class="th-content">
+                    <span>Attendee</span>
+                    @if (sortField() === RegistrationSortField.Attendee) {
+                      <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+                    }
+                  </div>
+                </th>
+                <th class="sortable" (click)="toggleSort(RegistrationSortField.Levels)" title="Sort by Member & Level">
+                  <div class="th-content">
+                    <span>Member & Level</span>
+                    @if (sortField() === RegistrationSortField.Levels) {
+                      <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+                    }
+                  </div>
+                </th>
+                <th class="sortable" (click)="toggleSort(RegistrationSortField.Attendance)" title="Sort by Attendance Mode">
+                  <div class="th-content">
+                    <span>Attendance</span>
+                    @if (sortField() === RegistrationSortField.Attendance) {
+                      <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+                    }
+                  </div>
+                </th>
+                <th class="sortable" (click)="toggleSort(RegistrationSortField.Video)" title="Sort by Video Access">
+                  <div class="th-content">
+                    <span>Video</span>
+                    @if (sortField() === RegistrationSortField.Video) {
+                      <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+                    }
+                  </div>
+                </th>
+                <th class="sortable" (click)="toggleSort(RegistrationSortField.Payment)" title="Sort by Fee & Status">
+                  <div class="th-content">
+                    <span>Fee & Status</span>
+                    @if (sortField() === RegistrationSortField.Payment) {
+                      <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+                    }
+                  </div>
+                </th>
+                <th class="sortable" (click)="toggleSort(RegistrationSortField.RegisteredAt)" title="Sort by Date">
+                  <div class="th-content">
+                    <span>Date</span>
+                    @if (sortField() === RegistrationSortField.RegisteredAt) {
+                      <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+                    }
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -202,23 +271,46 @@
                   <td class="cell-attendee">
                     <div class="attendee-name">{{ reg.name || 'Anonymous' }}</div>
                     <div class="attendee-email">{{ reg.email }}</div>
+                    @if (reg.phone) {
+                      <div class="attendee-phone">{{ reg.phone }}</div>
+                    }
                   </td>
-                  <td class="cell-phone">
-                    {{ reg.phone || '—' }}
-                  </td>
-                  <td>
-                    <span class="role-badge" [class]="'role-' + reg.role">
-                      {{ formatRole(reg.role) }}
-                    </span>
+                  <td class="cell-member-level">
+                    @let mId = getMemberId(reg);
+                    @let levels = getMemberLevels(reg);
+                    @if (mId || levels.studentLevel || levels.applicationLevel) {
+                      <div class="member-level-stack">
+                        @if (mId) {
+                          <span class="member-id-badge">{{ mId }}</span>
+                        }
+                        @if (levels.studentLevel || levels.applicationLevel) {
+                          <div class="levels-stack">
+                            @if (levels.studentLevel) {
+                              <span class="level-badge level-student">
+                                {{ formatStudentLevel(levels.studentLevel) }}
+                              </span>
+                            }
+                            @if (levels.applicationLevel) {
+                              <span class="level-badge level-app">
+                                {{ formatApplicationLevel(levels.applicationLevel) }}
+                              </span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    } @else {
+                      <span class="no-level">—</span>
+                    }
                   </td>
                   <td>
                     <span
                       class="attendance-chip"
                       [class.chip-in-person]="reg.attendance === 'in_person'"
                       [class.chip-online]="reg.attendance === 'online'"
+                      [class.chip-video-only]="reg.attendance === 'video_only'"
                     >
                       <app-icon
-                        [name]="reg.attendance === 'in_person' ? 'location_on' : 'videocam'"
+                        [name]="reg.attendance === 'in_person' ? 'location_on' : (reg.attendance === 'video_only' ? 'live_tv' : 'videocam')"
                       ></app-icon>
                       {{ formatAttendance(reg.attendance) }}
                     </span>
@@ -233,16 +325,69 @@
                       <span class="video-pill" title="No video recording access">No</span>
                     }
                   </td>
-                  <td class="cell-amount">
-                    {{ formatAmount(reg.amountPaidCents, reg.currency) }}
+                  <td class="cell-fee-status">
+                    <div class="fee-status-stack">
+                      <div class="fee-row">
+                        @if (isPendingInPerson(reg)) {
+                          <span class="amount-due-val">
+                            Due: {{ formatAmount(reg.amountDueCents || 0, reg.currency) }}
+                          </span>
+                        } @else {
+                          <span class="paid-amount-val">
+                            {{ formatAmount(reg.amountPaidCents, reg.currency) }}
+                          </span>
+                          @if (formatPricingTier(reg.pricingTierType); as tierLabel) {
+                            <span
+                              class="tier-badge"
+                              [class.tier-early-bird]="reg.pricingTierType === 'early_bird'"
+                            >
+                              {{ tierLabel }}
+                            </span>
+                          }
+                        }
+                      </div>
+                      <div class="status-action-row">
+                        @if (isPendingInPerson(reg)) {
+                          <span class="status-badge status-pending">
+                            PAY AT DOOR
+                          </span>
+                          <button
+                            type="button"
+                            class="mark-paid-btn subtle-button"
+                            (click)="markPaid(reg)"
+                            [disabled]="isUpdating() === reg.docId"
+                            title="Record payment collected at the door"
+                          >
+                            <app-icon name="check"></app-icon>
+                            <span>{{ isUpdating() === reg.docId ? 'Saving...' : 'Mark Paid' }}</span>
+                          </button>
+                        } @else {
+                          <span class="status-badge status-paid">
+                            {{ reg.status | uppercase }}
+                          </span>
+                          @if (reg.paymentMethod === 'in_person' && reg.status === 'paid') {
+                            <button
+                              type="button"
+                              class="unmark-paid-btn subtle-button"
+                              (click)="unmarkPaid(reg)"
+                              [disabled]="isUpdating() === reg.docId"
+                              title="Revert door payment back to unpaid / pending at door"
+                            >
+                              <app-icon name="undo"></app-icon>
+                              <span>{{ isUpdating() === reg.docId ? 'Updating...' : 'Unmark Paid' }}</span>
+                            </button>
+                          }
+                        }
+                      </div>
+                    </div>
                   </td>
                   <td class="cell-date">
-                    {{ formatDate(reg.registeredAt) }}
-                  </td>
-                  <td>
-                    <span class="status-badge status-paid">
-                      {{ reg.status | uppercase }}
-                    </span>
+                    <div class="date-stack">
+                      <span>{{ formatDate(reg.registeredAt) }}</span>
+                      @if (reg.paidAt) {
+                        <span class="paid-at-sub">Paid {{ formatDate(reg.paidAt) }}</span>
+                      }
+                    </div>
                   </td>
                 </tr>
               }

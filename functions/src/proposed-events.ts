@@ -12,7 +12,19 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, EventRegistration } from './data-model/events';
+import {
+  IlcEvent,
+  EventStatus,
+  EventDocument,
+  EventContact,
+  initEvent,
+  initEventContact,
+  contactFromCreator,
+  EventRegistration,
+  AttendanceType,
+  SubmitProposedEventRequest,
+} from './data-model/events';
+import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 import { Member } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { VideoGrant, VideoGrantKind } from './data-model/vod';
@@ -64,7 +76,7 @@ async function findInstructorMemberDocId(
 ): Promise<string | undefined> {
   if (!instructorId) return undefined;
   const snap = await db
-    .collection('members')
+    .collection(FirestoreCollection.Members)
     .where('instructorId', '==', instructorId)
     .limit(1)
     .get();
@@ -113,7 +125,7 @@ function memberLoader(db: admin.firestore.Firestore) {
   return async (docId: string): Promise<Member | undefined> => {
     if (!docId) return undefined;
     if (!cache.has(docId)) {
-      const snap = await db.collection('members').doc(docId).get();
+      const snap = await db.collection(FirestoreCollection.Members).doc(docId).get();
       cache.set(docId, snap.data() as Member | undefined);
     }
     return cache.get(docId);
@@ -211,25 +223,7 @@ export function validateProposalStatus(
 // Submit a new event proposal — writes directly to /events.
 export const submitProposedEvent = onCall(
   { cors: allowedOrigins },
-  async (request: CallableRequest<{
-    title: string;
-    start: string;
-    end: string;
-    description?: string;
-    location?: string;
-    status?: EventStatus;
-    leadingInstructorId?: string;
-    ownerDocId?: string;
-    managerDocIds?: string[];
-    contactDocIds?: string[];
-    ownerContactName?: string;
-    ownerContactEmail?: string;
-    ownerContactUrl?: string;
-    productId?: string;
-    onlineJoiningLink?: string;
-    recordedVideoId?: string;
-    recordedVideoUrl?: string;
-  }>) => {
+  async (request: CallableRequest<SubmitProposedEventRequest>) => {
     if (!request.auth || !request.auth.token.email) {
       throw new HttpsError('unauthenticated', 'Must be authenticated to propose events.');
     }
@@ -253,7 +247,7 @@ export const submitProposedEvent = onCall(
     // Counted via managerEmails (the submitter is always a manager) so the limit
     // still applies when the submitter hands ownership of the event to someone else.
     if (finalStatus === EventStatus.Proposed) {
-      const proposedEventsQuery = await db.collection('events')
+      const proposedEventsQuery = await db.collection(FirestoreCollection.Events)
         .where('managerEmails', 'array-contains', request.auth.token.email)
         .where('status', '==', EventStatus.Proposed)
         .get();
@@ -285,7 +279,7 @@ export const submitProposedEvent = onCall(
       ownerContactEmail = (data.ownerContactEmail || '').trim();
       ownerContactUrl = (data.ownerContactUrl || '').trim();
     } else {
-      const ownerDoc = await db.collection('members').doc(ownerDocId).get();
+      const ownerDoc = await db.collection(FirestoreCollection.Members).doc(ownerDocId).get();
       const ownerMember = ownerDoc.data() as Member | undefined;
       if (ownerMember) {
         ownerName = ownerMember.name || '';
@@ -333,17 +327,19 @@ export const submitProposedEvent = onCall(
       leadingInstructorId: data.leadingInstructorId || '',
       productId: data.productId || '',
       onlineJoiningLink: data.onlineJoiningLink || '',
+      purchaseDetailsMarkdown: data.purchaseDetailsMarkdown || '',
+      inPersonDetailsMarkdown: data.inPersonDetailsMarkdown || '',
       recordedVideoId: data.recordedVideoId || '',
       recordedVideoUrl: data.recordedVideoUrl || '',
     };
 
-    const docRef = await db.collection('events').add(event);
+    const docRef = await db.collection(FirestoreCollection.Events).add(event);
     logger.info(`Event ${finalStatus} created by ${member.memberId} with docId ${docRef.id}`);
 
     // If an online registration product was configured, link it to the newly created event
     if (data.productId) {
       try {
-        await db.collection('products').doc(data.productId).update({
+        await db.collection(FirestoreCollection.Products).doc(data.productId).update({
           eventDocId: docRef.id,
           lastUpdated: new Date().toISOString(),
         });
@@ -401,9 +397,9 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   for (const docId of previousTargets) {
     if (!currentTargets.has(docId)) {
       await db
-        .collection('members')
+        .collection(FirestoreCollection.Members)
         .doc(docId)
-        .collection('events')
+        .collection(FirestoreSubcollection.Events)
         .doc(event.params.docId)
         .delete();
       logger.info(`Removed mirrored event ${event.params.docId} from member ${docId} subcollection.`);
@@ -417,9 +413,9 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
 
   for (const docId of currentTargets) {
     await db
-      .collection('members')
+      .collection(FirestoreCollection.Members)
       .doc(docId)
-      .collection('events')
+      .collection(FirestoreSubcollection.Events)
       .doc(event.params.docId)
       .set(eventToMirror);
     logger.info(`Updated mirrored event ${event.params.docId} for member ${docId} subcollection.`);
@@ -466,8 +462,8 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   }
 
   // Clean up Storage files for documents that were removed.
-  const beforeDocs: EventDocument[] = (before as any).documents || [];
-  const afterDocs: EventDocument[] = (after as any).documents || [];
+  const beforeDocs: EventDocument[] = before.documents || [];
+  const afterDocs: EventDocument[] = after.documents || [];
   const afterUrls = new Set(afterDocs.map(d => d.url));
   const removedUrls = beforeDocs.map(d => d.url).filter(url => !afterUrls.has(url));
   if (removedUrls.length > 0) {
@@ -514,9 +510,9 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
 
     try {
       const regSnap = await db
-        .collection('events')
+        .collection(FirestoreCollection.Events)
         .doc(event.params.docId)
-        .collection('registrations')
+        .collection(FirestoreSubcollection.Registrations)
         .where('hasVideoAccess', '==', true)
         .get();
 
@@ -538,13 +534,13 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
             grantedAt: new Date().toISOString(),
           };
           await db
-            .collection('members')
+            .collection(FirestoreCollection.Members)
             .doc(memberDocId)
-            .collection('videoGrants')
+            .collection(FirestoreSubcollection.VideoGrants)
             .doc(after.recordedVideoId)
             .set(grant);
           await db
-            .collection('video_grants')
+            .collection(FirestoreCollection.VideoGrants)
             .doc(`${memberDocId}_${after.recordedVideoId}`)
             .set(grant);
         }
@@ -575,19 +571,22 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
     }
   }
 
-  // Check if online joining link was newly added
-  if (!before.onlineJoiningLink && after.onlineJoiningLink) {
-    logger.info('Online joining link added for event; notifying online attendees', {
+  // Check if online joining details were newly added
+  const joiningDetailsAdded = (!before.purchaseDetailsMarkdown && after.purchaseDetailsMarkdown) ||
+    (!before.onlineJoiningLink && after.onlineJoiningLink);
+  if (joiningDetailsAdded) {
+    logger.info('Online joining details added for event; notifying online attendees', {
       eventId: event.params.docId,
       link: after.onlineJoiningLink,
+      hasMarkdown: Boolean(after.purchaseDetailsMarkdown),
     });
 
     try {
       const onlineRegSnap = await db
-        .collection('events')
+        .collection(FirestoreCollection.Events)
         .doc(event.params.docId)
-        .collection('registrations')
-        .where('attendance', '==', 'online')
+        .collection(FirestoreSubcollection.Registrations)
+        .where('attendance', 'in', [AttendanceType.Online, AttendanceType.InPersonAndOnline])
         .get();
 
       for (const regDoc of onlineRegSnap.docs) {
@@ -595,7 +594,12 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
         const memberDocId = reg.memberDocId;
         if (!memberDocId) continue;
         const eventTitle = after.title || 'Event';
-        const message = `The online joining link for **[${eventTitle}](/events/${event.params.docId})** is now available: [Join Zoom Meeting](${after.onlineJoiningLink}).`;
+        let message = `Online attendance details for **[${eventTitle}](/events/${event.params.docId})** are now available.`;
+        if (after.purchaseDetailsMarkdown) {
+          message += `\n\n### Joining Details\n${after.purchaseDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${event.params.docId}).`;
+        } else if (after.onlineJoiningLink) {
+          message += ` [Join Zoom Meeting](${after.onlineJoiningLink}).`;
+        }
         await createMemberNotification(db, memberDocId, {
           kind: NotificationKind.EventRegistrationConfirmed,
           markdown: message,
@@ -603,12 +607,56 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
           dismissed: false,
           data: {
             eventId: event.params.docId,
-            onlineJoiningLink: after.onlineJoiningLink,
+            onlineJoiningLink: after.onlineJoiningLink || '',
+            purchaseDetailsMarkdown: after.purchaseDetailsMarkdown || '',
           },
         });
       }
     } catch (err) {
-      logger.error('Failed to notify online attendees of joining link', {
+      logger.error('Failed to notify online attendees of joining details', {
+        err,
+        eventId: event.params.docId,
+      });
+    }
+  }
+
+  // Check if in-person attendance instructions were newly added
+  const inPersonDetailsAdded = !before.inPersonDetailsMarkdown && Boolean(after.inPersonDetailsMarkdown);
+  if (inPersonDetailsAdded) {
+    logger.info('In-person details added for event; notifying in-person attendees', {
+      eventId: event.params.docId,
+    });
+
+    try {
+      const inPersonRegSnap = await db
+        .collection(FirestoreCollection.Events)
+        .doc(event.params.docId)
+        .collection(FirestoreSubcollection.Registrations)
+        .where('attendance', 'in', [AttendanceType.InPerson, AttendanceType.InPersonAndOnline])
+        .get();
+
+      for (const regDoc of inPersonRegSnap.docs) {
+        const reg = regDoc.data() as EventRegistration;
+        const memberDocId = reg.memberDocId;
+        if (!memberDocId) continue;
+        const eventTitle = after.title || 'Event';
+        let message = `In-person attendance instructions for **[${eventTitle}](/events/${event.params.docId})** are now available.`;
+        if (after.inPersonDetailsMarkdown) {
+          message += `\n\n### In-Person Instructions\n${after.inPersonDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${event.params.docId}).`;
+        }
+        await createMemberNotification(db, memberDocId, {
+          kind: NotificationKind.EventRegistrationConfirmed,
+          markdown: message,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          data: {
+            eventId: event.params.docId,
+            inPersonDetailsMarkdown: after.inPersonDetailsMarkdown || '',
+          },
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to notify in-person attendees of attendance details', {
         err,
         eventId: event.params.docId,
       });
@@ -630,12 +678,12 @@ export const onEventCreated = onDocumentCreated('/events/{docId}', async (event)
   // Resolve emails for owner and managers
   const db = admin.firestore();
   
-  const ownerDoc = await db.collection('members').doc(eventData.ownerDocId).get();
+  const ownerDoc = await db.collection(FirestoreCollection.Members).doc(eventData.ownerDocId).get();
   const ownerEmails = ownerDoc.data()?.emails || [];
 
   const managerEmails: string[] = [];
   for (const id of (eventData.managerDocIds || [])) {
-    const mgrDoc = await db.collection('members').doc(id).get();
+    const mgrDoc = await db.collection(FirestoreCollection.Members).doc(id).get();
     const emails = mgrDoc.data()?.emails || [];
     managerEmails.push(...emails);
   }
@@ -659,9 +707,9 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
   
   for (const docId of allTargetDocIds) {
     const ref = admin.firestore()
-      .collection('members')
+      .collection(FirestoreCollection.Members)
       .doc(docId)
-      .collection('events')
+      .collection(FirestoreSubcollection.Events)
       .doc(eventDocId);
     await ref.delete();
     logger.info(`Removed mirrored event ${eventDocId} from member ${docId} subcollection.`);
@@ -679,5 +727,5 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
     logger.warn(`Failed to clean up storage for event ${eventDocId}:`, err);
   }
 
-  await recordTombstone(admin.firestore(), 'events', eventDocId);
+  await recordTombstone(admin.firestore(), FirestoreCollection.Events, eventDocId);
 });

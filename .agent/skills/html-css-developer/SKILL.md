@@ -212,7 +212,8 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 
 | Class | Purpose | When to Use |
 | --- | --- | --- |
-| _(no class)_ | Default button | Primary actions (Save, Submit) |
+| _(no class)_ | Default button | Standard actions (Save, Submit) |
+| `.primary-button` | Official brand primary action (red `#950000`) | High-priority CTAs (Register & Pay, Checkout, Renew Now) |
 | `.icon-only-button` | Circular, transparent, icon-only | Dismiss, toggle, inline actions |
 | `.round-button` | Fully circular with padding | Floating actions |
 | `.delete-button` | Neutral by default, red on hover | Destructive actions |
@@ -225,17 +226,28 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 >
 > **Avoid the Drop-Shadow Trap on `<button>` elements**:
 > The global `button` selector in `styles.scss` applies `box-shadow: 0 2px 4px $shadow-color;` by default. If you create a `<button>` without an existing variant class (or with a custom component class), it will inherit this raised drop-shadow.
+> - For **primary positive action CTAs (e.g. Register, Checkout, Pay)**: Use `.primary-button` (`background: $heading-accent-color` `#950000`, white text, bold, with hover `color.adjust($heading-accent-color, $lightness: -8%)`).
 > - For **inline text triggers, expand/collapse toggles, "Show more" / "Show less" / "Fold" actions**: Always use `.inline-link-button` (plain text link style with no border, no background, and `box-shadow: none`).
 > - For **secondary toolbar or navigation actions**: Use `.subtle-button` (`box-shadow: none; border: 1px solid transparent;`).
 > - **Never introduce new custom button styles** in component SCSS.
 
 > [!WARNING]
-> **NO BLACK BACKGROUNDS FOR POSITIVE ACTION BUTTONS**
-> Positive actions (such as "Renew Now", "Subscribe", "Extend", checkout buttons, or promotional action prompts) must **NEVER** use solid black (`#18181b`, `#000000`, `#27272a`) backgrounds.
-> Instead, positive actions use:
-> - **Lighter blue accent styling**: `background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd;` (hover: `background: #e0f2fe; border-color: #7dd3fc; color: #0369a1;`)
-> - Or **Primary blue**: `background: $primary-color; color: #ffffff; border: 1px solid $primary-color;` (hover: `background: #0069d9;`)
-> Base buttons use the neutral `$button-bg-color: #f4f4f5` with dark text. Solid black backgrounds for buttons are strictly forbidden.
+> **NO BLACK OR ARBITRARY BLUE BACKGROUNDS FOR PRIMARY CALL-TO-ACTION BUTTONS**
+> Primary call-to-action buttons (such as "Register & Pay", "Checkout", "Renew Now") must **ALWAYS** use the official `.primary-button` style: brand red accent (`$heading-accent-color: #950000`) with bold white text.
+> Solid black backgrounds (`#18181b`, `#000000`, `#27272a`) and arbitrary blue buttons are strictly forbidden.
+
+> [!WARNING]
+> **NO SPINNERS INSIDE BUTTONS (ANTI-PATTERN)**
+> Do NOT place `<app-spinner>` inside a `<button>` element (e.g. `<button><app-spinner></app-spinner> Saving...</button>`). Placing a spinner inside a button disrupts button geometry and looks unpolished.
+>
+> **Standard Pattern**: When an action (e.g. Save, Submit, Checkout) is in progress, **replace the action button(s)** with `<app-spinner>` in the template:
+> ```html
+> @if (isSaving()) {
+>   <app-spinner>Saving changes...</app-spinner>
+> } @else {
+>   <button type="button" class="primary-button" (click)="save()">Save Changes</button>
+> }
+> ```
 
 ### Links
 

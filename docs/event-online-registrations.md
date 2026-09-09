@@ -11,8 +11,8 @@ This document outlines the architecture, data models, security rules, Cloud Func
    - Replaces manual or external signups with a unified, first-party payment and registration workflow.
 
 2. **1:1 Event-to-Product Binding**:
-   - Each event with online registration is paired 1:1 with a Firestore `Product` document (`eventDocId === event.docId` and `event.registrationProductDocId === product.docId`).
-   - Managed entirely within the event editor under **"Online Registration with HQ (optional, Admin only)"**.
+   - Each event with online registration is paired 1:1 with a Firestore `Product` document (`eventDocId === event.docId` and `event.productId === product.docId`).
+   - Managed entirely within the event editor under **"Online Registration & Payment (HQ) (optional, Admin only)"**.
    - If online registration is removed by an admin, the associated product is safely deleted.
 
 3. **Flexible Role & Participation Pricing Matrix**:
@@ -24,7 +24,7 @@ This document outlines the architecture, data models, security rules, Cloud Func
 4. **Automated Fulfillment & Entitlements**:
    - Secure Stripe Checkout session creation with server-side price resolution and role verification.
    - Automatic creation of `/events/{eventId}/registrations/{regId}` on payment completion.
-   - Instant revealing of private **Online Joining Links** (Zoom) to verified attendees.
+   - Instant revealing of private **Details shared upon purchase** (markdown formatted, including Zoom/Meet links, passwords, and instructions) to verified attendees.
    - Automatic **Video on Demand (VOD)** streaming entitlement provisioning when event recordings are linked or uploaded.
 
 ---
@@ -242,20 +242,20 @@ Checkout sessions resolve the Stripe Product ID using a three-tier hierarchy:
 ### 5.1 Admin: Enabling Online Registration on an Event
 
 1. Admin navigates to `/manage-events/:id/edit`.
-2. Scrolls to **"Online Registration with HQ (optional, Admin only)"**.
-3. If no registration product exists:
-   - Clicks **"Create Online Registration with HQ"**.
+2. Scrolls to **"Online Registration & Payment (HQ) (optional, Admin only)"**.
+3. If no registration setup exists:
+   - Clicks **"Set Up Online Registration"**.
    - An inline `ProductEditComponent` appears without redirecting or scrolling the page.
 4. Admin configures:
    - **Who can register?**: "Anyone", "Members", or "Instructors" (role exclusivity).
    - **Forms of Participation**: In-Person, Online, or Video Only.
    - **Video Recording**: Option to bundle the recording.
-   - **Pricing Matrix**: Configures the base price, and optionally adds custom member or instructor prices.
-   - **Online Joining Link & Video Recording**: Configured directly in the section.
-5. Clicks **"Save Registration Details"**:
+   - **Pricing Matrix**: Configures the base price, currency, and optionally adds custom member or instructor prices.
+   - **Details shared upon purchase**: Markdown-formatted instructions (Zoom links, meeting IDs, passcodes, etc.).
+5. Clicks **"Save Registration Setup"**:
    - Creates/updates the `/products/{productId}` document.
-   - Links `event.registrationProductDocId = productId`.
-   - Event listing displays the `"HQ Registration"` badge chip.
+   - Links `event.productId = productId`.
+   - Event listing displays the registration details.
 
 ### 5.2 Attendee: Selecting Options & Paying
 

@@ -192,7 +192,7 @@
 
       @if (userIsAdmin()) {
         <div class="form-section">
-          <h3>Online Registration with HQ (optional, Admin only)</h3>
+          <h3>Online Registration &amp; Payment (HQ) (optional, Admin only)</h3>
 
           <div class="product-section-content" style="grid-column: 1 / -1;">
             @if (linkedProduct(); as prod) {
@@ -226,11 +226,15 @@
                       <div class="linked-fulfillment-details">
                         @if (prod.allowOnline) {
                           <div class="fulfillment-row">
-                            <span class="fulfillment-label"><app-icon name="videocam" /> <strong>Online Joining Link:</strong></span>
-                            @if (prod.onlineJoiningLink || eventFormModel().onlineJoiningLink; as link) {
+                            <span class="fulfillment-label"><app-icon name="videocam" /> <strong>Details Shared Upon Purchase:</strong></span>
+                            @if (prod.purchaseDetailsMarkdown || eventFormModel().purchaseDetailsMarkdown; as details) {
+                              <div class="fulfillment-markdown-preview">
+                                <app-markdown-viewer [markdown]="details"></app-markdown-viewer>
+                              </div>
+                            } @else if (prod.onlineJoiningLink || eventFormModel().onlineJoiningLink; as link) {
                               <a [href]="link" target="_blank" class="resource-link">{{ link }}</a>
                             } @else {
-                              <span class="text-muted">Not specified yet (click 'Edit Product' to add)</span>
+                              <span class="text-muted">Not specified yet (click 'Edit Registration Setup' to add)</span>
                             }
                           </div>
                         }
@@ -244,7 +248,7 @@
                               <a [href]="vurl" target="_blank" class="resource-link">{{ vurl }}</a>
                             }
                             @if (!prod.recordedVideoId && !eventFormModel().recordedVideoId && !prod.recordedVideoUrl && !eventFormModel().recordedVideoUrl) {
-                              <span class="text-muted">Not specified yet (click 'Edit Product' to add once recorded)</span>
+                              <span class="text-muted">Not specified yet (click 'Edit Registration Setup' to add once recorded)</span>
                             }
                           </div>
                         }
@@ -254,17 +258,17 @@
                   <div class="linked-product-actions">
                     <button type="button" class="subtle-button" (click)="toggleEditLinkedProduct()">
                       <app-icon [name]="isEditingLinkedProduct() ? 'close' : 'edit'" />
-                      <span>{{ isEditingLinkedProduct() ? 'Close Editor' : 'Edit Product' }}</span>
+                      <span>{{ isEditingLinkedProduct() ? 'Close Setup' : 'Edit Registration Setup' }}</span>
                     </button>
                     <a class="subtle-button"
-                       [href]="routingService.hrefForView(Views.ProductView, { productId: prod.docId })"
+                       [href]="routingService.hrefForView(Views.EventRegister, { eventId: event()?.docId || '' })"
                        target="_blank">
                       <app-icon name="visibility" />
-                      <span>View Public Page</span>
+                      <span>View Registration Page</span>
                     </a>
                     <button type="button" class="subtle-button danger-text" (click)="removeRegistration()">
                       <app-icon name="delete" />
-                      <span>Remove Registration</span>
+                      <span>Remove Registration Setup</span>
                     </button>
                   </div>
                 </div>
@@ -277,6 +281,8 @@
                       [embeddedEventDocId]="event()?.docId || ''"
                       [embeddedEventTitle]="eventFormModel().title"
                       [embeddedOnlineJoiningLink]="eventFormModel().onlineJoiningLink || ''"
+                      [embeddedPurchaseDetailsMarkdown]="eventFormModel().purchaseDetailsMarkdown || ''"
+                      [embeddedInPersonDetailsMarkdown]="eventFormModel().inPersonDetailsMarkdown || ''"
                       [embeddedRecordedVideoId]="eventFormModel().recordedVideoId || ''"
                       [embeddedRecordedVideoUrl]="eventFormModel().recordedVideoUrl || ''"
                       (productSaved)="onInlineProductSaved($event)"
@@ -295,6 +301,8 @@
                       [embeddedEventDocId]="event()?.docId || ''"
                       [embeddedEventTitle]="eventFormModel().title"
                       [embeddedOnlineJoiningLink]="eventFormModel().onlineJoiningLink || ''"
+                      [embeddedPurchaseDetailsMarkdown]="eventFormModel().purchaseDetailsMarkdown || ''"
+                      [embeddedInPersonDetailsMarkdown]="eventFormModel().inPersonDetailsMarkdown || ''"
                       [embeddedRecordedVideoId]="eventFormModel().recordedVideoId || ''"
                       [embeddedRecordedVideoUrl]="eventFormModel().recordedVideoUrl || ''"
                       (productSaved)="onInlineProductCreated($event)"
@@ -304,12 +312,12 @@
                 } @else {
                   <div class="no-product-banner">
                     <p class="no-product-note">
-                      Online registration is not enabled for this event. Create online registration with HQ to enable ticketing, pricing tiers, registrations, and payments.
+                      Online registration and payment is not enabled for this event. Set up online registration with HQ to enable ticketing, pricing tiers, and attendee payments.
                     </p>
                     <div class="product-choice-buttons">
                       <button type="button" class="button" (click)="isCreatingProduct.set(true)">
                         <app-icon name="add" />
-                        <span>Create Online Registration with HQ</span>
+                        <span>Set Up Online Registration</span>
                       </button>
                     </div>
                   </div>

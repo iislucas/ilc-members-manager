@@ -27,7 +27,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { SearchableSet } from '../searchable-set';
-import { AttendeeRole, AttendanceType, getPricingTierKey, IlcEvent, initProduct, Product } from '../../../functions/src/data-model/events';
+import { AttendeeRole, AttendanceType, getPricingTierKey, getVideoDelta, IlcEvent, initProduct, PricingTierType, Product } from '../../../functions/src/data-model/events';
 
 @Component({
   selector: 'app-product-edit',
@@ -43,12 +43,17 @@ export class ProductEditComponent implements OnInit {
   protected dataService = inject(DataManagerService);
   protected productService = inject(ProductService);
   protected readonly Views = Views;
+  protected readonly AttendeeRole = AttendeeRole;
+  protected readonly AttendanceType = AttendanceType;
+  protected readonly PricingTierType = PricingTierType;
 
   productIdInput = input<string>('', { alias: 'productId' });
   embedded = input<boolean>(false);
   embeddedEventDocId = input<string>('');
   embeddedEventTitle = input<string>('');
   embeddedOnlineJoiningLink = input<string>('');
+  embeddedPurchaseDetailsMarkdown = input<string>('');
+  embeddedInPersonDetailsMarkdown = input<string>('');
   embeddedRecordedVideoId = input<string>('');
   embeddedRecordedVideoUrl = input<string>('');
 
@@ -56,13 +61,17 @@ export class ProductEditComponent implements OnInit {
   editCancelled = output<void>();
 
   // Route pathVars signal
-  private routeProductId = this.routingService.signals[Views.ManageProductEdit]?.pathVars?.productId;
+  private routeEventId = this.routingService.signals[Views.ManageEventRegistration]?.pathVars?.eventId;
 
-  effectiveProductId = computed(() => {
-    return this.productIdInput() || (this.routeProductId ? this.routeProductId() : '');
+  effectiveEventId = computed(() => {
+    return this.embeddedEventDocId() || (this.routeEventId ? this.routeEventId() : '');
   });
 
-  isNew = computed(() => !this.effectiveProductId());
+  effectiveProductId = computed(() => {
+    return this.productIdInput();
+  });
+
+  isNew = computed(() => !this.productModel().docId);
 
   isLoading = signal(false);
   isSaving = signal(false);
@@ -98,9 +107,9 @@ export class ProductEditComponent implements OnInit {
 
   standardRole = computed<AttendeeRole>(() => {
     const a = this.registrationAudience();
-    if (a === 'instructors') return 'instructor';
-    if (a === 'members') return 'member';
-    return 'non_member';
+    if (a === 'instructors') return AttendeeRole.Instructor;
+    if (a === 'members') return AttendeeRole.Member;
+    return AttendeeRole.NonMember;
   });
 
   standardRoleLabel = computed<string>(() => {
@@ -110,36 +119,32 @@ export class ProductEditComponent implements OnInit {
     return 'Standard Price';
   });
 
-  // Attendance options (rows of the matrix)
+  // Delta Pricing Signals
+  lateDeltaPrice = signal<number>(0);
+  hasDoorDelta = signal<boolean>(false);
+  doorDeltaPrice = signal<number>(0);
+  videoDeltaPrice = signal<number>(0);
+
+  // Attendance options (simplified base rows of the matrix)
   attendanceRows: {
     attendance: AttendanceType;
-    includeVideo: boolean;
     getLabel: (p: Product) => string;
     isAllowed: (p: Product) => boolean;
   }[] = [
     {
-      attendance: 'in_person',
-      includeVideo: false,
-      getLabel: (p) => (p.allowVideo ? 'In-Person (No Video)' : 'In-Person Attendance'),
+      attendance: AttendanceType.InPerson,
+      getLabel: (p) => (p.hasEarlyBird ? 'In-Person Attendance (Early-Bird)' : 'In-Person Attendance'),
       isAllowed: (p) => p.allowInPerson,
     },
     {
-      attendance: 'in_person',
-      includeVideo: true,
-      getLabel: () => 'In-Person (+ Video)',
-      isAllowed: (p) => p.allowInPerson && p.allowVideo,
-    },
-    {
-      attendance: 'online',
-      includeVideo: false,
-      getLabel: (p) => (p.allowVideo ? 'Online (No Video)' : 'Online Attendance'),
+      attendance: AttendanceType.Online,
+      getLabel: (p) => (p.hasEarlyBird ? 'Online Attendance (Early-Bird)' : 'Online Attendance'),
       isAllowed: (p) => p.allowOnline,
     },
     {
-      attendance: 'online',
-      includeVideo: true,
-      getLabel: () => 'Online (+ Video)',
-      isAllowed: (p) => p.allowOnline && p.allowVideo,
+      attendance: AttendanceType.VideoOnly,
+      getLabel: () => 'Video Recording Only (Pre-order)',
+      isAllowed: (p) => Boolean(p.allowVideoOnly),
     },
   ];
 
@@ -172,33 +177,58 @@ export class ProductEditComponent implements OnInit {
     this.errorMessage.set(null);
 
     try {
-      // 1. Load available events
+      // 1. Initialize searchable events
       const eventsSnap = await this.dataService.getEvents();
       if (eventsSnap && eventsSnap.length > 0) {
         this.eventsSearchableSet.setEntries(eventsSnap);
       }
 
-      // 2. Load product if editing
+      // 2. Load product if editing or event route
       const id = this.effectiveProductId();
+      const evId = this.effectiveEventId();
+
+      let existing: Product | undefined;
       if (id) {
-        const existing = await this.productService.getProduct(id);
-        if (existing) {
-          this.productModel.set(structuredClone(existing));
-          this.hasMemberPrice.set(Boolean(existing.hasMemberPrice ?? this.detectHasSpecialPrice(existing, 'member')));
-          this.hasInstructorPrice.set(Boolean(existing.hasInstructorPrice ?? this.detectHasSpecialPrice(existing, 'instructor')));
+        existing = await this.productService.getProduct(id);
+      } else if (evId) {
+        const ev = await this.dataService.getEventById(evId);
+        if (ev?.productId) {
+          existing = await this.productService.getProduct(ev.productId);
         } else {
-          this.errorMessage.set('Product not found.');
+          existing = await this.productService.getProductByEventId(evId);
         }
+      }
+
+      if (existing) {
+        this.productModel.set(structuredClone(existing));
+        this.hasMemberPrice.set(Boolean(existing.hasMemberPrice ?? this.detectHasSpecialPrice(existing, AttendeeRole.Member)));
+        this.hasInstructorPrice.set(Boolean(existing.hasInstructorPrice ?? this.detectHasSpecialPrice(existing, AttendeeRole.Instructor)));
+        this.lateDeltaPrice.set(existing.lateDeltaPrice ?? 0);
+        this.hasDoorDelta.set(Boolean(existing.hasDoorDelta));
+        this.doorDeltaPrice.set(existing.doorDeltaPrice ?? 0);
+        this.videoDeltaPrice.set(existing.videoDeltaPrice !== undefined ? existing.videoDeltaPrice : getVideoDelta(existing));
       } else {
         const newProduct = initProduct();
+        if (evId) {
+          newProduct.eventDocId = evId;
+          const ev = this.eventsSearchableSet.get(evId);
+          if (ev && !this.embeddedEventTitle()) {
+            newProduct.title = ev.title;
+          }
+        }
         if (this.embeddedEventDocId()) {
           newProduct.eventDocId = this.embeddedEventDocId();
         }
         if (this.embeddedEventTitle()) {
           newProduct.title = this.embeddedEventTitle();
         }
-        if (this.embeddedOnlineJoiningLink()) {
-          newProduct.onlineJoiningLink = this.embeddedOnlineJoiningLink();
+        if (this.embeddedPurchaseDetailsMarkdown()) {
+          newProduct.purchaseDetailsMarkdown = this.embeddedPurchaseDetailsMarkdown();
+        } else if (this.embeddedOnlineJoiningLink()) {
+          newProduct.purchaseDetailsMarkdown = this.embeddedOnlineJoiningLink();
+        }
+        if (this.embeddedInPersonDetailsMarkdown()) {
+          newProduct.inPersonDetailsMarkdown = this.embeddedInPersonDetailsMarkdown();
         }
         if (this.embeddedRecordedVideoId()) {
           newProduct.recordedVideoId = this.embeddedRecordedVideoId();
@@ -247,44 +277,195 @@ export class ProductEditComponent implements OnInit {
     });
   }
 
-  toggleAttendanceMode(mode: 'in_person' | 'online' | 'video') {
+  recalculateAllTiers(model: Product): Product {
+    const clone = structuredClone(model);
+    const roles: AttendeeRole[] = [
+      AttendeeRole.NonMember,
+      AttendeeRole.Member,
+      AttendeeRole.Instructor,
+    ];
+    const lateDelta = this.lateDeltaPrice();
+    const hasDoor = this.hasDoorDelta();
+    const doorDelta = this.doorDeltaPrice();
+    const videoDelta = this.videoDeltaPrice();
+
+    clone.lateDeltaPrice = lateDelta;
+    clone.hasDoorDelta = hasDoor;
+    clone.doorDeltaPrice = doorDelta;
+    clone.videoDeltaPrice = videoDelta;
+
+    for (const r of roles) {
+      // 1. In-Person
+      const inPersonBaseKey = clone.hasEarlyBird
+        ? getPricingTierKey(r, AttendanceType.InPerson, false, PricingTierType.EarlyBird)
+        : getPricingTierKey(r, AttendanceType.InPerson, false, PricingTierType.Standard);
+      const inPersonBasePrice = clone.tiers[inPersonBaseKey]?.price ?? 0;
+
+      const inPersonEarlyBirdPrice = inPersonBasePrice;
+      const inPersonStandardPrice = inPersonBasePrice + (clone.hasEarlyBird ? lateDelta : 0);
+      const inPersonDoorPrice = inPersonStandardPrice + (hasDoor ? doorDelta : 0);
+
+      clone.tiers[getPricingTierKey(r, AttendanceType.InPerson, false, PricingTierType.Standard)] = {
+        enabled: true,
+        price: inPersonStandardPrice,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.InPerson, true, PricingTierType.Standard)] = {
+        enabled: true,
+        price: inPersonStandardPrice + videoDelta,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.InPerson, false, PricingTierType.EarlyBird)] = {
+        enabled: true,
+        price: inPersonEarlyBirdPrice,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.InPerson, true, PricingTierType.EarlyBird)] = {
+        enabled: true,
+        price: inPersonEarlyBirdPrice + videoDelta,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.InPerson, false, PricingTierType.InPerson)] = {
+        enabled: true,
+        price: inPersonDoorPrice,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.InPerson, true, PricingTierType.InPerson)] = {
+        enabled: true,
+        price: inPersonDoorPrice + videoDelta,
+      };
+
+      // 2. Online
+      const onlineBaseKey = clone.hasEarlyBird
+        ? getPricingTierKey(r, AttendanceType.Online, false, PricingTierType.EarlyBird)
+        : getPricingTierKey(r, AttendanceType.Online, false, PricingTierType.Standard);
+      const onlineBasePrice = clone.tiers[onlineBaseKey]?.price ?? 0;
+
+      const onlineEarlyBirdPrice = onlineBasePrice;
+      const onlineStandardPrice = onlineBasePrice + (clone.hasEarlyBird ? lateDelta : 0);
+
+      clone.tiers[getPricingTierKey(r, AttendanceType.Online, false, PricingTierType.Standard)] = {
+        enabled: true,
+        price: onlineStandardPrice,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.Online, true, PricingTierType.Standard)] = {
+        enabled: true,
+        price: onlineStandardPrice + videoDelta,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.Online, false, PricingTierType.EarlyBird)] = {
+        enabled: true,
+        price: onlineEarlyBirdPrice,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.Online, true, PricingTierType.EarlyBird)] = {
+        enabled: true,
+        price: onlineEarlyBirdPrice + videoDelta,
+      };
+
+      // 3. Video-Only
+      const videoOnlyBaseKey = clone.hasEarlyBird
+        ? getPricingTierKey(r, AttendanceType.VideoOnly, true, PricingTierType.EarlyBird)
+        : getPricingTierKey(r, AttendanceType.VideoOnly, true, PricingTierType.Standard);
+      const videoOnlyBasePrice = clone.tiers[videoOnlyBaseKey]?.price ?? 0;
+
+      clone.tiers[getPricingTierKey(r, AttendanceType.VideoOnly, true, PricingTierType.Standard)] = {
+        enabled: true,
+        price: videoOnlyBasePrice,
+      };
+      clone.tiers[getPricingTierKey(r, AttendanceType.VideoOnly, true, PricingTierType.EarlyBird)] = {
+        enabled: true,
+        price: videoOnlyBasePrice,
+      };
+    }
+
+    return clone;
+  }
+
+  toggleAttendanceMode(mode: 'in_person' | 'online' | 'video' | 'video_only') {
     this.productModel.update((m) => {
       const clone = structuredClone(m);
       if (mode === 'in_person') clone.allowInPerson = !clone.allowInPerson;
       if (mode === 'online') clone.allowOnline = !clone.allowOnline;
       if (mode === 'video') clone.allowVideo = !clone.allowVideo;
-      clone.allowVideoOnly = false;
-
-      // Ensure tiers for all active rows exist and have enabled: true
-      for (const r of this.attendanceRows) {
-        if (r.isAllowed(clone)) {
-          for (const role of ['non_member', 'member', 'instructor'] as AttendeeRole[]) {
-            const key = getPricingTierKey(role, r.attendance, r.includeVideo);
-            if (!clone.tiers[key]) {
-              clone.tiers[key] = { enabled: true, price: 0 };
-            } else {
-              clone.tiers[key].enabled = true;
-            }
-          }
-        }
-      }
-      return clone;
+      if (mode === 'video_only') clone.allowVideoOnly = !clone.allowVideoOnly;
+      return this.recalculateAllTiers(clone);
     });
   }
 
+  toggleEarlyBird() {
+    this.productModel.update((m) => {
+      const clone = structuredClone(m);
+      clone.hasEarlyBird = !clone.hasEarlyBird;
+      return this.recalculateAllTiers(clone);
+    });
+  }
+
+  updateEarlyBirdDeadline(earlyBirdDeadline: string) {
+    this.productModel.update((m) => ({ ...m, earlyBirdDeadline }));
+  }
+
+  updateLateDeltaPrice(val: string) {
+    const price = parseFloat(val) || 0;
+    this.lateDeltaPrice.set(price);
+    this.productModel.update((m) => {
+      const clone = structuredClone(m);
+      clone.lateDeltaPrice = price;
+      return this.recalculateAllTiers(clone);
+    });
+  }
+
+  togglePayInPerson() {
+    this.productModel.update((m) => {
+      const clone = structuredClone(m);
+      clone.allowPayInPerson = !clone.allowPayInPerson;
+      return this.recalculateAllTiers(clone);
+    });
+  }
+
+  toggleDoorDelta() {
+    this.hasDoorDelta.update((v) => !v);
+    this.productModel.update((m) => {
+      const clone = structuredClone(m);
+      clone.hasDoorDelta = this.hasDoorDelta();
+      return this.recalculateAllTiers(clone);
+    });
+  }
+
+  updateDoorDeltaPrice(val: string) {
+    const price = parseFloat(val) || 0;
+    this.doorDeltaPrice.set(price);
+    this.productModel.update((m) => {
+      const clone = structuredClone(m);
+      clone.doorDeltaPrice = price;
+      return this.recalculateAllTiers(clone);
+    });
+  }
+
+  updateVideoDeltaPrice(val: string) {
+    const price = parseFloat(val) || 0;
+    this.videoDeltaPrice.set(price);
+    this.productModel.update((m) => {
+      const clone = structuredClone(m);
+      clone.videoDeltaPrice = price;
+      return this.recalculateAllTiers(clone);
+    });
+  }
+
+  updateMaxInPersonAttendees(val: string) {
+    const parsed = parseInt(val, 10);
+    const maxInPersonAttendees = isNaN(parsed) || parsed < 0 ? undefined : parsed;
+    this.productModel.update((m) => ({ ...m, maxInPersonAttendees }));
+  }
+
   private detectHasSpecialPrice(product: Product, role: AttendeeRole): boolean {
-    if (product.hasMemberPrice !== undefined && role === 'member') {
+    if (product.hasMemberPrice !== undefined && role === AttendeeRole.Member) {
       return product.hasMemberPrice;
     }
-    if (product.hasInstructorPrice !== undefined && role === 'instructor') {
+    if (product.hasInstructorPrice !== undefined && role === AttendeeRole.Instructor) {
       return product.hasInstructorPrice;
     }
     for (const r of this.attendanceRows) {
-      const stdKey = getPricingTierKey('non_member', r.attendance, r.includeVideo);
-      const roleKey = getPricingTierKey(role, r.attendance, r.includeVideo);
+      const includeVideo = r.attendance === AttendanceType.VideoOnly;
+      const tierType = product.hasEarlyBird ? PricingTierType.EarlyBird : PricingTierType.Standard;
+      const stdKey = getPricingTierKey(AttendeeRole.NonMember, r.attendance, includeVideo, tierType);
+      const roleKey = getPricingTierKey(role, r.attendance, includeVideo, tierType);
       const stdTier = product.tiers[stdKey];
       const roleTier = product.tiers[roleKey];
-      if (roleTier && stdTier && (roleTier.price !== stdTier.price || roleTier.enabled !== stdTier.enabled)) {
+      if (roleTier && stdTier && roleTier.price !== stdTier.price) {
         return true;
       }
     }
@@ -295,14 +476,13 @@ export class ProductEditComponent implements OnInit {
     const model = structuredClone(this.productModel());
     const baseRole = this.standardRole();
     for (const r of this.attendanceRows) {
-      const stdKey = getPricingTierKey(baseRole, r.attendance, r.includeVideo);
-      const memberKey = getPricingTierKey('member', r.attendance, r.includeVideo);
-      const stdTier = model.tiers[stdKey];
-      if (stdTier) {
-        model.tiers[memberKey] = { enabled: stdTier.enabled, price: stdTier.price };
-      }
+      const stdPrice = this.getBasePrice(baseRole, r.attendance);
+      const memKey = model.hasEarlyBird
+        ? getPricingTierKey(AttendeeRole.Member, r.attendance, r.attendance === AttendanceType.VideoOnly, PricingTierType.EarlyBird)
+        : getPricingTierKey(AttendeeRole.Member, r.attendance, r.attendance === AttendanceType.VideoOnly, PricingTierType.Standard);
+      model.tiers[memKey] = { enabled: true, price: stdPrice };
     }
-    this.productModel.set(model);
+    this.productModel.set(this.recalculateAllTiers(model));
     this.hasMemberPrice.set(true);
   }
 
@@ -312,16 +492,15 @@ export class ProductEditComponent implements OnInit {
 
   addInstructorPrice() {
     const model = structuredClone(this.productModel());
-    const baseRole: AttendeeRole = (this.hasMemberPrice() && this.registrationAudience() === 'anyone') ? 'member' : this.standardRole();
+    const baseRole: AttendeeRole = (this.hasMemberPrice() && this.registrationAudience() === 'anyone') ? AttendeeRole.Member : this.standardRole();
     for (const r of this.attendanceRows) {
-      const baseKey = getPricingTierKey(baseRole, r.attendance, r.includeVideo);
-      const instructorKey = getPricingTierKey('instructor', r.attendance, r.includeVideo);
-      const baseTier = model.tiers[baseKey];
-      if (baseTier) {
-        model.tiers[instructorKey] = { enabled: baseTier.enabled, price: baseTier.price };
-      }
+      const basePrice = this.getBasePrice(baseRole, r.attendance);
+      const instKey = model.hasEarlyBird
+        ? getPricingTierKey(AttendeeRole.Instructor, r.attendance, r.attendance === AttendanceType.VideoOnly, PricingTierType.EarlyBird)
+        : getPricingTierKey(AttendeeRole.Instructor, r.attendance, r.attendance === AttendanceType.VideoOnly, PricingTierType.Standard);
+      model.tiers[instKey] = { enabled: true, price: basePrice };
     }
-    this.productModel.set(model);
+    this.productModel.set(this.recalculateAllTiers(model));
     this.hasInstructorPrice.set(true);
   }
 
@@ -336,8 +515,38 @@ export class ProductEditComponent implements OnInit {
     }));
   }
 
-  getTier(role: AttendeeRole, attendance: AttendanceType, includeVideo: boolean) {
-    const key = getPricingTierKey(role, attendance, includeVideo);
+  getBasePrice(role: AttendeeRole, attendance: AttendanceType): number {
+    const p = this.productModel();
+    const includeVideo = attendance === AttendanceType.VideoOnly;
+    const tierType = p.hasEarlyBird ? PricingTierType.EarlyBird : PricingTierType.Standard;
+    const key = getPricingTierKey(role, attendance, includeVideo, tierType);
+    return p.tiers[key]?.price ?? 0;
+  }
+
+  setBasePrice(role: AttendeeRole, attendance: AttendanceType, priceStr: string) {
+    const price = parseFloat(priceStr) || 0;
+    this.productModel.update((model) => {
+      const clone = structuredClone(model);
+      const includeVideo = attendance === AttendanceType.VideoOnly;
+      const tierType = clone.hasEarlyBird ? PricingTierType.EarlyBird : PricingTierType.Standard;
+      const key = getPricingTierKey(role, attendance, includeVideo, tierType);
+      clone.tiers[key] = { enabled: true, price };
+
+      if (!this.hasMemberPrice() && role === this.standardRole()) {
+        const memKey = getPricingTierKey(AttendeeRole.Member, attendance, includeVideo, tierType);
+        clone.tiers[memKey] = { enabled: true, price };
+      }
+      if (!this.hasInstructorPrice()) {
+        const instKey = getPricingTierKey(AttendeeRole.Instructor, attendance, includeVideo, tierType);
+        clone.tiers[instKey] = { enabled: true, price };
+      }
+
+      return this.recalculateAllTiers(clone);
+    });
+  }
+
+  getTier(role: AttendeeRole, attendance: AttendanceType, includeVideo: boolean, tierType: PricingTierType = PricingTierType.Standard) {
+    const key = getPricingTierKey(role, attendance, includeVideo, tierType);
     const tiers = this.productModel().tiers;
     if (!tiers[key]) {
       tiers[key] = { enabled: true, price: 0 };
@@ -345,8 +554,8 @@ export class ProductEditComponent implements OnInit {
     return tiers[key];
   }
 
-  setTierEnabled(role: AttendeeRole, attendance: AttendanceType, includeVideo: boolean, enabled: boolean) {
-    const key = getPricingTierKey(role, attendance, includeVideo);
+  setTierEnabled(role: AttendeeRole, attendance: AttendanceType, includeVideo: boolean, enabled: boolean, tierType: PricingTierType = PricingTierType.Standard) {
+    const key = getPricingTierKey(role, attendance, includeVideo, tierType);
     this.productModel.update((model) => {
       const clone = structuredClone(model);
       if (!clone.tiers[key]) {
@@ -358,8 +567,8 @@ export class ProductEditComponent implements OnInit {
     });
   }
 
-  setTierPrice(role: AttendeeRole, attendance: AttendanceType, includeVideo: boolean, priceStr: string) {
-    const key = getPricingTierKey(role, attendance, includeVideo);
+  setTierPrice(role: AttendeeRole, attendance: AttendanceType, includeVideo: boolean, priceStr: string, tierType: PricingTierType = PricingTierType.Standard) {
+    const key = getPricingTierKey(role, attendance, includeVideo, tierType);
     const price = parseFloat(priceStr) || 0;
     this.productModel.update((model) => {
       const clone = structuredClone(model);
@@ -372,6 +581,101 @@ export class ProductEditComponent implements OnInit {
     });
   }
 
+  calculatedTiersPreview = computed(() => {
+    const p = this.productModel();
+    const rows: {
+      category: string;
+      tierLabel: string;
+      attendance: string;
+      hasVideo: boolean;
+      stdPrice: number;
+      memPrice?: number;
+      instPrice?: number;
+    }[] = [];
+
+    const audience = this.registrationAudience();
+    const stdRole = this.standardRole();
+    const hasMem = this.hasMemberPrice() && audience === 'anyone';
+    const hasInst = this.hasInstructorPrice() && audience !== 'instructors';
+
+    const addTierRow = (category: string, tierLabel: string, attendance: AttendanceType, hasVideo: boolean, tierType: PricingTierType) => {
+      const stdPrice = p.tiers[getPricingTierKey(stdRole, attendance, hasVideo, tierType)]?.price ?? 0;
+      const memPrice = hasMem ? (p.tiers[getPricingTierKey(AttendeeRole.Member, attendance, hasVideo, tierType)]?.price ?? stdPrice) : undefined;
+      const instPrice = hasInst ? (p.tiers[getPricingTierKey(AttendeeRole.Instructor, attendance, hasVideo, tierType)]?.price ?? (memPrice ?? stdPrice)) : undefined;
+      rows.push({
+        category,
+        tierLabel,
+        attendance: attendance === AttendanceType.InPerson ? 'In-Person' : (attendance === AttendanceType.Online ? 'Online' : 'Recording Only'),
+        hasVideo,
+        stdPrice,
+        memPrice,
+        instPrice,
+      });
+    };
+
+    if (p.allowInPerson) {
+      if (p.hasEarlyBird) {
+        addTierRow('In-Person', 'Early-Bird', AttendanceType.InPerson, false, PricingTierType.EarlyBird);
+        if (p.allowVideo) {
+          addTierRow('In-Person', 'Early-Bird + Video', AttendanceType.InPerson, true, PricingTierType.EarlyBird);
+        }
+      }
+      addTierRow('In-Person', p.hasEarlyBird ? 'Standard (Advance)' : 'Standard', AttendanceType.InPerson, false, PricingTierType.Standard);
+      if (p.allowVideo) {
+        addTierRow('In-Person', p.hasEarlyBird ? 'Standard + Video' : 'Standard + Video', AttendanceType.InPerson, true, PricingTierType.Standard);
+      }
+      if (p.allowPayInPerson) {
+        addTierRow('In-Person', 'Pay at Event', AttendanceType.InPerson, false, PricingTierType.InPerson);
+        if (p.allowVideo) {
+          addTierRow('In-Person', 'Pay at Event + Video', AttendanceType.InPerson, true, PricingTierType.InPerson);
+        }
+      }
+    }
+
+    if (p.allowOnline) {
+      if (p.hasEarlyBird) {
+        addTierRow('Online', 'Early-Bird', AttendanceType.Online, false, PricingTierType.EarlyBird);
+        if (p.allowVideo) {
+          addTierRow('Online', 'Early-Bird + Video', AttendanceType.Online, true, PricingTierType.EarlyBird);
+        }
+      }
+      addTierRow('Online', p.hasEarlyBird ? 'Standard' : 'Standard', AttendanceType.Online, false, PricingTierType.Standard);
+      if (p.allowVideo) {
+        addTierRow('Online', 'Standard + Video', AttendanceType.Online, true, PricingTierType.Standard);
+      }
+    }
+
+    if (p.allowVideoOnly) {
+      addTierRow('Video Pre-Order', 'Standard', AttendanceType.VideoOnly, true, PricingTierType.Standard);
+    }
+
+    return rows;
+  });
+
+  updateTitle(title: string) {
+    this.productModel.update((m) => ({ ...m, title }));
+  }
+
+  updateCurrency(currency: string) {
+    this.productModel.update((m) => ({ ...m, currency }));
+  }
+
+  updatePurchaseDetailsMarkdown(md: string) {
+    this.productModel.update((m) => ({ ...m, purchaseDetailsMarkdown: md }));
+  }
+
+  updateInPersonDetailsMarkdown(md: string) {
+    this.productModel.update((m) => ({ ...m, inPersonDetailsMarkdown: md }));
+  }
+
+  updateRecordedVideoId(recordedVideoId: string) {
+    this.productModel.update((m) => ({ ...m, recordedVideoId }));
+  }
+
+  updateRecordedVideoUrl(recordedVideoUrl: string) {
+    this.productModel.update((m) => ({ ...m, recordedVideoUrl }));
+  }
+
   async saveProduct() {
     const model = structuredClone(this.productModel());
     if (!model.title.trim()) {
@@ -381,7 +685,11 @@ export class ProductEditComponent implements OnInit {
 
     model.hasMemberPrice = this.hasMemberPrice();
     model.hasInstructorPrice = this.hasInstructorPrice();
-    model.allowVideoOnly = false;
+    model.allowVideoOnly = Boolean(this.productModel().allowVideoOnly);
+    model.lateDeltaPrice = this.lateDeltaPrice();
+    model.hasDoorDelta = this.hasDoorDelta();
+    model.doorDeltaPrice = this.doorDeltaPrice();
+    model.videoDeltaPrice = this.videoDeltaPrice();
 
     // Apply audience selection
     const audience = this.registrationAudience();
@@ -399,28 +707,38 @@ export class ProductEditComponent implements OnInit {
       model.allowInstructors = true;
     }
 
+    const finalModel = this.recalculateAllTiers(model);
+
     // Sync member tiers to standard if special member price is not active
     if (!this.hasMemberPrice()) {
       const baseRole = this.standardRole();
       for (const r of this.attendanceRows) {
-        const baseKey = getPricingTierKey(baseRole, r.attendance, r.includeVideo);
-        const memberKey = getPricingTierKey('member', r.attendance, r.includeVideo);
-        const baseTier = model.tiers[baseKey];
-        if (baseTier) {
-          model.tiers[memberKey] = { enabled: baseTier.enabled, price: baseTier.price };
+        for (const incVid of [false, true]) {
+          for (const tierType of [PricingTierType.Standard, PricingTierType.EarlyBird, PricingTierType.InPerson]) {
+            const baseKey = getPricingTierKey(baseRole, r.attendance, incVid, tierType);
+            const memberKey = getPricingTierKey(AttendeeRole.Member, r.attendance, incVid, tierType);
+            const baseTier = finalModel.tiers[baseKey];
+            if (baseTier) {
+              finalModel.tiers[memberKey] = { enabled: baseTier.enabled, price: baseTier.price };
+            }
+          }
         }
       }
     }
 
     // Sync instructor tiers if special instructor price is not active
     if (!this.hasInstructorPrice()) {
-      const baseRole: AttendeeRole = (this.hasMemberPrice() && audience === 'anyone') ? 'member' : this.standardRole();
+      const baseRole: AttendeeRole = (this.hasMemberPrice() && audience === 'anyone') ? AttendeeRole.Member : this.standardRole();
       for (const r of this.attendanceRows) {
-        const baseKey = getPricingTierKey(baseRole, r.attendance, r.includeVideo);
-        const instructorKey = getPricingTierKey('instructor', r.attendance, r.includeVideo);
-        const baseTier = model.tiers[baseKey];
-        if (baseTier) {
-          model.tiers[instructorKey] = { enabled: baseTier.enabled, price: baseTier.price };
+        for (const incVid of [false, true]) {
+          for (const tierType of [PricingTierType.Standard, PricingTierType.EarlyBird, PricingTierType.InPerson]) {
+            const baseKey = getPricingTierKey(baseRole, r.attendance, incVid, tierType);
+            const instructorKey = getPricingTierKey(AttendeeRole.Instructor, r.attendance, incVid, tierType);
+            const baseTier = finalModel.tiers[baseKey];
+            if (baseTier) {
+              finalModel.tiers[instructorKey] = { enabled: baseTier.enabled, price: baseTier.price };
+            }
+          }
         }
       }
     }
@@ -429,25 +747,27 @@ export class ProductEditComponent implements OnInit {
     this.errorMessage.set(null);
 
     try {
-      const savedDocId = await this.productService.saveProduct(model);
+      const savedDocId = await this.productService.saveProduct(finalModel);
       if (this.embedded()) {
         this.productSaved.emit(savedDocId);
       } else {
-        const targetUrl = this.routingService.hrefForView(Views.ProductView, { productId: savedDocId });
+        const targetUrl = model.eventDocId
+          ? this.routingService.hrefForView(Views.EventRegister, { eventId: model.eventDocId })
+          : this.routingService.hrefForView(Views.ManageEventRegistrations);
         this.routingService.navigateTo(targetUrl);
       }
     } catch (err: unknown) {
-      console.error('Error saving product:', err);
-      this.errorMessage.set(err instanceof Error ? err.message : 'Failed to save product.');
+      console.error('Error saving registration setup:', err);
+      this.errorMessage.set(err instanceof Error ? err.message : 'Failed to save registration setup.');
       this.isSaving.set(false);
     }
   }
 
   async deleteProduct() {
-    const id = this.effectiveProductId();
+    const id = this.productModel().docId || this.effectiveProductId();
     if (!id) return;
 
-    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete this registration setup? This action cannot be undone.')) {
       return;
     }
 
@@ -457,12 +777,12 @@ export class ProductEditComponent implements OnInit {
       if (this.embedded()) {
         this.productSaved.emit('');
       } else {
-        const targetUrl = this.routingService.hrefForView(Views.ManageProducts);
+        const targetUrl = this.routingService.hrefForView(Views.ManageEventRegistrations);
         this.routingService.navigateTo(targetUrl);
       }
     } catch (err) {
-      console.error('Error deleting product:', err);
-      alert('Failed to delete product.');
+      console.error('Error deleting registration setup:', err);
+      alert('Failed to delete registration setup.');
       this.isSaving.set(false);
     }
   }

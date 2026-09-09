@@ -14,7 +14,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
 import { MembershipType } from '../../../functions/src/data-model/members';
-import { ProcessedBlogEntry, normalizeCategory } from './squarespace-content.component';
+import { ProcessedBlogEntry, normalizeCategory, isDraftPost } from './squarespace-content.component';
 
 @Component({
     selector: 'app-squarespace-article',
@@ -60,7 +60,8 @@ export class SquarespaceArticleComponent implements OnDestroy {
         if (!matchingPost) return null;
 
         // Draft articles are only visible to admins
-        if (matchingPost.isDraft && !this.firebaseService.isAdmin()) {
+        const isDraft = isDraftPost(matchingPost);
+        if (isDraft && !this.firebaseService.isAdmin()) {
             return null;
         }
 
@@ -69,6 +70,7 @@ export class SquarespaceArticleComponent implements OnDestroy {
 
         return {
             ...matchingPost,
+            isDraft,
             categories,
             safeBody: this.sanitizer.bypassSecurityTrustHtml(matchingPost.body),
             safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(matchingPost.excerpt),

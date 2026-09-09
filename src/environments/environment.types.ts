@@ -63,6 +63,9 @@ export interface AppEnvironment {
   passwordResetEmailSender: string;
   // Base64url VAPID public key used by browser PushManager to subscribe to Web Push
   vapidPublicKey: string;
+  // Outbound transactional email notifications flag. When false or omitted, email
+  // sending is disabled and event details / Zoom joining links are accessed directly on the event page.
+  emailNotificationsEnabled?: boolean;
   // Product and external service URL links
   links: EnvironmentLinks;
 }

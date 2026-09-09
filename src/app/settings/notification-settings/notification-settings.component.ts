@@ -194,6 +194,10 @@ export class NotificationSettingsComponent implements OnInit {
         return 'Order Issues Summary (Admins)';
       case NotificationKind.UnpaidGradingsSummary:
         return 'Unpaid Gradings Summary';
+      case NotificationKind.EventRegistrationConfirmed:
+        return 'Event Registration Confirmed';
+      case NotificationKind.EventVideoAvailable:
+        return 'Event Video Recording Available';
       default:
         return kind;
     }

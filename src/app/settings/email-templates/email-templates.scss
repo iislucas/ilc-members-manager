@@ -79,10 +79,10 @@
   font-size: 0.9rem;
   background: var(--input-bg, #fff);
   color: var(--text-primary, #333);
-  transition: border-color 0.2s;
-  &:focus {
-    border-color: var(--primary-color, #0056b3);
-    outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  &:focus,
+  &:focus-visible {
+    @include input-focus-ring;
   }
 }
 
@@ -100,6 +100,11 @@
   border-radius: 6px;
   overflow: hidden;
   background: var(--input-bg, #fff);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-within {
+    @include input-focus-ring;
+  }
 }
 
 .format-warning {

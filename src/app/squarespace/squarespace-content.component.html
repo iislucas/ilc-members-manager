@@ -77,6 +77,10 @@
                     </div>
                 </div>
             </article>
+            } @empty {
+            <div class="empty-content-warning">
+                <p>No articles found.</p>
+            </div>
             }
         </div>
         } @else if (fallbackContent()) {

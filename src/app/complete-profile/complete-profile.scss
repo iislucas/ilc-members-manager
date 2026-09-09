@@ -106,10 +106,9 @@
       font-size: 1em;
       transition: border-color 0.2s, box-shadow 0.2s;
 
-      &:focus {
-        border-color: v.$focus-ring-color;
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+      &:focus,
+      &:focus-visible {
+        @include v.input-focus-ring;
       }
     }
 
@@ -129,10 +128,9 @@
         box-sizing: border-box;
         transition: border-color 0.2s, box-shadow 0.2s;
 
-        &:focus {
-          border-color: v.$focus-ring-color;
-          outline: none;
-          box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+        &:focus,
+        &:focus-visible {
+          @include v.input-focus-ring;
         }
       }
     }

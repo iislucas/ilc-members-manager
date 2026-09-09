@@ -161,42 +161,85 @@
     color: v.$text-primary;
   }
 
-  .pill-selector {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
+  .pill-tabs {
+    margin-bottom: 0;
 
-    .pill-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4em;
-      padding: 0.5em 1em;
-      border-radius: 20px;
-      border: 1px solid v.$border-color-light;
-      background: v.$theme-bg-color;
-      color: v.$text-primary;
-      font-size: 0.9em;
-      cursor: pointer;
-      transition: all 0.15s ease;
-
-      &:hover {
-        background: v.$separator-color;
-      }
-
-      &.active {
-        background: #18181b;
-        border-color: #18181b;
-        color: #ffffff;
-        font-weight: 600;
-      }
+    .pill-tab:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
     }
   }
+}
+
+.chip-current-badge {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  background: rgba(113, 113, 122, 0.16);
+  color: #52525b;
+  line-height: 1.2;
+  margin-left: 0.4em;
+}
+
+.chip-upgrade-badge {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  background: rgba(149, 0, 0, 0.12);
+  color: v.$heading-accent-color;
+  line-height: 1.2;
+  margin-left: 0.4em;
+}
+
+.chip-addon-badge {
+  display: inline-block;
+  font-size: 0.8em;
+  font-weight: 600;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  background: rgba(149, 0, 0, 0.08);
+  color: v.$heading-accent-color;
+  line-height: 1.2;
+  margin-left: 0.4em;
 }
 
 .video-toggle-group {
   padding: 0.75em 1em;
   background: v.$separator-color;
   border-radius: 6px;
+
+  .video-already-included {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+
+    app-icon {
+      font-size: 1.3em;
+      color: #166534;
+      flex-shrink: 0;
+    }
+
+    .video-included-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15em;
+
+      strong {
+        font-size: 0.95em;
+        color: #166534;
+      }
+
+      .subtext {
+        font-size: 0.85em;
+        color: #15803d;
+      }
+    }
+  }
 
   .checkbox-label {
     display: flex;
@@ -217,12 +260,150 @@
       gap: 0.15em;
       font-size: 0.95em;
 
+      .video-checkbox-title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+      }
+
       .subtext {
         font-size: 0.85em;
         color: v.$text-muted;
       }
     }
   }
+}
+
+.current-registration-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  padding: 1.1em 1.25em;
+  background: #ffffff;
+  border: 1px solid rgba(149, 0, 0, 0.25);
+  border-left: 4px solid v.$heading-accent-color;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .current-reg-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+
+    app-icon {
+      color: v.$heading-accent-color;
+      font-size: 1.3em;
+    }
+
+    .current-reg-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+      flex-wrap: wrap;
+
+      .current-reg-title {
+        font-weight: 700;
+        font-size: 1.05em;
+        color: v.$text-primary;
+      }
+
+      .current-reg-status-badge {
+        font-size: 0.75em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.2em 0.6em;
+        border-radius: 12px;
+        background: rgba(22, 101, 52, 0.1);
+        color: #166534;
+      }
+    }
+  }
+
+  .current-reg-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+    font-size: 0.9em;
+
+    .reg-detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.25em 0;
+      border-bottom: 1px dashed v.$separator-color;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .detail-label {
+        color: v.$text-secondary;
+        font-weight: 500;
+      }
+
+      .detail-value {
+        color: v.$text-primary;
+        font-weight: 600;
+        text-align: right;
+
+        &.paid-amount {
+          color: v.$heading-accent-color;
+          font-size: 1.05em;
+        }
+
+        .status-included {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25em;
+          color: #166534;
+
+          app-icon {
+            font-size: 1.1em;
+          }
+        }
+
+        .status-not-included {
+          color: v.$text-muted;
+          font-weight: normal;
+        }
+      }
+    }
+  }
+
+  .current-reg-footer {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5em;
+    padding-top: 0.5em;
+    border-top: 1px solid v.$separator-color;
+    font-size: 0.85em;
+    color: v.$text-secondary;
+    line-height: 1.4;
+
+    app-icon {
+      font-size: 1.15em;
+      color: v.$heading-accent-color;
+      flex-shrink: 0;
+      margin-top: 0.1em;
+    }
+
+    strong {
+      color: v.$text-primary;
+    }
+  }
+}
+
+.past-event-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.75em 1em;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  font-size: 0.9em;
+  color: #b45309;
 }
 
 .price-summary-box {
@@ -234,9 +415,33 @@
   border: 1px solid v.$border-color-light;
   border-radius: 6px;
 
-  .price-label {
-    font-size: 1em;
+  .price-label-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+
+    .price-label {
+      font-size: 1em;
+      font-weight: 600;
+    }
+
+    .price-sublabel {
+      font-size: 0.82em;
+      color: v.$text-muted;
+    }
+  }
+
+  .price-notice-complete {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    color: #166534;
     font-weight: 600;
+    font-size: 0.95em;
+
+    app-icon {
+      font-size: 1.2em;
+    }
   }
 
   .price-amount {
@@ -246,9 +451,30 @@
   }
 
   .price-unavailable {
-    font-size: 1em;
+    font-size: 0.95em;
     color: #ef4444;
     font-style: italic;
+    text-align: right;
+    max-width: 60%;
+  }
+}
+
+.full-package-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75em;
+  padding: 1.25em 1em;
+  background: rgba(22, 101, 52, 0.08);
+  border: 1px solid rgba(22, 101, 52, 0.2);
+  border-radius: 6px;
+  text-align: center;
+
+  p {
+    margin: 0;
+    font-size: 0.92em;
+    color: #166534;
+    font-weight: 500;
   }
 }
 
@@ -281,10 +507,11 @@
       color: v.$text-primary;
       font-size: 0.95em;
 
-      &:focus {
-        outline: none;
-        border-color: v.$heading-accent-color;
-        box-shadow: 0 0 0 2px rgba(v.$heading-accent-color, 0.15);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+      &:focus,
+      &:focus-visible {
+        @include v.input-focus-ring;
       }
     }
   }
@@ -318,6 +545,295 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
+  }
+}
+
+.attendee-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding: 0.85em 1em;
+  background: v.$separator-color;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+
+  .status-main-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+    flex-wrap: wrap;
+
+    .status-badge-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5em;
+      padding: 0.35em 0.85em;
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.07);
+      color: v.$text-primary;
+
+      app-icon {
+        font-size: 1.15em;
+      }
+
+      &.badge-member {
+        background: rgba(30, 64, 175, 0.1);
+        color: #1d4ed8;
+      }
+
+      &.badge-instructor {
+        background: rgba(149, 0, 0, 0.12);
+        color: v.$heading-accent-color;
+      }
+    }
+
+    .upgrade-membership-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      font-size: 0.85em;
+      font-weight: 600;
+      color: v.$heading-accent-color;
+      text-decoration: none;
+
+      app-icon {
+        font-size: 1.1em;
+      }
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .status-description {
+    margin: 0;
+    font-size: 0.85em;
+    color: v.$text-muted;
+    line-height: 1.4;
+  }
+}
+
+.capacity-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.82em;
+  color: v.$text-muted;
+  margin-top: 0.25em;
+
+  app-icon {
+    font-size: 1.1em;
+  }
+
+  &.sold-out {
+    color: #ef4444;
+    font-weight: 500;
+  }
+}
+
+.chip-sold-out-badge {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15em 0.5em;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.chip-spaces-badge {
+  font-size: 0.72em;
+  font-weight: 600;
+  padding: 0.15em 0.5em;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.08);
+  color: v.$text-secondary;
+
+  &.urgent {
+    background: rgba(217, 119, 6, 0.15);
+    color: #d97706;
+    font-weight: 700;
+  }
+}
+
+.early-bird-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75em;
+  padding: 0.75em 1em;
+  background: rgba(149, 0, 0, 0.05);
+  border: 1px solid rgba(149, 0, 0, 0.2);
+  border-radius: 6px;
+
+  .early-bird-content {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+
+    app-icon {
+      color: v.$heading-accent-color;
+      font-size: 1.3em;
+    }
+
+    .early-bird-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1em;
+
+      .early-bird-title {
+        font-weight: 700;
+        font-size: 0.92em;
+        color: v.$heading-accent-color;
+      }
+
+      .early-bird-sub {
+        font-size: 0.8em;
+        color: v.$text-secondary;
+      }
+    }
+  }
+
+  .early-bird-pill {
+    font-size: 0.8em;
+    font-weight: 700;
+    padding: 0.2em 0.6em;
+    border-radius: 12px;
+    background: v.$heading-accent-color;
+    color: #ffffff;
+    white-space: nowrap;
+  }
+}
+
+.price-amount-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+
+  .price-original-strikethrough {
+    font-size: 1.1em;
+    color: v.$text-muted;
+    text-decoration: line-through;
+  }
+}
+
+.role-ineligible-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75em;
+  padding: 1.25em 1em;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+
+  app-icon {
+    font-size: 1.8em;
+    color: #ef4444;
+  }
+
+  .role-ineligible-text {
+    strong {
+      color: #b91c1c;
+      font-size: 1em;
+    }
+    p {
+      margin: 0.25em 0 0;
+      font-size: 0.88em;
+      color: v.$text-secondary;
+    }
+  }
+
+  .inline-btn {
+    padding: 0.5em 1.25em;
+    text-decoration: none;
+    font-size: 0.9em;
+  }
+}
+
+.pending-in-person-actions,
+.checkout-actions-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+
+  .secondary-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    padding: 0.75em 1em;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    background: v.$theme-bg-color;
+    color: v.$text-primary;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: v.$separator-color;
+    }
+  }
+
+  .actions-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: v.$text-muted;
+    font-size: 0.82em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+
+    &::before, &::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid v.$border-color-light;
+    }
+
+    span {
+      padding: 0 0.75em;
+    }
+  }
+
+  .in-person-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6em;
+    padding: 0.8em 1.25em;
+    border-radius: 6px;
+    border: 2px solid v.$button-border-color;
+    background: v.$theme-bg-color;
+    color: v.$text-primary;
+    font-weight: 700;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: v.$separator-color;
+      border-color: #000000;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .in-person-hint {
+    margin: 0;
+    font-size: 0.8em;
+    color: v.$text-muted;
+    text-align: center;
   }
 }
 

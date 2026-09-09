@@ -117,10 +117,36 @@ export type IlcEvent = {
   documents: EventDocument[];
   productId?: string; // Firestore doc ID of the linked Product (or '' if none)
   onlineJoiningLink?: string; // Online attendance / Zoom joining URL / instructions (for paid online attendees)
+  purchaseDetailsMarkdown?: string; // Markdown details shared upon purchase (meeting link, password, instructions)
+  inPersonDetailsMarkdown?: string; // Markdown details for in-person attendees (training space directions, building access codes, arrival info)
   recordedVideoId?: string; // Catalog video doc ID from /videos (or '' if none)
   recordedVideoUrl?: string; // Direct external video recording URL (or '' if none)
+  maxInPersonAttendees?: number; // Optional in-person capacity limit (0 or unset for unlimited)
+  inPersonRegistrationsCount?: number; // Cached count of in-person registrations
   lastUpdated?: string; // ISO date-time; managed by sync logic
   updatedByEmail?: string; // Email of the user who last updated this event
+};
+
+export type SubmitProposedEventRequest = {
+  title: string;
+  start: string;
+  end: string;
+  description?: string;
+  location?: string;
+  status?: EventStatus;
+  leadingInstructorId?: string;
+  ownerDocId?: string;
+  managerDocIds?: string[];
+  contactDocIds?: string[];
+  ownerContactName?: string;
+  ownerContactEmail?: string;
+  ownerContactUrl?: string;
+  productId?: string;
+  onlineJoiningLink?: string;
+  purchaseDetailsMarkdown?: string;
+  inPersonDetailsMarkdown?: string;
+  recordedVideoId?: string;
+  recordedVideoUrl?: string;
 };
 
 export function initEvent(): IlcEvent {
@@ -153,8 +179,12 @@ export function initEvent(): IlcEvent {
     documents: [],
     productId: '',
     onlineJoiningLink: '',
+    purchaseDetailsMarkdown: '',
+    inPersonDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
+    maxInPersonAttendees: 0,
+    inPersonRegistrationsCount: 0,
     updatedByEmail: '',
   };
 }
@@ -242,13 +272,30 @@ export function eventContacts(event: EventContactFields): EventContact[] {
 // Products & Pricing Matrix for Classes, Workshops & Events
 // ------------------------------------------------------------------
 
-export type AttendeeRole = 'non_member' | 'member' | 'instructor';
-export type AttendanceType = 'in_person' | 'online' | 'video_only';
+export enum AttendeeRole {
+  NonMember = 'non_member',
+  Member = 'member',
+  Instructor = 'instructor',
+}
+
+export enum AttendanceType {
+  InPerson = 'in_person',
+  Online = 'online',
+  InPersonAndOnline = 'in_person_and_online',
+  VideoOnly = 'video_only',
+}
+
+export enum PricingTierType {
+  Standard = 'standard',
+  EarlyBird = 'early_bird',
+  InPerson = 'in_person',
+}
 
 export type ProductPricingTier = {
   role: AttendeeRole;
   attendance: AttendanceType;
   includeVideo: boolean;
+  tierType?: PricingTierType;
   enabled: boolean;
   price: number; // in standard currency units (e.g. 50.00)
 };
@@ -257,11 +304,18 @@ export function getPricingTierKey(
   role: AttendeeRole,
   attendance: AttendanceType,
   includeVideo: boolean,
+  tierType: PricingTierType = PricingTierType.Standard,
 ): string {
-  if (attendance === 'video_only') {
-    return `${role}_video_only`;
+  let base: string;
+  if (attendance === AttendanceType.VideoOnly) {
+    base = `${role}_video_only`;
+  } else {
+    base = `${role}_${attendance}_${includeVideo ? 'video' : 'novideo'}`;
   }
-  return `${role}_${attendance}_${includeVideo ? 'video' : 'novideo'}`;
+  if (tierType === PricingTierType.Standard) {
+    return base;
+  }
+  return `${base}_${tierType}`;
 }
 
 export type Product = {
@@ -281,7 +335,18 @@ export type Product = {
   allowVideoOnly: boolean;
   hasMemberPrice?: boolean;
   hasInstructorPrice?: boolean;
+  hasEarlyBird?: boolean;
+  earlyBirdDeadline?: string; // YYYY-MM-DD cutoff date (paying online before/on this date)
+  lateDeltaPrice?: number; // Extra fee for registering after early-bird deadline
+  allowPayInPerson?: boolean; // Whether paying in person at event is enabled
+  hasDoorDelta?: boolean; // Whether an extra charge applies for paying at the door
+  doorDeltaPrice?: number; // Extra fee for paying at the door
+  videoDeltaPrice?: number; // Extra fee for video recording add-on
+  maxInPersonAttendees?: number; // Optional capacity limit for in-person attendance
+  inPersonRegistrationsCount?: number; // Maintained by trigger
   onlineJoiningLink?: string;
+  purchaseDetailsMarkdown?: string;
+  inPersonDetailsMarkdown?: string;
   recordedVideoId?: string;
   recordedVideoUrl?: string;
   tiers: Record<string, { enabled: boolean; price: number }>;
@@ -289,16 +354,102 @@ export type Product = {
   lastUpdated?: string;
 };
 
+/**
+ * Calculates the price difference for adding video recording access to an event.
+ * If product.videoDeltaPrice is set to a positive number, returns that value.
+ * If product.videoDeltaPrice is 0, returns 0.
+ * If product.videoDeltaPrice is undefined, inspects enabled tiers with video vs without video.
+ * Returns 0 if video is included for free or product does not allow video.
+ */
+export function getVideoDelta(
+  product: Product,
+  role?: AttendeeRole,
+  attendance?: AttendanceType,
+  tierType?: PricingTierType,
+): number {
+  if (!product.allowVideo) return 0;
+  if (typeof product.videoDeltaPrice === 'number' && product.videoDeltaPrice > 0) {
+    return product.videoDeltaPrice;
+  }
+
+  if (!product.tiers) return 0;
+
+  const rolesToCheck = role
+    ? [role, AttendeeRole.NonMember, AttendeeRole.Member, AttendeeRole.Instructor]
+    : [AttendeeRole.NonMember, AttendeeRole.Member, AttendeeRole.Instructor];
+
+  const attendancesToCheck = attendance && attendance !== AttendanceType.VideoOnly
+    ? [attendance, AttendanceType.Online, AttendanceType.InPerson]
+    : [AttendanceType.Online, AttendanceType.InPerson];
+
+  const tierTypesToCheck = tierType
+    ? [tierType, PricingTierType.Standard, PricingTierType.EarlyBird]
+    : [PricingTierType.Standard, PricingTierType.EarlyBird];
+
+  for (const att of attendancesToCheck) {
+    for (const r of rolesToCheck) {
+      for (const tt of tierTypesToCheck) {
+        const noVidKey = getPricingTierKey(r, att, false, tt);
+        const withVidKey = getPricingTierKey(r, att, true, tt);
+        const noVidTier = product.tiers[noVidKey];
+        const withVidTier = product.tiers[withVidKey];
+        if (
+          noVidTier?.enabled &&
+          withVidTier?.enabled &&
+          typeof withVidTier.price === 'number' &&
+          typeof noVidTier.price === 'number'
+        ) {
+          const diff = withVidTier.price - noVidTier.price;
+          if (diff > 0) {
+            return diff;
+          }
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * Returns true if the event allows video and video recording is included for free
+ * (i.e. no extra charge for video access).
+ */
+export function isVideoIncludedForFree(
+  product: Product,
+  role?: AttendeeRole,
+  attendance?: AttendanceType,
+  tierType?: PricingTierType,
+): boolean {
+  if (!product.allowVideo) return false;
+  if (attendance === AttendanceType.VideoOnly) return false;
+  return getVideoDelta(product, role, attendance, tierType) <= 0;
+}
+
 export function initProduct(): Product {
   const tiers: Record<string, { enabled: boolean; price: number }> = {};
-  const roles: AttendeeRole[] = ['non_member', 'member', 'instructor'];
-  const attendances: AttendanceType[] = ['in_person', 'online'];
+  const roles: AttendeeRole[] = [
+    AttendeeRole.NonMember,
+    AttendeeRole.Member,
+    AttendeeRole.Instructor,
+  ];
+  const attendances: AttendanceType[] = [
+    AttendanceType.InPerson,
+    AttendanceType.Online,
+  ];
   for (const r of roles) {
     for (const a of attendances) {
       tiers[getPricingTierKey(r, a, false)] = { enabled: true, price: 0 };
       tiers[getPricingTierKey(r, a, true)] = { enabled: true, price: 0 };
+      tiers[getPricingTierKey(r, a, false, PricingTierType.EarlyBird)] = { enabled: true, price: 0 };
+      tiers[getPricingTierKey(r, a, true, PricingTierType.EarlyBird)] = { enabled: true, price: 0 };
+      if (a === AttendanceType.InPerson) {
+        tiers[getPricingTierKey(r, a, false, PricingTierType.InPerson)] = { enabled: true, price: 0 };
+        tiers[getPricingTierKey(r, a, true, PricingTierType.InPerson)] = { enabled: true, price: 0 };
+      }
     }
-    tiers[getPricingTierKey(r, 'video_only', true)] = { enabled: false, price: 0 };
+    tiers[getPricingTierKey(r, AttendanceType.VideoOnly, true)] = { enabled: false, price: 0 };
+    tiers[getPricingTierKey(r, AttendanceType.VideoOnly, true, PricingTierType.EarlyBird)] = { enabled: false, price: 0 };
   }
   return {
     docId: '',
@@ -317,7 +468,18 @@ export function initProduct(): Product {
     allowVideoOnly: false,
     hasMemberPrice: false,
     hasInstructorPrice: false,
+    hasEarlyBird: false,
+    earlyBirdDeadline: '',
+    lateDeltaPrice: 0,
+    allowPayInPerson: false,
+    hasDoorDelta: false,
+    doorDeltaPrice: 0,
+    videoDeltaPrice: 0,
+    maxInPersonAttendees: 0,
+    inPersonRegistrationsCount: 0,
     onlineJoiningLink: '',
+    purchaseDetailsMarkdown: '',
+    inPersonDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
     tiers,
@@ -347,7 +509,25 @@ export function firestoreDocToProduct(doc: {
 // Event Registrations
 // ------------------------------------------------------------------
 
-export type EventRegistrationStatus = 'paid' | 'cancelled' | 'refunded';
+export enum EventRegistrationStatus {
+  Paid = 'paid',
+  PendingInPerson = 'pending_in_person',
+  Cancelled = 'cancelled',
+  Refunded = 'refunded',
+}
+
+export enum RegistrationPaymentMethod {
+  Stripe = 'stripe',
+  InPerson = 'in_person',
+}
+
+export type EventRegistrationUpgrade = {
+  timestamp: string;
+  previousAttendance: AttendanceType;
+  previousHasVideoAccess: boolean;
+  upgradeAmountCents: number;
+  stripeSessionId: string;
+};
 
 export type EventRegistration = {
   docId: string;
@@ -362,14 +542,34 @@ export type EventRegistration = {
   notes?: string;
   memberDocId?: string;
   memberId?: string;
+  studentLevel?: string;
+  applicationLevel?: string;
   role: AttendeeRole;
   attendance: AttendanceType;
   hasVideoAccess: boolean;
   amountPaidCents: number;
+  amountDueCents?: number;
+  originalAmountPaidCents?: number;
+  upgradeHistory?: EventRegistrationUpgrade[];
   currency: string;
   status: EventRegistrationStatus;
+  paymentMethod?: RegistrationPaymentMethod;
+  pricingTierType?: PricingTierType;
+  paidAt?: string;
   lastUpdated?: string;
 };
+
+export function isEventPast(
+  event: { start?: string; end?: string } | null | undefined,
+): boolean {
+  if (!event) return false;
+  const dateStr = event.end || event.start;
+  if (!dateStr) return false;
+  const isoStr = dateStr.length === 10 ? `${dateStr}T23:59:59` : dateStr;
+  const eventDate = new Date(isoStr);
+  if (isNaN(eventDate.getTime())) return false;
+  return new Date() > eventDate;
+}
 
 export function initEventRegistration(): EventRegistration {
   return {
@@ -385,12 +585,17 @@ export function initEventRegistration(): EventRegistration {
     notes: '',
     memberDocId: '',
     memberId: '',
-    role: 'non_member',
-    attendance: 'in_person',
+    studentLevel: '',
+    applicationLevel: '',
+    role: AttendeeRole.NonMember,
+    attendance: AttendanceType.InPerson,
     hasVideoAccess: false,
     amountPaidCents: 0,
+    amountDueCents: 0,
     currency: 'usd',
-    status: 'paid',
+    status: EventRegistrationStatus.Paid,
+    paymentMethod: RegistrationPaymentMethod.Stripe,
+    pricingTierType: PricingTierType.Standard,
     lastUpdated: new Date().toISOString(),
   };
 }

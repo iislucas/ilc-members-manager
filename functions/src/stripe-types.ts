@@ -6,6 +6,8 @@
  * server can assign Stripe values to them without casting.
  */
 
+import { AttendeeRole, AttendanceType } from './data-model/events';
+
 export enum StripePriceType {
   OneTime = 'one_time',
   Recurring = 'recurring',
@@ -168,10 +170,12 @@ export interface CreateCustomerPortalSessionResult {
 
 export interface CreateProductCheckoutSessionRequest {
   productId: string;
-  role: 'non_member' | 'member' | 'instructor';
-  attendance: 'in_person' | 'online' | 'video_only';
+  role: AttendeeRole;
+  attendance: AttendanceType;
   includeVideo: boolean;
   origin: string;
+  isUpgrade?: boolean;
+  existingRegistrationDocId?: string;
   attendeeDetails: {
     name: string;
     email: string;
@@ -180,3 +184,57 @@ export interface CreateProductCheckoutSessionRequest {
   };
 }
 
+export interface UpdateProductRegistrationRequest {
+  productId: string;
+  existingRegistrationDocId: string;
+  role: AttendeeRole;
+  attendance: AttendanceType;
+  includeVideo: boolean;
+  attendeeDetails: {
+    name: string;
+    email: string;
+    phone?: string;
+    notes?: string;
+  };
+}
+
+export interface UpdateProductRegistrationResult {
+  success: boolean;
+  registrationDocId: string;
+}
+
+export interface RegisterEventInPersonRequest {
+  productId: string;
+  role: AttendeeRole;
+  attendance: AttendanceType;
+  includeVideo: boolean;
+  attendeeDetails: {
+    name: string;
+    email: string;
+    phone?: string;
+    notes?: string;
+  };
+}
+
+export interface RegisterEventInPersonResult {
+  success: boolean;
+  registrationDocId: string;
+}
+
+export interface MarkEventRegistrationPaidRequest {
+  eventId: string;
+  registrationId: string;
+}
+
+export interface MarkEventRegistrationPaidResult {
+  success: boolean;
+}
+
+export interface UnmarkEventRegistrationPaidRequest {
+  eventId: string;
+  registrationId: string;
+}
+
+export interface UnmarkEventRegistrationPaidResult {
+  success: boolean;
+}

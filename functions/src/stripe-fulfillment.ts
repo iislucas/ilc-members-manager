@@ -12,9 +12,20 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import Stripe from 'stripe';
 import { InstructorLicenseType, gradingProgression, achievedGradingLevels, normalizeGradingLevel } from './data-model/curriculum';
-import { EventRegistration, AttendeeRole, AttendanceType } from './data-model/events';
+import {
+  EventRegistration,
+  EventRegistrationUpgrade,
+  AttendeeRole,
+  AttendanceType,
+  EventRegistrationStatus,
+  PricingTierType,
+  RegistrationPaymentMethod,
+  IlcEvent,
+  Product,
+} from './data-model/events';
+import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, unpaidGradingsInProgressionOrder } from './data-model/gradings';
-import { Member, MembershipType, firestoreDocToMember, initMember, SubscriptionItemType, SubscriptionStatus, SubscriptionInterval } from './data-model/members';
+import { Member, MemberUpdates, MemberSubscriptionItem, MembershipType, firestoreDocToMember, initMember, SubscriptionItemType, SubscriptionStatus, SubscriptionInterval } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderLineItem, StripeCheckoutMode, OrderStatus } from './data-model/orders';
 import { initSchool, School } from './data-model/schools';
@@ -651,11 +662,11 @@ export async function fulfillSpouseLifeMembership(
 
   // 2. If existing member found, update to Life membership
   if (existingSpouseDoc && existingSpouseDoc.exists) {
-    const spouseData = existingSpouseDoc.data() as Partial<Member>;
+    const spouseData = existingSpouseDoc.data() as Member;
     const spouseMemberDocId = existingSpouseDoc.id;
-    const spouseRef = db.collection('members').doc(spouseMemberDocId);
+    const spouseRef = db.collection(FirestoreCollection.Members).doc(spouseMemberDocId);
 
-    const updates: Record<string, unknown> = {
+    const updates: MemberUpdates = {
       membershipType: MembershipType.Life,
       currentMembershipExpires: '9999-12-31',
       membershipNextAutoRenewDate: '',
@@ -665,13 +676,13 @@ export async function fulfillSpouseLifeMembership(
 
     // Never overwrite firstMembershipStarted if already set
     if (!spouseData.firstMembershipStarted || spouseData.firstMembershipStarted.trim() === '') {
-      updates['firstMembershipStarted'] = orderDate;
+      updates.firstMembershipStarted = orderDate;
     }
     if (spouseDob && !spouseData.dateOfBirth) {
-      updates['dateOfBirth'] = spouseDob;
+      updates.dateOfBirth = spouseDob;
     }
     if (spouseEmail && !(spouseData.emails || []).map((e) => e.toLowerCase()).includes(spouseEmail)) {
-      updates['emails'] = admin.firestore.FieldValue.arrayUnion(spouseEmail);
+      updates.emails = [...(spouseData.emails || []), spouseEmail];
     }
 
     // Auto-assign member ID if existing member does not have one
@@ -681,7 +692,7 @@ export async function fulfillSpouseLifeMembership(
       if (countryCode) {
         try {
           const newMemberId = await assignNextMemberId(countryCode, db);
-          updates['memberId'] = newMemberId;
+          updates.memberId = newMemberId;
           spouseData.memberId = newMemberId;
         } catch (e) {
           logger.error('Failed to assign member ID for existing spouse member', { error: e });
@@ -724,7 +735,7 @@ export async function fulfillSpouseLifeMembership(
     }
   }
 
-  const newSpouseDocRef = db.collection('members').doc();
+  const newSpouseDocRef = db.collection(FirestoreCollection.Members).doc();
   const newSpouseMember: Member = {
     ...initMember(),
     docId: newSpouseDocRef.id,
@@ -774,9 +785,9 @@ export async function fulfillEventRegistration(
 ): Promise<void> {
   const eventDocId = order.metadata?.['eventDocId'] || '';
   const productId = order.metadata?.['productId'] || '';
-  const role = (order.metadata?.['role'] || 'non_member') as AttendeeRole;
-  const attendance = (order.metadata?.['attendance'] || 'in_person') as AttendanceType;
-  const hasVideoAccess = order.metadata?.['includeVideo'] === 'true' || attendance === 'video_only';
+  const role = (order.metadata?.['role'] || AttendeeRole.NonMember) as AttendeeRole;
+  const attendance = (order.metadata?.['attendance'] || AttendanceType.InPerson) as AttendanceType;
+  const hasVideoAccess = order.metadata?.['includeVideo'] === 'true' || attendance === AttendanceType.VideoOnly;
   const name = order.metadata?.['attendeeName'] || order.customerName || '';
   const email = order.metadata?.['attendeeEmail'] || order.customerEmail || '';
   const phone = order.metadata?.['attendeePhone'] || '';
@@ -787,11 +798,69 @@ export async function fulfillEventRegistration(
   const memberDocId = member?.docId || order.metadata?.['memberDocId'] || '';
   const memberId = member?.memberId || order.metadata?.['memberId'] || '';
 
+  const isUpgrade = order.metadata?.['isUpgrade'] === 'true';
+  const existingRegistrationDocId = order.metadata?.['existingRegistrationDocId'] || '';
+
+  let finalAttendance = attendance;
+  let finalHasVideoAccess = hasVideoAccess;
+  let finalAmountPaidCents = amountPaidCents;
+  let targetDocId = orderDocId;
+  let upgradeHistory: EventRegistrationUpgrade[] = [];
+
+  if (isUpgrade && existingRegistrationDocId && eventDocId) {
+    targetDocId = existingRegistrationDocId;
+    try {
+      const existingSnap = await db
+        .collection('events')
+        .doc(eventDocId)
+        .collection('registrations')
+        .doc(existingRegistrationDocId)
+        .get();
+
+      if (existingSnap.exists) {
+        const existing = existingSnap.data() as EventRegistration;
+        finalAmountPaidCents = (existing.amountPaidCents || 0) + amountPaidCents;
+        finalHasVideoAccess = existing.hasVideoAccess || hasVideoAccess;
+
+        if (
+          (existing.attendance === AttendanceType.InPerson && attendance === AttendanceType.Online) ||
+          (existing.attendance === AttendanceType.Online && attendance === AttendanceType.InPerson) ||
+          existing.attendance === AttendanceType.InPersonAndOnline ||
+          attendance === AttendanceType.InPersonAndOnline
+        ) {
+          finalAttendance = AttendanceType.InPersonAndOnline;
+        } else if (attendance === AttendanceType.VideoOnly) {
+          finalAttendance = existing.attendance;
+        } else {
+          finalAttendance = attendance;
+        }
+
+        upgradeHistory = [
+          ...(existing.upgradeHistory || []),
+          {
+            timestamp: new Date().toISOString(),
+            previousAttendance: existing.attendance,
+            previousHasVideoAccess: existing.hasVideoAccess,
+            upgradeAmountCents: amountPaidCents,
+            stripeSessionId: order.checkoutSessionId || '',
+          },
+        ];
+      }
+    } catch (err) {
+      logger.warn('Error reading existing registration for upgrade in fulfillment:', err);
+    }
+  }
+
+  const pricingTierType =
+    (order.metadata?.['pricingTierType'] as PricingTierType) ||
+    PricingTierType.Standard;
+  const paymentMethod = RegistrationPaymentMethod.Stripe;
+
   const registration: EventRegistration = {
-    docId: orderDocId,
+    docId: targetDocId,
     eventDocId,
     productId,
-    orderDocId,
+    orderDocId: targetDocId,
     stripeSessionId: order.checkoutSessionId || '',
     registeredAt: order.created || new Date().toISOString(),
     name,
@@ -800,53 +869,62 @@ export async function fulfillEventRegistration(
     notes,
     memberDocId,
     memberId,
+    studentLevel: member?.studentLevel || '',
+    applicationLevel: member?.applicationLevel || '',
     role,
-    attendance,
-    hasVideoAccess,
-    amountPaidCents,
+    attendance: finalAttendance,
+    hasVideoAccess: finalHasVideoAccess,
+    amountPaidCents: finalAmountPaidCents,
+    amountDueCents: 0,
     currency,
-    status: 'paid',
+    status: EventRegistrationStatus.Paid,
+    paymentMethod,
+    pricingTierType,
+    paidAt: order.created || new Date().toISOString(),
     lastUpdated: new Date().toISOString(),
+    ...(upgradeHistory.length > 0 ? { upgradeHistory } : {}),
   };
 
   const batch = db.batch();
 
   if (eventDocId) {
     const eventRegRef = db
-      .collection('events')
+      .collection(FirestoreCollection.Events)
       .doc(eventDocId)
-      .collection('registrations')
-      .doc(orderDocId);
-    batch.set(eventRegRef, registration);
+      .collection(FirestoreSubcollection.Registrations)
+      .doc(targetDocId);
+    batch.set(eventRegRef, registration, { merge: true });
   }
 
   if (memberDocId) {
     const memberRegRef = db
-      .collection('members')
+      .collection(FirestoreCollection.Members)
       .doc(memberDocId)
-      .collection('registrations')
-      .doc(orderDocId);
-    batch.set(memberRegRef, registration);
+      .collection(FirestoreSubcollection.Registrations)
+      .doc(targetDocId);
+    batch.set(memberRegRef, registration, { merge: true });
   }
 
   await batch.commit();
 
   logger.info('Recorded EventRegistration', {
-    orderDocId,
+    orderDocId: targetDocId,
+    isUpgrade,
     eventDocId,
     email,
     memberDocId,
-    attendance,
-    hasVideoAccess,
+    attendance: finalAttendance,
+    hasVideoAccess: finalHasVideoAccess,
+    totalAmountPaidCents: finalAmountPaidCents,
   });
 
   // Handle Event Zoom link and Video Grants if event exists
-  let prodData: Record<string, unknown> = {};
+  let product: Product | undefined;
   if (productId) {
     try {
-      const prodSnap = await db.collection('products').doc(productId).get();
+      const prodSnap = await db.collection(FirestoreCollection.Products).doc(productId).get();
       if (prodSnap.exists) {
-        prodData = prodSnap.data() || {};
+        product = prodSnap.data() as Product;
       }
     } catch (e) {
       logger.warn('Failed to load product for fulfillment', { productId, error: e });
@@ -855,24 +933,39 @@ export async function fulfillEventRegistration(
 
   if (eventDocId) {
     try {
-      const eventSnap = await db.collection('events').doc(eventDocId).get();
+      const eventSnap = await db.collection(FirestoreCollection.Events).doc(eventDocId).get();
       if (eventSnap.exists) {
-        const eventData = eventSnap.data() || {};
-        const eventTitle = eventData['title'] || (prodData['title'] as string) || 'Event';
-        const onlineJoiningLink = (prodData['onlineJoiningLink'] as string) || (eventData['onlineJoiningLink'] as string) || '';
-        const recordedVideoId = (prodData['recordedVideoId'] as string) || (eventData['recordedVideoId'] as string) || '';
+        const event = eventSnap.data() as IlcEvent;
+        const eventTitle = event.title || product?.title || 'Event';
+        const purchaseDetailsMarkdown = product?.purchaseDetailsMarkdown || event.purchaseDetailsMarkdown || '';
+        const inPersonDetailsMarkdown = product?.inPersonDetailsMarkdown || event.inPersonDetailsMarkdown || '';
+        const onlineJoiningLink = product?.onlineJoiningLink || event.onlineJoiningLink || '';
+        const recordedVideoId = product?.recordedVideoId || event.recordedVideoId || '';
 
-        // 1. Send confirmation notification to member (with Zoom link if online)
+        // 1. Send confirmation notification to member (with Zoom/joining details if online and in-person details)
         if (memberDocId) {
           let message = `You are registered for **[${eventTitle}](/events/${eventDocId})**!`;
-          if (attendance === 'online') {
-            if (onlineJoiningLink) {
+          if (
+            attendance === AttendanceType.Online ||
+            attendance === AttendanceType.InPersonAndOnline
+          ) {
+            if (purchaseDetailsMarkdown) {
+              message += `\n\n### Online Joining Details\n${purchaseDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${eventDocId}).`;
+            } else if (onlineJoiningLink) {
               message += `\n\nYour online joining link is: [Join Zoom Meeting](${onlineJoiningLink})\n\nYou can also find this link at any time on the [event page](/events/${eventDocId}).`;
             } else {
-              message += `\n\nYour online joining link will appear on the [event page](/events/${eventDocId}) prior to the class.`;
+              message += `\n\nYour online joining details will appear on the [event page](/events/${eventDocId}) prior to the class.`;
             }
-          } else {
-            message += `\n\nWe look forward to seeing you in person! Details are available on the [event page](/events/${eventDocId}).`;
+          }
+          if (
+            attendance === AttendanceType.InPerson ||
+            attendance === AttendanceType.InPersonAndOnline
+          ) {
+            if (inPersonDetailsMarkdown) {
+              message += `\n\n### In-Person Instructions\n${inPersonDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${eventDocId}).`;
+            } else {
+              message += `\n\nWe look forward to seeing you in person! Details are available on the [event page](/events/${eventDocId}).`;
+            }
           }
 
           await createMemberNotification(db, memberDocId, {
@@ -884,6 +977,8 @@ export async function fulfillEventRegistration(
               orderDocId,
               eventId: eventDocId,
               attendance,
+              purchaseDetailsMarkdown,
+              inPersonDetailsMarkdown,
               onlineJoiningLink,
             },
           });
@@ -903,19 +998,30 @@ export async function fulfillEventRegistration(
             grantedAt: new Date().toISOString(),
           };
           await db
-            .collection('members')
+            .collection(FirestoreCollection.Members)
             .doc(memberDocId)
-            .collection('videoGrants')
+            .collection(FirestoreSubcollection.VideoGrants)
             .doc(recordedVideoId)
             .set(grant);
           await db
-            .collection('video_grants')
+            .collection(FirestoreCollection.VideoGrants)
             .doc(`${memberDocId}_${recordedVideoId}`)
             .set(grant);
           logger.info('Auto-provisioned VideoGrant for event registration', {
             memberDocId,
             recordedVideoId,
             eventDocId,
+          });
+
+          await createMemberNotification(db, memberDocId, {
+            kind: NotificationKind.EventVideoAvailable,
+            markdown: `The class video recording for **[${eventTitle}](/events/${eventDocId})** is ready! You can [watch it now](/videos/${encodeURIComponent(recordedVideoId)}).`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            data: {
+              eventId: eventDocId,
+              videoId: recordedVideoId,
+            },
           });
         }
       }
@@ -941,14 +1047,14 @@ export async function fulfillStripeOrder(
   const orderDate = order.created
     ? order.created.split('T')[0]
     : new Date().toISOString().split('T')[0];
-  const memberRef = db.collection('members').doc(member.docId);
-  const memberUpdates: Record<string, unknown> = {
+  const memberRef = db.collection(FirestoreCollection.Members).doc(member.docId);
+  const memberUpdates: MemberUpdates = {
     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
   };
 
   // Cache customer ID if present
   if (order.stripeCustomerId && !member.stripeCustomerId) {
-    memberUpdates['stripeCustomerId'] = order.stripeCustomerId;
+    memberUpdates.stripeCustomerId = order.stripeCustomerId;
   }
 
   for (const item of order.lineItems) {
@@ -957,10 +1063,10 @@ export async function fulfillStripeOrder(
 
     if (category === OrderItemCategory.Membership) {
       if (descLower.includes('life')) {
-        memberUpdates['membershipType'] = MembershipType.Life;
-        memberUpdates['currentMembershipExpires'] = '9999-12-31';
-        memberUpdates['membershipNextAutoRenewDate'] = '';
-        memberUpdates['lastRenewalDate'] = orderDate;
+        memberUpdates.membershipType = MembershipType.Life;
+        memberUpdates.currentMembershipExpires = '9999-12-31';
+        memberUpdates.membershipNextAutoRenewDate = '';
+        memberUpdates.lastRenewalDate = orderDate;
 
         if (
           descLower.includes('spouse') ||
@@ -975,13 +1081,13 @@ export async function fulfillStripeOrder(
           1,
           orderDate,
         );
-        memberUpdates['membershipType'] = MembershipType.Annual;
-        memberUpdates['lastRenewalDate'] = orderDate;
-        memberUpdates['currentMembershipExpires'] = newExpires;
+        memberUpdates.membershipType = MembershipType.Annual;
+        memberUpdates.lastRenewalDate = orderDate;
+        memberUpdates.currentMembershipExpires = newExpires;
 
         if (order.mode === StripeCheckoutMode.Subscription && order.subscriptionId) {
-          memberUpdates['membershipSubscriptionId'] = order.subscriptionId;
-          memberUpdates['membershipNextAutoRenewDate'] = newExpires;
+          memberUpdates.membershipSubscriptionId = order.subscriptionId;
+          memberUpdates.membershipNextAutoRenewDate = newExpires;
         }
       }
 
@@ -992,7 +1098,7 @@ export async function fulfillStripeOrder(
         if (countryCode) {
           try {
             const newMemberId = await assignNextMemberId(countryCode, db);
-            memberUpdates['memberId'] = newMemberId;
+            memberUpdates.memberId = newMemberId;
             member.memberId = newMemberId;
             logger.info('Assigned new member ID for Stripe membership purchase', {
               memberDocId: member.docId,
@@ -1040,22 +1146,22 @@ export async function fulfillStripeOrder(
         // If the member record had no country populated, update it from the resolved billing country
         if (!member.country && countryCode) {
           const resolvedCountry = resolveCountryName(countryCode);
-          memberUpdates['country'] = resolvedCountry;
+          memberUpdates.country = resolvedCountry;
           member.country = resolvedCountry;
         }
       }
 
       // Record first membership start date ONLY if not already set (never overwrite)
       if (!member.firstMembershipStarted || member.firstMembershipStarted.trim() === '') {
-        memberUpdates['firstMembershipStarted'] = orderDate;
+        memberUpdates.firstMembershipStarted = orderDate;
         member.firstMembershipStarted = orderDate;
       }
     } else if (category === OrderItemCategory.InstructorLicense) {
       if (member.instructorLicenseType === InstructorLicenseType.Life || descLower.includes('life')) {
-        memberUpdates['instructorLicenseRenewalDate'] = orderDate;
-        memberUpdates['instructorLicenseExpires'] = '9999-12-31';
-        memberUpdates['instructorLicenseType'] = InstructorLicenseType.Life;
-        memberUpdates['instructorLicenseNextAutoRenewDate'] = '';
+        memberUpdates.instructorLicenseRenewalDate = orderDate;
+        memberUpdates.instructorLicenseExpires = '9999-12-31';
+        memberUpdates.instructorLicenseType = InstructorLicenseType.Life;
+        memberUpdates.instructorLicenseNextAutoRenewDate = '';
       } else {
         const yearsToAdd =
           item.quantity && item.quantity > 0 ? item.quantity : 1;
@@ -1064,9 +1170,9 @@ export async function fulfillStripeOrder(
           yearsToAdd,
           orderDate,
         );
-        memberUpdates['instructorLicenseRenewalDate'] = orderDate;
-        memberUpdates['instructorLicenseExpires'] = newExpires;
-        memberUpdates['instructorLicenseType'] = InstructorLicenseType.Annual;
+        memberUpdates.instructorLicenseRenewalDate = orderDate;
+        memberUpdates.instructorLicenseExpires = newExpires;
+        memberUpdates.instructorLicenseType = InstructorLicenseType.Annual;
         member.instructorLicenseExpires = newExpires;
         member.instructorLicenseType = InstructorLicenseType.Annual;
 
@@ -1074,9 +1180,9 @@ export async function fulfillStripeOrder(
           order.mode === StripeCheckoutMode.Subscription &&
           order.subscriptionId
         ) {
-          memberUpdates['instructorLicenseSubscriptionId'] =
+          memberUpdates.instructorLicenseSubscriptionId =
             order.subscriptionId;
-          memberUpdates['instructorLicenseNextAutoRenewDate'] = newExpires;
+          memberUpdates.instructorLicenseNextAutoRenewDate = newExpires;
           member.instructorLicenseSubscriptionId = order.subscriptionId;
           member.instructorLicenseNextAutoRenewDate = newExpires;
         }
@@ -1086,7 +1192,7 @@ export async function fulfillStripeOrder(
       if (!member.instructorId || member.instructorId.trim() === '') {
         try {
           const newInstructorId = await assignNextInstructorId(db);
-          memberUpdates['instructorId'] = newInstructorId;
+          memberUpdates.instructorId = newInstructorId;
           member.instructorId = newInstructorId;
           logger.info(
             'Assigned new instructor ID for Stripe instructor license purchase',
@@ -1113,14 +1219,14 @@ export async function fulfillStripeOrder(
         ? extendDateByYears(member.classVideoLibraryExpirationDate, 1, orderDate)
         : extendDateByMonths(member.classVideoLibraryExpirationDate, 1, orderDate);
 
-      memberUpdates['classVideoLibrarySubscription'] = true;
-      memberUpdates['classVideoLibraryLastRenewalDate'] = orderDate;
-      memberUpdates['classVideoLibraryExpirationDate'] = newExpires;
+      memberUpdates.classVideoLibrarySubscription = true;
+      memberUpdates.classVideoLibraryLastRenewalDate = orderDate;
+      memberUpdates.classVideoLibraryExpirationDate = newExpires;
 
       if (order.mode === StripeCheckoutMode.Subscription && order.subscriptionId) {
-        memberUpdates['classVideoLibrarySubscriptionId'] =
+        memberUpdates.classVideoLibrarySubscriptionId =
           order.subscriptionId;
-        memberUpdates['classVideoLibraryNextAutoRenewDate'] = newExpires;
+        memberUpdates.classVideoLibraryNextAutoRenewDate = newExpires;
       }
     } else if (category === OrderItemCategory.SchoolLicense) {
       const isYearly = descLower.includes('year') || descLower.includes('annual');
@@ -1133,10 +1239,10 @@ export async function fulfillStripeOrder(
 
       let targetSchoolRef: admin.firestore.DocumentReference | null = null;
       if (schoolDocId) {
-        targetSchoolRef = db.collection('schools').doc(schoolDocId);
+        targetSchoolRef = db.collection(FirestoreCollection.Schools).doc(schoolDocId);
       } else if (schoolId) {
         const sQuery = await db
-          .collection('schools')
+          .collection(FirestoreCollection.Schools)
           .where('schoolId', '==', schoolId)
           .limit(1)
           .get();
@@ -1145,7 +1251,7 @@ export async function fulfillStripeOrder(
         }
       } else if (!isNewSchool && member.instructorId) {
         const sQuery = await db
-          .collection('schools')
+          .collection(FirestoreCollection.Schools)
           .where('ownerInstructorId', '==', member.instructorId)
           .limit(1)
           .get();
@@ -1157,8 +1263,8 @@ export async function fulfillStripeOrder(
       if (targetSchoolRef) {
         const sDoc = await targetSchoolRef.get();
         if (sDoc.exists) {
-          const sData = sDoc.data() || {};
-          const currentExp = (sData['schoolLicenseExpires'] as string) || '';
+          const sData = sDoc.data() as School | undefined;
+          const currentExp = sData?.schoolLicenseExpires || '';
           const newExpires = isYearly
             ? extendDateByYears(currentExp, 1, orderDate)
             : extendDateByMonths(currentExp, 1, orderDate);
@@ -1190,7 +1296,7 @@ export async function fulfillStripeOrder(
         });
       }
 
-      const newSchoolDocRef = db.collection('schools').doc();
+      const newSchoolDocRef = db.collection(FirestoreCollection.Schools).doc();
       const newSchool: School = {
         ...initSchool(),
         docId: newSchoolDocRef.id,
@@ -1230,8 +1336,8 @@ export async function fulfillStripeOrder(
       });
 
       if (!member.primarySchoolDocId) {
-        memberUpdates['primarySchoolDocId'] = newSchoolDocRef.id;
-        memberUpdates['primarySchoolId'] = newSchoolId;
+        memberUpdates.primarySchoolDocId = newSchoolDocRef.id;
+        memberUpdates.primarySchoolId = newSchoolId;
       }
     } else if (category === OrderItemCategory.Grading) {
       await fulfillGradingForMember(
@@ -1261,13 +1367,13 @@ export async function fulfillStripeOrder(
           grantedAt: new Date().toISOString(),
         };
         await db
-          .collection('members')
+          .collection(FirestoreCollection.Members)
           .doc(member.docId)
-          .collection('videoGrants')
+          .collection(FirestoreSubcollection.VideoGrants)
           .doc(targetId)
           .set(grant);
         await db
-          .collection('video_grants')
+          .collection(FirestoreCollection.VideoGrants)
           .doc(`${member.docId}_${targetId}`)
           .set(grant);
         logger.info('Auto-provisioned VideoGrant for member', {
@@ -1293,7 +1399,7 @@ export async function fulfillStripeOrder(
       ? extendDateByYears(orderDate, 1, orderDate)
       : extendDateByMonths(orderDate, 1, orderDate);
 
-    memberUpdates[`stripeSubscriptions.${subKey}`] = {
+    const newSubscription: MemberSubscriptionItem = {
       subscriptionId: order.subscriptionId,
       type: categorizeSubscriptionItem(order.lineItems[0] || { description: '', productId: null, priceId: null, quantity: null, amountTotal: 0, currency: 'usd' }, order.metadata),
       status: SubscriptionStatus.Active,
@@ -1308,6 +1414,11 @@ export async function fulfillStripeOrder(
       canceledAt: '',
       stripePriceId: order.lineItems[0]?.priceId || '',
       stripeProductId: order.lineItems[0]?.productId || '',
+    };
+
+    memberUpdates.stripeSubscriptions = {
+      ...(member.stripeSubscriptions || {}),
+      [subKey]: newSubscription,
     };
   }
 
@@ -1365,51 +1476,55 @@ export async function syncSubscriptionStatusToMember(
   const status = subscription.status;
   const isActive = status === 'active' || status === 'trialing';
 
-  const memberRef = db.collection('members').doc(member.docId);
-  const updates: Record<string, unknown> = {
+  const memberRef = db.collection(FirestoreCollection.Members).doc(member.docId);
+  const updates: MemberUpdates = {
     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
   };
 
   if (member.membershipSubscriptionId === subscription.id) {
-    updates['membershipNextAutoRenewDate'] = nextAutoRenewDate;
+    updates.membershipNextAutoRenewDate = nextAutoRenewDate;
     if (isActive && periodEnd) {
       if (!member.currentMembershipExpires || member.currentMembershipExpires < periodEnd) {
-        updates['currentMembershipExpires'] = periodEnd;
+        updates.currentMembershipExpires = periodEnd;
       }
     }
   }
   if (member.instructorLicenseSubscriptionId === subscription.id) {
-    updates['instructorLicenseNextAutoRenewDate'] = nextAutoRenewDate;
+    updates.instructorLicenseNextAutoRenewDate = nextAutoRenewDate;
     if (isActive && periodEnd) {
       if (!member.instructorLicenseExpires || member.instructorLicenseExpires < periodEnd) {
-        updates['instructorLicenseExpires'] = periodEnd;
+        updates.instructorLicenseExpires = periodEnd;
       }
     }
   }
   if (member.classVideoLibrarySubscriptionId === subscription.id) {
-    updates['classVideoLibraryNextAutoRenewDate'] = nextAutoRenewDate;
+    updates.classVideoLibraryNextAutoRenewDate = nextAutoRenewDate;
     if (isActive && periodEnd) {
-      updates['classVideoLibrarySubscription'] = true;
+      updates.classVideoLibrarySubscription = true;
       if (!member.classVideoLibraryExpirationDate || member.classVideoLibraryExpirationDate < periodEnd) {
-        updates['classVideoLibraryExpirationDate'] = periodEnd;
+        updates.classVideoLibraryExpirationDate = periodEnd;
       }
     } else if (status === 'canceled' || status === 'unpaid') {
       const today = new Date().toISOString().split('T')[0];
       if (member.classVideoLibraryExpirationDate && member.classVideoLibraryExpirationDate < today) {
-        updates['classVideoLibrarySubscription'] = false;
+        updates.classVideoLibrarySubscription = false;
       }
     }
   }
 
   if (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id]) {
-    updates[`stripeSubscriptions.${subscription.id}.status`] = status;
-    if (periodEnd) {
-      updates[`stripeSubscriptions.${subscription.id}.currentPeriodEnd`] = periodEnd;
-    }
-    updates[`stripeSubscriptions.${subscription.id}.nextAutoRenewDate`] =
-      nextAutoRenewDate;
-    updates[`stripeSubscriptions.${subscription.id}.cancelAtPeriodEnd`] =
-      cancelAtPeriodEnd;
+    const existingSub = member.stripeSubscriptions[subscription.id];
+    const updatedSub: MemberSubscriptionItem = {
+      ...existingSub,
+      status: status as SubscriptionStatus,
+      ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
+      nextAutoRenewDate,
+      cancelAtPeriodEnd,
+    };
+    updates.stripeSubscriptions = {
+      ...member.stripeSubscriptions,
+      [subscription.id]: updatedSub,
+    };
   }
 
   await memberRef.update(updates);

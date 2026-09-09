@@ -102,9 +102,14 @@
 .description-container {
   grid-column: 1 / -1;
   border: 1px solid v.$border-color-light;
-  border-radius: 4px;
+  border-radius: 6px;
   background: white;
-  padding: 0 0.5em;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-within {
+    @include v.input-focus-ring;
+  }
   
   app-markdown-editor {
     display: block;
@@ -508,6 +513,15 @@
       padding: 0.1em 0.45em;
       border-radius: 4px;
       font-size: 0.85em;
+    }
+
+    .fulfillment-markdown-preview {
+      width: 100%;
+      background: #fff;
+      border: 1px solid v.$border-color-light;
+      border-radius: 6px;
+      padding: 0.5em 0.75em;
+      margin-top: 0.25em;
     }
   }
 }

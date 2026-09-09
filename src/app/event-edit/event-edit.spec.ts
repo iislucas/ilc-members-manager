@@ -741,7 +741,7 @@ describe('EventEditComponent', () => {
     await renderEvent({});
 
     expect(component.userIsAdmin()).toBe(false);
-    expect(fixture.nativeElement.textContent).not.toContain('Online Registration with HQ (optional, Admin only)');
+    expect(fixture.nativeElement.textContent).not.toContain('Online Registration & Payment (HQ) (optional, Admin only)');
 
     // 2. For admin
     mockFirebaseState.user.set({
@@ -755,6 +755,6 @@ describe('EventEditComponent', () => {
     await fixture.whenStable();
 
     expect(component.userIsAdmin()).toBe(true);
-    expect(fixture.nativeElement.textContent).toContain('Online Registration with HQ (optional, Admin only)');
+    expect(fixture.nativeElement.textContent).toContain('Online Registration & Payment (HQ) (optional, Admin only)');
   });
 });

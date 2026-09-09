@@ -249,10 +249,12 @@ export interface NotificationUnpaidGradingsSummaryData {
 }
 
 export interface NotificationEventRegistrationConfirmedData {
-  orderDocId: string;
+  orderDocId?: string;
   eventId: string;
   attendance?: string;
   onlineJoiningLink?: string;
+  purchaseDetailsMarkdown?: string;
+  inPersonDetailsMarkdown?: string;
 }
 
 export interface NotificationEventVideoAvailableData {

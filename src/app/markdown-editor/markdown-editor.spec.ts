@@ -369,4 +369,46 @@ describe('MarkdownEditor', () => {
     leftArrow.click();
     expect(scrollBySpy).toHaveBeenCalledWith({ left: -120, behavior: 'smooth' });
   });
+
+  it('supports the bordered input to toggle container border', () => {
+    const container = fixture.nativeElement.querySelector('.markdown-editor-container');
+    expect(component.bordered()).toBe(false);
+    expect(container.classList).not.toContain('bordered');
+
+    fixture.componentRef.setInput('bordered', true);
+    fixture.detectChanges();
+
+    expect(component.bordered()).toBe(true);
+    expect(container.classList).toContain('bordered');
+  });
+
+  it('defaults textPadding to 8px 12px and allows disabling or customizing', () => {
+    const editorContent = fixture.nativeElement.querySelector('.editor-content');
+    expect(component.textPadding()).toBe(true);
+    expect(component['resolvedTextPadding']()).toBe('8px 12px');
+    expect(editorContent.style.padding).toBe('8px 12px');
+
+    // Disable padding
+    fixture.componentRef.setInput('textPadding', false);
+    fixture.detectChanges();
+    expect(component['resolvedTextPadding']()).toBe('0');
+    expect(editorContent.style.padding).toBe('0px');
+
+    // Custom padding string
+    fixture.componentRef.setInput('textPadding', '16px 24px');
+    fixture.detectChanges();
+    expect(component['resolvedTextPadding']()).toBe('16px 24px');
+    expect(editorContent.style.padding).toBe('16px 24px');
+  });
+
+  it('keeps the toolbar full width without being indented by textPadding', () => {
+    fixture.componentRef.setInput('textPadding', '20px 30px');
+    fixture.detectChanges();
+
+    const toolbar = fixture.nativeElement.querySelector('.toolbar-wrapper');
+    expect(toolbar).toBeTruthy();
+    // Toolbar wrapper style padding is the compact internal toolbar padding, unaffected by textPadding
+    expect(toolbar.style.padding).not.toContain('30px');
+  });
 });
+

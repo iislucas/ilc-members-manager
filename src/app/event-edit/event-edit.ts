@@ -36,6 +36,7 @@ import { ProductService } from '../product.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../utils';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
+import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
@@ -84,6 +85,8 @@ type EventFormModel = {
   documents: EventDocument[];
   productId: string;
   onlineJoiningLink: string;
+  purchaseDetailsMarkdown: string;
+  inPersonDetailsMarkdown: string;
   recordedVideoId: string;
   recordedVideoUrl: string;
 };
@@ -164,6 +167,8 @@ function toFormModel(event: IlcEvent): EventFormModel {
     documents: event.documents || [],
     productId: event.productId || '',
     onlineJoiningLink: event.onlineJoiningLink || '',
+    purchaseDetailsMarkdown: event.purchaseDetailsMarkdown || '',
+    inPersonDetailsMarkdown: event.inPersonDetailsMarkdown || '',
     recordedVideoId: event.recordedVideoId || '',
     recordedVideoUrl: event.recordedVideoUrl || '',
   };
@@ -182,7 +187,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, ProductEditComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, MarkdownViewer, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, ProductEditComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -286,6 +291,8 @@ export class EventEditComponent implements OnInit {
         ...m,
         productId,
         onlineJoiningLink: prod?.onlineJoiningLink ?? m.onlineJoiningLink,
+        purchaseDetailsMarkdown: prod?.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
+        inPersonDetailsMarkdown: prod?.inPersonDetailsMarkdown ?? m.inPersonDetailsMarkdown,
         recordedVideoId: prod?.recordedVideoId ?? m.recordedVideoId,
         recordedVideoUrl: prod?.recordedVideoUrl ?? m.recordedVideoUrl,
       }));
@@ -303,6 +310,8 @@ export class EventEditComponent implements OnInit {
         this.eventFormModel.update((m) => ({
           ...m,
           onlineJoiningLink: prod.onlineJoiningLink ?? m.onlineJoiningLink,
+          purchaseDetailsMarkdown: prod.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
+          inPersonDetailsMarkdown: prod.inPersonDetailsMarkdown ?? m.inPersonDetailsMarkdown,
           recordedVideoId: prod.recordedVideoId ?? m.recordedVideoId,
           recordedVideoUrl: prod.recordedVideoUrl ?? m.recordedVideoUrl,
         }));
@@ -347,6 +356,8 @@ export class EventEditComponent implements OnInit {
     documents: [],
     productId: '',
     onlineJoiningLink: '',
+    purchaseDetailsMarkdown: '',
+    inPersonDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
   });
@@ -594,6 +605,7 @@ export class EventEditComponent implements OnInit {
           this.eventFormModel.update((m) => ({
             ...m,
             onlineJoiningLink: m.onlineJoiningLink || existing.onlineJoiningLink || '',
+            purchaseDetailsMarkdown: m.purchaseDetailsMarkdown || existing.purchaseDetailsMarkdown || '',
             recordedVideoId: m.recordedVideoId || existing.recordedVideoId || '',
             recordedVideoUrl: m.recordedVideoUrl || existing.recordedVideoUrl || '',
           }));
@@ -1381,6 +1393,8 @@ export class EventEditComponent implements OnInit {
         documents: formData.documents,
         productId: formData.productId || '',
         onlineJoiningLink: formData.onlineJoiningLink || '',
+        purchaseDetailsMarkdown: formData.purchaseDetailsMarkdown || '',
+        inPersonDetailsMarkdown: formData.inPersonDetailsMarkdown || '',
         recordedVideoId: formData.recordedVideoId || '',
         recordedVideoUrl: formData.recordedVideoUrl || '',
         lastUpdated: new Date().toISOString(),
@@ -1395,6 +1409,8 @@ export class EventEditComponent implements OnInit {
         contacts,
         productId: m.productId || '',
         onlineJoiningLink: m.onlineJoiningLink || '',
+        purchaseDetailsMarkdown: m.purchaseDetailsMarkdown || '',
+        inPersonDetailsMarkdown: m.inPersonDetailsMarkdown || '',
         recordedVideoId: m.recordedVideoId || '',
         recordedVideoUrl: m.recordedVideoUrl || '',
       }));

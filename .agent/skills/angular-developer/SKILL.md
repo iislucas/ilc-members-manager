@@ -153,6 +153,20 @@ Avoid rewriting the same signal many times with optional chaining and checks. In
 }
 ```
 
+### Action Buttons & Loading States (No Spinners Inside Buttons)
+
+Do **NOT** place `<app-spinner>` inside a `<button>` tag (e.g. `<button><app-spinner></app-spinner> Saving...</button>`). It disrupts button layout, creates visual noise, and is an anti-pattern.
+
+Instead, **replace the action button(s)** when the operation is processing:
+
+```html
+@if (isSaving()) {
+  <app-spinner>Saving registration setup...</app-spinner>
+} @else {
+  <button type="button" class="primary-button" (click)="save()">Save Changes</button>
+}
+```
+
 ### Declarative Navigation (Hrefs vs Click Handlers)
 
 Prefer using standard `<a href="...">` tags for navigation instead of `(click)` handlers that programmatically navigate. This improves UI responsiveness, enables standard browser features (like middle-click or hover previews), and enforces better design patterns.

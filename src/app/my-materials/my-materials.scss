@@ -224,10 +224,11 @@
     border-radius: 6px;
     font-size: 0.95rem;
 
-    &:focus {
-      outline: none;
-      border-color: v.$heading-accent-color;
-      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &:focus,
+    &:focus-visible {
+      @include v.input-focus-ring;
     }
   }
 

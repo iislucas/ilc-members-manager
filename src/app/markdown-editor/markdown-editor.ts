@@ -18,7 +18,7 @@
      as a library in the broader project.
 */
 
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, input, output, effect, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, input, output, effect, signal, computed, booleanAttribute } from '@angular/core';
 import { Editor, rootCtx, commandsCtx, defaultValueCtx, editorViewCtx, parserCtx } from '@milkdown/core';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, sinkListItemCommand, liftListItemCommand } from '@milkdown/preset-commonmark';
 import { history, undoCommand, redoCommand } from '@milkdown/plugin-history';
@@ -69,6 +69,24 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   // shows all of them, preserving the full editor for existing callers; pass a
   // list to restrict to a supported subset.
   enabledFeatures = input<MarkdownFeature[] | null>(null);
+  // Whether the editor renders its own border, rounded corners, and focus ring.
+  bordered = input<boolean, unknown>(false, { transform: booleanAttribute });
+  // Optional padding for the textual content of the editor. Defaults to '8px 12px'.
+  // Set to false or '0' for no padding, or pass a custom CSS string.
+  // The header/toolbar is not padded by this setting.
+  textPadding = input<boolean | string>(true);
+
+  protected resolvedTextPadding = computed(() => {
+    const val = this.textPadding();
+    if (val === false || val === 'false' || val === 'none' || val === '0') {
+      return '0';
+    }
+    if (val === true || val === 'true' || val === '') {
+      return '8px 12px';
+    }
+    return String(val);
+  });
+
   changed = output<string>();
   menuOpen = signal<boolean>(true);
   isFullscreen = signal<boolean>(false);

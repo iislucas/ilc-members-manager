@@ -324,7 +324,7 @@
 
     @if (userIsAdmin()) {
       <div class="input-field">
-        <label>Online Registration with HQ (optional, Admin only)</label>
+        <label>Online Registration & Payment (HQ) (optional, Admin only)</label>
         <div class="intro-text">
           Configure ticketing, pricing tiers, and online registrations for this event.
         </div>
@@ -360,11 +360,15 @@
                     <div class="linked-fulfillment-details">
                       @if (prod.allowOnline) {
                         <div class="fulfillment-row">
-                          <span class="fulfillment-label"><app-icon name="videocam" /> <strong>Online Joining Link:</strong></span>
-                          @if (prod.onlineJoiningLink || eventModel().onlineJoiningLink; as link) {
+                          <span class="fulfillment-label"><app-icon name="info" /> <strong>Details shared upon purchase:</strong></span>
+                          @if (prod.purchaseDetailsMarkdown || eventModel().purchaseDetailsMarkdown; as details) {
+                            <div class="purchase-details-preview">
+                              <app-markdown-viewer [markdown]="details" />
+                            </div>
+                          } @else if (prod.onlineJoiningLink || eventModel().onlineJoiningLink; as link) {
                             <a [href]="link" target="_blank" class="resource-link">{{ link }}</a>
                           } @else {
-                            <span class="text-muted">Not specified yet (click 'Edit Product' to add)</span>
+                            <span class="text-muted">Not specified yet (click 'Edit Registration Setup' to add)</span>
                           }
                         </div>
                       }
@@ -378,7 +382,7 @@
                             <a [href]="vurl" target="_blank" class="resource-link">{{ vurl }}</a>
                           }
                           @if (!prod.recordedVideoId && !eventModel().recordedVideoId && !prod.recordedVideoUrl && !eventModel().recordedVideoUrl) {
-                            <span class="text-muted">Not specified yet (click 'Edit Product' to add once recorded)</span>
+                            <span class="text-muted">Not specified yet (click 'Edit Registration Setup' to add once recorded)</span>
                           }
                         </div>
                       }
@@ -388,17 +392,17 @@
                 <div class="linked-product-actions">
                   <button type="button" class="subtle-button" (click)="toggleEditLinkedProduct()">
                     <app-icon [name]="isEditingLinkedProduct() ? 'close' : 'edit'" />
-                    <span>{{ isEditingLinkedProduct() ? 'Close Editor' : 'Edit Product' }}</span>
+                    <span>{{ isEditingLinkedProduct() ? 'Close Setup' : 'Edit Registration Setup' }}</span>
                   </button>
                   <a class="subtle-button"
-                     [href]="routingService.hrefForView(Views.ProductView, { productId: prod.docId })"
+                     [href]="routingService.hrefForView(Views.EventRegister, { eventId: prod.eventDocId || '' })"
                      target="_blank">
                     <app-icon name="visibility" />
-                    <span>View Public Page</span>
+                    <span>View Registration Page</span>
                   </a>
                   <button type="button" class="subtle-button danger-text" (click)="removeRegistration()">
                     <app-icon name="delete" />
-                    <span>Remove Registration</span>
+                    <span>Remove Registration Setup</span>
                   </button>
                 </div>
               </div>
@@ -410,6 +414,8 @@
                     [embedded]="true"
                     [embeddedEventDocId]="''"
                     [embeddedEventTitle]="eventModel().title"
+                    [embeddedPurchaseDetailsMarkdown]="eventModel().purchaseDetailsMarkdown || prod.purchaseDetailsMarkdown || ''"
+                    [embeddedInPersonDetailsMarkdown]="eventModel().inPersonDetailsMarkdown || prod.inPersonDetailsMarkdown || ''"
                     [embeddedOnlineJoiningLink]="eventModel().onlineJoiningLink || ''"
                     [embeddedRecordedVideoId]="eventModel().recordedVideoId || ''"
                     [embeddedRecordedVideoUrl]="eventModel().recordedVideoUrl || ''"
@@ -428,6 +434,8 @@
                     [embedded]="true"
                     [embeddedEventDocId]="''"
                     [embeddedEventTitle]="eventModel().title"
+                    [embeddedPurchaseDetailsMarkdown]="eventModel().purchaseDetailsMarkdown || ''"
+                    [embeddedInPersonDetailsMarkdown]="eventModel().inPersonDetailsMarkdown || ''"
                     [embeddedOnlineJoiningLink]="eventModel().onlineJoiningLink || ''"
                     [embeddedRecordedVideoId]="eventModel().recordedVideoId || ''"
                     [embeddedRecordedVideoUrl]="eventModel().recordedVideoUrl || ''"
@@ -438,12 +446,12 @@
               } @else {
                 <div class="no-product-banner">
                   <p class="no-product-note">
-                    Online registration is not enabled for this event. Create online registration with HQ to enable ticketing, pricing tiers, registrations, and payments.
+                    Online registration is not enabled for this event. Set up online registration with HQ to enable ticketing, pricing tiers, registrations, and payments.
                   </p>
                   <div class="product-choice-buttons">
                     <button type="button" class="button outlined-button" (click)="isCreatingProduct.set(true)">
                       <app-icon name="add" />
-                      <span>Create Online Registration with HQ</span>
+                      <span>Set Up Online Registration</span>
                     </button>
                   </div>
                 </div>

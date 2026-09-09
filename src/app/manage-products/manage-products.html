@@ -1,14 +1,8 @@
 <div class="manage-products-container">
   <div class="page-header">
     <div class="header-titles">
-      <h1>Class & Workshop Products</h1>
-      <p class="subtitle">Create and manage pricing pages for workshops, classes, and events.</p>
-    </div>
-    <div class="header-actions">
-      <a class="button" [href]="routingService.hrefForView(Views.ManageProductNew)">
-        <app-icon name="add"></app-icon>
-        <span>New Product</span>
-      </a>
+      <h1>Event Registration Setups</h1>
+      <p class="subtitle">Create and manage registration and pricing setups for workshops, classes, and events.</p>
     </div>
   </div>
 
@@ -17,7 +11,7 @@
       <app-icon name="search"></app-icon>
       <input
         type="text"
-        placeholder="Search products or linked events..."
+        placeholder="Search registrations or linked events..."
         [value]="searchTerm()"
         (input)="searchTerm.set($any($event.target).value)"
       />
@@ -25,16 +19,12 @@
   </div>
 
   @if (isLoading()) {
-    <app-spinner>Loading products...</app-spinner>
+    <app-spinner>Loading registration setups...</app-spinner>
   } @else if (filteredProducts().length === 0) {
     <div class="empty-state">
       <app-icon name="inventory_2"></app-icon>
-      <h3>No products found</h3>
-      <p>Create your first class/workshop product to start accepting payments with custom pricing.</p>
-      <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageProductNew)">
-        <app-icon name="add"></app-icon>
-        <span>Create Product</span>
-      </a>
+      <h3>No registration setups found</h3>
+      <p>Configure online registration from an event's edit page to enable ticketing and payments.</p>
     </div>
   } @else {
     <div class="products-grid">
@@ -76,18 +66,22 @@
           </div>
 
           <div class="product-card-footer">
-            <a class="card-action-btn"
-               [href]="routingService.hrefForView(Views.ProductView, { productId: product.docId })"
-               title="View Public Purchase Page">
-              <app-icon name="visibility"></app-icon>
-              <span>View Page</span>
-            </a>
-            <a class="card-action-btn primary-action"
-               [href]="routingService.hrefForView(Views.ManageProductEdit, { productId: product.docId })"
-               title="Edit Pricing & Configuration">
-              <app-icon name="edit"></app-icon>
-              <span>Edit</span>
-            </a>
+            @if (product.eventDocId) {
+              <a class="card-action-btn"
+                 [href]="routingService.hrefForView(Views.EventRegister, { eventId: product.eventDocId })"
+                 title="View Public Registration Page">
+                <app-icon name="visibility"></app-icon>
+                <span>View Page</span>
+              </a>
+              <a class="card-action-btn primary-action"
+                 [href]="routingService.hrefForView(Views.ManageEventRegistration, { eventId: product.eventDocId })"
+                 title="Edit Pricing & Configuration">
+                <app-icon name="edit"></app-icon>
+                <span>Edit</span>
+              </a>
+            } @else {
+              <span class="text-muted">No linked event</span>
+            }
           </div>
         </div>
       }

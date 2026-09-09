@@ -226,9 +226,14 @@ h3 {
 .bio-editor-container {
   width: 100%;
   border: 1px solid v.$border-color-light;
-  border-radius: 4px;
+  border-radius: 6px;
   background: white;
-  padding: 0 0.5em;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-within {
+    @include v.input-focus-ring;
+  }
 
   app-markdown-editor {
     display: block;

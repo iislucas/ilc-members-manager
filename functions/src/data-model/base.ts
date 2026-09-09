@@ -26,3 +26,5 @@ export function normalizeLastUpdated(val: unknown): string {
     return new Date().toISOString();
   }
 }
+
+export { FirestoreCollection, FirestoreSubcollection } from './collections';

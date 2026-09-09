@@ -61,7 +61,14 @@ export {
 } from './stripe-products';
 
 export { createStripeCheckoutSession, getStripeCheckoutSession } from './stripe-checkout';
-export { createProductCheckoutSession } from './stripe-product-checkout';
+export {
+  createProductCheckoutSession,
+  updateProductRegistration,
+  registerEventInPerson,
+  markEventRegistrationPaid,
+  unmarkEventRegistrationPaid,
+} from './stripe-product-checkout';
+export { onEventRegistrationWritten } from './on-event-registration-update';
 
 export {
   cancelSubscriptionRenewal,

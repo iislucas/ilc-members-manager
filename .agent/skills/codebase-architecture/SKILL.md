@@ -86,6 +86,9 @@ Firestore collections and their TypeScript types (organized modularly in [functi
 ### Data model conventions
 - Every type has `initXxx()` (all-defaults object) and `firestoreDocToXxx()` (merge over defaults).
 - **Never write untyped objects to Firestore**; always use the typed domain model.
+- **Use `FirestoreCollection` and `FirestoreSubcollection` enums**: (in `functions/src/data-model/collections.ts` or re-exported via `base.ts`) for all database collection names (`db.collection(FirestoreCollection.Events)`), never raw string literals.
+- **Early Domain Typing on Snapshots**: Always cast document data immediately upon retrieval (`docSnap.data() as IlcEvent | undefined`, `docSnap.data() as Product | undefined`). Never use `Record<string, unknown>` or index-bracket access (`docData['title']`).
+- **Typed Mutation Accumulators**: Type update payloads with `Partial<DomainType>` (e.g. `Partial<EventRegistration>` or `MemberUpdates`) and use dot-property notation rather than loose string brackets.
 - `docId` is never stored inside the Firestore document — it's added on read from `doc.id`.
 - `lastUpdated` is stored as a Firestore `Timestamp` but converted to ISO string on read.
 

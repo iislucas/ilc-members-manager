@@ -83,15 +83,18 @@
 
       .description-container {
         border: 1px solid $border-color-light;
-        border-radius: 4px;
+        border-radius: 6px;
         background: white;
-        padding-left: 0.25em;
-        padding-right: 0.25em;
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
-        overflow-x: hidden;
+        overflow: hidden;
         position: relative;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+        &:focus-within {
+          @include input-focus-ring;
+        }
         
         app-markdown-editor {
           display: block;
@@ -494,6 +497,15 @@
         align-items: center;
         gap: 0.35em;
         color: $text-secondary;
+      }
+
+      .purchase-details-preview {
+        width: 100%;
+        margin-top: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        background: #f9f9f9;
+        border-radius: 4px;
+        font-size: 0.9em;
       }
 
       .resource-link {

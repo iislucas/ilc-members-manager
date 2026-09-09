@@ -586,4 +586,25 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  upgrade: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80ZM160-720v-80h640v80H160Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  event_busy: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="m560-240-56-58 62-62H400v-80h166l-62-62 56-58 160 160-160 160ZM200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v222q-19-9-39-14.5t-41-7.5v-120H200v480h222q7 22 17.5 41.5T464-80H200Zm0-560h560v-80H200v80Zm0 0v-80 80Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  undo: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M280-200v-80h284q63 0 109.5-43.5T720-430q0-63-46.5-106.5T564-580H340l114 114-56 56-210-210 210-210 56 56-114 114h224q97 0 166.5 66.5T800-430q0 97-69.5 163.5T564-200H280Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
 };
