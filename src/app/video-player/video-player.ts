@@ -173,10 +173,35 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   @Input() initialPositionSeconds = 0;
   @Input() autoplay = false;
 
+  // Active loop range for repeating a section of the video
+  loopRange = signal<{ startSeconds: number; endSeconds: number; name?: string } | null>(null);
+  @Input() set activeLoopRange(val: { startSeconds: number; endSeconds: number; name?: string } | null) {
+    const prev = this.loopRange();
+    this.loopRange.set(val);
+    if (val && (!prev || prev.startSeconds !== val.startSeconds || prev.endSeconds !== val.endSeconds)) {
+      this.seek(val.startSeconds);
+      const video = this.videoRef?.nativeElement;
+      if (video && video.paused) {
+        try {
+          const p = video.play();
+          if (p && typeof p.catch === 'function') {
+            p.catch(() => {});
+          }
+        } catch {
+          // Ignore play errors in headless/unsupported environments
+        }
+      }
+    }
+  }
+  get activeLoopRange(): { startSeconds: number; endSeconds: number; name?: string } | null {
+    return this.loopRange();
+  }
+
   // Outputs
   timeUpdated = output<number>();
   videoCompleted = output<void>();
   statsUpdated = output<StreamingStats>();
+  loopRangeCleared = output<void>();
 
   private isInitialized = false;
   private hls: Hls | null = null;
@@ -239,6 +264,25 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     const cur = this.isDragging() && this.dragTime() !== null ? this.dragTime()! : this.currentTime();
     return Math.min(100, Math.max(0, (cur / dur) * 100));
   });
+
+  // Highlight segment for active repeating time range on scrub bar
+  loopRangeStyle = computed(() => {
+    const loop = this.loopRange();
+    const dur = this.effectiveDuration();
+    if (!loop || !dur || dur <= 0) return null;
+    const startPct = Math.max(0, Math.min(100, (loop.startSeconds / dur) * 100));
+    const endPct = Math.max(0, Math.min(100, (loop.endSeconds / dur) * 100));
+    const widthPct = Math.max(0, endPct - startPct);
+    return {
+      left: `${startPct}%`,
+      width: `${widthPct}%`,
+    };
+  });
+
+  clearLoopRange(): void {
+    this.loopRange.set(null);
+    this.loopRangeCleared.emit();
+  }
 
   // Active Chapter computed for current hover/scrub position
   activeChapter = computed(() => {
@@ -803,6 +847,25 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.currentTime.set(video.currentTime);
       }
       updateBuffer();
+
+      // Loop repeating time range if active
+      const loop = this.loopRange();
+      if (loop && !this.isDragging()) {
+        if (video.currentTime >= loop.endSeconds || video.currentTime < loop.startSeconds - 0.5) {
+          this.seek(loop.startSeconds);
+          if (video.paused) {
+            try {
+              const p = video.play();
+              if (p && typeof p.catch === 'function') {
+                p.catch(() => {});
+              }
+            } catch {
+              // Ignore play errors
+            }
+          }
+        }
+      }
+
       if (this.effectiveDuration() > 0 && video.currentTime / this.effectiveDuration() >= 0.95) {
         this.videoCompleted.emit();
       }

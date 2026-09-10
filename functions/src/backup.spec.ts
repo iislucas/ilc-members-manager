@@ -33,6 +33,7 @@ describe('backup system', () => {
     expect(BACKUP_SUBCOLLECTION_GROUPS).toContain(FirestoreSubcollection.VideoProgress);
     expect(BACKUP_SUBCOLLECTION_GROUPS).toContain(FirestoreSubcollection.VideoGrants);
     expect(BACKUP_SUBCOLLECTION_GROUPS).toContain(FirestoreSubcollection.PushSubscriptions);
+    expect(BACKUP_SUBCOLLECTION_GROUPS).toContain(FirestoreSubcollection.VideoTimeRanges);
   });
 
   describe('performBackup', () => {

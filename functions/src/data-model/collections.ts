@@ -34,4 +34,5 @@ export enum FirestoreSubcollection {
   Gradings = 'gradings',
   Members = 'members',
   Deletions = 'deletions',
+  VideoTimeRanges = 'videoTimeRanges',
 }

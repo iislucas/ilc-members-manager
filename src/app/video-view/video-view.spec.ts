@@ -10,7 +10,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { StripeService } from '../stripe.service';
-import { initVideoItem, VideoItem, VodAccessTier, VodStatus } from '../../../functions/src/data-model/vod';
+import { initVideoItem, VideoItem, VideoTimeRange, VodAccessTier, VodStatus } from '../../../functions/src/data-model/vod';
 import { signal, WritableSignal } from '@angular/core';
 
 describe('VideoViewComponent', () => {
@@ -21,6 +21,8 @@ describe('VideoViewComponent', () => {
     getVideoPlaybackSession: ReturnType<typeof vi.fn>;
     getVideoProgress: ReturnType<typeof vi.fn>;
     saveVideoProgress: ReturnType<typeof vi.fn>;
+    getVideoTimeRanges: ReturnType<typeof vi.fn>;
+    saveVideoTimeRanges: ReturnType<typeof vi.fn>;
     getTagMeta: ReturnType<typeof vi.fn>;
     videos: { entries: WritableSignal<VideoItem[]> };
   };
@@ -60,6 +62,8 @@ describe('VideoViewComponent', () => {
       }),
       getVideoProgress: vi.fn().mockResolvedValue(null),
       saveVideoProgress: vi.fn().mockResolvedValue(undefined),
+      getVideoTimeRanges: vi.fn().mockResolvedValue([]),
+      saveVideoTimeRanges: vi.fn().mockResolvedValue(undefined),
       getTagMeta: vi.fn().mockImplementation((tag: string) => {
         if (tag === 'spinning') {
           return { tag: 'spinning', description: 'Spinning hands drills' };
@@ -339,5 +343,58 @@ describe('VideoViewComponent', () => {
 
     expect(mockDataService.getVideoById).toHaveBeenCalledWith('v200');
     expect(component.video()?.title).toBe('Part 2 Title');
+  });
+
+  it('should seek and activate loop when onPlayTimeRange is called with loop=true', () => {
+    const seekSpy = vi.fn();
+    component.videoPlayer = {
+      seek: seekSpy,
+    } as any;
+
+    const testRange: VideoTimeRange = {
+      id: 'range-1',
+      name: 'Spinning Hands Drill',
+      description: 'Focus on rotation and relaxation',
+      startSeconds: 65,
+      endSeconds: 120,
+    };
+
+    component.onPlayTimeRange({ range: testRange, loop: true });
+
+    expect(seekSpy).toHaveBeenCalledWith(65);
+    expect(component.activeLoopRange()).toEqual({
+      startSeconds: 65,
+      endSeconds: 120,
+      name: 'Spinning Hands Drill',
+    });
+
+    component.onStopLoop();
+    expect(component.activeLoopRange()).toBeNull();
+  });
+
+  it('should seek and clear loop when onPlayTimeRange is called with loop=false', () => {
+    const seekSpy = vi.fn();
+    component.videoPlayer = {
+      seek: seekSpy,
+    } as any;
+
+    component.activeLoopRange.set({
+      startSeconds: 10,
+      endSeconds: 20,
+      name: 'Old Loop',
+    });
+
+    const testRange: VideoTimeRange = {
+      id: 'range-2',
+      name: 'Footwork Step',
+      description: '',
+      startSeconds: 200,
+      endSeconds: 250,
+    };
+
+    component.onPlayTimeRange({ range: testRange, loop: false });
+
+    expect(seekSpy).toHaveBeenCalledWith(200);
+    expect(component.activeLoopRange()).toBeNull();
   });
 });

@@ -38,7 +38,7 @@ import { Member, initMember, InstructorPublicData, initInstructor, MemberFsDoc, 
 import { Order, firestoreDocToOrder, OrderFsDoc, SquareSpaceOrder, SquareSpaceLineItem, MemberOrder, firestoreDocToMemberOrder, OrderKind } from '../../functions/src/data-model/orders';
 import { School, initSchool, SchoolFsDoc, firestoreDocToSchool } from '../../functions/src/data-model/schools';
 import { Counters } from '../../functions/src/data-model/system';
-import { VideoItem, VideoSeries, groupVideosIntoSeries, getVideoSeriesGroupingKey, firestoreDocToVideoItem, initVideoItem, VideoGrant, firestoreDocToVideoGrant, VideoProgress, firestoreDocToVideoProgress, VodStatus, VodAccessTier, VideoGrantKind, SystemTagsDoc, SystemVideoTagsDoc, VideoTagMeta, initVideoTagMeta, TagItem } from '../../functions/src/data-model/vod';
+import { VideoItem, VideoSeries, groupVideosIntoSeries, getVideoSeriesGroupingKey, firestoreDocToVideoItem, initVideoItem, VideoGrant, firestoreDocToVideoGrant, VideoProgress, firestoreDocToVideoProgress, VodStatus, VodAccessTier, VideoGrantKind, SystemTagsDoc, SystemVideoTagsDoc, VideoTagMeta, initVideoTagMeta, TagItem, VideoTimeRange, MemberVideoTimeRanges, firestoreDocToMemberVideoTimeRanges, MemberVideoTimeRangesFsDoc } from '../../functions/src/data-model/vod';
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -2818,6 +2818,93 @@ export class DataManagerService {
     const grantsRef = collection(this.db, 'members', user.member.docId, 'videoGrants');
     const snap = await getDocs(grantsRef);
     return snap.docs.map(firestoreDocToVideoGrant);
+  }
+
+  /**
+   * Retrieves personal time ranges / annotations for a specific video.
+   * Checks Firestore for authenticated members and falls back / merges with localStorage.
+   */
+  async getVideoTimeRanges(videoId: string): Promise<VideoTimeRange[]> {
+    const user = this.firebaseService.user();
+    if (user?.member?.docId) {
+      try {
+        const timeRangesRef = doc(
+          this.db,
+          'members',
+          user.member.docId,
+          'videoTimeRanges',
+          videoId,
+        );
+        const snap = await getDoc(timeRangesRef);
+        if (snap.exists()) {
+          const docData = firestoreDocToMemberVideoTimeRanges(snap);
+          // Sync to localStorage for offline cache
+          if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+              localStorage.setItem(
+                `ilc_time_ranges_${videoId}`,
+                JSON.stringify(docData.ranges),
+              );
+            } catch {
+              // Ignore localStorage write quota errors
+            }
+          }
+          return docData.ranges;
+        }
+      } catch (err) {
+        console.warn('Could not load video time ranges from Firestore, falling back to local storage:', err);
+      }
+    }
+
+    // Fallback to localStorage (for unauthenticated users or offline mode)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const local = localStorage.getItem(`ilc_time_ranges_${videoId}`);
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        }
+      } catch {
+        // Ignore JSON parse errors
+      }
+    }
+    return [];
+  }
+
+  /**
+   * Saves personal time ranges / annotations for a specific video.
+   * Persists to local storage first, then syncs to Firestore if the user is authenticated.
+   */
+  async saveVideoTimeRanges(videoId: string, ranges: VideoTimeRange[]): Promise<void> {
+    // 1. Local-first storage
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem(`ilc_time_ranges_${videoId}`, JSON.stringify(ranges));
+      } catch (err) {
+        console.warn('Could not write time ranges to localStorage:', err);
+      }
+    }
+
+    // 2. Cloud sync if member is authenticated
+    const user = this.firebaseService.user();
+    if (!user?.member?.docId) return;
+
+    const timeRangesRef = doc(
+      this.db,
+      'members',
+      user.member.docId,
+      'videoTimeRanges',
+      videoId,
+    );
+    const payload: MemberVideoTimeRangesFsDoc = {
+      videoId,
+      memberDocId: user.member.docId,
+      ranges,
+      lastUpdated: new Date().toISOString(),
+    };
+    await setDoc(timeRangesRef, payload, { merge: true });
   }
 
   async clearAllLocalCaches(): Promise<void> {

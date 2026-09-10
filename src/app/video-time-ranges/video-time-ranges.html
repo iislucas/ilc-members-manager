@@ -1,0 +1,460 @@
+<div class="video-time-ranges-container">
+  <!-- Section Header -->
+  <div class="ranges-header">
+    <div class="header-left">
+      <div class="title-with-badge">
+        <app-icon name="repeat" width="20px" height="20px"></app-icon>
+        <h3>Time Ranges &amp; Loops</h3>
+        <span class="count-pill">{{ ranges().length }}</span>
+      </div>
+      <p class="subtitle">Annotate key drills and techniques to practice on continuous repeat.</p>
+    </div>
+
+    <div class="header-actions">
+      <button
+        type="button"
+        class="action-btn add-btn"
+        (click)="openAddModal()"
+        title="Annotate a new time range"
+      >
+        <app-icon name="add" width="16px" height="16px"></app-icon>
+        <span>Add Range</span>
+      </button>
+
+      <button
+        type="button"
+        class="action-btn share-btn"
+        [disabled]="ranges().length === 0"
+        (click)="openShareModal()"
+        title="Share or download time ranges as JSON"
+      >
+        <app-icon name="share" width="16px" height="16px"></app-icon>
+        <span>Share</span>
+      </button>
+
+      <button
+        type="button"
+        class="action-btn import-btn"
+        (click)="openImportModal()"
+        title="Import time ranges from JSON file"
+      >
+        <app-icon name="upload_file" width="16px" height="16px"></app-icon>
+        <span>Import</span>
+      </button>
+
+      @if (selectedCount() > 0) {
+        <button
+          type="button"
+          class="action-btn delete-batch-btn"
+          (click)="promptDeleteSelected()"
+          title="Delete selected time ranges"
+        >
+          <app-icon name="trash" width="16px" height="16px"></app-icon>
+          <span>Delete ({{ selectedCount() }})</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-state">
+      <app-spinner>
+        <span>Loading annotations...</span>
+      </app-spinner>
+    </div>
+  } @else if (ranges().length === 0) {
+    <!-- Empty State -->
+    <div class="empty-state card">
+      <div class="empty-icon-wrap">
+        <app-icon name="repeat" width="32px" height="32px"></app-icon>
+      </div>
+      <h4>No Time Ranges Yet</h4>
+      <p>
+        Mark important sections of this video with start and end times to loop and study on repeat.
+        Annotations are personal to you and can be exported and shared anytime.
+      </p>
+      <div class="empty-actions">
+        <button type="button" class="add-first-btn" (click)="openAddModal()">
+          <app-icon name="add" width="16px" height="16px"></app-icon>
+          <span>Create First Time Range</span>
+        </button>
+        <button type="button" class="subtle-import-btn" (click)="openImportModal()">
+          <app-icon name="upload_file" width="16px" height="16px"></app-icon>
+          <span>Import JSON</span>
+        </button>
+      </div>
+    </div>
+  } @else {
+    <!-- Ranges List Table / Cards -->
+    <div class="ranges-table card">
+      <div class="table-toolbar">
+        <label class="select-all-label">
+          <input
+            type="checkbox"
+            [checked]="isAllSelected()"
+            (change)="toggleSelectAll()"
+          />
+          <span>Select All ({{ ranges().length }})</span>
+        </label>
+
+        @if (selectedCount() > 0) {
+          <span class="selected-text">{{ selectedCount() }} selected</span>
+        } @else {
+          <button
+            type="button"
+            class="delete-all-link"
+            (click)="promptDeleteAll()"
+          >
+            Delete all
+          </button>
+        }
+      </div>
+
+      <div class="ranges-list">
+        @for (range of sortedRanges(); track range.id) {
+          <div
+            class="range-item-row"
+            [class.active-loop]="isRangeLooping(range)"
+            [class.selected]="selectedIds().has(range.id)"
+          >
+            <div class="range-select-col">
+              <input
+                type="checkbox"
+                [checked]="selectedIds().has(range.id)"
+                (change)="toggleSelect(range.id)"
+              />
+            </div>
+
+            <div class="range-info-col">
+              <div class="range-title-row">
+                <span class="range-name">{{ range.name }}</span>
+                <span class="range-time-badge" [class.looping-badge]="isRangeLooping(range)">
+                  @if (isRangeLooping(range)) {
+                    <app-icon name="repeat" width="12px" height="12px"></app-icon>
+                  }
+                  <span>{{ formatRangeInterval(range) }}</span>
+                </span>
+              </div>
+
+              @if (range.description) {
+                <div class="range-desc-text">{{ range.description }}</div>
+              }
+            </div>
+
+            <div class="range-actions-col">
+              <!-- Play to start -->
+              <button
+                type="button"
+                class="range-ctrl-btn play-btn"
+                (click)="onPlayRange(range)"
+                title="Jump to {{ formatSecondsToTimeString(range.startSeconds) }}"
+              >
+                <app-icon name="play_arrow" width="16px" height="16px"></app-icon>
+                <span class="btn-label">Seek</span>
+              </button>
+
+              <!-- Repeat / Loop Toggle -->
+              <button
+                type="button"
+                class="range-ctrl-btn loop-btn"
+                [class.active]="isRangeLooping(range)"
+                (click)="onToggleLoop(range)"
+                [title]="isRangeLooping(range) ? 'Stop looping' : 'Play on continuous repeat'"
+              >
+                <app-icon name="repeat" width="16px" height="16px"></app-icon>
+                <span class="btn-label">{{ isRangeLooping(range) ? 'Looping' : 'Loop' }}</span>
+              </button>
+
+              <!-- Edit -->
+              <button
+                type="button"
+                class="range-ctrl-btn edit-btn icon-only-button"
+                (click)="openEditModal(range)"
+                title="Edit time range"
+              >
+                <app-icon name="edit" width="16px" height="16px"></app-icon>
+              </button>
+
+              <!-- Delete -->
+              <button
+                type="button"
+                class="range-ctrl-btn delete-btn icon-only-button"
+                (click)="promptDeleteOne(range)"
+                title="Delete this time range"
+              >
+                <app-icon name="trash" width="16px" height="16px"></app-icon>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Add / Edit Modal -->
+@if (isFormOpen()) {
+  <div class="modal-backdrop" (click)="closeFormModal()">
+    <div class="modal-card card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h4>{{ editingId() ? 'Edit Time Range' : 'Add New Time Range' }}</h4>
+        <button type="button" class="icon-only-button close-btn" (click)="closeFormModal()">
+          <app-icon name="close" width="20px" height="20px"></app-icon>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        @if (formError()) {
+          <div class="error-container">
+            <span class="error-message">{{ formError() }}</span>
+          </div>
+        }
+
+        <div class="form-group">
+          <label for="rangeName">Name / Technique Title *</label>
+          <input
+            id="rangeName"
+            type="text"
+            class="text-input"
+            placeholder="e.g. Single Hand Neutral Roll"
+            [ngModel]="formName()"
+            (ngModelChange)="formName.set($event)"
+            autofocus
+          />
+        </div>
+
+        <div class="form-row-2col">
+          <div class="form-group">
+            <div class="label-with-tool">
+              <label for="rangeStart">Start Time (MM:SS)</label>
+              <button
+                type="button"
+                class="inline-link-button capture-time-btn"
+                (click)="setStartToCurrentTime()"
+                title="Set to current video player timestamp"
+              >
+                Current ({{ formatSecondsToTimeString(currentPlayerTime()) }})
+              </button>
+            </div>
+            <input
+              id="rangeStart"
+              type="text"
+              class="text-input"
+              placeholder="00:00"
+              [ngModel]="formStart()"
+              (ngModelChange)="formStart.set($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-tool">
+              <label for="rangeEnd">End Time (MM:SS)</label>
+              <button
+                type="button"
+                class="inline-link-button capture-time-btn"
+                (click)="setEndToCurrentTime()"
+                title="Set to current video player timestamp"
+              >
+                Current ({{ formatSecondsToTimeString(currentPlayerTime()) }})
+              </button>
+            </div>
+            <input
+              id="rangeEnd"
+              type="text"
+              class="text-input"
+              placeholder="01:00"
+              [ngModel]="formEnd()"
+              (ngModelChange)="formEnd.set($event)"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="rangeDesc">Description / Key Focus Points (optional)</label>
+          <textarea
+            id="rangeDesc"
+            class="textarea-input"
+            rows="3"
+            placeholder="e.g. Pay special attention to shoulder relaxation and ground sinking."
+            [ngModel]="formDescription()"
+            (ngModelChange)="formDescription.set($event)"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="subtle-button" (click)="closeFormModal()">
+          Cancel
+        </button>
+        <button type="button" class="primary-save-btn" (click)="submitForm()">
+          {{ editingId() ? 'Save Changes' : 'Add Time Range' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Share / Export Modal -->
+@if (showShareModal()) {
+  <div class="modal-backdrop" (click)="closeShareModal()">
+    <div class="modal-card card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h4>Share Time Ranges</h4>
+        <button type="button" class="icon-only-button close-btn" (click)="closeShareModal()">
+          <app-icon name="close" width="20px" height="20px"></app-icon>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="share-desc">
+          Export your {{ ranges().length }} annotated time ranges for <strong>{{ video().title }}</strong>.
+          You can download a portable <code>{{ getExportFilename() }}</code> file or copy the JSON to send to classmates.
+        </p>
+
+        @if (copiedToast()) {
+          <div class="copy-success-banner">
+            <app-icon name="check" width="16px" height="16px"></app-icon>
+            <span>Time ranges JSON copied to clipboard!</span>
+          </div>
+        }
+
+        <div class="share-actions-grid">
+          <button type="button" class="share-action-card" (click)="downloadJsonFile()">
+            <app-icon name="download" width="28px" height="28px"></app-icon>
+            <div class="card-text">
+              <span class="card-title">Download File</span>
+              <span class="card-sub">{{ getExportFilename() }}</span>
+            </div>
+          </button>
+
+          <button type="button" class="share-action-card" (click)="copyJsonToClipboard()">
+            <app-icon name="content_copy" width="28px" height="28px"></app-icon>
+            <div class="card-text">
+              <span class="card-title">Copy to Clipboard</span>
+              <span class="card-sub">Paste directly to message or chat</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="subtle-button" (click)="closeShareModal()">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Import Modal -->
+@if (showImportModal()) {
+  <div class="modal-backdrop" (click)="closeImportModal()">
+    <div class="modal-card card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h4>Import Time Ranges</h4>
+        <button type="button" class="icon-only-button close-btn" (click)="closeImportModal()">
+          <app-icon name="close" width="20px" height="20px"></app-icon>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-desc">
+          Add additional time ranges from a <code>.time-ranges.json</code> file.
+          <br />
+          <strong>Additive:</strong> Existing time ranges are preserved, and identical ranges are automatically skipped.
+        </p>
+
+        @if (importFeedback(); as fb) {
+          <div class="feedback-banner" [class.success]="fb.type === 'success'" [class.error]="fb.type === 'error'">
+            <app-icon [name]="fb.type === 'success' ? 'check' : 'close'" width="16px" height="16px"></app-icon>
+            <span>{{ fb.message }}</span>
+          </div>
+        }
+
+        <div class="file-picker-row">
+          <label class="outlined-button file-picker-label">
+            <app-icon name="upload_file" width="18px" height="18px"></app-icon>
+            <span>Choose JSON File</span>
+            <input
+              type="file"
+              accept=".json,application/json"
+              (change)="onFileSelected($event)"
+              style="display: none;"
+            />
+          </label>
+          <span class="file-picker-hint">or paste JSON below:</span>
+        </div>
+
+        @if (importFileError()) {
+          <div class="error-container">
+            <span class="error-message">{{ importFileError() }}</span>
+          </div>
+        }
+
+        <div class="form-group">
+          <textarea
+            class="textarea-input json-textarea"
+            rows="5"
+            placeholder='Paste JSON content here, e.g.:&#10;{ "timeRanges": [ { "name": "Drill 1", "startSeconds": 30, "endSeconds": 60 } ] }'
+            [ngModel]="importJsonText()"
+            (ngModelChange)="importJsonText.set($event)"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="subtle-button" (click)="closeImportModal()">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="primary-save-btn"
+          [disabled]="!importJsonText().trim()"
+          (click)="processImport()"
+        >
+          Import Ranges
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal()) {
+  <div class="modal-backdrop" (click)="cancelDelete()">
+    <div class="modal-card card confirm-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h4>Confirm Deletion</h4>
+        <button type="button" class="icon-only-button close-btn" (click)="cancelDelete()">
+          <app-icon name="close" width="20px" height="20px"></app-icon>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="warning-box">
+          <app-icon name="trash" width="24px" height="24px"></app-icon>
+          <div class="warning-text">
+            @if (deleteTarget() === 'all') {
+              <p>Are you sure you want to delete <strong>all {{ ranges().length }}</strong> time ranges for this video?</p>
+            } @else if (deleteTarget() === 'selected') {
+              <p>Are you sure you want to delete <strong>{{ selectedCount() }}</strong> selected time range(s)?</p>
+            } @else if (deleteTarget(); as single) {
+              <p>Are you sure you want to delete <strong>"{{ $any(single).name }}"</strong>?</p>
+            }
+            <p class="sub-warning">This action cannot be undone.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="subtle-button" (click)="cancelDelete()">
+          Cancel
+        </button>
+        <button type="button" class="delete-button confirm-delete-btn" (click)="confirmDelete()">
+          Yes, Delete
+        </button>
+      </div>
+    </div>
+  </div>
+}

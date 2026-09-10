@@ -190,6 +190,20 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  repeat: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M280-160 120-320l160-160 56 56-64 64h448v-160h80v240H272l64 64-56 56Zm400-320-56-56 64-64H240v-240h80v160h448l-64-64 56-56 160 160-160 160Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  repeat_one: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M280-160 120-320l160-160 56 56-64 64h448v-160h80v240H272l64 64-56 56Zm400-320-56-56 64-64H240v-240h80v160h448l-64-64 56-56 160 160-160 160Zm-200-80v-160h-40v-40h80v200h-40Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   search: {
     viewbox: '0 -960 960 960',
     fill: 'currentColor',

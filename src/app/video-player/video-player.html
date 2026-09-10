@@ -72,6 +72,14 @@
 
       <div class="timeline-track">
         <div class="timeline-buffered" [style.width.%]="bufferedPercent()"></div>
+        @if (loopRangeStyle(); as loopStyle) {
+          <div
+            class="timeline-loop-segment"
+            [style.left]="loopStyle.left"
+            [style.width]="loopStyle.width"
+            title="Repeating time range"
+          ></div>
+        }
         <div class="timeline-played" [style.width.%]="playedPercent()">
           <div class="timeline-thumb" [class.dragging]="isDragging()"></div>
         </div>
@@ -84,7 +92,7 @@
 
     <!-- Controls Row -->
     <div class="controls-row">
-      <!-- Left Controls: Play, Skips, Volume, Time -->
+      <!-- Left Controls: Play, Skips, Volume, Time, Loop Indicator -->
       <div class="controls-left">
         <button
           type="button"
@@ -141,6 +149,23 @@
           <span class="sep">/</span>
           <span class="total-time">{{ formatTime(duration()) }}</span>
         </div>
+
+        @if (loopRange(); as loop) {
+          <div class="active-loop-pill" title="Repeat loop active">
+            <app-icon name="repeat"></app-icon>
+            <span class="loop-text">
+              Looping: {{ loop.name || 'Range' }} ({{ formatTime(loop.startSeconds) }} - {{ formatTime(loop.endSeconds) }})
+            </span>
+            <button
+              type="button"
+              class="loop-clear-btn"
+              (click)="clearLoopRange()"
+              title="Stop repeat loop"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+        }
       </div>
 
       <!-- Right Controls: Quality, Settings, PiP, Fullscreen -->

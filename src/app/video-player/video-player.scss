@@ -217,6 +217,18 @@
   border-radius: 1px;
 }
 
+.timeline-loop-segment {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  background: rgba(56, 189, 248, 0.45);
+  border: 1px solid rgba(56, 189, 248, 0.9);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+}
+
 .timeline-buffered {
   position: absolute;
   top: 0;
@@ -377,6 +389,50 @@
   @media (max-width: 650px), (orientation: landscape) and (max-height: 500px) {
     font-size: 0.75rem;
     gap: 2px;
+  }
+}
+
+.active-loop-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(14, 165, 233, 0.28);
+  border: 1px solid rgba(56, 189, 248, 0.75);
+  color: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+  flex-shrink: 1;
+  min-width: 0;
+
+  .loop-text {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .loop-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: #bae6fd;
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: none;
+
+    &:hover {
+      color: #ffffff;
+    }
+  }
+
+  @media (max-width: 650px) {
+    display: none;
   }
 }
 

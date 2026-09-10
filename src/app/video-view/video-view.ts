@@ -23,13 +23,14 @@ import {
   ViewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { VideoItem, VideoSeries, groupVideosIntoSeries, VodAccessTier, VodStatus, VideoProgress } from '../../../functions/src/data-model/vod';
+import { VideoItem, VideoSeries, groupVideosIntoSeries, VodAccessTier, VodStatus, VideoProgress, VideoTimeRange } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { StripeService } from '../stripe.service';
 import { VideoPlayerComponent, StreamingStats } from '../video-player/video-player';
+import { VideoTimeRangesComponent } from '../video-time-ranges/video-time-ranges';
 import { IconComponent, IconName } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { VodOfflineStorageService } from '../vod-offline-storage.service';
@@ -58,7 +59,7 @@ export interface PlaybackSessionState {
 @Component({
   selector: 'app-video-view',
   standalone: true,
-  imports: [VideoPlayerComponent, IconComponent, SpinnerComponent],
+  imports: [VideoPlayerComponent, VideoTimeRangesComponent, IconComponent, SpinnerComponent],
   templateUrl: './video-view.html',
   styleUrl: './video-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -88,6 +89,10 @@ export class VideoViewComponent implements OnInit {
   isPurchasing = signal(false);
   initialPositionSeconds = signal(0);
   errorMessage = signal<string | null>(null);
+
+  // Time-ranges & Repeat Loop State
+  currentPlayerTime = signal<number>(0);
+  activeLoopRange = signal<{ startSeconds: number; endSeconds: number; name?: string } | null>(null);
 
   // Streaming Diagnostics
   streamingStats = signal<StreamingStats | null>(null);
@@ -215,6 +220,8 @@ export class VideoViewComponent implements OnInit {
     this.trailerVideo.set(null);
     this.trailerSessionState.set(null);
     this.initialPositionSeconds.set(0);
+    this.currentPlayerTime.set(0);
+    this.activeLoopRange.set(null);
     this.streamingStats.set(null);
 
     // Scroll back to top when switching videos
@@ -300,11 +307,31 @@ export class VideoViewComponent implements OnInit {
   }
 
   onTimeUpdated(currentSeconds: number): void {
+    this.currentPlayerTime.set(currentSeconds);
     const v = this.video();
     if (!v) return;
     this.dataService
       .saveVideoProgress(v.docId, currentSeconds, v.durationSeconds, false)
       .catch((err) => console.warn('Could not sync video progress:', err));
+  }
+
+  onPlayTimeRange(event: { range: VideoTimeRange; loop: boolean }): void {
+    if (this.videoPlayer) {
+      this.videoPlayer.seek(event.range.startSeconds);
+    }
+    if (event.loop) {
+      this.activeLoopRange.set({
+        startSeconds: event.range.startSeconds,
+        endSeconds: event.range.endSeconds,
+        name: event.range.name,
+      });
+    } else {
+      this.activeLoopRange.set(null);
+    }
+  }
+
+  onStopLoop(): void {
+    this.activeLoopRange.set(null);
   }
 
   onVideoCompleted(): void {
