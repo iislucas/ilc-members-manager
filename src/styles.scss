@@ -835,17 +835,32 @@ a.selectable-card {
   color: #383d41;
 }
 
+// ----------------------------------------------------------------------------
+//  Admin View Chips
+//  Chips reserved for administrative indicators (e.g. HQ Registration active).
+//  Styled with square edges (not rounded) and a red dotted border using brand red.
+//
+//  Usage:
+//    <span class="admin-chip hq-registration-chip" title="HQ Online Registration is active for this event">
+//      <app-icon name="payments"></app-icon>
+//      <span>HQ Registration</span>
+//    </span>
+// ----------------------------------------------------------------------------
+
+.admin-chip,
+.admin-view-chip,
 .hq-registration-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
-  background-color: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #065f46;
-  border-radius: 12px;
+  background-color: $theme-error-bg-color;
+  border: 1px dotted $brand-red;
+  color: $brand-red;
+  border-radius: 0;
   padding: 2px 8px;
   font-size: 0.8em;
   font-weight: 500;
+  line-height: 1.3;
   white-space: nowrap;
   font-family: inherit;
 

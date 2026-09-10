@@ -18,6 +18,7 @@ import { BlogPostStatus, CachedBlogPost, initCachedBlogPost } from '../../../fun
 import { MembershipType, ExpiryStatus } from '../../../functions/src/data-model/members';
 import { IconComponent } from '../icons/icon.component';
 import { getInstructorExpiryStatus } from '../member-tags';
+import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
 
 export interface ProcessedBlogEntry extends CachedBlogPost {
     safeBody: SafeHtml;
@@ -89,11 +90,14 @@ export class SquarespaceContentComponent implements OnDestroy {
             .filter((item) => isAdmin || !isDraftPost(item))
             .map((item) => {
                 const categories = item.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
+                const rawBody = item.bodyMarkdown
+                    ? compileMarkdownToHtml(item.bodyMarkdown)
+                    : (item.body || '');
                 return {
                     ...item,
                     isDraft: isDraftPost(item),
                     categories,
-                    safeBody: this.sanitizer.bypassSecurityTrustHtml(item.body),
+                    safeBody: this.sanitizer.bypassSecurityTrustHtml(rawBody),
                     safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(item.excerpt),
                 };
             });
@@ -240,6 +244,16 @@ export class SquarespaceContentComponent implements OnDestroy {
         } else if (collectionName === 'articles-post') {
             this.routingService.navigateTo('articles/post/' + entry.urlId);
         }
+    }
+
+    editHrefFor(entry: ProcessedBlogEntry): string {
+        const collectionName = this.path();
+        if (collectionName === 'members-post') {
+            return this.routingService.hrefForView(Views.MembersAreaPostEdit, { blogPostPath: entry.urlId });
+        } else if (collectionName === 'instructors-post') {
+            return this.routingService.hrefForView(Views.InstructorsAreaPostEdit, { blogPostPath: entry.urlId });
+        }
+        return this.routingService.hrefForView(Views.ArticlesPostEdit, { blogPostPath: entry.urlId });
     }
 
     private isActiveMember(): boolean {

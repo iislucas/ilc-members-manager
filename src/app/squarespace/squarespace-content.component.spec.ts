@@ -10,6 +10,7 @@ import { CachedBlogPost } from '../../../functions/src/data-model/content-cache'
 
 interface InternalComponentState {
     subscribed: WritableSignal<boolean>;
+    postsLoading: WritableSignal<boolean>;
     rawPosts: WritableSignal<CachedBlogPost[]>;
 }
 
@@ -23,6 +24,7 @@ describe('SquarespaceContentComponent', () => {
         routingServiceMock = {
             navigateTo: vi.fn(),
             navigateToParts: vi.fn(),
+            hrefForView: vi.fn((view: string, vars?: Record<string, string>) => `/${view}/${vars?.['blogPostPath'] || ''}`),
             matchedPatternId: signal(null),
             signals: {
                 [Views.MembersArea]: { urlParams: { category: signal('') } },
@@ -221,5 +223,48 @@ describe('SquarespaceContentComponent', () => {
 
         expect(component.selectedCategory()).toBe('All');
         expect(routingServiceMock.navigateToParts).toHaveBeenCalledWith(['articles', 'category', 'All']);
+    });
+
+    it('generates correct editHrefFor entry', () => {
+        fixture.componentRef.setInput('path', 'articles-post');
+        fixture.detectChanges();
+        const entry = { urlId: 'test-slug' } as ProcessedBlogEntry;
+        const href = component.editHrefFor(entry);
+        expect(routingServiceMock.hrefForView).toHaveBeenCalledWith(Views.ArticlesPostEdit, { blogPostPath: 'test-slug' });
+        expect(href).toBe('/articlesPostEdit/test-slug');
+    });
+
+    it('shows Edit button on cards for admins', () => {
+        vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+        fixture.componentRef.setInput('path', 'articles-post');
+        fixture.detectChanges();
+
+        const internal = component as unknown as InternalComponentState;
+        internal.subscribed.set(true);
+        internal.postsLoading.set(false);
+        internal.rawPosts.set([
+            { id: '1', title: 'Post 1', categories: ['General'], isDraft: false, body: '', excerpt: '', urlId: 'p1' } as CachedBlogPost,
+        ]);
+        fixture.detectChanges();
+
+        const editBtn = fixture.nativeElement.querySelector('.edit-card-btn');
+        expect(editBtn).not.toBeNull();
+    });
+
+    it('hides Edit button on cards for non-admins', () => {
+        vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(false);
+        fixture.componentRef.setInput('path', 'articles-post');
+        fixture.detectChanges();
+
+        const internal = component as unknown as InternalComponentState;
+        internal.subscribed.set(true);
+        internal.postsLoading.set(false);
+        internal.rawPosts.set([
+            { id: '1', title: 'Post 1', categories: ['General'], isDraft: false, body: '', excerpt: '', urlId: 'p1' } as CachedBlogPost,
+        ]);
+        fixture.detectChanges();
+
+        const editBtn = fixture.nativeElement.querySelector('.edit-card-btn');
+        expect(editBtn).toBeNull();
     });
 });

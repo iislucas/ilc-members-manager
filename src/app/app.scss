@@ -23,7 +23,7 @@ main {
   align-items: stretch;
   flex-grow: 1;
   gap: 1em;
-  overflow-x: hidden;
+  overflow-x: clip;
 
   @media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
     padding: 0 0.5em;

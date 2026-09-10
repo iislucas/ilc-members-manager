@@ -9,17 +9,20 @@ import {
     getFirestore,
     Unsubscribe,
 } from 'firebase/firestore';
-import { FIREBASE_APP } from '../app.config';
+import { FIREBASE_APP, Views, AppPathPatterns } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { IconComponent } from '../icons/icon.component';
 import { CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
 import { MembershipType } from '../../../functions/src/data-model/members';
 import { ProcessedBlogEntry, normalizeCategory, isDraftPost } from './squarespace-content.component';
+import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
 
 @Component({
     selector: 'app-squarespace-article',
     standalone: true,
-    imports: [CommonModule, SpinnerComponent],
+    imports: [CommonModule, SpinnerComponent, IconComponent],
     templateUrl: './squarespace-article.component.html',
     styleUrls: ['./squarespace-content.component.scss'],
     encapsulation: ViewEncapsulation.None,
@@ -27,6 +30,7 @@ import { ProcessedBlogEntry, normalizeCategory, isDraftPost } from './squarespac
 export class SquarespaceArticleComponent implements OnDestroy {
     private sanitizer = inject(DomSanitizer);
     public firebaseService = inject(FirebaseStateService);
+    public routingService = inject(RoutingService<AppPathPatterns>);
     private firebaseApp = inject(FIREBASE_APP);
     private db = getFirestore(this.firebaseApp);
     private unsubscribe: Unsubscribe | null = null;
@@ -36,6 +40,18 @@ export class SquarespaceArticleComponent implements OnDestroy {
     blogPostPath = input.required<string>();
 
     error = signal<string | null>(null);
+
+    readonly editHref = computed(() => {
+        const slug = this.blogPostPath();
+        const coll = this.collection();
+        if (!slug || !coll) return '';
+        if (coll === 'members-post') {
+            return this.routingService.hrefForView(Views.MembersAreaPostEdit, { blogPostPath: slug });
+        } else if (coll === 'instructors-post') {
+            return this.routingService.hrefForView(Views.InstructorsAreaPostEdit, { blogPostPath: slug });
+        }
+        return this.routingService.hrefForView(Views.ArticlesPostEdit, { blogPostPath: slug });
+    });
 
     // Raw posts from Firestore.
     private rawPosts = signal<CachedBlogPost[]>([]);
@@ -68,11 +84,15 @@ export class SquarespaceArticleComponent implements OnDestroy {
         const coll = this.collection();
         const categories = matchingPost.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
 
+        const rawBody = matchingPost.bodyMarkdown
+            ? compileMarkdownToHtml(matchingPost.bodyMarkdown)
+            : (matchingPost.body || '');
+
         return {
             ...matchingPost,
             isDraft,
             categories,
-            safeBody: this.sanitizer.bypassSecurityTrustHtml(matchingPost.body),
+            safeBody: this.sanitizer.bypassSecurityTrustHtml(rawBody),
             safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(matchingPost.excerpt),
         };
     });

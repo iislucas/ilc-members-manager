@@ -165,6 +165,7 @@ describe('ManageEventsComponent', () => {
     const chip = fixture.nativeElement.querySelector('.hq-registration-chip');
     expect(chip).toBeTruthy();
     expect(chip.textContent).toContain('HQ Registration');
+    expect(chip.classList.contains('admin-chip')).toBe(true);
   });
 
   it('should not display HQ Registration chip when event has no productId', async () => {

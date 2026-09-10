@@ -203,15 +203,18 @@ export class NavigationTreeService {
     if (!view) return null;
     // Learn
     if (
-      view === Views.MembersArea ||
-      view === Views.MembersAreaCategory ||
-      view === Views.MembersAreaPost ||
-      view === Views.InstructorsArea ||
-      view === Views.InstructorsAreaCategory ||
-      view === Views.InstructorsAreaPost ||
       view === Views.Articles ||
       view === Views.ArticlesCategory ||
       view === Views.ArticlesPost ||
+      view === Views.ArticlesPostEdit ||
+      view === Views.MembersArea ||
+      view === Views.MembersAreaCategory ||
+      view === Views.MembersAreaPost ||
+      view === Views.MembersAreaPostEdit ||
+      view === Views.InstructorsArea ||
+      view === Views.InstructorsAreaCategory ||
+      view === Views.InstructorsAreaPost ||
+      view === Views.InstructorsAreaPostEdit ||
       view === Views.ClassVideoLibrary ||
       view === Views.Videos ||
       view === Views.VideoView
@@ -447,6 +450,18 @@ export class NavigationTreeService {
         return [
           { label: 'Articles & Guides', url: this.routing.hrefWithParams('/articles') },
         ];
+      case Views.MembersAreaPostEdit:
+      case Views.InstructorsAreaPostEdit:
+      case Views.ArticlesPostEdit: {
+        const parentView = POST_EDIT_PARENT[view];
+        const blogPostPath = this.routing.signals[view].pathVars.blogPostPath();
+        return [
+          ...this.subAncestorsOf(parentView),
+          this.node(parentView, 'Article', {
+            blogPostPath,
+          }),
+        ];
+      }
       case Views.NotificationSettings:
         return [this.node(Views.Settings, 'Settings')];
       case Views.VideoView:
@@ -707,6 +722,10 @@ export class NavigationTreeService {
       case Views.InstructorsAreaPost:
       case Views.ArticlesPost:
         return 'Article';
+      case Views.MembersAreaPostEdit:
+      case Views.InstructorsAreaPostEdit:
+      case Views.ArticlesPostEdit:
+        return 'Edit Article';
       case Views.DownloadResource:
         return 'Download Resource';
       case Views.OrderComplete:
@@ -807,6 +826,15 @@ const EVENT_EDIT_PARENT: {
   [Views.EventEdit]: Views.EventView,
   [Views.MyEventEdit]: Views.MyEventView,
   [Views.ManageEventEdit]: Views.ManageEventView,
+};
+
+/** The post page each edit page hangs off, staying within the same subtree. */
+const POST_EDIT_PARENT: {
+  [key in Views.ArticlesPostEdit | Views.MembersAreaPostEdit | Views.InstructorsAreaPostEdit]: Views;
+} = {
+  [Views.ArticlesPostEdit]: Views.ArticlesPost,
+  [Views.MembersAreaPostEdit]: Views.MembersAreaPost,
+  [Views.InstructorsAreaPostEdit]: Views.InstructorsAreaPost,
 };
 
 /** Add (or replace) one query parameter on an already-built href. */

@@ -5,7 +5,7 @@
             <app-spinner>Fetching article...</app-spinner>
         </div>
         } @else if (error()) {
-        <div class="error-state card">
+        <div class="error-state">
             <div class="error-icon">⚠️</div>
             <h3>Unable to Load Content</h3>
             <p>{{ error() }}</p>
@@ -33,7 +33,15 @@
                         <span class="category-tag draft-badge" style="background: #e65100; color: #ffffff;">Draft</span>
                         }
                     </div>
-                    <span class="blog-date">Posted: {{ (currentEntry.publishOn || currentEntry.addedOn) | date:'longDate' }}</span>
+                    <div class="blog-meta-right">
+                        <span class="blog-date">Posted: {{ (currentEntry.publishOn || currentEntry.addedOn) | date:'longDate' }}</span>
+                        @if (firebaseService.isAdmin() && editHref()) {
+                        <a class="subtle-button edit-post-btn" [href]="editHref()">
+                            <app-icon name="edit"></app-icon>
+                            Edit
+                        </a>
+                        }
+                    </div>
                 </div>
 
                 <h1 class="sqs-title">{{ currentEntry.title }}</h1>

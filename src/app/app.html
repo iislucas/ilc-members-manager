@@ -714,6 +714,54 @@
             <div></div>
           }
         }
+        @case (Views.ArticlesPostEdit) {
+          @defer (prefetch on idle) {
+            @if (firebaseService.isAdmin()) {
+              <app-squarespace-article-edit
+                collection="articles-post"
+                [blogPostPath]="routingService.signals[Views.ArticlesPostEdit].pathVars.blogPostPath()"
+              ></app-squarespace-article-edit>
+            } @else {
+              <div class="unauthorized-message">You do not have permission to edit articles.</div>
+            }
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.MembersAreaPostEdit) {
+          @defer (prefetch on idle) {
+            @if (firebaseService.isAdmin()) {
+              <app-squarespace-article-edit
+                collection="members-post"
+                [blogPostPath]="routingService.signals[Views.MembersAreaPostEdit].pathVars.blogPostPath()"
+              ></app-squarespace-article-edit>
+            } @else {
+              <div class="unauthorized-message">You do not have permission to edit articles.</div>
+            }
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.InstructorsAreaPostEdit) {
+          @defer (prefetch on idle) {
+            @if (firebaseService.isAdmin()) {
+              <app-squarespace-article-edit
+                collection="instructors-post"
+                [blogPostPath]="routingService.signals[Views.InstructorsAreaPostEdit].pathVars.blogPostPath()"
+              ></app-squarespace-article-edit>
+            } @else {
+              <div class="unauthorized-message">You do not have permission to edit articles.</div>
+            }
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
         @case (Views.ManageGradings) {
           @defer {
             <app-grading-list

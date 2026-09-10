@@ -1,143 +1,211 @@
-<div class="markdown-editor-container" [class.fullscreen]="isFullscreen()" [class.bordered]="bordered()" #editorContainer>
-  <!-- Toggle Button for formatting toolbar (T button) -->
-  <div class="top-right-menu" [class.toolbar-open]="menuOpen()">
-    <button type="button" 
-            (click)="toggleMenu(); $event.stopPropagation()" 
-            class="icon-only-button format-btn" 
-            [class.active]="menuOpen()" 
-            title="Formatting Options">
-      <app-icon name="format" width="1em" height="1em"></app-icon>
-    </button>
-  </div>
-
-  <!-- Formatting Toolbar at the Top of the Editor -->
-  @if (menuOpen()) {
-    <div class="toolbar-wrapper">
-      <div class="toolbar-main">
-        @if (isFullscreen()) {
-          <button type="button" 
-                  class="icon-only-button fullscreen-fixed-btn" 
-                  (click)="toggleFullscreen(); $event.stopPropagation()"
-                  title="Exit Fullscreen">
-            <app-icon name="fullscreen_exit" width="1.2em" height="1.2em"></app-icon>
-          </button>
-        }
-
-        @if (canScrollLeft()) {
-          <button type="button" 
-                  class="icon-only-button scroll-arrow-btn left" 
-                  (click)="scrollToolbar('left'); $event.stopPropagation()"
-                  title="Scroll left">
-            <app-icon name="chevron_left" width="1em" height="1em"></app-icon>
-          </button>
-        }
-
-        <div class="menu" #menuRef (scroll)="updateScrollState()" [class.collapsed]="!showDescriptions()">
-          <!-- Menu Header with Info Button -->
-          <div class="menu-header">
-            @if (showDescriptions()) {
-              <span class="menu-title">Actions</span>
-            }
-            <button type="button" (click)="toggleDescriptions(); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
-              <app-icon name="info" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
+<div class="markdown-editor-container" [class.fullscreen]="isFullscreen()" [class.bordered]="bordered()" [class.show-break-marks]="showBreaks()" [class.raw-mode]="isRawMode()" #editorContainer>
+  <!-- Floating/Sticky Editor Header with Toolbar and Controls -->
+  <div class="editor-header-sticky" [class.toolbar-open]="menuOpen() && !isRawMode()" [class.raw-mode-header]="isRawMode()">
+    <!-- Formatting Toolbar at the Top of the Editor -->
+    @if (menuOpen() && !isRawMode()) {
+      <div class="toolbar-wrapper">
+        <div class="toolbar-main">
+          @if (isFullscreen()) {
+            <button type="button" 
+                    class="icon-only-button fullscreen-fixed-btn" 
+                    (click)="toggleFullscreen(); $event.stopPropagation()"
+                    title="Exit Fullscreen">
+              <app-icon name="fullscreen_exit" width="1.2em" height="1.2em"></app-icon>
             </button>
-          </div>
-          
-          <div class="menu-item" (click)="undo()" title="Undo">
-            <span class="menu-icon undo-icon">⎌</span>
-            @if (showDescriptions()) { <span>Undo</span> }
-          </div>
-          <div class="menu-item" (click)="redo()" title="Redo">
-            <span class="menu-icon redo-icon">⎌</span>
-            @if (showDescriptions()) { <span>Redo</span> }
-          </div>
-          @if (has('bold')) {
-            <div class="menu-item" (click)="toggleBold()" title="Bold">
-              <span class="menu-icon">B</span>
-              @if (showDescriptions()) { <span>Bold</span> }
-            </div>
-          }
-          @if (has('italic')) {
-            <div class="menu-item" (click)="toggleItalic()" title="Italic">
-              <span class="menu-icon">I</span>
-              @if (showDescriptions()) { <span>Italic</span> }
-            </div>
-          }
-          @if (has('heading')) {
-            <div class="menu-item" (click)="wrapInHeading(1)" title="Heading 1">
-              <span class="menu-icon">H1</span>
-              @if (showDescriptions()) { <span>Heading 1</span> }
-            </div>
-            <div class="menu-item" (click)="wrapInHeading(2)" title="Heading 2">
-              <span class="menu-icon">H2</span>
-              @if (showDescriptions()) { <span>Heading 2</span> }
-            </div>
-            <div class="menu-item" (click)="wrapInHeading(3)" title="Heading 3">
-              <span class="menu-icon">H3</span>
-              @if (showDescriptions()) { <span>Heading 3</span> }
-            </div>
-          }
-          @if (has('bulletList')) {
-            <div class="menu-item" (click)="toggleBulletList()" title="Bullet List">
-              <span class="menu-icon"><app-icon name="bullet_list" width="1.2em" height="1.2em"></app-icon></span>
-              @if (showDescriptions()) { <span>Bullet List</span> }
-            </div>
-          }
-          @if (has('indent')) {
-            <div class="menu-item" (click)="indent()" title="Indent">
-              <span class="menu-icon">&rarr;</span>
-              @if (showDescriptions()) { <span>Indent</span> }
-            </div>
-            <div class="menu-item" (click)="unindent()" title="Unindent">
-              <span class="menu-icon">&larr;</span>
-              @if (showDescriptions()) { <span>Unindent</span> }
-            </div>
-          }
-          @if (has('link')) {
-            <div class="menu-item" (click)="toggleLink()" title="Link">
-              <span class="menu-icon"><app-icon name="link" width="1.2em" height="1.2em"></app-icon></span>
-              @if (showDescriptions()) { <span>Link</span> }
-            </div>
-          }
-          <div class="menu-item" (click)="clearFormatting()" title="Clear Formatting">
-            <span class="menu-icon clear-format-icon">T&#x2715;</span>
-            @if (showDescriptions()) { <span>Clear Formatting</span> }
-          </div>
-          @if (!isFullscreen()) {
-            <div class="menu-item fullscreen-menu-item" (click)="toggleFullscreen()" title="Fullscreen">
-              <span class="menu-icon"><app-icon name="fullscreen" width="1.2em" height="1.2em"></app-icon></span>
-              @if (showDescriptions()) { <span>Fullscreen</span> }
-            </div>
           }
 
-          @if (chips().length > 0) {
-            <div class="toolbar-divider"></div>
-            <div class="chips-section">
+          @if (canScrollLeft()) {
+            <button type="button" 
+                    class="icon-only-button scroll-arrow-btn left" 
+                    (click)="scrollToolbar('left'); $event.stopPropagation()"
+                    title="Scroll left">
+              <app-icon name="chevron_left" width="1em" height="1em"></app-icon>
+            </button>
+          }
+
+          <div class="menu" #menuRef (scroll)="updateScrollState()" [class.collapsed]="!showDescriptions()">
+            <!-- Menu Header with Info Button -->
+            <div class="menu-header">
               @if (showDescriptions()) {
-                <span class="menu-title">Insert</span>
+                <span class="menu-title">Actions</span>
               }
-              @for (chip of chips(); track chip.token) {
-                <button type="button" class="chip-insert" (click)="insertChip(chip); $event.stopPropagation()" [title]="'Insert ' + chip.token">
-                  {{ chip.label || chip.token }}
-                </button>
-              }
+              <button type="button" (click)="toggleDescriptions(); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
+                <app-icon name="info" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
+              </button>
             </div>
+            
+            <div class="menu-item" (click)="undo()" title="Undo">
+              <span class="menu-icon undo-icon">⎌</span>
+              @if (showDescriptions()) { <span>Undo</span> }
+            </div>
+            <div class="menu-item" (click)="redo()" title="Redo">
+              <span class="menu-icon redo-icon">⎌</span>
+              @if (showDescriptions()) { <span>Redo</span> }
+            </div>
+            @if (has('bold')) {
+              <div class="menu-item" (click)="toggleBold()" title="Bold">
+                <span class="menu-icon">B</span>
+                @if (showDescriptions()) { <span>Bold</span> }
+              </div>
+            }
+            @if (has('italic')) {
+              <div class="menu-item" (click)="toggleItalic()" title="Italic">
+                <span class="menu-icon">I</span>
+                @if (showDescriptions()) { <span>Italic</span> }
+              </div>
+            }
+            @if (has('heading')) {
+              <div class="menu-item" (click)="wrapInHeading(1)" title="Heading 1">
+                <span class="menu-icon">H1</span>
+                @if (showDescriptions()) { <span>Heading 1</span> }
+              </div>
+              <div class="menu-item" (click)="wrapInHeading(2)" title="Heading 2">
+                <span class="menu-icon">H2</span>
+                @if (showDescriptions()) { <span>Heading 2</span> }
+              </div>
+              <div class="menu-item" (click)="wrapInHeading(3)" title="Heading 3">
+                <span class="menu-icon">H3</span>
+                @if (showDescriptions()) { <span>Heading 3</span> }
+              </div>
+            }
+            @if (has('bulletList')) {
+              <div class="menu-item" (click)="toggleBulletList()" title="Bullet List">
+                <span class="menu-icon"><app-icon name="bullet_list" width="1.2em" height="1.2em"></app-icon></span>
+                @if (showDescriptions()) { <span>Bullet List</span> }
+              </div>
+            }
+            @if (has('orderedList')) {
+              <div class="menu-item" (click)="toggleOrderedList()" title="Numbered List">
+                <span class="menu-icon"><app-icon name="ordered_list" width="1.2em" height="1.2em"></app-icon></span>
+                @if (showDescriptions()) { <span>Numbered List</span> }
+              </div>
+            }
+            @if (has('indent')) {
+              <div class="menu-item" (click)="indent()" title="Indent">
+                <span class="menu-icon">&rarr;</span>
+                @if (showDescriptions()) { <span>Indent</span> }
+              </div>
+              <div class="menu-item" (click)="unindent()" title="Unindent">
+                <span class="menu-icon">&larr;</span>
+                @if (showDescriptions()) { <span>Unindent</span> }
+              </div>
+            }
+            @if (has('note')) {
+              <div class="menu-item" (click)="toggleBlockquote()" title="Note / Quote (prefix with >)">
+                <span class="menu-icon"><app-icon name="format_quote" width="1.2em" height="1.2em"></app-icon></span>
+                @if (showDescriptions()) { <span>Note</span> }
+              </div>
+            }
+            @if (has('link')) {
+              <div class="menu-item" (click)="toggleLink()" title="Link">
+                <span class="menu-icon"><app-icon name="link" width="1.2em" height="1.2em"></app-icon></span>
+                @if (showDescriptions()) { <span>Link</span> }
+              </div>
+            }
+            @if (has('image')) {
+              <div class="menu-item" (click)="openImageDialog()" title="Insert Image">
+                <span class="menu-icon"><app-icon name="image" width="1.2em" height="1.2em"></app-icon></span>
+                @if (showDescriptions()) { <span>Image</span> }
+              </div>
+            }
+            @if (has('showBreaks')) {
+              <div class="menu-item show-breaks-btn" [class.active]="showBreaks()" (click)="toggleShowBreaks()" title="Show line breaks (↵) vs paragraph breaks (¶)">
+                <span class="menu-icon pilcrow-icon">¶</span>
+                @if (showDescriptions()) { <span>Show Breaks</span> }
+              </div>
+            }
+            <div class="menu-item" (click)="clearFormatting()" title="Clear Formatting">
+              <span class="menu-icon clear-format-icon">T&#x2715;</span>
+              @if (showDescriptions()) { <span>Clear Formatting</span> }
+            </div>
+            @if (!isFullscreen()) {
+              <div class="menu-item fullscreen-menu-item" (click)="toggleFullscreen()" title="Fullscreen">
+                <span class="menu-icon"><app-icon name="fullscreen" width="1.2em" height="1.2em"></app-icon></span>
+                @if (showDescriptions()) { <span>Fullscreen</span> }
+              </div>
+            }
+
+            @if (chips().length > 0) {
+              <div class="toolbar-divider"></div>
+              <div class="chips-section">
+                @if (showDescriptions()) {
+                  <span class="menu-title">Insert</span>
+                }
+                @for (chip of chips(); track chip.token) {
+                  <button type="button" class="chip-insert" (click)="insertChip(chip); $event.stopPropagation()" [title]="'Insert ' + chip.token">
+                    {{ chip.label || chip.token }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          @if (canScrollRight()) {
+            <button type="button" 
+                    class="icon-only-button scroll-arrow-btn right" 
+                    (click)="scrollToolbar('right'); $event.stopPropagation()"
+                    title="Scroll right">
+              <app-icon name="chevron_right" width="1em" height="1em"></app-icon>
+            </button>
           }
         </div>
-
-        @if (canScrollRight()) {
-          <button type="button" 
-                  class="icon-only-button scroll-arrow-btn right" 
-                  (click)="scrollToolbar('right'); $event.stopPropagation()"
-                  title="Scroll right">
-            <app-icon name="chevron_right" width="1em" height="1em"></app-icon>
-          </button>
-        }
       </div>
+    }
+
+    <!-- Right-aligned action controls: Raw toggle, Format toolbar toggle, and Fullscreen toggle when raw -->
+    <div class="header-right-actions">
+      @if (isRawMode()) {
+        <span class="raw-mode-badge">Markdown</span>
+      }
+      <button type="button"
+              (click)="toggleRawMode(); $event.stopPropagation()"
+              class="raw-toggle-btn"
+              [class.active]="isRawMode()"
+              [title]="isRawMode() ? 'Switch to Rich Text Editor' : 'Switch to Raw Markdown'">
+        {{ isRawMode() ? 'Rich' : 'Raw' }}
+      </button>
+      @if (!isRawMode()) {
+        <button type="button" 
+                (click)="toggleMenu(); $event.stopPropagation()" 
+                class="icon-only-button format-btn" 
+                [class.active]="menuOpen()" 
+                title="Formatting Options">
+          <app-icon name="format" width="1em" height="1em"></app-icon>
+        </button>
+      }
+      @if (isRawMode() && isFullscreen()) {
+        <button type="button" 
+                class="icon-only-button fullscreen-fixed-btn" 
+                (click)="toggleFullscreen(); $event.stopPropagation()"
+                title="Exit Fullscreen">
+          <app-icon name="fullscreen_exit" width="1.2em" height="1.2em"></app-icon>
+        </button>
+      }
+      @if (isRawMode() && !isFullscreen()) {
+        <button type="button" 
+                class="icon-only-button" 
+                (click)="toggleFullscreen(); $event.stopPropagation()"
+                title="Fullscreen">
+          <app-icon name="fullscreen" width="1.2em" height="1.2em"></app-icon>
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (isRawMode()) {
+    <div class="raw-editor-wrapper">
+      <textarea
+        #rawTextarea
+        class="raw-markdown-textarea"
+        [value]="rawContent()"
+        (input)="onRawInput($any($event.target).value)"
+        placeholder="Type raw Markdown here..."
+        spellcheck="false"
+      ></textarea>
     </div>
   }
 
-  <div class="editor-content-wrapper" #contentWrapper>
+  <div class="editor-content-wrapper" #contentWrapper [style.display]="isRawMode() ? 'none' : 'flex'">
     <div class="editor-content" #editorRef [style.padding]="resolvedTextPadding()"></div>
   </div>
 
@@ -161,6 +229,123 @@
         <button type="button" (click)="toggleLink()" class="icon-only-button" title="Edit Link">
           <app-icon name="edit" width="1em" height="1em"></app-icon>
         </button>
+      </div>
+    </div>
+  }
+
+  @if (imageModalOpen()) {
+    <div class="modal-backdrop" (click)="closeImageDialog()"></div>
+    <div class="image-modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title">Insert Image</span>
+        <button type="button" class="icon-only-button modal-close-btn" (click)="closeImageDialog()" title="Close">
+          <app-icon name="close" width="1.2em" height="1.2em"></app-icon>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="source-tabs">
+          <button 
+            type="button" 
+            class="tab-btn" 
+            [class.active]="imageSourceType() === 'upload'" 
+            (click)="imageSourceType.set('upload')">
+            Upload &amp; Crop
+          </button>
+          <button 
+            type="button" 
+            class="tab-btn" 
+            [class.active]="imageSourceType() === 'url'" 
+            (click)="imageSourceType.set('url')">
+            Image URL
+          </button>
+        </div>
+
+        @if (imageSourceType() === 'upload') {
+          <div class="options-row">
+            <div class="option-group">
+              <label>Crop Shape:</label>
+              <div class="pills">
+                <button type="button" class="pill-btn" [class.active]="imageAspectRatio() === null" (click)="setAspectRatio(null)">Original</button>
+                <button type="button" class="pill-btn" [class.active]="imageAspectRatio() === 16 / 9" (click)="setAspectRatio(16 / 9)">16:9</button>
+                <button type="button" class="pill-btn" [class.active]="imageAspectRatio() === 3 / 2" (click)="setAspectRatio(3 / 2)">3:2</button>
+                <button type="button" class="pill-btn" [class.active]="imageAspectRatio() === 4 / 3" (click)="setAspectRatio(4 / 3)">4:3</button>
+                <button type="button" class="pill-btn" [class.active]="imageAspectRatio() === 1" (click)="setAspectRatio(1)">1:1</button>
+              </div>
+            </div>
+
+            <div class="option-group">
+              <label>Resolution:</label>
+              <div class="pills">
+                <button type="button" class="pill-btn" [class.active]="imageSizeChoice() === 'large'" (click)="setSizeChoice('large')">Large (1000px)</button>
+                <button type="button" class="pill-btn" [class.active]="imageSizeChoice() === 'medium'" (click)="setSizeChoice('medium')">Medium (600px)</button>
+                <button type="button" class="pill-btn" [class.active]="imageSizeChoice() === 'small'" (click)="setSizeChoice('small')">Small (300px)</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-field">
+            <label>Alt Text / Description (optional):</label>
+            <input 
+              type="text" 
+              [value]="imageAltText()" 
+              (input)="imageAltText.set($any($event.target).value)" 
+              placeholder="e.g. Demonstration photo" 
+            />
+          </div>
+
+          @if (isUploadingImage()) {
+            <div class="uploading-spinner">
+              <span>Uploading image...</span>
+            </div>
+          } @else {
+            <div class="uploader-wrapper">
+              <app-image-upload-preview
+                [aspectRatio]="imageAspectRatio()"
+                [largeDimensions]="imageDimensions()"
+                [allowAspectRatioChoice]="true"
+                [defaultRatioKey]="'original'"
+                [storageKey]="'markdown_editor_image_aspect_ratio'"
+                [uploadPromptText]="'Choose an image to upload and crop'"
+                (imageCropped)="onImageCropped($event)"
+                (cancel)="closeImageDialog()"
+              />
+            </div>
+          }
+        } @else {
+          <div class="url-input-form">
+            <div class="input-field">
+              <label>Image URL:</label>
+              <input 
+                type="url" 
+                [value]="imageUrlInput()" 
+                (input)="imageUrlInput.set($any($event.target).value)" 
+                placeholder="https://example.com/image.jpg" 
+              />
+            </div>
+            <div class="input-field">
+              <label>Alt Text / Description (optional):</label>
+              <input 
+                type="text" 
+                [value]="imageAltText()" 
+                (input)="imageAltText.set($any($event.target).value)" 
+                placeholder="e.g. Demonstration photo" 
+              />
+            </div>
+            <div class="dialog-actions">
+              <button type="button" class="button primary-button" [disabled]="!imageUrlInput().trim()" (click)="insertImageUrl()">
+                Insert Image
+              </button>
+              <button type="button" class="subtle-button" (click)="closeImageDialog()">
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (imageUploadError(); as err) {
+          <div class="modal-error">{{ err }}</div>
+        }
       </div>
     </div>
   }
