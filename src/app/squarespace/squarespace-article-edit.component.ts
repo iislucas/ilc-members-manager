@@ -39,10 +39,7 @@ import {
 } from '../../../functions/src/data-model/content-cache';
 import { isDraftPost } from './squarespace-content.component';
 import { FormsModule } from '@angular/forms';
-import { marked } from 'marked';
-import { configureMarked } from '../markdown-editor/markdown-config';
-
-configureMarked();
+import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
 
 @Component({
   selector: 'app-squarespace-article-edit',
@@ -292,7 +289,7 @@ export class SquarespaceArticleEditComponent {
 
     try {
       const rawMarkdown = this.bodyMarkdown();
-      const compiledHtml = (await marked.parse(rawMarkdown)) as string;
+      const compiledHtml = compileMarkdownToHtml(rawMarkdown);
       const cats = this.categoriesStr()
         .split(',')
         .map((s) => s.trim())

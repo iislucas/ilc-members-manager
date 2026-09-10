@@ -6,7 +6,6 @@
 
 import { Component, computed, effect, inject, input, OnInit, output, signal } from '@angular/core';
 import { formatDateRange } from '../format-date-range';
-import { marked } from 'marked';
 import { RoutingService } from '../../routing.service';
 import { AppPathPatterns, Views } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';

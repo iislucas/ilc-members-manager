@@ -1,9 +1,6 @@
 import { Component, input, effect, signal, ChangeDetectionStrategy } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { marked } from 'marked';
-import { configureMarked } from './markdown-config';
-
-configureMarked();
+import { compileMarkdownToHtml } from './markdown-config';
 
 @Component({
   selector: 'app-markdown-viewer',
@@ -17,9 +14,9 @@ export class MarkdownViewer {
   safeHtml = signal<SafeHtml>('');
 
   constructor(private sanitizer: DomSanitizer) {
-    effect(async () => {
+    effect(() => {
       const val = this.markdown();
-      const html = await marked.parse(val);
+      const html = compileMarkdownToHtml(val);
       this.safeHtml.set(this.sanitizer.bypassSecurityTrustHtml(html));
     });
   }

@@ -178,4 +178,34 @@ describe('SquarespaceArticleComponent', () => {
     const draftBadge = fixture.nativeElement.querySelector('.draft-badge');
     expect(draftBadge).not.toBeNull();
   });
+
+  it('compiles bodyMarkdown to HTML when bodyMarkdown is present', () => {
+    fixture.componentRef.setInput('collection', 'articles-post');
+    fixture.componentRef.setInput('blogPostPath', 'markdown-slug');
+    fixture.detectChanges();
+
+    const internal = component as unknown as InternalComponentState;
+    internal.subscribed.set(true);
+    internal.postsLoading.set(false);
+    internal.rawPosts.set([
+      {
+        id: '1',
+        title: 'Markdown Article',
+        urlId: 'markdown-slug',
+        body: '<p>Legacy HTML</p>',
+        bodyMarkdown: '## Subtitle\n\nParagraph 1\n\n\nParagraph 2\n\n- Dash item',
+        excerpt: '',
+        isDraft: false,
+      } as CachedBlogPost,
+    ]);
+    fixture.detectChanges();
+
+    const entry = component.entry();
+    expect(entry).not.toBeNull();
+    const blogBody = fixture.nativeElement.querySelector('.blog-body');
+    expect(blogBody).not.toBeNull();
+    expect(blogBody.querySelector('h2')?.textContent).toBe('Subtitle');
+    expect(blogBody.querySelector('ul')?.getAttribute('data-bullet')).toBe('-');
+    expect(blogBody.querySelector('p.empty-line')).not.toBeNull();
+  });
 });

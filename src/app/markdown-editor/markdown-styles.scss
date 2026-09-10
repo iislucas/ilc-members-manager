@@ -1,6 +1,8 @@
 @mixin markdown-display-styles {
   font-family: sans-serif !important; /* Consolidate font */
-  // padding: 12px !important; /* Shared padding */
+  color: #1f2937 !important;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
   
   ul {
     list-style-type: disc !important;
@@ -100,16 +102,91 @@
     font-family: sans-serif !important;
     line-height: 1.2 !important;
   }
+  h4 { 
+    font-size: 1.1em !important; 
+    margin: 1.1em 0 !important; 
+    font-weight: bold !important; 
+    padding: 0 !important;
+    font-family: sans-serif !important;
+    line-height: 1.2 !important;
+  }
+  h5 { 
+    font-size: 1em !important; 
+    margin: 1.2em 0 !important; 
+    font-weight: bold !important; 
+    padding: 0 !important;
+    font-family: sans-serif !important;
+    line-height: 1.2 !important;
+  }
+  h6 { 
+    font-size: 0.9em !important; 
+    margin: 1.3em 0 !important; 
+    font-weight: bold !important; 
+    padding: 0 !important;
+    font-family: sans-serif !important;
+    line-height: 1.2 !important;
+  }
   
   p { 
     margin: 8px 0 !important; 
-    padding: 0 !important;
-    font-family: sans-serif !important;
+    padding: 0 !important; 
+    font-family: sans-serif !important; 
     line-height: 1.5 !important; /* Consolidated line spacing */
+
+    &.empty-line,
+    &:has(> br:only-child) {
+      min-height: 1.5em;
+    }
   }
   
   strong { font-weight: bold !important; }
   em { font-style: italic !important; }
+
+  hr {
+    border: 0 !important;
+    border-top: 1px solid #e5e7eb !important;
+    margin: 1.5rem 0 !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin: 1rem 0 !important;
+
+    th, td {
+      border: 1px solid #e5e7eb !important;
+      padding: 0.5rem 0.75rem !important;
+      text-align: left !important;
+    }
+
+    th {
+      background-color: #f9fafb !important;
+      font-weight: 600 !important;
+    }
+  }
+
+  code {
+    background: #f4f4f5 !important;
+    padding: 0.15rem 0.35rem !important;
+    border-radius: 4px !important;
+    font-size: 0.9em !important;
+    font-family: monospace !important;
+  }
+
+  pre {
+    background: #f4f4f5 !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+    padding: 1rem !important;
+    overflow-x: auto !important;
+    font-family: monospace !important;
+    margin: 1rem 0 !important;
+
+    code {
+      background: none !important;
+      padding: 0 !important;
+    }
+  }
 
   a {
     color: #950000 !important;

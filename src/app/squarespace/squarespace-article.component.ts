@@ -17,6 +17,7 @@ import { IconComponent } from '../icons/icon.component';
 import { CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
 import { MembershipType } from '../../../functions/src/data-model/members';
 import { ProcessedBlogEntry, normalizeCategory, isDraftPost } from './squarespace-content.component';
+import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
 
 @Component({
     selector: 'app-squarespace-article',
@@ -83,11 +84,15 @@ export class SquarespaceArticleComponent implements OnDestroy {
         const coll = this.collection();
         const categories = matchingPost.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
 
+        const rawBody = matchingPost.bodyMarkdown
+            ? compileMarkdownToHtml(matchingPost.bodyMarkdown)
+            : (matchingPost.body || '');
+
         return {
             ...matchingPost,
             isDraft,
             categories,
-            safeBody: this.sanitizer.bypassSecurityTrustHtml(matchingPost.body),
+            safeBody: this.sanitizer.bypassSecurityTrustHtml(rawBody),
             safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(matchingPost.excerpt),
         };
     });

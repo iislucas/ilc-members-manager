@@ -33,3 +33,19 @@ export function configureMarked(): void {
     },
   });
 }
+
+/**
+ * Compiles Markdown to HTML consistently with the Markdown Editor WYSIWYG:
+ * - Configures GFM, breaks: true, and '-' vs '*' list bullet tags
+ * - Preserves sequences of 3+ newlines as explicit empty paragraphs (<p class="empty-line"><br /></p>)
+ *   so visual blank lines in the WYSIWYG editor are preserved in the HTML render
+ */
+export function compileMarkdownToHtml(markdown: string): string {
+  configureMarked();
+  if (!markdown) return '';
+  const normalized = markdown.replace(/\n{3,}/g, (match) => {
+    const extraCount = match.length - 2;
+    return '\n\n' + '<p class="empty-line"><br /></p>\n\n'.repeat(extraCount);
+  });
+  return marked.parse(normalized, { async: false }) as string;
+}

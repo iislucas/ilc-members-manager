@@ -55,4 +55,37 @@ describe('MarkdownViewer', () => {
     expect(ol.textContent).toContain('First');
     expect(ol.textContent).toContain('Second');
   });
+
+  it('preserves extra empty lines (3+ newlines) as empty-line paragraphs', async () => {
+    fixture.componentRef.setInput('markdown', 'Paragraph 1\n\n\nParagraph 2');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    fixture.detectChanges();
+
+    const emptyLineP = fixture.nativeElement.querySelector('p.empty-line');
+    expect(emptyLineP).toBeTruthy();
+    expect(emptyLineP.querySelector('br')).toBeTruthy();
+  });
+
+  it('renders blockquotes, inline code, and code blocks correctly', async () => {
+    fixture.componentRef.setInput(
+      'markdown',
+      '> This is a quote\n\nHere is `inline code` and:\n\n```\nblock code\n```'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    fixture.detectChanges();
+
+    const bq = fixture.nativeElement.querySelector('blockquote');
+    expect(bq).toBeTruthy();
+    expect(bq.textContent).toContain('This is a quote');
+
+    const inlineCode = fixture.nativeElement.querySelector('p code');
+    expect(inlineCode).toBeTruthy();
+    expect(inlineCode.textContent).toBe('inline code');
+
+    const pre = fixture.nativeElement.querySelector('pre');
+    expect(pre).toBeTruthy();
+    expect(pre.textContent).toContain('block code');
+  });
 });

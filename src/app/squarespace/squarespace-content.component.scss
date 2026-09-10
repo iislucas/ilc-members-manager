@@ -207,32 +207,6 @@
   }
 
   .blog-card {
-    &.article-view {
-      .blog-image {
-        width: 100%;
-        height: auto;
-        max-height: 520px;
-        overflow: hidden;
-        border-radius: 8px;
-        margin-bottom: 2rem;
-        background: transparent;
-
-        img {
-          width: 100%;
-          height: auto;
-          max-height: 520px;
-          object-fit: contain;
-          background: transparent;
-          display: block;
-          margin: 0 auto;
-        }
-      }
-
-      .blog-content {
-        padding: 0;
-      }
-    }
-
     .blog-image {
       width: 100%;
       height: 300px;
@@ -356,49 +330,6 @@
 
         @include md.markdown-display-styles;
 
-        img {
-          max-width: 100%;
-          height: auto;
-          border-radius: 8px;
-          margin: 1.5rem 0;
-          display: block;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-
-        blockquote {
-          border-left: 4px solid var(--primary-color, #3a5af1);
-          padding-left: 1.5rem;
-          font-style: italic;
-          margin: 1.5rem 0;
-          color: #4b5563;
-          background: #f9fafb;
-          padding: 1.25rem 1.5rem;
-          border-radius: 0 8px 8px 0;
-        }
-
-        pre {
-          background: #f4f4f5;
-          border: 1px solid #e5e7eb;
-          border-radius: 6px;
-          padding: 1rem;
-          overflow-x: auto;
-          font-family: monospace;
-          margin: 1rem 0;
-        }
-
-        code {
-          background: #f4f4f5;
-          padding: 0.15rem 0.35rem;
-          border-radius: 4px;
-          font-size: 0.9em;
-          font-family: monospace;
-        }
-
-        pre code {
-          background: none;
-          padding: 0;
-        }
-
         /* Fix Squarespace Image Spacing Bug */
         .sqs-image-shape-container-element {
           &.has-aspect-ratio {
@@ -434,6 +365,32 @@
             border: 0;
           }
         }
+      }
+    }
+
+    &.article-view {
+      .blog-image {
+        width: 100%;
+        height: auto;
+        max-height: 520px;
+        overflow: hidden;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        background: transparent;
+
+        img {
+          width: 100%;
+          height: auto;
+          max-height: 520px;
+          object-fit: contain;
+          background: transparent;
+          display: block;
+          margin: 0 auto;
+        }
+      }
+
+      .blog-content {
+        padding: 0;
       }
     }
   }
