@@ -428,6 +428,7 @@ Chips are **all globally defined in `styles.scss`**. Do not create new chip styl
 | `.missing-identifier-chip` | Missing data placeholders | Dashed border, no fill |
 | `.dynamic-identifier-chip` | Editable/dynamic IDs | Dashed border |
 | `.active-tag-chip` + `.tag-clear-btn` | Active filter indicators with dismiss | Blue pill with clear (X) button |
+| `.admin-chip` / `.admin-view-chip` | Admin indicators (e.g. HQ Registration) | `$theme-error-bg-color` (red dotted border, square edges) |
 
 The `.identifier-chip` also supports status modifiers: `.expired-recent`, `.expired-old`, `.status-issue`, `.status-inactive`, `.instructor-id`.
 

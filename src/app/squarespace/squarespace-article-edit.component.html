@@ -86,21 +86,19 @@
           <p class="note">Articles are sorted by this date (newest first) in article lists.</p>
         </div>
 
-        <label for="post-draft">Publication Status</label>
-        <div class="rhs draft-toggle-wrapper">
-          <label class="checkbox-label" for="post-draft">
-            <input
-              type="checkbox"
-              id="post-draft"
-              [checked]="isDraft()"
-              (change)="isDraft.set(!isDraft())"
-            />
-            <span>Mark as Draft</span>
-          </label>
-          @if (isDraft()) {
-            <span class="draft-pill">Draft (Hidden from public &amp; members)</span>
+        <label for="post-status">Publication Status</label>
+        <div class="rhs status-field-group">
+          @if (firebaseService.isAdmin()) {
+            <select
+              id="post-status"
+              [ngModel]="status()"
+              (ngModelChange)="onStatusChange($event)"
+            >
+              <option [value]="BlogPostStatus.Published" [selected]="status() === BlogPostStatus.Published">Published</option>
+              <option [value]="BlogPostStatus.Draft" [selected]="status() === BlogPostStatus.Draft">Draft</option>
+            </select>
           } @else {
-            <span class="published-pill">Published</span>
+            <span class="status-read-only">{{ status() === BlogPostStatus.Draft ? 'Draft' : 'Published' }}</span>
           }
         </div>
 
@@ -167,17 +165,11 @@
             <div class="uploader-box">
               <app-image-upload-preview
                 [initialImageUrl]="assetUrl() || null"
-                [uploadPromptText]="'Select article hero image (3:2 ratio recommended)'"
+                [uploadPromptText]="'Select article hero image'"
+                [allowAspectRatioChoice]="true"
                 (imageCropped)="onImageCropped($event)"
                 (cancel)="cancelCrop()"
               />
-              @if (assetUrl()) {
-                <div class="cancel-crop-action">
-                  <button type="button" class="subtle-button" (click)="cancelCrop()">
-                    Cancel
-                  </button>
-                </div>
-              }
             </div>
           }
 
@@ -235,7 +227,7 @@
           <textarea
             id="post-excerpt"
             class="long"
-            rows="3"
+            rows="5"
             [value]="excerpt()"
             (input)="excerpt.set($any($event.target).value)"
             placeholder="Short summary displayed on article lists..."
@@ -250,6 +242,7 @@
           <app-markdown-editor
             [initialValue]="bodyMarkdown()"
             [bordered]="true"
+            [imageUploader]="uploadArticleImage"
             (changed)="onMarkdownChange($event)"
           ></app-markdown-editor>
         </div>

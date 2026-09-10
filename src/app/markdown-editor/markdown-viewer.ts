@@ -1,6 +1,9 @@
 import { Component, input, effect, signal, ChangeDetectionStrategy } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { marked } from 'marked';
+import { configureMarked } from './markdown-config';
+
+configureMarked();
 
 @Component({
   selector: 'app-markdown-viewer',

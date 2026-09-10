@@ -376,6 +376,27 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  ordered_list: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M144-684v-48h96v-108h-48v-48h96v204h-144Zm0 288v-48h88q12 0 18-6t6-18q0-12-6-18t-18-6h-64v-48h64q12 0 18-6t6-18q0-12-6-18t-18-6h-88v-48h88q30 0 51 21t21 51q0 20-10 36.5T274-540q15 8 24.5 24t9.5 36q0 30-21 51t-51 21h-93Zm0 288v-48h88q12 0 18-6t6-18q0-12-6-18t-18-6h-64v-48h64q12 0 18-6t6-18q0-12-6-18t-18-6h-88v-48h88q30 0 51 21t21 51q0 20-10 36.5T274-252q15 8 24.5 24t9.5 36q0 30-21 51t-51 21h-93Zm216-576v-80h480v80H360Zm0 288v-80h480v80H360Zm0 288v-80h480v80H360Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  image: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm40-80h480L570-480 450-320l-90-120-120 160Zm-40 80v-560 560Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  format_quote: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="m280-400 80-160h-80v-160h160l-80 160h80v160H280Zm320 0 80-160h-80v-160h160l-80 160h80v160H600Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   bar_chart: {
     viewbox: '0 -960 960 960',
     fill: 'currentColor',

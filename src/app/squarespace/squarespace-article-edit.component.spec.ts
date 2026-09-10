@@ -206,7 +206,7 @@ describe('SquarespaceArticleEditComponent', () => {
     component.title.set('Updated Article Title');
     component.urlId.set('updated-slug');
     component.publishDateStr.set('2025-06-15');
-    component.isDraft.set(true);
+    component.onStatusChange(BlogPostStatus.Draft);
     component.bodyMarkdown.set('# Updated Title\n\nBrand new markdown body.');
     component.categoriesStr.set('Philosophy, Zen');
     component.tagsStr.set('mindfulness, presence');
@@ -278,6 +278,27 @@ describe('SquarespaceArticleEditComponent', () => {
     expect(component.assetUrl()).toBe('https://storage.googleapis.com/test-bucket/image.jpg');
     expect(component.isEditingCrop()).toBe(false);
     expect(component.imageUploadError()).toBeNull();
+  });
+
+  it('does not re-upload image if assetUrl is already set and no new file was selected', async () => {
+    component.docId.set('doc-123');
+    component.assetUrl.set('https://example.com/existing-image.jpg');
+    component.isEditingCrop.set(true);
+
+    const fakeLargeBlob = new Blob(['fake image content'], { type: 'image/jpeg' });
+    const fakeThumbBlob = new Blob(['fake thumb content'], { type: 'image/jpeg' });
+
+    vi.clearAllMocks();
+
+    await component.onImageCropped({
+      thumbBlob: fakeThumbBlob,
+      largeBlob: fakeLargeBlob,
+      originalFile: undefined,
+    });
+
+    expect(uploadBytes).not.toHaveBeenCalled();
+    expect(component.assetUrl()).toBe('https://example.com/existing-image.jpg');
+    expect(component.isEditingCrop()).toBe(false);
   });
 
   it('cancels crop editing and clears image correctly', () => {

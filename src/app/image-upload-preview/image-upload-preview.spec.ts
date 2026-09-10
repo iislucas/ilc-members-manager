@@ -64,4 +64,34 @@ describe('ImageUploadPreviewComponent', () => {
     expect(emittedResult!.largeBlob.type).toBe('image/png');
     expect(emittedResult!.thumbBlob.type).toBe('image/png');
   });
+
+  it('should allow user to change and reset aspect ratio when allowAspectRatioChoice is enabled', async () => {
+    fixture.componentRef.setInput('allowAspectRatioChoice', true);
+    fixture.componentRef.setInput('aspectRatio', 3 / 2);
+    component.imageUrl.set('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    component.naturalRatio.set(2.0); // 2:1 natural image
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.aspect-ratio-control')).not.toBeNull();
+    expect(component.resolvedAspectRatio()).toBeCloseTo(1.5); // Default 3:2
+
+    // Change to 1:1
+    component.setAspectRatio(1);
+    fixture.detectChanges();
+    expect(component.resolvedAspectRatio()).toBeCloseTo(1.0);
+    expect(component.activeRatioKey()).toBe('1:1');
+
+    // Change to natural/original ratio
+    component.setAspectRatio(component.naturalRatio());
+    fixture.detectChanges();
+    expect(component.resolvedAspectRatio()).toBeCloseTo(2.0);
+    expect(component.activeRatioKey()).toBe('original');
+
+    // Reset back to default
+    component.resetAspectRatio();
+    fixture.detectChanges();
+    expect(component.resolvedAspectRatio()).toBeCloseTo(1.5);
+    expect(component.activeRatioKey()).toBe('3:2');
+  });
 });

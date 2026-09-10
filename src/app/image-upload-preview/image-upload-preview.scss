@@ -89,6 +89,48 @@
   gap: 12px;
 }
 
+.aspect-ratio-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: $text-secondary;
+  }
+
+  .ratio-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+
+    .ratio-btn {
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+
+      &.active {
+        background-color: $button-active-bg-color;
+        border-color: $focus-ring-color;
+        font-weight: 600;
+        color: $text-primary;
+      }
+    }
+
+    .ratio-reset-btn {
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      color: $text-muted;
+
+      &:hover {
+        color: $text-primary;
+      }
+    }
+  }
+}
+
 .zoom-control {
   display: flex;
   align-items: center;

@@ -103,7 +103,7 @@
                     <span [class]="statusClass(event)">{{ statusLabel(event) }}</span>
                   }
                   @if (userIsAdmin() && event.productId) {
-                    <span class="tag-chip hq-registration-chip" title="HQ Online Registration is active for this event">
+                    <span class="admin-chip hq-registration-chip" title="HQ Online Registration is active for this event">
                       <app-icon name="payments"></app-icon>
                       <span>HQ Registration</span>
                     </span>
@@ -129,7 +129,7 @@
                     <span [class]="statusClass(event)">{{ statusLabel(event) }}</span>
                   }
                   @if (userIsAdmin() && event.productId) {
-                    <span class="tag-chip hq-registration-chip" title="HQ Online Registration is active for this event">
+                    <span class="admin-chip hq-registration-chip" title="HQ Online Registration is active for this event">
                       <app-icon name="payments"></app-icon>
                       <span>HQ Registration</span>
                     </span>

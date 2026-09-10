@@ -38,12 +38,16 @@ import {
   BlogPostSourceKind,
 } from '../../../functions/src/data-model/content-cache';
 import { isDraftPost } from './squarespace-content.component';
+import { FormsModule } from '@angular/forms';
 import { marked } from 'marked';
+import { configureMarked } from '../markdown-editor/markdown-config';
+
+configureMarked();
 
 @Component({
   selector: 'app-squarespace-article-edit',
   standalone: true,
-  imports: [SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, IconComponent],
+  imports: [FormsModule, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, IconComponent],
   templateUrl: './squarespace-article-edit.component.html',
   styleUrl: './squarespace-article-edit.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,12 +62,15 @@ export class SquarespaceArticleEditComponent {
   collection = input.required<string>();
   blogPostPath = input.required<string>();
 
+  public readonly BlogPostStatus = BlogPostStatus;
+
   post = signal<CachedBlogPost | null>(null);
   docId = signal<string>('');
   title = signal<string>('');
   urlId = signal<string>('');
   publishDateStr = signal<string>('');
-  isDraft = signal<boolean>(false);
+  status = signal<BlogPostStatus>(BlogPostStatus.Published);
+  isDraft = computed(() => this.status() === BlogPostStatus.Draft);
   categoriesStr = signal<string>('');
   tagsStr = signal<string>('');
   author = signal<string>('');
@@ -158,7 +165,9 @@ export class SquarespaceArticleEditComponent {
       const dd = String(dateObj.getDate()).padStart(2, '0');
       this.publishDateStr.set(`${yyyy}-${mm}-${dd}`);
 
-      this.isDraft.set(isDraftPost(data));
+      const isDraftVal = isDraftPost(data);
+      const postStatus = isDraftVal ? BlogPostStatus.Draft : (data.status === BlogPostStatus.Draft ? BlogPostStatus.Draft : BlogPostStatus.Published);
+      this.status.set(postStatus);
       this.categoriesStr.set((data.categories || []).join(', '));
       this.tagsStr.set((data.tags || []).join(', '));
       this.author.set(data.author || '');
@@ -198,6 +207,12 @@ export class SquarespaceArticleEditComponent {
   }
 
   async onImageCropped(event: { thumbBlob: Blob; largeBlob: Blob; originalFile?: File }) {
+    if (!event.originalFile && this.assetUrl()) {
+      // Image was already uploaded and no new file was selected; keep existing image without re-uploading
+      this.isEditingCrop.set(false);
+      return;
+    }
+
     const coll = this.collection();
     const docId = this.docId();
     if (!docId) {
@@ -223,6 +238,24 @@ export class SquarespaceArticleEditComponent {
     } finally {
       this.isUploadingImage.set(false);
     }
+  }
+
+  uploadArticleImage = async (blob: Blob, meta: { originalFile?: File; altText?: string }): Promise<string> => {
+    const coll = this.collection();
+    const docId = this.docId();
+    if (!docId) {
+      throw new Error('Cannot upload image: document ID is missing.');
+    }
+    const storage = getStorage(this.firebaseApp);
+    const filename = `body_${Date.now()}_${meta.originalFile?.name || 'image.png'}`;
+    const imageStorageRef = storageRef(storage, `${coll}/${docId}/images/${filename}`);
+    await uploadBytes(imageStorageRef, blob, { contentType: blob.type || 'image/png' });
+    return await getDownloadURL(imageStorageRef);
+  };
+
+  onStatusChange(value: string) {
+    const nextStatus = value === BlogPostStatus.Draft ? BlogPostStatus.Draft : BlogPostStatus.Published;
+    this.status.set(nextStatus);
   }
 
   cancelCrop() {

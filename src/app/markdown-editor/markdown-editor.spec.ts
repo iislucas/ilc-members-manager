@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MarkdownEditor } from './markdown-editor';
 import { editorViewCtx } from '@milkdown/core';
+import { TextSelection } from '@milkdown/prose/state';
 
 describe('MarkdownEditor', () => {
   let component: MarkdownEditor;
@@ -409,6 +410,838 @@ describe('MarkdownEditor', () => {
     expect(toolbar).toBeTruthy();
     // Toolbar wrapper style padding is the compact internal toolbar padding, unaffected by textPadding
     expect(toolbar.style.padding).not.toContain('30px');
+  });
+
+  it('sinks a bullet list item that follows an ordered list item (shift-right bullet)', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', '1. Item one\n* Item two');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Position cursor in the second item ("Item two")
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      const SelectionClass = state.selection.constructor as any;
+      // Position inside the second list item (near the end of doc)
+      const targetPos = Math.max(0, state.doc.content.size - 3);
+      view.dispatch(state.tr.setSelection(SelectionClass.create(state.doc, targetPos)));
+    });
+
+    // Call indent (shift-right)
+    component.indent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // In markdown, "Item two" should now be an indented bullet inside the numbered list
+    expect(emittedValue).toContain('Item one');
+    expect(emittedValue).toContain('Item two');
+    // Bullet should be indented with spaces before the bullet marker
+    expect(emittedValue).toMatch(/1\.\s+Item one[\s\S]+[*+-]\s+Item two/);
+  });
+
+  it('toggles an ordered list and converts between list types', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', 'First line');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+    });
+
+    // Toggle ordered list on paragraph
+    component.toggleOrderedList();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).toMatch(/1\.\s+First line/);
+
+    // Convert the ordered list to a bullet list
+    component.toggleBulletList();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).toContain('* First line');
+
+    // Convert back to ordered list
+    component.toggleOrderedList();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).toMatch(/1\.\s+First line/);
+  });
+
+  it('unindents a nested list item back to the outer list', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', '1. Item one\n   * Item two');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      // Position inside "Item two"
+      const targetPos = Math.max(1, state.doc.content.size - 6);
+      view.dispatch(state.tr.setSelection(TextSelection.near(state.doc.resolve(targetPos))));
+    });
+
+    // Unindent item two
+    component.unindent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Now item two should be lifted back out as item 2 of the ordered list
+    expect(emittedValue).toMatch(/1\.\s+Item one/);
+    expect(emittedValue).toMatch(/2\.\s+Item two/);
+  });
+
+  it('supports image dialog and inserting an image via URL', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', 'Here is an article:');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+    });
+
+    expect(component.imageModalOpen()).toBe(false);
+    component.openImageDialog();
+    expect(component.imageModalOpen()).toBe(true);
+
+    // Switch to URL tab
+    component.imageSourceType.set('url');
+    component.imageUrlInput.set('https://example.com/demo.jpg');
+    component.imageAltText.set('Demo Image');
+
+    component.insertImageUrl();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.imageModalOpen()).toBe(false);
+    expect(emittedValue).toContain('![Demo Image](https://example.com/demo.jpg)');
+  });
+
+  it('supports custom imageUploader input on image cropped', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    const mockUploader = vi.fn().mockResolvedValue('https://storage.example.com/uploaded_crop.png');
+    fixture.componentRef.setInput('imageUploader', mockUploader);
+    fixture.componentRef.setInput('initialValue', 'Article text');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+    });
+
+    component.openImageDialog();
+    component.imageAltText.set('Uploaded Diagram');
+
+    const fakeBlob = new Blob(['test image bytes'], { type: 'image/png' });
+    await component.onImageCropped({
+      thumbBlob: fakeBlob,
+      largeBlob: fakeBlob,
+      originalFile: new File([''], 'photo.png', { type: 'image/png' }),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(mockUploader).toHaveBeenCalledTimes(1);
+    expect(component.imageModalOpen()).toBe(false);
+    expect(emittedValue).toContain('![Uploaded Diagram](https://storage.example.com/uploaded_crop.png)');
+  });
+
+  it('updates dimensions based on aspect ratio and size choices', () => {
+    component.setSizeChoice('large');
+    component.setAspectRatio(16 / 9);
+    expect(component.imageDimensions().width).toBe(1000);
+    expect(component.imageDimensions().height).toBe(Math.round(1000 / (16 / 9)));
+
+    component.setSizeChoice('small');
+    component.setAspectRatio(1);
+    expect(component.imageDimensions().width).toBe(300);
+    expect(component.imageDimensions().height).toBe(300);
+  });
+
+  it('supports multi-level deep indentation and unindenting across levels', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', '* Level 1\n* Level 2 item\n* Level 3 item');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Helper to position cursor in text matching query
+    const setCursorInText = (textQuery: string) => {
+      component['editor']?.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+        const { state } = view;
+        let foundPos = -1;
+        state.doc.descendants((node, pos) => {
+          if (node.isText && node.text?.includes(textQuery)) {
+            foundPos = pos + 2;
+          }
+        });
+        if (foundPos !== -1) {
+          view.dispatch(state.tr.setSelection(TextSelection.near(state.doc.resolve(foundPos))));
+        }
+      });
+    };
+
+    // Step 1: Indent Level 2 item into Level 2 under Level 1
+    setCursorInText('Level 2 item');
+    component.indent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).toMatch(/Level 1[\s\S]+\s+[*+-]\s+Level 2 item/);
+
+    // Step 2: Indent Level 3 item once into Level 2
+    setCursorInText('Level 3 item');
+    component.indent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Step 3: Indent Level 3 item AGAIN into Level 3 under Level 2 item!
+    setCursorInText('Level 3 item');
+    component.indent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // In markdown, Level 3 item should now be nested 2 levels deep
+    expect(emittedValue).toMatch(/Level 1[\s\S]+\s+[*+-]\s+Level 2 item[\s\S]+\s{4,}[*+-]\s+Level 3 item/);
+
+    // Step 4: Unindent Level 3 item back to Level 2
+    setCursorInText('Level 3 item');
+    component.unindent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Now Level 2 item and Level 3 item are both at Level 2
+    expect(emittedValue).toMatch(/Level 1[\s\S]+\s+[*+-]\s+Level 2 item[\s\S]+\s+[*+-]\s+Level 3 item/);
+
+    // Step 5: Unindent Level 3 item back to Level 1
+    setCursorInText('Level 3 item');
+    component.unindent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).toMatch(/Level 1[\s\S]+\* Level 3 item/);
+  });
+
+  it('wraps multiple selected lines into individual bullets and supports unbulleting and re-bulleting', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', 'Line Alpha\n\nLine Beta\n\nLine Gamma');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Select all three lines
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1)));
+    });
+
+    // 1. Bullet them all
+    component.toggleBulletList();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // All three must be individual bullets
+    expect(emittedValue).toContain('* Line Alpha');
+    expect(emittedValue).toContain('* Line Beta');
+    expect(emittedValue).toContain('* Line Gamma');
+
+    // Select all three bullet items
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1)));
+    });
+
+    // 2. Unbullet them all
+    component.toggleBulletList();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Should now be plain paragraphs without asterisks
+    expect(emittedValue).not.toContain('* Line Alpha');
+    expect(emittedValue).toContain('Line Alpha');
+    expect(emittedValue).toContain('Line Beta');
+    expect(emittedValue).toContain('Line Gamma');
+
+    // Select all three paragraphs again
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1)));
+    });
+
+    // 3. Re-bullet them all
+    component.toggleBulletList();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // All three should properly be bullets again!
+    expect(emittedValue).toContain('* Line Alpha');
+    expect(emittedValue).toContain('* Line Beta');
+    expect(emittedValue).toContain('* Line Gamma');
+  });
+
+  it('splits newlines and hardbreaks into separate bullets', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    // Single paragraph with soft breaks / newlines
+    fixture.componentRef.setInput('initialValue', 'Apple\nBanana\nCherry');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Select the content
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1)));
+    });
+
+    // Bullet the lines
+    component.toggleBulletList();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Each newline should result in an additional bullet
+    expect(emittedValue).toContain('* Apple');
+    expect(emittedValue).toContain('* Banana');
+    expect(emittedValue).toContain('* Cherry');
+  });
+
+  it('indents and unindents multiple selected list items together', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', '* Parent\n* Child One\n* Child Two');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Select Child One and Child Two
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      let pos1 = -1, pos2 = -1;
+      state.doc.descendants((node, pos) => {
+        if (node.isText && node.text === 'Child One') pos1 = pos + 1;
+        if (node.isText && node.text === 'Child Two') pos2 = pos + 8;
+      });
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, pos1, pos2)));
+    });
+
+    // Indent both items together
+    component.indent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Both Child One and Child Two should now be indented under Parent
+    expect(emittedValue).toMatch(/Parent[\s\S]+\s+[*+-]\s+Child One[\s\S]+\s+[*+-]\s+Child Two/);
+
+    // Unindent both items together
+    component.unindent();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Both should be lifted back to the outer level
+    expect(emittedValue).toContain('* Parent');
+    expect(emittedValue).toContain('* Child One');
+    expect(emittedValue).toContain('* Child Two');
+  });
+
+  it('toggles note / blockquote style (> quote)', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', 'This is an important note.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 5)));
+    });
+
+    // Toggle note / blockquote ON
+    component.toggleBlockquote();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).toMatch(/^>\s+This is an important note\./);
+
+    // Toggle note / blockquote OFF
+    component.toggleBlockquote();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).not.toContain('>');
+    expect(emittedValue).toContain('This is an important note.');
+  });
+
+  it('toggles showBreaks visual break markers without layout distortion', async () => {
+    fixture.componentRef.setInput('initialValue', 'First line  \nSecond line\n\nThird line');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    expect(component.showBreaks()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.markdown-editor-container.show-break-marks')).toBeNull();
+
+    // Toggle showBreaks ON
+    component.toggleShowBreaks();
+    fixture.detectChanges();
+
+    expect(component.showBreaks()).toBe(true);
+    const container = fixture.nativeElement.querySelector('.markdown-editor-container.show-break-marks');
+    expect(container).not.toBeNull();
+
+    // Verify paragraph nodes are NOT distorted with hack separators or trailing break wrappers
+    const paragraphs = fixture.nativeElement.querySelectorAll('.ProseMirror p');
+    expect(paragraphs.length).toBeGreaterThanOrEqual(2);
+    // Neither paragraph should have ProseMirror-separator images injected
+    expect(fixture.nativeElement.querySelector('.ProseMirror .ProseMirror-separator')).toBeNull();
+
+    // Inspect decorations built by buildBreakMarkDecorations for hardbreaks
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const decos = component['buildBreakMarkDecorations'](view.state.doc);
+      expect(decos).toBeDefined();
+      const foundWidgets = decos.find();
+      // Finds decoration for the hardbreak on the first line
+      expect(foundWidgets.length).toBeGreaterThan(0);
+    });
+
+    // Toggle showBreaks OFF
+    component.toggleShowBreaks();
+    fixture.detectChanges();
+
+    expect(component.showBreaks()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.markdown-editor-container.show-break-marks')).toBeNull();
+  });
+
+  it('supports sticky toolbar header with raw mode toggling and editing', async () => {
+    let emitted = '';
+    component.changed.subscribe((val) => {
+      emitted = val;
+    });
+
+    fixture.componentRef.setInput('initialValue', '# Rich Text Title\n\nInitial paragraph.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Check sticky header wrapper exists with format and raw buttons
+    const stickyHeader = fixture.nativeElement.querySelector('.editor-header-sticky');
+    expect(stickyHeader).not.toBeNull();
+    const rawBtn: HTMLButtonElement | null = fixture.nativeElement.querySelector('.raw-toggle-btn');
+    expect(rawBtn).not.toBeNull();
+    expect(rawBtn?.textContent?.trim()).toBe('Raw');
+
+    // Switch to Raw Mode
+    component.toggleRawMode();
+    fixture.detectChanges();
+
+    expect(component.isRawMode()).toBe(true);
+    expect(rawBtn?.textContent?.trim()).toBe('Rich');
+    const textarea: HTMLTextAreaElement | null = fixture.nativeElement.querySelector('.raw-markdown-textarea');
+    expect(textarea).not.toBeNull();
+    expect(textarea?.value).toContain('Rich Text Title');
+
+    // Edit raw markdown in textarea
+    component.onRawInput('# Updated Raw Title\n\nUpdated in raw mode.');
+    fixture.detectChanges();
+
+    expect(component.rawContent()).toBe('# Updated Raw Title\n\nUpdated in raw mode.');
+    expect(emitted).toBe('# Updated Raw Title\n\nUpdated in raw mode.');
+
+    // Switch back to Rich mode
+    component.toggleRawMode();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.isRawMode()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.raw-markdown-textarea')).toBeNull();
+    // Rich editor doc should now reflect the updated content
+    expect(component.getMarkdown()).toContain('Updated Raw Title');
+  });
+
+  it('handles tab key in list item without error when selection spans list', async () => {
+    fixture.componentRef.setInput('initialValue', '* Bullet 1\n* Bullet 2\n* Bullet 3');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    let handled = false;
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      // Select from Bullet 1 to Bullet 2
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 2, 12)));
+
+      // Simulate Tab key event
+      const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+      handled = view.someProp('handleKeyDown', (f) => f(view, event)) || false;
+    });
+
+    expect(handled).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Bullet 2 sunk into Bullet 1
+    const md = component.getMarkdown();
+    expect(md).toContain('Bullet 1');
+  });
+
+  it('handles Return as line break and two consecutive Returns as paragraph break', async () => {
+    fixture.componentRef.setInput('initialValue', 'First line');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // 1. Press Enter at end of 'First line' -> should insert hardbreak (single line break)
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)));
+
+      const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+      view.someProp('handleKeyDown', (f) => f(view, enterEvent));
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    let md = component.getMarkdown();
+    // Emitted markdown contains clean line break (no backslash, no <br />)
+    expect(md).not.toContain('<br />');
+    expect(md).not.toContain('\\');
+    expect(md).toContain('First line\n');
+
+    // 2. Press Enter a second time -> should convert line break to new paragraph
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+
+      const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+      view.someProp('handleKeyDown', (f) => f(view, enterEvent));
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    md = component.getMarkdown();
+    expect(md).not.toContain('<br />');
+    expect(md).not.toContain('\\');
+  });
+
+  it('handles Shift-Return to always insert a line break', async () => {
+    fixture.componentRef.setInput('initialValue', 'First line');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)));
+
+      const shiftEnterEvent = new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, cancelable: true });
+      view.someProp('handleKeyDown', (f) => f(view, shiftEnterEvent));
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    const md = component.getMarkdown();
+    expect(md).not.toContain('<br />');
+    expect(md).toContain('First line\n');
+  });
+
+  it('handles Return in bullet list to create tight next bullet and exits on empty bullet', async () => {
+    fixture.componentRef.setInput('initialValue', '* First bullet');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // 1. Press Enter at end of bullet -> creates next bullet
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      const targetSel = TextSelection.near(state.doc.resolve(state.doc.content.size), -1);
+      view.dispatch(state.tr.setSelection(targetSel));
+
+      const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+      view.someProp('handleKeyDown', (f) => f(view, enterEvent));
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Type text in the newly created bullet
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      view.dispatch(state.tr.insertText('Second bullet'));
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    const md = component.getMarkdown();
+    // Must be tight list (single \n, no \n\n between items, no <br />)
+    expect(md).not.toContain('* First bullet\n\n* Second bullet');
+    expect(md).toContain('* First bullet');
+    expect(md).toContain('* Second bullet');
+    expect(md).not.toContain('<br />');
+
+    // 2. Press Enter at end of second bullet -> creates empty bullet
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+
+      const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+      view.someProp('handleKeyDown', (f) => f(view, enterEvent));
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // 3. Press Enter on empty bullet -> lifts out of list (exits list)
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+
+      const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+      view.someProp('handleKeyDown', (f) => f(view, enterEvent));
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Still retains both bullets without error
+    const finalMd = component.getMarkdown();
+    expect(finalMd).toContain('* First bullet');
+    expect(finalMd).toContain('* Second bullet');
+  });
+
+  it('preserves scroll position when toggling Raw mode without jumping', async () => {
+    fixture.componentRef.setInput('initialValue', '# Document Title\n\n' + 'Paragraph\n\n'.repeat(20));
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    const scrollToSpy = vi.spyOn(component as any, 'safeScrollTo');
+
+    // Toggle to Raw mode
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.isRawMode()).toBe(true);
+    expect(scrollToSpy).toHaveBeenCalled();
+
+    // Toggle back to Rich mode
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.isRawMode()).toBe(false);
+    expect(scrollToSpy).toHaveBeenCalled();
+  });
+
+  it('normalizes multiple line breaks and cleans serialized markdown', () => {
+    expect(component.normalizeMarkdown('P1\n\n\nP2')).toBe('P1\n\n<br />\n\nP2');
+    expect(component.normalizeMarkdown('P1\n\n\n\nP2')).toBe('P1\n\n<br />\n\n<br />\n\nP2');
+    expect(component.cleanSerializedMarkdown('P1\n\n<br />\n\nP2\n')).toBe('P1\n\n\nP2\n');
+    expect(component.cleanSerializedMarkdown('P1\n\n<br />\n\n<br />\n\nP2\n')).toBe('P1\n\n\n\nP2\n');
+  });
+
+  it('creates a line above bold text when Enter is pressed at the start without corrupting bold into **\\n', async () => {
+    fixture.componentRef.setInput('initialValue', '**Bold heading**');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Place cursor at the start of the bold heading (pos 1, parentOffset 0)
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+      const { state } = view;
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1)));
+
+      const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+      view.someProp('handleKeyDown', (f) => f(view, enterEvent));
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    const md = component.getMarkdown();
+    // Must NOT contain opening delimiter corrupted with newline (**\nBold)
+    expect(md).not.toContain('**\nBold');
+    expect(md).not.toMatch(/\*\*[\r\n]+[^\*\r\n]/);
+    // Must preserve bold heading intact
+    expect(md).toContain('**Bold heading**');
+  });
+
+  it('preserves extra line breaks (3 newlines) consistently when toggling between Raw and Rich modes without <br />', async () => {
+    fixture.componentRef.setInput('initialValue', 'First paragraph\n\nSecond paragraph');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Switch to Raw mode and add 3 newlines between paragraphs
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    component.onRawInput('First paragraph\n\n\nSecond paragraph');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    // Switch to Rich mode
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Switch back to Raw mode
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    const rawMd = component.getMarkdown();
+    expect(rawMd.trim()).toBe('First paragraph\n\n\nSecond paragraph');
+    expect(rawMd).not.toContain('<br />');
+  });
+
+  it('is idempotent when round-tripping complex markdown with bold, blank lines, and bullets between Raw and Rich modes', async () => {
+    const originalText =
+      'How to approach things from the **right viewpoint** to see down to the base of their origins.\n\n\n' +
+      '**(1) KNOWLEDGE**\n\n' +
+      '* Knowledge from others\n' +
+      '* Knowledge from own thinking\n' +
+      '* Knowledge from direct experience';
+
+    fixture.componentRef.setInput('initialValue', originalText);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Toggle to Raw mode
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.rawContent().trim()).toBe(originalText.trim());
+
+    // Toggle back to Rich mode
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    // Toggle to Raw mode again
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.rawContent().trim()).toBe(originalText.trim());
+    expect(component.rawContent()).not.toContain('origins.**');
+    expect(component.rawContent()).not.toContain('origins.\\*\\*');
+    expect(component.rawContent()).not.toContain('<br />');
+    expect(component.rawContent()).toContain('**(1) KNOWLEDGE**');
+  });
+
+  it('distinguishes and preserves dash bullets vs star bullets across round-trips and DOM rendering', async () => {
+    const listText =
+      '- Dash item 1\n' +
+      '- Dash item 2\n\n' +
+      '* Star item 1\n' +
+      '* Star item 2';
+
+    fixture.componentRef.setInput('initialValue', listText);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Verify DOM rendering
+    const lists = fixture.nativeElement.querySelectorAll('ul');
+    expect(lists.length).toBe(2);
+    expect(lists[0].getAttribute('data-bullet')).toBe('-');
+    expect(lists[0].classList.contains('list-dash')).toBe(true);
+    expect(lists[1].getAttribute('data-bullet')).toBe('*');
+    expect(lists[1].classList.contains('list-star')).toBe(true);
+
+    // Verify serialization round trip
+    const md = component.getMarkdown();
+    expect(md).toContain('- Dash item 1');
+    expect(md).toContain('- Dash item 2');
+    expect(md).toContain('* Star item 1');
+    expect(md).toContain('* Star item 2');
   });
 });
 
