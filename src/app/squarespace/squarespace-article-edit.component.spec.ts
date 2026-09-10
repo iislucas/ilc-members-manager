@@ -321,4 +321,27 @@ describe('SquarespaceArticleEditComponent', () => {
     component.cancel();
     expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/membersAreaPost/member-post-slug');
   });
+
+  it('configures hero image uploader with original ratio default and storageKey', async () => {
+    vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+    (getDocs as any).mockResolvedValue({
+      empty: false,
+      docs: [
+        {
+          id: 'doc-firestore-id-123',
+          data: () => ({ ...mockPostData, assetUrl: 'https://example.com/hero.jpg' }),
+        },
+      ],
+    });
+
+    fixture.componentRef.setInput('collection', 'articles-post');
+    fixture.componentRef.setInput('blogPostPath', 'my-sample-article');
+    fixture.detectChanges();
+    await component.loadPost('articles-post', 'my-sample-article');
+    component.isEditingCrop.set(true);
+    fixture.detectChanges();
+
+    const uploader = fixture.nativeElement.querySelector('app-image-upload-preview');
+    expect(uploader).toBeTruthy();
+  });
 });

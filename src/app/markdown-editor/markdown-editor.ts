@@ -128,7 +128,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
 
   imageModalOpen = signal<boolean>(false);
   imageSourceType = signal<'upload' | 'url'>('upload');
-  imageAspectRatio = signal<number | null>(3 / 2);
+  imageAspectRatio = signal<number | null>(null);
   imageSizeChoice = signal<'large' | 'medium' | 'small'>('large');
   imageAltText = signal<string>('');
   imageUrlInput = signal<string>('');

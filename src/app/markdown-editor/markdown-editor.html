@@ -303,6 +303,9 @@
               <app-image-upload-preview
                 [aspectRatio]="imageAspectRatio()"
                 [largeDimensions]="imageDimensions()"
+                [allowAspectRatioChoice]="true"
+                [defaultRatioKey]="'original'"
+                [storageKey]="'markdown_editor_image_aspect_ratio'"
                 [uploadPromptText]="'Choose an image to upload and crop'"
                 (imageCropped)="onImageCropped($event)"
                 (cancel)="closeImageDialog()"

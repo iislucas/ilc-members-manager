@@ -44,7 +44,7 @@
                   type="button"
                   class="subtle-button ratio-btn"
                   [class.active]="activeRatioKey() === 'original'"
-                  (click)="setAspectRatio(nr)"
+                  (click)="selectRatioKey('original')"
                   title="Use original image proportions"
                 >
                   Original ({{ naturalRatioText() }})
@@ -54,7 +54,7 @@
                 type="button"
                 class="subtle-button ratio-btn"
                 [class.active]="activeRatioKey() === '3:2'"
-                (click)="setAspectRatio(3 / 2)"
+                (click)="selectRatioKey('3:2')"
               >
                 3:2
               </button>
@@ -62,7 +62,7 @@
                 type="button"
                 class="subtle-button ratio-btn"
                 [class.active]="activeRatioKey() === '16:9'"
-                (click)="setAspectRatio(16 / 9)"
+                (click)="selectRatioKey('16:9')"
               >
                 16:9
               </button>
@@ -70,7 +70,7 @@
                 type="button"
                 class="subtle-button ratio-btn"
                 [class.active]="activeRatioKey() === '4:3'"
-                (click)="setAspectRatio(4 / 3)"
+                (click)="selectRatioKey('4:3')"
               >
                 4:3
               </button>
@@ -78,11 +78,11 @@
                 type="button"
                 class="subtle-button ratio-btn"
                 [class.active]="activeRatioKey() === '1:1'"
-                (click)="setAspectRatio(1)"
+                (click)="selectRatioKey('1:1')"
               >
                 1:1
               </button>
-              @if (customAspectRatio() !== undefined) {
+              @if (selectedRatioKey() !== null || customAspectRatio() !== undefined) {
                 <button
                   type="button"
                   class="subtle-button ratio-reset-btn"

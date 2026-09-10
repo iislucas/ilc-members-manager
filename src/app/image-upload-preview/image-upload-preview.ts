@@ -4,8 +4,10 @@
  * to select a specific crop area. Outputs the cropped image as a Blob.
  */
 
-import { Component, ElementRef, ViewChild, signal, computed, output, input, effect, OnDestroy } from '@angular/core';
+import { Component, ElementRef, ViewChild, signal, computed, output, input, effect, OnInit, OnDestroy } from '@angular/core';
 import { IconComponent } from '../icons/icon.component';
+
+export type RatioKey = 'original' | '3:2' | '16:9' | '4:3' | '1:1';
 
 @Component({
   selector: 'app-image-upload-preview',
@@ -14,14 +16,16 @@ import { IconComponent } from '../icons/icon.component';
   templateUrl: './image-upload-preview.html',
   styleUrl: './image-upload-preview.scss',
 })
-export class ImageUploadPreviewComponent implements OnDestroy {
+export class ImageUploadPreviewComponent implements OnInit, OnDestroy {
   @ViewChild('previewCanvas', { static: false }) canvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('previewImg', { static: false }) imgRef!: ElementRef<HTMLImageElement>;
   @ViewChild('container', { static: false }) containerRef!: ElementRef<HTMLDivElement>;
 
   // Inputs
-  aspectRatio = input<number | null>(3 / 2); // Default 3:2, or null for natural/original
+  aspectRatio = input<number | null>(null); // Default null (natural/original), or a specific number
   allowAspectRatioChoice = input<boolean>(false);
+  defaultRatioKey = input<RatioKey | null>(null);
+  storageKey = input<string | null>(null);
   initialImageUrl = input<string | null>(null);
   // Output dimensions of the two generated crops. Defaults match the event
   // hero image (large 600x400, thumb 120x80); callers cropping other shapes
@@ -37,35 +41,70 @@ export class ImageUploadPreviewComponent implements OnDestroy {
     thumbBlob: Blob;
     largeBlob: Blob;
     originalFile?: File;
+    aspectRatio?: number | null;
+    ratioKey?: RatioKey | 'custom';
   }>();
+  aspectRatioChange = output<number | null>();
+  ratioKeyChange = output<RatioKey | 'custom'>();
   cancel = output<void>();
 
   // State
   selectedFile = signal<File | null>(null);
   imageUrl = signal<string | null>(null);
   naturalRatio = signal<number | null>(null);
+  selectedRatioKey = signal<RatioKey | null>(null);
   customAspectRatio = signal<number | null | undefined>(undefined);
 
-  resolvedAspectRatio = computed(() => {
+  activeRatioKey = computed<RatioKey | 'custom'>(() => {
+    const selected = this.selectedRatioKey();
+    if (selected) return selected;
+
     const custom = this.customAspectRatio();
     if (custom !== undefined) {
-      if (custom !== null && custom > 0) return custom;
-      return this.naturalRatio() || 3 / 2;
+      if (custom === null) return 'original';
+      const natural = this.naturalRatio();
+      if (natural && Math.abs(custom - natural) < 0.01) return 'original';
+      if (Math.abs(custom - 3 / 2) < 0.01) return '3:2';
+      if (Math.abs(custom - 16 / 9) < 0.01) return '16:9';
+      if (Math.abs(custom - 4 / 3) < 0.01) return '4:3';
+      if (Math.abs(custom - 1) < 0.01) return '1:1';
+      return 'custom';
     }
-    const ratio = this.aspectRatio();
-    if (ratio !== null && ratio > 0) return ratio;
-    return this.naturalRatio() || 3 / 2;
+
+    const defKey = this.defaultRatioKey();
+    if (defKey) return defKey;
+
+    const r = this.aspectRatio();
+    if (r === null) return 'original';
+    const natural = this.naturalRatio();
+    if (natural && Math.abs(r - natural) < 0.01) return 'original';
+    if (Math.abs(r - 3 / 2) < 0.01) return '3:2';
+    if (Math.abs(r - 16 / 9) < 0.01) return '16:9';
+    if (Math.abs(r - 4 / 3) < 0.01) return '4:3';
+    if (Math.abs(r - 1) < 0.01) return '1:1';
+    return 'custom';
   });
 
-  activeRatioKey = computed<'original' | '3:2' | '16:9' | '4:3' | '1:1' | 'custom'>(() => {
-    const current = this.resolvedAspectRatio();
-    const natural = this.naturalRatio();
-    if (natural && Math.abs(current - natural) < 0.01) return 'original';
-    if (Math.abs(current - 3 / 2) < 0.01) return '3:2';
-    if (Math.abs(current - 16 / 9) < 0.01) return '16:9';
-    if (Math.abs(current - 4 / 3) < 0.01) return '4:3';
-    if (Math.abs(current - 1) < 0.01) return '1:1';
-    return 'custom';
+  resolvedAspectRatio = computed(() => {
+    const key = this.activeRatioKey();
+    switch (key) {
+      case 'original':
+        return this.naturalRatio() || 3 / 2;
+      case '3:2':
+        return 3 / 2;
+      case '16:9':
+        return 16 / 9;
+      case '4:3':
+        return 4 / 3;
+      case '1:1':
+        return 1;
+      default:
+        const custom = this.customAspectRatio();
+        if (custom !== undefined && custom !== null && custom > 0) return custom;
+        const ratio = this.aspectRatio();
+        if (ratio !== null && ratio > 0) return ratio;
+        return this.naturalRatio() || 3 / 2;
+    }
   });
 
   naturalRatioText = computed(() => {
@@ -81,6 +120,37 @@ export class ImageUploadPreviewComponent implements OnDestroy {
   scaleText = computed(() => this.scale().toFixed(1));
 
   private objectUrlToRevoke: string | null = null;
+
+  ngOnInit() {
+    this.restoreSavedRatioKey();
+  }
+
+  private restoreSavedRatioKey() {
+    const sk = this.storageKey();
+    if (!sk || typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      const saved = localStorage.getItem(sk) as RatioKey | null;
+      if (saved && ['original', '3:2', '16:9', '4:3', '1:1'].includes(saved)) {
+        this.selectedRatioKey.set(saved);
+      }
+    } catch (e) {
+      console.warn('Unable to read aspect ratio from localStorage:', e);
+    }
+  }
+
+  private saveRatioKey(key: RatioKey | null) {
+    const sk = this.storageKey();
+    if (!sk || typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      if (key) {
+        localStorage.setItem(sk, key);
+      } else {
+        localStorage.removeItem(sk);
+      }
+    } catch (e) {
+      console.warn('Unable to save aspect ratio to localStorage:', e);
+    }
+  }
 
   constructor() {
     effect(() => {
@@ -289,15 +359,50 @@ export class ImageUploadPreviewComponent implements OnDestroy {
     this.translateY.set(constrained.y);
   }
 
-  setAspectRatio(ratio: number | null) {
-    this.customAspectRatio.set(ratio);
+  selectRatioKey(key: RatioKey) {
+    this.selectedRatioKey.set(key);
+    this.customAspectRatio.set(undefined);
+    this.saveRatioKey(key);
+    this.ratioKeyChange.emit(key);
+    this.aspectRatioChange.emit(this.resolvedAspectRatio());
     this.scale.set(1);
     this.resetTransform();
     setTimeout(() => this.resetView(), 0);
   }
 
+  setAspectRatio(ratio: number | null) {
+    this.customAspectRatio.set(ratio);
+    if (ratio === null) {
+      this.selectRatioKey('original');
+    } else {
+      const natural = this.naturalRatio();
+      if (natural && Math.abs(ratio - natural) < 0.01) {
+        this.selectRatioKey('original');
+      } else if (Math.abs(ratio - 3 / 2) < 0.01) {
+        this.selectRatioKey('3:2');
+      } else if (Math.abs(ratio - 16 / 9) < 0.01) {
+        this.selectRatioKey('16:9');
+      } else if (Math.abs(ratio - 4 / 3) < 0.01) {
+        this.selectRatioKey('4:3');
+      } else if (Math.abs(ratio - 1) < 0.01) {
+        this.selectRatioKey('1:1');
+      } else {
+        this.selectedRatioKey.set(null);
+        this.ratioKeyChange.emit('custom');
+        this.aspectRatioChange.emit(ratio);
+        this.scale.set(1);
+        this.resetTransform();
+        setTimeout(() => this.resetView(), 0);
+      }
+    }
+  }
+
   resetAspectRatio() {
+    this.selectedRatioKey.set(null);
     this.customAspectRatio.set(undefined);
+    this.saveRatioKey(null);
+    this.ratioKeyChange.emit(this.activeRatioKey());
+    this.aspectRatioChange.emit(this.resolvedAspectRatio());
     this.scale.set(1);
     this.resetTransform();
     setTimeout(() => this.resetView(), 0);
@@ -365,6 +470,8 @@ export class ImageUploadPreviewComponent implements OnDestroy {
           thumbBlob: file,
           largeBlob: file,
           originalFile: file,
+          aspectRatio: this.resolvedAspectRatio(),
+          ratioKey: this.activeRatioKey(),
         });
         return;
       }
@@ -374,7 +481,9 @@ export class ImageUploadPreviewComponent implements OnDestroy {
     this.imageCropped.emit({
       thumbBlob,
       largeBlob,
-      originalFile: this.selectedFile() || undefined
+      originalFile: this.selectedFile() || undefined,
+      aspectRatio: this.resolvedAspectRatio(),
+      ratioKey: this.activeRatioKey(),
     });
   }
 
