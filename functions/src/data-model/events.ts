@@ -426,6 +426,63 @@ export function isVideoIncludedForFree(
   return getVideoDelta(product, role, attendance, tierType) <= 0;
 }
 
+/**
+ * Detects whether a product has a special price configured for a given role (Member or Instructor)
+ * that differs from the standard NonMember price.
+ */
+export function hasSpecialRolePrice(product: Product, role: AttendeeRole): boolean {
+  if (role === AttendeeRole.NonMember) {
+    return false;
+  }
+  if (role === AttendeeRole.Member && typeof product.hasMemberPrice === 'boolean') {
+    return product.hasMemberPrice;
+  }
+  if (role === AttendeeRole.Instructor && typeof product.hasInstructorPrice === 'boolean') {
+    return product.hasInstructorPrice;
+  }
+
+  // Fallback / legacy inspection: inspect enabled tiers across attendance modes
+  if (!product.tiers) return false;
+  const attendances = [
+    AttendanceType.InPerson,
+    AttendanceType.Online,
+    AttendanceType.VideoOnly,
+  ];
+  const tierTypes = [
+    PricingTierType.Standard,
+    PricingTierType.EarlyBird,
+  ];
+
+  for (const att of attendances) {
+    const videoOptions = att === AttendanceType.VideoOnly ? [true] : [false, true];
+    for (const incVid of videoOptions) {
+      for (const tt of tierTypes) {
+        const roleKey = getPricingTierKey(role, att, incVid, tt);
+        const roleTier = product.tiers[roleKey];
+        if (roleTier?.enabled) {
+          const stdKey = getPricingTierKey(AttendeeRole.NonMember, att, incVid, tt);
+          const stdTier = product.tiers[stdKey];
+          if (!stdTier || !stdTier.enabled || roleTier.price !== stdTier.price) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Returns true if the product has special member or instructor pricing.
+ */
+export function hasAnySpecialPricing(product: Product): boolean {
+  return (
+    hasSpecialRolePrice(product, AttendeeRole.Member) ||
+    hasSpecialRolePrice(product, AttendeeRole.Instructor)
+  );
+}
+
 export function initProduct(): Product {
   const tiers: Record<string, { enabled: boolean; price: number }> = {};
   const roles: AttendeeRole[] = [

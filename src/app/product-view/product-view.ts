@@ -35,6 +35,8 @@ import {
   EventRegistrationStatus,
   getPricingTierKey,
   getVideoDelta,
+  hasSpecialRolePrice,
+  hasAnySpecialPricing,
   IlcEvent,
   isEventPast,
   isVideoIncludedForFree,
@@ -42,7 +44,11 @@ import {
   Product,
   RegistrationPaymentMethod,
 } from '../../../functions/src/data-model/events';
-import { MembershipType } from '../../../functions/src/data-model/members';
+import {
+  hasActiveInstructorLicense,
+  hasActiveMembership,
+  MembershipType,
+} from '../../../functions/src/data-model/members';
 import { environment } from '../../environments/environment';
 
 @Component({
@@ -103,14 +109,42 @@ export class ProductViewComponent implements OnInit {
   protected readonly AttendeeRole = AttendeeRole;
   protected readonly AttendanceType = AttendanceType;
 
-  // Determine user's eligible default role
+  // Special pricing configuration
+  hasMemberPrice = computed(() => {
+    const p = this.product();
+    return p ? hasSpecialRolePrice(p, AttendeeRole.Member) : false;
+  });
+
+  hasInstructorPrice = computed(() => {
+    const p = this.product();
+    return p ? hasSpecialRolePrice(p, AttendeeRole.Instructor) : false;
+  });
+
+  hasSpecialPricing = computed(() => {
+    return this.hasMemberPrice() || this.hasInstructorPrice();
+  });
+
+  // Dynamic step labels reflecting whether Attendee Status is displayed
+  attendanceModeStepLabel = computed(() => {
+    return this.hasSpecialPricing() ? '2. Attendance Mode' : '1. Attendance Mode';
+  });
+
+  videoStepLabel = computed(() => {
+    const prefix = this.hasSpecialPricing() ? '3. ' : '2. ';
+    const title = this.isVideoIncludedForFree()
+      ? 'Class Video Recording'
+      : 'Video Recording Add-on';
+    return `${prefix}${title}`;
+  });
+
+  // Determine user's eligible default role strictly from active license/membership status
   userRole = computed<AttendeeRole>(() => {
     const u = this.user();
-    if (!u) return AttendeeRole.NonMember;
-    if (u.member?.instructorId) {
+    if (!u?.member) return AttendeeRole.NonMember;
+    if (hasActiveInstructorLicense(u.member)) {
       return AttendeeRole.Instructor;
     }
-    if (u.member?.memberId || u.member?.docId) {
+    if (hasActiveMembership(u.member)) {
       return AttendeeRole.Member;
     }
     return AttendeeRole.NonMember;
@@ -120,7 +154,30 @@ export class ProductViewComponent implements OnInit {
   selectedRole = computed<AttendeeRole>(() => {
     const reg = this.existingRegistration();
     if (reg?.role) return reg.role;
-    return this.userRole();
+
+    // If the registration setup doesn't actually have a special member or instructor license price,
+    // their status doesn't matter and defaults to NonMember.
+    if (!this.hasSpecialPricing()) {
+      return AttendeeRole.NonMember;
+    }
+
+    const role = this.userRole();
+    if (role === AttendeeRole.Instructor) {
+      if (this.hasInstructorPrice()) {
+        return AttendeeRole.Instructor;
+      }
+      if (this.hasMemberPrice()) {
+        return AttendeeRole.Member;
+      }
+      return AttendeeRole.NonMember;
+    }
+    if (role === AttendeeRole.Member) {
+      if (this.hasMemberPrice()) {
+        return AttendeeRole.Member;
+      }
+      return AttendeeRole.NonMember;
+    }
+    return AttendeeRole.NonMember;
   });
 
   attendeeStatusLabel = computed(() => {

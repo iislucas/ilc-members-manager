@@ -7,7 +7,8 @@ import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService } from '../firebase-state.service';
-import { initProduct, Product } from '../../../functions/src/data-model/events';
+import { AttendeeRole, initProduct, Product } from '../../../functions/src/data-model/events';
+import { MembershipType } from '../../../functions/src/data-model/members';
 import { signal } from '@angular/core';
 
 describe('ProductViewComponent', () => {
@@ -26,6 +27,8 @@ describe('ProductViewComponent', () => {
     allowInPerson: true,
     allowOnline: true,
     allowVideo: true,
+    hasMemberPrice: true,
+    hasInstructorPrice: true,
     tiers: {
       'non_member_in_person_novideo': { enabled: true, price: 100 },
       'non_member_in_person_video': { enabled: true, price: 120 },
@@ -92,6 +95,8 @@ describe('ProductViewComponent', () => {
         memberId: 'US100',
         name: 'Test Member',
         emails: ['member@example.com'],
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2999-01-01',
       },
     }),
   };
@@ -503,5 +508,132 @@ describe('ProductViewComponent', () => {
     expect(toggleGroup.textContent).toContain('Class Video Recording Included');
     expect(toggleGroup.textContent).toContain('All attendees receive access to the recorded session after the event at no extra cost');
     expect(toggleGroup.textContent).not.toContain('(+Free)');
+  });
+
+  describe('role resolution based on active status', () => {
+    it('sets role to Member if user is an instructor whose instructor license has expired but membership is active', () => {
+      mockFirebaseState.user.set({
+        email: 'instructor@example.com',
+        isAdmin: false,
+        isFullMember: true,
+        isInstructor: true,
+        member: {
+          docId: 'mem-inst-expired',
+          memberId: 'US200',
+          instructorId: 5,
+          instructorLicenseExpires: '2020-01-01', // expired license!
+          membershipType: MembershipType.Annual,
+          currentMembershipExpires: '2999-01-01', // active membership
+          name: 'Expired Instructor',
+          emails: ['instructor@example.com'],
+        } as any,
+      });
+
+      expect(component.userRole()).toBe(AttendeeRole.Member);
+    });
+
+    it('sets role to NonMember if user is an instructor whose instructor license AND membership have expired', () => {
+      mockFirebaseState.user.set({
+        email: 'expired@example.com',
+        isAdmin: false,
+        isFullMember: false,
+        isInstructor: false,
+        member: {
+          docId: 'mem-all-expired',
+          memberId: 'US300',
+          instructorId: 5,
+          instructorLicenseExpires: '2020-01-01',
+          membershipType: MembershipType.Annual,
+          currentMembershipExpires: '2020-01-01', // expired membership!
+          name: 'All Expired User',
+          emails: ['expired@example.com'],
+        } as any,
+      });
+
+      expect(component.userRole()).toBe(AttendeeRole.NonMember);
+    });
+
+    it('sets role to Instructor if user has an active instructor license', () => {
+      mockFirebaseState.user.set({
+        email: 'active-inst@example.com',
+        isAdmin: false,
+        isFullMember: true,
+        isInstructor: true,
+        member: {
+          docId: 'mem-inst-active',
+          memberId: 'US400',
+          instructorId: 12,
+          instructorLicenseExpires: '2999-01-01', // active license
+          membershipType: MembershipType.Annual,
+          currentMembershipExpires: '2999-01-01',
+          name: 'Active Instructor',
+          emails: ['active-inst@example.com'],
+        } as any,
+      });
+
+      expect(component.userRole()).toBe(AttendeeRole.Instructor);
+    });
+  });
+
+  describe('events without special member or instructor pricing', () => {
+    it('does not list attendee status and defaults selectedRole to NonMember', async () => {
+      await component.loadProduct();
+
+      // Product with NO special member or instructor price (standard pricing for all)
+      const uniformPriceProduct: Product = {
+        ...mockProduct,
+        hasMemberPrice: false,
+        hasInstructorPrice: false,
+        videoDeltaPrice: 20,
+        tiers: {
+          'non_member_in_person_novideo': { enabled: true, price: 100 },
+          'member_in_person_novideo': { enabled: true, price: 100 },
+          'instructor_in_person_novideo': { enabled: true, price: 100 },
+        },
+      };
+
+      // Set user as active member
+      mockFirebaseState.user.set({
+        email: 'member@example.com',
+        isAdmin: false,
+        isFullMember: true,
+        isInstructor: false,
+        member: {
+          docId: 'mem-1',
+          memberId: 'US100',
+          name: 'Test Member',
+          emails: ['member@example.com'],
+          membershipType: MembershipType.Annual,
+          currentMembershipExpires: '2999-01-01',
+        } as any,
+      });
+
+      component.product.set(uniformPriceProduct);
+      fixture.detectChanges();
+
+      expect(component.hasSpecialPricing()).toBe(false);
+      expect(component.selectedRole()).toBe(AttendeeRole.NonMember);
+      expect(component.attendanceModeStepLabel()).toBe('1. Attendance Mode');
+      expect(component.videoStepLabel()).toBe('2. Video Recording Add-on');
+
+      // The Attendee Status section must NOT be rendered in the DOM
+      const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
+      expect(statusCard).toBeFalsy();
+    });
+
+    it('lists attendee status when product has special member or instructor pricing', async () => {
+      await component.loadProduct();
+
+      component.product.set(mockProduct); // hasMemberPrice: true
+      fixture.detectChanges();
+
+      expect(component.hasSpecialPricing()).toBe(true);
+      expect(component.attendanceModeStepLabel()).toBe('2. Attendance Mode');
+      expect(component.videoStepLabel()).toBe('3. Video Recording Add-on');
+
+      // The Attendee Status section MUST be rendered in the DOM
+      const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
+      expect(statusCard).toBeTruthy();
+    });
   });
 });
