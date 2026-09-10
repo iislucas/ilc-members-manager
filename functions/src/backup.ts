@@ -4,6 +4,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
 import { BlogPostSourceKind, blogPostSourceKind } from './data-model/content-cache';
+import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 
 // Top-level collections holding authored (non-derived) data.
 //
@@ -14,35 +15,39 @@ import { BlogPostSourceKind, blogPostSourceKind } from './data-model/content-cac
 //
 // The blog-post collections are partly cached and partly authored; see
 // BACKUP_MIXED_COLLECTIONS below.
-const BACKUP_COLLECTIONS = [
-  'members',
-  'schools',
-  'gradings',
-  'orders',
-  'acl',
-  'system',
-  'events',
-  'videos',
-  'video_grants',
-  'statistics',
+export const BACKUP_COLLECTIONS: string[] = [
+  FirestoreCollection.Members,
+  FirestoreCollection.Schools,
+  FirestoreCollection.Gradings,
+  FirestoreCollection.Orders,
+  FirestoreCollection.Acl,
+  FirestoreCollection.System,
+  FirestoreCollection.Events,
+  FirestoreCollection.Products,
+  FirestoreCollection.Videos,
+  FirestoreCollection.VideoGrants,
+  FirestoreCollection.Statistics,
+  FirestoreCollection.ArticlesPost,
 ];
 
 // Sub-collections holding authored data. A `db.collection(name).get()` returns
 // only top-level documents, so these need their own collection-group queries.
-// Each group below lives under /members/{memberDocId}/, and the full document
-// path is recorded on every record so the parent is recoverable.
+// Each group below lives under parent documents (e.g. /events/{eventId}/ or
+// /members/{memberDocId}/), and the full document path is recorded on every
+// record so the parent is recoverable.
 //
 // Deliberately excluded, because they mirror a top-level collection:
 //   members/{id}/orders, members/{id}/events,
 //   schools/{id}/members, schools/{id}/gradings,
 //   instructors/{id}/members, instructors/{id}/gradings,
 //   system/deletions/{collection} (sync tombstones).
-const BACKUP_SUBCOLLECTION_GROUPS = [
-  'notifications',
-  'uploads',
-  'videoProgress',
-  'videoGrants',
-  'pushSubscriptions',
+export const BACKUP_SUBCOLLECTION_GROUPS: string[] = [
+  FirestoreSubcollection.Notifications,
+  FirestoreSubcollection.Uploads,
+  FirestoreSubcollection.VideoProgress,
+  FirestoreSubcollection.VideoGrants,
+  FirestoreSubcollection.PushSubscriptions,
+  FirestoreSubcollection.Registrations,
 ];
 
 // Collections where cached and authored documents coexist. The blog-post
@@ -53,18 +58,18 @@ const BACKUP_SUBCOLLECTION_GROUPS = [
 // A post is regenerable precisely when it came from the source that syncs the
 // collection, since that sync will rewrite it. Reading the kind through
 // blogPostSourceKind keeps this decision identical to the sync's own.
-const BACKUP_MIXED_COLLECTIONS: {
+export const BACKUP_MIXED_COLLECTIONS: {
   name: string;
   cachedFrom: BlogPostSourceKind;
 }[] = [
-  { name: 'members-post', cachedFrom: BlogPostSourceKind.Squarespace },
+  { name: FirestoreCollection.MembersPost, cachedFrom: BlogPostSourceKind.Squarespace },
   { name: 'instructors-post', cachedFrom: BlogPostSourceKind.Squarespace },
 ];
 
 /**
  * Common logic to perform the database backup to Cloud Storage.
  */
-async function performBackup(): Promise<string> {
+export async function performBackup(): Promise<string> {
   logger.info('Starting database backup...');
   try {
     const db = admin.firestore();
