@@ -9,11 +9,19 @@
       <h3>Unable to Load Article</h3>
       <p>{{ error() }}</p>
       <div class="error-actions">
-        <button type="button" class="subtle-button" (click)="loadPost(collection(), blogPostPath())">
-          Try Again
-        </button>
-        @if (viewHref(); as href) {
-          <a class="subtle-button" [href]="href">Back to Article</a>
+        @if (isNew()) {
+          <button type="button" class="subtle-button" (click)="initNewPost(collection())">
+            Try Again
+          </button>
+        } @else {
+          <button type="button" class="subtle-button" (click)="loadPost(collection(), blogPostPath()!)">
+            Try Again
+          </button>
+        }
+        @if (cancelHref(); as href) {
+          <a class="subtle-button" [href]="href" (click)="$event.preventDefault(); cancel()">
+            {{ isNew() ? 'Back to Articles' : 'Back to Article' }}
+          </a>
         }
       </div>
     </div>
@@ -22,15 +30,15 @@
       <div class="article-edit-header">
         <div class="header-left">
           <span class="area-badge">{{ areaLabel() }}</span>
-          <h2 class="article-title-heading">{{ title() || 'Untitled Article' }}</h2>
+          <h2 class="article-title-heading">{{ isNew() ? (title() || 'New Article') : (title() || 'Untitled Article') }}</h2>
         </div>
         <div class="header-actions">
           @if (isSaving()) {
             <app-spinner>Saving article...</app-spinner>
           } @else {
-            <button type="button" class="primary-button" (click)="save()">Save Changes</button>
-            @if (viewHref(); as href) {
-              <a class="subtle-button" [href]="href">Cancel</a>
+            <button type="button" class="primary-button" (click)="save()">{{ isNew() ? 'Create Article' : 'Save Changes' }}</button>
+            @if (cancelHref(); as href) {
+              <a class="subtle-button" [href]="href" (click)="$event.preventDefault(); cancel()">Cancel</a>
             }
           }
         </div>
@@ -46,7 +54,7 @@
             id="post-title"
             class="long"
             [value]="title()"
-            (input)="title.set($any($event.target).value)"
+            (input)="onTitleInput($any($event.target).value)"
             placeholder="Article title"
           />
         </div>
@@ -59,7 +67,7 @@
               id="post-url-id"
               class="long"
               [value]="urlId()"
-              (input)="urlId.set($any($event.target).value)"
+              (input)="onSlugInput($any($event.target).value)"
               placeholder="e.g. my-article-title"
             />
             <button
@@ -256,9 +264,9 @@
         @if (isSaving()) {
           <app-spinner>Saving article...</app-spinner>
         } @else {
-          <button type="button" class="primary-button" (click)="save()">Save Changes</button>
-          @if (viewHref(); as href) {
-            <a class="subtle-button" [href]="href">Cancel</a>
+          <button type="button" class="primary-button" (click)="save()">{{ isNew() ? 'Create Article' : 'Save Changes' }}</button>
+          @if (cancelHref(); as href) {
+            <a class="subtle-button" [href]="href" (click)="$event.preventDefault(); cancel()">Cancel</a>
           }
         }
       </div>

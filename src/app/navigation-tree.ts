@@ -207,14 +207,17 @@ export class NavigationTreeService {
       view === Views.ArticlesCategory ||
       view === Views.ArticlesPost ||
       view === Views.ArticlesPostEdit ||
+      view === Views.ArticlesPostNew ||
       view === Views.MembersArea ||
       view === Views.MembersAreaCategory ||
       view === Views.MembersAreaPost ||
       view === Views.MembersAreaPostEdit ||
+      view === Views.MembersAreaPostNew ||
       view === Views.InstructorsArea ||
       view === Views.InstructorsAreaCategory ||
       view === Views.InstructorsAreaPost ||
       view === Views.InstructorsAreaPostEdit ||
+      view === Views.InstructorsAreaPostNew ||
       view === Views.ClassVideoLibrary ||
       view === Views.Videos ||
       view === Views.VideoView
@@ -447,6 +450,18 @@ export class NavigationTreeService {
           { label: 'Instructors Area', url: this.routing.hrefWithParams('/instructors-area') },
         ];
       case Views.ArticlesPost:
+        return [
+          { label: 'Articles & Guides', url: this.routing.hrefWithParams('/articles') },
+        ];
+      case Views.MembersAreaPostNew:
+        return [
+          { label: 'Members Area', url: this.routing.hrefWithParams('/members-area') },
+        ];
+      case Views.InstructorsAreaPostNew:
+        return [
+          { label: 'Instructors Area', url: this.routing.hrefWithParams('/instructors-area') },
+        ];
+      case Views.ArticlesPostNew:
         return [
           { label: 'Articles & Guides', url: this.routing.hrefWithParams('/articles') },
         ];
@@ -726,6 +741,10 @@ export class NavigationTreeService {
       case Views.InstructorsAreaPostEdit:
       case Views.ArticlesPostEdit:
         return 'Edit Article';
+      case Views.MembersAreaPostNew:
+      case Views.InstructorsAreaPostNew:
+      case Views.ArticlesPostNew:
+        return 'New Article';
       case Views.DownloadResource:
         return 'Download Resource';
       case Views.OrderComplete:

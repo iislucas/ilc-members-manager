@@ -15,8 +15,9 @@
         </div>
         } @else if (blogEntries().length > 0) {
         
-        @if (categories().length > 1) {
-        <div class="header-extension-tabs">
+        @if (categories().length > 1 || firebaseService.isAdmin()) {
+        <div class="header-extension-tabs" [class.has-tabs]="categories().length > 1">
+          @if (categories().length > 1) {
           <div class="pill-tabs">
             @for (cat of categories(); track cat) {
             <button 
@@ -28,6 +29,15 @@
             </button>
             }
           </div>
+          }
+          @if (firebaseService.isAdmin()) {
+          <div class="header-admin-action">
+            <a class="subtle-button create-article-btn" [href]="newArticleHref()">
+              <app-icon name="add"></app-icon>
+              <span>New Article</span>
+            </a>
+          </div>
+          }
         </div>
         }
 
@@ -86,11 +96,31 @@
             } @empty {
             <div class="empty-content-warning">
                 <p>No articles found.</p>
+                @if (firebaseService.isAdmin()) {
+                <div class="empty-admin-action">
+                    <a class="primary-button create-article-btn" [href]="newArticleHref()">
+                        <app-icon name="add"></app-icon>
+                        <span>Create First Article</span>
+                    </a>
+                </div>
+                }
             </div>
             }
         </div>
         } @else if (fallbackContent()) {
         <div class="content" [innerHTML]="fallbackContent()"></div>
+        } @else {
+        <div class="empty-content-warning">
+            <p>No articles found.</p>
+            @if (firebaseService.isAdmin()) {
+            <div class="empty-admin-action">
+                <a class="primary-button create-article-btn" [href]="newArticleHref()">
+                    <app-icon name="add"></app-icon>
+                    <span>Create First Article</span>
+                </a>
+            </div>
+            }
+        </div>
         }
     </div>
 </div>

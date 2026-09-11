@@ -16,6 +16,7 @@ import {
   getDocs,
   getDoc,
   updateDoc,
+  setDoc,
 } from 'firebase/firestore';
 import {
   getStorage,
@@ -51,13 +52,15 @@ import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
 })
 export class SquarespaceArticleEditComponent {
   public firebaseService = inject(FirebaseStateService);
-  public routingService = inject(RoutingService<AppPathPatterns>);
+  public routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
 
   // The Firestore collection name, e.g. 'articles-post', 'members-post', or 'instructors-post'.
   collection = input.required<string>();
-  blogPostPath = input.required<string>();
+  blogPostPath = input<string | null>(null);
+  isNew = computed(() => !this.blogPostPath());
+  slugManuallyEdited = signal<boolean>(false);
 
   public readonly BlogPostStatus = BlogPostStatus;
 
@@ -87,13 +90,33 @@ export class SquarespaceArticleEditComponent {
   viewHref = computed(() => {
     const coll = this.collection();
     const slug = this.urlId() || this.blogPostPath();
-    if (!slug) return '';
+    if (!slug) {
+      if (coll === 'members-post') {
+        return this.routingService.hrefForView(Views.MembersArea);
+      } else if (coll === 'instructors-post') {
+        return this.routingService.hrefForView(Views.InstructorsArea);
+      }
+      return this.routingService.hrefForView(Views.Articles);
+    }
     if (coll === 'members-post') {
       return this.routingService.hrefForView(Views.MembersAreaPost, { blogPostPath: slug });
     } else if (coll === 'instructors-post') {
       return this.routingService.hrefForView(Views.InstructorsAreaPost, { blogPostPath: slug });
     }
     return this.routingService.hrefForView(Views.ArticlesPost, { blogPostPath: slug });
+  });
+
+  cancelHref = computed(() => {
+    if (this.isNew()) {
+      const coll = this.collection();
+      if (coll === 'members-post') {
+        return this.routingService.hrefForView(Views.MembersArea);
+      } else if (coll === 'instructors-post') {
+        return this.routingService.hrefForView(Views.InstructorsArea);
+      }
+      return this.routingService.hrefForView(Views.Articles);
+    }
+    return this.viewHref();
   });
 
   areaLabel = computed(() => {
@@ -109,11 +132,53 @@ export class SquarespaceArticleEditComponent {
       const slug = this.blogPostPath();
       if (coll && slug) {
         this.loadPost(coll, slug);
+      } else if (coll && !slug) {
+        this.initNewPost(coll);
       } else {
-        this.error.set('Configuration error: No article specified.');
+        this.error.set('Configuration error: No collection specified.');
         this.loading.set(false);
       }
     });
+  }
+
+  initNewPost(coll: string) {
+    if (!this.firebaseService.isAdmin()) {
+      this.error.set('You do not have permission to create articles.');
+      this.loading.set(false);
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set(null);
+
+    // Pre-generate a unique Firestore doc ID so image uploads have a storage path immediately
+    const newDocRef = doc(collection(this.db, coll));
+    this.docId.set(newDocRef.id);
+    this.post.set(null);
+
+    this.title.set('');
+    this.urlId.set('');
+    this.slugManuallyEdited.set(false);
+
+    const dateObj = new Date();
+    const yyyy = dateObj.getFullYear();
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dd = String(dateObj.getDate()).padStart(2, '0');
+    this.publishDateStr.set(`${yyyy}-${mm}-${dd}`);
+
+    this.status.set(BlogPostStatus.Published);
+    this.categoriesStr.set('');
+    this.tagsStr.set('');
+
+    const user = this.firebaseService.user();
+    const authorName = user?.member?.name || user?.firebaseUser?.displayName || user?.firebaseUser?.email || 'Admin';
+    this.author.set(authorName);
+
+    this.assetUrl.set('');
+    this.excerpt.set('');
+    this.bodyMarkdown.set('');
+
+    this.loading.set(false);
   }
 
   async loadPost(coll: string, slug: string) {
@@ -191,6 +256,18 @@ export class SquarespaceArticleEditComponent {
     this.bodyMarkdown.set(val);
   }
 
+  onTitleInput(val: string) {
+    this.title.set(val);
+    if (this.isNew() && !this.slugManuallyEdited()) {
+      this.generateSlugFromTitle();
+    }
+  }
+
+  onSlugInput(val: string) {
+    this.urlId.set(val);
+    this.slugManuallyEdited.set(true);
+  }
+
   generateSlugFromTitle() {
     const t = this.title();
     if (!t) return;
@@ -265,6 +342,17 @@ export class SquarespaceArticleEditComponent {
   }
 
   cancel() {
+    if (this.isNew()) {
+      const coll = this.collection();
+      if (coll === 'members-post') {
+        this.routingService.navigateTo('/members-area');
+      } else if (coll === 'instructors-post') {
+        this.routingService.navigateTo('/instructors-area');
+      } else {
+        this.routingService.navigateTo('/articles');
+      }
+      return;
+    }
     const href = this.viewHref();
     if (href) {
       this.routingService.navigateTo(href);
@@ -288,6 +376,26 @@ export class SquarespaceArticleEditComponent {
     this.error.set(null);
 
     try {
+      const coll = this.collection();
+      const postsRef = collection(this.db, coll);
+
+      // Check slug uniqueness within collection
+      const q = query(postsRef, where('urlId', '==', trimmedSlug));
+      const snap = await getDocs(q);
+      const existingMatchingDoc = snap.docs.find((d) => d.id !== this.docId());
+      if (existingMatchingDoc) {
+        this.error.set(`An article with the URL slug "${trimmedSlug}" already exists. Please choose a different slug.`);
+        this.isSaving.set(false);
+        return;
+      }
+
+      const directDoc = await getDoc(doc(this.db, coll, trimmedSlug));
+      if (directDoc.exists() && directDoc.id !== this.docId()) {
+        this.error.set(`An article with the slug "${trimmedSlug}" already exists. Please choose a different slug.`);
+        this.isSaving.set(false);
+        return;
+      }
+
       const rawMarkdown = this.bodyMarkdown();
       const compiledHtml = compileMarkdownToHtml(rawMarkdown);
       const cats = this.categoriesStr()
@@ -308,27 +416,52 @@ export class SquarespaceArticleEditComponent {
         }
       }
 
-      await updateDoc(doc(this.db, this.collection(), this.docId()), {
-        title: trimmedTitle,
-        urlId: trimmedSlug,
-        bodyMarkdown: rawMarkdown,
-        body: compiledHtml,
-        excerpt: this.excerpt().trim(),
-        assetUrl: this.assetUrl().trim(),
-        author: this.author().trim(),
-        categories: cats,
-        tags: tags,
-        isDraft: isDraftVal,
-        status: isDraftVal ? BlogPostStatus.Draft : BlogPostStatus.Published,
-        kind: BlogPostSourceKind.FirebaseSourced,
-        publishOn: publishTimestamp,
-        lastUpdated: new Date().toISOString(),
-      });
+      const nowIso = new Date().toISOString();
+
+      if (this.isNew()) {
+        const newPost: CachedBlogPost = {
+          ...initCachedBlogPost(),
+          id: this.docId(),
+          title: trimmedTitle,
+          urlId: trimmedSlug,
+          bodyMarkdown: rawMarkdown,
+          body: compiledHtml,
+          excerpt: this.excerpt().trim(),
+          assetUrl: this.assetUrl().trim(),
+          author: this.author().trim(),
+          categories: cats,
+          tags: tags,
+          isDraft: isDraftVal,
+          status: isDraftVal ? BlogPostStatus.Draft : BlogPostStatus.Published,
+          kind: BlogPostSourceKind.FirebaseSourced,
+          publishOn: publishTimestamp,
+          addedOn: publishTimestamp,
+          lastUpdated: nowIso,
+        };
+
+        await setDoc(doc(this.db, coll, this.docId()), newPost);
+      } else {
+        await updateDoc(doc(this.db, coll, this.docId()), {
+          title: trimmedTitle,
+          urlId: trimmedSlug,
+          bodyMarkdown: rawMarkdown,
+          body: compiledHtml,
+          excerpt: this.excerpt().trim(),
+          assetUrl: this.assetUrl().trim(),
+          author: this.author().trim(),
+          categories: cats,
+          tags: tags,
+          isDraft: isDraftVal,
+          status: isDraftVal ? BlogPostStatus.Draft : BlogPostStatus.Published,
+          kind: BlogPostSourceKind.FirebaseSourced,
+          publishOn: publishTimestamp,
+          lastUpdated: nowIso,
+        });
+      }
 
       this.isSaving.set(false);
 
       // Navigate to the article view
-      const coll = this.collection();
       let targetPath = `/articles/post/${trimmedSlug}`;
       if (coll === 'members-post') {
         targetPath = `/members-area/post/${trimmedSlug}`;
