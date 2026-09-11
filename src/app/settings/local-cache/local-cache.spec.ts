@@ -72,6 +72,9 @@ describe('LocalCacheSettingsComponent', () => {
       updateSchoolsSync: vi.fn().mockResolvedValue(undefined),
       updateMembersSync: vi.fn().mockResolvedValue(undefined),
       updateMyStudentsSync: vi.fn().mockResolvedValue(undefined),
+      updateOrdersSync: vi.fn().mockResolvedValue(undefined),
+      updateVideosSync: vi.fn().mockResolvedValue(undefined),
+      updateEventsSync: vi.fn().mockResolvedValue(undefined),
       forceRefreshAllData: vi.fn().mockResolvedValue(undefined),
       clearAllLocalCaches: vi.fn().mockResolvedValue(undefined),
     };
@@ -146,6 +149,15 @@ describe('LocalCacheSettingsComponent', () => {
 
     await component.syncSingleCollection('schools');
     expect(mockDataManager.updateSchoolsSync).toHaveBeenCalled();
+
+    await component.syncSingleCollection('admin_orders');
+    expect(mockDataManager.updateOrdersSync).toHaveBeenCalledWith(true);
+
+    await component.syncSingleCollection('public_videos');
+    expect(mockDataManager.updateVideosSync).toHaveBeenCalled();
+
+    await component.syncSingleCollection('public_events');
+    expect(mockDataManager.updateEventsSync).toHaveBeenCalledWith(true);
   });
 
   it('should clear single collection after confirmation', async () => {

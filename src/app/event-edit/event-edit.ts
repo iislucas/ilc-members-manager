@@ -42,7 +42,7 @@ import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
 import { ProductEditComponent } from '../product-edit/product-edit';
 import { SearchableSet } from '../searchable-set';
-import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import {
   getStorage,
   ref,
@@ -266,7 +266,7 @@ export class EventEditComponent implements OnInit {
       try {
         await updateDoc(doc(this.db, 'events', evDocId), {
           productId: '',
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: serverTimestamp(),
         });
         this.event.update((ev) => (ev ? { ...ev, productId: '' } : null));
       } catch (err) {
@@ -529,12 +529,13 @@ export class EventEditComponent implements OnInit {
       const docRef = doc(this.db, 'events', ev.docId);
       await updateDoc(docRef, {
         status: newStatus,
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: serverTimestamp(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
       // Update local state so chip and form model reflect the change.
       const updatedEvent = { ...ev, status: newStatus, lastUpdated: new Date().toISOString() };
       this.event.set(updatedEvent);
+      await this.dataService.persistEventLocally(updatedEvent);
       this.eventFormModel.update(m => ({ ...m, status: newStatus }));
       this.successMessage.set(`Status changed to "${eventStatusLabel(newStatus)}".`);
     } catch (error: unknown) {
@@ -556,6 +557,7 @@ export class EventEditComponent implements OnInit {
     try {
       const docRef = doc(this.db, 'events', ev.docId);
       await deleteDoc(docRef);
+      await this.dataService.removeEventLocally(ev.docId);
       this.successMessage.set('Event deleted successfully.');
       setTimeout(() => this.routingService.navigateToParts([this.listUrl()]), 1500);
     } catch (error: unknown) {
@@ -1397,7 +1399,7 @@ export class EventEditComponent implements OnInit {
         inPersonDetailsMarkdown: formData.inPersonDetailsMarkdown || '',
         recordedVideoId: formData.recordedVideoId || '',
         recordedVideoUrl: formData.recordedVideoUrl || '',
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: serverTimestamp(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
       this.successMessage.set('Event saved successfully.');
@@ -1415,7 +1417,7 @@ export class EventEditComponent implements OnInit {
         recordedVideoUrl: m.recordedVideoUrl || '',
       }));
       // Update the local event data so isDirty resets
-      this.event.set({
+      const savedEvent: IlcEvent = {
         ...eventData,
         ...formData,
         managerDocIds,
@@ -1429,7 +1431,9 @@ export class EventEditComponent implements OnInit {
         documents: formData.documents,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
-      });
+      };
+      this.event.set(savedEvent);
+      await this.dataService.persistEventLocally(savedEvent);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error saving event:', error);

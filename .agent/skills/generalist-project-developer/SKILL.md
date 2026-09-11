@@ -25,6 +25,7 @@ The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](
 
 - [README.md](./README.md): basic goals and details of how to build and test the project.
 - [STATUS.md](./STATUS.md): the status of milestones, and goals within the project.
+- [./docs/](./docs/): system documentation. Note that `docs/plans/` contains ephemeral implementation plans; once implemented, plans **must be removed** and canonical documentation updated (see [`documentation-system`](.agent/skills/documentation-system/SKILL.md)).
 - [./functions/src/data-model/](./functions/src/data-model/): modular typescript definitions for core data structures, organized by domain (e.g. `members.ts`, `gradings.ts`, `events.ts`, `orders.ts`, etc.).
 
 ### Agent Skills Directory
@@ -35,6 +36,7 @@ The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](
 |---|---|
 | [`codebase-architecture`](.agent/skills/codebase-architecture/SKILL.md) | Always read first — architectural patterns, component map, emulator setup |
 | [`generalist-project-developer`](.agent/skills/generalist-project-developer/SKILL.md) | Always read — coding standards, tech stack, best practices (this file) |
+| [`documentation-system`](.agent/skills/documentation-system/SKILL.md) | When creating, structuring, or updating documentation and plan lifecycles |
 | [`angular-developer`](.agent/skills/angular-developer/SKILL.md) | When editing Angular components, templates, or routing |
 | [`html-css-developer`](.agent/skills/html-css-developer/SKILL.md) | When editing HTML templates or SCSS styles |
 | [`logo-iteration`](.agent/skills/logo-iteration/SKILL.md) | When working on the SVG logo generator in `mini-tools/` |
@@ -303,8 +305,18 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+ 
+### 5. Implementation Plan Lifecycle (`docs/plans/`)
+
+**Clean up ephemeral plans upon completion. Update canonical documentation.**
+
+When implementing work defined by a plan in `docs/plans/`:
+- **Remove the plan file**: Once the plan is fully implemented and verified, delete the plan markdown file from `docs/plans/` (`git rm docs/plans/<plan-name>.md`). Plans are temporary roadmaps, not historical archives. Leaving completed plans in `docs/plans/` causes ambiguity about what has been implemented versus what is pending.
+- **Update canonical documentation**: Transcribe the permanent architectural patterns, data structures, and operational guides into the canonical documentation in `docs/` (e.g. `docs/architecture/`, `docs/data-types/`, or domain reference guides like `docs/<feature>.md`).
+- **Update status and references**: Update references in `STATUS.md`, `README.md`, or web links so they point to the canonical documentation instead of the deleted plan file.
 
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
 

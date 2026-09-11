@@ -249,7 +249,7 @@ service cloud.firestore {
     }
 
     match /system/deletions/{collectionName}/{document=**} {
-      allow read: if (collectionName in ['instructors', 'schools', 'events']) || isAdmin();
+      allow read: if (collectionName in ['instructors', 'schools', 'events', 'videos']) || isAdmin();
       allow write: if isAdmin();
     }
 

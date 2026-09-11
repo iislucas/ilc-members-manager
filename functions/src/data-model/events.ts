@@ -1,3 +1,5 @@
+import { GenericFsDoc, normalizeLastUpdated } from './base';
+
 // Event status values for the unified /events collection.
 export enum EventStatus {
   Draft = 'draft',
@@ -186,6 +188,17 @@ export function initEvent(): IlcEvent {
     maxInPersonAttendees: 0,
     inPersonRegistrationsCount: 0,
     updatedByEmail: '',
+  };
+}
+
+export function firestoreDocToIlcEvent(doc: GenericFsDoc): IlcEvent {
+  const data = (doc.data() || {}) as Partial<IlcEvent>;
+  const lastUpdated = normalizeLastUpdated(data.lastUpdated);
+  return {
+    ...initEvent(),
+    ...data,
+    docId: doc.id,
+    lastUpdated,
   };
 }
 

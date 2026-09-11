@@ -33,6 +33,8 @@ const TARGET_COLLECTIONS = [
   'schools',
   'events',
   'gradings',
+  'orders',
+  'videos',
 ];
 
 async function main() {
@@ -61,7 +63,17 @@ async function main() {
 
       if (!rawLastUpdated) {
         needsUpdate = true;
-        targetTimestamp = Timestamp.now();
+        const fallback = data['createdOn'] || data['createdAt'];
+        if (fallback) {
+          try {
+            const parsed = new Date(fallback);
+            targetTimestamp = !isNaN(parsed.getTime()) ? Timestamp.fromDate(parsed) : Timestamp.now();
+          } catch {
+            targetTimestamp = Timestamp.now();
+          }
+        } else {
+          targetTimestamp = Timestamp.now();
+        }
       } else if (typeof rawLastUpdated?.toDate === 'function') {
         // Already a native Firestore Timestamp!
         needsUpdate = false;

@@ -274,3 +274,12 @@ Rules tests are in [tests/firestore.rules.spec.ts](../../tests/firestore.rules.s
 
 **After adding new Grading fields**: run `pnpm test:rules` to catch permission gaps.
 **After any code change**: run `pnpm build` — template errors and complex type mismatches only surface at build time.
+
+---
+
+## Documentation & Implementation Plans (`docs/plans/` vs Canonical Docs)
+
+- **Canonical Documentation**: Permanent documentation is organized under `docs/` following the 4-View Unified Mental Model (see [`.agent/skills/documentation-system/SKILL.md`](../documentation-system/SKILL.md)).
+- **Ephemeral Implementation Plans (`docs/plans/`)**: Active design proposals, RFCs, and phase roadmaps live in `docs/plans/`.
+- **Plan Completion Rule**: When a plan in `docs/plans/` is implemented and verified, it **must be removed** (`git rm docs/plans/<plan-name>.md`) and the permanent architecture, user guides, data models, or setup documentation in `docs/` updated. Completed plans must not linger in `docs/plans/`.
+

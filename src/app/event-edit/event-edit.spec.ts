@@ -22,6 +22,8 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(),
   getDocs: vi.fn().mockResolvedValue({ empty: true }),
   updateDoc: vi.fn().mockResolvedValue(undefined),
+  deleteDoc: vi.fn().mockResolvedValue(undefined),
+  serverTimestamp: vi.fn().mockReturnValue({ seconds: 0, nanoseconds: 0 }),
 }));
 
 describe('EventEditComponent', () => {
@@ -53,6 +55,9 @@ describe('EventEditComponent', () => {
     mockDataManagerService = {
       getEventById: vi.fn().mockResolvedValue(undefined),
       getMemberByMemberId: vi.fn().mockReturnValue(undefined),
+      persistEventLocally: vi.fn().mockResolvedValue(undefined),
+      removeEventLocally: vi.fn().mockResolvedValue(undefined),
+      events: new SearchableSet(['title'], 'docId', []),
       members: new SearchableSet(['name'], 'docId', []),
       instructors: new SearchableSet(['instructorId', 'name', 'memberId'], 'instructorId', []),
       schools: new SearchableSet(['schoolId'], 'schoolId', []),
