@@ -583,6 +583,158 @@ describe('MarkdownEditor', () => {
     expect(emittedValue).toContain('![Uploaded Diagram](https://storage.example.com/uploaded_crop.png)');
   });
 
+  it('supports image dialog with caption and inserting an image with caption via URL', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', 'Article text:');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component.openImageDialog();
+    expect(component.imageModalOpen()).toBe(true);
+
+    component.imageSourceType.set('url');
+    component.imageUrlInput.set('https://example.com/pic.jpg');
+    component.imageAltText.set('Neutral Point');
+    component.imageCaption.set('Sam Chin demonstrating the neutral point');
+
+    component.insertImageUrl();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.imageModalOpen()).toBe(false);
+    expect(emittedValue).toContain('![Neutral Point](https://example.com/pic.jpg "Sam Chin demonstrating the neutral point")');
+  });
+
+  it('renders inline image with caption input and actions in WYSIWYG mode', async () => {
+    fixture.componentRef.setInput(
+      'initialValue',
+      '![Demonstration](https://example.com/pic.jpg "Initial caption")'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    const editorEl = fixture.nativeElement.querySelector('.milkdown');
+    const figure = editorEl.querySelector('.editor-image-figure');
+    expect(figure).toBeTruthy();
+
+    const img = figure.querySelector('img');
+    expect(img).toBeTruthy();
+    expect(img.getAttribute('src')).toBe('https://example.com/pic.jpg');
+    expect(img.getAttribute('alt')).toBe('Demonstration');
+    expect(img.getAttribute('title')).toBe('Initial caption');
+
+    const captionInput = figure.querySelector('.editor-image-caption-input') as HTMLInputElement;
+    expect(captionInput).toBeTruthy();
+    expect(captionInput.value).toBe('Initial caption');
+
+    const actions = figure.querySelector('.editor-image-actions');
+    expect(actions).toBeTruthy();
+    expect(actions.querySelector('.edit-btn')).toBeTruthy();
+    expect(actions.querySelector('.delete-btn')).toBeTruthy();
+  });
+
+  it('updates markdown when inline caption input is edited in WYSIWYG mode', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput(
+      'initialValue',
+      '![Photo](https://example.com/pic.jpg "Old caption")'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    const editorEl = fixture.nativeElement.querySelector('.milkdown');
+    const captionInput = editorEl.querySelector('.editor-image-caption-input') as HTMLInputElement;
+    expect(captionInput).toBeTruthy();
+
+    captionInput.value = 'New refined caption';
+    captionInput.dispatchEvent(new Event('blur'));
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).toContain('![Photo](https://example.com/pic.jpg "New refined caption")');
+    expect(component.getMarkdown()).toContain('![Photo](https://example.com/pic.jpg "New refined caption")');
+  });
+
+  it('allows editing existing image details via dialog and removing images', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput(
+      'initialValue',
+      '![Original](https://example.com/pic.jpg "Original caption")'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Pos 1 is the image node inside the paragraph
+    component.openImageDialog(1, {
+      src: 'https://example.com/pic.jpg',
+      alt: 'Original',
+      title: 'Original caption',
+    });
+
+    expect(component.editingImagePos()).toBe(1);
+    expect(component.imageUrlInput()).toBe('https://example.com/pic.jpg');
+    expect(component.imageAltText()).toBe('Original');
+    expect(component.imageCaption()).toBe('Original caption');
+
+    // Update details
+    component.imageAltText.set('Updated Alt');
+    component.imageCaption.set('Updated Caption');
+    component.saveImageDetailsOnly();
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.imageModalOpen()).toBe(false);
+    expect(emittedValue).toContain('![Updated Alt](https://example.com/pic.jpg "Updated Caption")');
+
+    // Remove the image
+    component.removeImageAtPos(1);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.getMarkdown()).not.toContain('https://example.com/pic.jpg');
+  });
+
+  it('preserves image with caption idempotently across Raw mode round-trips', async () => {
+    const inputMd = 'Intro text\n\n![Zhong Xin Dao](https://example.com/zxd.png "Philosophy diagram")\n\nOutro text';
+    fixture.componentRef.setInput('initialValue', inputMd);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Switch to raw mode
+    component.toggleRawMode();
+    fixture.detectChanges();
+    expect(component.isRawMode()).toBe(true);
+    expect(component.rawContent().trim()).toBe(inputMd.trim());
+
+    // Switch back to rich mode
+    component.toggleRawMode();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.isRawMode()).toBe(false);
+    expect(component.getMarkdown().trim()).toBe(inputMd.trim());
+  });
+
   it('updates dimensions based on aspect ratio and size choices', () => {
     component.setSizeChoice('large');
     component.setAspectRatio(16 / 9);

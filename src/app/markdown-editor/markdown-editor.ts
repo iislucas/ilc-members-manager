@@ -34,14 +34,15 @@ import {
   sinkListItemCommand,
   liftListItemCommand,
   insertImageCommand,
+  imageSchema,
 } from '@milkdown/preset-commonmark';
 import { history, undoCommand, redoCommand } from '@milkdown/plugin-history';
 import { listener, listenerCtx } from '@milkdown/plugin-listener';
 import { indent as indentPlugin } from '@milkdown/plugin-indent';
-import { $prose, $remark, $nodeSchema, $inputRule } from '@milkdown/utils';
+import { $prose, $remark, $nodeSchema, $inputRule, $view } from '@milkdown/utils';
 import { wrappingInputRule } from '@milkdown/prose/inputrules';
-import { Plugin, PluginKey, TextSelection } from '@milkdown/prose/state';
-import { Decoration, DecorationSet } from '@milkdown/prose/view';
+import { NodeSelection, Plugin, PluginKey, TextSelection } from '@milkdown/prose/state';
+import { Decoration, DecorationSet, EditorView, NodeView } from '@milkdown/prose/view';
 import { Node as ProseNode, Fragment } from '@milkdown/prose/model';
 import { lift, wrapIn, splitBlock } from '@milkdown/prose/commands';
 import { wrapInList, liftListItem, sinkListItem, splitListItem } from '@milkdown/prose/schema-list';
@@ -67,6 +68,163 @@ export interface EditorChip {
   token: string;
   // Optional label for the insertion button; defaults to `token`.
   label?: string;
+}
+
+export class ImageNodeView implements NodeView {
+  dom: HTMLElement;
+  private imgEl: HTMLImageElement;
+  private captionInput: HTMLInputElement;
+  private actionsEl: HTMLElement;
+  private node: ProseNode;
+  private view: EditorView;
+  private getPos: () => number | undefined;
+  private component: MarkdownEditor;
+
+  constructor(
+    node: ProseNode,
+    view: EditorView,
+    getPos: () => number | undefined,
+    component: MarkdownEditor
+  ) {
+    this.node = node;
+    this.view = view;
+    this.getPos = getPos;
+    this.component = component;
+
+    const dom = document.createElement('span');
+    dom.className = 'editor-image-figure';
+    dom.contentEditable = 'false';
+    this.dom = dom;
+
+    const imgContainer = document.createElement('span');
+    imgContainer.className = 'editor-image-container';
+
+    const img = document.createElement('img');
+    img.src = node.attrs['src'] || '';
+    img.alt = node.attrs['alt'] || '';
+    if (node.attrs['title']) {
+      img.title = node.attrs['title'];
+    }
+    this.imgEl = img;
+
+    img.addEventListener('click', () => {
+      const pos = typeof this.getPos === 'function' ? this.getPos() : undefined;
+      if (typeof pos === 'number') {
+        const { state, dispatch } = this.view;
+        const sel = NodeSelection.create(state.doc, pos);
+        dispatch(state.tr.setSelection(sel));
+      }
+    });
+
+    const actions = document.createElement('span');
+    actions.className = 'editor-image-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'edit-btn';
+    editBtn.title = 'Edit image';
+    editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg><span>Edit</span>`;
+    editBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = typeof this.getPos === 'function' ? this.getPos() : undefined;
+      this.component.openImageDialog(pos, this.node.attrs);
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.title = 'Delete image';
+    deleteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg><span>Delete</span>`;
+    deleteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = typeof this.getPos === 'function' ? this.getPos() : undefined;
+      if (typeof pos === 'number') {
+        this.component.removeImageAtPos(pos);
+      }
+    });
+
+    actions.appendChild(editBtn);
+    actions.appendChild(deleteBtn);
+    this.actionsEl = actions;
+
+    imgContainer.appendChild(img);
+    imgContainer.appendChild(actions);
+    dom.appendChild(imgContainer);
+
+    const captionInput = document.createElement('input');
+    captionInput.type = 'text';
+    captionInput.className = 'editor-image-caption-input';
+    captionInput.placeholder = 'Add a caption (optional)...';
+    captionInput.value = node.attrs['title'] || '';
+    this.captionInput = captionInput;
+
+    const commitCaption = () => {
+      const newTitle = captionInput.value.trim();
+      const currentTitle = this.node.attrs['title'] || '';
+      if (newTitle !== currentTitle) {
+        const pos = typeof this.getPos === 'function' ? this.getPos() : undefined;
+        if (typeof pos === 'number') {
+          const tr = this.view.state.tr.setNodeMarkup(pos, undefined, {
+            ...this.node.attrs,
+            title: newTitle || '',
+          });
+          this.view.dispatch(tr);
+        }
+      }
+    };
+
+    captionInput.addEventListener('blur', commitCaption);
+    captionInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitCaption();
+        captionInput.blur();
+      } else if (e.key === 'Escape') {
+        captionInput.value = this.node.attrs['title'] || '';
+        captionInput.blur();
+      }
+    });
+
+    dom.appendChild(captionInput);
+  }
+
+  update(node: ProseNode): boolean {
+    if (node.type.name !== 'image') return false;
+    this.node = node;
+    this.imgEl.src = node.attrs['src'] || '';
+    this.imgEl.alt = node.attrs['alt'] || '';
+    if (node.attrs['title']) {
+      this.imgEl.title = node.attrs['title'];
+    } else {
+      this.imgEl.removeAttribute('title');
+    }
+    if (document.activeElement !== this.captionInput) {
+      this.captionInput.value = node.attrs['title'] || '';
+    }
+    return true;
+  }
+
+  selectNode() {
+    this.dom.classList.add('ProseMirror-selectednode');
+  }
+
+  deselectNode() {
+    this.dom.classList.remove('ProseMirror-selectednode');
+  }
+
+  stopEvent(event: Event): boolean {
+    const target = event.target as HTMLElement | null;
+    if (target && (this.captionInput.contains(target) || this.actionsEl.contains(target))) {
+      return true;
+    }
+    return false;
+  }
+
+  ignoreMutation(): boolean {
+    return true;
+  }
 }
 
 @Component({
@@ -131,6 +289,8 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   imageAspectRatio = signal<number | null>(null);
   imageSizeChoice = signal<'large' | 'medium' | 'small'>('large');
   imageAltText = signal<string>('');
+  imageCaption = signal<string>('');
+  editingImagePos = signal<number | null>(null);
   imageUrlInput = signal<string>('');
   isUploadingImage = signal<boolean>(false);
   imageUploadError = signal<string | null>(null);
@@ -617,6 +777,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       .use(this.listKeymapPlugin())
       .use(this.tightListPlugin())
       .use(filteredCommonmark)
+      .use(this.imageViewPlugin())
       .use(history)
       .use(listener)
       .use(indentPlugin)
@@ -700,6 +861,12 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       const view = ctx.get(editorViewCtx);
       const tr = view.state.tr.setMeta('showBreaks', next);
       view.dispatch(tr);
+    });
+  }
+
+  private imageViewPlugin() {
+    return $view(imageSchema.node, () => (node, view, getPos) => {
+      return new ImageNodeView(node, view, getPos, this);
     });
   }
 
@@ -1599,15 +1766,31 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     }));
   }
 
-  openImageDialog() {
+  openImageDialog(pos?: number, currentAttrs?: { src?: string; alt?: string; title?: string }) {
+    if (typeof pos === 'number') {
+      this.editingImagePos.set(pos);
+      this.imageUrlInput.set(currentAttrs?.src || '');
+      this.imageAltText.set(currentAttrs?.alt || '');
+      this.imageCaption.set(currentAttrs?.title || '');
+      if (currentAttrs?.src) {
+        this.imageSourceType.set('url');
+      } else {
+        this.imageSourceType.set('upload');
+      }
+    } else {
+      this.editingImagePos.set(null);
+      this.imageUrlInput.set('');
+      this.imageAltText.set('');
+      this.imageCaption.set('');
+      this.imageSourceType.set('upload');
+    }
     this.imageModalOpen.set(true);
     this.imageUploadError.set(null);
-    this.imageUrlInput.set('');
-    this.imageAltText.set('');
   }
 
   closeImageDialog() {
     this.imageModalOpen.set(false);
+    this.editingImagePos.set(null);
     this.isUploadingImage.set(false);
     this.imageUploadError.set(null);
   }
@@ -1623,7 +1806,14 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   insertImageUrl() {
     const url = this.imageUrlInput().trim();
     if (!url) return;
-    this.insertImageIntoDoc(url, this.imageAltText().trim());
+    const alt = this.imageAltText().trim();
+    const title = this.imageCaption().trim() || null;
+    const editingPos = this.editingImagePos();
+    if (typeof editingPos === 'number') {
+      this.updateImageAtPos(editingPos, url, alt, title);
+    } else {
+      this.insertImageIntoDoc(url, alt, title);
+    }
     this.closeImageDialog();
   }
 
@@ -1644,7 +1834,14 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       }
 
       if (downloadUrl) {
-        this.insertImageIntoDoc(downloadUrl, this.imageAltText().trim());
+        const alt = this.imageAltText().trim();
+        const title = this.imageCaption().trim() || null;
+        const editingPos = this.editingImagePos();
+        if (typeof editingPos === 'number') {
+          this.updateImageAtPos(editingPos, downloadUrl, alt, title);
+        } else {
+          this.insertImageIntoDoc(downloadUrl, alt, title);
+        }
         this.closeImageDialog();
       }
     } catch (err: unknown) {
@@ -1655,13 +1852,62 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     }
   }
 
-  private insertImageIntoDoc(src: string, alt = '') {
+  private insertImageIntoDoc(src: string, alt = '', title: string | null = null) {
     this.editor?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       const commands = ctx.get(commandsCtx);
-      commands.call(insertImageCommand.key, { src, alt, title: null as any });
+      commands.call(insertImageCommand.key, { src, alt, title: title || ('' as any) });
       view.focus();
     });
+  }
+
+  updateImageAtPos(pos: number, src?: string, alt?: string, title?: string | null) {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const node = view.state.doc.nodeAt(pos);
+      if (!node || node.type.name !== 'image') return;
+      const newAttrs = {
+        ...node.attrs,
+        ...(src !== undefined ? { src } : {}),
+        ...(alt !== undefined ? { alt } : {}),
+        ...(title !== undefined ? { title: title || '' } : {}),
+      };
+      const tr = view.state.tr.setNodeMarkup(pos, undefined, newAttrs);
+      view.dispatch(tr);
+      view.focus();
+    });
+  }
+
+  removeImageAtPos(pos: number) {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const node = view.state.doc.nodeAt(pos);
+      const nodeSize = node ? node.nodeSize : 1;
+      const tr = view.state.tr.delete(pos, pos + nodeSize);
+      view.dispatch(tr);
+      view.focus();
+    });
+  }
+
+  removeCurrentImage() {
+    const pos = this.editingImagePos();
+    if (typeof pos === 'number') {
+      this.removeImageAtPos(pos);
+    }
+    this.closeImageDialog();
+  }
+
+  saveImageDetailsOnly() {
+    const pos = this.editingImagePos();
+    if (typeof pos === 'number') {
+      this.updateImageAtPos(
+        pos,
+        undefined,
+        this.imageAltText().trim(),
+        this.imageCaption().trim() || null
+      );
+    }
+    this.closeImageDialog();
   }
 
   private async defaultUpload(blob: Blob, originalFile?: File): Promise<string> {

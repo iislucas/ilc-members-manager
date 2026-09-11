@@ -49,4 +49,15 @@ describe('htmlToMarkdown', () => {
     const html = '<p>Hello</p><script>alert("bad")</script><style>.bad{color:red}</style>';
     expect(htmlToMarkdown(html)).toBe('Hello');
   });
+
+  it('converts figures with figcaption or title to markdown image with caption', () => {
+    const figureWithCaption = '<figure class="image-figure"><img src="https://example.com/pic.jpg" alt="Master Sam Chin"><figcaption class="image-caption">Demonstrating the neutral point</figcaption></figure>';
+    expect(htmlToMarkdown(figureWithCaption)).toBe('![Master Sam Chin](https://example.com/pic.jpg "Demonstrating the neutral point")');
+
+    const figureWithoutCaption = '<figure class="image-figure"><img src="https://example.com/pic.jpg" alt="Just a photo"></figure>';
+    expect(htmlToMarkdown(figureWithoutCaption)).toBe('![Just a photo](https://example.com/pic.jpg)');
+
+    const imgWithTitle = '<p><img src="https://example.com/pic.jpg" alt="Inline photo" title="Hover caption"></p>';
+    expect(htmlToMarkdown(imgWithTitle)).toBe('![Inline photo](https://example.com/pic.jpg "Hover caption")');
+  });
 });
