@@ -16,9 +16,20 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { BlogPostStatus, CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
 import { MembershipType, ExpiryStatus } from '../../../functions/src/data-model/members';
-import { IconComponent } from '../icons/icon.component';
+import { IconComponent, IconName } from '../icons/icon.component';
 import { getInstructorExpiryStatus } from '../member-tags';
 import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
+
+export type PillTabVariant = 'default' | 'admin-chip';
+
+export interface PillTabItem {
+    id: string;
+    label: string;
+    variant: PillTabVariant;
+    icon?: IconName;
+    href?: string;
+    isAction?: boolean;
+}
 
 export interface ProcessedBlogEntry extends CachedBlogPost {
     safeBody: SafeHtml;
@@ -128,6 +139,36 @@ export class SquarespaceContentComponent implements OnDestroy {
             list.push('Drafts');
         }
         return list;
+    });
+
+    readonly tabs = computed<PillTabItem[]>(() => {
+        const categories = this.categories();
+        const isAdmin = this.firebaseService.isAdmin();
+        if (categories.length === 0 && !isAdmin) return [];
+
+        const items: PillTabItem[] = [];
+
+        for (const cat of categories) {
+            const isDraft = cat === 'Drafts';
+            items.push({
+                id: cat,
+                label: this.tabLabel(cat),
+                variant: isDraft ? 'admin-chip' : 'default',
+            });
+        }
+
+        if (isAdmin) {
+            items.push({
+                id: 'new-article',
+                label: 'New Article',
+                variant: 'admin-chip',
+                icon: 'add',
+                href: this.newArticleHref(),
+                isAction: true,
+            });
+        }
+
+        return items;
     });
 
     readonly loading = computed(() => {

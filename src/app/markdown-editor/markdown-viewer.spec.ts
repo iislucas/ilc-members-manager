@@ -88,4 +88,42 @@ describe('MarkdownViewer', () => {
     expect(pre).toBeTruthy();
     expect(pre.textContent).toContain('block code');
   });
+
+  it('renders images with captions as <figure> with <figcaption>', async () => {
+    fixture.componentRef.setInput(
+      'markdown',
+      '![Demonstration](https://example.com/demo.jpg "Master Sam Chin demonstrating neutral")'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    fixture.detectChanges();
+
+    const figure = fixture.nativeElement.querySelector('figure.image-figure');
+    expect(figure).toBeTruthy();
+
+    const img = figure.querySelector('img');
+    expect(img).toBeTruthy();
+    expect(img.getAttribute('src')).toBe('https://example.com/demo.jpg');
+    expect(img.getAttribute('alt')).toBe('Demonstration');
+    expect(img.getAttribute('title')).toBe('Master Sam Chin demonstrating neutral');
+
+    const figcaption = figure.querySelector('figcaption.image-caption');
+    expect(figcaption).toBeTruthy();
+    expect(figcaption.textContent).toBe('Master Sam Chin demonstrating neutral');
+  });
+
+  it('renders standalone images without captions as <figure> without <figcaption>', async () => {
+    fixture.componentRef.setInput(
+      'markdown',
+      '![Photo](https://example.com/photo.jpg)'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    fixture.detectChanges();
+
+    const figure = fixture.nativeElement.querySelector('figure.image-figure');
+    expect(figure).toBeTruthy();
+    expect(figure.querySelector('img')).toBeTruthy();
+    expect(figure.querySelector('figcaption')).toBeNull();
+  });
 });

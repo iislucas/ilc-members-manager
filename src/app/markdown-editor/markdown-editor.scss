@@ -930,6 +930,24 @@
     }
   }
 
+  .edit-details-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+
+  .button.delete-btn {
+    background: #dc2626;
+    color: #ffffff;
+    border: 1px solid #b91c1c;
+
+    &:hover {
+      background: #b91c1c;
+    }
+  }
+
   .modal-error {
     color: #d32f2f;
     font-size: 12px;

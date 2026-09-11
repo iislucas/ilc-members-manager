@@ -30,6 +30,28 @@ export function configureMarked(): void {
         const bulletAttr = isDash ? ' data-bullet="-" class="list-dash"' : ' data-bullet="*" class="list-star"';
         return `<ul${bulletAttr}>\n${body}</ul>\n`;
       },
+      image(token) {
+        const src = token.href;
+        const alt = token.text || '';
+        const title = token.title || '';
+        const titleAttr = title ? ` title="${title}"` : '';
+        return `<img src="${src}" alt="${alt}"${titleAttr} />`;
+      },
+      paragraph(token) {
+        // When a paragraph consists solely of a single image token, render it as a standalone <figure> without wrapping in <p>
+        if (token.tokens && token.tokens.length === 1 && token.tokens[0].type === 'image') {
+          const imgToken = token.tokens[0] as { href: string; text?: string; title?: string };
+          const src = imgToken.href;
+          const alt = imgToken.text || '';
+          const title = imgToken.title || '';
+          const titleAttr = title ? ` title="${title}"` : '';
+          const captionHtml = title
+            ? `<figcaption class="image-caption">${title}</figcaption>`
+            : '';
+          return `<figure class="image-figure"><img src="${src}" alt="${alt}"${titleAttr} />${captionHtml}</figure>\n`;
+        }
+        return false;
+      },
     },
   });
 }

@@ -283,7 +283,7 @@ describe('SquarespaceContentComponent', () => {
             expect(component.newArticleHref()).toBe(`/${Views.InstructorsAreaPostNew}/`);
         });
 
-        it('renders New Article button in header for admins', () => {
+        it('renders New Article button in header for admins with admin-chip style', () => {
             vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
             fixture.componentRef.setInput('path', 'articles-post');
             fixture.detectChanges();
@@ -293,13 +293,26 @@ describe('SquarespaceContentComponent', () => {
             internal.postsLoading.set(false);
             internal.rawPosts.set([
                 { id: '1', title: 'Post 1', categories: ['General'], isDraft: false, body: '', excerpt: '', urlId: 'p1' } as CachedBlogPost,
+                { id: '2', title: 'Draft 1', categories: ['General'], isDraft: true, body: '', excerpt: '', urlId: 'p2' } as CachedBlogPost,
             ]);
             fixture.detectChanges();
 
-            const headerBtn = fixture.nativeElement.querySelector('.header-admin-action .create-article-btn');
+            const headerBtn = fixture.nativeElement.querySelector('.pill-tabs .create-article-btn');
             expect(headerBtn).not.toBeNull();
             expect(headerBtn.textContent).toContain('New Article');
             expect(headerBtn.getAttribute('href')).toBe(`/${Views.ArticlesPostNew}/`);
+            expect(headerBtn.classList.contains('admin-chip')).toBe(true);
+
+            // Verify Drafts tab has admin-chip variant
+            const tabs = fixture.nativeElement.querySelectorAll('.pill-tabs .pill-tab');
+            const draftsTab = Array.from(tabs).find((t: any) => t.textContent.includes('Drafts'));
+            expect(draftsTab).not.toBeUndefined();
+            expect((draftsTab as HTMLElement).classList.contains('admin-chip')).toBe(true);
+
+            // Verify regular category tab does not have admin-chip variant
+            const generalTab = Array.from(tabs).find((t: any) => t.textContent.includes('General'));
+            expect(generalTab).not.toBeUndefined();
+            expect((generalTab as HTMLElement).classList.contains('admin-chip')).toBe(false);
         });
 
         it('hides New Article button in header for non-admins', () => {
@@ -315,7 +328,7 @@ describe('SquarespaceContentComponent', () => {
             ]);
             fixture.detectChanges();
 
-            const headerBtn = fixture.nativeElement.querySelector('.header-admin-action');
+            const headerBtn = fixture.nativeElement.querySelector('.pill-tabs .create-article-btn');
             expect(headerBtn).toBeNull();
         });
 

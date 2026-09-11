@@ -237,7 +237,13 @@
     <div class="modal-backdrop" (click)="closeImageDialog()"></div>
     <div class="image-modal-dialog">
       <div class="modal-header">
-        <span class="modal-title">Insert Image</span>
+        <span class="modal-title">
+          @if (editingImagePos() !== null) {
+            Edit Image
+          } @else {
+            Insert Image
+          }
+        </span>
         <button type="button" class="icon-only-button modal-close-btn" (click)="closeImageDialog()" title="Close">
           <app-icon name="close" width="1.2em" height="1.2em"></app-icon>
         </button>
@@ -285,7 +291,17 @@
           </div>
 
           <div class="input-field">
-            <label>Alt Text / Description (optional):</label>
+            <label>Caption (displayed under image, optional):</label>
+            <input 
+              type="text" 
+              [value]="imageCaption()" 
+              (input)="imageCaption.set($any($event.target).value)" 
+              placeholder="e.g. Demonstration photo caption" 
+            />
+          </div>
+
+          <div class="input-field">
+            <label>Alt Text / Description (for accessibility, optional):</label>
             <input 
               type="text" 
               [value]="imageAltText()" 
@@ -293,6 +309,17 @@
               placeholder="e.g. Demonstration photo" 
             />
           </div>
+
+          @if (editingImagePos() !== null) {
+            <div class="dialog-actions edit-details-actions">
+              <button type="button" class="button primary-button" (click)="saveImageDetailsOnly()">
+                Update Details
+              </button>
+              <button type="button" class="button delete-btn" (click)="removeCurrentImage()">
+                Remove Image
+              </button>
+            </div>
+          }
 
           @if (isUploadingImage()) {
             <div class="uploading-spinner">
@@ -306,7 +333,7 @@
                 [allowAspectRatioChoice]="true"
                 [defaultRatioKey]="'original'"
                 [storageKey]="'markdown_editor_image_aspect_ratio'"
-                [uploadPromptText]="'Choose an image to upload and crop'"
+                [uploadPromptText]="editingImagePos() !== null ? 'Or choose a new image to replace it' : 'Choose an image to upload and crop'"
                 (imageCropped)="onImageCropped($event)"
                 (cancel)="closeImageDialog()"
               />
@@ -324,7 +351,16 @@
               />
             </div>
             <div class="input-field">
-              <label>Alt Text / Description (optional):</label>
+              <label>Caption (displayed under image, optional):</label>
+              <input 
+                type="text" 
+                [value]="imageCaption()" 
+                (input)="imageCaption.set($any($event.target).value)" 
+                placeholder="e.g. Demonstration photo caption" 
+              />
+            </div>
+            <div class="input-field">
+              <label>Alt Text / Description (for accessibility, optional):</label>
               <input 
                 type="text" 
                 [value]="imageAltText()" 
@@ -334,8 +370,17 @@
             </div>
             <div class="dialog-actions">
               <button type="button" class="button primary-button" [disabled]="!imageUrlInput().trim()" (click)="insertImageUrl()">
-                Insert Image
+                @if (editingImagePos() !== null) {
+                  Update Image
+                } @else {
+                  Insert Image
+                }
               </button>
+              @if (editingImagePos() !== null) {
+                <button type="button" class="button delete-btn" (click)="removeCurrentImage()">
+                  Remove Image
+                </button>
+              }
               <button type="button" class="subtle-button" (click)="closeImageDialog()">
                 Cancel
               </button>

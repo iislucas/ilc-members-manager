@@ -261,6 +261,47 @@ a.button:disabled,
 }
 
 // ----------------------------------------------------------------------------
+//  Admin Button
+//  Action buttons reserved for administrative operations (e.g. Create Article).
+//  Consistent with the central admin style: does not change background,
+//  uses square edges, brand-red color, and a dashed border.
+//
+//  Usage:
+//    <button class="admin-button" (click)="adminAction()">
+//      <app-icon name="add" /> Admin Action
+//    </button>
+//    <a class="admin-button" href="...">New Article</a>
+// ----------------------------------------------------------------------------
+.admin-button,
+a.admin-button,
+button.admin-button {
+  @extend .subtle-button;
+  background-color: transparent;
+  border: 1px dashed $brand-red;
+  color: $brand-red;
+  border-radius: 0;
+  box-shadow: none;
+
+  app-icon {
+    color: $brand-red;
+  }
+
+  &:hover {
+    background-color: transparent;
+    border-color: $brand-red;
+    color: $brand-red;
+    box-shadow: none;
+  }
+
+  &:active {
+    background-color: transparent;
+    border-color: $brand-red;
+    color: $brand-red;
+    box-shadow: none;
+  }
+}
+
+// ----------------------------------------------------------------------------
 //  Primary Action Button
 //  Official primary call-to-action button (e.g. Register, Checkout, Renew Now).
 //  Uses the brand red accent color (#950000) with white bold text.
@@ -838,7 +879,8 @@ a.selectable-card {
 // ----------------------------------------------------------------------------
 //  Admin View Chips
 //  Chips reserved for administrative indicators (e.g. HQ Registration active).
-//  Styled with square edges (not rounded) and a red dotted border using brand red.
+//  Styled with square edges (not rounded), no background change (transparent),
+//  and a red dashed outline line using brand red.
 //
 //  Usage:
 //    <span class="admin-chip hq-registration-chip" title="HQ Online Registration is active for this event">
@@ -853,8 +895,8 @@ a.selectable-card {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
-  background-color: $theme-error-bg-color;
-  border: 1px dotted $brand-red;
+  background-color: transparent;
+  border: 1px dashed $brand-red;
   color: $brand-red;
   border-radius: 0;
   padding: 2px 8px;
@@ -866,6 +908,7 @@ a.selectable-card {
 
   app-icon {
     font-size: 0.95em;
+    color: $brand-red;
   }
 }
 
@@ -1168,6 +1211,57 @@ button.menu-item {
     color: #18181b;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
     font-weight: 600;
+  }
+
+  &.admin-chip {
+    background-color: transparent;
+    border: 1px dashed $brand-red;
+    color: $brand-red;
+    border-radius: 0;
+    padding: calc(0.45rem - 1px) calc(0.85rem - 1px);
+    text-decoration: none;
+
+    app-icon {
+      color: $brand-red;
+      font-size: 0.95em;
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      background-color: transparent;
+      border-color: $brand-red;
+      color: $brand-red;
+      box-shadow: none;
+
+      app-icon {
+        color: $brand-red;
+      }
+    }
+
+    &:active {
+      background-color: transparent;
+      border-color: $brand-red;
+      color: $brand-red;
+      box-shadow: none;
+
+      app-icon {
+        color: $brand-red;
+      }
+    }
+
+    &.active {
+      background-color: #ffffff;
+      border: 1.5px dashed $brand-red;
+      color: $brand-red;
+      font-weight: 600;
+      padding: calc(0.45rem - 1.5px) calc(0.85rem - 1.5px);
+      box-shadow: 0 1px 4px rgba(149, 0, 0, 0.18);
+
+      app-icon {
+        color: $brand-red;
+      }
+    }
   }
 }
 

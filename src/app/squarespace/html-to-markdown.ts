@@ -55,11 +55,22 @@ export function htmlToMarkdown(html: string): string {
         if (!href) return text;
         return `[${text}](${href})`;
       }
+      case 'FIGURE': {
+        const img = el.querySelector('img');
+        if (!img) return getChildren(el);
+        const src = img.getAttribute('src') || '';
+        const alt = img.getAttribute('alt') || '';
+        const captionEl = el.querySelector('figcaption') || el.querySelector('.image-caption');
+        const caption = captionEl ? captionEl.textContent?.trim() : (img.getAttribute('title') || '');
+        if (!src) return '';
+        return caption ? `\n\n![${alt}](${src} "${caption}")\n\n` : `\n\n![${alt}](${src})\n\n`;
+      }
       case 'IMG': {
         const src = el.getAttribute('src') || '';
         const alt = el.getAttribute('alt') || '';
+        const title = el.getAttribute('title') || '';
         if (!src) return '';
-        return `![${alt}](${src})`;
+        return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
       }
       case 'BLOCKQUOTE': {
         const text = getChildren(el).trim();
