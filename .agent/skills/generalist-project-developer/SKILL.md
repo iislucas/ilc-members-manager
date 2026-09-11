@@ -35,8 +35,7 @@ The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](
 | Skill | When to read |
 |---|---|
 | [`codebase-architecture`](.agent/skills/codebase-architecture/SKILL.md) | Always read first — architectural patterns, component map, emulator setup |
-| [`generalist-project-developer`](.agent/skills/generalist-project-developer/SKILL.md) | Always read — coding standards, tech stack, best practices (this file) |
-| [`documentation-system`](.agent/skills/documentation-system/SKILL.md) | When creating, structuring, or updating documentation and plan lifecycles |
+| [`documentation-system`](.agent/skills/documentation-system/SKILL.md) | When creating, reading, or maintaining documentation across the 5 views, catalogs, website, and plan lifecycles |
 | [`angular-developer`](.agent/skills/angular-developer/SKILL.md) | When editing Angular components, templates, or routing |
 | [`html-css-developer`](.agent/skills/html-css-developer/SKILL.md) | When editing HTML templates or SCSS styles |
 | [`logo-iteration`](.agent/skills/logo-iteration/SKILL.md) | When working on the SVG logo generator in `mini-tools/` |
