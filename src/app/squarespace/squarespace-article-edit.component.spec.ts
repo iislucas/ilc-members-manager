@@ -6,7 +6,7 @@ import { RoutingService } from '../routing.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { FIREBASE_APP } from '../app.config';
 import { initializeApp } from 'firebase/app';
-import { getDocs, getDoc, updateDoc } from 'firebase/firestore';
+import { getDocs, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   CachedBlogPost,
@@ -17,13 +17,18 @@ import {
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(),
-  doc: vi.fn().mockImplementation((_db: unknown, _coll: string, id: string) => ({ id })),
+  doc: vi.fn().mockImplementation((...args: any[]) => {
+    if (args.length === 1) return { id: 'auto-generated-id' };
+    if (args.length === 2) return { id: args[1] };
+    return { id: args[2] || 'auto-generated-id' };
+  }),
   collection: vi.fn(),
   query: vi.fn(),
   where: vi.fn(),
   getDoc: vi.fn().mockResolvedValue({ exists: () => false }),
   getDocs: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
   updateDoc: vi.fn().mockResolvedValue(undefined),
+  setDoc: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock firebase/storage
@@ -343,5 +348,152 @@ describe('SquarespaceArticleEditComponent', () => {
 
     const uploader = fixture.nativeElement.querySelector('app-image-upload-preview');
     expect(uploader).toBeTruthy();
+  });
+
+  describe('New Article Mode', () => {
+    it('initializes in new article mode with pre-generated docId and defaults', () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      expect(component.isNew()).toBe(true);
+      expect(component.docId()).toBeTruthy();
+      expect(component.title()).toBe('');
+      expect(component.urlId()).toBe('');
+      expect(component.publishDateStr()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(component.status()).toBe(BlogPostStatus.Published);
+      expect(component.isDraft()).toBe(false);
+      expect(component.loading()).toBe(false);
+      expect(component.error()).toBeNull();
+    });
+
+    it('rejects non-admin users in new article mode', () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(false);
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      expect(component.error()).toBe('You do not have permission to create articles.');
+      expect(component.loading()).toBe(false);
+    });
+
+    it('auto-generates slug from title when typing title and respects manual edits', () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      component.onTitleInput('Understanding Zhong Xin Dao: Part 1');
+      expect(component.urlId()).toBe('understanding-zhong-xin-dao-part-1');
+
+      // User manually customizes slug
+      component.onSlugInput('custom-zxd-intro');
+      expect(component.urlId()).toBe('custom-zxd-intro');
+
+      // Typing title further will no longer overwrite manual slug
+      component.onTitleInput('Understanding Zhong Xin Dao: Part 2');
+      expect(component.urlId()).toBe('custom-zxd-intro');
+    });
+
+    it('rejects saving when slug already exists in collection', async () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      component.title.set('Duplicate Article');
+      component.urlId.set('existing-slug');
+
+      (getDocs as any).mockResolvedValue({
+        empty: false,
+        docs: [{ id: 'other-doc-id', data: () => ({ urlId: 'existing-slug' }) }],
+      });
+
+      await component.save();
+
+      expect(component.error()).toBe('An article with the URL slug "existing-slug" already exists. Please choose a different slug.');
+      expect(setDoc).not.toHaveBeenCalled();
+      expect(updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('rejects saving when slug collides with an existing document ID', async () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      component.title.set('Existing Doc ID');
+      component.urlId.set('doc-with-slug-id');
+
+      (getDocs as any).mockResolvedValue({ empty: true, docs: [] });
+      (getDoc as any).mockResolvedValue({ exists: () => true, id: 'doc-with-slug-id' });
+
+      await component.save();
+
+      expect(component.error()).toBe('An article with the slug "doc-with-slug-id" already exists. Please choose a different slug.');
+      expect(setDoc).not.toHaveBeenCalled();
+    });
+
+    it('creates new article via setDoc with FirebaseSourced kind and navigates to article view', async () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      (getDocs as any).mockResolvedValue({ empty: true, docs: [] });
+      (getDoc as any).mockResolvedValue({ exists: () => false });
+
+      component.title.set('Brand New Article');
+      component.urlId.set('brand-new-article');
+      component.bodyMarkdown.set('# Hello World\n\nFirst paragraph.');
+      component.excerpt.set('First paragraph teaser');
+      component.categoriesStr.set('Training, Philosophy');
+      component.tagsStr.set('basics');
+      component.publishDateStr.set('2026-01-15');
+
+      await component.save();
+
+      expect(setDoc).toHaveBeenCalledTimes(1);
+      const callArgs = (setDoc as any).mock.calls[0];
+      const savedDocRef = callArgs[0];
+      const savedData = callArgs[1] as CachedBlogPost;
+
+      expect(savedDocRef.id).toBe(component.docId());
+      expect(savedData.title).toBe('Brand New Article');
+      expect(savedData.urlId).toBe('brand-new-article');
+      expect(savedData.kind).toBe(BlogPostSourceKind.FirebaseSourced);
+      expect(savedData.status).toBe(BlogPostStatus.Published);
+      expect(savedData.isDraft).toBe(false);
+      expect(savedData.categories).toEqual(['Training', 'Philosophy']);
+      expect(savedData.tags).toEqual(['basics']);
+      expect(savedData.bodyMarkdown).toBe('# Hello World\n\nFirst paragraph.');
+      expect(savedData.body).toContain('<h1>Hello World</h1>');
+      expect(savedData.body).toContain('<p>First paragraph.</p>');
+      expect(savedData.excerpt).toBe('First paragraph teaser');
+      expect(savedData.publishOn).toBe(new Date('2026-01-15T12:00:00Z').getTime());
+
+      expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/articles/post/brand-new-article');
+    });
+
+    it('cancels new article by navigating back to collection list', () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      fixture.componentRef.setInput('collection', 'members-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      component.cancel();
+      expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/members-area');
+
+      fixture.componentRef.setInput('collection', 'instructors-post');
+      fixture.detectChanges();
+      component.cancel();
+      expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/instructors-area');
+
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.detectChanges();
+      component.cancel();
+      expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/articles');
+    });
   });
 });

@@ -730,6 +730,21 @@
             <div></div>
           }
         }
+        @case (Views.ArticlesPostNew) {
+          @defer (prefetch on idle) {
+            @if (firebaseService.isAdmin()) {
+              <app-squarespace-article-edit
+                collection="articles-post"
+              ></app-squarespace-article-edit>
+            } @else {
+              <div class="unauthorized-message">You do not have permission to create articles.</div>
+            }
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
         @case (Views.MembersAreaPostEdit) {
           @defer (prefetch on idle) {
             @if (firebaseService.isAdmin()) {
@@ -746,6 +761,21 @@
             <div></div>
           }
         }
+        @case (Views.MembersAreaPostNew) {
+          @defer (prefetch on idle) {
+            @if (firebaseService.isAdmin()) {
+              <app-squarespace-article-edit
+                collection="members-post"
+              ></app-squarespace-article-edit>
+            } @else {
+              <div class="unauthorized-message">You do not have permission to create articles.</div>
+            }
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
         @case (Views.InstructorsAreaPostEdit) {
           @defer (prefetch on idle) {
             @if (firebaseService.isAdmin()) {
@@ -755,6 +785,21 @@
               ></app-squarespace-article-edit>
             } @else {
               <div class="unauthorized-message">You do not have permission to edit articles.</div>
+            }
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.InstructorsAreaPostNew) {
+          @defer (prefetch on idle) {
+            @if (firebaseService.isAdmin()) {
+              <app-squarespace-article-edit
+                collection="instructors-post"
+              ></app-squarespace-article-edit>
+            } @else {
+              <div class="unauthorized-message">You do not have permission to create articles.</div>
             }
           } @loading (minimum 150ms) {
             <app-spinner class="view-loading">Loading article editor...</app-spinner>

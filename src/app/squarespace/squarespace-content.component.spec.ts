@@ -267,4 +267,73 @@ describe('SquarespaceContentComponent', () => {
         const editBtn = fixture.nativeElement.querySelector('.edit-card-btn');
         expect(editBtn).toBeNull();
     });
+
+    describe('Admin New Article Creation', () => {
+        it('generates correct newArticleHref based on collection path', () => {
+            fixture.componentRef.setInput('path', 'articles-post');
+            fixture.detectChanges();
+            expect(component.newArticleHref()).toBe(`/${Views.ArticlesPostNew}/`);
+
+            fixture.componentRef.setInput('path', 'members-post');
+            fixture.detectChanges();
+            expect(component.newArticleHref()).toBe(`/${Views.MembersAreaPostNew}/`);
+
+            fixture.componentRef.setInput('path', 'instructors-post');
+            fixture.detectChanges();
+            expect(component.newArticleHref()).toBe(`/${Views.InstructorsAreaPostNew}/`);
+        });
+
+        it('renders New Article button in header for admins', () => {
+            vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+            fixture.componentRef.setInput('path', 'articles-post');
+            fixture.detectChanges();
+
+            const internal = component as unknown as InternalComponentState;
+            internal.subscribed.set(true);
+            internal.postsLoading.set(false);
+            internal.rawPosts.set([
+                { id: '1', title: 'Post 1', categories: ['General'], isDraft: false, body: '', excerpt: '', urlId: 'p1' } as CachedBlogPost,
+            ]);
+            fixture.detectChanges();
+
+            const headerBtn = fixture.nativeElement.querySelector('.header-admin-action .create-article-btn');
+            expect(headerBtn).not.toBeNull();
+            expect(headerBtn.textContent).toContain('New Article');
+            expect(headerBtn.getAttribute('href')).toBe(`/${Views.ArticlesPostNew}/`);
+        });
+
+        it('hides New Article button in header for non-admins', () => {
+            vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(false);
+            fixture.componentRef.setInput('path', 'articles-post');
+            fixture.detectChanges();
+
+            const internal = component as unknown as InternalComponentState;
+            internal.subscribed.set(true);
+            internal.postsLoading.set(false);
+            internal.rawPosts.set([
+                { id: '1', title: 'Post 1', categories: ['General'], isDraft: false, body: '', excerpt: '', urlId: 'p1' } as CachedBlogPost,
+            ]);
+            fixture.detectChanges();
+
+            const headerBtn = fixture.nativeElement.querySelector('.header-admin-action');
+            expect(headerBtn).toBeNull();
+        });
+
+        it('renders Create First Article button in empty state for admins', () => {
+            vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+            fixture.componentRef.setInput('path', 'articles-post');
+            fixture.detectChanges();
+
+            const internal = component as unknown as InternalComponentState;
+            internal.subscribed.set(true);
+            internal.postsLoading.set(false);
+            internal.rawPosts.set([]);
+            fixture.detectChanges();
+
+            const emptyBtn = fixture.nativeElement.querySelector('.empty-admin-action .create-article-btn');
+            expect(emptyBtn).not.toBeNull();
+            expect(emptyBtn.textContent).toContain('Create First Article');
+            expect(emptyBtn.getAttribute('href')).toBe(`/${Views.ArticlesPostNew}/`);
+        });
+    });
 });
