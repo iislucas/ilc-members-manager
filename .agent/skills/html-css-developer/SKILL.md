@@ -220,6 +220,7 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 | `.inline-link-button` | Looks like a dark text link (underlined) | Inline internal text references in sentences |
 | `.subtle-button` | Transparent with soft hover | Back/navigation, secondary actions |
 | `.outlined-button` | Subtle-button with dashed border | File upload triggers, optional selection inputs — use with an icon (e.g. `upload_file`) |
+| `.admin-button` | Transparent button with dashed red border | Administrative operation triggers (e.g. Create Article, toggle admin actions) |
 
 > [!IMPORTANT]
 > If you find yourself writing `background-color`, `border`, `box-shadow`, or `border-radius` for a button in a component SCSS file, **stop** — you almost certainly should be using one of the above global classes instead.
@@ -428,7 +429,7 @@ Chips are **all globally defined in `styles.scss`**. Do not create new chip styl
 | `.missing-identifier-chip` | Missing data placeholders | Dashed border, no fill |
 | `.dynamic-identifier-chip` | Editable/dynamic IDs | Dashed border |
 | `.active-tag-chip` + `.tag-clear-btn` | Active filter indicators with dismiss | Blue pill with clear (X) button |
-| `.admin-chip` / `.admin-view-chip` | Admin indicators (e.g. HQ Registration) | `$theme-error-bg-color` (red dotted border, square edges) |
+| `.admin-chip` / `.admin-view-chip` | Admin indicators (e.g. HQ Registration) | Transparent (red dashed border, square edges) |
 
 The `.identifier-chip` also supports status modifiers: `.expired-recent`, `.expired-old`, `.status-issue`, `.status-inactive`, `.instructor-id`.
 

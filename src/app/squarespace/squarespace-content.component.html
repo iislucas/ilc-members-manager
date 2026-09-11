@@ -15,29 +15,41 @@
         </div>
         } @else if (blogEntries().length > 0) {
         
-        @if (categories().length > 1 || firebaseService.isAdmin()) {
-        <div class="header-extension-tabs" [class.has-tabs]="categories().length > 1">
-          @if (categories().length > 1) {
+        @if (tabs().length > 1 || (tabs().length === 1 && firebaseService.isAdmin())) {
+        <div class="header-extension-tabs">
           <div class="pill-tabs">
-            @for (cat of categories(); track cat) {
-            <button 
-              class="pill-tab"
-              [attr.data-label]="tabLabel(cat)"
-              [class.active]="selectedCategory() === cat"
-              (click)="selectCategory(cat)">
-              {{ tabLabel(cat) }}
-            </button>
+            @for (tab of tabs(); track tab.id) {
+              @if (tab.href) {
+              <a 
+                class="pill-tab create-article-btn"
+                [class.admin-chip]="tab.variant === 'admin-chip'"
+                [attr.data-label]="tab.label"
+                [href]="tab.href">
+                <span class="tab-content">
+                  @if (tab.icon) {
+                    <app-icon [name]="tab.icon"></app-icon>
+                  }
+                  <span>{{ tab.label }}</span>
+                </span>
+              </a>
+              } @else {
+              <button 
+                type="button"
+                class="pill-tab"
+                [class.admin-chip]="tab.variant === 'admin-chip'"
+                [attr.data-label]="tab.label"
+                [class.active]="selectedCategory() === tab.id"
+                (click)="selectCategory(tab.id)">
+                <span class="tab-content">
+                  @if (tab.icon) {
+                    <app-icon [name]="tab.icon"></app-icon>
+                  }
+                  <span>{{ tab.label }}</span>
+                </span>
+              </button>
+              }
             }
           </div>
-          }
-          @if (firebaseService.isAdmin()) {
-          <div class="header-admin-action">
-            <a class="subtle-button create-article-btn" [href]="newArticleHref()">
-              <app-icon name="add"></app-icon>
-              <span>New Article</span>
-            </a>
-          </div>
-          }
         </div>
         }
 
