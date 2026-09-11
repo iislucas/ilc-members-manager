@@ -31,7 +31,7 @@ import {
 } from 'firebase/firestore';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
-import { IlcEvent, EventStatus, initEvent } from '../../functions/src/data-model/events';
+import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent } from '../../functions/src/data-model/events';
 import { Grading, GradingFsDoc, firestoreDocToGrading } from '../../functions/src/data-model/gradings';
 import { UploadItem, firestoreDocToUploadItem, initUploadItem } from '../../functions/src/data-model/materials';
 import { Member, initMember, InstructorPublicData, initInstructor, MemberFsDoc, firestoreDocToMember, firestoreDocToInstructorPublicData } from '../../functions/src/data-model/members';
@@ -75,10 +75,20 @@ function orderSortDate(order: Order): string {
   }
 }
 
+export function compareOrdersByDateDesc(a: Order, b: Order): number {
+  return (orderSortDate(b) || '').localeCompare(orderSortDate(a) || '');
+}
+
 export function sortOrdersByDateDesc(orders: Order[]): Order[] {
-  return orders.sort((a, b) => {
-    return (orderSortDate(b) || '').localeCompare(orderSortDate(a) || '');
-  });
+  return orders.sort(compareOrdersByDateDesc);
+}
+
+export function compareEventsByStartDesc(a: IlcEvent, b: IlcEvent): number {
+  return (b.start || '').localeCompare(a.start || '');
+}
+
+export function sortEventsByStartDesc(events: IlcEvent[]): IlcEvent[] {
+  return events.sort(compareEventsByStartDesc);
 }
 
 export type OrderSearchCriteriaTerm = {
@@ -279,6 +289,10 @@ export class DataManagerService {
     ['title', 'description', 'instructorName', 'tags', 'location', 'eventTitle'],
     'docId',
   );
+  public events = new SearchableSet<'docId', IlcEvent>(
+    ['title', 'description', 'location', 'city', 'country', 'leadingInstructorName', 'schoolName', 'status'],
+    'docId',
+  );
 
   public tagsDoc = signal<Record<string, VideoTagMeta>>({});
   public tagsSet = new SearchableSet<'tag', TagItem>(
@@ -382,11 +396,14 @@ export class DataManagerService {
   }
 
   constructor() {
-    // 1. Immediately load public schools from IndexedDB cache and sync in background
+    // 1. Immediately load public schools and events from IndexedDB cache and sync in background
     this.syncService.loadCachedData('schools', this.schools, (a, b) =>
       (b.schoolId || '').localeCompare(a.schoolId || ''),
     );
     this.updateSchoolsSync();
+
+    this.syncService.loadCachedData('public_events', this.events, compareEventsByStartDesc);
+    this.updateEventsSync();
 
     // 2. Setup public system listeners
     this.updateCountryCodesSync();
@@ -399,10 +416,16 @@ export class DataManagerService {
         this.updateMembersSync(user);
         this.updateMyStudentsSync(user);
         this.updateMyGradingsAssessedSync(user);
+        if (user.isAdmin) {
+          this.updateOrdersSync();
+        } else {
+          this.orders.setEntries([]);
+        }
       } else {
         this.members.setEntries([]);
         this.myStudents.setEntries([]);
         this.myGradingsAssessed.setEntries([]);
+        this.orders.setEntries([]);
       }
     });
 
@@ -652,20 +675,47 @@ export class DataManagerService {
 
   // Instructor data is now managed by FindInstructorsService.
 
-  async updateOrdersSync() {
-    try {
-      const q = query(this.ordersCollection, orderBy('lastUpdated', 'desc'));
-      const snapshot = await getDocs(q);
-      const orders = sortOrdersByDateDesc(snapshot.docs.map(firestoreDocToOrder));
-      this.orders.setEntries(orders);
-      return this.orders;
-    } catch (error: any) {
-      this.orders.setError(error.message);
-      throw error;
-    }
+  async updateOrdersSync(forceFullRefresh = false) {
+    const cacheKey = 'admin_orders';
+    this.syncService.loadCachedData(cacheKey, this.orders, compareOrdersByDateDesc);
+    await this.syncService.syncCollection({
+      cacheKey,
+      collectionPath: 'orders',
+      idField: 'docId',
+      targetSet: this.orders,
+      docConverter: firestoreDocToOrder,
+      sortFn: compareOrdersByDateDesc,
+      forceFullRefresh,
+    });
+    return this.orders;
+  }
+
+  async updateEventsSync(forceFullRefresh = false) {
+    const cacheKey = 'public_events';
+    this.syncService.loadCachedData(cacheKey, this.events, compareEventsByStartDesc);
+    await this.syncService.syncCollection({
+      cacheKey,
+      collectionPath: 'events',
+      idField: 'docId',
+      targetSet: this.events,
+      docConverter: firestoreDocToIlcEvent,
+      sortFn: compareEventsByStartDesc,
+      forceFullRefresh,
+    });
+    return this.events;
   }
 
   async getRecentOrders(limitCount: number = 1000, status?: string, kindFilter?: string): Promise<Order[]> {
+    if (this.orders.entries().length > 0) {
+      let filtered = this.orders.entries();
+      if (status) {
+        filtered = filtered.filter((o) => o.ilcAppOrderStatus === status);
+      }
+      if (kindFilter === 'squarespace') {
+        filtered = filtered.filter((o) => o.ilcAppOrderKind === OrderKind.Squarespace);
+      }
+      return filtered.slice(0, limitCount);
+    }
     try {
       let q = query(
         this.ordersCollection,
@@ -691,6 +741,62 @@ export class DataManagerService {
   async searchOrders(criteria: OrderSearchCriteria): Promise<Order[]> {
     const status = criteria.statusFilter;
     const kindFilter = criteria.kindFilter;
+
+    if (this.orders.entries().length > 0) {
+      if (criteria.kind === 'term') {
+        const term = criteria.term.trim().toLowerCase();
+        const field = criteria.searchField;
+        if (!term) return [];
+
+        let results = this.orders.entries().filter((o) => {
+          const anyO = o as any;
+          if (field === 'email' || field === 'customerEmail') {
+            const ce = (anyO.customerEmail || '').toLowerCase();
+            const em = (anyO.email || '').toLowerCase();
+            return ce.includes(term) || em.includes(term);
+          } else if (field === 'memberDocId' || field === 'ilcAppMemberDocId') {
+            return (anyO.ilcAppMemberDocId || '').toLowerCase() === term;
+          } else if (field === 'orderNumber') {
+            return (anyO.orderNumber || '').toLowerCase().includes(term);
+          } else if (field === 'referenceNumber') {
+            return (anyO.referenceNumber || '').toLowerCase().includes(term);
+          } else if (field === 'id') {
+            return (anyO.id || '').toLowerCase().includes(term) || o.docId.toLowerCase().includes(term);
+          } else if (field === 'lastName' || field === 'billingAddress.lastName') {
+            const ln = (anyO.lastName || anyO.billingAddress?.lastName || '').toLowerCase();
+            return ln.includes(term);
+          } else {
+            const val = String(anyO[field] || '').toLowerCase();
+            return val.includes(term);
+          }
+        });
+
+        if (status) {
+          results = results.filter((o) => o.ilcAppOrderStatus === status);
+        }
+        if (kindFilter === 'squarespace') {
+          results = results.filter((o) => o.ilcAppOrderKind === OrderKind.Squarespace);
+        }
+
+        return sortOrdersByDateDesc(results);
+      } else if (criteria.kind === 'date') {
+        let results = this.orders.entries().filter((o) => {
+          const orderDate = orderSortDate(o);
+          if (criteria.startDate && (!orderDate || orderDate < criteria.startDate)) return false;
+          if (criteria.endDate && (!orderDate || orderDate > criteria.endDate + 'T23:59:59.999Z')) return false;
+          return true;
+        });
+
+        if (status) {
+          results = results.filter((o) => o.ilcAppOrderStatus === status);
+        }
+        if (kindFilter === 'squarespace') {
+          results = results.filter((o) => o.ilcAppOrderKind === OrderKind.Squarespace);
+        }
+
+        return sortOrdersByDateDesc(results);
+      }
+    }
 
     if (criteria.kind === 'term') {
       const term = criteria.term.trim();
@@ -782,6 +888,14 @@ export class DataManagerService {
   }
 
   async getRecentEvents(limitCount: number = 100, status?: string): Promise<IlcEvent[]> {
+    if (this.events.entries().length > 0) {
+      let evs = this.events.entries();
+      if (status) {
+        evs = evs.filter((e) => e.status === status);
+      }
+      evs = [...evs].sort((a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''));
+      return evs.slice(0, limitCount);
+    }
     try {
       let q = query(
         this.eventsCollection,
@@ -828,6 +942,44 @@ export class DataManagerService {
 
   async searchEvents(criteria: EventSearchCriteria): Promise<IlcEvent[]> {
     const status = criteria.statusFilter;
+
+    if (this.events.entries().length > 0) {
+      if (criteria.kind === 'term') {
+        const term = criteria.term.trim().toLowerCase();
+        const field = criteria.searchField;
+        if (!term) return [];
+
+        let results = this.events.entries().filter((e) => {
+          if (field === 'ownerEmails') {
+            return (e.ownerEmails || []).some((em) => em.toLowerCase().includes(term));
+          } else if (field === 'ownerDocId' || field === 'memberDocId') {
+            return (
+              (e.ownerDocId || '').toLowerCase() === term ||
+              (e.managerDocIds || []).some((mId) => mId.toLowerCase() === term)
+            );
+          } else {
+            const val = String((e as any)[field] || '').toLowerCase();
+            return val.includes(term);
+          }
+        });
+
+        if (status) {
+          results = results.filter((e) => e.status === status);
+        }
+        return results;
+      } else if (criteria.kind === 'date') {
+        let results = this.events.entries().filter((e) => {
+          if (criteria.startDate && (!e.start || e.start < criteria.startDate)) return false;
+          if (criteria.endDate && (!e.start || e.start > criteria.endDate + 'T23:59:59.999Z')) return false;
+          return true;
+        });
+
+        if (status) {
+          results = results.filter((e) => e.status === status);
+        }
+        return sortEventsByStartDesc(results);
+      }
+    }
 
     if (criteria.kind === 'term') {
       const term = criteria.term.trim();
@@ -913,6 +1065,18 @@ export class DataManagerService {
   async getOrderByIdOrRef(idOrRef: string): Promise<Order | undefined> {
     if (!idOrRef) return undefined;
 
+    // Try in-memory cached orders first
+    const inMemory =
+      this.orders.get(idOrRef) ||
+      this.orders.entries().find(
+        (o) =>
+          o.docId === idOrRef ||
+          (o as any).id === idOrRef ||
+          (o as any).orderNumber === idOrRef ||
+          (o as any).referenceNumber === idOrRef,
+      );
+    if (inMemory) return inMemory;
+
     // Try direct doc lookup
     const directDoc = await getDoc(doc(this.db, 'orders', idOrRef));
     if (directDoc.exists()) {
@@ -936,11 +1100,13 @@ export class DataManagerService {
 
   async getEventById(id: string): Promise<IlcEvent | undefined> {
     if (!id) return undefined;
+    const cached = this.events.get(id);
+    if (cached) return cached;
     try {
       const docRef = doc(this.db, 'events', id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return { ...initEvent(), ...docSnap.data(), docId: docSnap.id } as IlcEvent;
+        return firestoreDocToIlcEvent(docSnap as any);
       }
       return undefined;
     } catch (error) {
@@ -959,6 +1125,19 @@ export class DataManagerService {
     instructorDocId: string,
   ): Promise<IlcEvent[]> {
     if (!instructorId && !instructorDocId) return [];
+
+    if (this.events.entries().length > 0) {
+      const now = new Date().toISOString();
+      return this.events.entries()
+        .filter((ev) => {
+          const matches =
+            (instructorId && ev.leadingInstructorId === instructorId) ||
+            (instructorDocId && (ev.ownerDocId === instructorDocId || (ev.managerDocIds && ev.managerDocIds.includes(instructorDocId))));
+          return matches && ev.status === EventStatus.Listed && (ev.end || ev.start) >= now;
+        })
+        .sort((a, b) => a.start.localeCompare(b.start));
+    }
+
     const queries = [];
     if (instructorId) {
       queries.push(query(this.eventsCollection, where('leadingInstructorId', '==', instructorId)));
@@ -995,6 +1174,21 @@ export class DataManagerService {
     pastLimit = 5,
   ): Promise<{ upcoming: IlcEvent[]; past: IlcEvent[]; pastTotal: number }> {
     if (!schoolId) return { upcoming: [], past: [], pastTotal: 0 };
+
+    if (this.events.entries().length > 0) {
+      const events = this.events
+        .entries()
+        .filter((ev) => ev.schoolId === schoolId && ev.status === EventStatus.Listed);
+      const now = new Date().toISOString();
+      const upcoming = events
+        .filter((ev) => (ev.end || ev.start) >= now)
+        .sort((a, b) => a.start.localeCompare(b.start));
+      const pastAll = events
+        .filter((ev) => (ev.end || ev.start) < now)
+        .sort((a, b) => b.start.localeCompare(a.start));
+      const past = pastAll.slice(0, pastLimit);
+      return { upcoming, past, pastTotal: pastAll.length };
+    }
     try {
       const q = query(this.eventsCollection, where('schoolId', '==', schoolId));
       const snap = await getDocs(q);
@@ -1513,6 +1707,16 @@ export class DataManagerService {
     await this.syncService.deleteCachedEntry('schools', 'schoolId', schoolId);
   }
 
+  async persistEventLocally(event: IlcEvent): Promise<void> {
+    this.events.upsert(event);
+    await this.syncService.upsertCachedEntry('public_events', 'docId', event);
+  }
+
+  async removeEventLocally(eventId: string): Promise<void> {
+    this.events.delete(eventId);
+    await this.syncService.deleteCachedEntry('public_events', 'docId', eventId);
+  }
+
   async addMember(member: Member): Promise<DocumentReference> {
     const collectionRef = collection(this.db, 'members');
     const newDocRef = doc(collectionRef);
@@ -1837,6 +2041,7 @@ export class DataManagerService {
       lastUpdated: new Date().toISOString(),
     };
     this.orders.upsert(addedOrder);
+    await this.syncService.upsertCachedEntry('admin_orders', 'docId', addedOrder);
     return newDocRef;
   }
 
@@ -1853,6 +2058,7 @@ export class DataManagerService {
       lastUpdated: new Date().toISOString(),
     };
     this.orders.upsert(updatedOrder);
+    await this.syncService.upsertCachedEntry('admin_orders', 'docId', updatedOrder);
   }
 
   /**
@@ -1879,7 +2085,9 @@ export class DataManagerService {
     });
     const existing = this.orders.get(orderId);
     if (existing && 'lineItems' in existing) {
-      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+      const updated = { ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order;
+      this.orders.upsert(updated);
+      await this.syncService.upsertCachedEntry('admin_orders', 'docId', updated);
     }
   }
 
@@ -1907,7 +2115,9 @@ export class DataManagerService {
     });
     const existing = this.orders.get(orderId);
     if (existing && 'lineItems' in existing) {
-      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+      const updated = { ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order;
+      this.orders.upsert(updated);
+      await this.syncService.upsertCachedEntry('admin_orders', 'docId', updated);
     }
   }
 
@@ -1935,7 +2145,9 @@ export class DataManagerService {
     });
     const existing = this.orders.get(orderId);
     if (existing && 'lineItems' in existing) {
-      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+      const updated = { ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order;
+      this.orders.upsert(updated);
+      await this.syncService.upsertCachedEntry('admin_orders', 'docId', updated);
     }
   }
 
@@ -1960,7 +2172,9 @@ export class DataManagerService {
     });
     const existing = this.orders.get(orderId);
     if (existing) {
-      this.orders.upsert({ ...existing, ilcAppNotes: notes, lastUpdated: new Date().toISOString() });
+      const updated = { ...existing, ilcAppNotes: notes, lastUpdated: new Date().toISOString() } as Order;
+      this.orders.upsert(updated);
+      await this.syncService.upsertCachedEntry('admin_orders', 'docId', updated);
     }
   }
 
@@ -2407,32 +2621,31 @@ export class DataManagerService {
   private videosUnsubscribe: (() => void) | null = null;
 
   /**
-   * Subscribes to the /videos collection.
-   * If the current user is an admin, queries all videos (published and draft/processing).
-   * Otherwise (public or non-admin member), queries only published videos (isPublished == true)
-   * to comply with Firestore security rules.
+   * Syncs the /videos collection with local IndexedDB cache and Firestore delta queries.
+   * If the current user is an admin, queries all videos (published and draft/processing) into 'admin_videos'.
+   * Otherwise (public or non-admin member), queries only published videos into 'public_videos'.
    */
-  updateVideosSync(user: UserDetails | null) {
-    if (this.videosUnsubscribe) {
-      this.videosUnsubscribe();
-      this.videosUnsubscribe = null;
-    }
-    const videosRef = collection(this.db, 'videos');
-    const q = user?.isAdmin
-      ? query(videosRef)
-      : query(videosRef, where('isPublished', '==', true));
+  async updateVideosSync(user: UserDetails | null, forceFullRefresh = false) {
+    const isAdmin = Boolean(user?.isAdmin);
+    const cacheKey = isAdmin ? 'admin_videos' : 'public_videos';
 
-    this.videosUnsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const items = snapshot.docs.map(firestoreDocToVideoItem);
-        this.videos.setEntries(items);
-      },
-      (error) => {
-        console.error('Error fetching videos:', error);
-        this.videos.setError(error.message);
-      },
+    this.syncService.loadCachedData(cacheKey, this.videos, (a, b) =>
+      (b.createdAt || '').localeCompare(a.createdAt || ''),
     );
+
+    const queryConstraints = isAdmin ? undefined : [where('isPublished', '==', true)];
+
+    await this.syncService.syncCollection({
+      cacheKey,
+      collectionPath: 'videos',
+      idField: 'docId',
+      targetSet: this.videos,
+      docConverter: firestoreDocToVideoItem,
+      sortFn: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''),
+      queryConstraints,
+      forceFullRefresh,
+    });
+    return this.videos;
   }
 
   /**
@@ -2454,9 +2667,21 @@ export class DataManagerService {
     const videoRef = doc(this.db, 'videos', video.docId);
     const payload = {
       ...video,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: serverTimestamp(),
     };
     await setDoc(videoRef, payload, { merge: true });
+
+    const updatedVideo: VideoItem = {
+      ...video,
+      lastUpdated: new Date().toISOString(),
+    };
+    this.videos.upsert(updatedVideo);
+    await Promise.all([
+      this.syncService.upsertCachedEntry('admin_videos', 'docId', updatedVideo),
+      ...(updatedVideo.isPublished
+        ? [this.syncService.upsertCachedEntry('public_videos', 'docId', updatedVideo)]
+        : [this.syncService.deleteCachedEntry('public_videos', 'docId', updatedVideo.docId)]),
+    ]);
   }
 
   /**
@@ -2470,6 +2695,12 @@ export class DataManagerService {
     await fn({ videoId });
     const videoRef = doc(this.db, 'videos', videoId);
     await deleteDoc(videoRef).catch(() => {});
+
+    this.videos.delete(videoId);
+    await Promise.all([
+      this.syncService.deleteCachedEntry('admin_videos', 'docId', videoId),
+      this.syncService.deleteCachedEntry('public_videos', 'docId', videoId),
+    ]);
   }
 
   /**
@@ -2572,7 +2803,7 @@ export class DataManagerService {
       const vId = videoIdsToProcess[i];
       const videoRef = doc(this.db, 'videos', vId);
       const updates: Record<string, any> = {
-        lastUpdated: nowIso,
+        lastUpdated: serverTimestamp(),
       };
 
       if (patch.title !== undefined) updates['seriesTitle'] = patch.title;
@@ -2618,7 +2849,6 @@ export class DataManagerService {
     const startIndex = existingSeries ? existingSeries.videos.length : 0;
 
     const batch = writeBatch(this.db);
-    const nowIso = new Date().toISOString();
 
     for (let i = 0; i < videoIds.length; i++) {
       const vId = videoIds[i];
@@ -2626,7 +2856,7 @@ export class DataManagerService {
       const updates: Record<string, any> = {
         seriesId,
         seriesPartIndex: startIndex + i + 1,
-        lastUpdated: nowIso,
+        lastUpdated: serverTimestamp(),
       };
 
       if (seriesData?.title || existingSeries?.title) {
@@ -2690,7 +2920,7 @@ export class DataManagerService {
       const videoRef = doc(this.db, 'videos', v.docId);
       await updateDoc(videoRef, {
         tags: Array.from(new Set(updatedTags)),
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: serverTimestamp(),
       }).catch((err) => {
         console.warn(`Failed to update tags on video ${v.docId}:`, err);
       });
@@ -2912,11 +3142,17 @@ export class DataManagerService {
   }
 
   async forceRefreshAllData(user: UserDetails): Promise<void> {
-    await Promise.all([
+    const promises: Promise<unknown>[] = [
       this.updateMembersSync(user, true),
       this.updateSchoolsSync(true),
+      this.updateEventsSync(true),
+      this.updateVideosSync(user, true),
       this.updateMyStudentsSync(user, true),
       this.findInstructorsService.updateInstructorsSync(true),
-    ]);
+    ];
+    if (user.isAdmin) {
+      promises.push(this.updateOrdersSync(true));
+    }
+    await Promise.all(promises);
   }
 }

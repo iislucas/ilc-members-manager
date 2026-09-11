@@ -342,6 +342,8 @@ sequenceDiagram
     opt Line item is a Grading
         Webhook->>Firestore: 5. Auto-create /gradings/{gradingDocId}
     end
+    Webhook->>Firestore: 6. Create in-app /members/{memberDocId}/notifications
+    Webhook->>Firestore: 7. Dispatch purchase confirmation email to /mail (see purchase-email-confirmations-and-notifications.md)
 
     Note over Stripe,Webhook: Member cancels auto-renewal
     Stripe->>Webhook: customer.subscription.updated (cancel_at_period_end: true)
@@ -360,6 +362,7 @@ Extracts fulfillment into modular handlers matching Stripe product metadata/SKUs
 - `fulfillInstructorLicense(memberRef, lineItem, periodEnd)`: Extends instructor license expiry date and updates `instructorLicenseNextAutoRenewDate`.
 - `fulfillVideoLibrary(memberRef, lineItem, periodEnd)`: Activates video library access, updates expiration date, and sets `classVideoLibraryNextAutoRenewDate`.
 - `fulfillGrading(memberRef, lineItem, orderId)`: Automatically instantiates a `Grading` document with `status = 'pending'` and adds `gradingDocId` to `member.gradingDocIds`.
+- **Email Confirmation & Notification Dispatch**: Upon successful fulfillment of any product or renewal, dispatches an automated, itemized email confirmation via `/mail` using customizable Markdown email templates, and creates an in-app `PurchaseFulfilled` notification. Detailed in [Purchase Email Confirmations Plan](./purchase-email-confirmations-and-notifications.md).
 
 ---
 
@@ -491,6 +494,7 @@ To ensure existing members see their historical purchases:
 - [ ] Update `createStripeCheckoutSession` to link authenticated member customer IDs and metadata.
 - [ ] Update `stripeWebhook` to handle `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, and order mirroring to `/members/{memberDocId}/orders/`.
 - [ ] Implement fulfillment router in `functions/src/stripe-fulfillment.ts` to update expiration and `*NextAutoRenewDate` fields.
+- [ ] Dispatch automated purchase confirmation emails via `email-dispatcher.ts` (see `docs/plans/purchase-email-confirmations-and-notifications.md`).
 - [ ] Write functions unit tests (`pnpm test:functions`).
 
 ### Phase 3: Angular UI & Client Service
