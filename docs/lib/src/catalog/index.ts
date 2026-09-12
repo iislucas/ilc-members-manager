@@ -6,3 +6,4 @@ export * from './stories-catalog';
 export * from './flows-catalog';
 export * from './setup-catalog';
 export * from './patterns-catalog';
+export * from './user-taxonomy-catalog';

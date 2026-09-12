@@ -12,6 +12,7 @@ export const STORIES_CATALOG: UserStoryEntry[] = [
     status: 'Implemented',
     area: 'Gradings',
     role: 'Instructor (Sifu)',
+    taxonomyNodeId: 'sifu-instructor',
     capability: 'receive automated notifications whenever my student requests, schedules, or completes a grading',
     benefit: 'I can mentor and track my students progression without manual check-ins',
     scenarios: [
@@ -35,6 +36,7 @@ export const STORIES_CATALOG: UserStoryEntry[] = [
     status: 'Implemented',
     area: 'Gradings',
     role: 'Instructor / Grading Manager',
+    taxonomyNodeId: 'sifu-instructor',
     capability: 'accept or decline a students examination request with explanatory feedback',
     benefit: 'the student knows whether they are approved to attend the grading examination',
     scenarios: [
@@ -59,6 +61,7 @@ export const STORIES_CATALOG: UserStoryEntry[] = [
     status: 'Implemented',
     area: 'Gradings',
     role: 'Student / Member',
+    taxonomyNodeId: 'student-practitioner',
     capability: 'view my finalized examination outcome and see my student or application level advance automatically',
     benefit: 'my digital passbook is always accurate immediately after passing',
     scenarios: [
@@ -82,6 +85,7 @@ export const STORIES_CATALOG: UserStoryEntry[] = [
     status: 'Implemented',
     area: 'Gradings',
     role: 'Event Organizer / Manager',
+    taxonomyNodeId: 'event-organizer',
     capability: 'manage, schedule, and grade students who linked their grading to my event',
     benefit: 'visiting examiners can evaluate attendees without needing permanent global instructor rights',
     scenarios: [
@@ -106,6 +110,7 @@ export const STORIES_CATALOG: UserStoryEntry[] = [
     status: 'Implemented',
     area: 'Gradings',
     role: 'System Administrator',
+    taxonomyNodeId: 'grading-candidate',
     capability: 'prevent students from submitting multiple redundant unpaid grading requests',
     benefit: 'the examination queue remains clean and accurate',
     scenarios: [

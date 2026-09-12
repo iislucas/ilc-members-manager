@@ -1,0 +1,83 @@
+<div class="plan-viewer content-card">
+  <div class="plan-header">
+    <div class="plan-title-area">
+      <span class="tag-badge">Directed Interaction Graph</span>
+      <h3>{{ activePlan().title }}</h3>
+      <p class="summary">{{ activePlan().summary }}</p>
+    </div>
+
+    <!-- Plan Switcher Pills -->
+    <div class="plan-pills">
+      @for (plan of docs.plansCatalog; track plan.id) {
+        <button
+          type="button"
+          class="plan-pill-btn"
+          [class.active]="plan.id === docs.selectedPlanId()"
+          (click)="docs.selectPlan(plan.id)"
+        >
+          {{ plan.title.replace('The ', '').replace(' Plan', '') }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (docs.selectedTaxonomyNode(); as persona) {
+    <div class="persona-callout">
+      <span class="pulse-indicator"></span>
+      Showing plan participation for: <strong>{{ persona.name }}</strong> (Highlighted below in gold)
+    </div>
+  }
+
+  <!-- Interactive Directed Node Graph Flow -->
+  <div class="graph-flow-container">
+    <div class="nodes-sequence">
+      @for (node of activePlan().nodes; track node.id; let idx = $index) {
+        <div
+          class="graph-node-card"
+          [class.node-highlighted]="isNodeBelongingToSelectedActor(node)"
+          [class.node-active]="selectedNodeDetails()?.id === node.id"
+          (click)="selectNode(node)"
+        >
+          <div class="node-top-bar">
+            <span class="node-step">#{{ idx + 1 }}</span>
+            <span class="node-type-badge" [class]="getNodeTypeBadgeClass(node.type)">{{ node.type }}</span>
+          </div>
+
+          <div class="node-label">{{ node.label }}</div>
+          <div class="node-actor">{{ node.actor }}</div>
+
+          @if (isNodeBelongingToSelectedActor(node)) {
+            <div class="actor-match-badge">★ Handled by Selected Persona</div>
+          }
+        </div>
+
+        @if (idx < activePlan().nodes.length - 1) {
+          <div class="edge-connector">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+            @let edge = activePlan().edges[idx];
+            @if (edge?.label || edge?.condition) {
+              <span class="edge-label">{{ edge.label || edge.condition }}</span>
+            }
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- Selected Node Details Drawer -->
+  @if (selectedNodeDetails(); as detail) {
+    <div class="node-detail-box">
+      <div class="detail-header">
+        <div>
+          <h4>{{ detail.label }}</h4>
+          <span class="detail-actor">Responsible Actor: <strong>{{ detail.actor }}</strong> ({{ detail.type }})</span>
+        </div>
+        <button type="button" class="close-detail-btn" (click)="selectedNodeDetails.set(null)">✕</button>
+      </div>
+      <p class="detail-description">{{ detail.description }}</p>
+    </div>
+  }
+</div>

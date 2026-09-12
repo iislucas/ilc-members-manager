@@ -6,3 +6,4 @@ export * from './user-story';
 export * from './arch-flow';
 export * from './setup-guide';
 export * from './pattern-doc';
+export * from './user-taxonomy';

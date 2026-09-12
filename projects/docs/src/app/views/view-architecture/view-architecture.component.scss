@@ -1,0 +1,80 @@
+.view-architecture {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.view-header {
+  margin-bottom: 0.5rem;
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+
+  .view-desc {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-top: 0.35rem;
+  }
+}
+
+.flow-summary {
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.trigger-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.steps-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+
+  .pipeline-step {
+    padding: 0.75rem 1rem;
+    background: var(--bg);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary);
+
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.25rem;
+
+      .step-badge {
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+
+      .step-action {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+    }
+
+    .step-payload {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  }
+}
+
+.diagram-section {
+  margin-top: 1rem;
+}

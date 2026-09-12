@@ -1,0 +1,271 @@
+<div class="view-user-journeys">
+  <div class="view-header">
+    <div class="view-title">
+      <h1>👥 View 2: Users, Key Journeys & Multi-Actor Plans</h1>
+      <p class="view-desc">
+        Explore system actors across the visual hierarchy tree, discover each persona's journey starting points, inspect collaborative directed node-edge plans, and review acceptance criteria stories indexed by taxonomy.
+      </p>
+    </div>
+  </div>
+
+  <!-- 1. Interactive D3 User Taxonomy Tree -->
+  <doc-user-taxonomy-tree />
+
+  <!-- 2. Sub-Tabs Navigation -->
+  <div class="sub-tabs-bar">
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'starting-points'"
+      (click)="setSubTab('starting-points')"
+    >
+      🎯 Persona Starting Points & Journeys
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'plans'"
+      (click)="setSubTab('plans')"
+    >
+      🔄 Collaborative Multi-Actor Plans (Graphs)
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'stories'"
+      (click)="setSubTab('stories')"
+    >
+      📖 User Stories (Indexed by Taxonomy)
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'surface-map'"
+      (click)="setSubTab('surface-map')"
+    >
+      🗺️ Site Surface Map (97+ Views)
+    </button>
+  </div>
+
+  <!-- TAB 1: Persona Starting Points & Journeys -->
+  @if (activeSubTab() === 'starting-points') {
+    @if (selectedPersona(); as persona) {
+      <div class="persona-detail-card content-card">
+        <div class="persona-card-header">
+          <div>
+            <span class="tag-badge">{{ persona.category }}</span>
+            <h2>{{ persona.name }}</h2>
+            <p class="role-summary">{{ persona.roleSummary }}</p>
+          </div>
+        </div>
+
+        <div class="persona-grid-info">
+          <div class="info-block">
+            <h4>Key Responsibilities:</h4>
+            <ul>
+              @for (resp of persona.responsibilities; track resp) {
+                <li>{{ resp }}</li>
+              }
+            </ul>
+          </div>
+
+          <div class="info-block">
+            <h4>Granted Permissions & Roles:</h4>
+            <div class="chips-container">
+              @for (perm of persona.permissionsSnapshot; track perm) {
+                <span class="perm-chip">🔑 {{ perm }}</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Journey Starting Points -->
+        <div class="starting-points-section">
+          <h3>🚀 Journey Starting Points for {{ persona.name }}:</h3>
+          <p class="section-intro">Routes and initial interaction triggers where this user initiates flows:</p>
+
+          <div class="starting-routes-grid">
+            @for (route of persona.startingRoutes; track route.path) {
+              <div class="route-card">
+                <div class="route-card-header">
+                  <span class="route-path-badge">{{ route.path }}</span>
+                  <span class="route-title">{{ route.title }}</span>
+                </div>
+                <p class="route-desc">{{ route.description }}</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Core Journeys Involving this Persona -->
+    <div class="journeys-section">
+      <h3>Core User Journeys ({{ relevantJourneys().length }})</h3>
+      @for (journey of relevantJourneys(); track journey.id) {
+        <div class="journey-card content-card">
+          <div class="content-header">
+            <div>
+              <span class="tag-badge">Journey</span>
+              <h3>{{ journey.title }}</h3>
+              <div class="journey-actors-line">
+                Primary: <strong>{{ journey.primaryActor }}</strong> • Participating: {{ journey.participatingActors.join(', ') }}
+              </div>
+            </div>
+          </div>
+
+          <p class="journey-summary">{{ journey.summary }}</p>
+
+          <h4>Journey Steps & Transitions:</h4>
+          <div class="steps-track">
+            @for (step of journey.steps; track step.stepNumber) {
+              <div class="step-card">
+                <div class="step-badge">Step {{ step.stepNumber }}</div>
+                <div class="step-actor">{{ step.actor }}</div>
+                <div class="step-title">{{ step.title }}</div>
+                <div class="step-desc">{{ step.description }}</div>
+                <div class="step-screen">
+                  <code>{{ step.screenPath }}</code> ({{ step.screenViewId }})
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="interlinks-panel">
+            <span style="font-weight:600;">Mutated Entities:</span>
+            @for (dt of journey.relatedDataTypes; track dt) {
+              <a href="#datatype-{{ dt }}" (click)="docs.switchView('datatypes')" class="interlink-chip">📦 {{ dt }}</a>
+            }
+            <span style="font-weight:600;margin-left:1rem;">Triggered Pipelines:</span>
+            @for (fl of journey.relatedFlows; track fl) {
+              <a href="#flow-{{ fl }}" (click)="docs.switchView('architecture')" class="interlink-chip">⚡ {{ fl }}</a>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- TAB 2: Multi-Actor Collaborative Plans -->
+  @if (activeSubTab() === 'plans') {
+    <doc-plan-graph-viewer />
+  }
+
+  <!-- TAB 3: User Stories (Indexed by Taxonomy) -->
+  @if (activeSubTab() === 'stories') {
+    <div class="stories-index-container content-card">
+      <div class="stories-header">
+        <div>
+          <span class="tag-badge">Acceptance Criteria</span>
+          <h2>User Stories Indexed by User Taxonomy</h2>
+          <p class="subtitle">Filtered acceptance criteria stories from <code>docs/user-stories/*.md</code> mapped directly to user roles.</p>
+        </div>
+
+        <div class="taxonomy-filter">
+          <label for="storyTaxonomyFilter">Filter by Persona:</label>
+          <select id="storyTaxonomyFilter" [value]="storyFilterTaxonomyId()" (change)="storyFilterTaxonomyId.set($any($event.target).value)">
+            <option value="all">★ All Stories / Current Selection</option>
+            @for (node of docs.flatTaxonomy; track node.id) {
+              <option [value]="node.id">{{ node.name }} ({{ node.category }})</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="stories-grid">
+        @for (story of filteredStories(); track story.id) {
+          <div class="story-card">
+            <div class="story-top">
+              <span class="story-status-badge">{{ story.status }}</span>
+              <span class="story-area-badge">{{ story.area }}</span>
+            </div>
+
+            <h3 class="story-title">{{ story.title }}</h3>
+            <div class="story-role">Role: <strong>{{ story.role }}</strong></div>
+
+            <div class="story-statement">
+              <div class="statement-line"><strong>As a:</strong> {{ story.role }}</div>
+              <div class="statement-line"><strong>I want to:</strong> {{ story.capability }}</div>
+              <div class="statement-line"><strong>So that:</strong> {{ story.benefit }}</div>
+            </div>
+
+            <h4>Scenarios (Given / When / Then):</h4>
+            @for (sc of story.scenarios; track sc.name) {
+              <div class="scenario-box">
+                <div class="scenario-name">{{ sc.name }}</div>
+                <div class="sc-step"><span class="sc-label">Given:</span> {{ sc.given }}</div>
+                <div class="sc-step"><span class="sc-label">When:</span> {{ sc.when }}</div>
+                <div class="sc-step"><span class="sc-label">Then:</span> {{ sc.then }}</div>
+              </div>
+            }
+
+            <div class="code-pointers">
+              <div class="pointer-header">Source Code & Tests:</div>
+              @for (cr of story.codeReferences; track cr.file) {
+                <div class="pointer-row">
+                  <span class="file-path">{{ cr.file }}</span>
+                  <a [href]="docs.getVsCodeLink(cr.file, cr.line)" class="code-btn">💻 Open IDE</a>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- TAB 4: Site Surface Map -->
+  @if (activeSubTab() === 'surface-map') {
+    <div class="surface-map-container content-card">
+      <div class="surface-header">
+        <div>
+          <span class="tag-badge">Surface Map</span>
+          <h2>Site Surface Map (97+ Application Views)</h2>
+          <p class="subtitle">Complete catalog of views, routes, allowed actors, and mutations from <code>app.config.ts</code>.</p>
+        </div>
+
+        <div class="surface-filter">
+          <label for="roleFilter">Filter by Role:</label>
+          <select id="roleFilter" [value]="surfaceRoleFilter()" (change)="surfaceRoleFilter.set($any($event.target).value)">
+            <option value="all">All Roles</option>
+            <option value="member">Members</option>
+            <option value="instructor">Instructors</option>
+            <option value="school">School Managers</option>
+            <option value="event">Event Organizers</option>
+            <option value="admin">HQ Admins</option>
+            <option value="public">Public</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="surface-table">
+          <thead>
+            <tr>
+              <th>View ID</th>
+              <th>Path Pattern</th>
+              <th>Allowed Actors</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of filteredSurfaceMap(); track item.viewId) {
+              <tr>
+                <td><code>{{ item.viewId }}</code></td>
+                <td><span class="route-code">{{ item.pathPattern }}</span></td>
+                <td>
+                  <div class="actor-tags">
+                    @for (actor of item.permittedRoles; track actor) {
+                      <span class="actor-tag">{{ actor }}</span>
+                    }
+                  </div>
+                </td>
+                <td>{{ item.objective }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

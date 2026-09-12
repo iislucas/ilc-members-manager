@@ -1,0 +1,66 @@
+<div class="view-architecture">
+  <div class="view-header">
+    <h1>⚡ View 4: Information Flow & System Architecture</h1>
+    <p class="view-desc">
+      The 5 end-to-end multi-tier data pipelines, asynchronous cloud triggers, VOD streaming, and Stripe webhook flows.
+    </p>
+  </div>
+
+  <div class="flows-list">
+    @for (flow of docs.flowsCatalog; track flow.id) {
+      <section [id]="'flow-' + flow.id" class="content-card">
+        <div class="content-header">
+          <div>
+            <span class="tag-badge">{{ flow.category }}</span>
+            <h2>{{ flow.title }}</h2>
+          </div>
+        </div>
+
+        <p class="flow-summary">{{ flow.summary }}</p>
+        <div class="trigger-box">
+          <strong>Trigger:</strong> {{ flow.trigger }}
+        </div>
+
+        <h4>Pipeline Stages:</h4>
+        <div class="steps-flow">
+          @for (st of flow.steps; track st.stepNumber) {
+            <div class="pipeline-step">
+              <div class="step-header">
+                <span class="step-badge">Step {{ st.stepNumber }}: {{ st.sourceTier }} ➔ {{ st.targetTier }}</span>
+                <span class="step-action">{{ st.action }}</span>
+              </div>
+              <div class="step-payload"><strong>Payload:</strong> {{ st.payloadDescription }}</div>
+            </div>
+          }
+        </div>
+
+        @if (flow.mermaidDiagram) {
+          <div class="diagram-section">
+            <h4>Pipeline Flowchart (Mermaid):</h4>
+            <div class="code-block-wrapper">
+              <pre><code>{{ flow.mermaidDiagram }}</code></pre>
+              <button
+                type="button"
+                class="copy-code-btn"
+                [class.copied]="copiedFlowId() === flow.id"
+                (click)="copyDiagram(flow.mermaidDiagram, flow.id)"
+              >
+                {{ copiedFlowId() === flow.id ? '✓ Copied' : 'Copy' }}
+              </button>
+            </div>
+          </div>
+        }
+
+        <div class="interlinks-panel">
+          <span style="font-weight:600;">Data Entities:</span>
+          @for (dt of flow.inputDataTypes; track dt) {
+            <a href="#datatype-{{ dt }}" (click)="docs.switchView('datatypes')" class="interlink-chip">📥 {{ dt }}</a>
+          }
+          @for (dt of flow.outputDataTypes; track dt) {
+            <a href="#datatype-{{ dt }}" (click)="docs.switchView('datatypes')" class="interlink-chip">📤 {{ dt }}</a>
+          }
+        </div>
+      </section>
+    }
+  </div>
+</div>

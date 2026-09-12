@@ -3,8 +3,6 @@
  * Generates local VS Code protocol URIs (vscode://file/...) and remote GitHub URLs.
  */
 
-import * as path from 'path';
-
 export interface CodeLinks {
   filePath: string;
   line?: number;
@@ -23,7 +21,7 @@ export class CodeLinkResolver {
     gitHubBaseUrl?: string;
     defaultBranch?: string;
   }) {
-    this.repoRoot = options?.repoRoot || path.resolve(__dirname, '../../../../');
+    this.repoRoot = options?.repoRoot || '/Users/ldixon/code/zxd/ilc-members-manager';
     this.gitHubBaseUrl = options?.gitHubBaseUrl || 'https://github.com/iislucas/ilc-members-manager';
     this.defaultBranch = options?.defaultBranch || 'main';
   }
@@ -33,7 +31,8 @@ export class CodeLinkResolver {
    */
   public resolveVsCodeUrl(relativePath: string, line?: number): string {
     const cleanPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
-    const absolutePath = path.resolve(this.repoRoot, cleanPath);
+    const cleanRepo = this.repoRoot.endsWith('/') ? this.repoRoot.slice(0, -1) : this.repoRoot;
+    const absolutePath = `${cleanRepo}/${cleanPath}`;
     const lineSuffix = line ? `:${line}` : '';
     return `vscode://file/${absolutePath}${lineSuffix}`;
   }

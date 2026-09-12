@@ -1,0 +1,106 @@
+<div class="view-setup">
+  <div class="view-header">
+    <h1>🚀 View 1: Setup & Instance Creation</h1>
+    <p class="view-desc">
+      Authoritative developer workstation preparation, Firebase Emulator Suite orchestration, test account seeding, and cloud provisioning guides.
+    </p>
+  </div>
+
+  <div class="guides-list">
+    @for (guide of docs.setupCatalog; track guide.id) {
+      <section [id]="'setup-' + guide.id" class="content-card">
+        <div class="content-header">
+          <div>
+            <span class="tag-badge">{{ guide.category }}</span>
+            <h2>{{ guide.title }}</h2>
+          </div>
+        </div>
+
+        <p class="guide-summary">{{ guide.summary }}</p>
+
+        @if (guide.prerequisites.length) {
+          <div class="section-block">
+            <h4>Prerequisites:</h4>
+            <ul class="prereqs-list">
+              @for (p of guide.prerequisites; track p) {
+                <li>{{ p }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="section-block">
+          <h4>Commands:</h4>
+          <div class="commands-list">
+            @for (c of guide.commands; track c.command; let idx = $index) {
+              @let cmdId = guide.id + '-' + idx;
+              <div class="command-row">
+                <div class="cmd-explanation">{{ c.explanation }}</div>
+                <div class="code-block-wrapper">
+                  <pre><code>{{ c.command }}</code></pre>
+                  <button
+                    type="button"
+                    class="copy-code-btn"
+                    [class.copied]="copiedCommandIndex() === cmdId"
+                    (click)="copyCommand(c.command, cmdId)"
+                  >
+                    {{ copiedCommandIndex() === cmdId ? '✓ Copied' : 'Copy' }}
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (guide.testAccounts?.length) {
+          <div class="section-block">
+            <h4>Pre-seeded Test Accounts:</h4>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Persona</th>
+                    <th>Email</th>
+                    <th>Password</th>
+                    <th>Role Snapshot</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (acc of guide.testAccounts; track acc.email) {
+                    <tr>
+                      <td><strong>{{ acc.persona }}</strong></td>
+                      <td><code>{{ acc.email }}</code></td>
+                      <td><code>{{ acc.password }}</code></td>
+                      <td style="color:var(--text-muted)">{{ acc.roles }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+
+        @if (guide.commonGotchas?.length) {
+          <div class="section-block">
+            <h4>Common Gotchas & Troubleshooting:</h4>
+            <div class="gotchas-list">
+              @for (g of guide.commonGotchas; track g.issue) {
+                <div class="gotcha-item">
+                  <span class="gotcha-issue">⚠️ {{ g.issue }}:</span>
+                  <span class="gotcha-resolution">{{ g.resolution }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="interlinks-panel">
+          <span style="font-weight:600;">Verified Information Flows:</span>
+          @for (flow of guide.verifiedFlows; track flow) {
+            <a href="#flow-{{ flow }}" (click)="docs.switchView('architecture')" class="interlink-chip">⚡ {{ flow }}</a>
+          }
+        </div>
+      </section>
+    }
+  </div>
+</div>

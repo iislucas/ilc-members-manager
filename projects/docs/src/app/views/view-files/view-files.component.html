@@ -1,0 +1,62 @@
+<div class="view-files">
+  <div class="view-header">
+    <h1>📁 Codebase Files Catalog (100% Repository Index)</h1>
+    <p class="view-desc">
+      All {{ docs.filesCount }} git-tracked source files categorized by architectural layer with exported symbols and direct IDE links.
+    </p>
+  </div>
+
+  <div class="filters-bar content-card">
+    <div class="search-input-wrap">
+      <input
+        type="text"
+        placeholder="Filter files by path or responsibility..."
+        [value]="fileFilterQuery()"
+        (input)="fileFilterQuery.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="layer-filter-wrap">
+      <label for="layerSelect">Architectural Layer:</label>
+      <select id="layerSelect" [value]="selectedLayer()" (change)="selectedLayer.set($any($event.target).value)">
+        <option value="all">All Layers ({{ docs.filesCount }})</option>
+        @for (layer of layerOptions(); track layer) {
+          <option [value]="layer">{{ layer }} ({{ docs.filesSummary.layers[layer] }})</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <div class="results-count">
+    Showing {{ filteredFiles().length }} of {{ docs.filesCount }} files:
+  </div>
+
+  <div class="files-list">
+    @for (file of filteredFiles(); track file.path) {
+      <div class="file-card content-card">
+        <div class="file-header">
+          <div>
+            <span class="tag-badge">{{ file.layer }}</span>
+            <span class="file-path">{{ file.path }}</span>
+          </div>
+
+          <div class="code-actions">
+            <a [href]="docs.getVsCodeLink(file.path)" class="code-btn">💻 Open IDE</a>
+            <a [href]="docs.getGitHubLink(file.path)" class="code-btn" target="_blank">🌐 GitHub</a>
+          </div>
+        </div>
+
+        <p class="file-resp">{{ file.responsibility }}</p>
+
+        @if (file.keySymbols.length) {
+          <div class="symbols-line">
+            <span class="sym-label">Key Symbols:</span>
+            @for (sym of file.keySymbols; track sym) {
+              <span class="sym-badge"><code>{{ sym }}</code></span>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
