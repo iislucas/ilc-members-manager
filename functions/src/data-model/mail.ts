@@ -106,3 +106,30 @@ export function initMailSettings(): MailSettings {
     sendingPaused: false,
   };
 }
+
+export interface DeleteMailItemsRequest {
+  mailIds: string[];
+}
+
+export interface DeleteMailItemsResponse {
+  success: boolean;
+  deletedCount: number;
+  skippedCount: number;
+  skippedProcessingIds: string[];
+}
+
+export interface UpdateMailItemRequest {
+  mailId: string;
+  to?: string | string[];
+  subject?: string;
+  text?: string;
+  html?: string;
+  templateData?: Record<string, string>;
+  status?: 'PENDING' | 'PAUSED' | 'ERROR';
+}
+
+export interface UpdateMailItemResponse {
+  success: boolean;
+  docId: string;
+}
+

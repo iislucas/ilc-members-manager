@@ -8,6 +8,8 @@ import {
   retryMailItem,
   setMailSendingPaused,
   setMailSendingState,
+  deleteMailItems,
+  updateMailItem,
   processMailQueue,
   MailSendingStatus,
 } from './mail-processor';
@@ -780,6 +782,200 @@ describe('mail-processor', () => {
       expect(mockBatchCommit).toHaveBeenCalled();
     });
   });
+
+  describe('deleteMailItems', () => {
+    it('rejects non-admin callers', async () => {
+      vi.spyOn(common, 'assertAdmin').mockRejectedValue(
+        new HttpsError('permission-denied', 'Admin access required.'),
+      );
+
+      await expect(
+        deleteMailItems.run({
+          auth: { token: { email: 'user@example.com' } },
+          data: { mailIds: ['m1', 'm2'] },
+        } as any),
+      ).rejects.toThrow('Admin access required.');
+    });
+
+    it('validates mailIds input', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+
+      await expect(
+        deleteMailItems.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { mailIds: [] },
+        } as any),
+      ).rejects.toThrow('An array of "mailIds" is required.');
+
+      await expect(
+        deleteMailItems.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { mailIds: ['   '] },
+        } as any),
+      ).rejects.toThrow('No valid mail IDs provided.');
+
+      const excessiveIds = Array.from({ length: 501 }, (_, i) => `id_${i}`);
+      await expect(
+        deleteMailItems.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { mailIds: excessiveIds },
+        } as any),
+      ).rejects.toThrow('Cannot delete more than 500 mail items at once.');
+    });
+
+    it('skips items in PROCESSING and deletes others via Firestore batch', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+
+      const mockBatchDelete = vi.fn();
+      const mockBatchCommit = vi.fn().mockResolvedValue([]);
+      const mockBatch = {
+        delete: mockBatchDelete,
+        commit: mockBatchCommit,
+      };
+
+      const snapDoc1 = {
+        id: 'doc1',
+        exists: true,
+        ref: { id: 'doc1' },
+        data: () => ({ status: 'ERROR' }),
+      };
+      const snapDoc2 = {
+        id: 'doc2',
+        exists: true,
+        ref: { id: 'doc2' },
+        data: () => ({ status: 'PROCESSING' }),
+      };
+      const snapDoc3 = {
+        id: 'doc3',
+        exists: false,
+        ref: { id: 'doc3' },
+        data: () => undefined,
+      };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockImplementation((id: string) => ({ id })),
+        }),
+        getAll: vi.fn().mockResolvedValue([snapDoc1, snapDoc2, snapDoc3]),
+        batch: vi.fn().mockReturnValue(mockBatch),
+      } as any);
+
+      const res = await deleteMailItems.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: { mailIds: ['doc1', 'doc2', 'doc3'] },
+      } as any);
+
+      expect(res.success).toBe(true);
+      expect(res.deletedCount).toBe(1);
+      expect(res.skippedCount).toBe(1);
+      expect(res.skippedProcessingIds).toEqual(['doc2']);
+      expect(mockBatchDelete).toHaveBeenCalledWith(snapDoc1.ref);
+      expect(mockBatchDelete).not.toHaveBeenCalledWith(snapDoc2.ref);
+      expect(mockBatchCommit).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateMailItem', () => {
+    it('rejects non-admin callers', async () => {
+      vi.spyOn(common, 'assertAdmin').mockRejectedValue(
+        new HttpsError('permission-denied', 'Admin access required.'),
+      );
+
+      await expect(
+        updateMailItem.run({
+          auth: { token: { email: 'user@example.com' } },
+          data: { mailId: 'doc1', subject: 'New Subject' },
+        } as any),
+      ).rejects.toThrow('Admin access required.');
+    });
+
+    it('throws not-found when document does not exist', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue({
+            get: vi.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      } as any);
+
+      await expect(
+        updateMailItem.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { mailId: 'nonexistent' },
+        } as any),
+      ).rejects.toThrow('Mail document "nonexistent" not found.');
+    });
+
+    it('throws failed-precondition if mail is currently PROCESSING', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue({
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ status: 'PROCESSING' }),
+            }),
+          }),
+        }),
+      } as any);
+
+      await expect(
+        updateMailItem.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { mailId: 'in_flight' },
+        } as any),
+      ).rejects.toThrow('currently being processed and cannot be edited');
+    });
+
+    it('updates recipient, subject, text, markdown-rendered html, templateData, and status', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockUpdate = vi.fn().mockResolvedValue({});
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue({
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ status: 'ERROR', delivery: { state: 'ERROR', error: 'Fail' } }),
+            }),
+            update: mockUpdate,
+          }),
+        }),
+      } as any);
+
+      const res = await updateMailItem.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: {
+          mailId: 'mail_edit_1',
+          to: 'fixed@example.com',
+          subject: 'Corrected Subject',
+          text: 'Hello **World**',
+          status: 'PENDING',
+          templateData: { key: 'value' },
+        },
+      } as any);
+
+      expect(res.success).toBe(true);
+      expect(res.docId).toBe('mail_edit_1');
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'fixed@example.com',
+          subject: 'Corrected Subject',
+          'message.subject': 'Corrected Subject',
+          text: 'Hello **World**',
+          'message.text': 'Hello **World**',
+          html: expect.stringContaining('<strong>World</strong>'),
+          'message.html': expect.stringContaining('<strong>World</strong>'),
+          templateData: { key: 'value' },
+          status: 'PENDING',
+          'delivery.state': 'PENDING',
+          'delivery.error': null,
+          'metadata.lastEditedBy': 'admin@iliqchuan.com',
+        }),
+      );
+    });
+  });
 });
+
 
 

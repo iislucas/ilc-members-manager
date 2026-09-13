@@ -74,6 +74,16 @@ describe('EmailNotificationsComponent', () => {
         },
       ]),
       retryMailItem: vi.fn().mockResolvedValue({ success: true, docId: 'mail_2' }),
+      deleteMailItems: vi.fn().mockResolvedValue({
+        success: true,
+        deletedCount: 1,
+        skippedCount: 0,
+        skippedProcessingIds: [],
+      }),
+      updateMailItem: vi.fn().mockResolvedValue({
+        success: true,
+        docId: 'mail_2',
+      }),
     };
 
     mockFirebaseState = {
@@ -304,4 +314,155 @@ describe('EmailNotificationsComponent', () => {
       { key: 'orderNumber', value: '1001' },
     ]);
   });
+
+  describe('Mail Selection & Batch Delete', () => {
+    beforeEach(async () => {
+      await component.setCategory('logs');
+      await component.loadMailLogs();
+      fixture.detectChanges();
+    });
+
+    it('toggles selection of individual and all emails', () => {
+      expect(component.selectedMailIds().size).toBe(0);
+      expect(component.isSelected('mail_1')).toBe(false);
+
+      // Select individual
+      component.toggleSelect('mail_1');
+      expect(component.isSelected('mail_1')).toBe(true);
+      expect(component.selectedMailIds().size).toBe(1);
+      expect(component.isSomeSelected()).toBe(true);
+      expect(component.isAllSelected()).toBe(false);
+
+      // Deselect individual
+      component.toggleSelect('mail_1');
+      expect(component.isSelected('mail_1')).toBe(false);
+      expect(component.selectedMailIds().size).toBe(0);
+
+      // Select all
+      component.toggleSelectAll();
+      expect(component.selectedMailIds().size).toBe(3);
+      expect(component.isAllSelected()).toBe(true);
+
+      // Deselect all
+      component.toggleSelectAll();
+      expect(component.selectedMailIds().size).toBe(0);
+      expect(component.isAllSelected()).toBe(false);
+
+      // Clear selection
+      component.toggleSelect('mail_2');
+      expect(component.selectedMailIds().size).toBe(1);
+      component.clearSelection();
+      expect(component.selectedMailIds().size).toBe(0);
+    });
+
+    it('batch deletes selected emails with user confirmation', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      component.toggleSelect('mail_1');
+      component.toggleSelect('mail_2');
+      expect(component.selectedMailIds().size).toBe(2);
+
+      mockDataManager.deleteMailItems.mockResolvedValueOnce({
+        success: true,
+        deletedCount: 2,
+        skippedCount: 0,
+        skippedProcessingIds: [],
+      });
+
+      await component.deleteSelectedMail();
+
+      expect(mockDataManager.deleteMailItems).toHaveBeenCalledWith(['mail_1', 'mail_2']);
+      expect(component.selectedMailIds().size).toBe(0);
+      expect(component.deleteActionFeedback()?.success).toBe(true);
+      expect(component.deleteActionFeedback()?.message).toContain('Successfully deleted 2 email item(s)');
+      expect(mockDataManager.getRecentMailDocs).toHaveBeenCalled();
+    });
+
+    it('cancels batch delete when user declines confirmation', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+      component.toggleSelect('mail_1');
+      await component.deleteSelectedMail();
+
+      expect(mockDataManager.deleteMailItems).not.toHaveBeenCalled();
+      expect(component.selectedMailIds().size).toBe(1);
+    });
+
+    it('deletes a single email from row action', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      await component.deleteSingleMail('mail_2');
+
+      expect(mockDataManager.deleteMailItems).toHaveBeenCalledWith(['mail_2']);
+      expect(component.deleteActionFeedback()?.success).toBe(true);
+      expect(component.deleteActionFeedback()?.message).toContain('Email "mail_2" deleted successfully');
+    });
+  });
+
+  describe('Mail Editing Modal', () => {
+    beforeEach(async () => {
+      await component.setCategory('logs');
+      await component.loadMailLogs();
+      fixture.detectChanges();
+    });
+
+    it('opens and closes edit modal with populated form state', () => {
+      const mailItem = component.mailLogs()[1]; // mail_2
+      component.openEditMail(mailItem);
+
+      expect(component.editingMail()).toBe(mailItem);
+      expect(component.editTo()).toBe('fail@example.com');
+      expect(component.editSubject()).toBe('Order Confirmation');
+      expect(component.editStatus()).toBe('ERROR');
+
+      component.closeEditMail();
+      expect(component.editingMail()).toBeNull();
+    });
+
+    it('handles adding and removing template parameter entries', () => {
+      const mailItem = component.mailLogs()[2]; // mail_3 with templateData
+      component.openEditMail(mailItem);
+
+      expect(component.editTemplateDataEntries().length).toBe(2);
+
+      component.addTemplateDataEntry();
+      expect(component.editTemplateDataEntries().length).toBe(3);
+
+      component.removeTemplateDataEntry(2);
+      expect(component.editTemplateDataEntries().length).toBe(2);
+    });
+
+    it('validates recipient and saves edited mail via updateMailItem', async () => {
+      const mailItem = component.mailLogs()[1]; // mail_2
+      component.openEditMail(mailItem);
+
+      // Try empty recipient
+      component.editTo.set('   ');
+      await component.saveEditedMail();
+      expect(component.editFeedback()?.message).toContain('Recipient (To) email is required');
+      expect(mockDataManager.updateMailItem).not.toHaveBeenCalled();
+
+      // Provide valid updates
+      component.editTo.set('fixed@example.com');
+      component.editSubject.set('Updated Subject');
+      component.editText.set('Updated **Body**');
+      component.editStatus.set('PENDING');
+
+      await component.saveEditedMail();
+
+      expect(mockDataManager.updateMailItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mailId: 'mail_2',
+          to: 'fixed@example.com',
+          subject: 'Updated Subject',
+          text: 'Updated **Body**',
+          status: 'PENDING',
+        }),
+      );
+      expect(component.editingMail()).toBeNull();
+      expect(component.deleteActionFeedback()?.success).toBe(true);
+      expect(component.deleteActionFeedback()?.message).toContain('Email "mail_2" updated successfully');
+    });
+  });
 });
+

@@ -631,6 +631,244 @@ export class EmailNotificationsComponent {
     this.selectedLog.set(log);
   }
 
+  // --- MULTI-SELECT & BATCH DELETION ---
+  selectedMailIds = signal<Set<string>>(new Set());
+  isDeleting = signal<boolean>(false);
+  deleteActionFeedback = signal<{ success: boolean; message: string } | null>(null);
+
+  isAllSelected = computed(() => {
+    const logs = this.filteredMailLogs().map((l) => l.docId).filter((id): id is string => Boolean(id));
+    if (logs.length === 0) return false;
+    const selected = this.selectedMailIds();
+    return logs.every((id) => selected.has(id));
+  });
+
+  isSomeSelected = computed(() => {
+    const logs = this.filteredMailLogs().map((l) => l.docId).filter((id): id is string => Boolean(id));
+    if (logs.length === 0) return false;
+    const selected = this.selectedMailIds();
+    const count = logs.filter((id) => selected.has(id)).length;
+    return count > 0 && count < logs.length;
+  });
+
+  isSelected(mailId?: string): boolean {
+    return mailId ? this.selectedMailIds().has(mailId) : false;
+  }
+
+  toggleSelect(mailId?: string, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!mailId) return;
+    this.selectedMailIds.update((set) => {
+      const next = new Set(set);
+      if (next.has(mailId)) {
+        next.delete(mailId);
+      } else {
+        next.add(mailId);
+      }
+      return next;
+    });
+  }
+
+  toggleSelectAll() {
+    const logs = this.filteredMailLogs().map((l) => l.docId).filter((id): id is string => Boolean(id));
+    if (logs.length === 0) return;
+
+    const allSelected = this.isAllSelected();
+    this.selectedMailIds.update((set) => {
+      const next = new Set(set);
+      if (allSelected) {
+        for (const id of logs) {
+          next.delete(id);
+        }
+      } else {
+        for (const id of logs) {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }
+
+  clearSelection() {
+    this.selectedMailIds.set(new Set());
+  }
+
+  async deleteSelectedMail() {
+    const ids = Array.from(this.selectedMailIds());
+    if (ids.length === 0) return;
+
+    const confirmMsg = `Are you sure you want to delete ${ids.length} selected email queue item(s)? This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    this.isDeleting.set(true);
+    this.deleteActionFeedback.set(null);
+
+    try {
+      const res = await this.dataManager.deleteMailItems(ids);
+      let message = `Successfully deleted ${res.deletedCount} email item(s).`;
+      if (res.skippedCount > 0) {
+        message += ` (${res.skippedCount} item(s) in PROCESSING state were skipped for safety).`;
+      }
+      this.deleteActionFeedback.set({ success: true, message });
+
+      if (this.selectedLog() && ids.includes(this.selectedLog()!.docId!)) {
+        this.selectedLog.set(null);
+      }
+      this.clearSelection();
+      await this.loadMailLogs(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.deleteActionFeedback.set({ success: false, message: `Failed to delete mail items: ${msg}` });
+    } finally {
+      this.isDeleting.set(false);
+    }
+  }
+
+  async deleteSingleMail(mailId?: string, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!mailId) return;
+
+    const confirmMsg = `Are you sure you want to delete email "${mailId}" from the queue?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    this.isDeleting.set(true);
+    this.deleteActionFeedback.set(null);
+
+    try {
+      const res = await this.dataManager.deleteMailItems([mailId]);
+      if (res.skippedCount > 0) {
+        this.deleteActionFeedback.set({
+          success: false,
+          message: `Cannot delete mail "${mailId}": currently being processed by the delivery courier.`,
+        });
+      } else {
+        this.deleteActionFeedback.set({
+          success: true,
+          message: `Email "${mailId}" deleted successfully.`,
+        });
+        if (this.selectedLog()?.docId === mailId) {
+          this.selectedLog.set(null);
+        }
+        this.selectedMailIds.update((set) => {
+          const next = new Set(set);
+          next.delete(mailId);
+          return next;
+        });
+        await this.loadMailLogs(false);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.deleteActionFeedback.set({ success: false, message: `Failed to delete email: ${msg}` });
+    } finally {
+      this.isDeleting.set(false);
+    }
+  }
+
+  // --- MAIL EDITING MODAL STATE & ACTIONS ---
+  editingMail = signal<MailQueueDoc | null>(null);
+  editTo = signal<string>('');
+  editSubject = signal<string>('');
+  editText = signal<string>('');
+  editStatus = signal<'PENDING' | 'PAUSED' | 'ERROR'>('PENDING');
+  editTemplateDataEntries = signal<Array<{ key: string; value: string }>>([]);
+  isSavingEdit = signal<boolean>(false);
+  editFeedback = signal<{ success: boolean; message: string } | null>(null);
+
+  editPreviewHtml = computed(() => markdownToHtml(this.editText()));
+
+  openEditMail(mail: MailQueueDoc, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.editingMail.set(mail);
+    this.editTo.set(Array.isArray(mail.to) ? mail.to.join(', ') : mail.to || '');
+    this.editSubject.set(mail.message?.subject || mail.subject || '');
+    this.editText.set(mail.message?.text || mail.text || '');
+
+    const curState = mail.status || mail.delivery?.state || 'PENDING';
+    if (curState === 'PAUSED') {
+      this.editStatus.set('PAUSED');
+    } else if (curState === 'ERROR') {
+      this.editStatus.set('ERROR');
+    } else {
+      this.editStatus.set('PENDING');
+    }
+
+    if (mail.templateData) {
+      this.editTemplateDataEntries.set(
+        Object.entries(mail.templateData).map(([key, value]) => ({ key, value })),
+      );
+    } else {
+      this.editTemplateDataEntries.set([]);
+    }
+    this.editFeedback.set(null);
+  }
+
+  closeEditMail() {
+    this.editingMail.set(null);
+    this.editFeedback.set(null);
+  }
+
+  addTemplateDataEntry() {
+    this.editTemplateDataEntries.update((entries) => [...entries, { key: '', value: '' }]);
+  }
+
+  removeTemplateDataEntry(index: number) {
+    this.editTemplateDataEntries.update((entries) => entries.filter((_, i) => i !== index));
+  }
+
+  async saveEditedMail() {
+    const mail = this.editingMail();
+    if (!mail || !mail.docId) return;
+
+    const to = this.editTo().trim();
+    if (!to) {
+      this.editFeedback.set({ success: false, message: 'Recipient (To) email is required.' });
+      return;
+    }
+
+    this.isSavingEdit.set(true);
+    this.editFeedback.set(null);
+
+    let templateData: Record<string, string> | undefined = undefined;
+    if (mail.templateKey || this.editTemplateDataEntries().length > 0) {
+      templateData = {};
+      for (const entry of this.editTemplateDataEntries()) {
+        const k = entry.key.trim();
+        if (k) {
+          templateData[k] = entry.value;
+        }
+      }
+    }
+
+    try {
+      await this.dataManager.updateMailItem({
+        mailId: mail.docId,
+        to,
+        subject: this.editSubject().trim(),
+        text: this.editText(),
+        status: this.editStatus(),
+        templateData,
+      });
+
+      this.closeEditMail();
+      this.deleteActionFeedback.set({
+        success: true,
+        message: `Email "${mail.docId}" updated successfully.`,
+      });
+      await this.loadMailLogs(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.editFeedback.set({ success: false, message: `Failed to update email: ${msg}` });
+    } finally {
+      this.isSavingEdit.set(false);
+    }
+  }
+
   formatLogTimestamp(val: unknown): string {
     if (!val) return '—';
     if (typeof (val as { toDate?: () => Date }).toDate === 'function') {
@@ -646,3 +884,4 @@ export class EmailNotificationsComponent {
     return '—';
   }
 }
+

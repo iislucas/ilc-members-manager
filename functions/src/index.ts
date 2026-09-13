@@ -95,4 +95,7 @@ export {
   retryMailItem,
   setMailSendingPaused,
   setMailSendingState,
+  deleteMailItems,
+  updateMailItem,
 } from './mail-processor';
+

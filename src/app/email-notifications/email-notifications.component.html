@@ -752,6 +752,35 @@
           </div>
         }
 
+        @if (deleteActionFeedback()) {
+          <div class="alert-box" [class.alert-success]="deleteActionFeedback()?.success" [class.alert-error]="!deleteActionFeedback()?.success">
+            {{ deleteActionFeedback()?.message }}
+          </div>
+        }
+
+        <!-- Batch Actions Toolbar -->
+        @if (selectedMailIds().size > 0) {
+          <div class="batch-action-bar">
+            <div class="batch-info">
+              <span class="selected-badge">{{ selectedMailIds().size }}</span>
+              <span>item(s) selected</span>
+              <button type="button" class="btn-clear-selection" (click)="clearSelection()">Clear Selection</button>
+            </div>
+            <div class="batch-buttons">
+              @if (isDeleting()) {
+                <app-spinner>Deleting...</app-spinner>
+              } @else {
+                <button
+                  type="button"
+                  class="btn btn-danger btn-sm"
+                  (click)="deleteSelectedMail()">
+                  🗑 Delete Selected ({{ selectedMailIds().size }})
+                </button>
+              }
+            </div>
+          </div>
+        }
+
         <!-- Logs List Table -->
         <div class="logs-list-wrapper">
           @if (isLoadingLogs() && mailLogs().length === 0) {
@@ -766,6 +795,14 @@
           } @else {
             <div class="logs-table">
               <div class="table-header">
+                <span class="col-select">
+                  <input
+                    type="checkbox"
+                    [checked]="isAllSelected()"
+                    (change)="toggleSelectAll()"
+                    title="Select or deselect all visible emails"
+                  />
+                </span>
                 <span class="col-status">Status</span>
                 <span class="col-to">Recipient</span>
                 <span class="col-subject">Subject</span>
@@ -776,8 +813,16 @@
                 @for (log of filteredMailLogs(); track log.docId) {
                   <div
                     class="table-row"
-                    [class.selected]="selectedLog()?.docId === log.docId"
+                    [class.selected]="selectedLog()?.docId === log.docId || isSelected(log.docId)"
                     (click)="selectLog(log)">
+                    <div class="col-select" (click)="$event.stopPropagation()">
+                      <input
+                        type="checkbox"
+                        [checked]="isSelected(log.docId)"
+                        (change)="toggleSelect(log.docId, $event)"
+                        title="Select email"
+                      />
+                    </div>
                     <div class="col-status">
                       @let curState = log.status || log.delivery?.state || 'PENDING';
                       <span class="status-badge" [class]="curState.toLowerCase()">
@@ -800,6 +845,14 @@
                         (click)="selectLog(log)">
                         Details
                       </button>
+                      <button
+                        type="button"
+                        class="btn-row-action"
+                        [disabled]="(log.status || log.delivery?.state) === 'PROCESSING'"
+                        (click)="openEditMail(log, $event)"
+                        title="Edit email">
+                        Edit
+                      </button>
                       @if ((log.status || log.delivery?.state) === 'ERROR') {
                         <button
                           type="button"
@@ -813,6 +866,14 @@
                           }
                         </button>
                       }
+                      <button
+                        type="button"
+                        class="btn-row-action btn-delete"
+                        [disabled]="(log.status || log.delivery?.state) === 'PROCESSING' || isDeleting()"
+                        (click)="deleteSingleMail(log.docId, $event)"
+                        title="Delete email">
+                        Delete
+                      </button>
                     </div>
                   </div>
                 }
@@ -937,21 +998,189 @@
               </div>
             </div>
 
-            @if (state === 'ERROR') {
-              <div class="detail-footer">
+            <div class="detail-footer">
+              <div class="detail-footer-left">
                 <button
                   type="button"
-                  class="btn btn-primary btn-sm"
-                  [disabled]="isRetryingId() === item.docId"
-                  (click)="retryMail(item.docId!)">
-                  @if (isRetryingId() === item.docId) {
-                    <app-spinner></app-spinner> Retrying...
-                  } @else {
-                    Retry Sending Email
-                  }
+                  class="btn btn-secondary btn-sm"
+                  [disabled]="state === 'PROCESSING'"
+                  (click)="openEditMail(item)">
+                  Edit Email
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-danger btn-sm"
+                  [disabled]="state === 'PROCESSING' || isDeleting()"
+                  (click)="deleteSingleMail(item.docId)">
+                  Delete Email
                 </button>
               </div>
-            }
+              <div class="detail-footer-right">
+                @if (state === 'ERROR') {
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    [disabled]="isRetryingId() === item.docId"
+                    (click)="retryMail(item.docId!)">
+                    @if (isRetryingId() === item.docId) {
+                      <app-spinner></app-spinner> Retrying...
+                    } @else {
+                      Retry Sending Email
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Edit Mail Modal -->
+        @if (editingMail()) {
+          @let editItem = editingMail()!;
+          @let isProcessing = (editItem.status || editItem.delivery?.state) === 'PROCESSING';
+          <div class="modal-backdrop" (click)="closeEditMail()">
+            <div class="edit-mail-modal" (click)="$event.stopPropagation()">
+              <div class="modal-header">
+                <div>
+                  <h5>Edit Queued Email</h5>
+                  <span class="doc-id">Document ID: <code>{{ editItem.docId }}</code></span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeEditMail()">✕</button>
+              </div>
+
+              <div class="modal-body">
+                @if (editFeedback()) {
+                  <div class="alert-box" [class.alert-success]="editFeedback()?.success" [class.alert-error]="!editFeedback()?.success">
+                    {{ editFeedback()?.message }}
+                  </div>
+                }
+
+                @if ((editItem.status || editItem.delivery?.state) === 'SUCCESS') {
+                  <div class="alert-box alert-warning">
+                    ⚠️ <strong>Note:</strong> This email was already dispatched and marked as delivered. Saving with status <strong>PENDING</strong> will re-dispatch it.
+                  </div>
+                }
+
+                <div class="form-group">
+                  <label for="edit-recipient">Recipient(s) (To) <span class="required">*</span></label>
+                  <input
+                    id="edit-recipient"
+                    type="text"
+                    class="input-style"
+                    placeholder="e.g. member@example.com"
+                    [(ngModel)]="editTo"
+                    [disabled]="isSavingEdit()"
+                  />
+                  <span class="hint-text">Separate multiple recipients with commas.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="edit-subject">Subject</label>
+                  <input
+                    id="edit-subject"
+                    type="text"
+                    class="input-style"
+                    placeholder="Email subject..."
+                    [(ngModel)]="editSubject"
+                    [disabled]="isSavingEdit()"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label for="edit-status">Dispatch Status</label>
+                  <select
+                    id="edit-status"
+                    class="select-style"
+                    [(ngModel)]="editStatus"
+                    [disabled]="isSavingEdit()">
+                    <option value="PENDING">PENDING (Ready to deliver)</option>
+                    <option value="PAUSED">PAUSED (Hold in queue)</option>
+                    <option value="ERROR">ERROR (Mark as delivery failure)</option>
+                  </select>
+                </div>
+
+                @if (editTemplateDataEntries().length > 0) {
+                  <div class="form-group template-vars-group">
+                    <label>Template Parameters (Variables)</label>
+                    <div class="template-vars-list">
+                      @for (entry of editTemplateDataEntries(); track $index) {
+                        <div class="template-var-row">
+                          <input
+                            type="text"
+                            class="input-style var-key"
+                            placeholder="Variable key (e.g. name)"
+                            [(ngModel)]="entry.key"
+                            [disabled]="isSavingEdit()"
+                          />
+                          <input
+                            type="text"
+                            class="input-style var-value"
+                            placeholder="Value"
+                            [(ngModel)]="entry.value"
+                            [disabled]="isSavingEdit()"
+                          />
+                          <button
+                            type="button"
+                            class="btn-icon-remove"
+                            (click)="removeTemplateDataEntry($index)"
+                            [disabled]="isSavingEdit()"
+                            title="Remove variable">
+                            ✕
+                          </button>
+                        </div>
+                      }
+                      <button
+                        type="button"
+                        class="btn-text-link"
+                        (click)="addTemplateDataEntry()"
+                        [disabled]="isSavingEdit()">
+                        + Add Parameter
+                      </button>
+                    </div>
+                  </div>
+                }
+
+                <div class="form-group">
+                  <label for="edit-body">Email Body (Markdown)</label>
+                  <textarea
+                    id="edit-body"
+                    class="textarea-style"
+                    rows="6"
+                    placeholder="Email markdown content..."
+                    [(ngModel)]="editText"
+                    [disabled]="isSavingEdit()">
+                  </textarea>
+                </div>
+
+                @if (editText().trim()) {
+                  <div class="preview-group">
+                    <label>Rendered Preview</label>
+                    <div class="preview-box" [innerHTML]="editPreviewHtml()"></div>
+                  </div>
+                }
+              </div>
+
+              <div class="modal-footer">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  (click)="closeEditMail()"
+                  [disabled]="isSavingEdit()">
+                  Cancel
+                </button>
+                @if (isSavingEdit()) {
+                  <app-spinner>Saving...</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    (click)="saveEditedMail()"
+                    [disabled]="isProcessing">
+                    Save Changes
+                  </button>
+                }
+              </div>
+            </div>
           </div>
         }
       </div>

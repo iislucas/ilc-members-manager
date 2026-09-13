@@ -30,7 +30,16 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { FirestoreCollection } from '../../functions/src/data-model/collections';
-import { MailQueueDoc, MailSettings, MailSendingStatus, initMailSettings } from '../../functions/src/data-model/mail';
+import {
+  MailQueueDoc,
+  MailSettings,
+  MailSendingStatus,
+  initMailSettings,
+  DeleteMailItemsRequest,
+  DeleteMailItemsResponse,
+  UpdateMailItemRequest,
+  UpdateMailItemResponse,
+} from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
 import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent } from '../../functions/src/data-model/events';
@@ -2580,6 +2589,31 @@ export class DataManagerService {
     const res = await fn({ paused });
     return res.data;
   }
+
+  /**
+   * Admin-only callable to delete multiple mail items from the queue in batch.
+   */
+  async deleteMailItems(mailIds: string[]): Promise<DeleteMailItemsResponse> {
+    const fn = httpsCallable<DeleteMailItemsRequest, DeleteMailItemsResponse>(
+      this.functions,
+      'deleteMailItems',
+    );
+    const res = await fn({ mailIds });
+    return res.data;
+  }
+
+  /**
+   * Admin-only callable to update a queued mail item (recipient, subject, text, templateData, status).
+   */
+  async updateMailItem(request: UpdateMailItemRequest): Promise<UpdateMailItemResponse> {
+    const fn = httpsCallable<UpdateMailItemRequest, UpdateMailItemResponse>(
+      this.functions,
+      'updateMailItem',
+    );
+    const res = await fn(request);
+    return res.data;
+  }
+
 
   downloadSchoolsAsJsonL() {
     const schoolFields = Object.keys(initSchool()) as Array<keyof School>;

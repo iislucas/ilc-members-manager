@@ -8,10 +8,28 @@ import { environment } from './environment/environment';
 import { assertAdmin, allowedOrigins } from './common';
 import { markdownToHtml, formatTemplate } from './email-markdown';
 import { FirestoreCollection } from './data-model/collections';
-import { MailQueueDoc, MailDeliveryState, MailSettings, MailSendingStatus } from './data-model/mail';
+import {
+  MailQueueDoc,
+  MailDeliveryState,
+  MailSettings,
+  MailSendingStatus,
+  DeleteMailItemsRequest,
+  DeleteMailItemsResponse,
+  UpdateMailItemRequest,
+  UpdateMailItemResponse,
+} from './data-model/mail';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 
-export { MailQueueDoc, MailDeliveryState, MailSettings, MailSendingStatus } from './data-model/mail';
+export {
+  MailQueueDoc,
+  MailDeliveryState,
+  MailSettings,
+  MailSendingStatus,
+  DeleteMailItemsRequest,
+  DeleteMailItemsResponse,
+  UpdateMailItemRequest,
+  UpdateMailItemResponse,
+} from './data-model/mail';
 export const smtpPassword = defineSecret('SMTP_PASSWORD');
 
 /**
@@ -443,6 +461,181 @@ export const retryMailItem = onCall(
     });
 
     logger.info(`[MailProcessor] Mail document ${mailId} reset to PENDING for retry.`);
+    return {
+      success: true,
+      docId: mailId,
+    };
+  },
+);
+
+/**
+ * Admin-only callable Cloud Function to delete one or more documents from the `/mail` queue.
+ * Safely guards against deleting items that are currently in 'PROCESSING' state.
+ */
+export const deleteMailItems = onCall(
+  {
+    cors: allowedOrigins,
+  },
+  async (request): Promise<DeleteMailItemsResponse> => {
+    logger.info('[MailProcessor] deleteMailItems called');
+    await assertAdmin(request);
+
+    const data = request.data as DeleteMailItemsRequest | undefined;
+    if (!data || !Array.isArray(data.mailIds) || data.mailIds.length === 0) {
+      throw new HttpsError('invalid-argument', 'An array of "mailIds" is required.');
+    }
+
+    if (data.mailIds.length > 500) {
+      throw new HttpsError('invalid-argument', 'Cannot delete more than 500 mail items at once.');
+    }
+
+    const uniqueIds = Array.from(new Set(data.mailIds.map((id) => String(id).trim()).filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      throw new HttpsError('invalid-argument', 'No valid mail IDs provided.');
+    }
+
+    const db = admin.firestore();
+    const mailCollection = db.collection(FirestoreCollection.Mail);
+
+    const docRefs = uniqueIds.map((id) => mailCollection.doc(id));
+    const snaps = await db.getAll(...docRefs);
+
+    const batch = db.batch();
+    let deletedCount = 0;
+    const skippedProcessingIds: string[] = [];
+
+    for (const snap of snaps) {
+      if (!snap.exists) continue;
+
+      const mailData = snap.data() as MailQueueDoc | undefined;
+      const state = mailData?.status || mailData?.delivery?.state;
+      if (state === 'PROCESSING') {
+        skippedProcessingIds.push(snap.id);
+        continue;
+      }
+
+      batch.delete(snap.ref);
+      deletedCount++;
+    }
+
+    if (deletedCount > 0) {
+      await batch.commit();
+    }
+
+    logger.info(
+      `[MailProcessor] deleteMailItems deleted ${deletedCount} item(s), skipped ${skippedProcessingIds.length} item(s) in PROCESSING.`,
+    );
+
+    return {
+      success: true,
+      deletedCount,
+      skippedCount: skippedProcessingIds.length,
+      skippedProcessingIds,
+    };
+  },
+);
+
+/**
+ * Admin-only callable Cloud Function to update a mail document in the `/mail` queue.
+ * Allows updating recipient ('to'), subject, text/body (re-rendering markdown to html),
+ * templateData parameters, and status ('PENDING', 'PAUSED', 'ERROR').
+ * Guards against modifying items currently in 'PROCESSING' state.
+ */
+export const updateMailItem = onCall(
+  {
+    cors: allowedOrigins,
+  },
+  async (request): Promise<UpdateMailItemResponse> => {
+    logger.info('[MailProcessor] updateMailItem called');
+    await assertAdmin(request);
+
+    const data = request.data as UpdateMailItemRequest | undefined;
+    if (!data || !data.mailId) {
+      throw new HttpsError('invalid-argument', 'Document ID (mailId) is required.');
+    }
+
+    const mailId = data.mailId.trim();
+    const db = admin.firestore();
+    const docRef = db.collection(FirestoreCollection.Mail).doc(mailId);
+    const snap = await docRef.get();
+
+    if (!snap.exists) {
+      throw new HttpsError('not-found', `Mail document "${mailId}" not found.`);
+    }
+
+    const mailData = snap.data() as MailQueueDoc | undefined;
+    const currentState = mailData?.status || mailData?.delivery?.state;
+    if (currentState === 'PROCESSING') {
+      throw new HttpsError(
+        'failed-precondition',
+        `Mail document "${mailId}" is currently being processed and cannot be edited.`,
+      );
+    }
+
+    const updates: Record<string, unknown> = {
+      'metadata.lastEditedAt': new Date().toISOString(),
+      'metadata.lastEditedBy': request.auth?.token.email || 'admin',
+    };
+
+    if (data.to !== undefined) {
+      if (Array.isArray(data.to)) {
+        const recipients = data.to.map((r) => String(r).trim()).filter(Boolean);
+        if (recipients.length === 0) {
+          throw new HttpsError('invalid-argument', 'Recipient array cannot be empty.');
+        }
+        updates['to'] = recipients;
+      } else if (typeof data.to === 'string') {
+        const trimmed = data.to.trim();
+        if (!trimmed) {
+          throw new HttpsError('invalid-argument', 'Recipient cannot be empty.');
+        }
+        if (trimmed.includes(',')) {
+          updates['to'] = trimmed.split(',').map((r) => r.trim()).filter(Boolean);
+        } else {
+          updates['to'] = trimmed;
+        }
+      }
+    }
+
+    if (data.subject !== undefined) {
+      const trimmedSubject = String(data.subject).trim();
+      updates['subject'] = trimmedSubject;
+      updates['message.subject'] = trimmedSubject;
+    }
+
+    if (data.text !== undefined) {
+      const trimmedText = String(data.text);
+      updates['text'] = trimmedText;
+      updates['message.text'] = trimmedText;
+      const htmlContent = data.html !== undefined ? data.html : markdownToHtml(trimmedText);
+      updates['html'] = htmlContent;
+      updates['message.html'] = htmlContent;
+    } else if (data.html !== undefined) {
+      updates['html'] = data.html;
+      updates['message.html'] = data.html;
+    }
+
+    if (data.templateData !== undefined && typeof data.templateData === 'object') {
+      updates['templateData'] = data.templateData;
+    }
+
+    if (data.status) {
+      if (!['PENDING', 'PAUSED', 'ERROR'].includes(data.status)) {
+        throw new HttpsError('invalid-argument', `Invalid status "${data.status}".`);
+      }
+      updates['status'] = data.status;
+      updates['delivery.state'] = data.status;
+
+      if (data.status === 'PENDING') {
+        updates['delivery.error'] = null;
+        updates['delivery.retryRequestedAt'] = admin.firestore.FieldValue.serverTimestamp();
+        updates['delivery.retryRequestedBy'] = request.auth?.token.email || 'admin';
+      }
+    }
+
+    await docRef.update(updates);
+
+    logger.info(`[MailProcessor] Mail document ${mailId} successfully updated.`);
     return {
       success: true,
       docId: mailId,
