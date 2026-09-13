@@ -6,11 +6,12 @@ import * as logger from 'firebase-functions/logger';
 import nodemailer, { type Transporter, type SentMessageInfo } from 'nodemailer';
 import { environment } from './environment/environment';
 import { assertAdmin, allowedOrigins } from './common';
-import { markdownToHtml } from './email-markdown';
+import { markdownToHtml, formatTemplate } from './email-markdown';
 import { FirestoreCollection } from './data-model/collections';
-import { MailQueueDoc, MailDeliveryState } from './data-model/mail';
+import { MailQueueDoc, MailDeliveryState, MailSettings } from './data-model/mail';
+import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 
-export { MailQueueDoc, MailDeliveryState } from './data-model/mail';
+export { MailQueueDoc, MailDeliveryState, MailSettings } from './data-model/mail';
 export const smtpPassword = defineSecret('SMTP_PASSWORD');
 
 /**
@@ -70,9 +71,26 @@ export const processMailQueue = onDocumentWritten(
     const mailId = event.params.mailId;
 
     // 1. Fast guard: ONLY send emails that are explicitly 'PENDING'.
-    // If status is 'PROCESSING', 'SUCCESS', or 'ERROR', exit immediately to avoid circular sends.
+    // If status is 'PROCESSING', 'SUCCESS', 'ERROR', or 'PAUSED', exit immediately to avoid circular sends.
     const effectiveState = data.status || data.delivery?.state || 'PENDING';
     if (effectiveState !== 'PENDING') {
+      return;
+    }
+
+    const db = admin.firestore();
+
+    // Check if mail sending is globally paused in /system/mail-settings.
+    // If paused and not an explicit admin test, revert document to PAUSED and stop.
+    const mailSettingsSnap = await db.doc('system/mail-settings').get();
+    const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
+    const isGloballyPaused = mailSettings?.sendingPaused === true;
+
+    if (isGloballyPaused && !data.metadata?.adminTest) {
+      logger.info(`[MailProcessor] Mail sending is globally paused. Setting document ${mailId} to PAUSED.`);
+      await snap.ref.update({
+        status: 'PAUSED',
+        'delivery.state': 'PAUSED',
+      });
       return;
     }
 
@@ -104,7 +122,6 @@ export const processMailQueue = onDocumentWritten(
     }
 
     // 2. Atomic lock: ensure we are the sole processor and prevent duplicate/circular runs
-    const db = admin.firestore();
     const docRef = snap.ref;
     let locked = false;
 
@@ -133,6 +150,40 @@ export const processMailQueue = onDocumentWritten(
     if (!locked) {
       logger.info(`[MailProcessor] Document ${mailId} is already locked or completed. Skipping.`);
       return;
+    }
+
+    // 3. Dynamic template interpretation: If document specifies a templateKey and templateData,
+    // render the latest templates from /system/email-templates so any edits made while queued take effect.
+    if (data.templateKey && data.templateData) {
+      try {
+        const templateSnap = await db.doc('system/email-templates').get();
+        const customTemplates = templateSnap.exists ? (templateSnap.data() as Partial<EmailTemplates>) : {};
+        const defaults = initEmailTemplates();
+
+        const subjectKey = `${data.templateKey}Subject` as keyof EmailTemplates;
+        const bodyKey = `${data.templateKey}Body` as keyof EmailTemplates;
+
+        const subjectTemplate = customTemplates[subjectKey] || defaults[subjectKey] || '';
+        const bodyTemplate = customTemplates[bodyKey] || defaults[bodyKey] || '';
+
+        if (subjectTemplate || bodyTemplate) {
+          const renderedSubject = formatTemplate(subjectTemplate, data.templateData);
+          const renderedMarkdown = formatTemplate(bodyTemplate, data.templateData);
+          const renderedHtml = markdownToHtml(renderedMarkdown);
+
+          data.message = {
+            subject: renderedSubject,
+            text: renderedMarkdown,
+            html: renderedHtml,
+          };
+
+          await snap.ref.update({
+            message: data.message,
+          });
+        }
+      } catch (renderErr) {
+        logger.warn(`[MailProcessor] Failed to dynamically render template for ${mailId}:`, renderErr);
+      }
     }
 
     let password = '';
@@ -391,4 +442,83 @@ export const retryMailItem = onCall(
     };
   },
 );
+
+export interface SetMailSendingPausedRequest {
+  paused: boolean;
+}
+
+export interface SetMailSendingPausedResponse {
+  success: boolean;
+  paused: boolean;
+  resumedCount: number;
+}
+
+/**
+ * Admin-only callable Cloud Function to pause or resume outbound mail sending.
+ * When resuming, all documents in /mail with status: 'PAUSED' are transitioned to 'PENDING',
+ * which fires processMailQueue to dynamically render templates and dispatch emails.
+ */
+export const setMailSendingPaused = onCall(
+  {
+    cors: allowedOrigins,
+  },
+  async (request): Promise<SetMailSendingPausedResponse> => {
+    logger.info('[MailProcessor] setMailSendingPaused called');
+    await assertAdmin(request);
+
+    const data = request.data as SetMailSendingPausedRequest | undefined;
+    if (!data || typeof data.paused !== 'boolean') {
+      throw new HttpsError('invalid-argument', 'Boolean parameter "paused" is required.');
+    }
+
+    const paused = data.paused;
+    const db = admin.firestore();
+    const settingsRef = db.doc('system/mail-settings');
+    const now = new Date().toISOString();
+    const adminEmail = request.auth?.token.email || 'admin';
+
+    await settingsRef.set(
+      {
+        sendingPaused: paused,
+        ...(paused
+          ? { pausedAt: now, pausedBy: adminEmail }
+          : { resumedAt: now, resumedBy: adminEmail }),
+      },
+      { merge: true },
+    );
+
+    let resumedCount = 0;
+    if (!paused) {
+      const pausedDocsSnap = await db
+        .collection(FirestoreCollection.Mail)
+        .where('status', '==', 'PAUSED')
+        .get();
+
+      if (!pausedDocsSnap.empty) {
+        const batch = db.batch();
+        for (const doc of pausedDocsSnap.docs) {
+          batch.update(doc.ref, {
+            status: 'PENDING',
+            'delivery.state': 'PENDING',
+            'delivery.resumedAt': admin.firestore.FieldValue.serverTimestamp(),
+            'delivery.resumedBy': adminEmail,
+          });
+          resumedCount++;
+        }
+        await batch.commit();
+      }
+    }
+
+    logger.info(
+      `[MailProcessor] Mail sending set to ${paused ? 'PAUSED' : 'ACTIVE'} by ${adminEmail}. Resumed ${resumedCount} paused emails.`,
+    );
+
+    return {
+      success: true,
+      paused,
+      resumedCount,
+    };
+  },
+);
+
 

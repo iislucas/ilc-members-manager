@@ -5,6 +5,8 @@ import { FirestoreCollection } from './data-model/collections';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 import { formatTemplate, markdownToHtml } from './email-markdown';
 
+import { MailSettings, MailQueueDoc } from './data-model/mail';
+
 export type TransactionalEmailKey =
   | 'membershipActivated'
   | 'instructorLicenseActivated'
@@ -25,7 +27,11 @@ export interface SendEmailOptions {
 /**
  * Loads the active email templates (custom overrides from Firestore or defaults),
  * substitutes token replacements, converts markdown to HTML, and enqueues the email
- * to the `/mail` collection for delivery via the Firebase Trigger Email extension.
+ * to the `/mail` collection.
+ *
+ * If mail sending is paused in /system/mail-settings, enqueues a placeholder document
+ * with status: 'PAUSED' storing the templateKey and replacements (templateData).
+ * Template rendering will be deferred until mail sending is re-enabled.
  */
 export async function sendTransactionalEmail(
   db: admin.firestore.Firestore,
@@ -48,6 +54,44 @@ export async function sendTransactionalEmail(
   }
 
   try {
+    // Check if mail sending is globally paused
+    const mailSettingsSnap = await db.doc('system/mail-settings').get();
+    const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
+    const isPaused = mailSettings?.sendingPaused === true;
+
+    if (isPaused) {
+      // Defer template interpretation: write placeholder document with raw template key & data
+      const mailRef = await db.collection(FirestoreCollection.Mail).add({
+        to: validRecipients,
+        from: fromAddress,
+        replyTo: options.replyTo || environment.email?.contact || fromAddress,
+        status: 'PAUSED',
+        delivery: {
+          state: 'PAUSED',
+          attempts: 0,
+          error: null,
+        },
+        templateKey: options.templateKey,
+        templateData: options.replacements,
+        message: {
+          subject: `[Queued / Paused] Template: ${options.templateKey}`,
+          text: '',
+          html: '',
+        },
+        metadata: {
+          templateKey: options.templateKey,
+          paused: true,
+          queuedAt: new Date().toISOString(),
+        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info(
+        `[EmailDispatcher] Mail sending is paused. Enqueued placeholder for ${options.templateKey} email to ${validRecipients.join(', ')} (mailId: ${mailRef.id}).`,
+      );
+      return mailRef.id;
+    }
+
     // 1. Fetch custom templates or use system defaults
     const snap = await db.doc('system/email-templates').get();
     const customTemplates = snap.exists ? (snap.data() as Partial<EmailTemplates>) : {};
@@ -77,6 +121,8 @@ export async function sendTransactionalEmail(
         attempts: 0,
         error: null,
       },
+      templateKey: options.templateKey,
+      templateData: options.replacements,
       message: {
         subject: formattedSubject,
         text: formattedMarkdown,

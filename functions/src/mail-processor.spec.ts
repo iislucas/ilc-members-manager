@@ -6,6 +6,7 @@ import {
   MailQueueDoc,
   sendAdminTestEmail,
   retryMailItem,
+  setMailSendingPaused,
   processMailQueue,
 } from './mail-processor';
 import * as common from './common';
@@ -424,6 +425,135 @@ describe('mail-processor', () => {
 
       expect(mockUpdate).not.toHaveBeenCalled();
     });
+
+    it('sets document to PAUSED and stops if mail sending is globally paused', async () => {
+      const mockUpdate = vi.fn();
+      const mockDocRef = { update: mockUpdate };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return {
+              get: vi.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ sendingPaused: true }),
+              }),
+            };
+          }
+          return { get: vi.fn() };
+        }),
+      } as any);
+
+      await (processMailQueue as any).run({
+        data: {
+          after: {
+            exists: true,
+            ref: mockDocRef,
+            data: () => ({ status: 'PENDING', to: 'paused@example.com' }),
+          },
+        },
+        params: { mailId: 'mail_paused_1' },
+      });
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        status: 'PAUSED',
+        'delivery.state': 'PAUSED',
+      });
+    });
+  });
+
+  describe('setMailSendingPaused', () => {
+    it('throws error if user is not an admin', async () => {
+      vi.spyOn(common, 'assertAdmin').mockRejectedValue(
+        new HttpsError('permission-denied', 'Admin access required.'),
+      );
+
+      await expect(
+        setMailSendingPaused.run({
+          auth: { token: { email: 'user@example.com' } },
+          data: { paused: true },
+        } as any),
+      ).rejects.toThrow('Admin access required.');
+    });
+
+    it('pauses mail sending and updates /system/mail-settings', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockSet = vi.fn().mockResolvedValue({});
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return { set: mockSet };
+          }
+          return {};
+        }),
+      } as any);
+
+      const result = await setMailSendingPaused.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: { paused: true },
+      } as any);
+
+      expect(result.success).toBe(true);
+      expect(result.paused).toBe(true);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sendingPaused: true,
+          pausedBy: 'admin@iliqchuan.com',
+        }),
+        { merge: true },
+      );
+    });
+
+    it('resumes mail sending and transitions PAUSED documents to PENDING', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockSet = vi.fn().mockResolvedValue({});
+      const mockDocUpdate = vi.fn();
+      const mockBatchUpdate = vi.fn();
+      const mockBatchCommit = vi.fn().mockResolvedValue({});
+
+      const mockBatch = {
+        update: mockBatchUpdate,
+        commit: mockBatchCommit,
+      };
+
+      const pausedDoc1 = { ref: { id: 'doc1' } };
+      const pausedDoc2 = { ref: { id: 'doc2' } };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return { set: mockSet };
+          }
+          return {};
+        }),
+        collection: vi.fn().mockImplementation((coll: string) => {
+          if (coll === 'mail') {
+            return {
+              where: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  empty: false,
+                  docs: [pausedDoc1, pausedDoc2],
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+        batch: vi.fn().mockReturnValue(mockBatch),
+      } as any);
+
+      const result = await setMailSendingPaused.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: { paused: false },
+      } as any);
+
+      expect(result.success).toBe(true);
+      expect(result.paused).toBe(false);
+      expect(result.resumedCount).toBe(2);
+      expect(mockBatchUpdate).toHaveBeenCalledTimes(2);
+      expect(mockBatchCommit).toHaveBeenCalled();
+    });
   });
 });
+
 

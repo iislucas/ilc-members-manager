@@ -7,6 +7,7 @@ import { formatTemplate, markdownToHtml } from './email-markdown';
 import { Member } from './data-model/members';
 import { IlcEvent } from './data-model/events';
 import { FirestoreCollection } from './data-model/collections';
+import { MailSettings } from './data-model/mail';
 
 /**
  * Weekly upcoming events digest: runs every Monday at 08:00 UTC.
@@ -134,8 +135,12 @@ export async function processEventDigest(
   const eventsListMarkdown = compiledEventItems.join('\n\n');
 
   // 5. Fan out to recipients
+  const mailSettingsSnap = await db.doc('system/mail-settings').get();
+  const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
+  const isPaused = mailSettings?.sendingPaused === true;
+
   const calendarUrl = `${appBase}/events`;
-  const preferencesUrl = `${appBase}/settings?tab=notifications`;
+  const preferencesUrl = `${appBase}/settings/notifications`;
   const batch = db.batch();
   let count = 0;
 
@@ -163,21 +168,24 @@ export async function processEventDigest(
       to: [recipientEmail.trim().toLowerCase()],
       from: fromAddress,
       replyTo: environment.email?.contact || fromAddress,
-      status: 'PENDING',
+      status: isPaused ? 'PAUSED' : 'PENDING',
       delivery: {
-        state: 'PENDING',
+        state: isPaused ? 'PAUSED' : 'PENDING',
         attempts: 0,
         error: null,
       },
+      templateKey: 'eventDigestOverall',
+      templateData: replacements,
       message: {
-        subject,
-        text: bodyMarkdown,
-        html: htmlBody,
+        subject: isPaused ? `[Queued / Paused] Upcoming Events Digest` : subject,
+        text: isPaused ? '' : bodyMarkdown,
+        html: isPaused ? '' : htmlBody,
       },
       metadata: {
         templateKey: 'eventDigestOverall',
         frequency,
         sentAt: new Date().toISOString(),
+        ...(isPaused ? { paused: true } : {}),
       },
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });

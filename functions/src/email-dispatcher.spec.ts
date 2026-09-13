@@ -139,4 +139,57 @@ describe('sendTransactionalEmail', () => {
       environment.email.from = originalFrom;
     }
   });
+
+  it('enqueues placeholder document with status PAUSED when sending is globally paused', async () => {
+    const originalFrom = environment.email.from;
+    environment.email.from = 'orders@iliqchuan.com';
+
+    mockDb.doc = vi.fn().mockImplementation((path: string) => {
+      if (path === 'system/mail-settings') {
+        return {
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ sendingPaused: true }),
+          }),
+        };
+      }
+      return {
+        get: mockTemplatesDocGet,
+      };
+    });
+
+    try {
+      const mailId = await sendTransactionalEmail(mockDb, {
+        to: 'member@example.com',
+        templateKey: 'orderConfirmation',
+        replacements: {
+          name: 'Paused Member',
+          orderNumber: 'ORD-1111',
+        },
+      });
+
+      expect(mailId).toBe('mail-doc-123');
+      expect(mockMailAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: ['member@example.com'],
+          status: 'PAUSED',
+          templateKey: 'orderConfirmation',
+          templateData: {
+            name: 'Paused Member',
+            orderNumber: 'ORD-1111',
+          },
+          delivery: expect.objectContaining({
+            state: 'PAUSED',
+          }),
+          message: expect.objectContaining({
+            text: '',
+            html: '',
+          }),
+        }),
+      );
+    } finally {
+      environment.email.from = originalFrom;
+    }
+  });
 });
+

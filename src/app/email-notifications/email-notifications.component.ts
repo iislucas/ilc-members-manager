@@ -446,10 +446,54 @@ export class EmailNotificationsComponent {
     }
   }
 
+  // --- GLOBAL MAIL SENDING PAUSE STATE ---
+  isMailPaused = computed(() => this.dataManager.mailSettings().sendingPaused === true);
+  mailSettingsInfo = computed(() => this.dataManager.mailSettings());
+  isTogglingPause = signal(false);
+  pauseActionFeedback = signal<{ success: boolean; message: string } | null>(null);
+
+  async toggleMailPause() {
+    const currentlyPaused = this.isMailPaused();
+    const nextPaused = !currentlyPaused;
+
+    const confirmMsg = nextPaused
+      ? 'Are you sure you want to pause email sending? New transactional notifications will be queued as placeholders without sending.'
+      : 'Are you sure you want to resume email sending? All queued placeholder emails will be rendered using current templates and dispatched via SMTP.';
+
+    if (!window.confirm(confirmMsg)) return;
+
+    this.isTogglingPause.set(true);
+    this.pauseActionFeedback.set(null);
+
+    try {
+      const res = await this.dataManager.setMailSendingPaused(nextPaused);
+      if (nextPaused) {
+        this.pauseActionFeedback.set({
+          success: true,
+          message: 'Mail sending is now PAUSED. Outgoing notifications are being queued as placeholders.',
+        });
+      } else {
+        this.pauseActionFeedback.set({
+          success: true,
+          message: `Mail sending RESUMED. ${res.resumedCount} queued email(s) released for template interpretation and delivery.`,
+        });
+        await this.loadMailLogs(false);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.pauseActionFeedback.set({
+        success: false,
+        message: `Failed to update mail sending state: ${msg}`,
+      });
+    } finally {
+      this.isTogglingPause.set(false);
+    }
+  }
+
   // --- MAIL QUEUE & LOGS FUNCTIONALITY ---
   mailLogs = signal<MailQueueDoc[]>([]);
   isLoadingLogs = signal<boolean>(false);
-  logsFilter = signal<'ALL' | 'SUCCESS' | 'ERROR' | 'PENDING' | 'PROCESSING'>('ALL');
+  logsFilter = signal<'ALL' | 'SUCCESS' | 'ERROR' | 'PENDING' | 'PROCESSING' | 'PAUSED'>('ALL');
   logsSearch = signal<string>('');
   selectedLog = signal<MailQueueDoc | null>(null);
   isRetryingId = signal<string | null>(null);
@@ -466,15 +510,18 @@ export class EmailNotificationsComponent {
       if (filter === 'ERROR' && state !== 'ERROR') return false;
       if (filter === 'PENDING' && state !== 'PENDING' && state !== 'PROCESSING') return false;
       if (filter === 'PROCESSING' && state !== 'PROCESSING') return false;
+      if (filter === 'PAUSED' && state !== 'PAUSED') return false;
 
       if (query) {
         const toStr = Array.isArray(log.to) ? log.to.join(' ') : log.to || '';
         const subject = log.message?.subject || log.subject || '';
         const docId = log.docId || '';
+        const templateKey = log.templateKey || '';
         const match =
           toStr.toLowerCase().includes(query) ||
           subject.toLowerCase().includes(query) ||
-          docId.toLowerCase().includes(query);
+          docId.toLowerCase().includes(query) ||
+          templateKey.toLowerCase().includes(query);
         if (!match) return false;
       }
       return true;
@@ -486,10 +533,12 @@ export class EmailNotificationsComponent {
     let success = 0;
     let error = 0;
     let pending = 0;
+    let paused = 0;
     for (const log of logs) {
       const state = log.status || log.delivery?.state || 'PENDING';
       if (state === 'SUCCESS') success++;
       else if (state === 'ERROR') error++;
+      else if (state === 'PAUSED') paused++;
       else pending++;
     }
     return {
@@ -497,8 +546,14 @@ export class EmailNotificationsComponent {
       success,
       error,
       pending,
+      paused,
     };
   });
+
+  getTemplateDataEntries(data?: Record<string, string>): Array<{ key: string; value: string }> {
+    if (!data) return [];
+    return Object.entries(data).map(([key, value]) => ({ key, value }));
+  }
 
   async loadMailLogs(clearFeedback = true) {
     this.isLoadingLogs.set(true);

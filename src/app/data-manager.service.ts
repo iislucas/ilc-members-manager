@@ -30,7 +30,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { FirestoreCollection } from '../../functions/src/data-model/collections';
-import { MailQueueDoc } from '../../functions/src/data-model/mail';
+import { MailQueueDoc, MailSettings, initMailSettings } from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
 import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent } from '../../functions/src/data-model/events';
@@ -261,6 +261,7 @@ export class DataManagerService {
   );
   public counters = signal<Counters | null>(null);
   public emailTemplates = signal<EmailTemplates | null>(null);
+  public mailSettings = signal<MailSettings>(initMailSettings());
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
   public gradings = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
@@ -431,11 +432,12 @@ export class DataManagerService {
       }
     });
 
-    // System listeners reactive to auth status (counters, email-templates, videos)
+    // System listeners reactive to auth status (counters, email-templates, mail-settings, videos)
     effect(() => {
       const user = this.firebaseService.user();
       this.updateCountersSync(user);
       this.updateEmailTemplatesSync(user);
+      this.updateMailSettingsSync(user);
       this.updateVideosSync(user);
     });
 
@@ -611,6 +613,10 @@ export class DataManagerService {
     if (this.emailTemplatesUnsubscribe) {
       this.emailTemplatesUnsubscribe();
       this.emailTemplatesUnsubscribe = null;
+    }
+    if (this.mailSettingsUnsubscribe) {
+      this.mailSettingsUnsubscribe();
+      this.mailSettingsUnsubscribe = null;
     }
     if (this.videosUnsubscribe) {
       this.videosUnsubscribe();
@@ -1443,6 +1449,36 @@ export class DataManagerService {
       });
     } else {
       this.emailTemplates.set(null);
+    }
+  }
+
+  private mailSettingsUnsubscribe: (() => void) | null = null;
+
+  updateMailSettingsSync(user: UserDetails | null) {
+    if (this.mailSettingsUnsubscribe) {
+      this.mailSettingsUnsubscribe();
+      this.mailSettingsUnsubscribe = null;
+    }
+    if (user?.isAdmin) {
+      const mailSettingsRef = doc(this.db, 'system', 'mail-settings');
+      this.mailSettingsUnsubscribe = onSnapshot(
+        mailSettingsRef,
+        (snap) => {
+          if (snap.exists()) {
+            this.mailSettings.set({
+              ...initMailSettings(),
+              ...(snap.data() as Partial<MailSettings>),
+            });
+          } else {
+            this.mailSettings.set(initMailSettings());
+          }
+        },
+        (error) => {
+          console.error('Error fetching mail settings:', error);
+        },
+      );
+    } else {
+      this.mailSettings.set(initMailSettings());
     }
   }
 
@@ -2512,6 +2548,21 @@ export class DataManagerService {
       'retryMailItem',
     );
     const res = await fn({ mailId });
+    return res.data;
+  }
+
+  /**
+   * Admin-only callable to toggle pause on global outbound mail sending.
+   * When unpausing, transitions all documents in /mail with status: 'PAUSED' to 'PENDING'.
+   */
+  async setMailSendingPaused(
+    paused: boolean,
+  ): Promise<{ success: boolean; paused: boolean; resumedCount: number }> {
+    const fn = httpsCallable<
+      { paused: boolean },
+      { success: boolean; paused: boolean; resumedCount: number }
+    >(this.functions, 'setMailSendingPaused');
+    const res = await fn({ paused });
     return res.data;
   }
 

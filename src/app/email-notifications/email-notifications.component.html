@@ -49,6 +49,69 @@
   </div>
 
   <div class="card-body-content">
+    <!-- Global Mail Dispatch Status Banner -->
+    @if (isMailPaused()) {
+      <div class="mail-status-banner banner-paused">
+        <div class="banner-content">
+          <div class="banner-title">
+            <span class="status-indicator indicator-paused"></span>
+            <strong>Email Sending is PAUSED</strong>
+            @if (logCounts().paused > 0) {
+              <span class="paused-chip">{{ logCounts().paused }} placeholder email{{ logCounts().paused === 1 ? '' : 's' }} queued</span>
+            }
+          </div>
+          <p class="banner-desc">
+            Automated transactional notifications (purchases, registrations, event digests) are held as placeholders.
+            Templates will be interpreted dynamically using the latest saved definitions when sending is resumed.
+          </p>
+        </div>
+        <div class="banner-actions">
+          <button
+            type="button"
+            class="btn btn-primary btn-resume"
+            [disabled]="isTogglingPause()"
+            (click)="toggleMailPause()">
+            @if (isTogglingPause()) {
+              <app-spinner>Resuming...</app-spinner>
+            } @else {
+              ▶ Resume Email Sending
+            }
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="mail-status-banner banner-active">
+        <div class="banner-content">
+          <div class="banner-title">
+            <span class="status-indicator indicator-active"></span>
+            <span>Email Sending is <strong>Active</strong></span>
+          </div>
+          <p class="banner-desc">
+            Automated notifications and purchase confirmations are sent immediately via Google Workspace SMTP.
+          </p>
+        </div>
+        <div class="banner-actions">
+          <button
+            type="button"
+            class="btn btn-outline btn-pause"
+            [disabled]="isTogglingPause()"
+            (click)="toggleMailPause()">
+            @if (isTogglingPause()) {
+              <app-spinner>Pausing...</app-spinner>
+            } @else {
+              ⏸ Pause Email Sending
+            }
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (pauseActionFeedback(); as feedback) {
+      <div class="feedback-toast" [class.success]="feedback.success" [class.error]="!feedback.success">
+        {{ feedback.message }}
+      </div>
+    }
+
     <!-- ONBOARDING CATEGORY -->
     @if (activeCategory() === 'onboarding') {
       <div class="template-section">
@@ -504,6 +567,13 @@
           }
         }
 
+        @if (isMailPaused()) {
+          <div class="test-pause-notice">
+            <span class="badge-paused-inline">PAUSED</span>
+            <span>Global email sending is currently paused. This test email will bypass the pause and dispatch directly to verify your Google Workspace SMTP configuration.</span>
+          </div>
+        }
+
         <div class="actions">
           <button class="btn btn-primary" (click)="sendTestEmail()" [disabled]="isSendingTest()">
             @if (isSendingTest()) {
@@ -551,6 +621,10 @@
             <span class="stat-label">Pending / Processing</span>
             <span class="stat-value">{{ logCounts().pending }}</span>
           </div>
+          <div class="stat-card paused" [class.selected]="logsFilter() === 'PAUSED'" (click)="logsFilter.set('PAUSED')">
+            <span class="stat-label">Queued / Paused</span>
+            <span class="stat-value">{{ logCounts().paused }}</span>
+          </div>
           <div class="stat-card error" [class.selected]="logsFilter() === 'ERROR'" (click)="logsFilter.set('ERROR')">
             <span class="stat-label">Delivery Errors</span>
             <span class="stat-value">{{ logCounts().error }}</span>
@@ -588,6 +662,13 @@
               [class.active]="logsFilter() === 'PENDING'"
               (click)="logsFilter.set('PENDING')">
               In-Flight ({{ logCounts().pending }})
+            </button>
+            <button
+              type="button"
+              class="pill-btn paused"
+              [class.active]="logsFilter() === 'PAUSED'"
+              (click)="logsFilter.set('PAUSED')">
+              Queued / Paused ({{ logCounts().paused }})
             </button>
             <button
               type="button"
@@ -736,6 +817,40 @@
                   <code>{{ item.metadata | json }}</code>
                 </div>
               }
+              @if (item.templateKey) {
+                <div class="detail-item full-width template-placeholder-detail">
+                  <label>Template Placeholder</label>
+                  <div class="template-key-badge">
+                    Template: <code>{{ item.templateKey }}</code>
+                  </div>
+                  @if (item.templateData) {
+                    <div class="template-data-table-wrapper">
+                      <table class="template-data-table">
+                        <thead>
+                          <tr>
+                            <th>Parameter Token</th>
+                            <th>Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (entry of getTemplateDataEntries(item.templateData); track entry.key) {
+                            <tr>
+                              <td><code>{{ '{' + entry.key + '}' }}</code></td>
+                              <td>{{ entry.value }}</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  }
+                  @if (state === 'PAUSED') {
+                    <p class="placeholder-note">
+                      ⏸ This email was queued while mail sending was paused. When sending resumes,
+                      the latest template definition for <code>{{ item.templateKey }}</code> will be rendered dynamically with these parameters.
+                    </p>
+                  }
+                </div>
+              }
               <div class="detail-item full-width">
                 <label>Subject</label>
                 <p class="subject-text"><strong>{{ item.message?.subject || item.subject }}</strong></p>
@@ -743,7 +858,11 @@
               <div class="detail-item full-width">
                 <label>Message Content</label>
                 <div class="message-preview-container">
-                  @if (item.message?.html || item.html) {
+                  @if (state === 'PAUSED' && !item.message?.html && !item.html) {
+                    <div class="paused-placeholder-box">
+                      <p><em>Template has not yet been rendered. Content will be compiled dynamically from template <code>{{ item.templateKey }}</code> upon unpausing.</em></p>
+                    </div>
+                  } @else if (item.message?.html || item.html) {
                     <div class="html-preview" [innerHTML]="item.message?.html || item.html"></div>
                   } @else {
                     <pre class="plain-preview">{{ item.message?.text || item.text }}</pre>

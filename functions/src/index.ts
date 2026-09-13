@@ -89,4 +89,9 @@ export {
   sendMonthlyEventDigest,
 } from './event-digest-scheduler';
 
-export { processMailQueue, sendAdminTestEmail, retryMailItem } from './mail-processor';
+export {
+  processMailQueue,
+  sendAdminTestEmail,
+  retryMailItem,
+  setMailSendingPaused,
+} from './mail-processor';

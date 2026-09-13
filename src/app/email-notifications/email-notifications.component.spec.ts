@@ -7,6 +7,7 @@ import { Views } from '../app.config';
 import { signal } from '@angular/core';
 import { vi, describe, beforeEach, it, expect } from 'vitest';
 import { initEmailTemplates } from '../../../functions/src/data-model/content-cache';
+import { initMailSettings } from '../../../functions/src/data-model/mail';
 
 describe('EmailNotificationsComponent', () => {
   let component: EmailNotificationsComponent;
@@ -35,7 +36,9 @@ describe('EmailNotificationsComponent', () => {
 
     mockDataManager = {
       emailTemplates: signal(initEmailTemplates()),
+      mailSettings: signal(initMailSettings()),
       saveEmailTemplates: vi.fn().mockResolvedValue({}),
+      setMailSendingPaused: vi.fn().mockResolvedValue({ success: true, paused: true, resumedCount: 0 }),
       sendAdminTestEmail: vi.fn().mockResolvedValue({
         success: true,
         messageId: 'msg_test_123',
@@ -56,6 +59,16 @@ describe('EmailNotificationsComponent', () => {
           status: 'ERROR',
           delivery: { state: 'ERROR', error: 'SMTP Timeout' },
           message: { subject: 'Order Confirmation' },
+          createdAt: new Date().toISOString(),
+        },
+        {
+          docId: 'mail_3',
+          to: ['paused@example.com'],
+          status: 'PAUSED',
+          templateKey: 'orderConfirmation',
+          templateData: { name: 'Paused User', orderNumber: 'ORD-999' },
+          delivery: { state: 'PAUSED' },
+          message: { subject: '[Queued / Paused] Template: orderConfirmation' },
           createdAt: new Date().toISOString(),
         },
       ]),
@@ -189,24 +202,26 @@ describe('EmailNotificationsComponent', () => {
     expect(errorBox.textContent).toContain('Invalid credentials');
   });
 
-  it('should switch to logs category, load logs, and display summary stats', async () => {
+  it('should switch to logs category, load logs, and display summary stats including paused', async () => {
     await component.setCategory('logs');
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(mockDataManager.getRecentMailDocs).toHaveBeenCalled();
-    expect(component.mailLogs().length).toBe(2);
-    expect(component.logCounts().total).toBe(2);
+    expect(component.mailLogs().length).toBe(3);
+    expect(component.logCounts().total).toBe(3);
     expect(component.logCounts().success).toBe(1);
     expect(component.logCounts().error).toBe(1);
+    expect(component.logCounts().paused).toBe(1);
 
     const rows = fixture.nativeElement.querySelectorAll('.table-row');
-    expect(rows.length).toBe(2);
+    expect(rows.length).toBe(3);
     expect(fixture.nativeElement.textContent).toContain('student@example.com');
     expect(fixture.nativeElement.textContent).toContain('fail@example.com');
+    expect(fixture.nativeElement.textContent).toContain('paused@example.com');
   });
 
-  it('should filter logs by status and search query', async () => {
+  it('should filter logs by status including PAUSED and search query', async () => {
     await component.setCategory('logs');
     await component.loadMailLogs();
     fixture.detectChanges();
@@ -214,6 +229,10 @@ describe('EmailNotificationsComponent', () => {
     component.logsFilter.set('ERROR');
     expect(component.filteredMailLogs().length).toBe(1);
     expect(component.filteredMailLogs()[0].docId).toBe('mail_2');
+
+    component.logsFilter.set('PAUSED');
+    expect(component.filteredMailLogs().length).toBe(1);
+    expect(component.filteredMailLogs()[0].docId).toBe('mail_3');
 
     component.logsFilter.set('ALL');
     component.logsSearch.set('student');
@@ -229,5 +248,43 @@ describe('EmailNotificationsComponent', () => {
     await component.retryMail('mail_2');
     expect(mockDataManager.retryMailItem).toHaveBeenCalledWith('mail_2');
     expect(component.retryFeedback()?.success).toBe(true);
+  });
+
+  it('should toggle mail sending pause state when toggleMailPause is called', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    // Initial state: active
+    expect(component.isMailPaused()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.banner-active')).toBeTruthy();
+
+    // Call toggle to pause
+    await component.toggleMailPause();
+    expect(mockDataManager.setMailSendingPaused).toHaveBeenCalledWith(true);
+    expect(component.pauseActionFeedback()?.success).toBe(true);
+
+    // Simulate settings updated to paused
+    mockDataManager.mailSettings.set({ sendingPaused: true });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.isMailPaused()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.banner-paused')).toBeTruthy();
+
+    // Call toggle to resume
+    mockDataManager.setMailSendingPaused.mockResolvedValueOnce({ success: true, paused: false, resumedCount: 1 });
+    await component.toggleMailPause();
+    expect(mockDataManager.setMailSendingPaused).toHaveBeenCalledWith(false);
+    expect(component.pauseActionFeedback()?.message).toContain('1 queued email(s) released');
+  });
+
+  it('should extract templateData entries in getTemplateDataEntries', () => {
+    const entries = component.getTemplateDataEntries({
+      name: 'Bob',
+      orderNumber: '1001',
+    });
+    expect(entries).toEqual([
+      { key: 'name', value: 'Bob' },
+      { key: 'orderNumber', value: '1001' },
+    ]);
   });
 });

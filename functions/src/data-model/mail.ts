@@ -5,7 +5,7 @@
  * delivery attempt metrics, and error traces.
  */
 
-export type MailDeliveryState = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'ERROR';
+export type MailDeliveryState = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'ERROR' | 'PAUSED';
 
 export interface MailDeliveryInfo {
   state?: MailDeliveryState;
@@ -36,6 +36,8 @@ export interface MailMetadata {
   frequency?: string;
   orderNumber?: string;
   adminTest?: boolean;
+  paused?: boolean;
+  queuedAt?: string;
   [key: string]: unknown;
 }
 
@@ -51,6 +53,8 @@ export interface MailQueueDoc {
   status?: MailDeliveryState;
   delivery?: MailDeliveryInfo;
   metadata?: MailMetadata;
+  templateKey?: string;
+  templateData?: Record<string, string>;
   createdAt?: unknown;
 }
 
@@ -73,5 +77,22 @@ export function initMailDoc(): MailQueueDoc {
       text: '',
       html: '',
     },
+  };
+}
+
+/**
+ * Global system settings for outbound mail dispatch, stored at /system/mail-settings.
+ */
+export interface MailSettings {
+  sendingPaused: boolean;
+  pausedAt?: string;
+  pausedBy?: string;
+  resumedAt?: string;
+  resumedBy?: string;
+}
+
+export function initMailSettings(): MailSettings {
+  return {
+    sendingPaused: false,
   };
 }
