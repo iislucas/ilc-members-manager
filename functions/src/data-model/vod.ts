@@ -29,6 +29,7 @@ export enum VideoGrantKind {
   AdminGrant = 'admin_grant',
   EventAttendance = 'event_attendance',
   Complimentary = 'complimentary',
+  GiftPurchase = 'gift_purchase',
 }
 
 export type VideoItem = {
@@ -450,6 +451,10 @@ export type VideoGrant = {
   stripeSessionId?: string; // Stripe checkout session ID
   amountPaidCents?: number; // In cents
   grantedByMemberDocId?: string; // Admin docId if granted manually
+  giftedByMemberDocId?: string; // Member docId of gift sender
+  giftedByName?: string; // Display name snapshot of gift sender
+  giftedByEmail?: string; // Email snapshot of gift sender
+  giftMessage?: string; // Optional personal message from gift sender
   notes?: string; // Reason / reference notes
   grantedAt: string; // ISO Timestamp
   expiresAt?: string; // Optional expiration timestamp (for rentals or temporary access)
@@ -475,6 +480,10 @@ export function firestoreDocToVideoGrant(doc: GenericFsDoc): VideoGrant {
     ...data,
     docId: doc.id,
     grantKind: data.grantKind || VideoGrantKind.StripePurchase,
+    giftedByMemberDocId: data.giftedByMemberDocId || undefined,
+    giftedByName: data.giftedByName || undefined,
+    giftedByEmail: data.giftedByEmail || undefined,
+    giftMessage: data.giftMessage || undefined,
     grantedAt: data.grantedAt || new Date().toISOString(),
   };
 }

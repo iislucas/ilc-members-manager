@@ -455,4 +455,24 @@ describe('ManageVodComponent', () => {
     expect(dateEl?.textContent?.trim()).toBe(formatted);
     expect(dateEl?.textContent).not.toContain('Added');
   });
+
+  it('should open and close the grant modal for a video', () => {
+    const video = mockDataService.videos.entries()[0];
+    component.openGrantModal(video);
+    expect(component.grantingVideo()).toEqual(video);
+    expect(component.grantingSeries()).toBeNull();
+
+    component.closeGrantModal();
+    expect(component.grantingVideo()).toBeNull();
+  });
+
+  it('should open and close the grant modal for a series', () => {
+    const series = mockDataService.getVideoSeriesList()[0];
+    component.openGrantSeriesModal(series);
+    expect(component.grantingSeries()).toEqual(series);
+    expect(component.grantingVideo()).toBeNull();
+
+    component.closeGrantModal();
+    expect(component.grantingSeries()).toBeNull();
+  });
 });

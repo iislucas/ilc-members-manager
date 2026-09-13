@@ -23,7 +23,17 @@ import {
   ViewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import { VideoItem, VideoSeries, groupVideosIntoSeries, VodAccessTier, VodStatus, VideoProgress, VideoTimeRange } from '../../../functions/src/data-model/vod';
+import {
+  VideoItem,
+  VideoSeries,
+  groupVideosIntoSeries,
+  VodAccessTier,
+  VodStatus,
+  VideoProgress,
+  VideoTimeRange,
+  VideoGrant,
+  VideoGrantKind,
+} from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -89,6 +99,15 @@ export class VideoViewComponent implements OnInit {
   isPurchasing = signal(false);
   initialPositionSeconds = signal(0);
   errorMessage = signal<string | null>(null);
+
+  // Gifting State
+  isGiftPurchase = signal<boolean>(false);
+  giftRecipientEmail = signal<string>('');
+  giftRecipientName = signal<string>('');
+  giftMessage = signal<string>('');
+  giftValidationError = signal<string | null>(null);
+  isGiftModalOpen = signal<boolean>(false);
+  giftModalTarget = signal<'video' | 'series'>('video');
 
   // Time-ranges & Repeat Loop State
   currentPlayerTime = signal<number>(0);
@@ -189,6 +208,53 @@ export class VideoViewComponent implements OnInit {
       .slice(0, 4);
   });
 
+  // Gifting Computeds
+  activeVideoGrant = computed<VideoGrant | null>(() => {
+    const v = this.video();
+    if (!v) return null;
+    const grants = this.dataService.myVideoGrants.entries();
+    return (
+      grants.find(
+        (g) =>
+          g.videoId === v.docId ||
+          (Boolean(v.seriesId) && g.videoId === v.seriesId),
+      ) || null
+    );
+  });
+
+  giftProvenance = computed<{ from: string; message?: string } | null>(() => {
+    const grant = this.activeVideoGrant();
+    if (!grant) return null;
+    if (
+      grant.grantKind === VideoGrantKind.GiftPurchase ||
+      Boolean(grant.giftedByName) ||
+      Boolean(grant.giftedByEmail) ||
+      Boolean(grant.giftMessage)
+    ) {
+      const from = grant.giftedByName || grant.giftedByEmail || 'A friend';
+      return {
+        from,
+        message: grant.giftMessage,
+      };
+    }
+    return null;
+  });
+
+  canGiftVideo = computed(() => {
+    const v = this.video();
+    if (!v) return false;
+    const session = this.sessionState();
+    return Boolean(this.isBuyable(v) && (session?.stripePriceId || v.stripePriceId));
+  });
+
+  canGiftSeries = computed(() => {
+    const s = this.series();
+    if (!s) return false;
+    const session = this.sessionState();
+    const v = this.video();
+    return Boolean(s.stripePriceId || session?.seriesStripePriceId || v?.seriesStripePriceId || s.priceCents);
+  });
+
   private lastLoadedVideoId: string | null = null;
 
   constructor() {
@@ -223,6 +289,9 @@ export class VideoViewComponent implements OnInit {
     this.currentPlayerTime.set(0);
     this.activeLoopRange.set(null);
     this.streamingStats.set(null);
+    this.isGiftPurchase.set(false);
+    this.isGiftModalOpen.set(false);
+    this.giftValidationError.set(null);
 
     // Scroll back to top when switching videos
     if (typeof window !== 'undefined') {
@@ -342,7 +411,34 @@ export class VideoViewComponent implements OnInit {
       .catch((err) => console.warn('Could not sync video completion:', err));
   }
 
-  async startPurchase(): Promise<void> {
+  openGiftModal(target: 'video' | 'series' = 'video'): void {
+    this.giftModalTarget.set(target);
+    this.giftValidationError.set(null);
+    this.isGiftModalOpen.set(true);
+  }
+
+  closeGiftModal(): void {
+    this.isGiftModalOpen.set(false);
+    this.giftValidationError.set(null);
+  }
+
+  toggleGiftPurchase(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.isGiftPurchase.set(checked);
+    if (!checked) {
+      this.giftValidationError.set(null);
+    }
+  }
+
+  async startGiftModalPurchase(): Promise<void> {
+    if (this.giftModalTarget() === 'series') {
+      await this.startSeriesPurchase(true);
+    } else {
+      await this.startPurchase(true);
+    }
+  }
+
+  async startPurchase(asGift = false): Promise<void> {
     const v = this.video();
     const session = this.sessionState();
     const priceId = session?.stripePriceId || v?.stripePriceId;
@@ -350,6 +446,16 @@ export class VideoViewComponent implements OnInit {
       alert('This video is not currently available for individual purchase.');
       return;
     }
+
+    const isGiftEffective = asGift || this.isGiftPurchase();
+    if (isGiftEffective) {
+      const email = this.giftRecipientEmail().trim();
+      if (!email || !email.includes('@')) {
+        this.giftValidationError.set('Please enter a valid recipient email address.');
+        return;
+      }
+    }
+    this.giftValidationError.set(null);
 
     this.isPurchasing.set(true);
     try {
@@ -363,6 +469,16 @@ export class VideoViewComponent implements OnInit {
             videoId: v?.docId || '',
             orderType: 'vod',
           },
+          isGift: isGiftEffective,
+          recipientEmail: isGiftEffective ? this.giftRecipientEmail().trim() : undefined,
+          recipientName:
+            isGiftEffective && this.giftRecipientName().trim()
+              ? this.giftRecipientName().trim()
+              : undefined,
+          giftMessage:
+            isGiftEffective && this.giftMessage().trim()
+              ? this.giftMessage().trim()
+              : undefined,
           successUrl: `${origin}/videos/${v?.docId}`,
           cancelUrl: `${origin}/videos/${v?.docId}`,
         },
@@ -380,16 +496,30 @@ export class VideoViewComponent implements OnInit {
     }
   }
 
-  async startSeriesPurchase(): Promise<void> {
+  async startSeriesPurchase(asGift = false): Promise<void> {
     const s = this.series();
     const v = this.video();
     const session = this.sessionState();
     if (!s) return;
-    const priceId = s.stripePriceId || session?.seriesStripePriceId || v?.seriesStripePriceId || v?.stripePriceId;
+    const priceId =
+      s.stripePriceId ||
+      session?.seriesStripePriceId ||
+      v?.seriesStripePriceId ||
+      v?.stripePriceId;
     if (!priceId) {
       alert('This series is not currently configured with a Stripe price.');
       return;
     }
+
+    const isGiftEffective = asGift || this.isGiftPurchase();
+    if (isGiftEffective) {
+      const email = this.giftRecipientEmail().trim();
+      if (!email || !email.includes('@')) {
+        this.giftValidationError.set('Please enter a valid recipient email address.');
+        return;
+      }
+    }
+    this.giftValidationError.set(null);
 
     this.isPurchasing.set(true);
     try {
@@ -404,6 +534,16 @@ export class VideoViewComponent implements OnInit {
             videoId: v?.docId || '',
             orderType: 'vod',
           },
+          isGift: isGiftEffective,
+          recipientEmail: isGiftEffective ? this.giftRecipientEmail().trim() : undefined,
+          recipientName:
+            isGiftEffective && this.giftRecipientName().trim()
+              ? this.giftRecipientName().trim()
+              : undefined,
+          giftMessage:
+            isGiftEffective && this.giftMessage().trim()
+              ? this.giftMessage().trim()
+              : undefined,
           successUrl: `${origin}/videos/${v?.docId}`,
           cancelUrl: `${origin}/videos/${v?.docId}`,
         },

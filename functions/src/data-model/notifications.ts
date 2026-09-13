@@ -78,6 +78,10 @@ export enum NotificationKind {
   EventRegistrationConfirmed = 'EventRegistrationConfirmed',
   // Sent to paid event attendees when the recording for the event becomes available.
   EventVideoAvailable = 'EventVideoAvailable',
+  // Sent to a member when access to a video or series is granted to them by admin/staff.
+  VideoAccessGranted = 'VideoAccessGranted',
+  // Sent to a member when a video or series is gifted to them by another user.
+  VideoGiftReceived = 'VideoGiftReceived',
 }
 
 // Two presentation styles for notifications: an 'action' has an expectation/TODO
@@ -264,6 +268,16 @@ export interface NotificationEventVideoAvailableData {
   videoUrl?: string;
 }
 
+export interface NotificationVideoGrantData {
+  videoId?: string;
+  seriesId?: string;
+  title: string;
+  grantKind: string;
+  giftedByName?: string;
+  giftMessage?: string;
+  videoUrl?: string;
+}
+
 export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingRequestAccepted;
@@ -388,6 +402,14 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.EventVideoAvailable;
     data: NotificationEventVideoAvailableData;
+  }
+  | {
+    kind: NotificationKind.VideoAccessGranted;
+    data: NotificationVideoGrantData;
+  }
+  | {
+    kind: NotificationKind.VideoGiftReceived;
+    data: NotificationVideoGrantData;
   }
 );
 
