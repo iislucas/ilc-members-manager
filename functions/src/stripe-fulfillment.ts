@@ -36,7 +36,8 @@ import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
 import { getMemberByEmail } from './common';
 import { environment } from './environment/environment.js';
-import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
+import { sendTransactionalEmail } from './email-dispatcher.js';
+import { TransactionalEmailKey } from './data-model/mail';
 
 import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
 
@@ -1508,24 +1509,52 @@ export async function fulfillStripeOrder(
           isGift,
         });
 
-        if (isGift && recipientMember) {
+        if (isGift) {
           const videoTitle = item.description || 'Video on Demand';
           const messageSnippet = giftMessage ? `\n\n> "${giftMessage}"` : '';
-          await createMemberNotification(db, recipientMember.docId, {
-            kind: NotificationKind.VideoGiftReceived,
-            markdown: `🎁 **${buyerName}** gifted you access to [**${videoTitle}**](/videos/${targetId})!${messageSnippet}`,
-            createdAt: new Date().toISOString(),
-            dismissed: false,
-            data: {
-              videoId: targetId,
-              seriesId: seriesId || undefined,
-              title: videoTitle,
-              grantKind: VideoGrantKind.GiftPurchase,
-              giftedByName: buyerName,
-              giftMessage: giftMessage || undefined,
-              videoUrl: `/videos/${targetId}`,
-            },
-          });
+
+          if (recipientMember) {
+            await createMemberNotification(db, recipientMember.docId, {
+              kind: NotificationKind.VideoGiftReceived,
+              markdown: `🎁 **${buyerName}** gifted you access to [**${videoTitle}**](/videos/${targetId})!${messageSnippet}`,
+              createdAt: new Date().toISOString(),
+              dismissed: false,
+              data: {
+                videoId: targetId,
+                seriesId: seriesId || undefined,
+                title: videoTitle,
+                grantKind: VideoGrantKind.GiftPurchase,
+                giftedByName: buyerName,
+                giftMessage: giftMessage || undefined,
+                videoUrl: `/videos/${targetId}`,
+              },
+            });
+          }
+
+          if (recipientEmail) {
+            try {
+              const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
+              const videoUrl = `${appBase}/videos/${targetId}`;
+              await sendTransactionalEmail(db, {
+                to: recipientEmail,
+                templateKey: TransactionalEmailKey.VodGiftReceived,
+                replacements: {
+                  name: recipientMember?.name || recipientName || 'ILC Member',
+                  giverName: buyerName,
+                  videoTitle,
+                  videoUrl,
+                  giftMessage: giftMessage || 'Enjoy the video!',
+                  appBase,
+                },
+              });
+            } catch (emailErr) {
+              logger.error('Failed to send vodGiftReceived email during fulfillment', {
+                emailErr,
+                recipientEmail,
+                targetId,
+              });
+            }
+          }
         }
       }
     } else if (category === OrderItemCategory.Event || order.metadata?.['orderType'] === 'event_registration') {
@@ -1624,14 +1653,19 @@ export async function fulfillStripeOrder(
         const videoTitle =
           vodItem?.description ||
           order.metadata?.['videoTitle'] ||
+          order.lineItems[0]?.description ||
           'Video on Demand';
         const videoId = order.metadata?.['videoId'] || '';
+        const isGiftOrder = order.metadata?.['isGift'] === 'true';
+        const giftRecipient = order.metadata?.['recipientName'] || order.metadata?.['recipientEmail'] || '';
+        const displayTitle = isGiftOrder && giftRecipient ? `${videoTitle} (Gift for ${giftRecipient})` : videoTitle;
+
         await sendTransactionalEmail(db, {
           to: recipientEmail,
           templateKey: TransactionalEmailKey.VodPurchaseConfirmation,
           replacements: {
             name: member.name || order.customerName || 'ILC Member',
-            videoTitle,
+            videoTitle: displayTitle,
             videoUrl: videoId ? `${appBase}/videos/${videoId}` : `${appBase}/videos`,
             amount: `${totalAmount} ${currency}`,
             receiptUrl: '',

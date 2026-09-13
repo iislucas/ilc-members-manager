@@ -31,7 +31,7 @@ import {
 } from '../../../functions/src/email-markdown';
 
 export type TemplateCategory = 'settings' | 'test' | 'onboarding' | 'purchases' | 'digest' | 'logs';
-export type PurchaseSubtype = 'order' | 'event' | 'vod' | 'grading' | 'subscription';
+export type PurchaseSubtype = 'order' | 'event' | 'vod' | 'vod-gift' | 'grading' | 'subscription';
 export type TestEmailType = 'ping' | 'welcome' | 'order' | 'digest';
 
 export interface TestEmailReplacements {
@@ -55,6 +55,8 @@ export interface TestEmailReplacements {
   specialInstructions: string;
   videoTitle: string;
   videoUrl: string;
+  giverName: string;
+  giftMessage: string;
   gradingLevel: string;
   gradingEventName: string;
   gradingDate: string;
@@ -75,7 +77,7 @@ export const DEFAULT_PING_BODY =
   'Hello **{name}**,\n\nThis is a test verification email from the I Liq Chuan system.\n\nAll systems operational.\n\nBest regards,\n[I Liq Chuan Association]({appBase})';
 
 const VALID_CATEGORIES: TemplateCategory[] = ['settings', 'test', 'onboarding', 'purchases', 'digest', 'logs'];
-const VALID_PURCHASE_SUBTYPES: PurchaseSubtype[] = ['order', 'event', 'vod', 'grading', 'subscription'];
+const VALID_PURCHASE_SUBTYPES: PurchaseSubtype[] = ['order', 'event', 'vod', 'vod-gift', 'grading', 'subscription'];
 
 @Component({
   selector: 'app-email-notifications',
@@ -175,6 +177,15 @@ export class EmailNotificationsComponent {
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
+  readonly vodGiftChips: EditorChip[] = [
+    { token: '{name}', description: "Recipient's full name" },
+    { token: '{giverName}', description: "Sender / giver's name" },
+    { token: '{videoTitle}', description: 'Title of gifted video or series' },
+    { token: '{videoUrl}', description: 'Direct link to watch video' },
+    { token: '{giftMessage}', description: 'Personal gift note from sender' },
+    { token: '{appBase}', description: 'Application base URL' },
+  ];
+
   readonly gradingChips: EditorChip[] = [
     { token: '{name}', description: "Student's full name" },
     { token: '{memberId}', description: "Student's Member ID" },
@@ -244,6 +255,9 @@ export class EmailNotificationsComponent {
   );
   vodBodyWarnings = computed(() =>
     findUnsupportedEmailMarkdown(this.templates().vodPurchaseConfirmationBody || '')
+  );
+  vodGiftBodyWarnings = computed(() =>
+    findUnsupportedEmailMarkdown(this.templates().vodGiftReceivedBody || '')
   );
   gradingBodyWarnings = computed(() =>
     findUnsupportedEmailMarkdown(this.templates().gradingPaymentConfirmationBody || '')
@@ -410,6 +424,8 @@ export class EmailNotificationsComponent {
       specialInstructions: 'Please arrive 15 minutes prior to the first session.',
       videoTitle: '21 Form Detailed Breakdown',
       videoUrl: `${origin}/videos/v-21-form`,
+      giverName: 'Sam Chin',
+      giftMessage: 'Enjoy this video for your daily practice!',
       gradingLevel: 'Student Level 3',
       gradingEventName: 'Annual International Grading Examination',
       gradingDate: 'October 12, 2026',
@@ -591,6 +607,10 @@ export class EmailNotificationsComponent {
 
   setVodBody(markdown: string) {
     this.updateBody('vodPurchaseConfirmationBody', markdown);
+  }
+
+  setVodGiftBody(markdown: string) {
+    this.updateBody('vodGiftReceivedBody', markdown);
   }
 
   setGradingBody(markdown: string) {

@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { GrantVodModalComponent } from './grant-vod-modal';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
 import { initVideoItem, VideoGrantKind } from '../../../functions/src/data-model/vod';
 import { initMember } from '../../../functions/src/data-model/members';
+import { initMailSettings, MailSendingStatus } from '../../../functions/src/data-model/mail';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 describe('GrantVodModalComponent', () => {
@@ -28,8 +30,12 @@ describe('GrantVodModalComponent', () => {
   };
 
   beforeEach(async () => {
+    const memberSet = new SearchableSet(['name'], 'memberId');
+    memberSet.setEntries([mockMember]);
+
     mockDataManagerService = {
-      members: new SearchableSet(['name'], 'memberId'),
+      members: memberSet,
+      mailSettings: signal(initMailSettings()),
       getMember: vi.fn(),
       getMemberByMemberId: vi.fn().mockReturnValue(mockMember),
       grantVideoAccess: vi.fn().mockResolvedValue({
@@ -104,5 +110,40 @@ describe('GrantVodModalComponent', () => {
 
     expect(component.errorMessage()).toContain('valid email');
     expect(mockDataManagerService.grantVideoAccess).not.toHaveBeenCalled();
+  });
+
+  it('should display warning banner and prevent manual entry to non-member when mail sending is Off', async () => {
+    mockDataManagerService.mailSettings.set({
+      ...initMailSettings(),
+      status: MailSendingStatus.Off,
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.isMailOff()).toBe(true);
+    const banner = fixture.nativeElement.querySelector('.mail-off-banner');
+    expect(banner).toBeTruthy();
+    expect(banner.textContent).toContain('Email notifications are currently turned off');
+
+    // Toggling manual email button is hidden when mail is off
+    const toggleBtn = fixture.nativeElement.querySelector('.text-link-btn');
+    expect(toggleBtn).toBeNull();
+
+    // If manual email is somehow attempted for an outsider
+    component.useManualEmail.set(true);
+    component.manualEmail.set('outsider@example.com');
+    await component.submitGrant();
+
+    expect(component.errorMessage()).toContain('Access can only be granted to existing member accounts');
+    expect(mockDataManagerService.grantVideoAccess).not.toHaveBeenCalled();
+
+    // If manual email matches an existing member, grant should succeed
+    component.manualEmail.set('student@example.com');
+    await component.submitGrant();
+    expect(mockDataManagerService.grantVideoAccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientEmail: 'student@example.com',
+      }),
+    );
   });
 });

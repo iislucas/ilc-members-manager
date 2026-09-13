@@ -17,6 +17,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { VideoItem, VideoSeries, VideoGrantKind } from '../../../functions/src/data-model/vod';
 import { Member } from '../../../functions/src/data-model/members';
+import { MailSendingStatus } from '../../../functions/src/data-model/mail';
 import { DataManagerService } from '../data-manager.service';
 import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { IconComponent } from '../icons/icon.component';
@@ -61,6 +62,10 @@ export class GrantVodModalComponent {
   isGranting = signal<boolean>(false);
   errorMessage = signal<string>('');
 
+  isMailOff = computed(() => {
+    return this.dataService.mailSettings().status === MailSendingStatus.Off;
+  });
+
   readonly VideoGrantKind = VideoGrantKind;
 
   canGrantSeries = computed(() => {
@@ -104,6 +109,19 @@ export class GrantVodModalComponent {
     if (!email || !email.includes('@')) {
       this.errorMessage.set('Please select a member with a valid email or enter a recipient email.');
       return;
+    }
+
+    if (this.isMailOff() && !this.selectedMember()) {
+      const allMembers = this.dataService.members.entries() || [];
+      const found = allMembers.find(
+        (m) => (m.emails || []).some((e) => e.toLowerCase() === email.toLowerCase())
+      );
+      if (!found) {
+        this.errorMessage.set(
+          'Email notifications are currently turned off. Access can only be granted to existing member accounts.',
+        );
+        return;
+      }
     }
 
     const targetId = this.effectiveTargetId();

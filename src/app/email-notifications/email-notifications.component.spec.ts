@@ -245,19 +245,22 @@ describe('EmailNotificationsComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(component.activeCategory()).toBe('purchases');
     const subPills = fixture.nativeElement.querySelectorAll('.purchase-sub-tabs .pill-tab');
-    expect(subPills.length).toBe(5);
+    expect(subPills.length).toBe(6);
 
     const subSelect = fixture.nativeElement.querySelector('.purchase-sub-select') as HTMLSelectElement;
     expect(subSelect).toBeTruthy();
-    expect(subSelect.options.length).toBe(5);
+    expect(subSelect.options.length).toBe(6);
   });
 
   it('should update activePurchaseSubtype when setPurchaseSubtype is called', () => {
     component.setPurchaseSubtype('vod');
     expect(subtabSignal()).toBe('vod');
     expect(component.activePurchaseSubtype()).toBe('vod');
+
+    component.setPurchaseSubtype('vod-gift');
+    expect(subtabSignal()).toBe('vod-gift');
+    expect(component.activePurchaseSubtype()).toBe('vod-gift');
   });
 
   it('should feed each template body into a markdown editor', () => {

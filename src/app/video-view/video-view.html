@@ -260,6 +260,12 @@
 
                   @if (isGiftPurchase()) {
                     <div class="inline-gift-inputs">
+                      @if (isMailOff()) {
+                        <div class="mail-off-notice">
+                          <app-icon name="info"></app-icon>
+                          <span>Email notifications are currently turned off. Gifts can only be sent to existing ILC member accounts.</span>
+                        </div>
+                      }
                       <div class="gift-input-field">
                         <label for="lockGiftEmail">Recipient Email <span class="required">*</span></label>
                         <input
@@ -822,6 +828,12 @@
             </div>
 
             <div class="gift-modal-form">
+              @if (isMailOff()) {
+                <div class="mail-off-modal-notice">
+                  <app-icon name="info"></app-icon>
+                  <span>Email notifications are currently turned off. Gifts can only be sent to existing ILC member accounts.</span>
+                </div>
+              }
               <div class="modal-form-group">
                 <label for="modalRecipientEmail">Recipient's Email <span class="required">*</span></label>
                 <input

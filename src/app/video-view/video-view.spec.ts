@@ -11,6 +11,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { StripeService } from '../stripe.service';
 import { initVideoItem, VideoItem, VideoTimeRange, VodAccessTier, VodStatus, VideoGrant, VideoGrantKind } from '../../../functions/src/data-model/vod';
+import { initMailSettings, MailSendingStatus, MailSettings } from '../../../functions/src/data-model/mail';
 import { signal, WritableSignal } from '@angular/core';
 
 describe('VideoViewComponent', () => {
@@ -26,6 +27,7 @@ describe('VideoViewComponent', () => {
     getTagMeta: ReturnType<typeof vi.fn>;
     videos: { entries: WritableSignal<VideoItem[]> };
     myVideoGrants: { entries: WritableSignal<VideoGrant[]> };
+    mailSettings: WritableSignal<MailSettings>;
   };
   let mockFirebaseState: {
     user: WritableSignal<null>;
@@ -77,6 +79,7 @@ describe('VideoViewComponent', () => {
       myVideoGrants: {
         entries: signal<VideoGrant[]>([]),
       },
+      mailSettings: signal(initMailSettings()),
     };
 
     mockFirebaseState = {
@@ -561,6 +564,73 @@ describe('VideoViewComponent', () => {
       expect(component.isGiftPurchase()).toBe(false);
       expect(component.isGiftModalOpen()).toBe(false);
       expect(component.giftValidationError()).toBeNull();
+    });
+
+    it('should display mail-off notice when email notifications are off', async () => {
+      mockDataService.mailSettings.set({
+        ...initMailSettings(),
+        status: MailSendingStatus.Off,
+      });
+
+      mockDataService.getVideoById.mockResolvedValue({
+        ...initVideoItem(),
+        docId: 'v100',
+        title: 'Paid Video',
+        accessTier: VodAccessTier.DirectPurchase,
+        isBuyable: true,
+        priceCents: 2000,
+        stripePriceId: 'price_paid_1',
+      });
+      mockDataService.getVideoPlaybackSession.mockResolvedValue({
+        authorized: false,
+        requiresPurchase: true,
+        stripePriceId: 'price_paid_1',
+      });
+
+      await component.ngOnInit();
+      component.isGiftPurchase.set(true);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.isMailOff()).toBe(true);
+      const compiled = fixture.nativeElement as HTMLElement;
+      const notice = compiled.querySelector('.mail-off-notice');
+      expect(notice).toBeTruthy();
+      expect(notice?.textContent).toContain('Email notifications are currently turned off');
+
+      // Open gift modal
+      component.openGiftModal('video');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const modalNotice = compiled.querySelector('.mail-off-modal-notice');
+      expect(modalNotice).toBeTruthy();
+      expect(modalNotice?.textContent).toContain('Gifts can only be sent to existing ILC member accounts');
+    });
+
+    it('should display giftValidationError if gift checkout fails', async () => {
+      mockDataService.getVideoById.mockResolvedValueOnce({
+        ...initVideoItem(),
+        docId: 'v300',
+        title: 'Paid Video',
+        accessTier: VodAccessTier.DirectPurchase,
+        isBuyable: true,
+        priceCents: 2000,
+        stripePriceId: 'price_paid_1',
+      });
+      await component.loadVideo('v300');
+
+      mockStripeService.createCheckoutSession.mockRejectedValueOnce(
+        new Error('Email notifications are currently turned off. Gifts can only be sent to existing member accounts.'),
+      );
+
+      component.giftRecipientEmail.set('nonmember@example.com');
+      await component.startPurchase(true);
+
+      expect(component.giftValidationError()).toBe(
+        'Email notifications are currently turned off. Gifts can only be sent to existing member accounts.',
+      );
     });
   });
 });
