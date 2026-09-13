@@ -28,6 +28,13 @@
   padding: 0;
 }
 
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 body {
   font-family: var(--font-sans);
   background: var(--bg);
@@ -37,6 +44,16 @@ body {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+}
+
+doc-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1;
 }
 
 /* Code & Pre */

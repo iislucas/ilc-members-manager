@@ -12,6 +12,7 @@ import {
   effect,
   inject,
   afterNextRender,
+  signal,
 } from '@angular/core';
 import * as d3 from 'd3';
 import { DocsDataService } from '../../services/docs-data.service';
@@ -41,6 +42,8 @@ export class UserTaxonomyTreeComponent {
   private readonly svgContainer = viewChild.required<ElementRef<SVGSVGElement>>('treeSvg');
   private zoomBehavior?: d3.ZoomBehavior<SVGSVGElement, unknown>;
   private gRoot?: d3.Selection<SVGGElement, unknown, null, undefined>;
+
+  readonly isTreeCollapsed = signal<boolean>(false);
 
   constructor() {
     afterNextRender(() => {
@@ -109,6 +112,22 @@ export class UserTaxonomyTreeComponent {
     this.zoomBehavior = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.4, 2.5])
+      .filter((event) => {
+        // Allow primary mouse button drag (pan)
+        if (event.type === 'mousedown') {
+          return event.button === 0;
+        }
+        // Allow touch gestures (pinch-to-zoom / pan on mobile/trackpad)
+        if (event.type === 'touchstart' || event.type === 'touchmove') {
+          return true;
+        }
+        // Wheel event: ONLY zoom if Ctrl or Meta (⌘) is held,
+        // so standard scrolling smoothly scrolls the page!
+        if (event.type === 'wheel') {
+          return event.ctrlKey || event.metaKey;
+        }
+        return false;
+      })
       .on('zoom', (event) => {
         g.attr('transform', event.transform);
       });
@@ -254,6 +273,35 @@ export class UserTaxonomyTreeComponent {
     if (this.zoomBehavior) {
       const transform = d3.zoomIdentity.translate(20, 20).scale(0.72);
       svg.transition().duration(400).call(this.zoomBehavior.transform, transform);
+    }
+  }
+
+  zoomIn(): void {
+    const svgEl = this.svgContainer()?.nativeElement;
+    if (!svgEl) return;
+    const svg = d3.select(svgEl);
+    if (this.zoomBehavior) {
+      svg.transition().duration(250).call(this.zoomBehavior.scaleBy, 1.25);
+    }
+  }
+
+  zoomOut(): void {
+    const svgEl = this.svgContainer()?.nativeElement;
+    if (!svgEl) return;
+    const svg = d3.select(svgEl);
+    if (this.zoomBehavior) {
+      svg.transition().duration(250).call(this.zoomBehavior.scaleBy, 0.8);
+    }
+  }
+
+  toggleCollapse(): void {
+    this.isTreeCollapsed.update((v) => !v);
+  }
+
+  scrollToDetails(): void {
+    const el = document.getElementById('personaDetails');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
 }

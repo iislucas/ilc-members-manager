@@ -60,6 +60,15 @@
   border-radius: 10px;
   height: 520px;
   overflow: hidden;
+  transition: all 0.25s ease;
+
+  &.collapsed {
+    height: 0;
+    min-height: 0;
+    border-width: 0;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 .tree-svg {
@@ -73,7 +82,7 @@
   position: absolute;
   bottom: 0.75rem;
   right: 0.75rem;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(4px);
   color: #f1f5f9;
   font-size: 0.725rem;
@@ -81,6 +90,46 @@
   border-radius: 6px;
   pointer-events: none;
   font-family: var(--font-sans);
+}
+
+.tree-footer-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+
+  .selected-persona-indicator {
+    font-size: 0.825rem;
+    color: var(--text-muted);
+
+    strong {
+      color: var(--primary);
+    }
+  }
+
+  .jump-details-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--primary-light);
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: var(--primary);
+      color: #ffffff;
+    }
+  }
 }
 
 :host ::ng-deep {
