@@ -13,6 +13,7 @@ import {
   flattenTaxonomy,
   buildTaxonomyHierarchy,
 } from '../src/catalog/user-taxonomy-catalog';
+import { PERMISSIONS_CATALOG } from '../src/catalog/permissions-catalog';
 
 describe('LinkIntegrityChecker', () => {
   it('should have zero broken cross-references between the 5 views', () => {
@@ -88,4 +89,54 @@ describe('LinkIntegrityChecker', () => {
     expect(sifu?.journeys.some((j) => j.journeyId === 'grading-progression')).toBe(true);
     expect(sifu?.journeys.some((j) => j.journeyId === 'instructor-licensing')).toBe(true);
   });
+
+  it('should have zero broken permission cross-references in PERMISSIONS_CATALOG', () => {
+    const issues: string[] = [];
+    const validDataTypes = new Set(DATA_TYPES_CATALOG.map((d) => d.id));
+    const flatTaxonomy = flattenTaxonomy(USER_TAXONOMY_TREE);
+    const validPersonas = new Set(flatTaxonomy.map((p) => p.id));
+
+    for (const perm of PERMISSIONS_CATALOG) {
+      for (const dt of perm.targetDataTypes) {
+        if (!validDataTypes.has(dt)) {
+          issues.push(`Permission "${perm.id}" references non-existent data type "${dt}"`);
+        }
+      }
+      for (const personaId of perm.grantedPersonas) {
+        if (!validPersonas.has(personaId)) {
+          issues.push(`Permission "${perm.id}" references non-existent persona "${personaId}"`);
+        }
+      }
+    }
+
+    expect(issues).toEqual([]);
+    expect(PERMISSIONS_CATALOG.length).toBeGreaterThanOrEqual(30);
+  });
+
+  it('should have zero broken persona and permission cross-references in DATA_TYPES_CATALOG', () => {
+    const issues: string[] = [];
+    const validPermissions = new Set(PERMISSIONS_CATALOG.map((p) => p.id));
+    const flatTaxonomy = flattenTaxonomy(USER_TAXONOMY_TREE);
+    const validPersonas = new Set(flatTaxonomy.map((p) => p.id));
+
+    for (const dt of DATA_TYPES_CATALOG) {
+      if (dt.relatedPersonas) {
+        for (const personaId of dt.relatedPersonas) {
+          if (!validPersonas.has(personaId)) {
+            issues.push(`Data type "${dt.id}" references non-existent persona "${personaId}"`);
+          }
+        }
+      }
+      if (dt.enforcingPermissions) {
+        for (const permId of dt.enforcingPermissions) {
+          if (!validPermissions.has(permId)) {
+            issues.push(`Data type "${dt.id}" references non-existent permission "${permId}"`);
+          }
+        }
+      }
+    }
+
+    expect(issues).toEqual([]);
+  });
 });
+

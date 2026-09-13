@@ -8,7 +8,11 @@
 
   <div class="data-types-list">
     @for (dt of docs.dataTypesCatalog; track dt.id) {
-      <section [id]="'datatype-' + dt.id" class="content-card">
+      <section
+        [id]="'datatype-' + dt.id"
+        class="content-card"
+        [class.highlight-active]="docs.activeHighlightedDataTypeId() === dt.id"
+      >
         <div class="content-header">
           <div>
             <span class="tag-badge">{{ dt.domain }}</span>
@@ -79,6 +83,23 @@
               <h4>Read / Write Roles:</h4>
               <p>Read: {{ dt.readRoles.join(', ') }} • Write: {{ dt.writeRoles.join(', ') }}</p>
             </div>
+            @if (dt.enforcingPermissions?.length) {
+              <div class="permissions-enforcement-block">
+                <h4>Enforcing Permissions & Access Rules:</h4>
+                <div class="chips-container">
+                  @for (p of dt.enforcingPermissions; track p) {
+                    <button
+                      type="button"
+                      class="perm-chip-btn"
+                      (click)="docs.navigateToPermission(p)"
+                      title="View {{ p }} in Security Rules Glossary"
+                    >
+                      🔐 {{ p }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
             @if (dt.affectedTriggers.length) {
               <div class="triggers-block">
                 <strong>Attached Cloud Triggers:</strong> {{ dt.affectedTriggers.join(', ') }}
@@ -135,13 +156,58 @@
         }
 
         <div class="interlinks-panel">
-          <span style="font-weight:600;">Related Journeys:</span>
-          @for (j of dt.relatedJourneys; track j) {
-            <a href="#journey-{{ j }}" (click)="docs.switchView('journeys')" class="interlink-chip">👥 {{ j }}</a>
+          @if (dt.relatedPersonas?.length) {
+            <div class="interlink-group">
+              <span class="interlink-label">Referencing Users:</span>
+              <div class="interlink-chips">
+                @for (p of dt.relatedPersonas; track p) {
+                  <button
+                    type="button"
+                    class="interlink-chip persona-chip"
+                    (click)="docs.navigateToPersona(p)"
+                    title="View {{ p }} persona"
+                  >
+                    👤 {{ p }}
+                  </button>
+                }
+              </div>
+            </div>
           }
-          <span style="font-weight:600;margin-left:1rem;">Related Flows:</span>
-          @for (fl of dt.relatedFlows; track fl) {
-            <a href="#flow-{{ fl }}" (click)="docs.switchView('architecture')" class="interlink-chip">⚡ {{ fl }}</a>
+
+          @if (dt.relatedJourneys.length) {
+            <div class="interlink-group">
+              <span class="interlink-label">Referencing Journeys:</span>
+              <div class="interlink-chips">
+                @for (j of dt.relatedJourneys; track j) {
+                  <button
+                    type="button"
+                    class="interlink-chip journey-chip"
+                    (click)="docs.navigateToJourney(j)"
+                    title="View journey {{ j }}"
+                  >
+                    👥 {{ j }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          @if (dt.relatedFlows.length) {
+            <div class="interlink-group">
+              <span class="interlink-label">Information Flows:</span>
+              <div class="interlink-chips">
+                @for (fl of dt.relatedFlows; track fl) {
+                  <button
+                    type="button"
+                    class="interlink-chip flow-chip"
+                    (click)="docs.navigateToFlow(fl)"
+                    title="View architecture flow {{ fl }}"
+                  >
+                    ⚡ {{ fl }}
+                  </button>
+                }
+              </div>
+            </div>
           }
         </div>
       </section>

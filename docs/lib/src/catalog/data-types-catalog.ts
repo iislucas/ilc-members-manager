@@ -32,6 +32,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: ['/acl/{email}', '/instructors/{instructorId}', '/schools/{schoolId}/members/{docId}'],
     relatedJourneys: ['member-onboarding', 'grading-progression', 'instructor-licensing'],
     relatedFlows: ['client-reactivity', 'trigger-mirroring'],
+    relatedPersonas: ["active-member","grading-candidate","apprentice-instructor","school-manager","hq-admin"],
+    enforcingPermissions: ["read:member-passbook","read:member-profile","update:instructor-profile","read:student-roster","manage:school-roster","verify:members","admin:all"],
     tsInterface: `export interface Member {
   docId: string;
   memberId: string;
@@ -92,6 +94,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: ['/instructors/{id}/gradings/{id}', '/schools/{id}/gradings/{id}'],
     relatedJourneys: ['grading-progression'],
     relatedFlows: ['client-reactivity', 'trigger-mirroring'],
+    relatedPersonas: ["grading-candidate","sifu-instructor","grading-examiner","event-organizer","hq-admin"],
+    enforcingPermissions: ["request:grading","create:grading-request","purchase:grading-fee","read:grading-feedback","accept:grading-request","evaluate:grading","record:grading-result","manage:event-gradings","admin:all"],
     tsInterface: `export interface Grading {
   docId: string;
   studentMemberDocId: string;
@@ -147,6 +151,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['event-hosting-ticketing'],
     relatedFlows: ['client-reactivity', 'ecommerce-webhooks', 'micro-frontends'],
+    relatedPersonas: ["event-organizer","external-attendee","school-manager","hq-admin","anonymous-visitor"],
+    enforcingPermissions: ["read:public-events","purchase:event-ticket","manage:event","manage:event-gradings","admin:all"],
     tsInterface: `export interface IlcEvent {
   docId: string;
   title: string;
@@ -197,6 +203,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: ['/members/{memberDocId}/registrations/{regId}'],
     relatedJourneys: ['event-hosting-ticketing'],
     relatedFlows: ['ecommerce-webhooks'],
+    relatedPersonas: ["external-attendee","event-organizer","active-member","hq-admin"],
+    enforcingPermissions: ["purchase:event-ticket","read:own-registrations","checkin:attendees","admin:all"],
     tsInterface: `export interface EventRegistration {
   docId: string;
   eventDocId: string;
@@ -242,6 +250,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: ['/acl/{managerEmail}'],
     relatedJourneys: ['instructor-licensing'],
     relatedFlows: ['client-reactivity', 'trigger-mirroring'],
+    relatedPersonas: ["school-manager","apprentice-instructor","hq-admin","anonymous-visitor"],
+    enforcingPermissions: ["read:public-schools","read:student-roster","read:school-gradings","manage:school","manage:school-roster","license:school-renewal","admin:all"],
     tsInterface: `export interface School {
   docId: string;
   schoolId: string;
@@ -285,6 +295,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['instructor-licensing'],
     relatedFlows: ['trigger-mirroring', 'micro-frontends'],
+    relatedPersonas: ["sifu-instructor","apprentice-instructor","anonymous-visitor","hq-admin"],
+    enforcingPermissions: ["read:public-instructors","update:instructor-profile","mentor:students","admin:all"],
     tsInterface: `export interface InstructorPublicData {
   docId: string;
   instructorId: string;
@@ -327,6 +339,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['vod-streaming'],
     relatedFlows: ['media-transcoding'],
+    relatedPersonas: ["student-practitioner","active-member","hq-admin"],
+    enforcingPermissions: ["stream:vod","read:syllabus","transcoder:gcp","admin:all"],
     tsInterface: `export interface VideoItem {
   docId: string;
   title: string;
@@ -373,6 +387,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['vod-streaming'],
     relatedFlows: ['ecommerce-webhooks', 'media-transcoding'],
+    relatedPersonas: ["active-member","student-practitioner","hq-admin","system-automation"],
+    enforcingPermissions: ["stream:vod","webhook:stripe","admin:all"],
     tsInterface: `export interface VideoGrant {
   videoId: string;
   grantedDate: string;
@@ -407,6 +423,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['vod-streaming'],
     relatedFlows: ['client-reactivity'],
+    relatedPersonas: ["active-member","student-practitioner","hq-admin"],
+    enforcingPermissions: ["stream:vod","admin:all"],
     tsInterface: `export interface VideoProgress {
   videoId: string;
   currentTimeSeconds: number;
@@ -444,6 +462,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: ['/members/{memberDocId}/orders/{orderDocId}'],
     relatedJourneys: ['event-hosting-ticketing', 'vod-streaming', 'instructor-licensing'],
     relatedFlows: ['ecommerce-webhooks'],
+    relatedPersonas: ["active-member","grading-candidate","external-attendee","school-manager","hq-admin","system-automation"],
+    enforcingPermissions: ["read:own-orders","manage:billing-portal","purchase:grading-fee","license:school-renewal","override:orders","webhook:stripe","admin:all"],
     tsInterface: `export interface Order {
   docId: string;
   orderNumber: string;
@@ -489,6 +509,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['member-onboarding', 'instructor-licensing'],
     relatedFlows: ['trigger-mirroring'],
+    relatedPersonas: ["active-member","hq-admin","system-automation"],
+    enforcingPermissions: ["admin:all","service:firebase-admin"],
     tsInterface: `export interface ACL {
   email: string;
   isAdmin: boolean;
@@ -531,6 +553,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['event-hosting-ticketing'],
     relatedFlows: ['ecommerce-webhooks'],
+    relatedPersonas: ["active-member","anonymous-visitor","hq-admin"],
+    enforcingPermissions: ["admin:all"],
     tsInterface: `export interface Product {
   docId: string;
   name: string;
@@ -569,6 +593,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: [],
     relatedFlows: ['client-reactivity'],
+    relatedPersonas: ["student-practitioner","anonymous-visitor","sifu-instructor","hq-admin"],
+    enforcingPermissions: ["read:public-data","admin:all"],
     tsInterface: `export interface Post {
   docId: string;
   title: string;
@@ -603,6 +629,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['member-onboarding'],
     relatedFlows: ['trigger-mirroring'],
+    relatedPersonas: ["hq-admin","system-automation"],
+    enforcingPermissions: ["manage:backups","admin:all","service:firebase-admin"],
     tsInterface: `export interface Counters {
   nextMemberNumber: number;
   nextInstructorNumber: number;
@@ -639,6 +667,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['member-onboarding', 'event-hosting-ticketing', 'outbound-email-notifications'],
     relatedFlows: ['ecommerce-webhooks', 'email-queue-processor'],
+    relatedPersonas: ["hq-admin","system-automation"],
+    enforcingPermissions: ["admin:all","service:firebase-admin"],
     tsInterface: `export interface MailQueueDoc {
   docId?: string;
   to: string | string[];
@@ -691,6 +721,8 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     mirrorTargets: [],
     relatedJourneys: ['outbound-email-notifications'],
     relatedFlows: ['email-queue-processor'],
+    relatedPersonas: ["hq-admin","system-automation"],
+    enforcingPermissions: ["admin:all","service:firebase-admin"],
     tsInterface: `export interface MailSettings {
   status: MailSendingStatus; // 'active' | 'paused' | 'off'
   sendingPaused?: boolean;

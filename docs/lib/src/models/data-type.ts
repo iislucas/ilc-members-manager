@@ -55,6 +55,8 @@ export interface DataTypeEntry {
   mirrorTargets: string[];
   relatedJourneys: string[];
   relatedFlows: string[];
+  relatedPersonas?: string[];
+  enforcingPermissions?: string[];
 
   // Level 3: Full Technical Schema & Specification
   tsInterface: string;

@@ -8,7 +8,11 @@
 
   <div class="flows-list">
     @for (flow of docs.flowsCatalog; track flow.id) {
-      <section [id]="'flow-' + flow.id" class="content-card">
+      <section
+        [id]="'flow-' + flow.id"
+        class="content-card"
+        [class.highlight-active]="docs.activeHighlightedFlowId() === flow.id"
+      >
         <div class="content-header">
           <div>
             <span class="tag-badge">{{ flow.category }}</span>
@@ -52,12 +56,27 @@
         }
 
         <div class="interlinks-panel">
-          <span style="font-weight:600;">Data Entities:</span>
+          <span style="font-weight:600;">Input Data Entities:</span>
           @for (dt of flow.inputDataTypes; track dt) {
-            <a href="#datatype-{{ dt }}" (click)="docs.switchView('datatypes')" class="interlink-chip">📥 {{ dt }}</a>
+            <button
+              type="button"
+              (click)="docs.navigateToDataType(dt)"
+              class="interlink-chip"
+              title="View {{ dt }} in Core Data Types"
+            >
+              📥 {{ dt }}
+            </button>
           }
+          <span style="font-weight:600;margin-left:1rem;">Output Data Entities:</span>
           @for (dt of flow.outputDataTypes; track dt) {
-            <a href="#datatype-{{ dt }}" (click)="docs.switchView('datatypes')" class="interlink-chip">📤 {{ dt }}</a>
+            <button
+              type="button"
+              (click)="docs.navigateToDataType(dt)"
+              class="interlink-chip"
+              title="View {{ dt }} in Core Data Types"
+            >
+              📤 {{ dt }}
+            </button>
           }
         </div>
       </section>

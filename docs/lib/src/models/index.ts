@@ -7,3 +7,4 @@ export * from './arch-flow';
 export * from './setup-guide';
 export * from './pattern-doc';
 export * from './user-taxonomy';
+export * from './permission-entry';

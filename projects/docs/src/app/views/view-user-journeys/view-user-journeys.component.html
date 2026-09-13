@@ -53,6 +53,14 @@
     >
       🗺️ Site Surface Map (97+ Views)
     </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'permissions'"
+      (click)="setSubTab('permissions')"
+    >
+      🔐 Permissions & Rules Glossary
+    </button>
   </div>
 
   <!-- TAB 1: Persona Starting Points & Journeys -->
@@ -78,10 +86,27 @@
           </div>
 
           <div class="info-block">
-            <h4>Granted Permissions & Roles:</h4>
+            <div class="info-block-header">
+              <h4>Granted Permissions & Roles:</h4>
+              <button
+                type="button"
+                class="glossary-link-btn"
+                (click)="openPermissionsGlossary()"
+                title="Open full Permissions & Security Rules Glossary"
+              >
+                📖 Rules Glossary ➔
+              </button>
+            </div>
             <div class="chips-container">
               @for (perm of persona.permissionsSnapshot; track perm) {
-                <span class="perm-chip">🔑 {{ perm }}</span>
+                <button
+                  type="button"
+                  class="perm-chip-btn"
+                  (click)="selectPermission(perm)"
+                  title="Click to view rule mechanics and target data types"
+                >
+                  🔑 {{ perm }}
+                </button>
               }
             </div>
           </div>
@@ -111,7 +136,7 @@
     <div class="journeys-section">
       <h3>Core User Journeys ({{ relevantJourneys().length }})</h3>
       @for (journey of relevantJourneys(); track journey.id) {
-        <div class="journey-card content-card">
+        <div class="journey-card content-card" [id]="'journey-' + journey.id">
           <div class="content-header">
             <div>
               <span class="tag-badge">Journey</span>
@@ -184,11 +209,25 @@
           <div class="interlinks-panel">
             <span style="font-weight:600;">Mutated Entities:</span>
             @for (dt of journey.relatedDataTypes; track dt) {
-              <a href="#datatype-{{ dt }}" (click)="docs.switchView('datatypes')" class="interlink-chip">📦 {{ dt }}</a>
+              <button
+                type="button"
+                class="interlink-chip"
+                (click)="docs.navigateToDataType(dt)"
+                title="View {{ dt }} in Core Data Types"
+              >
+                📦 {{ dt }}
+              </button>
             }
             <span style="font-weight:600;margin-left:1rem;">Triggered Pipelines:</span>
             @for (fl of journey.relatedFlows; track fl) {
-              <a href="#flow-{{ fl }}" (click)="docs.switchView('architecture')" class="interlink-chip">⚡ {{ fl }}</a>
+              <button
+                type="button"
+                class="interlink-chip"
+                (click)="docs.navigateToFlow(fl)"
+                title="View {{ fl }} in Architecture Flows"
+              >
+                ⚡ {{ fl }}
+              </button>
             }
           </div>
         </div>
@@ -436,6 +475,209 @@
             }
           </tbody>
         </table>
+      </div>
+    </div>
+  }
+
+  <!-- TAB 5: Permissions & Security Rules Glossary -->
+  @if (activeSubTab() === 'permissions') {
+    <div id="permissionsGlossary" class="permissions-glossary-container content-card">
+      <div class="glossary-header">
+        <div>
+          <span class="tag-badge">Security Rules & Authorization Taxonomy</span>
+          <h2>🔐 Permissions & Security Rules Glossary</h2>
+          <p class="subtitle">
+            Exhaustive taxonomy of all {{ docs.permissionsCatalog.length }} access control tokens, mapped to their enforcement mechanism in <code>firestore.rules</code>, allowed read/write operations, target data entities, and granted user personas.
+          </p>
+        </div>
+
+        <div class="glossary-filters">
+          <div class="search-input-wrap">
+            <input
+              type="text"
+              class="filter-input"
+              placeholder="Search permissions, rules, data types..."
+              [value]="permissionSearchQuery()"
+              (input)="permissionSearchQuery.set($any($event.target).value)"
+            />
+          </div>
+
+          <div class="filter-selects">
+            <select
+              [value]="permissionCategoryFilter()"
+              (change)="permissionCategoryFilter.set($any($event.target).value)"
+              class="filter-select"
+            >
+              <option value="all">All Categories</option>
+              @for (cat of permissionCategories(); track cat) {
+                <option [value]="cat">{{ cat }}</option>
+              }
+            </select>
+
+            <select
+              [value]="permissionAccessTypeFilter()"
+              (change)="permissionAccessTypeFilter.set($any($event.target).value)"
+              class="filter-select"
+            >
+              <option value="all">All Access Types</option>
+              <option value="read">Read</option>
+              <option value="write">Write</option>
+              <option value="read-write">Read-Write</option>
+              <option value="admin">Admin</option>
+              <option value="system">System</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="permissions-grid">
+        @for (perm of filteredPermissions(); track perm.id) {
+          <div
+            class="permission-card"
+            [id]="'perm-' + perm.id"
+            [class.highlight-active]="docs.activeHighlightedPermissionId() === perm.id"
+          >
+            <div class="perm-card-top">
+              <div class="perm-badges">
+                <span class="category-chip">{{ perm.category }}</span>
+                <span class="access-badge" [attr.data-access]="perm.accessType">
+                  {{ perm.accessType }}
+                </span>
+              </div>
+              <code class="perm-id-code">{{ perm.id }}</code>
+            </div>
+
+            <h3 class="perm-card-title">{{ perm.title }}</h3>
+            <p class="perm-card-desc">{{ perm.description }}</p>
+
+            <div class="rules-snippet-box">
+              <div class="rules-snippet-label">
+                <span>Security Rules Enforcement:</span>
+                <code>firestore.rules</code>
+              </div>
+              <p class="rules-mech-text">{{ perm.securityRulesMechanism }}</p>
+              <pre><code>{{ perm.ruleCodeSnippet }}</code></pre>
+            </div>
+
+            <div class="perm-associations">
+              <div class="association-row">
+                <span class="assoc-label">Target Data Types:</span>
+                <div class="chips-wrap">
+                  @for (dt of perm.targetDataTypes; track dt) {
+                    <button
+                      type="button"
+                      class="interlink-chip"
+                      (click)="docs.navigateToDataType(dt)"
+                      title="View {{ dt }} in Core Data Types"
+                    >
+                      📦 {{ dt }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="association-row">
+                <span class="assoc-label">Granted Personas:</span>
+                <div class="chips-wrap">
+                  @for (personaId of perm.grantedPersonas; track personaId) {
+                    <button
+                      type="button"
+                      class="interlink-chip persona-chip"
+                      (click)="docs.navigateToPersona(personaId)"
+                      title="View {{ personaId }} persona details"
+                    >
+                      👤 {{ personaId }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Quick Permission Detail Modal / Drawer -->
+  @if (activePermissionModal(); as perm) {
+    <div class="modal-backdrop" (click)="closePermissionModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <div class="modal-badges">
+              <span class="category-chip">{{ perm.category }}</span>
+              <span class="access-badge" [attr.data-access]="perm.accessType">
+                {{ perm.accessType }}
+              </span>
+            </div>
+            <h3>{{ perm.title }}</h3>
+            <code class="perm-token">{{ perm.id }}</code>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="closePermissionModal()" aria-label="Close">
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="perm-desc">{{ perm.description }}</p>
+
+          <div class="rules-detail-section">
+            <h4>Firestore Rules Mechanism:</h4>
+            <p class="rules-mech-desc">{{ perm.securityRulesMechanism }}</p>
+            <pre class="rules-code"><code>{{ perm.ruleCodeSnippet }}</code></pre>
+          </div>
+
+          <div class="perm-relations-grid">
+            <div class="relation-block">
+              <h4>Target Data Types:</h4>
+              <div class="chips-container">
+                @for (dt of perm.targetDataTypes; track dt) {
+                  <button
+                    type="button"
+                    class="interlink-chip"
+                    (click)="docs.navigateToDataType(dt); closePermissionModal()"
+                    title="View {{ dt }} in View 3 Data Types"
+                  >
+                    📦 {{ dt }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="relation-block">
+              <h4>Granted Personas:</h4>
+              <div class="chips-container">
+                @for (personaId of perm.grantedPersonas; track personaId) {
+                  <button
+                    type="button"
+                    class="interlink-chip persona-chip"
+                    (click)="docs.navigateToPersona(personaId); closePermissionModal()"
+                    title="Select {{ personaId }} persona"
+                  >
+                    👤 {{ personaId }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="modal-secondary-btn"
+            (click)="viewPermissionInGlossary(perm.id)"
+          >
+            📖 View in Full Glossary
+          </button>
+          <button
+            type="button"
+            class="modal-primary-btn"
+            (click)="closePermissionModal()"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   }

@@ -20,6 +20,9 @@ import {
   flattenTaxonomy,
   buildTaxonomyHierarchy,
   PersonaTaxonomyHierarchy,
+  PERMISSIONS_CATALOG,
+  PermissionEntry,
+  findPermission,
   CodeLinkResolver,
   DocsSearchIndex,
   SearchDoc,
@@ -50,6 +53,7 @@ export class DocsDataService {
   readonly filesCount = FILES_CATALOG.length;
   readonly taxonomyTree = USER_TAXONOMY_TREE;
   readonly flatTaxonomy = flattenTaxonomy(USER_TAXONOMY_TREE);
+  readonly permissionsCatalog = PERMISSIONS_CATALOG;
 
   // File layers summary
   readonly filesSummary = {
@@ -70,6 +74,9 @@ export class DocsDataService {
   readonly searchOpen = signal<boolean>(false);
   readonly searchQuery = signal<string>('');
   readonly activeHighlightedStepId = signal<string | null>(null);
+  readonly activeHighlightedDataTypeId = signal<string | null>(null);
+  readonly activeHighlightedFlowId = signal<string | null>(null);
+  readonly activeHighlightedPermissionId = signal<string | null>(null);
 
   readonly taxonomyHierarchy = computed<PersonaTaxonomyHierarchy[]>(() =>
     buildTaxonomyHierarchy(this.taxonomyTree, this.journeysCatalog)
@@ -190,6 +197,19 @@ export class DocsDataService {
       });
     });
 
+    // Permissions & Rules
+    this.permissionsCatalog.forEach((p) => {
+      docs.push({
+        id: `perm-${p.id}`,
+        view: 'journeys',
+        title: `${p.title} (${p.id})`,
+        subtitle: `${p.category} [${p.accessType}]`,
+        content: `${p.description} ${p.securityRulesMechanism} ${p.targetDataTypes.join(' ')} ${p.grantedPersonas.join(' ')}`,
+        tags: ['permission', 'security', 'rules', p.category, p.accessType, ...p.targetDataTypes],
+        url: `#perm-${p.id}`,
+      });
+    });
+
     this.searchIndex.addDocuments(docs);
   }
 
@@ -278,6 +298,91 @@ export class DocsDataService {
     setTimeout(() => {
       if (this.activeHighlightedStepId() === stepDomId) {
         this.activeHighlightedStepId.set(null);
+      }
+    }, 3500);
+  }
+
+  navigateToDataType(dataTypeId: string): void {
+    this.currentView.set('datatypes');
+    this.activeHighlightedDataTypeId.set(dataTypeId);
+
+    setTimeout(() => {
+      const el = document.getElementById(`datatype-${dataTypeId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+
+    setTimeout(() => {
+      if (this.activeHighlightedDataTypeId() === dataTypeId) {
+        this.activeHighlightedDataTypeId.set(null);
+      }
+    }, 3500);
+  }
+
+  navigateToFlow(flowId: string): void {
+    this.currentView.set('architecture');
+    this.activeHighlightedFlowId.set(flowId);
+
+    setTimeout(() => {
+      const el = document.getElementById(`flow-${flowId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+
+    setTimeout(() => {
+      if (this.activeHighlightedFlowId() === flowId) {
+        this.activeHighlightedFlowId.set(null);
+      }
+    }, 3500);
+  }
+
+  navigateToPersona(personaId: string): void {
+    const targetNode = findTaxonomyNode(personaId);
+    if (targetNode) {
+      this.selectedTaxonomyNode.set(targetNode);
+    }
+    this.currentView.set('journeys');
+
+    setTimeout(() => {
+      const el = document.getElementById('personaDetails');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+  }
+
+  navigateToJourney(journeyId: string): void {
+    this.currentView.set('journeys');
+    const journey = this.journeysCatalog.find((j) => j.id === journeyId);
+    if (journey?.primaryTaxonomyNodeId) {
+      const node = findTaxonomyNode(journey.primaryTaxonomyNodeId);
+      if (node) this.selectedTaxonomyNode.set(node);
+    }
+
+    setTimeout(() => {
+      const el = document.getElementById(`journey-${journeyId}`) || document.getElementById('personaDetails');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+  }
+
+  navigateToPermission(permissionId: string): void {
+    this.currentView.set('journeys');
+    this.activeHighlightedPermissionId.set(permissionId);
+
+    setTimeout(() => {
+      const el = document.getElementById(`perm-${permissionId}`) || document.getElementById('permissionsGlossary') || document.getElementById('personaDetails');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 60);
+
+    setTimeout(() => {
+      if (this.activeHighlightedPermissionId() === permissionId) {
+        this.activeHighlightedPermissionId.set(null);
       }
     }, 3500);
   }
