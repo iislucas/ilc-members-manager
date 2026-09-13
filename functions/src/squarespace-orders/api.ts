@@ -33,6 +33,8 @@ import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItem
 import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
 import { createMemberNotification } from '../notifications';
 import { SubscriptionResult } from './common';
+import { sendTransactionalEmail } from '../email-dispatcher';
+import { environment } from '../environment/environment';
 
 import { processVideoLibraryAccess } from './video-library';
 import { processGradingOrder } from './grading';
@@ -522,6 +524,38 @@ async function notifyPurchaseFulfilled(
       summary,
     },
   });
+
+  try {
+    const name = orderData.billingAddress?.firstName
+      ? `${orderData.billingAddress.firstName} ${orderData.billingAddress.lastName || ''}`.trim()
+      : 'ILC Member';
+    await sendTransactionalEmail(db, {
+      to: email,
+      templateKey: 'orderConfirmation',
+      replacements: {
+        name,
+        orderNumber: orderData.orderNumber || orderId,
+        orderDate: orderData.createdOn ? orderData.createdOn.split('T')[0] : new Date().toISOString().split('T')[0],
+        amount:
+          orderData.grandTotal?.value ||
+          (orderData.lineItems && orderData.lineItems.length > 0
+            ? orderData.lineItems
+                .reduce(
+                  (sum, item) =>
+                    sum + (parseFloat(item.unitPricePaid?.value || '0') * (parseInt(item.quantity, 10) || 1)),
+                  0,
+                )
+                .toFixed(2)
+            : '0.00'),
+        currency: orderData.grandTotal?.currency || 'USD',
+        itemsSummary: summary || 'ILC Store Order',
+        receiptUrl: '',
+        appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
+      },
+    });
+  } catch (emailErr) {
+    logger.error(`Order ${orderId}: failed to send confirmation email to ${email}:`, emailErr);
+  }
 }
 
 async function createPendingNotificationIfNeeded(

@@ -1,0 +1,429 @@
+import { describe, it, expect, vi } from 'vitest';
+import * as admin from 'firebase-admin';
+import { HttpsError } from 'firebase-functions/v2/https';
+import {
+  sendSmtpEmail,
+  MailQueueDoc,
+  sendAdminTestEmail,
+  retryMailItem,
+  processMailQueue,
+} from './mail-processor';
+import * as common from './common';
+import { environment } from './environment/environment';
+import type { Transporter } from 'nodemailer';
+
+describe('mail-processor', () => {
+  it('dispatches email with correctly mapped fields', async () => {
+    const mockSendMail = vi.fn().mockResolvedValue({
+      messageId: 'msg_12345',
+      response: '250 OK',
+      accepted: ['student@example.com'],
+    });
+    const mockTransporter = {
+      sendMail: mockSendMail,
+    } as unknown as Transporter;
+
+    const doc: MailQueueDoc = {
+      to: 'student@example.com',
+      from: 'info@iliqchuan.com',
+      replyTo: 'support@iliqchuan.com',
+      message: {
+        subject: 'Order Confirmation #1001',
+        text: 'Thank you for your order.',
+        html: '<p>Thank you for your order.</p>',
+      },
+    };
+
+    const result = await sendSmtpEmail(mockTransporter, doc, 'I Liq Chuan Association');
+
+    expect(result.messageId).toBe('msg_12345');
+    expect(mockSendMail).toHaveBeenCalledWith({
+      from: '"I Liq Chuan Association" <info@iliqchuan.com>',
+      to: 'student@example.com',
+      replyTo: 'support@iliqchuan.com',
+      subject: 'Order Confirmation #1001',
+      text: 'Thank you for your order.',
+      html: '<p>Thank you for your order.</p>',
+    });
+  });
+
+  it('joins array recipients into a comma-separated string', async () => {
+    const mockSendMail = vi.fn().mockResolvedValue({ messageId: 'msg_multi' });
+    const mockTransporter = {
+      sendMail: mockSendMail,
+    } as unknown as Transporter;
+
+    const doc: MailQueueDoc = {
+      to: ['user1@example.com', 'user2@example.com'],
+      message: {
+        subject: 'Upcoming Events Digest',
+        text: 'Upcoming events list...',
+        html: '<p>Upcoming events list...</p>',
+      },
+    };
+
+    await sendSmtpEmail(mockTransporter, doc, 'I Liq Chuan Association');
+
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'user1@example.com, user2@example.com',
+        subject: 'Upcoming Events Digest',
+      }),
+    );
+  });
+
+  it('uses root subject/text/html if message sub-object is missing', async () => {
+    const mockSendMail = vi.fn().mockResolvedValue({ messageId: 'msg_legacy' });
+    const mockTransporter = {
+      sendMail: mockSendMail,
+    } as unknown as Transporter;
+
+    const doc: MailQueueDoc = {
+      to: 'member@example.com',
+      subject: 'Direct Subject',
+      text: 'Direct Text',
+      html: '<p>Direct HTML</p>',
+    };
+
+    await sendSmtpEmail(mockTransporter, doc, 'I Liq Chuan Association');
+
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'member@example.com',
+        subject: 'Direct Subject',
+        text: 'Direct Text',
+        html: '<p>Direct HTML</p>',
+      }),
+    );
+  });
+
+  it('propagates transporter errors properly', async () => {
+    const mockSendMail = vi.fn().mockRejectedValue(new Error('SMTP connection timed out'));
+    const mockTransporter = {
+      sendMail: mockSendMail,
+    } as unknown as Transporter;
+
+    const doc: MailQueueDoc = {
+      to: 'fail@example.com',
+      subject: 'Test',
+    };
+
+    await expect(sendSmtpEmail(mockTransporter, doc, 'I Liq Chuan Association')).rejects.toThrow(
+      'SMTP connection timed out',
+    );
+  });
+
+  it('throws an error if from address is not specified in doc and environment.email.from is empty', async () => {
+    const originalFrom = environment.email.from;
+    environment.email.from = '';
+    try {
+      const mockTransporter = {
+        sendMail: vi.fn(),
+      } as unknown as Transporter;
+
+      const doc: MailQueueDoc = {
+        to: 'user@example.com',
+        subject: 'No From Test',
+      };
+
+      await expect(sendSmtpEmail(mockTransporter, doc, 'I Liq Chuan Association')).rejects.toThrow(
+        'No sender "from" address specified in mail document or environment.email.from',
+      );
+    } finally {
+      environment.email.from = originalFrom;
+    }
+  });
+
+  describe('sendAdminTestEmail', () => {
+    it('throws unauthenticated or permission-denied if assertAdmin rejects', async () => {
+      vi.spyOn(common, 'assertAdmin').mockRejectedValue(
+        new HttpsError('permission-denied', 'Admin access required.'),
+      );
+
+      await expect(
+        sendAdminTestEmail.run({
+          auth: { token: { email: 'user@example.com' } },
+          data: { to: 'test@example.com', subject: 'Hi', bodyMarkdown: 'Hello' },
+        } as any),
+      ).rejects.toThrow('Admin access required.');
+    });
+
+    it('validates required fields', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+
+      await expect(
+        sendAdminTestEmail.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { to: '', subject: 'Hi', bodyMarkdown: 'Hello' },
+        } as any),
+      ).rejects.toThrow('Recipient (to), subject, and bodyMarkdown are all required.');
+    });
+
+    it('rejects invalid recipient email formats', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+
+      await expect(
+        sendAdminTestEmail.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { to: 'not-an-email', subject: 'Hi', bodyMarkdown: 'Hello' },
+        } as any),
+      ).rejects.toThrow('Invalid recipient email address');
+    });
+
+    it('throws failed-precondition if environment.email.from is not configured', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const originalFrom = environment.email.from;
+      environment.email.from = '';
+      try {
+        await expect(
+          sendAdminTestEmail.run({
+            auth: { token: { email: 'admin@iliqchuan.com' } },
+            data: { to: 'admin@iliqchuan.com', subject: 'Hi', bodyMarkdown: 'Hello' },
+          } as any),
+        ).rejects.toThrow('No sender "from" address configured in environment.email.from');
+      } finally {
+        environment.email.from = originalFrom;
+      }
+    });
+
+
+    it('enqueues test email to /mail collection and returns success when processed', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockDocRef = {
+        id: 'mail_test_123',
+        get: vi.fn().mockResolvedValue({
+          data: () => ({
+            delivery: {
+              state: 'SUCCESS',
+              info: {
+                messageId: 'msg_test_123',
+                simulated: true,
+              },
+            },
+          }),
+        }),
+      };
+      const mockAdd = vi.fn().mockResolvedValue(mockDocRef);
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          add: mockAdd,
+        }),
+      } as any);
+
+      const res = await sendAdminTestEmail.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: {
+          to: 'admin@iliqchuan.com',
+          subject: 'Test Subject',
+          bodyMarkdown: '**Hello**\nThis is a test.',
+        },
+      } as any);
+
+      expect(res.success).toBe(true);
+      expect(res.simulated).toBe(true);
+      expect(res.messageId).toBe('msg_test_123');
+      expect(res.docId).toBe('mail_test_123');
+      expect(mockAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: ['admin@iliqchuan.com'],
+          from: 'notifications@iliqchuan.com',
+          replyTo: 'web-helper-team@iliqchuan.com',
+          status: 'PENDING',
+          delivery: expect.objectContaining({
+            state: 'PENDING',
+          }),
+          message: {
+            subject: 'Test Subject',
+            text: '**Hello**\nThis is a test.',
+            html: '<strong>Hello</strong><br>This is a test.',
+          },
+          metadata: expect.objectContaining({
+            adminTest: true,
+            requestedBy: 'admin@iliqchuan.com',
+          }),
+        }),
+      );
+    });
+
+    it('returns error when mail queue delivery fails', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockDocRef = {
+        id: 'mail_test_fail',
+        get: vi.fn().mockResolvedValue({
+          data: () => ({
+            status: 'ERROR',
+            delivery: {
+              state: 'ERROR',
+              error: 'Invalid SMTP credentials',
+            },
+          }),
+        }),
+      };
+      const mockAdd = vi.fn().mockResolvedValue(mockDocRef);
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          add: mockAdd,
+        }),
+      } as any);
+
+      const res = await sendAdminTestEmail.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: {
+          to: 'admin@iliqchuan.com',
+          subject: 'Test Subject',
+          bodyMarkdown: 'Hello',
+        },
+      } as any);
+
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('Invalid SMTP credentials');
+      expect(res.docId).toBe('mail_test_fail');
+    });
+  });
+
+  describe('retryMailItem', () => {
+    it('rejects non-admin callers', async () => {
+      vi.spyOn(common, 'assertAdmin').mockRejectedValue(
+        new HttpsError('permission-denied', 'Admin access required.'),
+      );
+
+      await expect(
+        retryMailItem.run({
+          auth: { token: { email: 'member@example.com' } },
+          data: { mailId: 'mail_123' },
+        } as any),
+      ).rejects.toThrow('Admin access required.');
+    });
+
+    it('validates mailId presence', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+
+      await expect(
+        retryMailItem.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { mailId: '' },
+        } as any),
+      ).rejects.toThrow('Document ID (mailId) is required.');
+    });
+
+    it('throws not-found when document does not exist', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockDoc = {
+        get: vi.fn().mockResolvedValue({ exists: false }),
+      };
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue(mockDoc),
+        }),
+      } as any);
+
+      await expect(
+        retryMailItem.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { mailId: 'nonexistent_mail' },
+        } as any),
+      ).rejects.toThrow('Mail document "nonexistent_mail" not found.');
+    });
+
+    it('throws failed-precondition if mail is already PROCESSING', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockDoc = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ status: 'PROCESSING', delivery: { state: 'PROCESSING' } }),
+        }),
+      };
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue(mockDoc),
+        }),
+      } as any);
+
+      await expect(
+        retryMailItem.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { mailId: 'in_flight_mail' },
+        } as any),
+      ).rejects.toThrow('Mail document "in_flight_mail" is currently being processed.');
+    });
+
+    it('resets status to PENDING and clears error on retry', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockUpdate = vi.fn().mockResolvedValue({});
+      const mockDoc = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ status: 'ERROR', delivery: { state: 'ERROR', error: 'Timed out' } }),
+        }),
+        update: mockUpdate,
+      };
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue(mockDoc),
+        }),
+      } as any);
+
+      const res = await retryMailItem.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: { mailId: 'mail_retry_123' },
+      } as any);
+
+      expect(res.success).toBe(true);
+      expect(res.docId).toBe('mail_retry_123');
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'PENDING',
+          'delivery.state': 'PENDING',
+          'delivery.error': null,
+          'delivery.retryRequestedBy': 'admin@iliqchuan.com',
+        }),
+      );
+    });
+  });
+
+  describe('processMailQueue circular prevention & status guards', () => {
+    it('skips processing if document status is already SUCCESS or PROCESSING or ERROR', async () => {
+      const mockUpdate = vi.fn();
+      const mockDocRef = { update: mockUpdate };
+
+      // Case 1: SUCCESS
+      await (processMailQueue as any).run({
+        data: {
+          after: {
+            exists: true,
+            ref: mockDocRef,
+            data: () => ({ status: 'SUCCESS', to: 'a@example.com' }),
+          },
+        },
+        params: { mailId: 'doc_success' },
+      });
+
+      // Case 2: ERROR
+      await (processMailQueue as any).run({
+        data: {
+          after: {
+            exists: true,
+            ref: mockDocRef,
+            data: () => ({ status: 'ERROR', to: 'b@example.com' }),
+          },
+        },
+        params: { mailId: 'doc_error' },
+      });
+
+      // Case 3: PROCESSING
+      await (processMailQueue as any).run({
+        data: {
+          after: {
+            exists: true,
+            ref: mockDocRef,
+            data: () => ({ status: 'PROCESSING', to: 'c@example.com' }),
+          },
+        },
+        params: { mailId: 'doc_processing' },
+      });
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+  });
+});
+

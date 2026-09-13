@@ -27,7 +27,7 @@ import { FirestoreCollection, FirestoreSubcollection } from './data-model/collec
 import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, unpaidGradingsInProgressionOrder } from './data-model/gradings';
 import { Member, MemberUpdates, MemberSubscriptionItem, MembershipType, firestoreDocToMember, initMember, SubscriptionItemType, SubscriptionStatus, SubscriptionInterval } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
-import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderLineItem, StripeCheckoutMode, OrderStatus } from './data-model/orders';
+import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderType, StripeOrderLineItem, StripeCheckoutMode, OrderStatus, OrderKind } from './data-model/orders';
 import { initSchool, School } from './data-model/schools';
 import { VideoGrant, VideoGrantKind } from './data-model/vod';
 import { canonicalizeGradingLevel } from './level-utils';
@@ -35,6 +35,7 @@ import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from '
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
 import { environment } from './environment/environment.js';
+import { sendTransactionalEmail } from './email-dispatcher.js';
 
 import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
 
@@ -571,6 +572,28 @@ async function fulfillGradingForMember(
       amountPaid,
       createdRef.id,
     );
+  } else {
+    try {
+      const recipientEmail = member.emails?.[0];
+      if (recipientEmail) {
+        await sendTransactionalEmail(db, {
+          to: recipientEmail,
+          templateKey: 'gradingPaymentConfirmation',
+          replacements: {
+            name: member.name || 'ILC Student',
+            memberId: member.memberId || '',
+            gradingLevel: level || rawLevel || 'Grading Assessment',
+            gradingEventName: 'Official ILC Grading',
+            gradingDate: purchaseDate,
+            amount: amountPaid,
+            gradingUrl: `${environment.links?.appBase || 'https://app.iliqchuan.com'}/gradings`,
+            appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
+          },
+        });
+      }
+    } catch (emailErr) {
+      logger.error('Failed to send grading payment confirmation email', { emailErr, memberDocId: member.docId });
+    }
   }
 
   return createdRef.id;
@@ -982,6 +1005,42 @@ export async function fulfillEventRegistration(
               onlineJoiningLink,
             },
           });
+
+          if (email) {
+            try {
+              const startDate = event.start ? event.start.split('T')[0] : '';
+              const endDate = event.end ? event.end.split('T')[0] : '';
+              const dates =
+                startDate === endDate || !endDate
+                  ? startDate || ''
+                  : `${startDate} - ${endDate}`;
+              const formattedAttendance =
+                attendance === AttendanceType.InPersonAndOnline
+                  ? 'In-Person & Online'
+                  : attendance === AttendanceType.Online
+                  ? 'Online'
+                  : 'In-Person';
+              const hasOnline = Boolean(event.onlineJoiningLink && event.onlineJoiningLink.trim());
+              await sendTransactionalEmail(db, {
+                to: email,
+                templateKey: 'eventRegistrationConfirmation',
+                replacements: {
+                  name: name || 'ILC Member',
+                  eventTitle: eventTitle || 'ILC Workshop',
+                  eventDates: dates,
+                  eventLocation: event.location || (hasOnline ? 'Online' : 'TBD'),
+                  attendanceType: formattedAttendance,
+                  onlineJoiningLink: onlineJoiningLink || 'Details on event page',
+                  specialInstructions: inPersonDetailsMarkdown || purchaseDetailsMarkdown || 'See event page for full details.',
+                  amount: ((finalAmountPaidCents || 0) / 100).toFixed(2),
+                  receiptUrl: '',
+                  appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
+                },
+              });
+            } catch (emailErr) {
+              logger.error('Failed to send event registration confirmation email', { emailErr, email, eventDocId });
+            }
+          }
         }
 
         // 2. Provision video grant if video is available right now
@@ -1427,6 +1486,91 @@ export async function fulfillStripeOrder(
     memberDocId: member.docId,
     orderDocId,
   });
+
+  // Send email confirmations for orders processed via Stripe (excluding events and gradings which send specific confirmations)
+  const isEvent = order.lineItems.some(
+    (l) =>
+      categorizeLineItem(l, order.metadata) === OrderItemCategory.Event ||
+      order.metadata?.['orderType'] === 'event_registration',
+  );
+  const isGrading = order.lineItems.some(
+    (l) => categorizeLineItem(l, order.metadata) === OrderItemCategory.Grading,
+  );
+  const isVod = order.lineItems.some(
+    (l) =>
+      categorizeLineItem(l, order.metadata) === OrderItemCategory.Vod ||
+      Boolean(order.metadata?.['videoId']) ||
+      Boolean(order.metadata?.['seriesId']),
+  );
+  const recipientEmail = member.emails?.[0] || order.customerEmail || '';
+
+  if (recipientEmail && !isEvent && !isGrading) {
+    try {
+      const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
+      const itemsSummary = order.lineItems.map((l) => l.description || 'ILC Purchase').join(', ');
+      const totalAmount = order.amountTotal ? (order.amountTotal / 100).toFixed(2) : '0.00';
+      const currency = (order.currency || 'usd').toUpperCase();
+
+      if (order.stripeOrderType === StripeOrderType.Renewal) {
+        const planName = order.lineItems[0]?.description || 'ILC Subscription';
+        await sendTransactionalEmail(db, {
+          to: recipientEmail,
+          templateKey: 'subscriptionRenewal',
+          replacements: {
+            name: member.name || order.customerName || 'ILC Member',
+            planName,
+            amount: `${totalAmount} ${currency}`,
+            renewalDate: orderDate || new Date().toISOString().split('T')[0],
+            nextRenewalDate:
+              memberUpdates.membershipNextAutoRenewDate ||
+              memberUpdates.instructorLicenseNextAutoRenewDate ||
+              memberUpdates.classVideoLibraryNextAutoRenewDate ||
+              'Next billing cycle',
+            receiptUrl: '',
+            appBase,
+          },
+        });
+      } else if (isVod) {
+        const vodItem = order.lineItems.find(
+          (l) => categorizeLineItem(l, order.metadata) === OrderItemCategory.Vod,
+        );
+        const videoTitle =
+          vodItem?.description ||
+          order.metadata?.['videoTitle'] ||
+          'Video on Demand';
+        const videoId = order.metadata?.['videoId'] || '';
+        await sendTransactionalEmail(db, {
+          to: recipientEmail,
+          templateKey: 'vodPurchaseConfirmation',
+          replacements: {
+            name: member.name || order.customerName || 'ILC Member',
+            videoTitle,
+            videoUrl: videoId ? `${appBase}/videos/${videoId}` : `${appBase}/videos`,
+            amount: `${totalAmount} ${currency}`,
+            receiptUrl: '',
+            appBase,
+          },
+        });
+      } else {
+        await sendTransactionalEmail(db, {
+          to: recipientEmail,
+          templateKey: 'orderConfirmation',
+          replacements: {
+            name: member.name || order.customerName || 'Valued Customer',
+            orderNumber: orderDocId,
+            orderDate: orderDate || new Date().toISOString().split('T')[0],
+            amount: totalAmount,
+            currency,
+            itemsSummary,
+            receiptUrl: '',
+            appBase,
+          },
+        });
+      }
+    } catch (emailErr) {
+      logger.error('Failed to dispatch Stripe order confirmation email', { emailErr, orderDocId, recipientEmail });
+    }
+  }
 }
 
 /**

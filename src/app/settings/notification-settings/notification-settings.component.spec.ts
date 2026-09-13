@@ -100,4 +100,24 @@ describe('NotificationSettingsComponent', () => {
       homeEnabled: { [NotificationKind.NewEventPosted]: false },
     });
   });
+
+  it('should display and update upcoming event digest frequency', async () => {
+    const dataManager = TestBed.inject(DataManagerService);
+    expect(component['eventDigestFrequency']()).toBe('none');
+
+    const select = fixture.nativeElement.querySelector('#event-digest-frequency') as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    expect(select.value).toBe('none');
+
+    await component.setEventDigestFrequency('weekly');
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          eventDigestFrequency: 'weekly',
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
 });

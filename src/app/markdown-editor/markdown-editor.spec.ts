@@ -185,22 +185,47 @@ describe('MarkdownEditor', () => {
     expect(labels().length).toBeGreaterThan(0);
   });
 
-  it('inserts a chip token at the cursor', async () => {
+  it('inserts a chip token at the cursor, displays descriptions, and supports folding', async () => {
     let emittedValue = '';
     component.changed.subscribe((value) => {
       emittedValue = value;
     });
 
     fixture.componentRef.setInput('initialValue', 'Hi ');
-    fixture.componentRef.setInput('chips', [{ token: '{name}' }]);
+    fixture.componentRef.setInput('chips', [{ token: '{name}', description: 'Member name' }]);
     fixture.detectChanges();
     await new Promise((resolve) => setTimeout(resolve, 500));
     fixture.detectChanges();
 
-    // Verify chips-section renders inside the toolbar
-    const chipBtn = fixture.nativeElement.querySelector('.chips-section .chip-insert');
+    // Verify toolbar-placeholders-group renders inside the toolbar
+    const placeholdersGroup = fixture.nativeElement.querySelector('.toolbar-placeholders-group');
+    expect(placeholdersGroup).toBeTruthy();
+
+    const chipBtn = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-insert');
     expect(chipBtn).toBeTruthy();
     expect(chipBtn.textContent.trim()).toBe('{name}');
+
+    // Verify description is rendered
+    const descSpan = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-description');
+    expect(descSpan).toBeTruthy();
+    expect(descSpan.textContent.trim()).toBe('Member name');
+
+    // Test folding
+    const toggleBtn = fixture.nativeElement.querySelector('.placeholders-toggle-btn');
+    expect(toggleBtn).toBeTruthy();
+    expect(component.placeholdersUnfolded()).toBe(true);
+
+    toggleBtn.click();
+    fixture.detectChanges();
+    expect(component.placeholdersUnfolded()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.placeholders-palette')).toBeNull();
+
+    // Unfold again
+    toggleBtn.click();
+    fixture.detectChanges();
+    expect(component.placeholdersUnfolded()).toBe(true);
+    const unfoldedChipBtn = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-insert');
+    expect(unfoldedChipBtn).toBeTruthy();
 
     component['editor']?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
@@ -208,7 +233,7 @@ describe('MarkdownEditor', () => {
     });
 
     // Click chip button in toolbar
-    chipBtn.click();
+    unfoldedChipBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 200));
     fixture.detectChanges();
 

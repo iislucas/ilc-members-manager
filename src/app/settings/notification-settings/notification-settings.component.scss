@@ -295,6 +295,31 @@
   }
 }
 
+.select-control {
+  .digest-select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid v.$border-color-light;
+    background-color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: v.$text-primary;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &:focus {
+      border-color: #4d7cfe;
+      box-shadow: 0 0 0 2px rgba(77, 124, 254, 0.2);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
 @media (max-width: 600px) {
   .settings-card {
     padding: 1.25rem;

@@ -1,0 +1,795 @@
+<div class="page-layout email-notifications-page">
+  <!-- Top Level Pill Tabs Navigation -->
+  <div class="pill-tabs">
+    <button
+      type="button"
+      class="pill-tab"
+      data-label="Onboarding"
+      [class.active]="activeCategory() === 'onboarding'"
+      (click)="setCategory('onboarding')">
+      Onboarding
+    </button>
+    <button
+      type="button"
+      class="pill-tab"
+      data-label="Purchases"
+      [class.active]="activeCategory() === 'purchases'"
+      (click)="setCategory('purchases')">
+      Purchases
+    </button>
+    <button
+      type="button"
+      class="pill-tab"
+      data-label="Upcoming Events Digest"
+      [class.active]="activeCategory() === 'digest'"
+      (click)="setCategory('digest')">
+      Upcoming Events Digest
+    </button>
+    <button
+      type="button"
+      class="pill-tab"
+      data-label="Test Email Sender"
+      [class.active]="activeCategory() === 'test'"
+      (click)="setCategory('test')">
+      Test Email Sender
+    </button>
+    <button
+      type="button"
+      class="pill-tab"
+      data-label="Mail Logs & Queue"
+      [class.active]="activeCategory() === 'logs'"
+      (click)="setCategory('logs')">
+      Mail Logs &amp; Queue
+      @if (logCounts().total > 0) {
+        <span class="tab-badge" [class.has-error]="logCounts().error > 0">
+          {{ logCounts().total }}
+        </span>
+      }
+    </button>
+  </div>
+
+  <div class="card-body-content">
+    <!-- ONBOARDING CATEGORY -->
+    @if (activeCategory() === 'onboarding') {
+      <div class="template-section">
+        <h4>New Member Welcome Email</h4>
+        <div class="form-group">
+          <label for="member-subject">Email Subject</label>
+          <input
+            id="member-subject"
+            type="text"
+            [(ngModel)]="templates().membershipActivatedSubject"
+            placeholder="Welcome Subject..."
+            class="input-style"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Email Body (Markdown)</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="templates().membershipActivatedBody"
+              [chips]="memberChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="setMemberBody($event)"
+            ></app-markdown-editor>
+          </div>
+          @if (memberBodyWarnings().length > 0) {
+            <div class="format-warning">
+              ⚠️ Unsupported formatting will appear as literal text in the email:
+              {{ memberBodyWarnings().join(', ') }}.
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="template-section">
+        <h4>New Instructor Welcome Email</h4>
+        <div class="form-group">
+          <label for="instructor-subject">Email Subject</label>
+          <input
+            id="instructor-subject"
+            type="text"
+            [(ngModel)]="templates().instructorLicenseActivatedSubject"
+            placeholder="Instructor Subject..."
+            class="input-style"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Email Body (Markdown)</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="templates().instructorLicenseActivatedBody"
+              [chips]="instructorChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="setInstructorBody($event)"
+            ></app-markdown-editor>
+          </div>
+          @if (instructorBodyWarnings().length > 0) {
+            <div class="format-warning">
+              ⚠️ Unsupported formatting will appear as literal text in the email:
+              {{ instructorBodyWarnings().join(', ') }}.
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- PURCHASES CATEGORY -->
+    @if (activeCategory() === 'purchases') {
+      <div class="sub-nav-pills">
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activePurchaseSubtype() === 'order'"
+          (click)="setPurchaseSubtype('order')">
+          Store &amp; General Orders
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activePurchaseSubtype() === 'event'"
+          (click)="setPurchaseSubtype('event')">
+          Event Registration
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activePurchaseSubtype() === 'vod'"
+          (click)="setPurchaseSubtype('vod')">
+          Video on Demand (VOD)
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activePurchaseSubtype() === 'grading'"
+          (click)="setPurchaseSubtype('grading')">
+          Grading Assessment
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activePurchaseSubtype() === 'subscription'"
+          (click)="setPurchaseSubtype('subscription')">
+          Subscription Renewal
+        </button>
+      </div>
+
+      @if (activePurchaseSubtype() === 'order') {
+        <div class="template-section">
+          <h4>Store / General Order Confirmation</h4>
+          <div class="form-group">
+            <label for="order-subject">Email Subject</label>
+            <input
+              id="order-subject"
+              type="text"
+              [(ngModel)]="templates().orderConfirmationSubject"
+              placeholder="Order Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().orderConfirmationBody"
+                [chips]="orderChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('orderConfirmationBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (orderBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ orderBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'event') {
+        <div class="template-section">
+          <h4>Event Registration Confirmation</h4>
+          <div class="form-group">
+            <label for="event-subject">Email Subject</label>
+            <input
+              id="event-subject"
+              type="text"
+              [(ngModel)]="templates().eventRegistrationConfirmationSubject"
+              placeholder="Event Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().eventRegistrationConfirmationBody"
+                [chips]="eventRegChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('eventRegistrationConfirmationBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (eventRegBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ eventRegBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'vod') {
+        <div class="template-section">
+          <h4>Video on Demand (VOD) Purchase Confirmation</h4>
+          <div class="form-group">
+            <label for="vod-subject">Email Subject</label>
+            <input
+              id="vod-subject"
+              type="text"
+              [(ngModel)]="templates().vodPurchaseConfirmationSubject"
+              placeholder="VOD Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().vodPurchaseConfirmationBody"
+                [chips]="vodChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('vodPurchaseConfirmationBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (vodBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ vodBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'grading') {
+        <div class="template-section">
+          <h4>Grading Assessment Fee Confirmation</h4>
+          <div class="form-group">
+            <label for="grading-subject">Email Subject</label>
+            <input
+              id="grading-subject"
+              type="text"
+              [(ngModel)]="templates().gradingPaymentConfirmationSubject"
+              placeholder="Grading Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().gradingPaymentConfirmationBody"
+                [chips]="gradingChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('gradingPaymentConfirmationBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (gradingBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ gradingBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'subscription') {
+        <div class="template-section">
+          <h4>Subscription Renewal Receipt</h4>
+          <div class="form-group">
+            <label for="sub-subject">Email Subject</label>
+            <input
+              id="sub-subject"
+              type="text"
+              [(ngModel)]="templates().subscriptionRenewalSubject"
+              placeholder="Subscription Renewal Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().subscriptionRenewalBody"
+                [chips]="subscriptionChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('subscriptionRenewalBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (subscriptionBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ subscriptionBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+        </div>
+      }
+    }
+
+    <!-- EVENT DIGEST (TWO-TIER) CATEGORY -->
+    @if (activeCategory() === 'digest') {
+      <div class="digest-explainer">
+        <p>
+          The <strong>Upcoming Event Digest</strong> automatically emails forthcoming workshops to opted-in members (weekly or monthly).
+          It uses a <strong>two-tier template</strong>:
+        </p>
+        <ol>
+          <li><strong>Per-Event Card Template:</strong> Formats how each individual workshop or event is rendered.</li>
+          <li><strong>Overall Email Template:</strong> Formats the full email wrapper, substituting the <code>&#123;eventsList&#125;</code> placeholder with the compiled event cards.</li>
+        </ol>
+      </div>
+
+      <!-- Tier 1: Per-Event Card Template -->
+      <div class="template-section">
+        <h4>1. Per-Event Card Template</h4>
+        <p class="section-subtext">
+          Template for an individual event item. This template is rendered for every upcoming event, and the results are joined together to populate <code>&#123;eventsList&#125;</code>.
+        </p>
+        <div class="form-group">
+          <label>Event Card Markdown</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="templates().eventDigestItemTemplate"
+              [chips]="digestItemChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="updateBody('eventDigestItemTemplate', $event)"
+            ></app-markdown-editor>
+          </div>
+          @if (digestItemTemplateWarnings().length > 0) {
+            <div class="format-warning">
+              ⚠️ Unsupported formatting: {{ digestItemTemplateWarnings().join(', ') }}.
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Tier 2: Overall Email Digest Template -->
+      <div class="template-section">
+        <h4>2. Overall Email Digest Template</h4>
+        <p class="section-subtext">
+          The container email sent to members. Make sure to include <code>&#123;eventsList&#125;</code> where the compiled event items should appear.
+        </p>
+        <div class="form-group">
+          <label for="digest-overall-subject">Email Subject</label>
+          <input
+            id="digest-overall-subject"
+            type="text"
+            [(ngModel)]="templates().eventDigestOverallSubject"
+            placeholder="Digest Subject..."
+            class="input-style"
+          />
+        </div>
+        <div class="form-group">
+          <label>Email Body (Markdown)</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="templates().eventDigestOverallBody"
+              [chips]="digestOverallChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="updateBody('eventDigestOverallBody', $event)"
+            ></app-markdown-editor>
+          </div>
+          @if (digestOverallBodyWarnings().length > 0) {
+            <div class="format-warning">
+              ⚠️ Unsupported formatting: {{ digestOverallBodyWarnings().join(', ') }}.
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Combined Live Preview -->
+      <div class="template-section preview-section">
+        <h4>3. Live Combined Preview</h4>
+        <p class="section-subtext">
+          Live simulated preview combining sample events formatted by the Per-Event template into the Overall Email template:
+        </p>
+        <div class="preview-box">
+          <div class="preview-subject">
+            <strong>Subject:</strong> {{ templates().eventDigestOverallSubject }}
+          </div>
+          <div class="preview-body" [innerHTML]="digestPreviewHtml()"></div>
+        </div>
+      </div>
+    }
+
+    <!-- TEST EMAIL SENDER CATEGORY -->
+    @if (activeCategory() === 'test') {
+      <div class="template-section">
+        <div class="test-email-header">
+          <h4>Admin Test Email Sender</h4>
+          <p class="section-subtext">
+            Safely test and verify core email delivery. Outbound test emails use the exact same code pathway as production messages (enqueuing to <code>/mail</code> with PENDING status for trigger processing).
+          </p>
+        </div>
+
+        <div class="preset-buttons">
+          <span class="preset-label">Load Sample:</span>
+          <button type="button" class="btn-outline" (click)="loadTestSample('blank')">
+            Quick Ping
+          </button>
+          <button type="button" class="btn-outline" (click)="loadTestSample('welcome')">
+            Welcome Notice
+          </button>
+          <button type="button" class="btn-outline" (click)="loadTestSample('order')">
+            Order Confirmation
+          </button>
+          <button type="button" class="btn-outline" (click)="loadTestSample('digest')">
+            Event Digest
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label for="test-recipient">Recipient Email Address</label>
+          <input
+            id="test-recipient"
+            type="email"
+            [ngModel]="testRecipient()"
+            (ngModelChange)="testRecipient.set($event)"
+            placeholder="e.g. admin@iliqchuan.com"
+            class="input-style"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="test-subject">Email Subject</label>
+          <input
+            id="test-subject"
+            type="text"
+            [ngModel]="testSubject()"
+            (ngModelChange)="testSubject.set($event)"
+            placeholder="Subject..."
+            class="input-style"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Email Body (Markdown)</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="testBodyMarkdown()"
+              [chips]="memberChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="setTestBody($event)"
+            ></app-markdown-editor>
+          </div>
+          @if (testBodyWarnings().length > 0) {
+            <div class="format-warning">
+              <strong>Unsupported Formatting:</strong>
+              <ul>
+                @for (warn of testBodyWarnings(); track warn) {
+                  <li>{{ warn }}</li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+
+        <div class="preview-section">
+          <h4>Rendered HTML Preview</h4>
+          <div class="preview-box">
+            <div class="preview-subject">
+              <strong>Subject:</strong> {{ testSubject() }}
+            </div>
+            <div class="preview-body" [innerHTML]="testPreviewHtml()"></div>
+          </div>
+        </div>
+
+        @if (testResult()) {
+          @if (testResult()?.success) {
+            <div class="status-msg success-box">
+              <strong>Email Dispatched Successfully!</strong>
+              @if (testResult()?.simulated) {
+                <p class="simulated-note">
+                  Delivery was simulated (local emulator or <code>SMTP_PASSWORD</code> secret not configured). Recorded in <code>/mail/{{ testResult()?.docId }}</code>.
+                </p>
+              } @else {
+                <p>Delivered via SMTP. Message ID: <code>{{ testResult()?.messageId }}</code> (logged in <code>/mail/{{ testResult()?.docId }}</code>).</p>
+              }
+            </div>
+          } @else {
+            <div class="status-msg error">
+              <strong>Failed to send test email:</strong> {{ testResult()?.error }}
+            </div>
+          }
+        }
+
+        <div class="actions">
+          <button class="btn btn-primary" (click)="sendTestEmail()" [disabled]="isSendingTest()">
+            @if (isSendingTest()) {
+              <app-spinner></app-spinner>
+              Sending Email...
+            } @else {
+              Send Test Email
+            }
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- MAIL QUEUE & SENT LOGS CATEGORY -->
+    @if (activeCategory() === 'logs') {
+      <div class="template-section mail-logs-section">
+        <div class="logs-header-bar">
+          <div>
+            <h4>Mail Queue &amp; Delivery Status</h4>
+            <p class="description">
+              Live status of outbound transactional emails, event digests, and admin test emails.
+              Protected by atomic status guards preventing circular sending loops.
+            </p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="loadMailLogs()" [disabled]="isLoadingLogs()">
+            @if (isLoadingLogs()) {
+              <app-spinner></app-spinner> Refreshing...
+            } @else {
+              Refresh Logs
+            }
+          </button>
+        </div>
+
+        <!-- Metric Summary Cards -->
+        <div class="stats-grid">
+          <div class="stat-card" [class.selected]="logsFilter() === 'ALL'" (click)="logsFilter.set('ALL')">
+            <span class="stat-label">Total Tracked</span>
+            <span class="stat-value">{{ logCounts().total }}</span>
+          </div>
+          <div class="stat-card success" [class.selected]="logsFilter() === 'SUCCESS'" (click)="logsFilter.set('SUCCESS')">
+            <span class="stat-label">Delivered</span>
+            <span class="stat-value">{{ logCounts().success }}</span>
+          </div>
+          <div class="stat-card pending" [class.selected]="logsFilter() === 'PENDING'" (click)="logsFilter.set('PENDING')">
+            <span class="stat-label">Pending / Processing</span>
+            <span class="stat-value">{{ logCounts().pending }}</span>
+          </div>
+          <div class="stat-card error" [class.selected]="logsFilter() === 'ERROR'" (click)="logsFilter.set('ERROR')">
+            <span class="stat-label">Delivery Errors</span>
+            <span class="stat-value">{{ logCounts().error }}</span>
+          </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="logs-controls">
+          <div class="search-box">
+            <input
+              type="text"
+              class="input-style"
+              placeholder="Search by recipient, subject, or Doc ID..."
+              [(ngModel)]="logsSearch"
+            />
+          </div>
+          <div class="filter-pills">
+            <button
+              type="button"
+              class="pill-btn"
+              [class.active]="logsFilter() === 'ALL'"
+              (click)="logsFilter.set('ALL')">
+              All
+            </button>
+            <button
+              type="button"
+              class="pill-btn success"
+              [class.active]="logsFilter() === 'SUCCESS'"
+              (click)="logsFilter.set('SUCCESS')">
+              Delivered ({{ logCounts().success }})
+            </button>
+            <button
+              type="button"
+              class="pill-btn pending"
+              [class.active]="logsFilter() === 'PENDING'"
+              (click)="logsFilter.set('PENDING')">
+              In-Flight ({{ logCounts().pending }})
+            </button>
+            <button
+              type="button"
+              class="pill-btn error"
+              [class.active]="logsFilter() === 'ERROR'"
+              (click)="logsFilter.set('ERROR')">
+              Errors ({{ logCounts().error }})
+            </button>
+          </div>
+        </div>
+
+        @if (retryFeedback()) {
+          <div class="alert-box" [class.alert-success]="retryFeedback()?.success" [class.alert-error]="!retryFeedback()?.success">
+            {{ retryFeedback()?.message }}
+          </div>
+        }
+
+        <!-- Logs List Table -->
+        <div class="logs-list-wrapper">
+          @if (isLoadingLogs() && mailLogs().length === 0) {
+            <div class="loading-placeholder">
+              <app-spinner></app-spinner>
+              <span>Loading mail queue logs...</span>
+            </div>
+          } @else if (filteredMailLogs().length === 0) {
+            <div class="empty-placeholder">
+              <p>No email records found matching the current filter.</p>
+            </div>
+          } @else {
+            <div class="logs-table">
+              <div class="table-header">
+                <span class="col-status">Status</span>
+                <span class="col-to">Recipient</span>
+                <span class="col-subject">Subject</span>
+                <span class="col-time">Time</span>
+                <span class="col-actions">Actions</span>
+              </div>
+              <div class="table-body">
+                @for (log of filteredMailLogs(); track log.docId) {
+                  <div
+                    class="table-row"
+                    [class.selected]="selectedLog()?.docId === log.docId"
+                    (click)="selectLog(log)">
+                    <div class="col-status">
+                      @let curState = log.status || log.delivery?.state || 'PENDING';
+                      <span class="status-badge" [class]="curState.toLowerCase()">
+                        {{ curState }}
+                      </span>
+                    </div>
+                    <div class="col-to" [title]="log.to">
+                      {{ log.to }}
+                    </div>
+                    <div class="col-subject" [title]="log.message?.subject || log.subject">
+                      {{ log.message?.subject || log.subject || '(No Subject)' }}
+                    </div>
+                    <div class="col-time">
+                      {{ formatLogTimestamp(log.createdAt || log.delivery?.startTime) }}
+                    </div>
+                    <div class="col-actions" (click)="$event.stopPropagation()">
+                      <button
+                        type="button"
+                        class="btn-row-action"
+                        (click)="selectLog(log)">
+                        Details
+                      </button>
+                      @if ((log.status || log.delivery?.state) === 'ERROR') {
+                        <button
+                          type="button"
+                          class="btn-row-action btn-retry"
+                          [disabled]="isRetryingId() === log.docId"
+                          (click)="retryMail(log.docId!)">
+                          @if (isRetryingId() === log.docId) {
+                            <app-spinner></app-spinner>
+                          } @else {
+                            Retry
+                          }
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Detail Drawer / Modal for Selected Log -->
+        @if (selectedLog()) {
+          @let item = selectedLog()!;
+          @let state = item.status || item.delivery?.state || 'PENDING';
+          <div class="log-detail-card">
+            <div class="detail-header">
+              <div>
+                <h5>Email Delivery Inspection</h5>
+                <span class="doc-id">Document ID: <code>{{ item.docId }}</code></span>
+              </div>
+              <button type="button" class="btn-close" (click)="selectLog(null)">✕</button>
+            </div>
+
+            <div class="detail-grid">
+              <div class="detail-item">
+                <label>Status</label>
+                <span class="status-badge" [class]="state.toLowerCase()">{{ state }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Recipient (To)</label>
+                <span>{{ item.to }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Sender (From)</label>
+                <span>{{ item.from || 'Default Notifications' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Reply-To</label>
+                <span>{{ item.replyTo || 'Default' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Enqueued At</label>
+                <span>{{ formatLogTimestamp(item.createdAt) }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Delivery End Time</label>
+                <span>{{ formatLogTimestamp(item.delivery?.endTime) }}</span>
+              </div>
+              @if (item.delivery?.info?.messageId) {
+                <div class="detail-item full-width">
+                  <label>SMTP Message ID</label>
+                  <code>{{ item.delivery?.info?.messageId }}</code>
+                </div>
+              }
+              @if (item.delivery?.info?.simulated) {
+                <div class="detail-item full-width">
+                  <label>Mode</label>
+                  <span class="simulated-badge">Simulated Dispatch (Local Emulator / Unconfigured Secret)</span>
+                </div>
+              }
+              @if (item.delivery?.error) {
+                <div class="detail-item full-width error-detail">
+                  <label>Error Details</label>
+                  <pre>{{ item.delivery?.error }}</pre>
+                </div>
+              }
+              @if (item.metadata) {
+                <div class="detail-item full-width">
+                  <label>Metadata</label>
+                  <code>{{ item.metadata | json }}</code>
+                </div>
+              }
+              <div class="detail-item full-width">
+                <label>Subject</label>
+                <p class="subject-text"><strong>{{ item.message?.subject || item.subject }}</strong></p>
+              </div>
+              <div class="detail-item full-width">
+                <label>Message Content</label>
+                <div class="message-preview-container">
+                  @if (item.message?.html || item.html) {
+                    <div class="html-preview" [innerHTML]="item.message?.html || item.html"></div>
+                  } @else {
+                    <pre class="plain-preview">{{ item.message?.text || item.text }}</pre>
+                  }
+                </div>
+              </div>
+            </div>
+
+            @if (state === 'ERROR') {
+              <div class="detail-footer">
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  [disabled]="isRetryingId() === item.docId"
+                  (click)="retryMail(item.docId!)">
+                  @if (isRetryingId() === item.docId) {
+                    <app-spinner></app-spinner> Retrying...
+                  } @else {
+                    Retry Sending Email
+                  }
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Save Bar for Template Categories -->
+    @if (activeCategory() !== 'test' && activeCategory() !== 'logs') {
+      @if (statusMessage()) {
+        <div class="status-msg" [class.error]="statusMessage().startsWith('Error')">
+          {{ statusMessage() }}
+        </div>
+      }
+
+      <div class="actions">
+        <button class="btn btn-primary" (click)="saveTemplates()" [disabled]="isSaving()">
+          @if (isSaving()) {
+            <app-spinner></app-spinner>
+            Saving...
+          } @else {
+            Save Templates
+          }
+        </button>
+      </div>
+    }
+  </div>
+</div>

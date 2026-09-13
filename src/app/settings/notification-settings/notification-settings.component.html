@@ -98,6 +98,34 @@
 
     <div class="divider"></div>
 
+    <!-- Upcoming Events Digest Section -->
+    <div class="settings-section">
+      <h3>Upcoming Events Digest</h3>
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-title">Email Newsletter</span>
+          <span class="pref-sub">
+            Receive scheduled summaries of forthcoming I Liq Chuan workshops and events.
+          </span>
+        </div>
+        <div class="select-control">
+          <select
+            id="event-digest-frequency"
+            class="digest-select"
+            [disabled]="digestBusy()"
+            [value]="eventDigestFrequency()"
+            (change)="setEventDigestFrequency($any($event.target).value)"
+          >
+            <option value="none">No digest emails (Off)</option>
+            <option value="weekly">Weekly digest (Every Monday)</option>
+            <option value="monthly">Monthly digest (1st of month)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
     <!-- Preferences toggles -->
     <div class="settings-section">
       <h3>Alert Options</h3>

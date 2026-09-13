@@ -29,6 +29,8 @@ import {
   limit,
   writeBatch,
 } from 'firebase/firestore';
+import { FirestoreCollection } from '../../functions/src/data-model/collections';
+import { MailQueueDoc } from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
 import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent } from '../../functions/src/data-model/events';
@@ -2415,6 +2417,102 @@ export class DataManagerService {
 
   async saveEmailTemplates(data: EmailTemplates) {
     return setDoc(doc(this.db, 'system', 'email-templates'), data);
+  }
+
+  async sendAdminTestEmail(options: {
+    to: string;
+    subject: string;
+    bodyMarkdown: string;
+    fromName?: string;
+    replyTo?: string;
+  }): Promise<{
+    success: boolean;
+    messageId?: string;
+    simulated?: boolean;
+    error?: string;
+    docId?: string;
+  }> {
+    const fn = httpsCallable<
+      {
+        to: string;
+        subject: string;
+        bodyMarkdown: string;
+        fromName?: string;
+        replyTo?: string;
+      },
+      {
+        success: boolean;
+        messageId?: string;
+        simulated?: boolean;
+        error?: string;
+        docId?: string;
+      }
+    >(this.functions, 'sendAdminTestEmail');
+    const result = await fn(options);
+    return result.data;
+  }
+
+  /**
+   * Fetches recent mail queue documents from /mail for admin inspection.
+   */
+  async getRecentMailDocs(maxCount = 50): Promise<MailQueueDoc[]> {
+    const mailCol = collection(this.db, FirestoreCollection.Mail);
+    const q = query(mailCol, limit(maxCount));
+    const snap = await getDocs(q);
+    const docs: MailQueueDoc[] = [];
+
+    for (const d of snap.docs) {
+      const data = d.data() as MailQueueDoc;
+      docs.push({
+        ...data,
+        docId: d.id,
+      });
+    }
+
+    // Sort descending by timestamp
+    docs.sort((a, b) => {
+      const timeA = this.resolveMailTimestamp(a);
+      const timeB = this.resolveMailTimestamp(b);
+      return timeB - timeA;
+    });
+
+    return docs;
+  }
+
+  private resolveMailTimestamp(doc: MailQueueDoc): number {
+    if (doc.createdAt) {
+      if (typeof (doc.createdAt as { toMillis?: () => number }).toMillis === 'function') {
+        return (doc.createdAt as { toMillis: () => number }).toMillis();
+      }
+      if (typeof doc.createdAt === 'string') {
+        return new Date(doc.createdAt).getTime();
+      }
+    }
+    if (doc.delivery?.startTime) {
+      if (typeof (doc.delivery.startTime as { toMillis?: () => number }).toMillis === 'function') {
+        return (doc.delivery.startTime as { toMillis: () => number }).toMillis();
+      }
+      if (typeof doc.delivery.startTime === 'string') {
+        return new Date(doc.delivery.startTime).getTime();
+      }
+    }
+    const sentAt = doc.metadata?.['sentAt'];
+    if (typeof sentAt === 'string') {
+      return new Date(sentAt).getTime();
+    }
+    return 0;
+  }
+
+  /**
+   * Admin-only callable to safely reset an email document to PENDING for retry.
+   */
+  async retryMailItem(mailId: string): Promise<{ success: boolean; docId: string; error?: string }> {
+    const fn = httpsCallable<{ mailId: string }, { success: boolean; docId: string; error?: string }>(
+      this.functions,
+      'retryMailItem',
+    );
+    const res = await fn({ mailId });
+    return res.data;
   }
 
   downloadSchoolsAsJsonL() {

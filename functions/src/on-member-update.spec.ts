@@ -95,7 +95,7 @@ describe('on-member-update triggers logic', () => {
   });
 
   beforeEach(() => {
-    environment.email = { from: 'info@iliqchuan.com', contact: 'help@iliqchuan.com' };
+    environment.email = { from: 'notifications@iliqchuan.com', contact: 'admin@iliqchuan.com' };
     mockSet = vi.fn().mockResolvedValue({});
     mockAdd = vi.fn().mockResolvedValue({});
     mockDelete = vi.fn();

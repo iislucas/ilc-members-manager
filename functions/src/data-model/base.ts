@@ -28,3 +28,4 @@ export function normalizeLastUpdated(val: unknown): string {
 }
 
 export { FirestoreCollection, FirestoreSubcollection } from './collections';
+export * from './mail';

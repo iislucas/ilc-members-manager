@@ -20,6 +20,7 @@ export enum FirestoreCollection {
   MembersPost = 'members-post',
   ArticlesPost = 'articles-post',
   NewsPost = 'news-post',
+  Mail = 'mail',
 }
 
 export enum FirestoreSubcollection {

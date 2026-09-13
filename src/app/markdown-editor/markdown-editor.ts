@@ -68,6 +68,8 @@ export interface EditorChip {
   token: string;
   // Optional label for the insertion button; defaults to `token`.
   label?: string;
+  // Optional short description of what the placeholder token represents.
+  description?: string;
 }
 
 export class ImageNodeView implements NodeView {
@@ -297,6 +299,12 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   readonly showBreaks = signal<boolean>(false);
   readonly isRawMode = signal<boolean>(false);
   readonly rawContent = signal<string>('');
+  readonly placeholdersUnfolded = signal<boolean>(true);
+
+  togglePlaceholdersFold() {
+    this.placeholdersUnfolded.set(!this.placeholdersUnfolded());
+    setTimeout(() => this.updateScrollState(), 0);
+  }
 
   imageDimensions = computed(() => {
     const size = this.imageSizeChoice();

@@ -267,6 +267,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Outbound email task queue.
+    // Written only by server-side Cloud Functions (Admin SDK); read-only for admins.
+    match /mail/{mailId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // Products for classes, workshops, and events.
     // Publicly readable so anyone can view class offerings and prices.
     // Writable only by admins.

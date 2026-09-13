@@ -111,7 +111,7 @@ Browser push service (Google / Mozilla / Apple)
         │  delivers to the device, waking the service worker
         ▼
 ngsw-worker.js  →  shows the notification banner
-        │  tap → focuses an open tab or opens /#/notifications
+        │  tap → focuses an open tab or opens /notifications
         ▼
 Member sees the banner even with the app closed
 ```

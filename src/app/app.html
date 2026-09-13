@@ -848,6 +848,15 @@
             <div></div>
           }
         }
+        @case (Views.EmailNotifications) {
+          @defer {
+            <app-email-notifications></app-email-notifications>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading email notifications...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
         @case (Views.NotificationSettings) {
           @defer {
             <app-notification-settings></app-notification-settings>

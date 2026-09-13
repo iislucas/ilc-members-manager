@@ -127,14 +127,31 @@
 
             @if (chips().length > 0) {
               <div class="toolbar-divider"></div>
-              <div class="chips-section">
-                @if (showDescriptions()) {
-                  <span class="menu-title">Insert</span>
-                }
-                @for (chip of chips(); track chip.token) {
-                  <button type="button" class="chip-insert" (click)="insertChip(chip); $event.stopPropagation()" [title]="'Insert ' + chip.token">
-                    {{ chip.label || chip.token }}
-                  </button>
+              <div class="toolbar-placeholders-group" [class.unfolded]="placeholdersUnfolded()">
+                <button type="button"
+                        class="placeholders-toggle-btn"
+                        (click)="togglePlaceholdersFold(); $event.stopPropagation()"
+                        [title]="placeholdersUnfolded() ? 'Fold placeholder palette' : 'Unfold placeholder palette'">
+                  <span class="placeholder-tag">&#123; &#125;</span>
+                  <span class="toggle-label">Placeholders ({{ chips().length }})</span>
+                  <span class="fold-arrow">{{ placeholdersUnfolded() ? '▾' : '▸' }}</span>
+                </button>
+
+                @if (placeholdersUnfolded()) {
+                  <div class="placeholders-palette">
+                    @for (chip of chips(); track chip.token) {
+                      <div class="placeholder-item"
+                           (click)="insertChip(chip); $event.stopPropagation()"
+                           [title]="chip.description ? (chip.token + ' — ' + chip.description) : ('Insert ' + chip.token)">
+                        <button type="button" class="chip-insert">
+                          {{ chip.label || chip.token }}
+                        </button>
+                        @if (chip.description) {
+                          <span class="chip-description">{{ chip.description }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
                 }
               </div>
             }

@@ -22,13 +22,7 @@ import { ensureCountersAreAtLeast } from './counters';
 import { FirestoreUpdate, recordTombstone } from './common';
 import * as logger from 'firebase-functions/logger';
 import { environment } from './environment/environment.js';
-import {
-  membershipActivatedSubject,
-  membershipActivatedBody,
-  instructorLicenseActivatedSubject,
-  instructorLicenseActivatedBody,
-} from './email-templates.js';
-import { markdownToHtml } from './email-markdown.js';
+import { sendTransactionalEmail } from './email-dispatcher.js';
 
 const getDb = () => admin.firestore();
 
@@ -331,59 +325,17 @@ export async function cleanUpPendingNotifications(
   }
 }
 
-function formatTemplate(template: string, replacements: Record<string, string>): string {
-  let result = template;
-  for (const [key, value] of Object.entries(replacements)) {
-    result = result.replace(new RegExp(`{${key}}`, 'g'), value || '');
-  }
-  return result;
-}
-
 export async function sendTemplateEmail(
   db: admin.firestore.Firestore,
   toEmails: string[],
   templateKey: 'membershipActivated' | 'instructorLicenseActivated',
   replacements: Record<string, string>,
 ) {
-  if (!environment.email?.from) {
-    logger.info(`[Email] environment.email.from is not configured. Skipping email for ${toEmails.join(', ')}.`);
-    return;
-  }
-  if (toEmails.length === 0) return;
-
-  const templatesSnap = await db.doc('system/email-templates').get();
-  const templates = templatesSnap.exists ? templatesSnap.data() : {};
-
-  let subject = '';
-  let markdownBody = '';
-
-  if (templateKey === 'membershipActivated') {
-    subject = templates?.membershipActivatedSubject
-      ? formatTemplate(templates.membershipActivatedSubject, replacements)
-      : membershipActivatedSubject(replacements);
-    markdownBody = templates?.membershipActivatedBody
-      ? formatTemplate(templates.membershipActivatedBody, replacements)
-      : membershipActivatedBody(replacements);
-  } else {
-    subject = templates?.instructorLicenseActivatedSubject
-      ? formatTemplate(templates.instructorLicenseActivatedSubject, replacements)
-      : instructorLicenseActivatedSubject(replacements);
-    markdownBody = templates?.instructorLicenseActivatedBody
-      ? formatTemplate(templates.instructorLicenseActivatedBody, replacements)
-      : instructorLicenseActivatedBody(replacements);
-  }
-  const htmlBody = markdownToHtml(markdownBody);
-
-  await db.collection('mail').add({
+  await sendTransactionalEmail(db, {
     to: toEmails,
-    from: environment.email.from,
-    message: {
-      subject: subject,
-      text: markdownBody,
-      html: htmlBody,
-    },
+    templateKey,
+    replacements,
   });
-  logger.info(`[Email] Enqueued ${templateKey} email for ${toEmails.join(', ')}.`);
 }
 
 export async function handleMembershipActivation(

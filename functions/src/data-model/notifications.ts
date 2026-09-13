@@ -390,10 +390,13 @@ export type MemberNotification = MemberNotificationCommon & (
   }
 );
 
+export type EventDigestFrequency = 'none' | 'weekly' | 'monthly';
+
 export interface MemberNotificationSettings {
   pushEnabled: { [kind in NotificationKind]?: boolean };
   homeEnabled: { [kind in NotificationKind]?: boolean };
   globalPushEnabled?: boolean;
+  eventDigestFrequency?: EventDigestFrequency;
 }
 
 export type MemberNotificationFsDoc = Omit<MemberNotification, 'docId'>;

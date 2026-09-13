@@ -1866,4 +1866,47 @@ describe('Firestore Rules', () => {
       );
     });
   });
+
+  describe('Outbound Mail Queue (/mail)', () => {
+    it('should allow admin to read mail queue documents, but deny regular members and unauthenticated users', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('mail').doc('mail-1').set({
+          to: 'member@ilc.com',
+          message: { subject: 'Test Email' },
+        });
+      });
+
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      const memberDb = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+
+      await assertSucceeds(adminDb.collection('mail').doc('mail-1').get());
+      await assertFails(memberDb.collection('mail').doc('mail-1').get());
+      await assertFails(unauthDb.collection('mail').doc('mail-1').get());
+    });
+
+    it('should deny all client writes to /mail (including admins - all writes must be via Cloud Functions)', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      const memberDb = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+
+      const newMail = {
+        to: 'victim@example.com',
+        message: { subject: 'Spam' },
+      };
+
+      await assertFails(adminDb.collection('mail').doc('mail-bad').set(newMail));
+      await assertFails(memberDb.collection('mail').doc('mail-bad').set(newMail));
+      await assertFails(unauthDb.collection('mail').doc('mail-bad').set(newMail));
+    });
+  });
 });
+
