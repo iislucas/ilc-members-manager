@@ -128,4 +128,49 @@ export const STORIES_CATALOG: UserStoryEntry[] = [
       { file: 'tests/e2e/grading-paid-and-snapshot.spec.ts', testSuite: 'story: grading-unpaid-request-guard' },
     ],
   },
+  {
+    id: 'email-notifications-dispatch',
+    title: 'Administrator manages outbound email dispatch lifecycle and tests SMTP connectivity',
+    status: 'Implemented',
+    area: 'Email Notifications',
+    role: 'HQ Administrator',
+    taxonomyNodeId: 'hq-admin',
+    capability: 'manage global outbound email sending state (Off, Paused, Active), send admin test emails, and monitor delivery queue',
+    benefit: 'we can test email functionality safely without accidental member spam and have full observability over outbound delivery',
+    scenarios: [
+      {
+        name: 'Off state zero-write enforcement',
+        given: 'Global mail sending status is Off in /system/mail-settings',
+        when: 'A purchase or onboarding notification is triggered',
+        then: 'The dispatcher logs and exits with zero writes to /mail',
+      },
+      {
+        name: 'Admin test email bypasses Off and Paused',
+        given: 'Global mail sending is Off or Paused',
+        when: 'An administrator sends a test email from /email-notifications',
+        then: 'The document is enqueued with metadata.adminTest: true and dispatched via SMTP',
+      },
+      {
+        name: 'Paused placeholder queuing and unpause release',
+        given: 'Global mail sending is Paused',
+        when: 'Notifications are triggered and status is later switched to Active',
+        then: 'Placeholders are stored with raw template keys and rendered with latest templates upon unpause',
+      },
+      {
+        name: 'Failed delivery retry',
+        given: 'An email failed delivery with status ERROR',
+        when: 'An administrator clicks Retry in the Mail Logs & Queue viewer',
+        then: 'The document is reset to PENDING and automatically retried by the queue trigger',
+      },
+    ],
+    codeReferences: [
+      { file: 'src/app/email-notifications/email-notifications.component.ts', symbol: 'EmailNotificationsComponent', line: 1 },
+      { file: 'functions/src/mail-processor.ts', symbol: 'processMailQueue', line: 1 },
+      { file: 'functions/src/email-dispatcher.ts', symbol: 'sendSmtpEmail', line: 1 },
+    ],
+    testReferences: [
+      { file: 'functions/src/mail-processor.spec.ts', testSuite: 'Mail Processor' },
+      { file: 'src/app/email-notifications/email-notifications.component.spec.ts', testSuite: 'EmailNotificationsComponent' },
+    ],
+  },
 ];

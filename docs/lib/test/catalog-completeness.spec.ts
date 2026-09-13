@@ -36,6 +36,7 @@ describe('Catalog Completeness Verification', () => {
       FirestoreCollection.System,
       FirestoreCollection.Events,
       FirestoreCollection.Videos,
+      FirestoreCollection.Mail,
     ];
 
     coreCollections.forEach((c) => {

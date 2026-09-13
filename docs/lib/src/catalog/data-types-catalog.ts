@@ -614,4 +614,98 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
       { name: 'nextMemberNumber', type: 'number', required: true, description: 'Next sequential member ID' },
     ],
   },
+  {
+    id: 'mail',
+    name: 'MailQueueDoc',
+    domain: DataDomainGroup.SystemInfrastructure,
+    collectionPath: '/mail/{docId}',
+    isSubcollection: false,
+    sourceFile: 'functions/src/data-model/mail.ts',
+    summary:
+      'Outbound transactional and scheduled email queue documents. Tracks delivery state machine (PENDING -> PROCESSING -> SUCCESS | ERROR | PAUSED), retry metadata, attempt counters, and Nodemailer SMTP message headers.',
+    cardinality: 'One document per enqueued outbound email.',
+    ownership: 'Created by server-side Cloud Functions (Admin SDK); inspected and managed by HQ Administrators.',
+    keyRelations: [
+      { targetTypeId: 'order', targetTypeName: 'Order', relation: 'Enqueued on purchase confirmations' },
+      { targetTypeId: 'member', targetTypeName: 'Member', relation: 'Enqueued on member onboarding welcome emails' },
+      { targetTypeId: 'ilc-event', targetTypeName: 'IlcEvent', relation: 'Enqueued for weekly/monthly event digests' },
+      { targetTypeId: 'mail-settings', targetTypeName: 'MailSettings', relation: 'Global dispatch behavior governed by /system/mail-settings' },
+    ],
+    readRoles: ['Admin (HQ)'],
+    writeRoles: ['None (allow write: if false; direct client writes strictly prohibited; mediated exclusively by Cloud Functions)'],
+    rulesSummary:
+      'Direct client writes are prohibited (allow write: if false;). Closed security model prevents open relay or malicious mail injection.',
+    affectedTriggers: ['mail-processor.ts (processMailQueue)'],
+    mirrorTargets: [],
+    relatedJourneys: ['member-onboarding', 'event-hosting-ticketing', 'outbound-email-notifications'],
+    relatedFlows: ['ecommerce-webhooks', 'email-queue-processor'],
+    tsInterface: `export interface MailQueueDoc {
+  docId?: string;
+  to: string | string[];
+  from?: string;
+  replyTo?: string;
+  subject?: string;
+  text?: string;
+  html?: string;
+  message?: MailMessage;
+  status?: MailDeliveryState;
+  delivery?: MailDeliveryInfo;
+  metadata?: MailMetadata;
+  templateKey?: string;
+  templateData?: Record<string, string>;
+  createdAt?: unknown;
+}`,
+    initDefaults: 'initMailDoc(): to: [], from: "", replyTo: "", status: "PENDING", delivery: { state: "PENDING", attempts: 0 }',
+    converterFunction: 'initMailDoc',
+    fields: [
+      { name: 'to', type: 'string | string[]', required: true, description: 'Recipient email address(es)' },
+      { name: 'from', type: 'string', required: false, description: 'Sender email (e.g. notifications@iliqchuan.com)' },
+      { name: 'replyTo', type: 'string', required: false, description: 'Reply-to mailbox (e.g. web-helper-team@iliqchuan.com)' },
+      { name: 'subject', type: 'string', required: false, description: 'Subject line' },
+      { name: 'text', type: 'string', required: false, description: 'Plain-text body' },
+      { name: 'html', type: 'string', required: false, description: 'Rendered HTML email body' },
+      { name: 'status', type: 'MailDeliveryState', required: false, description: 'PENDING | PROCESSING | SUCCESS | ERROR | PAUSED' },
+      { name: 'delivery', type: 'MailDeliveryInfo', required: false, description: 'Execution metadata, attempts count, messageId, and error trace' },
+      { name: 'metadata', type: 'MailMetadata', required: false, description: 'Context tags e.g. adminTest, templateKey, orderNumber' },
+    ],
+  },
+  {
+    id: 'mail-settings',
+    name: 'MailSettings',
+    domain: DataDomainGroup.SystemInfrastructure,
+    collectionPath: '/system/mail-settings',
+    isSubcollection: false,
+    sourceFile: 'functions/src/data-model/mail.ts',
+    summary:
+      'Global dispatch state governing system outbound mail (Off, Paused, Active). Supports zero-write enforcement on Off, placeholder queuing on Paused, and deferred template interpretation upon activation.',
+    cardinality: 'Singleton document at /system/mail-settings.',
+    ownership: 'Managed by HQ Administrators via Email Notifications space.',
+    keyRelations: [
+      { targetTypeId: 'mail', targetTypeName: 'MailQueueDoc', relation: 'Controls queue dispatch and placeholder release' },
+    ],
+    readRoles: ['Admin (HQ)'],
+    writeRoles: ['Admin (HQ) via callable setMailSendingState'],
+    rulesSummary:
+      'Admin-only access; modified via secure callable Cloud Function setMailSendingState.',
+    affectedTriggers: ['mail-processor.ts (processMailQueue)'],
+    mirrorTargets: [],
+    relatedJourneys: ['outbound-email-notifications'],
+    relatedFlows: ['email-queue-processor'],
+    tsInterface: `export interface MailSettings {
+  status: MailSendingStatus; // 'active' | 'paused' | 'off'
+  sendingPaused?: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+  pausedAt?: string;
+  resumedAt?: string;
+}`,
+    initDefaults: 'initMailSettings(): status: MailSendingStatus.Off, sendingPaused: false',
+    converterFunction: 'initMailSettings',
+    fields: [
+      { name: 'status', type: 'MailSendingStatus', required: true, description: 'active | paused | off' },
+      { name: 'sendingPaused', type: 'boolean', required: false, description: 'Legacy boolean flag' },
+      { name: 'updatedAt', type: 'string', required: false, description: 'ISO timestamp of state change' },
+      { name: 'updatedBy', type: 'string', required: false, description: 'Admin email who modified status' },
+    ],
+  },
 ];

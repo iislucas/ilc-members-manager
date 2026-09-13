@@ -9,6 +9,7 @@ export enum FlowCategory {
   ECommerceWebhooks = 'ECommerceWebhooks',
   MediaTranscoding = 'MediaTranscoding',
   MicroFrontends = 'MicroFrontends',
+  EmailAndNotifications = 'EmailAndNotifications',
 }
 
 export interface FlowStep {

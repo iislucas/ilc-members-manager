@@ -180,4 +180,22 @@ export const PATTERNS_CATALOG: PatternEntry[] = [
     relatedDataTypes: ['ilc-event', 'instructor-profile'],
     relatedFlows: ['micro-frontends'],
   },
+  {
+    id: 'mail-sending-status-lifecycle',
+    name: 'The 3-State MailSendingStatus & Zero-Write Lifecycle Pattern',
+    tagline: '3-state outbound mail dispatch, zero-write on Off, placeholder queuing when Paused, deferred template interpretation, and admin test bypass.',
+    problem:
+      'Enabling outbound automated transactional emails directly can accidentally spam practitioners during migrations or staging setups, consume email quotas, or pile up unreviewed mail records. Pausing dispatch must not lose notifications, but email templates may change while paused. Finally, administrators must be able to verify SMTP credentials even when automated mail is turned off.',
+    solution:
+      'Model system mail dispatch with a strict 3-state enum: MailSendingStatus (Off, Paused, Active). In the Off state, dispatchers log and exit immediately without writing any documents to /mail (zero-write rule). In the Paused state, placeholder documents are written to /mail with status: "PAUSED", preserving raw template keys and parameters. When transitioning to Active, queued placeholders are released to PENDING and dynamically rendered with the latest template definitions. For safe pre-launch testing, admin test emails enqueue with metadata.adminTest = true, which bypasses Off and Paused checks in processMailQueue.',
+    consequences:
+      'Completely eliminates accidental member spam and database bloat during setup. Guarantees that unpaused notifications use the most up-to-date templates. Enables safe, isolated end-to-end SMTP verification at any time.',
+    canonicalCodePointers: [
+      { file: 'functions/src/data-model/mail.ts', lineRange: 'L83-L108', description: 'MailSendingStatus enum, MailSettings interface, and initMailSettings constructor' },
+      { file: 'functions/src/mail-processor.ts', lineRange: 'L120-L200', description: 'processMailQueue atomic lock, zero-write check, and adminTest bypass' },
+      { file: 'src/app/email-notifications/email-notifications.component.ts', lineRange: 'L75-L160', description: '3-way status toggle banner and queue monitoring UI' },
+    ],
+    relatedDataTypes: ['mail', 'mail-settings', 'order', 'member'],
+    relatedFlows: ['email-queue-processor'],
+  },
 ];

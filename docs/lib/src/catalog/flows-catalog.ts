@@ -274,4 +274,85 @@ export const FLOWS_CATALOG: ArchFlowEntry[] = [
     Bundle --> Embed[Third-Party Site <events-viewer>]
     Embed --> Read[(Public Firestore Collections)]`,
   },
+  {
+    id: 'email-queue-processor',
+    title: 'Outbound Email Notification & Queue Processing Pipeline',
+    category: FlowCategory.EmailAndNotifications,
+    summary:
+      'Reliable transactional and scheduled email delivery pipeline featuring 3-state dispatch governance (Off, Paused, Active), zero-write on Off, placeholder queuing when Paused, deferred template interpretation upon activation, atomic locks against circular trigger loops, and Google Workspace Gmail SMTP integration.',
+    trigger:
+      'A transactional event occurs (Stripe purchase fulfillment, member onboarding), a scheduled cron triggers (weekly/monthly event digest), or an admin sends a test message.',
+    steps: [
+      {
+        stepNumber: 1,
+        sourceTier: 'Transactional Trigger / Dispatcher',
+        targetTier: 'Status Check & /mail Queue',
+        action:
+          'Evaluates global MailSendingStatus. If Off, logs and exits with zero writes. If Paused, enqueues placeholder with PAUSED status. If Active, renders template and writes PENDING. Admin tests bypass Off/Paused checks with metadata.adminTest: true.',
+        payloadDescription: 'MailQueueDoc write payload to /mail/{id}',
+        codePointers: ['functions/src/mail-processor.ts', 'functions/src/stripe-fulfillment.ts', 'functions/src/on-member-update.ts'],
+      },
+      {
+        stepNumber: 2,
+        sourceTier: 'Cloud Firestore',
+        targetTier: 'processMailQueue Trigger',
+        action: 'Firestore onDocumentCreated / onDocumentWritten trigger invokes queue processor function',
+        payloadDescription: 'DocumentSnapshot of /mail/{id}',
+        codePointers: ['functions/src/mail-processor.ts'],
+      },
+      {
+        stepNumber: 3,
+        sourceTier: 'processMailQueue',
+        targetTier: 'Atomic Transaction Lock',
+        action: 'Acquires Firestore transaction lock advancing status from PENDING to PROCESSING to eliminate duplicate delivery and circular loops',
+        payloadDescription: 'Atomic state transition',
+        codePointers: ['functions/src/mail-processor.ts'],
+      },
+      {
+        stepNumber: 4,
+        sourceTier: 'email-dispatcher.ts',
+        targetTier: 'Google Workspace Gmail SMTP',
+        action: 'Nodemailer sends MIME email via Gmail SMTP using authenticated credentials (notifications@iliqchuan.com)',
+        payloadDescription: 'SMTP RFC 5322 MIME message payload',
+        codePointers: ['functions/src/email-dispatcher.ts'],
+      },
+      {
+        stepNumber: 5,
+        sourceTier: 'processMailQueue',
+        targetTier: 'Cloud Firestore /mail/{id}',
+        action: 'Records delivery outcome: SUCCESS (messageId, timestamp) or ERROR (message, error trace, attempts increment)',
+        payloadDescription: 'Document update with delivery details',
+        codePointers: ['functions/src/mail-processor.ts'],
+      },
+      {
+        stepNumber: 6,
+        sourceTier: 'EmailNotificationsComponent',
+        targetTier: 'Admin Monitoring & Retry',
+        action: 'HQ Admin views live queue, inspects delivery headers and simulation tags, or invokes retryMailItem on failed messages',
+        payloadDescription: 'Callable retryMailItem payload',
+        codePointers: ['src/app/email-notifications/email-notifications.component.ts'],
+      },
+    ],
+    inputDataTypes: ['mail', 'mail-settings', 'order', 'member', 'ilc-event'],
+    outputDataTypes: ['mail'],
+    cloudFunctions: [
+      'processMailQueue',
+      'setMailSendingState',
+      'sendAdminTestEmail',
+      'retryMailItem',
+      'processEventDigestWeekly',
+      'processEventDigestMonthly',
+    ],
+    clientServices: ['DataManagerService', 'NavigationTreeService'],
+    mermaidDiagram: `flowchart TD
+    Trigger[Transactional Trigger / Admin Test] --> StateCheck{MailSendingStatus?}
+    StateCheck -->|Off| ZeroWrite[Log & Exit (Zero Writes)]
+    StateCheck -->|Paused| Hold[Write Placeholder (PAUSED)]
+    StateCheck -->|Active or Test| Enqueue[Write to /mail (PENDING)]
+    Enqueue --> FuncTrigger[processMailQueue Trigger]
+    FuncTrigger --> AtomicLock[Atomic Lock: PENDING -> PROCESSING]
+    AtomicLock --> Dispatcher[Nodemailer SMTP: notifications@iliqchuan.com]
+    Dispatcher --> OutcomeUpdate[Update /mail: SUCCESS or ERROR]
+    OutcomeUpdate --> AdminUI[Admin Portal /email-notifications + retryMailItem]`,
+  },
 ];
