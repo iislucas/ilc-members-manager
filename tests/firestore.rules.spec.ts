@@ -1889,7 +1889,7 @@ describe('Firestore Rules', () => {
       await assertFails(unauthDb.collection('mail').doc('mail-1').get());
     });
 
-    it('should deny all client writes to /mail (including admins - all writes must be via Cloud Functions)', async () => {
+    it('should deny client creates to /mail for everyone (including admins)', async () => {
       const adminDb = testEnv
         .authenticatedContext('admin', { email: 'admin@ilc.com' })
         .firestore();
@@ -1906,6 +1906,41 @@ describe('Firestore Rules', () => {
       await assertFails(adminDb.collection('mail').doc('mail-bad').set(newMail));
       await assertFails(memberDb.collection('mail').doc('mail-bad').set(newMail));
       await assertFails(unauthDb.collection('mail').doc('mail-bad').set(newMail));
+    });
+
+    it('should allow admin to delete and update mail docs unless actively in PROCESSING', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('mail').doc('mail-pending').set({
+          status: 'PENDING',
+          to: 'user@example.com',
+          message: { subject: 'Pending Mail' },
+        });
+        await context.firestore().collection('mail').doc('mail-processing').set({
+          status: 'PROCESSING',
+          to: 'user@example.com',
+          message: { subject: 'In Flight' },
+          delivery: { state: 'PROCESSING' },
+        });
+      });
+
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      const memberDb = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+
+      // Regular member cannot delete or update
+      await assertFails(memberDb.collection('mail').doc('mail-pending').delete());
+      await assertFails(memberDb.collection('mail').doc('mail-pending').update({ to: 'other@example.com' }));
+
+      // Admin CAN delete and update non-PROCESSING mail
+      await assertSucceeds(adminDb.collection('mail').doc('mail-pending').update({ to: 'updated@example.com' }));
+      await assertSucceeds(adminDb.collection('mail').doc('mail-pending').delete());
+
+      // Admin CANNOT delete or update mail actively in PROCESSING
+      await assertFails(adminDb.collection('mail').doc('mail-processing').delete());
+      await assertFails(adminDb.collection('mail').doc('mail-processing').update({ to: 'other@example.com' }));
     });
   });
 });

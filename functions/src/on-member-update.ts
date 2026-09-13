@@ -360,7 +360,7 @@ export async function handleMembershipActivation(
 
     try {
       await sendTemplateEmail(db, member.emails || [], 'membershipActivated', {
-        name: member.name || '',
+        name: member.name || 'ILC Member',
         memberId: member.memberId || '',
         email: (member.emails || [])[0] || '',
         appBase: environment.links.appBase,
@@ -393,7 +393,7 @@ export async function handleInstructorActivation(
 
     try {
       await sendTemplateEmail(db, member.emails || [], 'instructorLicenseActivated', {
-        name: member.name || '',
+        name: member.name || 'ILC Instructor',
         memberId: member.memberId || '',
         instructorId: member.instructorId || '',
         email: (member.emails || [])[0] || '',

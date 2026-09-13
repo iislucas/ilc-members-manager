@@ -106,8 +106,11 @@ export function membershipActivatedSubject(params?: MembershipEmailParams): stri
 
 // Body for membership activation email.
 export function membershipActivatedBody(params?: MembershipEmailParams): string {
+  const name = params?.name || '{name}';
   const appBase = params?.appBase || '{appBase}';
-  return `Welcome to the I Liq Chuan family! Your membership is now active.
+  return `Hi ${name},
+
+Welcome to the I Liq Chuan family! Your membership is now active.
 
 You can now access the [Active Members Area](${appBase}/members-area) to read the blog, view classes, and more.`;
 }
@@ -119,10 +122,13 @@ export function instructorLicenseActivatedSubject(params?: InstructorEmailParams
 
 // Body for instructor license activation email.
 export function instructorLicenseActivatedBody(params?: InstructorEmailParams): string {
+  const name = params?.name || '{name}';
   const instructorId = params?.instructorId || '{instructorId}';
   const appBase = params?.appBase || '{appBase}';
   const sopUrl = params?.instructorSopUrl || '{instructorSopUrl}';
-  return `Congratulations on getting your Instructor ID **${instructorId}**!
+  return `Hi ${name},
+
+Congratulations on getting your Instructor ID **${instructorId}**!
 
 Please [update your public instructor profile](${appBase}/myProfile) with a bio, photos, and links, and make sure to review the [Instructor Standard Operating Procedures (SOP)](${sopUrl}) in the Instructors Area.`;
 }

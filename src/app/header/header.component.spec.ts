@@ -9,7 +9,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { HeaderComponent, Breadcrumb } from './header.component';
 import { NavigationTreeService, NavNode } from '../navigation-tree';
-import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
+import { ROUTING_CONFIG, initPathPatterns, Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 import { FindInstructorsService } from '../find-instructors.service';
 
@@ -166,6 +166,16 @@ describe('HeaderComponent', () => {
     const fixture = TestBed.createComponent(HeaderComponent);
     const component = fixture.componentInstance;
     component.routingService.matchedPatternId = signal('notifications' as any);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.hasTopTabs()).toBe(true);
+  });
+
+  it('computes hasTopTabs as true for EmailNotifications view', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    const component = fixture.componentInstance;
+    component.routingService.matchedPatternId = signal(Views.EmailNotifications);
     fixture.detectChanges();
     await fixture.whenStable();
 

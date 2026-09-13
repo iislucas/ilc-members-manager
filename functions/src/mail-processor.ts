@@ -290,6 +290,8 @@ export interface SendAdminTestEmailRequest {
   bodyMarkdown: string;
   fromName?: string;
   replyTo?: string;
+  name?: string;
+  replacements?: Record<string, string>;
 }
 
 export interface SendAdminTestEmailResponse {
@@ -335,8 +337,44 @@ export const sendAdminTestEmail = onCall(
     }
 
     const recipient = data.to.trim();
-    const subject = data.subject.trim();
-    const bodyMarkdown = data.bodyMarkdown.trim();
+    const origin = environment.links?.appBase || 'https://app.iliqchuan.com';
+    const defaultReplacements: Record<string, string> = {
+      name: data.name || request.auth?.token.name || 'Test Member',
+      email: recipient,
+      memberId: 'US123',
+      instructorId: '101',
+      appBase: origin,
+      instructorSopUrl: `${origin}/instructors-area/sop`,
+      orderNumber: '1001',
+      orderDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      amount: '$120.00',
+      currency: 'USD',
+      itemsSummary: '- 1x Annual Membership Renewal ($120.00)',
+      receiptUrl: `${origin}/orders/1001`,
+      eventTitle: 'Zhong Xin Dao Summer Retreat',
+      eventDates: 'July 15 - July 20, 2026',
+      eventLocation: 'Fishkill, NY, USA',
+      attendanceType: 'In-Person & Online',
+      onlineJoiningLink: 'https://zoom.us/j/123456789',
+      specialInstructions: 'Please arrive 15 minutes prior to the first session.',
+      videoTitle: '21 Form Detailed Breakdown',
+      videoUrl: `${origin}/videos/v-21-form`,
+      gradingLevel: 'Student Level 3',
+      gradingEventName: 'Annual International Grading Examination',
+      gradingDate: 'October 12, 2026',
+      gradingUrl: `${origin}/gradings`,
+      planName: 'Annual Instructor Association Membership',
+      renewalDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      nextRenewalDate: 'Next billing cycle',
+      period: 'this month',
+      eventsCount: '2',
+      calendarUrl: `${origin}/events`,
+      preferencesUrl: `${origin}/settings/notifications`,
+      ...(data.replacements || {}),
+    };
+
+    const subject = formatTemplate(data.subject.trim(), defaultReplacements);
+    const bodyMarkdown = formatTemplate(data.bodyMarkdown.trim(), defaultReplacements);
     const html = markdownToHtml(bodyMarkdown);
     const db = admin.firestore();
 

@@ -7,6 +7,9 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownEditor, EditorChip, MarkdownFeature } from '../markdown-editor/markdown-editor';
+import { IconComponent } from '../icons/icon.component';
+import { MemberSelectorComponent } from '../member-selector/member-selector';
+import { Member } from '../../../functions/src/data-model/members';
 import { EmailTemplates, initEmailTemplates } from '../../../functions/src/data-model/content-cache';
 import { MailQueueDoc, MailSendingStatus } from '../../../functions/src/data-model/mail';
 import {
@@ -16,16 +19,21 @@ import {
   formatTemplate,
 } from '../../../functions/src/email-markdown';
 
-export type TemplateCategory = 'onboarding' | 'purchases' | 'digest' | 'test' | 'logs';
+export type TemplateCategory = 'settings' | 'test' | 'onboarding' | 'purchases' | 'digest' | 'logs';
 export type PurchaseSubtype = 'order' | 'event' | 'vod' | 'grading' | 'subscription';
+export type TestEmailType = 'ping' | 'welcome' | 'order' | 'digest';
 
-const VALID_CATEGORIES: TemplateCategory[] = ['onboarding', 'purchases', 'digest', 'test', 'logs'];
+export const DEFAULT_PING_SUBJECT = '[Test] I Liq Chuan Email Verification';
+export const DEFAULT_PING_BODY =
+  'Hello **{name}**,\n\nThis is a test verification email from the I Liq Chuan system.\n\nAll systems operational.\n\nBest regards,\n[I Liq Chuan Association]({appBase})';
+
+const VALID_CATEGORIES: TemplateCategory[] = ['settings', 'test', 'onboarding', 'purchases', 'digest', 'logs'];
 const VALID_PURCHASE_SUBTYPES: PurchaseSubtype[] = ['order', 'event', 'vod', 'grading', 'subscription'];
 
 @Component({
   selector: 'app-email-notifications',
   standalone: true,
-  imports: [CommonModule, FormsModule, SpinnerComponent, MarkdownEditor],
+  imports: [CommonModule, FormsModule, SpinnerComponent, MarkdownEditor, IconComponent, MemberSelectorComponent],
   templateUrl: './email-notifications.component.html',
   styleUrl: './email-notifications.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -37,13 +45,13 @@ export class EmailNotificationsComponent {
 
   private viewSignals = this.routingService.signals[Views.EmailNotifications];
 
-  // Derive active category from the URL `tab` query param, with fallback to 'onboarding'
+  // Derive active category from the URL `tab` query param, with fallback to 'settings'
   activeCategory = computed<TemplateCategory>(() => {
     const tab = this.viewSignals.urlParams.tab();
     if (tab && VALID_CATEGORIES.includes(tab as TemplateCategory)) {
       return tab as TemplateCategory;
     }
-    return 'onboarding';
+    return 'settings';
   });
 
   // Derive active purchase subtype from URL `subtab` query param, with fallback to 'order'
@@ -185,11 +193,12 @@ export class EmailNotificationsComponent {
   );
 
   // Test Email Sender state
+  testEmailType = signal<TestEmailType>('ping');
+  selectedTestMemberId = signal<string>('');
+  selectedTestMember = signal<Member | null>(null);
   testRecipient = signal<string>('');
-  testSubject = signal<string>('[Test] I Liq Chuan Email Verification');
-  testBodyMarkdown = signal<string>(
-    'Hello **{name}**,\n\nThis is a test verification email from the I Liq Chuan system.\n\nAll systems operational.\n\nBest regards,\n[I Liq Chuan Association]({appBase})',
-  );
+  testSubject = signal<string>(DEFAULT_PING_SUBJECT);
+  testBodyMarkdown = signal<string>(DEFAULT_PING_BODY);
   isSendingTest = signal(false);
   testResult = signal<{
     success?: boolean;
@@ -199,13 +208,203 @@ export class EmailNotificationsComponent {
     docId?: string;
   } | null>(null);
 
+  setTestEmailType(type: TestEmailType) {
+    this.testEmailType.set(type);
+  }
+
+  resetPingTemplate() {
+    this.testSubject.set(DEFAULT_PING_SUBJECT);
+    this.testBodyMarkdown.set(DEFAULT_PING_BODY);
+  }
+
   testBodyWarnings = computed(() =>
     findUnsupportedEmailMarkdown(this.testBodyMarkdown())
   );
 
-  testPreviewHtml = computed(() =>
-    markdownToHtml(this.testBodyMarkdown())
-  );
+  onTestMemberSelected(member: Member | null) {
+    this.selectedTestMember.set(member);
+    if (member) {
+      const email = member.emails?.[0] || member.publicEmail || '';
+      if (email) {
+        this.testRecipient.set(email);
+      }
+    }
+  }
+
+  onTestMemberIdChange(memberId: string) {
+    this.selectedTestMemberId.set(memberId);
+    if (!memberId) {
+      this.selectedTestMember.set(null);
+    } else {
+      const member = this.dataManager.getMember(memberId) ?? null;
+      if (member) {
+        this.onTestMemberSelected(member);
+      }
+    }
+  }
+
+  clearSelectedTestMember() {
+    this.selectedTestMemberId.set('');
+    this.selectedTestMember.set(null);
+  }
+
+  getTestReplacements(): Record<string, string> {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.iliqchuan.com';
+    const user = this.firebaseState.user();
+    const selMember = this.selectedTestMember();
+    const recipientEmail = this.testRecipient().trim() || selMember?.emails?.[0] || selMember?.publicEmail || user?.firebaseUser?.email || 'member@example.com';
+    const recipientName = selMember?.name || user?.member?.name || user?.firebaseUser?.displayName || 'Alex Chen';
+    const memberId = selMember?.memberId || user?.member?.memberId || 'US402';
+    const instructorId = selMember?.instructorId || '101';
+
+    return {
+      name: recipientName,
+      email: recipientEmail,
+      memberId,
+      instructorId,
+      appBase: origin,
+      instructorSopUrl: `${origin}/instructors-area/sop`,
+      orderNumber: '1001',
+      orderDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      amount: '$120.00',
+      currency: 'USD',
+      itemsSummary: '- 1x Annual Membership Renewal ($120.00)',
+      receiptUrl: `${origin}/orders/1001`,
+      eventTitle: 'Zhong Xin Dao Summer Retreat',
+      eventDates: 'July 15 - July 20, 2026',
+      eventLocation: 'Fishkill, NY, USA',
+      attendanceType: 'In-Person & Online',
+      onlineJoiningLink: 'https://zoom.us/j/123456789',
+      specialInstructions: 'Please arrive 15 minutes prior to the first session.',
+      videoTitle: '21 Form Detailed Breakdown',
+      videoUrl: `${origin}/videos/v-21-form`,
+      gradingLevel: 'Student Level 3',
+      gradingEventName: 'Annual International Grading Examination',
+      gradingDate: 'October 12, 2026',
+      gradingUrl: `${origin}/gradings`,
+      planName: 'Annual Instructor Association Membership',
+      renewalDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      nextRenewalDate: 'Next billing cycle',
+      period: 'this month',
+      eventsCount: '2',
+      calendarUrl: `${origin}/events`,
+      preferencesUrl: `${origin}/settings/notifications`,
+    };
+  }
+
+  testPreviewTo = computed(() => {
+    const to = this.testRecipient().trim();
+    const selMember = this.selectedTestMember();
+    if (selMember?.name) {
+      if (to) {
+        return `${selMember.name} <${to}>`;
+      }
+      return `${selMember.name} (no email set)`;
+    }
+    return to || '(No recipient specified)';
+  });
+
+  testPreviewSubject = computed(() => {
+    const type = this.testEmailType();
+    let raw = '';
+    if (type === 'ping') {
+      raw = this.testSubject();
+    } else if (type === 'welcome') {
+      raw = this.templates().membershipActivatedSubject || 'Welcome to the I Liq Chuan Family!';
+    } else if (type === 'order') {
+      raw = this.templates().orderConfirmationSubject || 'Your I Liq Chuan Order Confirmation ({orderNumber})';
+    } else if (type === 'digest') {
+      raw = this.templates().eventDigestOverallSubject || 'Upcoming I Liq Chuan Events - {period}';
+    }
+    return formatTemplate(raw, this.getTestReplacements());
+  });
+
+  testPreviewHtml = computed(() => {
+    const type = this.testEmailType();
+    const replacements = this.getTestReplacements();
+    let raw = '';
+    if (type === 'ping') {
+      raw = this.testBodyMarkdown();
+    } else if (type === 'welcome') {
+      raw = this.templates().membershipActivatedBody || '';
+    } else if (type === 'order') {
+      raw = this.templates().orderConfirmationBody || '';
+    } else if (type === 'digest') {
+      const itemTpl = this.templates().eventDigestItemTemplate || '';
+      const overallTpl = this.templates().eventDigestOverallBody || '';
+      const compiledItems = this.sampleDigestEvents
+        .map((evt) => formatTemplate(itemTpl, evt))
+        .join('\n\n');
+      raw = formatTemplate(overallTpl, {
+        ...replacements,
+        eventsList: compiledItems,
+      });
+    }
+    const formatted = formatTemplate(raw, replacements);
+    return markdownToHtml(formatted);
+  });
+
+  // Rendered previews for Onboarding templates
+  memberWelcomePreviewSubject = computed(() => {
+    return formatTemplate(this.templates().membershipActivatedSubject || '', this.getTestReplacements());
+  });
+  memberWelcomePreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().membershipActivatedBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  instructorWelcomePreviewSubject = computed(() => {
+    return formatTemplate(this.templates().instructorLicenseActivatedSubject || '', this.getTestReplacements());
+  });
+  instructorWelcomePreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().instructorLicenseActivatedBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  // Rendered previews for Purchases templates
+  orderPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().orderConfirmationSubject || '', this.getTestReplacements());
+  });
+  orderPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().orderConfirmationBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  eventRegPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().eventRegistrationConfirmationSubject || '', this.getTestReplacements());
+  });
+  eventRegPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().eventRegistrationConfirmationBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  vodPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().vodPurchaseConfirmationSubject || '', this.getTestReplacements());
+  });
+  vodPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().vodPurchaseConfirmationBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  gradingPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().gradingPaymentConfirmationSubject || '', this.getTestReplacements());
+  });
+  gradingPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().gradingPaymentConfirmationBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  subscriptionPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().subscriptionRenewalSubject || '', this.getTestReplacements());
+  });
+  subscriptionPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().subscriptionRenewalBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  digestPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().eventDigestOverallSubject || '', this.getTestReplacements());
+  });
 
   isSaving = signal(false);
   statusMessage = signal('');
@@ -329,91 +528,69 @@ export class EmailNotificationsComponent {
   }
 
   loadTestSample(preset: 'welcome' | 'order' | 'digest' | 'blank') {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.iliqchuan.com';
-    const userEmail =
-      this.testRecipient() ||
-      this.firebaseState.user()?.firebaseUser?.email ||
-      'admin@iliqchuan.com';
-    const t = this.templates();
-
-    if (preset === 'welcome') {
-      this.testSubject.set(t.membershipActivatedSubject || 'Welcome to I Liq Chuan - Official Member Notice');
-      const rawBody = t.membershipActivatedBody || '';
-      const formatted = formatTemplate(rawBody, {
-        name: 'Test Member',
-        memberId: 'US123',
-        email: userEmail,
-        appBase: origin,
-      });
-      this.testBodyMarkdown.set(
-        formatted.includes('Test Member')
-          ? formatted
-          : `Hello **Test Member**,\n\n${formatted}`,
-      );
-    } else if (preset === 'order') {
-      this.testSubject.set(t.orderConfirmationSubject || 'I Liq Chuan - Order Confirmation #1001');
-      const rawBody = t.orderConfirmationBody || '';
-      this.testBodyMarkdown.set(
-        formatTemplate(rawBody, {
-          name: 'Test Customer',
-          orderNumber: '1001',
-          orderDate: new Date().toLocaleDateString(),
-          amount: '$120.00',
-          currency: 'USD',
-          itemsSummary: '- 1x Annual Membership Renewal ($120.00)',
-          receiptUrl: `${origin}/orders/1001`,
-          appBase: origin,
-        }),
-      );
-    } else if (preset === 'digest') {
-      this.testSubject.set(t.eventDigestOverallSubject || 'Upcoming I Liq Chuan Events');
-      const itemTpl = t.eventDigestItemTemplate || '';
-      const overallTpl = t.eventDigestOverallBody || '';
-      const compiledItems = this.sampleDigestEvents
-        .map((evt) => formatTemplate(itemTpl, evt))
-        .join('\n\n');
-      this.testBodyMarkdown.set(
-        formatTemplate(overallTpl, {
-          name: 'Test Member',
-          period: 'this month',
-          eventsCount: String(this.sampleDigestEvents.length),
-          eventsList: compiledItems,
-          calendarUrl: `${origin}/events`,
-          preferencesUrl: `${origin}/settings/notifications`,
-          appBase: origin,
-        }),
-      );
+    if (preset === 'blank') {
+      this.setTestEmailType('ping');
+      this.resetPingTemplate();
     } else {
-      this.testSubject.set('[Test] I Liq Chuan Email Verification');
-      this.testBodyMarkdown.set(
-        `Hello **Test Member**,\n\nThis is a test verification email from the I Liq Chuan system.\n\nAll systems operational.\n\nBest regards,\n[I Liq Chuan Association](${origin})`,
-      );
+      this.setTestEmailType(preset);
     }
   }
 
   async sendTestEmail() {
     const to = this.testRecipient().trim();
-    const subject = this.testSubject().trim();
-    const bodyMarkdown = this.testBodyMarkdown().trim();
-
     if (!to || !to.includes('@')) {
       this.testResult.set({ success: false, error: 'Please provide a valid recipient email address.' });
       return;
     }
-    if (!subject) {
-      this.testResult.set({ success: false, error: 'Please provide an email subject.' });
-      return;
+
+    const type = this.testEmailType();
+    let rawSubject = '';
+    let rawBodyMarkdown = '';
+
+    if (type === 'ping') {
+      rawSubject = this.testSubject().trim();
+      rawBodyMarkdown = this.testBodyMarkdown().trim();
+      if (!rawSubject) {
+        this.testResult.set({ success: false, error: 'Please provide an email subject.' });
+        return;
+      }
+      if (!rawBodyMarkdown) {
+        this.testResult.set({ success: false, error: 'Please provide email body text.' });
+        return;
+      }
+    } else if (type === 'welcome') {
+      rawSubject = this.templates().membershipActivatedSubject || 'Welcome to the I Liq Chuan Family!';
+      rawBodyMarkdown = this.templates().membershipActivatedBody || '';
+    } else if (type === 'order') {
+      rawSubject = this.templates().orderConfirmationSubject || 'Your I Liq Chuan Order Confirmation ({orderNumber})';
+      rawBodyMarkdown = this.templates().orderConfirmationBody || '';
+    } else if (type === 'digest') {
+      rawSubject = this.templates().eventDigestOverallSubject || 'Upcoming I Liq Chuan Events - {period}';
+      const itemTpl = this.templates().eventDigestItemTemplate || '';
+      const overallTpl = this.templates().eventDigestOverallBody || '';
+      const compiledItems = this.sampleDigestEvents
+        .map((evt) => formatTemplate(itemTpl, evt))
+        .join('\n\n');
+      rawBodyMarkdown = formatTemplate(overallTpl, {
+        eventsList: compiledItems,
+      });
     }
-    if (!bodyMarkdown) {
-      this.testResult.set({ success: false, error: 'Please provide email body text.' });
-      return;
-    }
+
+    const replacements = this.getTestReplacements();
+    const subject = formatTemplate(rawSubject, replacements);
+    const bodyMarkdown = formatTemplate(rawBodyMarkdown, replacements);
 
     this.isSendingTest.set(true);
     this.testResult.set(null);
 
     try {
-      const res = await this.dataManager.sendAdminTestEmail({ to, subject, bodyMarkdown });
+      const res = await this.dataManager.sendAdminTestEmail({
+        to,
+        subject,
+        bodyMarkdown,
+        name: replacements['name'],
+        replacements,
+      });
       this.testResult.set({
         success: res.success,
         simulated: res.simulated,
@@ -604,7 +781,10 @@ export class EmailNotificationsComponent {
     }
   }
 
-  async retryMail(mailId: string) {
+  async retryMail(mailId: string, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
     if (!mailId) return;
     this.isRetryingId.set(mailId);
     this.retryFeedback.set(null);
@@ -778,7 +958,22 @@ export class EmailNotificationsComponent {
   isSavingEdit = signal<boolean>(false);
   editFeedback = signal<{ success: boolean; message: string } | null>(null);
 
-  editPreviewHtml = computed(() => markdownToHtml(this.editText()));
+  editPreviewHtml = computed(() => {
+    const text = this.editText();
+    const templateData: Record<string, string> = {};
+    for (const entry of this.editTemplateDataEntries()) {
+      const k = entry.key.trim();
+      if (k) {
+        templateData[k] = entry.value;
+      }
+    }
+    const formatted = formatTemplate(text, { ...this.getTestReplacements(), ...templateData });
+    return markdownToHtml(formatted);
+  });
+
+  clearSelectedLog() {
+    this.selectedLog.set(null);
+  }
 
   openEditMail(mail: MailQueueDoc, event?: Event) {
     if (event) {

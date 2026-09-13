@@ -2470,6 +2470,8 @@ export class DataManagerService {
     bodyMarkdown: string;
     fromName?: string;
     replyTo?: string;
+    name?: string;
+    replacements?: Record<string, string>;
   }): Promise<{
     success: boolean;
     messageId?: string;
@@ -2484,6 +2486,8 @@ export class DataManagerService {
         bodyMarkdown: string;
         fromName?: string;
         replyTo?: string;
+        name?: string;
+        replacements?: Record<string, string>;
       },
       {
         success: boolean;
@@ -2495,6 +2499,14 @@ export class DataManagerService {
     >(this.functions, 'sendAdminTestEmail');
     const result = await fn(options);
     return result.data;
+  }
+
+  /**
+   * Deletes a single mail queue document directly using client SDK (permitted for admins by Firestore security rules).
+   */
+  async deleteMailItemDirect(mailId: string): Promise<void> {
+    const mailRef = doc(this.db, FirestoreCollection.Mail, mailId);
+    await deleteDoc(mailRef);
   }
 
   /**

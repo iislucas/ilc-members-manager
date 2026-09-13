@@ -228,26 +228,25 @@
 
   @if (linkPopupOpen()) {
     <div class="link-popup" [style.top.px]="linkPopupPos().top" [style.left.px]="linkPopupPos().left">
-      <input #linkInput [value]="linkUrl()" (keyup.enter)="updateLink(linkInput.value)"/>
+      <input #linkInput
+             [value]="linkUrl()"
+             placeholder="https://..."
+             autofocus
+             (keyup.enter)="updateLink(linkInput.value)"
+             (keyup.escape)="linkPopupOpen.set(false)"/>
       <button type="button" (click)="updateLink(linkInput.value)" class="icon-only-button" title="Save Link">
         <app-icon name="check" width="1em" height="1em"></app-icon>
       </button>
+      @if (linkUrl()) {
+        <a [href]="linkUrl()" target="_blank" rel="noopener noreferrer" class="icon-only-button" title="Open Link in New Tab">
+          <app-icon name="link" width="1em" height="1em"></app-icon>
+        </a>
+      }
       <button type="button" (click)="removeLink()" class="icon-only-button" title="Remove Link">
         <app-icon name="trash" width="1em" height="1em"></app-icon>
       </button>
     </div>
     <div class="menu-overlay" (click)="linkPopupOpen.set(false)"></div>
-  }
-
-  @if (linkPreviewOpen()) {
-    <div class="link-preview" [style.top.px]="linkPreviewPos().top" [style.left.px]="linkPreviewPos().left">
-      <span (click)="openLink()" class="preview-text">🔗 Open: {{ truncatedUrl() }}</span>
-      <div class="preview-actions">
-        <button type="button" (click)="toggleLink()" class="icon-only-button" title="Edit Link">
-          <app-icon name="edit" width="1em" height="1em"></app-icon>
-        </button>
-      </div>
-    </div>
   }
 
   @if (imageModalOpen()) {

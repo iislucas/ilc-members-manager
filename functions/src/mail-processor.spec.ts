@@ -250,6 +250,50 @@ describe('mail-processor', () => {
       );
     });
 
+    it('substitutes {name} and tokens in subject and bodyMarkdown before queuing', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockDocRef = {
+        id: 'mail_test_token',
+        get: vi.fn().mockResolvedValue({
+          data: () => ({
+            status: 'SUCCESS',
+            delivery: {
+              state: 'SUCCESS',
+              info: { messageId: 'msg_test_tok', simulated: true },
+            },
+          }),
+        }),
+      };
+      const mockAdd = vi.fn().mockResolvedValue(mockDocRef);
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockReturnValue({
+          add: mockAdd,
+        }),
+      } as any);
+
+      const res = await sendAdminTestEmail.run({
+        auth: { token: { email: 'admin@iliqchuan.com', name: 'Master Sam Chin' } },
+        data: {
+          to: 'test@example.com',
+          name: 'Alex Chen',
+          subject: 'Welcome {name}!',
+          bodyMarkdown: 'Hello **{name}**,\n\nOrder {orderNumber} for {amount}. Visit [ILC]({appBase}).',
+        },
+      } as any);
+
+      expect(res.success).toBe(true);
+      expect(mockAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: ['test@example.com'],
+          message: {
+            subject: 'Welcome Alex Chen!',
+            text: 'Hello **Alex Chen**,\n\nOrder 1001 for $120.00. Visit [ILC](https://app.iliqchuan.com).',
+            html: 'Hello <strong>Alex Chen</strong>,<br><br>Order 1001 for $120.00. Visit <a href="https://app.iliqchuan.com">ILC</a>.',
+          },
+        }),
+      );
+    });
+
     it('returns error when mail queue delivery fails', async () => {
       vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
       const mockDocRef = {

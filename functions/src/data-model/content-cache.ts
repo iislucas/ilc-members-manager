@@ -164,9 +164,10 @@ export interface EmailTemplates {
 export function initEmailTemplates(): EmailTemplates {
   return {
     membershipActivatedSubject: membershipActivatedSubject(),
-    membershipActivatedBody: membershipActivatedBody({ appBase: '{appBase}' }),
+    membershipActivatedBody: membershipActivatedBody({ name: '{name}', appBase: '{appBase}' }),
     instructorLicenseActivatedSubject: instructorLicenseActivatedSubject(),
     instructorLicenseActivatedBody: instructorLicenseActivatedBody({
+      name: '{name}',
       instructorId: '{instructorId}',
       appBase: '{appBase}',
       instructorSopUrl: '{instructorSopUrl}',

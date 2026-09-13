@@ -142,6 +142,7 @@ export async function processEventDigest(
       eventInstructors: instructors,
       eventPrice: evt.productId ? 'Paid' : 'Free / Included',
       eventSummary: summary,
+      appBase,
     });
   });
 

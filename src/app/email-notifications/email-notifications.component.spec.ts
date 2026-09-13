@@ -6,6 +6,8 @@ import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import { signal } from '@angular/core';
 import { vi, describe, beforeEach, it, expect } from 'vitest';
+import { SearchableSet } from '../searchable-set';
+import { Member } from '../../../functions/src/data-model/members';
 import { initEmailTemplates } from '../../../functions/src/data-model/content-cache';
 import { initMailSettings, MailSendingStatus } from '../../../functions/src/data-model/mail';
 
@@ -17,6 +19,7 @@ describe('EmailNotificationsComponent', () => {
   let mockRoutingService: any;
   let tabSignal: any;
   let subtabSignal: any;
+  let mockTestMember: Member;
 
   beforeEach(async () => {
     tabSignal = signal('onboarding');
@@ -34,7 +37,53 @@ describe('EmailNotificationsComponent', () => {
       navigateTo: vi.fn(),
     };
 
+    mockTestMember = {
+      docId: 'doc_101',
+      memberId: 'US101',
+      name: 'Master Sam Chin',
+      instructorId: '101',
+      emails: ['samchin@iliqchuan.com'],
+      publicEmail: 'samchin@iliqchuan.com',
+      isAdmin: false,
+      lastUpdated: '2026-01-01',
+      primaryInstructorId: '',
+      primarySchoolId: '',
+      primarySchoolDocId: '',
+      membershipType: '' as any,
+      firstMembershipStarted: '',
+      lastRenewalDate: '',
+      currentMembershipExpires: '',
+      membershipNextAutoRenewDate: '',
+      membershipSubscriptionId: '',
+      address: '',
+      city: '',
+      zipCode: '',
+      countyOrState: '',
+      country: '',
+      phone: '',
+      gender: '',
+      dateOfBirth: '',
+      publicPhone: '',
+      publicRegionOrCity: '',
+      publicCountyOrState: '',
+      instructorWebsite: '',
+      publicClassGoogleCalendarId: '',
+      publicProfileImageUrl: '',
+      publicProfileImageThumbUrl: '',
+      publicCoverImageUrl: '',
+      publicBioMarkdown: '',
+      studentLevel: '' as any,
+      applicationLevel: '' as any,
+      mastersLevels: [],
+    };
+
+    const membersSet = new SearchableSet<'docId', Member>(['name', 'memberId', 'instructorId'], 'docId');
+    membersSet.setEntries([mockTestMember]);
+
     mockDataManager = {
+      members: membersSet,
+      getMember: vi.fn((id: string) => (id === 'US101' || id === 'doc_101' ? mockTestMember : undefined)),
+      getMemberByMemberId: vi.fn((id: string) => (id === 'US101' ? mockTestMember : undefined)),
       emailTemplates: signal(initEmailTemplates()),
       mailSettings: signal(initMailSettings()),
       saveEmailTemplates: vi.fn().mockResolvedValue({}),
@@ -119,14 +168,49 @@ describe('EmailNotificationsComponent', () => {
     expect(inputs[1].value).toBe('Congratulations on your Instructor License!');
   });
 
+  it('renders pill tabs in the requested order with shortened names', () => {
+    const tabs = Array.from(fixture.nativeElement.querySelectorAll('.header-extension-tabs .pill-tab')) as HTMLElement[];
+    expect(tabs.length).toBe(6);
+    expect(tabs.map(t => t.textContent?.trim())).toEqual([
+      'Settings',
+      'Test',
+      'Onboarding',
+      'Purchases',
+      'Event Digests',
+      'Logs & Queue',
+    ]);
+  });
+
+  it('defaults activeCategory to settings when urlParams.tab is empty', () => {
+    tabSignal.set('');
+    expect(component.activeCategory()).toBe('settings');
+  });
+
+  it('renders status controls and explanations when on settings tab', async () => {
+    await component.setCategory('settings');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const statusBanner = fixture.nativeElement.querySelector('.settings-banner');
+    expect(statusBanner).toBeTruthy();
+    expect(statusBanner.textContent).toContain('Current Status: OFF');
+
+    const toggleButtons = Array.from(fixture.nativeElement.querySelectorAll('.settings-banner .status-btn')) as HTMLElement[];
+    expect(toggleButtons.map(b => b.textContent?.trim())).toEqual(['Off', 'Pause', 'Turn On']);
+  });
+
   it('should update activeCategory when urlParams.tab changes', async () => {
     tabSignal.set('purchases');
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(component.activeCategory()).toBe('purchases');
-    const subPills = fixture.nativeElement.querySelectorAll('.sub-nav-pills .pill-btn');
+    const subPills = fixture.nativeElement.querySelectorAll('.purchase-sub-tabs .pill-tab');
     expect(subPills.length).toBe(5);
+
+    const subSelect = fixture.nativeElement.querySelector('.purchase-sub-select') as HTMLSelectElement;
+    expect(subSelect).toBeTruthy();
+    expect(subSelect.options.length).toBe(5);
   });
 
   it('should update activePurchaseSubtype when setPurchaseSubtype is called', () => {
@@ -180,11 +264,13 @@ describe('EmailNotificationsComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(mockDataManager.sendAdminTestEmail).toHaveBeenCalledWith({
-      to: 'tester@example.com',
-      subject: 'Test Email',
-      bodyMarkdown: 'Hello world',
-    });
+    expect(mockDataManager.sendAdminTestEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'tester@example.com',
+        subject: 'Test Email',
+        bodyMarkdown: 'Hello world',
+      }),
+    );
 
     const successBox = fixture.nativeElement.querySelector('.success-box');
     expect(successBox).toBeTruthy();
@@ -263,6 +349,9 @@ describe('EmailNotificationsComponent', () => {
 
   it('should manage 3-way mail sending status (Off, Paused, Active)', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await component.setCategory('settings');
+    fixture.detectChanges();
+    await fixture.whenStable();
 
     // 1. Initial state: OFF
     expect(component.mailStatus()).toBe(MailSendingStatus.Off);
@@ -462,6 +551,237 @@ describe('EmailNotificationsComponent', () => {
       expect(component.editingMail()).toBeNull();
       expect(component.deleteActionFeedback()?.success).toBe(true);
       expect(component.deleteActionFeedback()?.message).toContain('Email "mail_2" updated successfully');
+    });
+  });
+
+  describe('Single Email Detail View Navigation', () => {
+    beforeEach(async () => {
+      await component.setCategory('logs');
+      await component.loadMailLogs();
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    it('swaps list view for single email detail view upon selection, and returns on Back to Logs', async () => {
+      // Initially, list view is shown and detail view is hidden
+      expect(component.selectedLog()).toBeNull();
+      expect(fixture.nativeElement.querySelector('.logs-table')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('.log-detail-view')).toBeFalsy();
+
+      // Select an email
+      const target = component.mailLogs()[0]; // mail_1
+      component.selectLog(target);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      // List should disappear, detail view should appear
+      expect(component.selectedLog()).toBe(target);
+      expect(fixture.nativeElement.querySelector('.logs-table')).toBeFalsy();
+      expect(fixture.nativeElement.querySelector('.logs-header-bar')).toBeFalsy();
+      const detailView = fixture.nativeElement.querySelector('.log-detail-view');
+      expect(detailView).toBeTruthy();
+      expect(detailView.textContent).toContain('Document ID: mail_1');
+      expect(detailView.textContent).toContain('student@example.com');
+      expect(detailView.textContent).toContain('Back to Logs');
+
+      // Click "Back to Logs"
+      component.clearSelectedLog();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      // List should reappear, detail view should be gone
+      expect(component.selectedLog()).toBeNull();
+      expect(fixture.nativeElement.querySelector('.logs-table')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('.log-detail-view')).toBeFalsy();
+    });
+  });
+
+  describe('Rendered Preview Token Substitutions', () => {
+    it('substitutes {name} in onboarding preview computeds', () => {
+      expect(component.memberWelcomePreviewSubject()).toBe('Welcome to the I Liq Chuan Family!');
+      expect(component.memberWelcomePreviewHtml()).toContain('Alex Chen');
+      expect(component.memberWelcomePreviewHtml()).not.toContain('{name}');
+
+      expect(component.instructorWelcomePreviewSubject()).toBe('Congratulations on your Instructor License!');
+      expect(component.instructorWelcomePreviewHtml()).toContain('Alex Chen');
+      expect(component.instructorWelcomePreviewHtml()).not.toContain('{name}');
+    });
+
+    it('substitutes tokens in purchases preview computeds', () => {
+      expect(component.orderPreviewSubject()).toBe('Your I Liq Chuan Order Confirmation (1001)');
+      expect(component.orderPreviewHtml()).toContain('Alex Chen');
+      expect(component.orderPreviewHtml()).toContain('1001');
+      expect(component.orderPreviewHtml()).not.toContain('{name}');
+      expect(component.orderPreviewHtml()).not.toContain('{orderNumber}');
+
+      expect(component.eventRegPreviewSubject()).toBe('Registration Confirmed: Zhong Xin Dao Summer Retreat');
+      expect(component.eventRegPreviewHtml()).toContain('Alex Chen');
+      expect(component.eventRegPreviewHtml()).toContain('Zhong Xin Dao Summer Retreat');
+
+      expect(component.vodPreviewSubject()).toBe('Access Granted: 21 Form Detailed Breakdown');
+      expect(component.vodPreviewHtml()).toContain('Alex Chen');
+
+      expect(component.gradingPreviewSubject()).toBe('Grading Assessment Fee Received: Student Level 3');
+      expect(component.gradingPreviewHtml()).toContain('Alex Chen');
+
+      expect(component.subscriptionPreviewSubject()).toBe('Subscription Renewal Receipt: Annual Instructor Association Membership');
+      expect(component.subscriptionPreviewHtml()).toContain('Alex Chen');
+    });
+
+    it('substitutes tokens in digest preview computeds', () => {
+      expect(component.digestPreviewSubject()).toBe('Upcoming I Liq Chuan Events - this month');
+      expect(component.digestPreviewHtml()).toContain('Workshop');
+    });
+
+    it('substitutes {name} and tokens in test email preview and outbound test send', async () => {
+      await component.setCategory('test');
+      component.testRecipient.set('tester@example.com');
+      component.testSubject.set('Hello {name}');
+      component.setTestBody('Dear {name}, your code is {orderNumber}.');
+
+      expect(component.testPreviewSubject()).toBe('Hello Alex Chen');
+      expect(component.testPreviewHtml()).toContain('Dear Alex Chen, your code is 1001.');
+      expect(component.testPreviewHtml()).not.toContain('{name}');
+
+      await component.sendTestEmail();
+
+      expect(mockDataManager.sendAdminTestEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'tester@example.com',
+          subject: 'Hello Alex Chen',
+          bodyMarkdown: 'Dear Alex Chen, your code is 1001.',
+        }),
+      );
+    });
+
+    it('populates recipient email, substitutes member tokens, and displays profile link when a member is selected', async () => {
+      await component.setCategory('test');
+      component.testSubject.set('Welcome {name} ({memberId})');
+      component.setTestBody('Instructor ID: {instructorId}');
+      fixture.detectChanges();
+
+      // Select member via handler
+      component.onTestMemberSelected(mockTestMember);
+      component.selectedTestMemberId.set('US101');
+      fixture.detectChanges();
+
+      expect(component.selectedTestMember()).toBe(mockTestMember);
+      expect(component.testRecipient()).toBe('samchin@iliqchuan.com');
+      expect(component.testPreviewSubject()).toBe('Welcome Master Sam Chin (US101)');
+      expect(component.testPreviewHtml()).toContain('Instructor ID: 101');
+
+      // Verify DOM renders profile link and details
+      const profileLink = fixture.nativeElement.querySelector('.view-profile-btn');
+      expect(profileLink).toBeTruthy();
+      expect(profileLink.getAttribute('href')).toBe('/members/US101');
+      expect(fixture.nativeElement.querySelector('.selected-member-card')?.textContent).toContain('Master Sam Chin');
+      expect(fixture.nativeElement.querySelector('.selected-member-card')?.textContent).toContain('US101');
+
+      // Test send uses the selected member's info
+      await component.sendTestEmail();
+      expect(mockDataManager.sendAdminTestEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'samchin@iliqchuan.com',
+          subject: 'Welcome Master Sam Chin (US101)',
+          bodyMarkdown: 'Instructor ID: 101',
+          name: 'Master Sam Chin',
+        }),
+      );
+
+      // Clearing resets selection
+      component.clearSelectedTestMember();
+      fixture.detectChanges();
+
+      expect(component.selectedTestMember()).toBeNull();
+      expect(component.selectedTestMemberId()).toBe('');
+      expect(fixture.nativeElement.querySelector('.view-profile-btn')).toBeNull();
+    });
+
+    it('updates member selection when memberId is entered via onTestMemberIdChange', async () => {
+      await component.setCategory('test');
+      component.onTestMemberIdChange('US101');
+      fixture.detectChanges();
+
+      expect(component.selectedTestMember()).toBe(mockTestMember);
+      expect(component.testRecipient()).toBe('samchin@iliqchuan.com');
+
+      // Clearing via empty string
+      component.onTestMemberIdChange('');
+      fixture.detectChanges();
+      expect(component.selectedTestMember()).toBeNull();
+    });
+
+    it('renders email-to-send pill selector and displays To: in rendered preview', async () => {
+      await component.setCategory('test');
+      component.testRecipient.set('test@example.com');
+      fixture.detectChanges();
+
+      const pills = fixture.nativeElement.querySelectorAll('.email-to-send-pills .pill-tab');
+      expect(pills.length).toBe(4);
+      expect(pills[0].textContent.trim()).toBe('Quick Ping');
+      expect(pills[1].textContent.trim()).toBe('Welcome Notice');
+      expect(pills[2].textContent.trim()).toBe('Order Confirmation');
+      expect(pills[3].textContent.trim()).toBe('Event Digest');
+
+      // Check rendered preview To: and Subject:
+      const meta = fixture.nativeElement.querySelector('.preview-header-meta');
+      expect(meta).toBeTruthy();
+      expect(meta.textContent).toContain('To:');
+      expect(meta.textContent).toContain('test@example.com');
+      expect(meta.textContent).toContain('Subject:');
+    });
+
+    it('shows test template inputs with reset button when Quick Ping is selected and allows resetting', async () => {
+      await component.setCategory('test');
+      component.setTestEmailType('ping');
+      fixture.detectChanges();
+
+      // Inputs should exist
+      expect(fixture.nativeElement.querySelector('#test-subject')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('app-markdown-editor')).toBeTruthy();
+
+      // Modify subject and body
+      component.testSubject.set('Custom Subject');
+      component.testBodyMarkdown.set('Custom Body');
+      fixture.detectChanges();
+
+      // Click Reset Template button
+      const resetBtn = fixture.nativeElement.querySelector('.reset-ping-btn') as HTMLButtonElement;
+      expect(resetBtn).toBeTruthy();
+      resetBtn.click();
+      fixture.detectChanges();
+
+      expect(component.testSubject()).toContain('[Test] I Liq Chuan Email Verification');
+      expect(component.testBodyMarkdown()).toContain('This is a test verification email');
+    });
+
+    it('hides template editor inputs and shows rendered html preview when a non-ping template is selected', async () => {
+      await component.setCategory('test');
+      component.testRecipient.set('newbie@example.com');
+      component.onTestMemberSelected(mockTestMember);
+      component.setTestEmailType('welcome');
+      fixture.detectChanges();
+
+      // Editor inputs should NOT be rendered
+      expect(fixture.nativeElement.querySelector('#test-subject')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.ping-template-section')).toBeNull();
+
+      // Preview should show Welcome Notice with replaced tokens
+      expect(component.testPreviewSubject()).toBe('Welcome to the I Liq Chuan Family!');
+      expect(component.testPreviewTo()).toBe('Master Sam Chin <samchin@iliqchuan.com>');
+
+      const meta = fixture.nativeElement.querySelector('.preview-header-meta');
+      expect(meta.textContent).toContain('Master Sam Chin <samchin@iliqchuan.com>');
+      expect(meta.textContent).toContain('Welcome to the I Liq Chuan Family!');
+
+      // Sending dispatches the welcome notice template
+      await component.sendTestEmail();
+      expect(mockDataManager.sendAdminTestEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'samchin@iliqchuan.com',
+          subject: 'Welcome to the I Liq Chuan Family!',
+        }),
+      );
     });
   });
 });
