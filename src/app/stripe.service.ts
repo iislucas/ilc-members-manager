@@ -55,6 +55,10 @@ export class StripeService {
       successUrl?: string;
       cancelUrl?: string;
       metadata?: Record<string, string>;
+      isGift?: boolean;
+      recipientEmail?: string;
+      recipientName?: string;
+      giftMessage?: string;
     },
   ): Promise<CreateCheckoutSessionResult> {
     const fn = httpsCallable<
@@ -68,6 +72,10 @@ export class StripeService {
       successUrl: options?.successUrl,
       cancelUrl: options?.cancelUrl,
       metadata: options?.metadata,
+      isGift: options?.isGift,
+      recipientEmail: options?.recipientEmail,
+      recipientName: options?.recipientName,
+      giftMessage: options?.giftMessage,
     });
     return result.data;
   }

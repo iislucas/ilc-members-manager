@@ -161,6 +161,23 @@ export const createStripeCheckoutSession = onCall<
     ? request.data.metadata
     : {};
 
+  const isGift = Boolean(request.data?.isGift);
+  const giftMetadata: Record<string, string> = {};
+  if (isGift) {
+    const recipientEmail = (request.data?.recipientEmail || '').trim().toLowerCase();
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+      throw new HttpsError('invalid-argument', 'A valid recipient email is required when purchasing as a gift.');
+    }
+    giftMetadata.isGift = 'true';
+    giftMetadata.recipientEmail = recipientEmail;
+    if (request.data?.recipientName) {
+      giftMetadata.recipientName = request.data.recipientName.trim();
+    }
+    if (request.data?.giftMessage) {
+      giftMetadata.giftMessage = request.data.giftMessage.trim().slice(0, 1000);
+    }
+  }
+
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode,
     line_items: [{ price: priceId, quantity }],
@@ -169,6 +186,7 @@ export const createStripeCheckoutSession = onCall<
     cancel_url: cancelUrl,
     metadata: {
       ...customMetadata,
+      ...giftMetadata,
     },
   };
 

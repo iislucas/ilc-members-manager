@@ -2985,6 +2985,47 @@ export class DataManagerService {
   }
 
   /**
+   * Grants access to a video or entire series to a member or email address via Cloud Function.
+   */
+  async grantVideoAccess(req: {
+    targetType: 'video' | 'series';
+    targetId: string;
+    recipientEmail: string;
+    recipientMemberDocId?: string;
+    recipientName?: string;
+    grantKind?: VideoGrantKind;
+    notes?: string;
+    expiresAt?: string;
+  }): Promise<{
+    success: boolean;
+    grantedCount: number;
+    recipientEmail: string;
+    recipientMemberDocId?: string;
+  }> {
+    const fn = httpsCallable<
+      {
+        targetType: 'video' | 'series';
+        targetId: string;
+        recipientEmail: string;
+        recipientMemberDocId?: string;
+        recipientName?: string;
+        grantKind?: VideoGrantKind;
+        notes?: string;
+        expiresAt?: string;
+      },
+      {
+        success: boolean;
+        grantedCount: number;
+        recipientEmail: string;
+        recipientMemberDocId?: string;
+      }
+    >(getFunctions(this.firebaseService.app), 'grantVideoAccess');
+
+    const result = await fn(req);
+    return result.data;
+  }
+
+  /**
    * Updates metadata for an existing VideoItem (title, description, tags, tier, price, isPublished).
    */
   async updateVideoMetadata(

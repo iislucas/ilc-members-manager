@@ -34,6 +34,7 @@ import { canonicalizeGradingLevel } from './level-utils';
 import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
+import { getMemberByEmail } from './common';
 import { environment } from './environment/environment.js';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
 
@@ -1442,33 +1443,90 @@ export async function fulfillStripeOrder(
       if (videoId) grantTargetIds.add(videoId);
       if (seriesId) grantTargetIds.add(seriesId);
 
+      const isGift = order.metadata?.['isGift'] === 'true';
+      const recipientEmail = (order.metadata?.['recipientEmail'] || '').trim().toLowerCase();
+      const recipientName = (order.metadata?.['recipientName'] || '').trim();
+      const giftMessage = (order.metadata?.['giftMessage'] || '').trim();
+      const buyerName = member.name || order.customerName || 'A friend';
+      const buyerEmail = member.emails?.[0] || order.customerEmail || '';
+
+      let recipientMember: Member | null = null;
+      if (isGift && recipientEmail) {
+        try {
+          recipientMember = await getMemberByEmail(recipientEmail, db);
+        } catch {
+          // Recipient might not be registered yet
+        }
+      }
+
       for (const targetId of grantTargetIds) {
+        const targetMemberDocId = isGift ? (recipientMember?.docId || '') : member.docId;
+        const targetEmail = isGift ? recipientEmail : (member.emails?.[0] || order.customerEmail || '');
+
         const grant: VideoGrant = {
           docId: targetId,
           videoId: targetId,
-          memberDocId: member.docId,
-          memberEmail: member.emails?.[0] || order.customerEmail || '',
-          grantKind: VideoGrantKind.StripePurchase,
+          memberDocId: targetMemberDocId,
+          memberEmail: targetEmail,
+          grantKind: isGift ? VideoGrantKind.GiftPurchase : VideoGrantKind.StripePurchase,
           orderDocId,
           stripeSessionId: order.checkoutSessionId,
           amountPaidCents: item.amountTotal || order.amountTotal || 0,
           grantedAt: new Date().toISOString(),
+          ...(isGift
+            ? {
+                giftedByMemberDocId: member.docId,
+                giftedByName: buyerName,
+                giftedByEmail: buyerEmail,
+                giftMessage: giftMessage || undefined,
+              }
+            : {}),
         };
-        await db
-          .collection(FirestoreCollection.Members)
-          .doc(member.docId)
-          .collection(FirestoreSubcollection.VideoGrants)
-          .doc(targetId)
-          .set(grant);
+
+        if (targetMemberDocId) {
+          await db
+            .collection(FirestoreCollection.Members)
+            .doc(targetMemberDocId)
+            .collection(FirestoreSubcollection.VideoGrants)
+            .doc(targetId)
+            .set(grant);
+        }
+
+        const globalGrantKey = targetMemberDocId
+          ? `${targetMemberDocId}_${targetId}`
+          : `${targetEmail}_${targetId}`;
         await db
           .collection(FirestoreCollection.VideoGrants)
-          .doc(`${member.docId}_${targetId}`)
+          .doc(globalGrantKey)
           .set(grant);
-        logger.info('Auto-provisioned VideoGrant for member', {
-          memberDocId: member.docId,
+
+        logger.info(isGift ? 'Auto-provisioned gifted VideoGrant' : 'Auto-provisioned VideoGrant for member', {
+          memberDocId: targetMemberDocId,
+          recipientEmail: targetEmail,
           targetId,
           orderDocId,
+          isGift,
         });
+
+        if (isGift && recipientMember) {
+          const videoTitle = item.description || 'Video on Demand';
+          const messageSnippet = giftMessage ? `\n\n> "${giftMessage}"` : '';
+          await createMemberNotification(db, recipientMember.docId, {
+            kind: NotificationKind.VideoGiftReceived,
+            markdown: `🎁 **${buyerName}** gifted you access to [**${videoTitle}**](/videos/${targetId})!${messageSnippet}`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            data: {
+              videoId: targetId,
+              seriesId: seriesId || undefined,
+              title: videoTitle,
+              grantKind: VideoGrantKind.GiftPurchase,
+              giftedByName: buyerName,
+              giftMessage: giftMessage || undefined,
+              videoUrl: `/videos/${targetId}`,
+            },
+          });
+        }
       }
     } else if (category === OrderItemCategory.Event || order.metadata?.['orderType'] === 'event_registration') {
       await fulfillEventRegistration(db, order, orderDocId, member);
