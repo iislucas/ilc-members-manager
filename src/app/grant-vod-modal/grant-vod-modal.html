@@ -63,17 +63,27 @@
         </div>
       }
 
+      <!-- Mail Status Warning -->
+      @if (isMailOff()) {
+        <div class="mail-off-banner">
+          <app-icon name="info"></app-icon>
+          <span>Email notifications are currently turned off. Video access can only be granted to existing member accounts.</span>
+        </div>
+      }
+
       <!-- Recipient Member Selection -->
       <div class="form-group">
         <div class="label-row">
           <label class="form-label">Recipient</label>
-          <button
-            type="button"
-            class="text-link-btn"
-            (click)="useManualEmail.set(!useManualEmail())"
-          >
-            {{ useManualEmail() ? '← Select existing member' : 'Or enter non-member email' }}
-          </button>
+          @if (!isMailOff()) {
+            <button
+              type="button"
+              class="text-link-btn"
+              (click)="useManualEmail.set(!useManualEmail())"
+            >
+              {{ useManualEmail() ? '← Select existing member' : 'Or enter non-member email' }}
+            </button>
+          }
         </div>
 
         @if (!useManualEmail()) {

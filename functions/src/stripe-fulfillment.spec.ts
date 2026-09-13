@@ -15,6 +15,15 @@ import {
   syncSubscriptionStatusToMember,
   fulfillEventRegistration,
 } from './stripe-fulfillment';
+import { sendTransactionalEmail } from './email-dispatcher.js';
+
+vi.mock('./email-dispatcher.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./email-dispatcher.js')>();
+  return {
+    ...actual,
+    sendTransactionalEmail: vi.fn().mockResolvedValue('mock_mail_fulfillment'),
+  };
+});
 
 // The address members are pointed at when a purchase needs a human is
 // deployment configuration, and `environment.ts` is gitignored — so pin it here
@@ -1778,6 +1787,33 @@ describe('stripe-fulfillment', () => {
             grantKind: 'gift_purchase',
             giftedByName: 'Sam Chin',
             giftMessage: 'Happy Birthday! Enjoy training.',
+          }),
+        );
+
+        // Recipient received vodGiftReceived email
+        expect(sendTransactionalEmail).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            to: 'friend@example.com',
+            templateKey: 'vodGiftReceived',
+            replacements: expect.objectContaining({
+              name: 'Kung Fu Friend',
+              giverName: 'Sam Chin',
+              videoTitle: 'Level 3 Complete Masterclass',
+              giftMessage: 'Happy Birthday! Enjoy training.',
+            }),
+          }),
+        );
+
+        // Buyer received purchase confirmation indicating it was a gift
+        expect(sendTransactionalEmail).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            to: 'sam@example.com',
+            templateKey: 'vodPurchaseConfirmation',
+            replacements: expect.objectContaining({
+              videoTitle: 'Level 3 Complete Masterclass (Gift for Kung Fu Friend)',
+            }),
           }),
         );
       });

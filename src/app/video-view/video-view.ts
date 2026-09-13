@@ -34,6 +34,7 @@ import {
   VideoGrant,
   VideoGrantKind,
 } from '../../../functions/src/data-model/vod';
+import { MailSendingStatus } from '../../../functions/src/data-model/mail';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -108,6 +109,10 @@ export class VideoViewComponent implements OnInit {
   giftValidationError = signal<string | null>(null);
   isGiftModalOpen = signal<boolean>(false);
   giftModalTarget = signal<'video' | 'series'>('video');
+
+  isMailOff = computed(() => {
+    return this.dataService.mailSettings().status === MailSendingStatus.Off;
+  });
 
   // Time-ranges & Repeat Loop State
   currentPlayerTime = signal<number>(0);
@@ -490,7 +495,11 @@ export class VideoViewComponent implements OnInit {
       }
     } catch (err: any) {
       console.error('Purchase error:', err);
-      alert(err.message || 'Payment initiation failed.');
+      if (isGiftEffective) {
+        this.giftValidationError.set(err.message || 'Payment initiation failed.');
+      } else {
+        alert(err.message || 'Payment initiation failed.');
+      }
     } finally {
       this.isPurchasing.set(false);
     }
@@ -555,7 +564,11 @@ export class VideoViewComponent implements OnInit {
       }
     } catch (err: any) {
       console.error('Series purchase error:', err);
-      alert(err.message || 'Payment initiation failed.');
+      if (isGiftEffective) {
+        this.giftValidationError.set(err.message || 'Payment initiation failed.');
+      } else {
+        alert(err.message || 'Payment initiation failed.');
+      }
     } finally {
       this.isPurchasing.set(false);
     }

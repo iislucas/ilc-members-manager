@@ -9,6 +9,11 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { grantVideoAccess, GrantVideoAccessRequest } from './grant-video';
 import { VideoGrantKind, initVideoItem } from '../data-model/vod';
 import { initMember } from '../data-model/members';
+import { sendTransactionalEmail } from '../email-dispatcher';
+
+vi.mock('../email-dispatcher', () => ({
+  sendTransactionalEmail: vi.fn().mockResolvedValue('mock_mail_1'),
+}));
 
 describe('grantVideoAccess', () => {
   let mockMemberSubcollectionSet: any;
@@ -16,6 +21,7 @@ describe('grantVideoAccess', () => {
   let mockNotificationsSet: any;
   let mockDb: any;
   let isAdminCaller = true;
+  let mailSettingsStatus = 'active';
 
   const mockAdminMember = {
     ...initMember(),
@@ -55,6 +61,8 @@ describe('grantVideoAccess', () => {
 
   beforeEach(() => {
     isAdminCaller = true;
+    mailSettingsStatus = 'active';
+    vi.clearAllMocks();
     mockMemberSubcollectionSet = vi.fn().mockResolvedValue({});
     mockGlobalGrantsSet = vi.fn().mockResolvedValue({});
     mockNotificationsSet = vi.fn().mockResolvedValue({});
@@ -63,15 +71,18 @@ describe('grantVideoAccess', () => {
       collection: vi.fn((colName: string) => {
         if (colName === 'acl') {
           return {
-            doc: vi.fn((email: string) => ({
-              get: vi.fn().mockResolvedValue({
-                exists: true,
-                data: () => ({
-                  isAdmin: email === 'admin@example.com' && isAdminCaller,
-                  memberDocIds: email === 'admin@example.com' ? ['admin_doc_1'] : ['target_mem_42'],
+            doc: vi.fn((email: string) => {
+              const exists = email === 'admin@example.com' || email === 'student@example.com';
+              return {
+                get: vi.fn().mockResolvedValue({
+                  exists,
+                  data: () => ({
+                    isAdmin: email === 'admin@example.com' && isAdminCaller,
+                    memberDocIds: email === 'admin@example.com' ? ['admin_doc_1'] : ['target_mem_42'],
+                  }),
                 }),
-              }),
-            })),
+              };
+            }),
           };
         }
         if (colName === 'members') {
@@ -80,7 +91,7 @@ describe('grantVideoAccess', () => {
               const data = docId === 'admin_doc_1' ? mockAdminMember : mockTargetMember;
               return {
                 get: vi.fn().mockResolvedValue({
-                  exists: true,
+                  exists: docId === 'admin_doc_1' || docId === 'target_mem_42',
                   id: docId,
                   data: () => data,
                 }),
@@ -102,19 +113,24 @@ describe('grantVideoAccess', () => {
                 }),
               };
             }),
-            where: vi.fn((field: string, op: string, val: string) => ({
-              limit: vi.fn().mockReturnValue({
-                get: vi.fn().mockResolvedValue({
-                  empty: false,
-                  docs: [
-                    {
-                      id: val === 'admin@example.com' ? 'admin_doc_1' : 'target_mem_42',
-                      data: () => (val === 'admin@example.com' ? mockAdminMember : mockTargetMember),
-                    },
-                  ],
+            where: vi.fn((field: string, op: string, val: string) => {
+              const known = val === 'admin@example.com' || val === 'student@example.com';
+              return {
+                limit: vi.fn().mockReturnValue({
+                  get: vi.fn().mockResolvedValue({
+                    empty: !known,
+                    docs: known
+                      ? [
+                          {
+                            id: val === 'admin@example.com' ? 'admin_doc_1' : 'target_mem_42',
+                            data: () => (val === 'admin@example.com' ? mockAdminMember : mockTargetMember),
+                          },
+                        ]
+                      : [],
+                  }),
                 }),
-              }),
-            })),
+              };
+            }),
           };
         }
         if (colName === 'videos') {
@@ -143,6 +159,19 @@ describe('grantVideoAccess', () => {
           };
         }
         return {};
+      }),
+      doc: vi.fn((docPath: string) => {
+        if (docPath === 'system/mail-settings') {
+          return {
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ status: mailSettingsStatus }),
+            }),
+          };
+        }
+        return {
+          get: vi.fn().mockResolvedValue({ exists: false, data: () => ({}) }),
+        };
       }),
     };
 
@@ -217,6 +246,21 @@ describe('grantVideoAccess', () => {
         kind: 'VideoAccessGranted',
       }),
     );
+
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        to: 'student@example.com',
+        templateKey: 'vodGiftReceived',
+        replacements: expect.objectContaining({
+          name: 'Recipient Student',
+          giverName: 'Admin User',
+          videoTitle: 'Neutral Stance & Mechanics',
+          videoUrl: expect.stringContaining('/videos/vid_101'),
+          giftMessage: 'Gift from Grandmaster for dedication',
+        }),
+      }),
+    );
   });
 
   it('successfully grants an entire series to member', async () => {
@@ -235,5 +279,39 @@ describe('grantVideoAccess', () => {
     expect(result.grantedCount).toBe(3);
     expect(mockMemberSubcollectionSet).toHaveBeenCalledTimes(3);
     expect(mockGlobalGrantsSet).toHaveBeenCalledTimes(3);
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        to: 'student@example.com',
+        templateKey: 'vodGiftReceived',
+      }),
+    );
+  });
+
+  it('rejects granting to non-member when mail sending is off', async () => {
+    mailSettingsStatus = 'off';
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'unregistered@example.com',
+    });
+
+    await expect((grantVideoAccess as any).run(req)).rejects.toThrowError(
+      'Email notifications are currently turned off. Access can only be granted to existing member accounts.',
+    );
+  });
+
+  it('allows granting to existing member when mail sending is off', async () => {
+    mailSettingsStatus = 'off';
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      recipientMemberDocId: 'target_mem_42',
+    });
+
+    const result = await (grantVideoAccess as any).run(req);
+    expect(result.success).toBe(true);
+    expect(result.grantedCount).toBe(1);
   });
 });

@@ -907,6 +907,26 @@
           }
         }
 
+        .mail-off-notice {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          color: #fef08a;
+          font-size: 0.8rem;
+          line-height: 1.4;
+          background: rgba(234, 179, 8, 0.15);
+          border: 1px solid rgba(234, 179, 8, 0.35);
+          padding: 8px 10px;
+          border-radius: 4px;
+
+          app-icon {
+            color: #facc15;
+            font-size: 1rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+          }
+        }
+
         .gift-inline-error {
           display: flex;
           align-items: center;
@@ -1817,6 +1837,26 @@
 
           textarea {
             resize: vertical;
+          }
+        }
+
+        .mail-off-modal-notice {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          color: #854d0e;
+          font-size: 0.85rem;
+          line-height: 1.4;
+          background: #fefce8;
+          border: 1px solid #fef08a;
+          padding: 10px 12px;
+          border-radius: 6px;
+
+          app-icon {
+            color: #ca8a04;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-top: 1px;
           }
         }
 

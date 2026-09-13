@@ -55,6 +55,8 @@ function requireAllowedOrigin(origin: unknown): string {
 
 import * as admin from 'firebase-admin';
 import { getMemberByEmail } from './common';
+import { MailSettings, MailSendingStatus } from './data-model/mail';
+import { Member } from './data-model/members';
 
 export const createStripeCheckoutSession = onCall<
   CreateCheckoutSessionRequest,
@@ -168,6 +170,28 @@ export const createStripeCheckoutSession = onCall<
     if (!recipientEmail || !recipientEmail.includes('@')) {
       throw new HttpsError('invalid-argument', 'A valid recipient email is required when purchasing as a gift.');
     }
+
+    // When email notifications are turned off, gifts can only be sent to existing member accounts
+    const mailSettingsSnap = await db.doc('system/mail-settings').get();
+    const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
+    const mailStatus: MailSendingStatus =
+      mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+
+    if (mailStatus === MailSendingStatus.Off) {
+      let recipientMember: Member | null = null;
+      try {
+        recipientMember = await getMemberByEmail(recipientEmail, db);
+      } catch {
+        // Not found
+      }
+      if (!recipientMember) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Email notifications are currently turned off. Gifts can only be sent to existing member accounts.',
+        );
+      }
+    }
+
     giftMetadata.isGift = 'true';
     giftMetadata.recipientEmail = recipientEmail;
     if (request.data?.recipientName) {

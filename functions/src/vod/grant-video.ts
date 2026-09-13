@@ -13,6 +13,9 @@ import { VideoGrant, VideoGrantKind, firestoreDocToVideoItem } from '../data-mod
 import { NotificationKind } from '../data-model/notifications';
 import { createMemberNotification } from '../notifications';
 import { Member } from '../data-model/members';
+import { sendTransactionalEmail } from '../email-dispatcher';
+import { environment } from '../environment/environment';
+import { MailSettings, MailSendingStatus, TransactionalEmailKey } from '../data-model/mail';
 
 export interface GrantVideoAccessRequest {
   targetType: 'video' | 'series';
@@ -79,6 +82,20 @@ export const grantVideoAccess = onCall(
     }
 
     const recipientMemberDocId = recipientMember?.docId || data.recipientMemberDocId || '';
+
+    // Check mail settings status: if OFF, only allow granting to existing member accounts
+    const mailSettingsSnap = await db.doc('system/mail-settings').get();
+    const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
+    const mailStatus: MailSendingStatus =
+      mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+
+    if (mailStatus === MailSendingStatus.Off && !recipientMember) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Email notifications are currently turned off. Access can only be granted to existing member accounts.',
+      );
+    }
+
     const grantKind = data.grantKind || VideoGrantKind.AdminGrant;
     const nowIso = new Date().toISOString();
 
@@ -182,6 +199,35 @@ export const grantVideoAccess = onCall(
           videoUrl: watchLink,
         },
       });
+    }
+
+    // Send transactional email notification to recipient
+    if (recipientEmail) {
+      try {
+        const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
+        const watchUrl = data.targetType === 'video'
+          ? `${appBase}/videos/${data.targetId}`
+          : `${appBase}/videos?series=${data.targetId}`;
+
+        await sendTransactionalEmail(db, {
+          to: recipientEmail,
+          templateKey: TransactionalEmailKey.VodGiftReceived,
+          replacements: {
+            name: recipientMember?.name || data.recipientName || 'ILC Member',
+            giverName: adminName,
+            videoTitle: contentTitle,
+            videoUrl: watchUrl,
+            giftMessage: data.notes || 'Access has been granted to your account.',
+            appBase,
+          },
+        });
+      } catch (emailErr) {
+        logger.error('Failed to send vodGiftReceived email notification for grant', {
+          emailErr,
+          recipientEmail,
+          targetId: data.targetId,
+        });
+      }
     }
 
     logger.info('Video access granted by admin', {

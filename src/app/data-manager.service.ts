@@ -1475,27 +1475,23 @@ export class DataManagerService {
       this.mailSettingsUnsubscribe();
       this.mailSettingsUnsubscribe = null;
     }
-    if (user?.isAdmin) {
-      const mailSettingsRef = doc(this.db, 'system', 'mail-settings');
-      this.mailSettingsUnsubscribe = onSnapshot(
-        mailSettingsRef,
-        (snap) => {
-          if (snap.exists()) {
-            this.mailSettings.set({
-              ...initMailSettings(),
-              ...(snap.data() as Partial<MailSettings>),
-            });
-          } else {
-            this.mailSettings.set(initMailSettings());
-          }
-        },
-        (error) => {
-          console.error('Error fetching mail settings:', error);
-        },
-      );
-    } else {
-      this.mailSettings.set(initMailSettings());
-    }
+    const mailSettingsRef = doc(this.db, 'system', 'mail-settings');
+    this.mailSettingsUnsubscribe = onSnapshot(
+      mailSettingsRef,
+      (snap) => {
+        if (snap.exists()) {
+          this.mailSettings.set({
+            ...initMailSettings(),
+            ...(snap.data() as Partial<MailSettings>),
+          });
+        } else {
+          this.mailSettings.set(initMailSettings());
+        }
+      },
+      (error) => {
+        console.error('Error fetching mail settings:', error);
+      },
+    );
   }
 
   private gradingsUnsubscribe: (() => void) | null = null;
