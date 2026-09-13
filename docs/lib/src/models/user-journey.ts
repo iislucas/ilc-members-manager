@@ -21,22 +21,47 @@ export interface SiteSurfaceEntry {
   componentFile: string;
 }
 
+export type InteractionType =
+  | 'approval_request'
+  | 'fulfillment'
+  | 'notification'
+  | 'handoff'
+  | 'evaluation'
+  | 'settlement';
+
+export interface StepHandoff {
+  targetTaxonomyId: string;
+  targetTaxonomyName: string;
+  targetJourneyId: string;
+  targetJourneyTitle: string;
+  targetStepNumber: number;
+  targetStepTitle: string;
+  interactionType: InteractionType;
+  description: string;
+}
+
 export interface JourneyStep {
+  stepId?: string;
   stepNumber: number;
   actor: UserActor;
+  actorTaxonomyId?: string;
   title: string;
   description: string;
   screenViewId?: string;
   screenPath?: string;
   mutatedDataTypes?: string[];
   triggeredFlow?: string;
+  handoff?: StepHandoff;
+  receivedFrom?: StepHandoff;
 }
 
 export interface UserJourneyEntry {
   id: string;
   title: string;
   primaryActor: UserActor;
+  primaryTaxonomyNodeId?: string;
   participatingActors: UserActor[];
+  participatingTaxonomyNodeIds?: string[];
   summary: string;
   steps: JourneyStep[];
   relatedStories: string[];

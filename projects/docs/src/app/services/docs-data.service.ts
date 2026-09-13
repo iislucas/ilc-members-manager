@@ -18,6 +18,8 @@ import {
   UserTaxonomyNode,
   findTaxonomyNode,
   flattenTaxonomy,
+  buildTaxonomyHierarchy,
+  PersonaTaxonomyHierarchy,
   CodeLinkResolver,
   DocsSearchIndex,
   SearchDoc,
@@ -67,6 +69,11 @@ export class DocsDataService {
   readonly isDarkTheme = signal<boolean>(false);
   readonly searchOpen = signal<boolean>(false);
   readonly searchQuery = signal<string>('');
+  readonly activeHighlightedStepId = signal<string | null>(null);
+
+  readonly taxonomyHierarchy = computed<PersonaTaxonomyHierarchy[]>(() =>
+    buildTaxonomyHierarchy(this.taxonomyTree, this.journeysCatalog)
+  );
 
   // Resolvers & Search Index
   private readonly codeResolver = new CodeLinkResolver({ repoRoot: '/Users/ldixon/code/zxd/ilc-members-manager' });
@@ -249,5 +256,29 @@ export class DocsDataService {
     } catch {
       return false;
     }
+  }
+
+  navigateToUserJourneyStep(targetTaxonomyId: string, targetJourneyId: string, targetStepNumber: number): void {
+    const targetNode = findTaxonomyNode(targetTaxonomyId);
+    if (targetNode) {
+      this.selectedTaxonomyNode.set(targetNode);
+    }
+    this.currentView.set('journeys');
+
+    const stepDomId = `step-${targetJourneyId}-${targetStepNumber}`;
+    this.activeHighlightedStepId.set(stepDomId);
+
+    setTimeout(() => {
+      const el = document.getElementById(stepDomId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 60);
+
+    setTimeout(() => {
+      if (this.activeHighlightedStepId() === stepDomId) {
+        this.activeHighlightedStepId.set(null);
+      }
+    }, 3500);
   }
 }

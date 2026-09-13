@@ -9,9 +9,9 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@a
 import { DocsDataService } from '../../services/docs-data.service';
 import { UserTaxonomyTreeComponent } from '../../components/user-taxonomy-tree/user-taxonomy-tree.component';
 import { PlanGraphViewerComponent } from '../../components/plan-graph-viewer/plan-graph-viewer.component';
-import { UserJourneyEntry, UserStoryEntry } from '../../../../../../docs/lib/src';
+import { UserJourneyEntry, UserStoryEntry, StepHandoff } from '../../../../../../docs/lib/src';
 
-export type JourneySubTab = 'starting-points' | 'plans' | 'stories' | 'surface-map';
+export type JourneySubTab = 'starting-points' | 'taxonomy-tree' | 'plans' | 'stories' | 'surface-map';
 
 @Component({
   selector: 'doc-view-user-journeys',
@@ -27,19 +27,34 @@ export class ViewUserJourneysComponent {
   readonly activeSubTab = signal<JourneySubTab>('starting-points');
   readonly storyFilterTaxonomyId = signal<string>('all');
   readonly surfaceRoleFilter = signal<string>('all');
+  readonly expandedPersonaId = signal<string | null>('grading-candidate');
 
   readonly selectedPersona = computed(() => this.docs.selectedTaxonomyNode());
 
-  // Journeys that involve or are initiated by the selected persona
+  // Journeys that involve, are owned by, or have handoffs with the selected persona
   readonly relevantJourneys = computed<UserJourneyEntry[]>(() => {
     const persona = this.selectedPersona();
     if (!persona) return this.docs.journeysCatalog;
 
+    const owned = persona.ownedJourneyIds || [];
+    const part = persona.participatingJourneyIds || [];
+    const start = persona.startingJourneyIds || [];
+
     return this.docs.journeysCatalog.filter((j) => {
       return (
-        persona.startingJourneyIds.includes(j.id) ||
+        owned.includes(j.id) ||
+        part.includes(j.id) ||
+        start.includes(j.id) ||
+        j.primaryTaxonomyNodeId === persona.id ||
+        j.participatingTaxonomyNodeIds?.includes(persona.id) ||
         j.primaryActor.toLowerCase().includes(persona.id.toLowerCase()) ||
-        j.participatingActors.some((a) => a.toLowerCase().includes(persona.id.toLowerCase()))
+        j.participatingActors.some((a) => a.toLowerCase().includes(persona.id.toLowerCase())) ||
+        j.steps.some(
+          (s) =>
+            s.actorTaxonomyId === persona.id ||
+            s.handoff?.targetTaxonomyId === persona.id ||
+            s.receivedFrom?.targetTaxonomyId === persona.id
+        )
       );
     });
   });
@@ -70,5 +85,18 @@ export class ViewUserJourneysComponent {
 
   setSubTab(tab: JourneySubTab): void {
     this.activeSubTab.set(tab);
+  }
+
+  togglePersonaAccordion(personaId: string): void {
+    this.expandedPersonaId.update((curr) => (curr === personaId ? null : personaId));
+  }
+
+  navigateToHandoff(handoff: StepHandoff): void {
+    this.activeSubTab.set('starting-points');
+    this.docs.navigateToUserJourneyStep(
+      handoff.targetTaxonomyId,
+      handoff.targetJourneyId,
+      handoff.targetStepNumber
+    );
   }
 }

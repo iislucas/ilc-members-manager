@@ -1,10 +1,5 @@
-/* user-taxonomy-catalog.ts
- *
- * Authoritative registry of the hierarchical User Taxonomy in ILC Members Manager.
- * Defines personas, responsibilities, permissions, journey starting points, and linked user stories.
- */
-
-import { UserTaxonomyNode, TaxonomyCategory } from '../models/user-taxonomy';
+import { UserTaxonomyNode, TaxonomyCategory, PersonaTaxonomyHierarchy, TaxonomyJourneyView } from '../models/user-taxonomy';
+import { UserJourneyEntry } from '../models/user-journey';
 
 export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
   {
@@ -18,7 +13,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
       'Submit membership applications and register accounts',
     ],
     permissionsSnapshot: ['read:public-instructors', 'read:public-schools', 'read:public-events', 'create:member-application'],
-    startingJourneyIds: ['public-discovery-instructor-locator', 'event-registration-ticketing'],
+    startingJourneyIds: ['vod-streaming', 'event-hosting-ticketing', 'member-onboarding'],
+    ownedJourneyIds: ['member-onboarding'],
+    participatingJourneyIds: ['vod-streaming', 'event-hosting-ticketing'],
     planIds: ['plan-event-hosting-ticketing'],
     storyIds: [],
     startingRoutes: [
@@ -38,7 +35,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Inspect event details, itineraries, and ticket tiers',
         ],
         permissionsSnapshot: ['read:public-data'],
-        startingJourneyIds: ['public-discovery-instructor-locator'],
+        startingJourneyIds: ['vod-streaming', 'event-hosting-ticketing'],
+        ownedJourneyIds: [],
+        participatingJourneyIds: ['vod-streaming', 'event-hosting-ticketing'],
         planIds: ['plan-event-hosting-ticketing'],
         storyIds: [],
         startingRoutes: [
@@ -57,7 +56,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Submit introductory registration fee if applicable',
         ],
         permissionsSnapshot: ['create:member-application', 'read:own-profile'],
-        startingJourneyIds: ['content-creation-announcements'],
+        startingJourneyIds: ['member-onboarding'],
+        ownedJourneyIds: ['member-onboarding'],
+        participatingJourneyIds: [],
         planIds: [],
         storyIds: [],
         startingRoutes: [
@@ -76,7 +77,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Check in at event reception',
         ],
         permissionsSnapshot: ['purchase:event-ticket', 'read:own-registrations'],
-        startingJourneyIds: ['event-registration-ticketing'],
+        startingJourneyIds: ['event-hosting-ticketing'],
+        ownedJourneyIds: [],
+        participatingJourneyIds: ['event-hosting-ticketing'],
         planIds: ['plan-event-hosting-ticketing'],
         storyIds: [],
         startingRoutes: [
@@ -96,7 +99,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
       'Register and pay for official grading examinations',
     ],
     permissionsSnapshot: ['read:member-passbook', 'read:curriculum', 'stream:vod', 'request:grading'],
-    startingJourneyIds: ['grading-progression', 'video-on-demand-streaming'],
+    startingJourneyIds: ['grading-progression', 'vod-streaming', 'materials-download', 'push-notifications'],
+    ownedJourneyIds: ['grading-progression', 'vod-streaming', 'materials-download', 'push-notifications'],
+    participatingJourneyIds: ['member-onboarding', 'event-hosting-ticketing'],
     planIds: ['plan-grading-progression'],
     storyIds: ['grading-result-recorded', 'grading-unpaid-request-guard'],
     startingRoutes: [
@@ -116,7 +121,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'View order history, invoices, and billing portal',
         ],
         permissionsSnapshot: ['read:member-profile', 'read:own-orders', 'manage:billing-portal'],
-        startingJourneyIds: ['video-on-demand-streaming'],
+        startingJourneyIds: ['materials-download', 'push-notifications', 'vod-streaming'],
+        ownedJourneyIds: ['materials-download', 'push-notifications'],
+        participatingJourneyIds: ['member-onboarding', 'event-hosting-ticketing', 'vod-streaming'],
         planIds: ['plan-grading-progression'],
         storyIds: ['grading-result-recorded'],
         startingRoutes: [
@@ -135,7 +142,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Access form breakdowns and technical training notes',
         ],
         permissionsSnapshot: ['read:curriculum-level', 'read:syllabus'],
-        startingJourneyIds: ['grading-progression'],
+        startingJourneyIds: ['vod-streaming', 'grading-progression'],
+        ownedJourneyIds: ['vod-streaming'],
+        participatingJourneyIds: ['member-onboarding'],
         planIds: ['plan-grading-progression'],
         storyIds: ['grading-result-recorded'],
         startingRoutes: [
@@ -156,6 +165,8 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
         ],
         permissionsSnapshot: ['create:grading-request', 'purchase:grading-fee', 'read:grading-feedback'],
         startingJourneyIds: ['grading-progression'],
+        ownedJourneyIds: ['grading-progression'],
+        participatingJourneyIds: [],
         planIds: ['plan-grading-progression'],
         storyIds: ['grading-unpaid-request-guard', 'grading-request-acceptance', 'grading-result-recorded'],
         startingRoutes: [
@@ -177,7 +188,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
       'Manage public profile in the instructor locator',
     ],
     permissionsSnapshot: ['accept:grading-request', 'evaluate:grading', 'mentor:students', 'update:instructor-profile'],
-    startingJourneyIds: ['grading-progression', 'public-discovery-instructor-locator'],
+    startingJourneyIds: ['instructor-licensing', 'grading-progression'],
+    ownedJourneyIds: ['instructor-licensing'],
+    participatingJourneyIds: ['grading-progression', 'materials-download', 'push-notifications'],
     planIds: ['plan-grading-progression'],
     storyIds: ['grading-sifu-notifications', 'grading-request-acceptance', 'grading-result-recorded'],
     startingRoutes: [
@@ -196,7 +209,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Track student attendance and syllabus familiarity',
         ],
         permissionsSnapshot: ['read:student-roster', 'read:school-gradings'],
-        startingJourneyIds: ['public-discovery-instructor-locator'],
+        startingJourneyIds: ['instructor-licensing'],
+        ownedJourneyIds: [],
+        participatingJourneyIds: ['grading-progression'],
         planIds: ['plan-grading-progression'],
         storyIds: [],
         startingRoutes: [
@@ -215,7 +230,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Maintain published public locator profile',
         ],
         permissionsSnapshot: ['accept:grading-request', 'update:instructor-profile', 'mentor:students'],
-        startingJourneyIds: ['grading-progression', 'public-discovery-instructor-locator'],
+        startingJourneyIds: ['instructor-licensing', 'grading-progression'],
+        ownedJourneyIds: ['instructor-licensing'],
+        participatingJourneyIds: ['grading-progression', 'push-notifications'],
         planIds: ['plan-grading-progression', 'plan-school-licensing'],
         storyIds: ['grading-sifu-notifications', 'grading-request-acceptance'],
         startingRoutes: [
@@ -236,6 +253,8 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
         ],
         permissionsSnapshot: ['record:grading-result', 'evaluate:grading'],
         startingJourneyIds: ['grading-progression'],
+        ownedJourneyIds: [],
+        participatingJourneyIds: ['grading-progression'],
         planIds: ['plan-grading-progression'],
         storyIds: ['grading-result-recorded'],
         startingRoutes: [
@@ -256,7 +275,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
       'Renew annual school licensing agreements',
     ],
     permissionsSnapshot: ['manage:school', 'manage:event', 'manage:event-gradings', 'license:school-renewal'],
-    startingJourneyIds: ['school-affiliation-licensing', 'event-registration-ticketing'],
+    startingJourneyIds: ['event-hosting-ticketing', 'instructor-licensing'],
+    ownedJourneyIds: ['event-hosting-ticketing'],
+    participatingJourneyIds: ['instructor-licensing', 'grading-progression'],
     planIds: ['plan-event-hosting-ticketing', 'plan-school-licensing'],
     storyIds: ['grading-event-managers'],
     startingRoutes: [
@@ -276,7 +297,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Complete annual school license renewal via Stripe',
         ],
         permissionsSnapshot: ['manage:school', 'manage:school-roster', 'license:school-renewal'],
-        startingJourneyIds: ['school-affiliation-licensing', 'content-creation-announcements'],
+        startingJourneyIds: ['instructor-licensing'],
+        ownedJourneyIds: [],
+        participatingJourneyIds: ['instructor-licensing', 'grading-progression'],
         planIds: ['plan-school-licensing'],
         storyIds: [],
         startingRoutes: [
@@ -297,7 +320,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Check in attendees via QR code scanning or manual lookup',
         ],
         permissionsSnapshot: ['manage:event', 'manage:event-gradings', 'checkin:attendees'],
-        startingJourneyIds: ['event-registration-ticketing'],
+        startingJourneyIds: ['event-hosting-ticketing'],
+        ownedJourneyIds: ['event-hosting-ticketing'],
+        participatingJourneyIds: ['grading-progression'],
         planIds: ['plan-event-hosting-ticketing', 'plan-grading-progression'],
         storyIds: ['grading-event-managers'],
         startingRoutes: [
@@ -319,7 +344,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
       'Automated background event processing, mirroring, and backups',
     ],
     permissionsSnapshot: ['admin:all', 'service:firebase-admin', 'override:orders'],
-    startingJourneyIds: ['admin-governance-overrides'],
+    startingJourneyIds: ['member-onboarding', 'event-hosting-ticketing', 'instructor-licensing'],
+    ownedJourneyIds: [],
+    participatingJourneyIds: ['grading-progression', 'member-onboarding', 'event-hosting-ticketing', 'instructor-licensing', 'materials-download', 'push-notifications'],
     planIds: ['plan-grading-progression', 'plan-event-hosting-ticketing', 'plan-school-licensing'],
     storyIds: ['grading-unpaid-request-guard', 'grading-sifu-notifications'],
     startingRoutes: [
@@ -340,7 +367,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Trigger disaster recovery and full database backups',
         ],
         permissionsSnapshot: ['admin:all', 'override:orders', 'manage:backups', 'verify:members'],
-        startingJourneyIds: ['admin-governance-overrides'],
+        startingJourneyIds: ['member-onboarding', 'event-hosting-ticketing'],
+        ownedJourneyIds: [],
+        participatingJourneyIds: ['grading-progression', 'member-onboarding', 'event-hosting-ticketing', 'instructor-licensing', 'materials-download'],
         planIds: ['plan-grading-progression', 'plan-event-hosting-ticketing', 'plan-school-licensing'],
         storyIds: ['grading-unpaid-request-guard'],
         startingRoutes: [
@@ -361,7 +390,9 @@ export const USER_TAXONOMY_TREE: UserTaxonomyNode[] = [
           'Run nightly GCS database backups via scheduled Cloud Functions',
         ],
         permissionsSnapshot: ['service:firebase-admin', 'webhook:stripe', 'transcoder:gcp'],
-        startingJourneyIds: ['video-on-demand-streaming'],
+        startingJourneyIds: ['vod-streaming', 'grading-progression'],
+        ownedJourneyIds: [],
+        participatingJourneyIds: ['grading-progression', 'member-onboarding', 'event-hosting-ticketing', 'vod-streaming', 'materials-download', 'push-notifications'],
         planIds: ['plan-grading-progression', 'plan-event-hosting-ticketing', 'plan-school-licensing'],
         storyIds: ['grading-sifu-notifications', 'grading-unpaid-request-guard'],
         startingRoutes: [
@@ -393,4 +424,67 @@ export function findTaxonomyNode(id: string, nodes: UserTaxonomyNode[] = USER_TA
     }
   }
   return undefined;
+}
+
+/**
+ * Builds a structured, complete 3-level taxonomy hierarchy:
+ * Level 1: Persona (User)
+ *   -> Level 2: User Journeys (Owned + Participating)
+ *     -> Level 3: Steps on the Journey (with screen route, data mutations, and inter-user handoffs)
+ */
+export function buildTaxonomyHierarchy(
+  taxonomyNodes: UserTaxonomyNode[],
+  journeys: UserJourneyEntry[]
+): PersonaTaxonomyHierarchy[] {
+  const flatNodes = flattenTaxonomy(taxonomyNodes);
+  const result: PersonaTaxonomyHierarchy[] = [];
+
+  for (const node of flatNodes) {
+    const ownedIds = new Set(node.ownedJourneyIds || []);
+    const partIds = new Set(node.participatingJourneyIds || []);
+    const startingIds = new Set(node.startingJourneyIds || []);
+
+    // Filter journeys relevant to this persona
+    const relevantJourneys = journeys.filter(
+      (j) =>
+        ownedIds.has(j.id) ||
+        partIds.has(j.id) ||
+        startingIds.has(j.id) ||
+        j.primaryTaxonomyNodeId === node.id ||
+        j.participatingTaxonomyNodeIds?.includes(node.id)
+    );
+
+    const journeyViews: TaxonomyJourneyView[] = relevantJourneys.map((j) => {
+      const isOwner = ownedIds.has(j.id) || j.primaryTaxonomyNodeId === node.id;
+      return {
+        journeyId: j.id,
+        title: j.title,
+        summary: j.summary,
+        isOwner,
+        steps: j.steps.map((s) => ({
+          stepId: s.stepId || `step-${j.id}-${s.stepNumber}`,
+          stepNumber: s.stepNumber,
+          actor: s.actor,
+          actorTaxonomyId: s.actorTaxonomyId,
+          title: s.title,
+          description: s.description,
+          screenPath: s.screenPath,
+          mutatedDataTypes: s.mutatedDataTypes,
+          triggeredFlow: s.triggeredFlow,
+          handoff: s.handoff,
+          receivedFrom: s.receivedFrom,
+        })),
+      };
+    });
+
+    result.push({
+      personaId: node.id,
+      personaName: node.name,
+      category: node.category,
+      roleSummary: node.roleSummary,
+      journeys: journeyViews,
+    });
+  }
+
+  return result;
 }

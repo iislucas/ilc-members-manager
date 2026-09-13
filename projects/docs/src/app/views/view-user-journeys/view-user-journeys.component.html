@@ -24,6 +24,14 @@
     <button
       type="button"
       class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'taxonomy-tree'"
+      (click)="setSubTab('taxonomy-tree')"
+    >
+      🏛️ Taxonomy: Users ➔ Journeys ➔ Steps
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
       [class.active]="activeSubTab() === 'plans'"
       (click)="setSubTab('plans')"
     >
@@ -119,14 +127,56 @@
           <h4>Journey Steps & Transitions:</h4>
           <div class="steps-track">
             @for (step of journey.steps; track step.stepNumber) {
-              <div class="step-card">
+              <div
+                class="step-card"
+                [id]="'step-' + journey.id + '-' + step.stepNumber"
+                [class.highlight-active]="docs.activeHighlightedStepId() === ('step-' + journey.id + '-' + step.stepNumber)"
+              >
                 <div class="step-badge">Step {{ step.stepNumber }}</div>
                 <div class="step-actor">{{ step.actor }}</div>
                 <div class="step-title">{{ step.title }}</div>
                 <div class="step-desc">{{ step.description }}</div>
-                <div class="step-screen">
-                  <code>{{ step.screenPath }}</code> ({{ step.screenViewId }})
-                </div>
+                @if (step.screenPath) {
+                  <div class="step-screen">
+                    <code>{{ step.screenPath }}</code> @if (step.screenViewId) { ({{ step.screenViewId }}) }
+                  </div>
+                }
+
+                @if (step.handoff; as handoff) {
+                  <div class="handoff-box outgoing">
+                    <div class="handoff-header">
+                      <span>👉 Interacts with / Handoff:</span>
+                      <span class="handoff-badge">{{ handoff.interactionType }}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="handoff-action-btn"
+                      (click)="navigateToHandoff(handoff)"
+                      title="Jump to {{ handoff.targetTaxonomyName }} step"
+                    >
+                      🔗 {{ handoff.targetTaxonomyName }} ➔ {{ handoff.targetJourneyTitle }} (Step {{ handoff.targetStepNumber }})
+                    </button>
+                    <div class="handoff-desc">{{ handoff.description }}</div>
+                  </div>
+                }
+
+                @if (step.receivedFrom; as recv) {
+                  <div class="handoff-box incoming">
+                    <div class="handoff-header">
+                      <span>👈 Triggered by / Received from:</span>
+                      <span class="handoff-badge">{{ recv.interactionType }}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="handoff-action-btn"
+                      (click)="navigateToHandoff(recv)"
+                      title="Jump to initiator {{ recv.targetTaxonomyName }} step"
+                    >
+                      🔗 {{ recv.targetTaxonomyName }} ➔ {{ recv.targetJourneyTitle }} (Step {{ recv.targetStepNumber }})
+                    </button>
+                    <div class="handoff-desc">{{ recv.description }}</div>
+                  </div>
+                }
               </div>
             }
           </div>
@@ -143,6 +193,127 @@
           </div>
         </div>
       }
+    </div>
+  }
+
+  <!-- TAB: 3-Tier Taxonomy: Users ➔ Journeys ➔ Steps -->
+  @if (activeSubTab() === 'taxonomy-tree') {
+    <div class="taxonomy-hierarchy-explorer content-card">
+      <div class="hierarchy-header">
+        <div>
+          <span class="tag-badge">3-Tier Taxonomy Drilldown</span>
+          <h2>🏛️ User Taxonomy ➔ Journeys ➔ Steps</h2>
+          <p class="subtitle">
+            Systematic drill-down from Persona Taxonomy Node to Owned & Participating Journeys, and their exact ordered Steps with inter-actor handoff transitions.
+          </p>
+        </div>
+        <div class="hierarchy-stats">
+          <span class="stat-pill"><strong>{{ docs.taxonomyHierarchy().length }}</strong> Personas</span>
+          <span class="stat-pill"><strong>{{ docs.journeysCatalog.length }}</strong> Canonical Journeys</span>
+        </div>
+      </div>
+
+      <div class="persona-accordion-list">
+        @for (persona of docs.taxonomyHierarchy(); track persona.personaId) {
+          <div class="persona-accordion-card" [class.is-expanded]="expandedPersonaId() === persona.personaId">
+            <button
+              type="button"
+              class="persona-accordion-header"
+              (click)="togglePersonaAccordion(persona.personaId)"
+              [attr.aria-expanded]="expandedPersonaId() === persona.personaId"
+            >
+              <div class="header-left">
+                <span class="category-chip">{{ persona.category }}</span>
+                <span class="persona-title">{{ persona.personaName }}</span>
+                <span class="journey-count-badge">{{ persona.journeys.length }} Journeys</span>
+              </div>
+              <div class="header-right">
+                <span class="accordion-chevron">{{ expandedPersonaId() === persona.personaId ? '▲' : '▼' }}</span>
+              </div>
+            </button>
+
+            @if (expandedPersonaId() === persona.personaId) {
+              <div class="persona-accordion-body">
+                <p class="role-desc">{{ persona.roleSummary }}</p>
+
+                <div class="hierarchy-journeys-container">
+                  @for (journey of persona.journeys; track journey.journeyId) {
+                    <div class="hierarchy-journey-card">
+                      <div class="journey-header">
+                        <div class="journey-meta">
+                          <span
+                            class="ownership-badge"
+                            [class.owner]="journey.isOwner"
+                            [class.participant]="!journey.isOwner"
+                          >
+                            {{ journey.isOwner ? '👑 Primary Owner' : '👥 Participating Actor' }}
+                          </span>
+                          <span class="journey-title">{{ journey.title }}</span>
+                        </div>
+                        <p class="journey-summary-small">{{ journey.summary }}</p>
+                      </div>
+
+                      <div class="hierarchy-steps-grid">
+                        @for (step of journey.steps; track step.stepNumber) {
+                          <div
+                            class="hierarchy-step-card"
+                            [id]="'hier-step-' + journey.journeyId + '-' + step.stepNumber"
+                            [class.highlight-active]="docs.activeHighlightedStepId() === ('step-' + journey.journeyId + '-' + step.stepNumber)"
+                          >
+                            <div class="step-num-badge">Step {{ step.stepNumber }}</div>
+                            <div class="step-actor-label">{{ step.actor }}</div>
+                            <div class="step-name">{{ step.title }}</div>
+                            <div class="step-detail">{{ step.description }}</div>
+                            @if (step.screenPath) {
+                              <div class="step-screen-path"><code>{{ step.screenPath }}</code></div>
+                            }
+
+                            @if (step.handoff; as handoff) {
+                              <div class="handoff-box outgoing">
+                                <div class="handoff-header">
+                                  <span>👉 Hands off to:</span>
+                                  <span class="handoff-badge">{{ handoff.interactionType }}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  class="handoff-action-btn"
+                                  (click)="navigateToHandoff(handoff)"
+                                  title="Jump to {{ handoff.targetTaxonomyName }}"
+                                >
+                                  🔗 {{ handoff.targetTaxonomyName }} ➔ {{ handoff.targetJourneyTitle }} (Step {{ handoff.targetStepNumber }})
+                                </button>
+                                <div class="handoff-desc">{{ handoff.description }}</div>
+                              </div>
+                            }
+
+                            @if (step.receivedFrom; as recv) {
+                              <div class="handoff-box incoming">
+                                <div class="handoff-header">
+                                  <span>👈 Received from:</span>
+                                  <span class="handoff-badge">{{ recv.interactionType }}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  class="handoff-action-btn"
+                                  (click)="navigateToHandoff(recv)"
+                                  title="Jump to {{ recv.targetTaxonomyName }}"
+                                >
+                                  🔗 {{ recv.targetTaxonomyName }} ➔ {{ recv.targetJourneyTitle }} (Step {{ recv.targetStepNumber }})
+                                </button>
+                                <div class="handoff-desc">{{ recv.description }}</div>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
     </div>
   }
 
