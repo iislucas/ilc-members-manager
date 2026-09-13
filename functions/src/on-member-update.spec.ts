@@ -130,8 +130,16 @@ describe('on-member-update triggers logic', () => {
       collection: vi.fn().mockReturnValue(mockCollection),
       doc: vi.fn().mockImplementation((path) => {
         const parts = path.split('/');
+        let docGet = mockGet;
+        if (path === 'system/mail-settings') {
+          docGet = vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ status: 'active' }),
+          });
+        }
         return {
           ...mockDoc,
+          get: docGet,
           id: parts[parts.length - 1],
           path: path,
         };

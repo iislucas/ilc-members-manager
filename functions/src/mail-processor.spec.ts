@@ -7,7 +7,9 @@ import {
   sendAdminTestEmail,
   retryMailItem,
   setMailSendingPaused,
+  setMailSendingState,
   processMailQueue,
+  MailSendingStatus,
 } from './mail-processor';
 import * as common from './common';
 import { environment } from './environment/environment';
@@ -436,7 +438,7 @@ describe('mail-processor', () => {
             return {
               get: vi.fn().mockResolvedValue({
                 exists: true,
-                data: () => ({ sendingPaused: true }),
+                data: () => ({ status: MailSendingStatus.Paused }),
               }),
             };
           }
@@ -459,6 +461,90 @@ describe('mail-processor', () => {
         status: 'PAUSED',
         'delivery.state': 'PAUSED',
       });
+    });
+
+    it('skips processing without updating document if mail sending is OFF and not an admin test', async () => {
+      const mockUpdate = vi.fn();
+      const mockDocRef = { update: mockUpdate };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return {
+              get: vi.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ status: MailSendingStatus.Off }),
+              }),
+            };
+          }
+          return { get: vi.fn() };
+        }),
+      } as any);
+
+      await (processMailQueue as any).run({
+        data: {
+          after: {
+            exists: true,
+            ref: mockDocRef,
+            data: () => ({ status: 'PENDING', to: 'off@example.com' }),
+          },
+        },
+        params: { mailId: 'mail_off_1' },
+      });
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('bypasses OFF and PAUSED checks when document has metadata.adminTest = true', async () => {
+      const mockUpdate = vi.fn();
+      const mockDocRef = { update: mockUpdate };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return {
+              get: vi.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ status: MailSendingStatus.Off }),
+              }),
+            };
+          }
+          return { get: vi.fn() };
+        }),
+        runTransaction: vi.fn().mockImplementation(async (cb) => {
+          return await cb({
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ status: 'PENDING', to: 'admin@iliqchuan.com' }),
+            }),
+            update: mockUpdate,
+          });
+        }),
+      } as any);
+
+      // In test/emulator without SMTP_PASSWORD, it locks and simulates success
+      await (processMailQueue as any).run({
+        data: {
+          after: {
+            exists: true,
+            ref: mockDocRef,
+            data: () => ({
+              status: 'PENDING',
+              to: 'admin@iliqchuan.com',
+              from: 'notifications@iliqchuan.com',
+              metadata: { adminTest: true },
+            }),
+          },
+        },
+        params: { mailId: 'admin_test_bypass' },
+      });
+
+      // Document was processed and marked SUCCESS
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'SUCCESS',
+        }),
+      );
     });
   });
 
@@ -551,6 +637,146 @@ describe('mail-processor', () => {
       expect(result.paused).toBe(false);
       expect(result.resumedCount).toBe(2);
       expect(mockBatchUpdate).toHaveBeenCalledTimes(2);
+      expect(mockBatchCommit).toHaveBeenCalled();
+    });
+  });
+
+  describe('setMailSendingState', () => {
+    it('throws error if user is not an admin', async () => {
+      vi.spyOn(common, 'assertAdmin').mockRejectedValue(
+        new HttpsError('permission-denied', 'Admin access required.'),
+      );
+
+      await expect(
+        setMailSendingState.run({
+          auth: { token: { email: 'user@example.com' } },
+          data: { status: MailSendingStatus.Active },
+        } as any),
+      ).rejects.toThrow('Admin access required.');
+    });
+
+    it('rejects invalid status parameter', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+
+      await expect(
+        setMailSendingState.run({
+          auth: { token: { email: 'admin@iliqchuan.com' } },
+          data: { status: 'invalid-status' },
+        } as any),
+      ).rejects.toThrow('Invalid status parameter');
+    });
+
+    it('sets status to OFF and updates /system/mail-settings', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockSet = vi.fn().mockResolvedValue({});
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return { set: mockSet };
+          }
+          return {};
+        }),
+      } as any);
+
+      const result = await setMailSendingState.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: { status: MailSendingStatus.Off },
+      } as any);
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe(MailSendingStatus.Off);
+      expect(result.resumedCount).toBe(0);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: MailSendingStatus.Off,
+          sendingPaused: false,
+          updatedBy: 'admin@iliqchuan.com',
+        }),
+        { merge: true },
+      );
+    });
+
+    it('sets status to PAUSED and updates /system/mail-settings', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockSet = vi.fn().mockResolvedValue({});
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return { set: mockSet };
+          }
+          return {};
+        }),
+      } as any);
+
+      const result = await setMailSendingState.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: { status: MailSendingStatus.Paused },
+      } as any);
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe(MailSendingStatus.Paused);
+      expect(result.resumedCount).toBe(0);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: MailSendingStatus.Paused,
+          sendingPaused: true,
+          pausedBy: 'admin@iliqchuan.com',
+        }),
+        { merge: true },
+      );
+    });
+
+    it('sets status to ACTIVE and resumes PAUSED documents to PENDING', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockSet = vi.fn().mockResolvedValue({});
+      const mockBatchUpdate = vi.fn();
+      const mockBatchCommit = vi.fn().mockResolvedValue({});
+
+      const mockBatch = {
+        update: mockBatchUpdate,
+        commit: mockBatchCommit,
+      };
+
+      const pausedDoc1 = { ref: { id: 'doc1' } };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return { set: mockSet };
+          }
+          return {};
+        }),
+        collection: vi.fn().mockImplementation((coll: string) => {
+          if (coll === 'mail') {
+            return {
+              where: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  empty: false,
+                  docs: [pausedDoc1],
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+        batch: vi.fn().mockReturnValue(mockBatch),
+      } as any);
+
+      const result = await setMailSendingState.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: { status: MailSendingStatus.Active },
+      } as any);
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe(MailSendingStatus.Active);
+      expect(result.resumedCount).toBe(1);
+      expect(mockBatchUpdate).toHaveBeenCalledWith(
+        pausedDoc1.ref,
+        expect.objectContaining({
+          status: 'PENDING',
+          'delivery.state': 'PENDING',
+        }),
+      );
       expect(mockBatchCommit).toHaveBeenCalled();
     });
   });

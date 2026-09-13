@@ -5,7 +5,7 @@ import { FirestoreCollection } from './data-model/collections';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 import { formatTemplate, markdownToHtml } from './email-markdown';
 
-import { MailSettings, MailQueueDoc } from './data-model/mail';
+import { MailSettings, MailQueueDoc, MailSendingStatus } from './data-model/mail';
 
 export type TransactionalEmailKey =
   | 'membershipActivated'
@@ -54,12 +54,22 @@ export async function sendTransactionalEmail(
   }
 
   try {
-    // Check if mail sending is globally paused
+    // Resolve global mail status (defaults strictly to OFF if unconfigured)
     const mailSettingsSnap = await db.doc('system/mail-settings').get();
     const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-    const isPaused = mailSettings?.sendingPaused === true;
+    const status: MailSendingStatus =
+      mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
 
-    if (isPaused) {
+    // 1. If mail sending is OFF: do NOT write any document to /mail
+    if (status === MailSendingStatus.Off) {
+      logger.info(
+        `[EmailDispatcher] Mail sending is OFF. Skipping notification for template ${options.templateKey}.`,
+      );
+      return null;
+    }
+
+    // 2. If mail sending is PAUSED: enqueue placeholder document with raw template key & data (no rendered HTML)
+    if (status === MailSendingStatus.Paused) {
       // Defer template interpretation: write placeholder document with raw template key & data
       const mailRef = await db.collection(FirestoreCollection.Mail).add({
         to: validRecipients,

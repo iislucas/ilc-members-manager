@@ -8,7 +8,7 @@ import { AppPathPatterns, Views } from '../app.config';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownEditor, EditorChip, MarkdownFeature } from '../markdown-editor/markdown-editor';
 import { EmailTemplates, initEmailTemplates } from '../../../functions/src/data-model/content-cache';
-import { MailQueueDoc } from '../../../functions/src/data-model/mail';
+import { MailQueueDoc, MailSendingStatus } from '../../../functions/src/data-model/mail';
 import {
   findUnsupportedEmailMarkdown,
   SUPPORTED_EMAIL_MARKDOWN,
@@ -446,48 +446,75 @@ export class EmailNotificationsComponent {
     }
   }
 
-  // --- GLOBAL MAIL SENDING PAUSE STATE ---
-  isMailPaused = computed(() => this.dataManager.mailSettings().sendingPaused === true);
+  // --- GLOBAL MAIL SENDING 3-STATE SYSTEM ---
+  readonly MailSendingStatus = MailSendingStatus;
+  mailStatus = computed<MailSendingStatus>(() => {
+    const settings = this.dataManager.mailSettings();
+    if (settings.status) {
+      return settings.status;
+    }
+    return settings.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off;
+  });
+  isMailPaused = computed(() => this.mailStatus() === MailSendingStatus.Paused);
   mailSettingsInfo = computed(() => this.dataManager.mailSettings());
-  isTogglingPause = signal(false);
-  pauseActionFeedback = signal<{ success: boolean; message: string } | null>(null);
+  isUpdatingStatus = signal(false);
+  isTogglingPause = this.isUpdatingStatus; // alias for backwards compatibility with any template bindings
+  statusActionFeedback = signal<{ success: boolean; message: string } | null>(null);
+  pauseActionFeedback = this.statusActionFeedback; // alias for backwards compatibility
 
-  async toggleMailPause() {
-    const currentlyPaused = this.isMailPaused();
-    const nextPaused = !currentlyPaused;
+  async setMailStatus(target: MailSendingStatus) {
+    if (target === this.mailStatus()) return;
 
-    const confirmMsg = nextPaused
-      ? 'Are you sure you want to pause email sending? New transactional notifications will be queued as placeholders without sending.'
-      : 'Are you sure you want to resume email sending? All queued placeholder emails will be rendered using current templates and dispatched via SMTP.';
+    let confirmMsg = '';
+    if (target === MailSendingStatus.Off) {
+      confirmMsg =
+        'Are you sure you want to turn email sending OFF? Automated notifications (purchases, registrations, digests) will NOT be sent and will NOT be queued.';
+    } else if (target === MailSendingStatus.Paused) {
+      confirmMsg =
+        'Are you sure you want to PAUSE email sending? Outbound transactional notifications will be queued as placeholders without sending.';
+    } else {
+      confirmMsg =
+        'Are you sure you want to ACTIVATE email sending? Any queued placeholder emails will be rendered using current templates and dispatched via SMTP.';
+    }
 
     if (!window.confirm(confirmMsg)) return;
 
-    this.isTogglingPause.set(true);
-    this.pauseActionFeedback.set(null);
+    this.isUpdatingStatus.set(true);
+    this.statusActionFeedback.set(null);
 
     try {
-      const res = await this.dataManager.setMailSendingPaused(nextPaused);
-      if (nextPaused) {
-        this.pauseActionFeedback.set({
+      const res = await this.dataManager.setMailSendingState(target);
+      if (target === MailSendingStatus.Off) {
+        this.statusActionFeedback.set({
           success: true,
-          message: 'Mail sending is now PAUSED. Outgoing notifications are being queued as placeholders.',
+          message: 'Mail sending is now OFF. Automated notifications are disabled and will not be queued.',
+        });
+      } else if (target === MailSendingStatus.Paused) {
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Mail sending is now PAUSED. Outgoing notifications are being held as placeholders in the queue.',
         });
       } else {
-        this.pauseActionFeedback.set({
+        this.statusActionFeedback.set({
           success: true,
-          message: `Mail sending RESUMED. ${res.resumedCount} queued email(s) released for template interpretation and delivery.`,
+          message: `Mail sending is now ACTIVE. ${res.resumedCount} queued email(s) released for template interpretation and delivery.`,
         });
         await this.loadMailLogs(false);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.pauseActionFeedback.set({
+      this.statusActionFeedback.set({
         success: false,
         message: `Failed to update mail sending state: ${msg}`,
       });
     } finally {
-      this.isTogglingPause.set(false);
+      this.isUpdatingStatus.set(false);
     }
+  }
+
+  async toggleMailPause() {
+    const nextStatus = this.isMailPaused() ? MailSendingStatus.Active : MailSendingStatus.Paused;
+    await this.setMailStatus(nextStatus);
   }
 
   // --- MAIL QUEUE & LOGS FUNCTIONALITY ---

@@ -94,4 +94,5 @@ export {
   sendAdminTestEmail,
   retryMailItem,
   setMailSendingPaused,
+  setMailSendingState,
 } from './mail-processor';

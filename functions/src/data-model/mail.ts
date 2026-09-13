@@ -80,11 +80,20 @@ export function initMailDoc(): MailQueueDoc {
   };
 }
 
+export enum MailSendingStatus {
+  Active = 'active',
+  Paused = 'paused',
+  Off = 'off',
+}
+
 /**
  * Global system settings for outbound mail dispatch, stored at /system/mail-settings.
  */
 export interface MailSettings {
-  sendingPaused: boolean;
+  status: MailSendingStatus;
+  sendingPaused?: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
   pausedAt?: string;
   pausedBy?: string;
   resumedAt?: string;
@@ -93,6 +102,7 @@ export interface MailSettings {
 
 export function initMailSettings(): MailSettings {
   return {
+    status: MailSendingStatus.Off,
     sendingPaused: false,
   };
 }

@@ -30,7 +30,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { FirestoreCollection } from '../../functions/src/data-model/collections';
-import { MailQueueDoc, MailSettings, initMailSettings } from '../../functions/src/data-model/mail';
+import { MailQueueDoc, MailSettings, MailSendingStatus, initMailSettings } from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
 import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent } from '../../functions/src/data-model/events';
@@ -2548,6 +2548,21 @@ export class DataManagerService {
       'retryMailItem',
     );
     const res = await fn({ mailId });
+    return res.data;
+  }
+
+  /**
+   * Admin-only callable to set global outbound mail sending state ('active' | 'paused' | 'off').
+   * When transitioning to 'active', transitions all documents in /mail with status: 'PAUSED' to 'PENDING'.
+   */
+  async setMailSendingState(
+    status: MailSendingStatus,
+  ): Promise<{ success: boolean; status: MailSendingStatus; resumedCount: number }> {
+    const fn = httpsCallable<
+      { status: MailSendingStatus },
+      { success: boolean; status: MailSendingStatus; resumedCount: number }
+    >(this.functions, 'setMailSendingState');
+    const res = await fn({ status });
     return res.data;
   }
 

@@ -322,7 +322,24 @@ To prevent circular triggers when `processMailQueue` updates documents in `/mail
 2. **Atomic Transaction Lock**: When picking up a pending document, `processMailQueue` runs an atomic Firestore transaction to advance the document to `status: 'PROCESSING'`. If another trigger or burst update touched the document first, the lock fails and execution stops.
 3. **Completion Updates**: When SMTP dispatch finishes, the document is updated with `status: 'SUCCESS'` (with `messageId` and timestamps) or `status: 'ERROR'` (with error message). Because neither status is `'PENDING'`, no secondary sending cycle can ever occur.
 
-### 5.9 Admin Test Email Tool & Mail Logs Viewer
+### 5.9 Global Email Sending States (Off, Paused, Active)
+
+The system supports a 3-way global outbound dispatch state stored in `/system/mail-settings` managed by administrators:
+
+1. **OFF (`MailSendingStatus.Off`)**: **(Initial Default)**
+   - Automated transactional emails (purchases, registrations, event digests) are completely shut off.
+   - **Zero-Write Enforcement**: Backend dispatchers log and return immediately **without writing any documents to `/mail`**.
+2. **PAUSED (`MailSendingStatus.Paused`)**:
+   - Outbound automated mail is queued. Instead of sending, placeholder documents are written to `/mail` with `status: 'PAUSED'`, storing the raw template key and token data (without interpreting or rendering templates into HTML).
+3. **ACTIVE (`MailSendingStatus.Active`)**:
+   - Outbound mail sending is fully enabled. Triggered notifications are rendered and enqueued with `status: 'PENDING'`, then dispatched via SMTP.
+   - When switching from `PAUSED` to `ACTIVE`, all existing queued placeholder documents are transitioned to `PENDING` and dynamically interpreted with the latest template definitions.
+
+#### Admin Test Email Bypass:
+- The **Test Email Sender** (`sendAdminTestEmail`) writes a document to `/mail` with `status: 'PENDING'` and `metadata.adminTest = true`.
+- `processMailQueue` explicitly allows test emails with `metadata.adminTest = true` to bypass `OFF` and `PAUSED` checks, enabling administrators to verify SMTP connections and iterate on template designs without turning on automated member communications.
+
+### 5.10 Admin Test Email Tool & Mail Logs Viewer
 
 Administrators have access to real-time email management tools in the portal via the dedicated **Email Notifications** space (`/email-notifications`):
 

@@ -7,7 +7,7 @@ import { formatTemplate, markdownToHtml } from './email-markdown';
 import { Member } from './data-model/members';
 import { IlcEvent } from './data-model/events';
 import { FirestoreCollection } from './data-model/collections';
-import { MailSettings } from './data-model/mail';
+import { MailSettings, MailSendingStatus } from './data-model/mail';
 
 /**
  * Weekly upcoming events digest: runs every Monday at 08:00 UTC.
@@ -46,6 +46,19 @@ export async function processEventDigest(
     logger.info(`[EventDigest] Outbound email disabled (environment.email.from is empty). Skipping ${frequency} digest.`);
     return 0;
   }
+
+  // Resolve global mail status (defaults strictly to OFF if unconfigured)
+  const mailSettingsSnap = await db.doc('system/mail-settings').get();
+  const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
+  const status: MailSendingStatus =
+    mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+
+  if (status === MailSendingStatus.Off) {
+    logger.info(`[EventDigest] Mail sending is OFF. Skipping ${frequency} digest dispatch.`);
+    return 0;
+  }
+
+  const isPaused = status === MailSendingStatus.Paused;
 
   // 1. Query upcoming listed events starting today or later
   const today = new Date().toISOString().split('T')[0];
@@ -135,10 +148,6 @@ export async function processEventDigest(
   const eventsListMarkdown = compiledEventItems.join('\n\n');
 
   // 5. Fan out to recipients
-  const mailSettingsSnap = await db.doc('system/mail-settings').get();
-  const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-  const isPaused = mailSettings?.sendingPaused === true;
-
   const calendarUrl = `${appBase}/events`;
   const preferencesUrl = `${appBase}/settings/notifications`;
   const batch = db.batch();

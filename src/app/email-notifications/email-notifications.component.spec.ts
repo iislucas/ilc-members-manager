@@ -7,7 +7,7 @@ import { Views } from '../app.config';
 import { signal } from '@angular/core';
 import { vi, describe, beforeEach, it, expect } from 'vitest';
 import { initEmailTemplates } from '../../../functions/src/data-model/content-cache';
-import { initMailSettings } from '../../../functions/src/data-model/mail';
+import { initMailSettings, MailSendingStatus } from '../../../functions/src/data-model/mail';
 
 describe('EmailNotificationsComponent', () => {
   let component: EmailNotificationsComponent;
@@ -38,6 +38,7 @@ describe('EmailNotificationsComponent', () => {
       emailTemplates: signal(initEmailTemplates()),
       mailSettings: signal(initMailSettings()),
       saveEmailTemplates: vi.fn().mockResolvedValue({}),
+      setMailSendingState: vi.fn().mockResolvedValue({ success: true, status: MailSendingStatus.Paused, resumedCount: 0 }),
       setMailSendingPaused: vi.fn().mockResolvedValue({ success: true, paused: true, resumedCount: 0 }),
       sendAdminTestEmail: vi.fn().mockResolvedValue({
         success: true,
@@ -250,31 +251,47 @@ describe('EmailNotificationsComponent', () => {
     expect(component.retryFeedback()?.success).toBe(true);
   });
 
-  it('should toggle mail sending pause state when toggleMailPause is called', async () => {
+  it('should manage 3-way mail sending status (Off, Paused, Active)', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    // Initial state: active
-    expect(component.isMailPaused()).toBe(false);
-    expect(fixture.nativeElement.querySelector('.banner-active')).toBeTruthy();
+    // 1. Initial state: OFF
+    expect(component.mailStatus()).toBe(MailSendingStatus.Off);
+    expect(fixture.nativeElement.querySelector('.banner-off')).toBeTruthy();
 
-    // Call toggle to pause
-    await component.toggleMailPause();
-    expect(mockDataManager.setMailSendingPaused).toHaveBeenCalledWith(true);
-    expect(component.pauseActionFeedback()?.success).toBe(true);
+    // 2. Transition to PAUSED
+    await component.setMailStatus(MailSendingStatus.Paused);
+    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Paused);
+    expect(component.statusActionFeedback()?.success).toBe(true);
 
-    // Simulate settings updated to paused
-    mockDataManager.mailSettings.set({ sendingPaused: true });
+    // Simulate settings update to PAUSED
+    mockDataManager.mailSettings.set({ status: MailSendingStatus.Paused, sendingPaused: true });
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(component.isMailPaused()).toBe(true);
+    expect(component.mailStatus()).toBe(MailSendingStatus.Paused);
     expect(fixture.nativeElement.querySelector('.banner-paused')).toBeTruthy();
 
-    // Call toggle to resume
-    mockDataManager.setMailSendingPaused.mockResolvedValueOnce({ success: true, paused: false, resumedCount: 1 });
-    await component.toggleMailPause();
-    expect(mockDataManager.setMailSendingPaused).toHaveBeenCalledWith(false);
-    expect(component.pauseActionFeedback()?.message).toContain('1 queued email(s) released');
+    // 3. Transition to ACTIVE
+    mockDataManager.setMailSendingState.mockResolvedValueOnce({
+      success: true,
+      status: MailSendingStatus.Active,
+      resumedCount: 2,
+    });
+    await component.setMailStatus(MailSendingStatus.Active);
+    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Active);
+    expect(component.statusActionFeedback()?.message).toContain('2 queued email(s) released');
+
+    // Simulate settings update to ACTIVE
+    mockDataManager.mailSettings.set({ status: MailSendingStatus.Active, sendingPaused: false });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.mailStatus()).toBe(MailSendingStatus.Active);
+    expect(fixture.nativeElement.querySelector('.banner-active')).toBeTruthy();
+
+    // 4. Transition back to OFF
+    await component.setMailStatus(MailSendingStatus.Off);
+    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Off);
   });
 
   it('should extract templateData entries in getTemplateDataEntries', () => {

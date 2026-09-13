@@ -8,10 +8,10 @@ import { environment } from './environment/environment';
 import { assertAdmin, allowedOrigins } from './common';
 import { markdownToHtml, formatTemplate } from './email-markdown';
 import { FirestoreCollection } from './data-model/collections';
-import { MailQueueDoc, MailDeliveryState, MailSettings } from './data-model/mail';
+import { MailQueueDoc, MailDeliveryState, MailSettings, MailSendingStatus } from './data-model/mail';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 
-export { MailQueueDoc, MailDeliveryState, MailSettings } from './data-model/mail';
+export { MailQueueDoc, MailDeliveryState, MailSettings, MailSendingStatus } from './data-model/mail';
 export const smtpPassword = defineSecret('SMTP_PASSWORD');
 
 /**
@@ -79,19 +79,26 @@ export const processMailQueue = onDocumentWritten(
 
     const db = admin.firestore();
 
-    // Check if mail sending is globally paused in /system/mail-settings.
-    // If paused and not an explicit admin test, revert document to PAUSED and stop.
+    // Check if mail sending is globally active, paused, or off in /system/mail-settings.
+    // Admin test emails always bypass this check to allow admins to safely test configurations.
     const mailSettingsSnap = await db.doc('system/mail-settings').get();
     const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-    const isGloballyPaused = mailSettings?.sendingPaused === true;
+    const status: MailSendingStatus =
+      mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
 
-    if (isGloballyPaused && !data.metadata?.adminTest) {
-      logger.info(`[MailProcessor] Mail sending is globally paused. Setting document ${mailId} to PAUSED.`);
-      await snap.ref.update({
-        status: 'PAUSED',
-        'delivery.state': 'PAUSED',
-      });
-      return;
+    if (!data.metadata?.adminTest) {
+      if (status === MailSendingStatus.Off) {
+        logger.info(`[MailProcessor] Mail sending is OFF. Skipping document ${mailId}.`);
+        return;
+      }
+      if (status === MailSendingStatus.Paused) {
+        logger.info(`[MailProcessor] Mail sending is PAUSED. Setting document ${mailId} to PAUSED.`);
+        await snap.ref.update({
+          status: 'PAUSED',
+          'delivery.state': 'PAUSED',
+        });
+        return;
+      }
     }
 
     const recipients = Array.isArray(data.to) ? data.to.join(', ') : data.to;
@@ -443,52 +450,57 @@ export const retryMailItem = onCall(
   },
 );
 
-export interface SetMailSendingPausedRequest {
-  paused: boolean;
+export interface SetMailSendingStateRequest {
+  status: MailSendingStatus;
 }
 
-export interface SetMailSendingPausedResponse {
+export interface SetMailSendingStateResponse {
   success: boolean;
-  paused: boolean;
+  status: MailSendingStatus;
   resumedCount: number;
 }
 
 /**
- * Admin-only callable Cloud Function to pause or resume outbound mail sending.
- * When resuming, all documents in /mail with status: 'PAUSED' are transitioned to 'PENDING',
+ * Admin-only callable Cloud Function to change outbound mail sending state ('active' | 'paused' | 'off').
+ * When transitioning to 'active', all documents in /mail with status: 'PAUSED' are transitioned to 'PENDING',
  * which fires processMailQueue to dynamically render templates and dispatch emails.
  */
-export const setMailSendingPaused = onCall(
+export const setMailSendingState = onCall(
   {
     cors: allowedOrigins,
   },
-  async (request): Promise<SetMailSendingPausedResponse> => {
-    logger.info('[MailProcessor] setMailSendingPaused called');
+  async (request): Promise<SetMailSendingStateResponse> => {
+    logger.info('[MailProcessor] setMailSendingState called');
     await assertAdmin(request);
 
-    const data = request.data as SetMailSendingPausedRequest | undefined;
-    if (!data || typeof data.paused !== 'boolean') {
-      throw new HttpsError('invalid-argument', 'Boolean parameter "paused" is required.');
+    const data = request.data as SetMailSendingStateRequest | undefined;
+    const validStatuses = Object.values(MailSendingStatus);
+    if (!data || !validStatuses.includes(data.status)) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Invalid status parameter. Must be one of: ${validStatuses.join(', ')}`,
+      );
     }
 
-    const paused = data.paused;
+    const status = data.status;
     const db = admin.firestore();
     const settingsRef = db.doc('system/mail-settings');
     const now = new Date().toISOString();
     const adminEmail = request.auth?.token.email || 'admin';
 
-    await settingsRef.set(
-      {
-        sendingPaused: paused,
-        ...(paused
-          ? { pausedAt: now, pausedBy: adminEmail }
-          : { resumedAt: now, resumedBy: adminEmail }),
-      },
-      { merge: true },
-    );
+    const updates: Partial<MailSettings> = {
+      status,
+      sendingPaused: status === MailSendingStatus.Paused,
+      updatedAt: now,
+      updatedBy: adminEmail,
+      ...(status === MailSendingStatus.Paused ? { pausedAt: now, pausedBy: adminEmail } : {}),
+      ...(status === MailSendingStatus.Active ? { resumedAt: now, resumedBy: adminEmail } : {}),
+    };
+
+    await settingsRef.set(updates, { merge: true });
 
     let resumedCount = 0;
-    if (!paused) {
+    if (status === MailSendingStatus.Active) {
       const pausedDocsSnap = await db
         .collection(FirestoreCollection.Mail)
         .where('status', '==', 'PAUSED')
@@ -510,12 +522,89 @@ export const setMailSendingPaused = onCall(
     }
 
     logger.info(
-      `[MailProcessor] Mail sending set to ${paused ? 'PAUSED' : 'ACTIVE'} by ${adminEmail}. Resumed ${resumedCount} paused emails.`,
+      `[MailProcessor] Mail sending status set to ${status} by ${adminEmail}. Resumed ${resumedCount} paused emails.`,
     );
 
     return {
       success: true,
-      paused,
+      status,
+      resumedCount,
+    };
+  },
+);
+
+export interface SetMailSendingPausedRequest {
+  paused: boolean;
+}
+
+export interface SetMailSendingPausedResponse {
+  success: boolean;
+  paused: boolean;
+  resumedCount: number;
+}
+
+/**
+ * Admin-only callable Cloud Function to pause or resume outbound mail sending.
+ * Provided for backwards compatibility; delegates state transition to 'paused' vs 'active'.
+ */
+export const setMailSendingPaused = onCall(
+  {
+    cors: allowedOrigins,
+  },
+  async (request): Promise<SetMailSendingPausedResponse> => {
+    logger.info('[MailProcessor] setMailSendingPaused called');
+    await assertAdmin(request);
+
+    const data = request.data as SetMailSendingPausedRequest | undefined;
+    if (!data || typeof data.paused !== 'boolean') {
+      throw new HttpsError('invalid-argument', 'Boolean parameter "paused" is required.');
+    }
+
+    const targetStatus = data.paused ? MailSendingStatus.Paused : MailSendingStatus.Active;
+    const db = admin.firestore();
+    const settingsRef = db.doc('system/mail-settings');
+    const now = new Date().toISOString();
+    const adminEmail = request.auth?.token.email || 'admin';
+
+    const updates: Partial<MailSettings> = {
+      status: targetStatus,
+      sendingPaused: data.paused,
+      updatedAt: now,
+      updatedBy: adminEmail,
+      ...(data.paused ? { pausedAt: now, pausedBy: adminEmail } : { resumedAt: now, resumedBy: adminEmail }),
+    };
+
+    await settingsRef.set(updates, { merge: true });
+
+    let resumedCount = 0;
+    if (!data.paused) {
+      const pausedDocsSnap = await db
+        .collection(FirestoreCollection.Mail)
+        .where('status', '==', 'PAUSED')
+        .get();
+
+      if (!pausedDocsSnap.empty) {
+        const batch = db.batch();
+        for (const doc of pausedDocsSnap.docs) {
+          batch.update(doc.ref, {
+            status: 'PENDING',
+            'delivery.state': 'PENDING',
+            'delivery.resumedAt': admin.firestore.FieldValue.serverTimestamp(),
+            'delivery.resumedBy': adminEmail,
+          });
+          resumedCount++;
+        }
+        await batch.commit();
+      }
+    }
+
+    logger.info(
+      `[MailProcessor] Mail sending set to ${targetStatus} by ${adminEmail}. Resumed ${resumedCount} paused emails.`,
+    );
+
+    return {
+      success: true,
+      paused: data.paused,
       resumedCount,
     };
   },

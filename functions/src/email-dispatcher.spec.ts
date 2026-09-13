@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
 import { sendTransactionalEmail } from './email-dispatcher';
 import { environment } from './environment/environment';
+import { MailSendingStatus } from './data-model/mail';
 
 describe('sendTransactionalEmail', () => {
   let mockDb: any;
@@ -16,8 +17,18 @@ describe('sendTransactionalEmail', () => {
     });
 
     mockDb = {
-      doc: vi.fn().mockReturnValue({
-        get: mockTemplatesDocGet,
+      doc: vi.fn().mockImplementation((path: string) => {
+        if (path === 'system/mail-settings') {
+          return {
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ status: MailSendingStatus.Active }),
+            }),
+          };
+        }
+        return {
+          get: mockTemplatesDocGet,
+        };
       }),
       collection: vi.fn().mockReturnValue({
         add: mockMailAdd,
@@ -187,6 +198,36 @@ describe('sendTransactionalEmail', () => {
           }),
         }),
       );
+    } finally {
+      environment.email.from = originalFrom;
+    }
+  });
+
+  it('skips enqueueing and returns null without writing to /mail when mail sending is OFF', async () => {
+    const originalFrom = environment.email.from;
+    environment.email.from = 'orders@iliqchuan.com';
+
+    mockDb.doc = vi.fn().mockImplementation((path: string) => {
+      if (path === 'system/mail-settings') {
+        return {
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ status: MailSendingStatus.Off }),
+          }),
+        };
+      }
+      return { get: mockTemplatesDocGet };
+    });
+
+    try {
+      const mailId = await sendTransactionalEmail(mockDb, {
+        to: 'member@example.com',
+        templateKey: 'orderConfirmation',
+        replacements: { name: 'Test' },
+      });
+
+      expect(mailId).toBeNull();
+      expect(mockMailAdd).not.toHaveBeenCalled();
     } finally {
       environment.email.from = originalFrom;
     }

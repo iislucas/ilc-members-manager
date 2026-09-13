@@ -50,7 +50,45 @@
 
   <div class="card-body-content">
     <!-- Global Mail Dispatch Status Banner -->
-    @if (isMailPaused()) {
+    @if (mailStatus() === MailSendingStatus.Off) {
+      <div class="mail-status-banner banner-off">
+        <div class="banner-content">
+          <div class="banner-title">
+            <span class="status-indicator indicator-off"></span>
+            <span>Email Sending is <strong>OFF</strong></span>
+          </div>
+          <p class="banner-desc">
+            Automated transactional notifications (purchases, registrations, event digests) are disabled and <strong>will not be written to the mail queue</strong>.
+            You can safely use the <strong>Test Email Sender</strong> tab to verify SMTP delivery and iterate on templates before turning notifications on.
+          </p>
+        </div>
+        <div class="banner-actions">
+          <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
+            <button
+              type="button"
+              class="status-btn status-btn-off active"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Off)">
+              Off
+            </button>
+            <button
+              type="button"
+              class="status-btn status-btn-paused"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Paused)">
+              Pause
+            </button>
+            <button
+              type="button"
+              class="status-btn status-btn-active"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Active)">
+              Turn On
+            </button>
+          </div>
+        </div>
+      </div>
+    } @else if (mailStatus() === MailSendingStatus.Paused) {
       <div class="mail-status-banner banner-paused">
         <div class="banner-content">
           <div class="banner-title">
@@ -66,17 +104,29 @@
           </p>
         </div>
         <div class="banner-actions">
-          <button
-            type="button"
-            class="btn btn-primary btn-resume"
-            [disabled]="isTogglingPause()"
-            (click)="toggleMailPause()">
-            @if (isTogglingPause()) {
-              <app-spinner>Resuming...</app-spinner>
-            } @else {
-              ▶ Resume Email Sending
-            }
-          </button>
+          <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
+            <button
+              type="button"
+              class="status-btn status-btn-off"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Off)">
+              Turn Off
+            </button>
+            <button
+              type="button"
+              class="status-btn status-btn-paused active"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Paused)">
+              Paused
+            </button>
+            <button
+              type="button"
+              class="status-btn status-btn-active"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Active)">
+              Resume ▶
+            </button>
+          </div>
         </div>
       </div>
     } @else {
@@ -91,22 +141,34 @@
           </p>
         </div>
         <div class="banner-actions">
-          <button
-            type="button"
-            class="btn btn-outline btn-pause"
-            [disabled]="isTogglingPause()"
-            (click)="toggleMailPause()">
-            @if (isTogglingPause()) {
-              <app-spinner>Pausing...</app-spinner>
-            } @else {
-              ⏸ Pause Email Sending
-            }
-          </button>
+          <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
+            <button
+              type="button"
+              class="status-btn status-btn-off"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Off)">
+              Turn Off
+            </button>
+            <button
+              type="button"
+              class="status-btn status-btn-paused"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Paused)">
+              Pause ⏸
+            </button>
+            <button
+              type="button"
+              class="status-btn status-btn-active active"
+              [disabled]="isUpdatingStatus()"
+              (click)="setMailStatus(MailSendingStatus.Active)">
+              Active
+            </button>
+          </div>
         </div>
       </div>
     }
 
-    @if (pauseActionFeedback(); as feedback) {
+    @if (statusActionFeedback(); as feedback) {
       <div class="feedback-toast" [class.success]="feedback.success" [class.error]="!feedback.success">
         {{ feedback.message }}
       </div>
@@ -474,6 +536,10 @@
           <p class="section-subtext">
             Safely test and verify core email delivery. Outbound test emails use the exact same code pathway as production messages (enqueuing to <code>/mail</code> with PENDING status for trigger processing).
           </p>
+          <div class="test-notice-pill">
+            <span class="notice-icon">ℹ️</span>
+            <span>Admin test emails create a <strong>PENDING</strong> entry and attempt delivery via SMTP even if mail sending is <strong>OFF</strong> or <strong>PAUSED</strong>, allowing you to test and iterate safely before enabling automated notifications.</span>
+          </div>
         </div>
 
         <div class="preset-buttons">

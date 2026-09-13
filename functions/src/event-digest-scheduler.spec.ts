@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
 import { processEventDigest } from './event-digest-scheduler';
 import { environment } from './environment/environment';
+import { MailSendingStatus } from './data-model/mail';
 
 describe('processEventDigest', () => {
   let mockDb: any;
@@ -29,8 +30,18 @@ describe('processEventDigest', () => {
 
     mockDb = {
       batch: vi.fn().mockReturnValue(mockBatch),
-      doc: vi.fn().mockReturnValue({
-        get: mockTemplateDocGet,
+      doc: vi.fn().mockImplementation((path: string) => {
+        if (path === 'system/mail-settings') {
+          return {
+            get: vi.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({ status: MailSendingStatus.Active }),
+            }),
+          };
+        }
+        return {
+          get: mockTemplateDocGet,
+        };
       }),
       collection: vi.fn((colName: string) => {
         if (colName === 'events') {
@@ -182,6 +193,100 @@ describe('processEventDigest', () => {
       const count = await processEventDigest(mockDb, 'monthly', 'this month');
       expect(count).toBe(0);
       expect(mockBatchCommit).not.toHaveBeenCalled();
+    } finally {
+      environment.email.from = originalFrom;
+    }
+  });
+
+  it('skips digest and returns 0 without querying events or writing to /mail when mail sending is OFF', async () => {
+    const originalFrom = environment.email.from;
+    environment.email.from = 'digest@iliqchuan.com';
+
+    mockDb.doc = vi.fn().mockImplementation((path: string) => {
+      if (path === 'system/mail-settings') {
+        return {
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ status: MailSendingStatus.Off }),
+          }),
+        };
+      }
+      return { get: mockTemplateDocGet };
+    });
+
+    try {
+      const count = await processEventDigest(mockDb, 'weekly', 'this week');
+      expect(count).toBe(0);
+      expect(mockEventsQueryGet).not.toHaveBeenCalled();
+      expect(mockBatchCommit).not.toHaveBeenCalled();
+    } finally {
+      environment.email.from = originalFrom;
+    }
+  });
+
+  it('enqueues placeholder documents with status PAUSED when mail sending is PAUSED', async () => {
+    const originalFrom = environment.email.from;
+    environment.email.from = 'digest@iliqchuan.com';
+
+    mockDb.doc = vi.fn().mockImplementation((path: string) => {
+      if (path === 'system/mail-settings') {
+        return {
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ status: MailSendingStatus.Paused }),
+          }),
+        };
+      }
+      return { get: mockTemplateDocGet };
+    });
+
+    mockEventsQueryGet.mockResolvedValue({
+      empty: false,
+      docs: [
+        {
+          id: 'evt_1',
+          data: () => ({
+            title: 'Workshop',
+            startDate: '2026-10-01',
+            status: 'listed',
+          }),
+        },
+      ],
+    });
+
+    mockMembersQueryGet.mockResolvedValue({
+      empty: false,
+      docs: [
+        {
+          id: 'mem_1',
+          data: () => ({
+            name: 'Paused Student',
+            emails: ['student@example.com'],
+          }),
+        },
+      ],
+    });
+
+    try {
+      const count = await processEventDigest(mockDb, 'weekly', 'this week');
+      expect(count).toBe(1);
+      expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+      expect(mockBatchSet).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          status: 'PAUSED',
+          to: ['student@example.com'],
+          templateKey: 'eventDigestOverall',
+          delivery: expect.objectContaining({
+            state: 'PAUSED',
+          }),
+          message: expect.objectContaining({
+            subject: expect.stringContaining('[Queued / Paused]'),
+            text: '',
+            html: '',
+          }),
+        }),
+      );
     } finally {
       environment.email.from = originalFrom;
     }
