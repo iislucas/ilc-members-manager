@@ -219,7 +219,7 @@ export const initPathPatterns = {
     'unpaid',
   ]),
   [Views.Settings]: addUrlParams(pathPattern`settings`, ['tab']),
-  [Views.EmailNotifications]: addUrlParams(pathPattern`email-notifications`, ['tab', 'subtab']),
+  [Views.EmailNotifications]: addUrlParams(pathPattern`email-notifications`, ['tab', 'subtab', 'mailId']),
   [Views.NotificationSettings]: pathPattern`settings/notifications`,
   [Views.Notifications]: addUrlParams(pathPattern`notifications`, ['filter', 'style']),
   [Views.ClassVideoLibrary]: addUrlParams(pathPattern`class-video-library`, [

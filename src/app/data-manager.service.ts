@@ -2536,6 +2536,25 @@ export class DataManagerService {
     return docs;
   }
 
+  /**
+   * Fetches a single mail document by ID from /mail.
+   */
+  async getMailDoc(mailId: string): Promise<MailQueueDoc | null> {
+    if (!mailId) return null;
+    try {
+      const docRef = doc(this.db, FirestoreCollection.Mail, mailId);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return null;
+      return {
+        ...(snap.data() as MailQueueDoc),
+        docId: snap.id,
+      };
+    } catch (e) {
+      console.error('Error fetching mail doc', mailId, e);
+      return null;
+    }
+  }
+
   private resolveMailTimestamp(doc: MailQueueDoc): number {
     if (doc.createdAt) {
       if (typeof (doc.createdAt as { toMillis?: () => number }).toMillis === 'function') {

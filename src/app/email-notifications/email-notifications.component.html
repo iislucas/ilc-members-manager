@@ -904,6 +904,15 @@
               <div class="detail-top-actions">
                 <button
                   type="button"
+                  class="subtle-button copy-link-btn"
+                  [class.copied]="copiedLogUrl()"
+                  (click)="copyLogUrl(item.docId)"
+                  title="Copy direct URL to this email log">
+                  <app-icon [name]="copiedLogUrl() ? 'check' : 'link'"></app-icon>
+                  {{ copiedLogUrl() ? 'Link Copied!' : 'Copy Link' }}
+                </button>
+                <button
+                  type="button"
                   class="subtle-button"
                   [disabled]="state === 'PROCESSING'"
                   (click)="openEditMail(item)">
@@ -947,11 +956,72 @@
               </div>
             }
 
+            <!-- RENDERED EMAIL DISPLAY -->
+            <div class="email-display-wrapper">
+              <div class="email-display-header">
+                <div class="email-display-title">
+                  <h5>Rendered Email Display</h5>
+                  <span class="status-badge" [class]="state.toLowerCase()">{{ state }}</span>
+                </div>
+              </div>
+              <div class="preview-box log-email-preview">
+                <div class="preview-header-meta">
+                  <div class="preview-meta-row">
+                    <span class="preview-meta-label">To:</span>
+                    <span class="preview-meta-value recipient-value">
+                      <strong>{{ formatLogTo(item.to) }}</strong>
+                    </span>
+                  </div>
+                  <div class="preview-meta-row">
+                    <span class="preview-meta-label">Subject:</span>
+                    <span class="preview-meta-value subject-value">
+                      {{ item.message?.subject || item.subject || '(No Subject)' }}
+                    </span>
+                  </div>
+                  <div class="preview-meta-row">
+                    <span class="preview-meta-label">From:</span>
+                    <span class="preview-meta-value">{{ item.from || 'Default Notifications' }}</span>
+                  </div>
+                  @if (item.replyTo) {
+                    <div class="preview-meta-row">
+                      <span class="preview-meta-label">Reply-To:</span>
+                      <span class="preview-meta-value">{{ item.replyTo }}</span>
+                    </div>
+                  }
+                  <div class="preview-meta-row">
+                    <span class="preview-meta-label">Date:</span>
+                    <span class="preview-meta-value">{{ formatLogTimestamp(item.createdAt) }}</span>
+                  </div>
+                </div>
+
+                <div class="message-content-area">
+                  @if (state === 'PAUSED' && !item.message?.html && !item.html) {
+                    <div class="paused-placeholder-box">
+                      <p><em>Template has not yet been rendered. Content will be compiled dynamically from template <code>{{ item.templateKey }}</code> upon unpausing.</em></p>
+                    </div>
+                  } @else if (item.message?.html || item.html) {
+                    <div class="preview-body" [innerHTML]="item.message?.html || item.html"></div>
+                  } @else if (item.message?.text || item.text) {
+                    <pre class="plain-preview">{{ item.message?.text || item.text }}</pre>
+                  } @else {
+                    <div class="empty-body-placeholder"><em>(No message content)</em></div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- DELIVERY INSPECTION & QUEUE DETAILS -->
             <div class="log-detail-card">
               <div class="detail-header">
                 <div>
-                  <h5>Email Delivery Inspection</h5>
-                  <span class="doc-id">Document ID: <code>{{ item.docId }}</code></span>
+                  <h5>Delivery Inspection & Queue Details</h5>
+                  <span class="doc-id">
+                    Document ID: <code>{{ item.docId }}</code>
+                    <button type="button" class="copy-id-button" (click)="copyDocId(item.docId)" title="Copy Document ID">
+                      <app-icon [name]="copiedDocId() ? 'check' : 'content_copy'"></app-icon>
+                      {{ copiedDocId() ? 'Copied' : 'Copy ID' }}
+                    </button>
+                  </span>
                 </div>
                 <button type="button" class="icon-only-button" (click)="clearSelectedLog()" title="Close details">
                   <app-icon name="close"></app-icon>
@@ -965,7 +1035,7 @@
                 </div>
                 <div class="detail-item">
                   <label>Recipient (To)</label>
-                  <span>{{ item.to }}</span>
+                  <span>{{ formatLogTo(item.to) }}</span>
                 </div>
                 <div class="detail-item">
                   <label>Sender (From)</label>
@@ -979,9 +1049,19 @@
                   <label>Enqueued At</label>
                   <span>{{ formatLogTimestamp(item.createdAt) }}</span>
                 </div>
+                @if (item.delivery?.startTime) {
+                  <div class="detail-item">
+                    <label>Delivery Start Time</label>
+                    <span>{{ formatLogTimestamp(item.delivery?.startTime) }}</span>
+                  </div>
+                }
                 <div class="detail-item">
                   <label>Delivery End Time</label>
                   <span>{{ formatLogTimestamp(item.delivery?.endTime) }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Delivery Attempts</label>
+                  <span>{{ item.delivery?.attempts ?? 0 }}</span>
                 </div>
                 @if (item.delivery?.info?.messageId) {
                   <div class="detail-item full-width">
@@ -989,10 +1069,34 @@
                     <code>{{ item.delivery?.info?.messageId }}</code>
                   </div>
                 }
+                @if (item.delivery?.info?.response) {
+                  <div class="detail-item full-width">
+                    <label>SMTP Server Response</label>
+                    <code>{{ item.delivery?.info?.response }}</code>
+                  </div>
+                }
                 @if (item.delivery?.info?.simulated) {
                   <div class="detail-item full-width">
                     <label>Mode</label>
                     <span class="simulated-badge">Simulated Dispatch (Local Emulator / Unconfigured Secret)</span>
+                  </div>
+                }
+                @if (item.delivery?.info?.reason) {
+                  <div class="detail-item full-width">
+                    <label>Simulation Reason</label>
+                    <span>{{ item.delivery?.info?.reason }}</span>
+                  </div>
+                }
+                @if (item.delivery?.retryRequestedAt) {
+                  <div class="detail-item">
+                    <label>Retry Requested At</label>
+                    <span>{{ formatLogTimestamp(item.delivery?.retryRequestedAt) }}</span>
+                  </div>
+                }
+                @if (item.delivery?.retryRequestedBy) {
+                  <div class="detail-item">
+                    <label>Retry Requested By</label>
+                    <span>{{ item.delivery?.retryRequestedBy }}</span>
                   </div>
                 }
                 @if (item.delivery?.error) {
@@ -1041,24 +1145,6 @@
                     }
                   </div>
                 }
-                <div class="detail-item full-width">
-                  <label>Subject</label>
-                  <p class="subject-text"><strong>{{ item.message?.subject || item.subject }}</strong></p>
-                </div>
-                <div class="detail-item full-width">
-                  <label>Message Content</label>
-                  <div class="message-preview-container">
-                    @if (state === 'PAUSED' && !item.message?.html && !item.html) {
-                      <div class="paused-placeholder-box">
-                        <p><em>Template has not yet been rendered. Content will be compiled dynamically from template <code>{{ item.templateKey }}</code> upon unpausing.</em></p>
-                      </div>
-                    } @else if (item.message?.html || item.html) {
-                      <div class="html-preview" [innerHTML]="item.message?.html || item.html"></div>
-                    } @else {
-                      <pre class="plain-preview">{{ item.message?.text || item.text }}</pre>
-                    }
-                  </div>
-                </div>
               </div>
 
               <div class="detail-footer">

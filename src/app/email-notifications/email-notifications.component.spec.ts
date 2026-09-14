@@ -19,11 +19,13 @@ describe('EmailNotificationsComponent', () => {
   let mockRoutingService: any;
   let tabSignal: any;
   let subtabSignal: any;
+  let mailIdSignal: any;
   let mockTestMember: Member;
 
   beforeEach(async () => {
     tabSignal = signal('onboarding');
     subtabSignal = signal('order');
+    mailIdSignal = signal('');
 
     mockRoutingService = {
       signals: {
@@ -31,6 +33,7 @@ describe('EmailNotificationsComponent', () => {
           urlParams: {
             tab: tabSignal,
             subtab: subtabSignal,
+            mailId: mailIdSignal,
           },
         },
       },
@@ -100,7 +103,7 @@ describe('EmailNotificationsComponent', () => {
           to: ['student@example.com'],
           status: 'SUCCESS',
           delivery: { state: 'SUCCESS', info: { messageId: 'msg_1' } },
-          message: { subject: 'Welcome Student' },
+          message: { subject: 'Welcome Student', html: '<p>Welcome!</p>' },
           createdAt: new Date().toISOString(),
         },
         {
@@ -122,6 +125,37 @@ describe('EmailNotificationsComponent', () => {
           createdAt: new Date().toISOString(),
         },
       ]),
+      getMailDoc: vi.fn().mockImplementation(async (id: string) => {
+        const list = [
+          {
+            docId: 'mail_1',
+            to: ['student@example.com'],
+            status: 'SUCCESS',
+            delivery: { state: 'SUCCESS', info: { messageId: 'msg_1' } },
+            message: { subject: 'Welcome Student', html: '<p>Welcome!</p>' },
+            createdAt: new Date().toISOString(),
+          },
+          {
+            docId: 'mail_2',
+            to: ['fail@example.com'],
+            status: 'ERROR',
+            delivery: { state: 'ERROR', error: 'SMTP Timeout' },
+            message: { subject: 'Order Confirmation' },
+            createdAt: new Date().toISOString(),
+          },
+          {
+            docId: 'mail_3',
+            to: ['paused@example.com'],
+            status: 'PAUSED',
+            templateKey: 'orderConfirmation',
+            templateData: { name: 'Paused User', orderNumber: 'ORD-999' },
+            delivery: { state: 'PAUSED' },
+            message: { subject: '[Queued / Paused] Template: orderConfirmation' },
+            createdAt: new Date().toISOString(),
+          },
+        ];
+        return list.find((d) => d.docId === id) || null;
+      }),
       retryMailItem: vi.fn().mockResolvedValue({ success: true, docId: 'mail_2' }),
       deleteMailItems: vi.fn().mockResolvedValue({
         success: true,
@@ -576,6 +610,7 @@ describe('EmailNotificationsComponent', () => {
 
       // List should disappear, detail view should appear
       expect(component.selectedLog()).toBe(target);
+      expect(mailIdSignal()).toBe('mail_1');
       expect(fixture.nativeElement.querySelector('.logs-table')).toBeFalsy();
       expect(fixture.nativeElement.querySelector('.logs-header-bar')).toBeFalsy();
       const detailView = fixture.nativeElement.querySelector('.log-detail-view');
@@ -584,15 +619,52 @@ describe('EmailNotificationsComponent', () => {
       expect(detailView.textContent).toContain('student@example.com');
       expect(detailView.textContent).toContain('Back to Logs');
 
+      // Check rendered email display contains To line and Subject
+      const previewBox = detailView.querySelector('.log-email-preview');
+      expect(previewBox).toBeTruthy();
+      expect(previewBox.textContent).toContain('student@example.com');
+      expect(previewBox.textContent).toContain('Welcome Student');
+      expect(previewBox.querySelector('.preview-body')?.innerHTML).toContain('Welcome!');
+
+      // Check Copy Link button
+      const copyBtn = detailView.querySelector('.copy-link-btn') as HTMLButtonElement;
+      expect(copyBtn).toBeTruthy();
+      expect(copyBtn.textContent).toContain('Copy Link');
+
       // Click "Back to Logs"
       component.clearSelectedLog();
       fixture.detectChanges();
       await fixture.whenStable();
 
-      // List should reappear, detail view should be gone
+      // List should reappear, detail view should be gone, mailId reset
       expect(component.selectedLog()).toBeNull();
+      expect(mailIdSignal()).toBe('');
       expect(fixture.nativeElement.querySelector('.logs-table')).toBeTruthy();
       expect(fixture.nativeElement.querySelector('.log-detail-view')).toBeFalsy();
+    });
+
+    it('copies direct log URL to clipboard with feedback', async () => {
+      const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: writeTextSpy,
+        },
+      });
+
+      await component.copyLogUrl('mail_1');
+      expect(writeTextSpy).toHaveBeenCalledWith(expect.stringContaining('?tab=logs&mailId=mail_1'));
+      expect(component.copiedLogUrl()).toBe(true);
+    });
+
+    it('syncs mailId from URL param into selectedLog on init or param change', async () => {
+      tabSignal.set('logs');
+      mailIdSignal.set('mail_2');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      // The effect should synchronize mailId 'mail_2' to selectedLog
+      expect(component.selectedLog()?.docId).toBe('mail_2');
+      expect(component.selectedLog()?.to).toEqual(['fail@example.com']);
     });
   });
 

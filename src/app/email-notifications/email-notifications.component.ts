@@ -1,4 +1,4 @@
-import { Component, inject, signal, linkedSignal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, linkedSignal, computed, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../data-manager.service';
@@ -50,6 +50,9 @@ export class EmailNotificationsComponent {
     const tab = this.viewSignals.urlParams.tab();
     if (tab && VALID_CATEGORIES.includes(tab as TemplateCategory)) {
       return tab as TemplateCategory;
+    }
+    if (this.viewSignals.urlParams.mailId()) {
+      return 'logs';
     }
     return 'settings';
   });
@@ -503,6 +506,9 @@ export class EmailNotificationsComponent {
 
   async setCategory(cat: TemplateCategory) {
     this.viewSignals.urlParams.tab.set(cat);
+    if (cat !== 'logs' && this.viewSignals.urlParams.mailId()) {
+      this.viewSignals.urlParams.mailId.set('');
+    }
     if (cat === 'logs') {
       await this.loadMailLogs();
     }
@@ -517,10 +523,33 @@ export class EmailNotificationsComponent {
     if (userEmail) {
       this.testRecipient.set(userEmail);
     }
-    // If the view initializes directly with tab='logs', load logs immediately
-    if (this.viewSignals.urlParams.tab() === 'logs') {
+    // If the view initializes directly with tab='logs' or mailId is present, load logs immediately
+    if (this.viewSignals.urlParams.tab() === 'logs' || this.viewSignals.urlParams.mailId()) {
       this.loadMailLogs();
     }
+
+    // Two-way synchronization between URL parameter `mailId` and `selectedLog`
+    effect(() => {
+      const tab = this.viewSignals.urlParams.tab();
+      const mailId = this.viewSignals.urlParams.mailId();
+      if ((tab === 'logs' || (!tab && mailId)) && mailId) {
+        if (this.selectedLog()?.docId === mailId) {
+          return;
+        }
+        const existing = this.mailLogs().find((d) => d.docId === mailId);
+        if (existing) {
+          this.selectedLog.set(existing);
+        } else {
+          this.dataManager.getMailDoc(mailId).then((item) => {
+            if (item && this.viewSignals.urlParams.mailId() === mailId) {
+              this.selectedLog.set(item);
+            }
+          });
+        }
+      } else if (tab === 'logs' && !mailId && this.selectedLog()) {
+        this.selectedLog.set(null);
+      }
+    });
   }
 
   setTestBody(markdown: string) {
@@ -809,6 +838,39 @@ export class EmailNotificationsComponent {
 
   selectLog(log: MailQueueDoc | null) {
     this.selectedLog.set(log);
+    this.viewSignals.urlParams.mailId.set(log?.docId || '');
+  }
+
+  copiedLogUrl = signal<boolean>(false);
+  copiedDocId = signal<boolean>(false);
+
+  formatLogTo(to: string | string[] | undefined): string {
+    if (!to) return '(No recipient)';
+    if (Array.isArray(to)) return to.join(', ');
+    return to;
+  }
+
+  async copyLogUrl(mailId?: string) {
+    if (!mailId) return;
+    try {
+      const url = `${window.location.origin}${window.location.pathname}?tab=logs&mailId=${encodeURIComponent(mailId)}`;
+      await navigator.clipboard.writeText(url);
+      this.copiedLogUrl.set(true);
+      setTimeout(() => this.copiedLogUrl.set(false), 2500);
+    } catch (err) {
+      console.error('Failed to copy mail URL', err);
+    }
+  }
+
+  async copyDocId(docId?: string) {
+    if (!docId) return;
+    try {
+      await navigator.clipboard.writeText(docId);
+      this.copiedDocId.set(true);
+      setTimeout(() => this.copiedDocId.set(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy doc ID', err);
+    }
   }
 
   // --- MULTI-SELECT & BATCH DELETION ---
@@ -895,6 +957,7 @@ export class EmailNotificationsComponent {
 
       if (this.selectedLog() && ids.includes(this.selectedLog()!.docId!)) {
         this.selectedLog.set(null);
+        this.viewSignals.urlParams.mailId.set('');
       }
       this.clearSelection();
       await this.loadMailLogs(false);
@@ -932,6 +995,7 @@ export class EmailNotificationsComponent {
         });
         if (this.selectedLog()?.docId === mailId) {
           this.selectedLog.set(null);
+          this.viewSignals.urlParams.mailId.set('');
         }
         this.selectedMailIds.update((set) => {
           const next = new Set(set);
@@ -973,6 +1037,7 @@ export class EmailNotificationsComponent {
 
   clearSelectedLog() {
     this.selectedLog.set(null);
+    this.viewSignals.urlParams.mailId.set('');
   }
 
   openEditMail(mail: MailQueueDoc, event?: Event) {
