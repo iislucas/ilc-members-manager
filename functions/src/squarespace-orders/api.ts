@@ -33,7 +33,7 @@ import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItem
 import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
 import { createMemberNotification } from '../notifications';
 import { SubscriptionResult } from './common';
-import { sendTransactionalEmail } from '../email-dispatcher';
+import { sendTransactionalEmail, TransactionalEmailKey } from '../email-dispatcher';
 import { environment } from '../environment/environment';
 
 import { processVideoLibraryAccess } from './video-library';
@@ -531,7 +531,7 @@ async function notifyPurchaseFulfilled(
       : 'ILC Member';
     await sendTransactionalEmail(db, {
       to: email,
-      templateKey: 'orderConfirmation',
+      templateKey: TransactionalEmailKey.OrderConfirmation,
       replacements: {
         name,
         orderNumber: orderData.orderNumber || orderId,

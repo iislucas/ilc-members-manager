@@ -43,11 +43,19 @@ import { $prose, $remark, $nodeSchema, $inputRule, $view } from '@milkdown/utils
 import { wrappingInputRule } from '@milkdown/prose/inputrules';
 import { NodeSelection, Plugin, PluginKey, TextSelection } from '@milkdown/prose/state';
 import { Decoration, DecorationSet, EditorView, NodeView } from '@milkdown/prose/view';
-import { Node as ProseNode, Fragment } from '@milkdown/prose/model';
+import { Node as ProseNode, Fragment, Mark } from '@milkdown/prose/model';
 import { lift, wrapIn, splitBlock } from '@milkdown/prose/commands';
 import { wrapInList, liftListItem, sinkListItem, splitListItem } from '@milkdown/prose/schema-list';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { IconComponent } from '../icons/icon.component';
+
+interface MdastNode {
+  type: string;
+  value?: string;
+  children?: MdastNode[];
+  ordered?: boolean;
+  [key: string]: unknown;
+}
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 
 // Content-producing toolbar actions that can be individually enabled. Used to
@@ -704,15 +712,15 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     });
   }
 
-  private transformTextBreaks(parent: any) {
+  private transformTextBreaks(parent: MdastNode) {
     if (!parent || !parent.children) return;
 
-    const newChildren: any[] = [];
+    const newChildren: MdastNode[] = [];
     for (let i = 0; i < parent.children.length; i++) {
       const child = parent.children[i];
 
       if (child.type === 'text' && (child.value?.includes('\n') || child.value?.includes('\r'))) {
-        const lines = child.value.split(/\r?\n/);
+        const lines = (child.value || '').split(/\r?\n/);
         for (let j = 0; j < lines.length; j++) {
           if (lines[j]) {
             newChildren.push({ type: 'text', value: lines[j] });
@@ -2045,7 +2053,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   openLinkPopupForPosition(
     view: EditorView,
     pos: number,
-    mark?: any,
+    mark?: Mark | null,
     anchor?: HTMLElement | null,
   ) {
     const { state } = view;

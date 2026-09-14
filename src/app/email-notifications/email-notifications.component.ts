@@ -10,7 +10,17 @@ import { MarkdownEditor, EditorChip, MarkdownFeature } from '../markdown-editor/
 import { IconComponent } from '../icons/icon.component';
 import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { Member } from '../../../functions/src/data-model/members';
-import { IlcEvent, EventStatus, resolveEventDates, formatEventDigestItemContext, initEvent } from '../../../functions/src/data-model/events';
+import {
+  IlcEvent,
+  EventStatus,
+  resolveEventDates,
+  formatEventDigestItemContext,
+  initEvent,
+  EventDigestItemContext,
+  EventDigestAttendanceLabel,
+  EventDigestPriceLabel,
+  EventDigestOverallContext,
+} from '../../../functions/src/data-model/events';
 import { EmailTemplates, initEmailTemplates } from '../../../functions/src/data-model/content-cache';
 import { MailQueueDoc, MailSendingStatus, MailDeliveryState } from '../../../functions/src/data-model/mail';
 import {
@@ -23,6 +33,41 @@ import {
 export type TemplateCategory = 'settings' | 'test' | 'onboarding' | 'purchases' | 'digest' | 'logs';
 export type PurchaseSubtype = 'order' | 'event' | 'vod' | 'grading' | 'subscription';
 export type TestEmailType = 'ping' | 'welcome' | 'order' | 'digest';
+
+export interface TestEmailReplacements {
+  name: string;
+  email: string;
+  memberId: string;
+  instructorId: string;
+  appBase: string;
+  instructorSopUrl: string;
+  orderNumber: string;
+  orderDate: string;
+  amount: string;
+  currency: string;
+  itemsSummary: string;
+  receiptUrl: string;
+  eventTitle: string;
+  eventDates: string;
+  eventLocation: string;
+  attendanceType: string;
+  onlineJoiningLink: string;
+  specialInstructions: string;
+  videoTitle: string;
+  videoUrl: string;
+  gradingLevel: string;
+  gradingEventName: string;
+  gradingDate: string;
+  gradingUrl: string;
+  planName: string;
+  renewalDate: string;
+  nextRenewalDate: string;
+  period: string;
+  eventsCount: string;
+  calendarUrl: string;
+  preferencesUrl: string;
+  [key: string]: string;
+}
 
 export const DEFAULT_PING_SUBJECT = '[Test] I Liq Chuan Email Verification';
 export const DEFAULT_PING_BODY =
@@ -286,7 +331,7 @@ export class EmailNotificationsComponent {
    * matching the scheduled weekly and monthly cron behavior.
    * If none are found (e.g. offline testing or empty database), falls back to sample events.
    */
-  readonly upcomingDigestEvents = computed<Record<string, string>[]>(() => {
+  readonly upcomingDigestEvents = computed<EventDigestItemContext[]>(() => {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const future = new Date(now);
@@ -318,7 +363,7 @@ export class EmailNotificationsComponent {
     return eventsToFormat.map((evt) => formatEventDigestItemContext(evt, appBase));
   });
 
-  getTestReplacements(): Record<string, string> {
+  getTestReplacements(): TestEmailReplacements {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.iliqchuan.com';
     const user = this.firebaseState.user();
     const selMember = this.selectedTestMember();

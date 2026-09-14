@@ -22,7 +22,7 @@ import { ensureCountersAreAtLeast } from './counters';
 import { FirestoreUpdate, recordTombstone } from './common';
 import * as logger from 'firebase-functions/logger';
 import { environment } from './environment/environment.js';
-import { sendTransactionalEmail } from './email-dispatcher.js';
+import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
 
 const getDb = () => admin.firestore();
 
@@ -328,7 +328,7 @@ export async function cleanUpPendingNotifications(
 export async function sendTemplateEmail(
   db: admin.firestore.Firestore,
   toEmails: string[],
-  templateKey: 'membershipActivated' | 'instructorLicenseActivated',
+  templateKey: TransactionalEmailKey.MembershipActivated | TransactionalEmailKey.InstructorLicenseActivated,
   replacements: Record<string, string>,
 ) {
   await sendTransactionalEmail(db, {
@@ -359,7 +359,7 @@ export async function handleMembershipActivation(
     });
 
     try {
-      await sendTemplateEmail(db, member.emails || [], 'membershipActivated', {
+      await sendTemplateEmail(db, member.emails || [], TransactionalEmailKey.MembershipActivated, {
         name: member.name || 'ILC Member',
         memberId: member.memberId || '',
         email: (member.emails || [])[0] || '',
@@ -392,7 +392,7 @@ export async function handleInstructorActivation(
     });
 
     try {
-      await sendTemplateEmail(db, member.emails || [], 'instructorLicenseActivated', {
+      await sendTemplateEmail(db, member.emails || [], TransactionalEmailKey.InstructorLicenseActivated, {
         name: member.name || 'ILC Instructor',
         memberId: member.memberId || '',
         instructorId: member.instructorId || '',

@@ -5,11 +5,19 @@ import { environment } from './environment/environment';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 import { formatTemplate, markdownToHtml } from './email-markdown';
 import { Member } from './data-model/members';
-import { IlcEvent, resolveEventDates, formatEventDigestItemContext, firestoreDocToIlcEvent } from './data-model/events';
+import {
+  IlcEvent,
+  resolveEventDates,
+  formatEventDigestItemContext,
+  firestoreDocToIlcEvent,
+  EventDigestItemContext,
+  EventDigestOverallContext,
+} from './data-model/events';
 import { FirestoreCollection } from './data-model/collections';
 import { MailSettings, MailSendingStatus, MailDeliveryState } from './data-model/mail';
+import { EventDigestFrequency } from './data-model/notifications';
 
-export { resolveEventDates, formatEventDigestItemContext };
+export { resolveEventDates, formatEventDigestItemContext, EventDigestItemContext, EventDigestOverallContext };
 
 /**
  * Weekly upcoming events digest: runs every Monday at 08:00 UTC.
@@ -18,7 +26,7 @@ export const sendWeeklyEventDigest = onSchedule(
   { schedule: '0 8 * * 1', timeZone: 'UTC' },
   async () => {
     const db = admin.firestore();
-    await processEventDigest(db, 'weekly', 'the next 3 months');
+    await processEventDigest(db, EventDigestFrequency.Weekly, 'the next 3 months');
   },
 );
 
@@ -29,7 +37,7 @@ export const sendMonthlyEventDigest = onSchedule(
   { schedule: '0 8 1 * *', timeZone: 'UTC' },
   async () => {
     const db = admin.firestore();
-    await processEventDigest(db, 'monthly', 'the next 3 months');
+    await processEventDigest(db, EventDigestFrequency.Monthly, 'the next 3 months');
   },
 );
 
@@ -40,7 +48,7 @@ export const sendMonthlyEventDigest = onSchedule(
  */
 export async function processEventDigest(
   db: admin.firestore.Firestore,
-  frequency: 'weekly' | 'monthly',
+  frequency: EventDigestFrequency.Weekly | EventDigestFrequency.Monthly,
   periodLabel = 'the next 3 months',
 ): Promise<number> {
   const fromAddress = environment.email?.from;
@@ -138,7 +146,7 @@ export async function processEventDigest(
     const recipientEmail = (member.emails || []).find((e) => e && e.includes('@'));
     if (!recipientEmail) continue;
 
-    const replacements: Record<string, string> = {
+    const replacements: EventDigestOverallContext = {
       name: member.name || 'ILC Member',
       period: periodLabel,
       eventsCount: String(upcomingEvents.length),

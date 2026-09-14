@@ -110,11 +110,12 @@
         </div>
         <div class="select-control">
           <select
+            #freqSelect
             id="event-digest-frequency"
             class="digest-select"
             [disabled]="digestBusy()"
             [value]="eventDigestFrequency()"
-            (change)="setEventDigestFrequency($any($event.target).value)"
+            (change)="setEventDigestFrequency(freqSelect.value)"
           >
             <option value="none">No digest emails (Off)</option>
             <option value="weekly">Weekly digest (Every Monday)</option>

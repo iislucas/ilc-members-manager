@@ -695,13 +695,46 @@ export function resolveEventDates(evt: IlcEvent): { start: string; end: string }
   return { start, end: end || start };
 }
 
+export enum EventDigestAttendanceLabel {
+  InPersonAndOnline = 'In-Person & Online',
+  Online = 'Online',
+  InPerson = 'In-Person',
+}
+
+export enum EventDigestPriceLabel {
+  Paid = 'Paid',
+  FreeOrIncluded = 'Free / Included',
+}
+
+export type EventDigestItemContext = {
+  eventTitle: string;
+  eventDates: string;
+  eventLocation: string;
+  attendanceType: EventDigestAttendanceLabel;
+  eventInstructors: string;
+  eventPrice: EventDigestPriceLabel;
+  eventSummary: string;
+  eventDetailsUrl: string;
+  appBase: string;
+};
+
+export type EventDigestOverallContext = {
+  name: string;
+  period: string;
+  eventsCount: string;
+  eventsList: string;
+  calendarUrl: string;
+  preferencesUrl: string;
+  appBase: string;
+};
+
 /**
  * Builds template replacement parameters for an individual event item card in event digests.
  */
 export function formatEventDigestItemContext(
   evt: IlcEvent,
   appBase = 'https://app.iliqchuan.com',
-): Record<string, string> {
+): EventDigestItemContext {
   const eventDocId = evt.docId;
   const { start: startDate, end: endDate } = resolveEventDates(evt);
   const dates =
@@ -715,10 +748,10 @@ export function formatEventDigestItemContext(
   );
   const attendanceType =
     hasInPerson && hasOnline
-      ? 'In-Person & Online'
+      ? EventDigestAttendanceLabel.InPersonAndOnline
       : hasOnline
-      ? 'Online'
-      : 'In-Person';
+      ? EventDigestAttendanceLabel.Online
+      : EventDigestAttendanceLabel.InPerson;
 
   const contactsList = (evt.contacts || []).map((c) => c.name).filter(Boolean);
   if (contactsList.length === 0 && evt.ownerName) {
@@ -735,7 +768,9 @@ export function formatEventDigestItemContext(
     : '';
   const detailsUrl = `${appBase}/events/${eventDocId}`;
 
-  const price = evt.productId ? 'Paid' : 'Free / Included';
+  const price = evt.productId
+    ? EventDigestPriceLabel.Paid
+    : EventDigestPriceLabel.FreeOrIncluded;
 
   return {
     eventTitle: evt.title || 'Untitled Event',
@@ -749,3 +784,4 @@ export function formatEventDigestItemContext(
     appBase,
   };
 }
+

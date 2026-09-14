@@ -35,7 +35,7 @@ import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from '
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
 import { environment } from './environment/environment.js';
-import { sendTransactionalEmail } from './email-dispatcher.js';
+import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
 
 import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
 
@@ -578,7 +578,7 @@ async function fulfillGradingForMember(
       if (recipientEmail) {
         await sendTransactionalEmail(db, {
           to: recipientEmail,
-          templateKey: 'gradingPaymentConfirmation',
+          templateKey: TransactionalEmailKey.GradingPaymentConfirmation,
           replacements: {
             name: member.name || 'ILC Student',
             memberId: member.memberId || '',
@@ -1023,7 +1023,7 @@ export async function fulfillEventRegistration(
               const hasOnline = Boolean(event.onlineJoiningLink && event.onlineJoiningLink.trim());
               await sendTransactionalEmail(db, {
                 to: email,
-                templateKey: 'eventRegistrationConfirmation',
+                templateKey: TransactionalEmailKey.EventRegistrationConfirmation,
                 replacements: {
                   name: name || 'ILC Member',
                   eventTitle: eventTitle || 'ILC Workshop',
@@ -1515,7 +1515,7 @@ export async function fulfillStripeOrder(
         const planName = order.lineItems[0]?.description || 'ILC Subscription';
         await sendTransactionalEmail(db, {
           to: recipientEmail,
-          templateKey: 'subscriptionRenewal',
+          templateKey: TransactionalEmailKey.SubscriptionRenewal,
           replacements: {
             name: member.name || order.customerName || 'ILC Member',
             planName,
@@ -1541,7 +1541,7 @@ export async function fulfillStripeOrder(
         const videoId = order.metadata?.['videoId'] || '';
         await sendTransactionalEmail(db, {
           to: recipientEmail,
-          templateKey: 'vodPurchaseConfirmation',
+          templateKey: TransactionalEmailKey.VodPurchaseConfirmation,
           replacements: {
             name: member.name || order.customerName || 'ILC Member',
             videoTitle,
@@ -1554,7 +1554,7 @@ export async function fulfillStripeOrder(
       } else {
         await sendTransactionalEmail(db, {
           to: recipientEmail,
-          templateKey: 'orderConfirmation',
+          templateKey: TransactionalEmailKey.OrderConfirmation,
           replacements: {
             name: member.name || order.customerName || 'Valued Customer',
             orderNumber: orderDocId,

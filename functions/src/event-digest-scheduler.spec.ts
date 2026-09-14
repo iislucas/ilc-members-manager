@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { processEventDigest } from './event-digest-scheduler';
 import { environment } from './environment/environment';
 import { MailSendingStatus, MailDeliveryState } from './data-model/mail';
+import { EventDigestFrequency } from './data-model/notifications';
 
 describe('processEventDigest', () => {
   let mockDb: any;
@@ -169,7 +170,7 @@ describe('processEventDigest', () => {
     });
 
     try {
-      const enqueuedCount = await processEventDigest(mockDb, 'weekly');
+      const enqueuedCount = await processEventDigest(mockDb, EventDigestFrequency.Weekly);
 
       expect(enqueuedCount).toBe(2);
       expect(mockBatchCommit).toHaveBeenCalledTimes(1);
@@ -205,7 +206,7 @@ describe('processEventDigest', () => {
     });
 
     try {
-      const count = await processEventDigest(mockDb, 'weekly', 'this week');
+      const count = await processEventDigest(mockDb, EventDigestFrequency.Weekly, 'this week');
       expect(count).toBe(0);
       expect(mockMembersQueryGet).not.toHaveBeenCalled();
       expect(mockBatchCommit).not.toHaveBeenCalled();
@@ -229,7 +230,7 @@ describe('processEventDigest', () => {
     });
 
     try {
-      const count = await processEventDigest(mockDb, 'monthly', 'this month');
+      const count = await processEventDigest(mockDb, EventDigestFrequency.Monthly, 'this month');
       expect(count).toBe(0);
       expect(mockBatchCommit).not.toHaveBeenCalled();
     } finally {
@@ -254,7 +255,7 @@ describe('processEventDigest', () => {
     });
 
     try {
-      const count = await processEventDigest(mockDb, 'weekly', 'this week');
+      const count = await processEventDigest(mockDb, EventDigestFrequency.Weekly, 'this week');
       expect(count).toBe(0);
       expect(mockEventsQueryGet).not.toHaveBeenCalled();
       expect(mockBatchCommit).not.toHaveBeenCalled();
@@ -307,7 +308,7 @@ describe('processEventDigest', () => {
     });
 
     try {
-      const count = await processEventDigest(mockDb, 'weekly', 'this week');
+      const count = await processEventDigest(mockDb, EventDigestFrequency.Weekly, 'this week');
       expect(count).toBe(1);
       expect(mockBatchCommit).toHaveBeenCalledTimes(1);
       expect(mockBatchSet).toHaveBeenCalledWith(

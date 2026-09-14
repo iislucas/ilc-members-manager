@@ -390,7 +390,11 @@ export type MemberNotification = MemberNotificationCommon & (
   }
 );
 
-export type EventDigestFrequency = 'none' | 'weekly' | 'monthly';
+export enum EventDigestFrequency {
+  None = 'none',
+  Weekly = 'weekly',
+  Monthly = 'monthly',
+}
 
 export interface MemberNotificationSettings {
   pushEnabled: { [kind in NotificationKind]?: boolean };

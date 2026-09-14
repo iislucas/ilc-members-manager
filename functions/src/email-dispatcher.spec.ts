@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
-import { sendTransactionalEmail } from './email-dispatcher';
+import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher';
 import { environment } from './environment/environment';
 import { MailSendingStatus, MailDeliveryState } from './data-model/mail';
 
@@ -43,7 +43,7 @@ describe('sendTransactionalEmail', () => {
     try {
       const mailId = await sendTransactionalEmail(mockDb, {
         to: 'member@example.com',
-        templateKey: 'orderConfirmation',
+        templateKey: TransactionalEmailKey.OrderConfirmation,
         replacements: {
           name: 'Jane Doe',
           orderNumber: 'ORD-9876',
@@ -68,7 +68,7 @@ describe('sendTransactionalEmail', () => {
             html: expect.stringContaining('Jane Doe'),
           }),
           metadata: expect.objectContaining({
-            templateKey: 'orderConfirmation',
+            templateKey: TransactionalEmailKey.OrderConfirmation,
           }),
         }),
       );
@@ -92,7 +92,7 @@ describe('sendTransactionalEmail', () => {
     try {
       await sendTransactionalEmail(mockDb, {
         to: 'student@example.com',
-        templateKey: 'eventRegistrationConfirmation',
+        templateKey: TransactionalEmailKey.EventRegistrationConfirmation,
         replacements: {
           name: 'Sam Student',
           eventTitle: 'Masterclass NYC',
@@ -122,7 +122,7 @@ describe('sendTransactionalEmail', () => {
     try {
       const mailId = await sendTransactionalEmail(mockDb, {
         to: 'member@example.com',
-        templateKey: 'orderConfirmation',
+        templateKey: TransactionalEmailKey.OrderConfirmation,
         replacements: { name: 'Test' },
       });
 
@@ -140,7 +140,7 @@ describe('sendTransactionalEmail', () => {
     try {
       const mailId = await sendTransactionalEmail(mockDb, {
         to: ['invalid-address', ''],
-        templateKey: 'orderConfirmation',
+        templateKey: TransactionalEmailKey.OrderConfirmation,
         replacements: { name: 'Test' },
       });
 
@@ -172,7 +172,7 @@ describe('sendTransactionalEmail', () => {
     try {
       const mailId = await sendTransactionalEmail(mockDb, {
         to: 'member@example.com',
-        templateKey: 'orderConfirmation',
+        templateKey: TransactionalEmailKey.OrderConfirmation,
         replacements: {
           name: 'Paused Member',
           orderNumber: 'ORD-1111',
@@ -184,7 +184,7 @@ describe('sendTransactionalEmail', () => {
         expect.objectContaining({
           to: ['member@example.com'],
           status: MailDeliveryState.Paused,
-          templateKey: 'orderConfirmation',
+          templateKey: TransactionalEmailKey.OrderConfirmation,
           templateData: {
             name: 'Paused Member',
             orderNumber: 'ORD-1111',
@@ -222,7 +222,7 @@ describe('sendTransactionalEmail', () => {
     try {
       const mailId = await sendTransactionalEmail(mockDb, {
         to: 'member@example.com',
-        templateKey: 'orderConfirmation',
+        templateKey: TransactionalEmailKey.OrderConfirmation,
         replacements: { name: 'Test' },
       });
 

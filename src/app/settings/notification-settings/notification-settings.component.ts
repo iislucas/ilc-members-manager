@@ -91,14 +91,16 @@ export class NotificationSettingsComponent implements OnInit {
     }
   }
 
+  readonly EventDigestFrequency = EventDigestFrequency;
+
   // Account-wide event digest email frequency preference.
   protected eventDigestFrequency = computed<EventDigestFrequency>(
-    () => this.currentUser()?.member?.notificationSettings?.eventDigestFrequency || 'none'
+    () => this.currentUser()?.member?.notificationSettings?.eventDigestFrequency || EventDigestFrequency.None
   );
 
   protected digestBusy = signal(false);
 
-  async setEventDigestFrequency(freq: EventDigestFrequency) {
+  async setEventDigestFrequency(freq: EventDigestFrequency | string) {
     const member = this.currentUser()?.member;
     if (!member) return;
     this.digestBusy.set(true);
@@ -109,7 +111,7 @@ export class NotificationSettingsComponent implements OnInit {
           pushEnabled: {},
           homeEnabled: {},
           ...member.notificationSettings,
-          eventDigestFrequency: freq,
+          eventDigestFrequency: freq as EventDigestFrequency,
         },
       };
       await this.dataManager.updateMember(member.docId, updated, member);

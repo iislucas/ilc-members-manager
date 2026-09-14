@@ -42,6 +42,7 @@ import {
   MailDeliveryState,
 } from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
+import { GenericFsDoc } from '../../functions/src/data-model/base';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
 import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent } from '../../functions/src/data-model/events';
 import { Grading, GradingFsDoc, firestoreDocToGrading } from '../../functions/src/data-model/gradings';
@@ -767,24 +768,29 @@ export class DataManagerService {
         if (!term) return [];
 
         let results = this.orders.entries().filter((o) => {
-          const anyO = o as any;
+          const recO = o as Record<string, unknown>;
           if (field === 'email' || field === 'customerEmail') {
-            const ce = (anyO.customerEmail || '').toLowerCase();
-            const em = (anyO.email || '').toLowerCase();
+            const ce = (('customerEmail' in o && typeof o.customerEmail === 'string' ? o.customerEmail : '') || '').toLowerCase();
+            const em = (('email' in o && typeof o.email === 'string' ? o.email : '') || '').toLowerCase();
             return ce.includes(term) || em.includes(term);
           } else if (field === 'memberDocId' || field === 'ilcAppMemberDocId') {
-            return (anyO.ilcAppMemberDocId || '').toLowerCase() === term;
+            const mid = (('ilcAppMemberDocId' in o && typeof o.ilcAppMemberDocId === 'string' ? o.ilcAppMemberDocId : '') || '').toLowerCase();
+            return mid === term;
           } else if (field === 'orderNumber') {
-            return (anyO.orderNumber || '').toLowerCase().includes(term);
+            const on = ('orderNumber' in o && typeof o.orderNumber === 'string' ? o.orderNumber : '') || '';
+            return on.toLowerCase().includes(term);
           } else if (field === 'referenceNumber') {
-            return (anyO.referenceNumber || '').toLowerCase().includes(term);
+            const rn = ('referenceNumber' in o && typeof o.referenceNumber === 'string' ? o.referenceNumber : '') || '';
+            return rn.toLowerCase().includes(term);
           } else if (field === 'id') {
-            return (anyO.id || '').toLowerCase().includes(term) || o.docId.toLowerCase().includes(term);
+            const id = ('id' in o && typeof o.id === 'string' ? o.id : '') || '';
+            return id.toLowerCase().includes(term) || o.docId.toLowerCase().includes(term);
           } else if (field === 'lastName' || field === 'billingAddress.lastName') {
-            const ln = (anyO.lastName || anyO.billingAddress?.lastName || '').toLowerCase();
+            const ln = (('lastName' in o && typeof o.lastName === 'string' ? o.lastName : '') ||
+              ('billingAddress' in o && o.billingAddress && typeof o.billingAddress === 'object' && 'lastName' in o.billingAddress ? String((o.billingAddress as Record<string, unknown>)['lastName'] || '') : '')).toLowerCase();
             return ln.includes(term);
           } else {
-            const val = String(anyO[field] || '').toLowerCase();
+            const val = String(recO[field] || '').toLowerCase();
             return val.includes(term);
           }
         });
@@ -828,18 +834,18 @@ export class DataManagerService {
         const qEmail = query(this.ordersCollection, where('email', '==', term));
         const [snapC, snapE] = await Promise.all([getDocs(qCustomer), getDocs(qEmail)]);
         snapC.docs.forEach((docSnap) => {
-          const order = firestoreDocToOrder(docSnap as any);
+          const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
         snapE.docs.forEach((docSnap) => {
-          const order = firestoreDocToOrder(docSnap as any);
+          const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
       } else if (field === 'memberDocId' || field === 'ilcAppMemberDocId') {
         const q = query(this.ordersCollection, where('ilcAppMemberDocId', '==', term));
         const snap = await getDocs(q);
         snap.docs.forEach((docSnap) => {
-          const order = firestoreDocToOrder(docSnap as any);
+          const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
       } else {
@@ -855,7 +861,7 @@ export class DataManagerService {
 
         const snap = await getDocs(q);
         snap.docs.forEach((docSnap) => {
-          const order = firestoreDocToOrder(docSnap as any);
+          const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
       }
@@ -892,8 +898,8 @@ export class DataManagerService {
         const [snapS, snapH] = await Promise.all([getDocs(qSquareSpace), getDocs(qSheetsImport)]);
         const results: Order[] = [];
 
-        snapS.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as any)));
-        snapH.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as any)));
+        snapS.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as unknown as GenericFsDoc)));
+        snapH.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as unknown as GenericFsDoc)));
 
         return sortOrdersByDateDesc(results);
       } catch (error) {
@@ -976,7 +982,7 @@ export class DataManagerService {
               (e.managerDocIds || []).some((mId) => mId.toLowerCase() === term)
             );
           } else {
-            const val = String((e as any)[field] || '').toLowerCase();
+            const val = String((e as Record<string, unknown>)[field] || '').toLowerCase();
             return val.includes(term);
           }
         });
@@ -1089,16 +1095,16 @@ export class DataManagerService {
       this.orders.entries().find(
         (o) =>
           o.docId === idOrRef ||
-          (o as any).id === idOrRef ||
-          (o as any).orderNumber === idOrRef ||
-          (o as any).referenceNumber === idOrRef,
+          ('id' in o && o.id === idOrRef) ||
+          ('orderNumber' in o && o.orderNumber === idOrRef) ||
+          ('referenceNumber' in o && o.referenceNumber === idOrRef),
       );
     if (inMemory) return inMemory;
 
     // Try direct doc lookup
     const directDoc = await getDoc(doc(this.db, 'orders', idOrRef));
     if (directDoc.exists()) {
-      return firestoreDocToOrder(directDoc as any);
+      return firestoreDocToOrder(directDoc as unknown as GenericFsDoc);
     }
 
     // Try query by id (Squarespace ID) or orderNumber or referenceNumber
@@ -1109,7 +1115,7 @@ export class DataManagerService {
     for (const q of [q1, q2, q3]) {
       const snap = await getDocs(q);
       if (!snap.empty) {
-        return firestoreDocToOrder(snap.docs[0] as any);
+        return firestoreDocToOrder(snap.docs[0] as unknown as GenericFsDoc);
       }
     }
 
@@ -1124,7 +1130,7 @@ export class DataManagerService {
       const docRef = doc(this.db, 'events', id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return firestoreDocToIlcEvent(docSnap as any);
+        return firestoreDocToIlcEvent(docSnap as unknown as GenericFsDoc);
       }
       return undefined;
     } catch (error) {

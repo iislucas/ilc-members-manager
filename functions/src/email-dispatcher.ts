@@ -7,15 +7,16 @@ import { formatTemplate, markdownToHtml } from './email-markdown';
 
 import { MailSettings, MailQueueDoc, MailSendingStatus, MailDeliveryState } from './data-model/mail';
 
-export type TransactionalEmailKey =
-  | 'membershipActivated'
-  | 'instructorLicenseActivated'
-  | 'orderConfirmation'
-  | 'eventRegistrationConfirmation'
-  | 'vodPurchaseConfirmation'
-  | 'gradingPaymentConfirmation'
-  | 'subscriptionRenewal'
-  | 'eventDigestOverall';
+export enum TransactionalEmailKey {
+  MembershipActivated = 'membershipActivated',
+  InstructorLicenseActivated = 'instructorLicenseActivated',
+  OrderConfirmation = 'orderConfirmation',
+  EventRegistrationConfirmation = 'eventRegistrationConfirmation',
+  VodPurchaseConfirmation = 'vodPurchaseConfirmation',
+  GradingPaymentConfirmation = 'gradingPaymentConfirmation',
+  SubscriptionRenewal = 'subscriptionRenewal',
+  EventDigestOverall = 'eventDigestOverall',
+}
 
 export interface SendEmailOptions {
   to: string | string[];

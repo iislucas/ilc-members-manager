@@ -5,7 +5,7 @@ import { NotificationSettingsComponent } from './notification-settings.component
 import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
-import { NotificationKind } from '../../../../functions/src/data-model/notifications';
+import { NotificationKind, EventDigestFrequency } from '../../../../functions/src/data-model/notifications';
 import { provideNavigationTreeStub } from '../../navigation-tree.testing';
 
 describe('NotificationSettingsComponent', () => {
@@ -102,19 +102,20 @@ describe('NotificationSettingsComponent', () => {
   });
 
   it('should display and update upcoming event digest frequency', async () => {
+    fixture.detectChanges();
     const dataManager = TestBed.inject(DataManagerService);
-    expect(component['eventDigestFrequency']()).toBe('none');
+    expect(component['eventDigestFrequency']()).toBe(EventDigestFrequency.None);
 
     const select = fixture.nativeElement.querySelector('#event-digest-frequency') as HTMLSelectElement;
     expect(select).toBeTruthy();
-    expect(select.value).toBe('none');
+    expect(select.value).toBe(EventDigestFrequency.None);
 
-    await component.setEventDigestFrequency('weekly');
+    await component.setEventDigestFrequency(EventDigestFrequency.Weekly);
     expect(dataManager.updateMember).toHaveBeenCalledWith(
       'member-123',
       expect.objectContaining({
         notificationSettings: expect.objectContaining({
-          eventDigestFrequency: 'weekly',
+          eventDigestFrequency: EventDigestFrequency.Weekly,
         }),
       }),
       expect.any(Object),

@@ -13,7 +13,10 @@
 export const SUPPORTED_EMAIL_MARKDOWN = 'bold (**text**), links ([label](url)), and line breaks';
 
 // Replaces `{key}` tokens in a template string with the corresponding value from `replacements`.
-export function formatTemplate(template: string, replacements?: Record<string, string>): string {
+export function formatTemplate<T extends object = Record<string, unknown>>(
+  template: string,
+  replacements?: T,
+): string {
   if (!template) return '';
   if (!replacements) return template;
   let result = template;
