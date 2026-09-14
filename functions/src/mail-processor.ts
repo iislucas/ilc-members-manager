@@ -366,7 +366,7 @@ export const sendAdminTestEmail = onCall(
       planName: 'Annual Instructor Association Membership',
       renewalDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       nextRenewalDate: 'Next billing cycle',
-      period: 'this month',
+      period: 'the next 3 months',
       eventsCount: '2',
       calendarUrl: `${origin}/events`,
       preferencesUrl: `${origin}/settings/notifications`,

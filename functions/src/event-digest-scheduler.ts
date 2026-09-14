@@ -16,7 +16,7 @@ export const sendWeeklyEventDigest = onSchedule(
   { schedule: '0 8 * * 1', timeZone: 'UTC' },
   async () => {
     const db = admin.firestore();
-    await processEventDigest(db, 'weekly', 'this week');
+    await processEventDigest(db, 'weekly', 'the next 3 months');
   },
 );
 
@@ -27,19 +27,30 @@ export const sendMonthlyEventDigest = onSchedule(
   { schedule: '0 8 1 * *', timeZone: 'UTC' },
   async () => {
     const db = admin.firestore();
-    await processEventDigest(db, 'monthly', 'this month');
+    await processEventDigest(db, 'monthly', 'the next 3 months');
   },
 );
 
 /**
- * Core event digest processor. Queries upcoming listed events, compiles them
- * using the Per-Event template into {eventsList}, wraps inside the Overall Email
+ * Helper to resolve start and end date strings (YYYY-MM-DD) from an event document.
+ */
+export function resolveEventDates(evt: IlcEvent | Record<string, any>): { start: string; end: string } {
+  const startRaw = evt.start || (evt as any).startDate || '';
+  const endRaw = evt.end || (evt as any).endDate || '';
+  const start = typeof startRaw === 'string' ? startRaw.split('T')[0] : '';
+  const end = typeof endRaw === 'string' ? endRaw.split('T')[0] : '';
+  return { start, end: end || start };
+}
+
+/**
+ * Core event digest processor. Queries upcoming listed events occurring in the next 3 months,
+ * compiles them using the Per-Event template into {eventsList}, wraps inside the Overall Email
  * template, and enqueues tasks to the `/mail` collection.
  */
 export async function processEventDigest(
   db: admin.firestore.Firestore,
   frequency: 'weekly' | 'monthly',
-  periodLabel: string,
+  periodLabel = 'the next 3 months',
 ): Promise<number> {
   const fromAddress = environment.email?.from;
   if (!fromAddress) {
@@ -60,18 +71,42 @@ export async function processEventDigest(
 
   const isPaused = status === MailSendingStatus.Paused;
 
-  // 1. Query upcoming listed events starting today or later
-  const today = new Date().toISOString().split('T')[0];
+  // 1. Calculate the 3-month window from today
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const future = new Date(now);
+  future.setMonth(future.getMonth() + 3);
+  const maxDate = future.toISOString().split('T')[0];
+
+  // Query listed events from /events
   const eventsSnap = await db
     .collection('events')
     .where('status', '==', 'listed')
-    .where('startDate', '>=', today)
-    .orderBy('startDate', 'asc')
-    .limit(20)
     .get();
 
-  if (eventsSnap.empty) {
-    logger.info(`[EventDigest] No upcoming listed events found for startDate >= ${today}; skipping ${frequency} digest.`);
+  // Filter events occurring within the next 3 months: [today, maxDate]
+  // Includes events that start within the window, or ongoing multi-day events that started before today and end >= today
+  const upcomingEvents: Array<{ docId: string; data: IlcEvent }> = [];
+  for (const doc of eventsSnap.docs) {
+    const raw = doc.data() as IlcEvent;
+    const { start, end } = resolveEventDates(raw);
+    if (start && start <= maxDate && end >= today) {
+      upcomingEvents.push({
+        docId: raw.docId || doc.id,
+        data: raw,
+      });
+    }
+  }
+
+  // Sort chronologically ascending by start date
+  upcomingEvents.sort((a, b) => {
+    const { start: aStart } = resolveEventDates(a.data);
+    const { start: bStart } = resolveEventDates(b.data);
+    return aStart.localeCompare(bStart);
+  });
+
+  if (upcomingEvents.length === 0) {
+    logger.info(`[EventDigest] No upcoming listed events found in the next 3 months (${today} to ${maxDate}); skipping ${frequency} digest.`);
     return 0;
   }
 
@@ -97,11 +132,9 @@ export async function processEventDigest(
 
   // 4. Compile {eventsList} by formatting each event card
   const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
-  const compiledEventItems = eventsSnap.docs.map((doc) => {
-    const evt = doc.data() as IlcEvent;
-    const eventDocId = evt.docId || doc.id;
-    const startDate = evt.start ? evt.start.split('T')[0] : '';
-    const endDate = evt.end ? evt.end.split('T')[0] : '';
+  const compiledEventItems = upcomingEvents.map(({ docId, data: evt }) => {
+    const eventDocId = evt.docId || docId;
+    const { start: startDate, end: endDate } = resolveEventDates(evt);
     const dates =
       startDate === endDate || !endDate
         ? startDate || ''
@@ -162,7 +195,7 @@ export async function processEventDigest(
     const replacements: Record<string, string> = {
       name: member.name || 'ILC Member',
       period: periodLabel,
-      eventsCount: String(eventsSnap.docs.length),
+      eventsCount: String(upcomingEvents.length),
       eventsList: eventsListMarkdown,
       calendarUrl,
       preferencesUrl,

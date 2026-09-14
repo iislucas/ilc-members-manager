@@ -139,7 +139,7 @@ export class EmailNotificationsComponent {
 
   readonly digestOverallChips: EditorChip[] = [
     { token: '{name}', description: "Recipient's full name" },
-    { token: '{period}', description: 'Digest period (this week or this month)' },
+    { token: '{period}', description: 'Digest period (e.g. the next 3 months)' },
     { token: '{eventsCount}', description: 'Number of upcoming events' },
     { token: '{eventsList}', description: 'Compiled Markdown list of upcoming events' },
     { token: '{calendarUrl}', description: 'Link to full events calendar' },
@@ -288,7 +288,7 @@ export class EmailNotificationsComponent {
       planName: 'Annual Instructor Association Membership',
       renewalDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       nextRenewalDate: 'Next billing cycle',
-      period: 'this month',
+      period: 'the next 3 months',
       eventsCount: '2',
       calendarUrl: `${origin}/events`,
       preferencesUrl: `${origin}/settings/notifications`,
@@ -449,7 +449,7 @@ export class EmailNotificationsComponent {
     const appBase = typeof window !== 'undefined' ? window.location.origin : 'https://app.iliqchuan.com';
     const compiledOverall = formatTemplate(overall, {
       name: 'Alex Chen',
-      period: 'this month',
+      period: 'the next 3 months',
       eventsCount: String(this.sampleDigestEvents.length),
       eventsList: compiledItems,
       calendarUrl: `${appBase}/events`,

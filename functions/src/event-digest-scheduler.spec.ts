@@ -45,13 +45,12 @@ describe('processEventDigest', () => {
       }),
       collection: vi.fn((colName: string) => {
         if (colName === 'events') {
-          return {
-            where: vi.fn().mockReturnThis(),
-            orderBy: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockReturnValue({
-              get: mockEventsQueryGet,
-            }),
-          };
+          const chain: any = {};
+          chain.where = vi.fn().mockReturnValue(chain);
+          chain.orderBy = vi.fn().mockReturnValue(chain);
+          chain.limit = vi.fn().mockReturnValue(chain);
+          chain.get = mockEventsQueryGet;
+          return chain;
         }
         if (colName === 'members') {
           return {
@@ -70,9 +69,26 @@ describe('processEventDigest', () => {
     } as unknown as admin.firestore.Firestore;
   });
 
-  it('compiles 2-tier event digest and enqueues to /mail for opted-in members', async () => {
+  it('compiles 2-tier event digest and enqueues to /mail for opted-in members with events in next 3 months', async () => {
     const originalFrom = environment.email.from;
     environment.email.from = 'digest@iliqchuan.com';
+
+    const now = new Date();
+    const event1Date = new Date(now);
+    event1Date.setDate(event1Date.getDate() + 14); // 2 weeks out (within 3 months)
+    const event1Str = event1Date.toISOString().split('T')[0];
+
+    const event2Date = new Date(now);
+    event2Date.setDate(event2Date.getDate() + 45); // 1.5 months out (within 3 months)
+    const event2Str = event2Date.toISOString().split('T')[0];
+
+    const farFutureDate = new Date(now);
+    farFutureDate.setMonth(farFutureDate.getMonth() + 5); // 5 months out (beyond 3 months)
+    const farFutureStr = farFutureDate.toISOString().split('T')[0];
+
+    const pastDate = new Date(now);
+    pastDate.setDate(pastDate.getDate() - 10); // 10 days ago (past)
+    const pastStr = pastDate.toISOString().split('T')[0];
 
     // Mock upcoming events
     mockEventsQueryGet.mockResolvedValue({
@@ -82,8 +98,8 @@ describe('processEventDigest', () => {
           id: 'event-1',
           data: () => ({
             title: 'Pushing Hands Masterclass',
-            startDate: '2026-10-15',
-            endDate: '2026-10-16',
+            start: event1Str,
+            end: event1Str,
             location: 'New York, NY',
             inPerson: true,
             online: false,
@@ -96,14 +112,34 @@ describe('processEventDigest', () => {
           id: 'event-2',
           data: () => ({
             title: 'Online Spinning Hands Clinic',
-            startDate: '2026-10-22',
-            endDate: '2026-10-22',
+            start: event2Str,
+            end: event2Str,
             location: '',
             inPerson: false,
             online: true,
             instructorNames: ['Master Joshua Craig'],
             priceDescription: '$50',
             description: 'Interactive online session focusing on circular footwork.',
+          }),
+        },
+        {
+          id: 'event-far',
+          data: () => ({
+            title: 'Far Future Retreat',
+            start: farFutureStr,
+            end: farFutureStr,
+            location: 'Mount Kailash',
+            description: 'Should be excluded because it is 5 months away.',
+          }),
+        },
+        {
+          id: 'event-past',
+          data: () => ({
+            title: 'Past Workshop',
+            start: pastStr,
+            end: pastStr,
+            location: 'Old Studio',
+            description: 'Should be excluded because it is in the past.',
           }),
         },
       ],
@@ -133,7 +169,7 @@ describe('processEventDigest', () => {
     });
 
     try {
-      const enqueuedCount = await processEventDigest(mockDb, 'weekly', 'this week');
+      const enqueuedCount = await processEventDigest(mockDb, 'weekly');
 
       expect(enqueuedCount).toBe(2);
       expect(mockBatchCommit).toHaveBeenCalledTimes(1);
@@ -145,11 +181,14 @@ describe('processEventDigest', () => {
 
       expect(mailPayload.to).toEqual(['alice@example.com']);
       expect(mailPayload.from).toBe('digest@iliqchuan.com');
-      expect(mailPayload.message.subject).toContain('Upcoming I Liq Chuan Events - this week');
-      // Assert compiled 2-tier content
+      expect(mailPayload.message.subject).toContain('Upcoming I Liq Chuan Events - the next 3 months');
+      // Assert compiled 2-tier content: includes 2 events in window, excludes far future and past
       expect(mailPayload.message.text).toContain('Alice Wong');
       expect(mailPayload.message.text).toContain('Pushing Hands Masterclass');
       expect(mailPayload.message.text).toContain('Online Spinning Hands Clinic');
+      expect(mailPayload.message.text).not.toContain('Far Future Retreat');
+      expect(mailPayload.message.text).not.toContain('Past Workshop');
+      expect(mailPayload.templateData.eventsCount).toBe('2');
       expect(mailPayload.message.html).toContain('<strong><a href="https://app.iliqchuan.com/events/event-1">Pushing Hands Masterclass</a></strong>');
     } finally {
       environment.email.from = originalFrom;

@@ -701,7 +701,7 @@ describe('EmailNotificationsComponent', () => {
     });
 
     it('substitutes tokens in digest preview computeds', () => {
-      expect(component.digestPreviewSubject()).toBe('Upcoming I Liq Chuan Events - this month');
+      expect(component.digestPreviewSubject()).toBe('Upcoming I Liq Chuan Events - the next 3 months');
       expect(component.digestPreviewHtml()).toContain('Workshop');
     });
 

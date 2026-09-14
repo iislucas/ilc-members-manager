@@ -300,7 +300,7 @@ The backend provides two automated digest functions:
 - `sendWeeklyEventDigest`: Runs every Monday at 09:00 UTC (`0 9 * * 1`).
 - `sendMonthlyEventDigest`: Runs on the 1st of every month at 09:00 UTC (`0 9 1 * *`).
 
-Each function queries `/events` for listed public events in the upcoming period, filters members who opted into that frequency (`weekly` or `monthly` in their `/members/{memberDocId}` settings), renders the templates, and writes outbound tasks into `/mail`.
+Each function queries `/events` for listed public events in the next 3 months (`today <= end` and `start <= today + 3 months`), filters members who opted into that frequency (`weekly` or `monthly` in their `/members/{memberDocId}` settings), renders the templates, and writes outbound tasks into `/mail`.
 
 Members can adjust their preference at `/settings/notifications` ("Upcoming Events Digest" -> Weekly / Monthly / None).
 
