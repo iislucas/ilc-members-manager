@@ -103,6 +103,33 @@ describe('mail-processor', () => {
     );
   });
 
+  it('forwards custom headers including List-Unsubscribe if present', async () => {
+    const mockSendMail = vi.fn().mockResolvedValue({ messageId: 'msg_headers' });
+    const mockTransporter = {
+      sendMail: mockSendMail,
+    } as unknown as Transporter;
+
+    const doc: MailQueueDoc = {
+      to: 'member@example.com',
+      subject: 'Digest with headers',
+      headers: {
+        'List-Unsubscribe': '<https://app.iliqchuan.com/unsubscribe?mid=123&token=abc>',
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    };
+
+    await sendSmtpEmail(mockTransporter, doc, 'I Liq Chuan Association');
+
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: {
+          'List-Unsubscribe': '<https://app.iliqchuan.com/unsubscribe?mid=123&token=abc>',
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
+      }),
+    );
+  });
+
   it('propagates transporter errors properly', async () => {
     const mockSendMail = vi.fn().mockRejectedValue(new Error('SMTP connection timed out'));
     const mockTransporter = {

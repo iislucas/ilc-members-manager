@@ -47,6 +47,17 @@ export interface MailMetadata {
   [key: string]: unknown;
 }
 
+export enum TransactionalEmailKey {
+  MembershipActivated = 'membershipActivated',
+  InstructorLicenseActivated = 'instructorLicenseActivated',
+  OrderConfirmation = 'orderConfirmation',
+  EventRegistrationConfirmation = 'eventRegistrationConfirmation',
+  VodPurchaseConfirmation = 'vodPurchaseConfirmation',
+  GradingPaymentConfirmation = 'gradingPaymentConfirmation',
+  SubscriptionRenewal = 'subscriptionRenewal',
+  EventDigestOverall = 'eventDigestOverall',
+}
+
 export interface MailQueueDoc {
   docId?: string;
   to: string | string[];
@@ -55,6 +66,7 @@ export interface MailQueueDoc {
   subject?: string;
   text?: string;
   html?: string;
+  headers?: Record<string, string>;
   message?: MailMessage;
   status?: MailDeliveryState;
   delivery?: MailDeliveryInfo;
@@ -98,6 +110,7 @@ export enum MailSendingStatus {
 export interface MailSettings {
   status: MailSendingStatus;
   sendingPaused?: boolean;
+  unsubscribeSecret?: string;
   updatedAt?: string;
   updatedBy?: string;
   pausedAt?: string;

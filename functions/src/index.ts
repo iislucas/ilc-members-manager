@@ -99,3 +99,6 @@ export {
   updateMailItem,
 } from './mail-processor';
 
+export { unsubscribeHandler } from './unsubscribe-handler';
+
+

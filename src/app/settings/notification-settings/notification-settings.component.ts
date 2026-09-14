@@ -19,6 +19,7 @@ import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { Member } from '../../../../functions/src/data-model/members';
 import { EventDigestFrequency, NotificationKind } from '../../../../functions/src/data-model/notifications';
+import { TransactionalEmailKey } from '../../../../functions/src/data-model/mail';
 import { IconComponent } from '../../icons/icon.component';
 
 @Component({
@@ -92,6 +93,7 @@ export class NotificationSettingsComponent implements OnInit {
   }
 
   readonly EventDigestFrequency = EventDigestFrequency;
+  readonly TransactionalEmailKey = TransactionalEmailKey;
 
   // Account-wide event digest email frequency preference.
   protected eventDigestFrequency = computed<EventDigestFrequency>(
@@ -99,6 +101,39 @@ export class NotificationSettingsComponent implements OnInit {
   );
 
   protected digestBusy = signal(false);
+
+  // Check if a specific transactional email category is enabled (defaults to true if unset)
+  isEmailKindEnabled(key: TransactionalEmailKey): boolean {
+    const member = this.currentUser()?.member;
+    const settings = member?.notificationSettings;
+    if (settings?.globalEmailEnabled === false) return false;
+    return settings?.emailEnabled?.[key] !== false;
+  }
+
+  async toggleEmailKind(key: TransactionalEmailKey, enabled: boolean) {
+    const member = this.currentUser()?.member;
+    if (!member) return;
+    this.digestBusy.set(true);
+    try {
+      const updated: Member = {
+        ...member,
+        notificationSettings: {
+          pushEnabled: {},
+          homeEnabled: {},
+          ...member.notificationSettings,
+          emailEnabled: {
+            ...member.notificationSettings?.emailEnabled,
+            [key]: enabled,
+          },
+        },
+      };
+      await this.dataManager.updateMember(member.docId, updated, member);
+    } catch (e) {
+      console.error('Failed to update email notification setting', e);
+    } finally {
+      this.digestBusy.set(false);
+    }
+  }
 
   async setEventDigestFrequency(freq: EventDigestFrequency | string) {
     const member = this.currentUser()?.member;

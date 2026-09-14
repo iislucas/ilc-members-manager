@@ -185,10 +185,14 @@ describe('sendTransactionalEmail', () => {
           to: ['member@example.com'],
           status: MailDeliveryState.Paused,
           templateKey: TransactionalEmailKey.OrderConfirmation,
-          templateData: {
+          templateData: expect.objectContaining({
             name: 'Paused Member',
             orderNumber: 'ORD-1111',
-          },
+          }),
+          headers: expect.objectContaining({
+            'List-Unsubscribe': expect.stringContaining('/unsubscribe?email='),
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          }),
           delivery: expect.objectContaining({
             state: MailDeliveryState.Paused,
           }),
@@ -224,6 +228,53 @@ describe('sendTransactionalEmail', () => {
         to: 'member@example.com',
         templateKey: TransactionalEmailKey.OrderConfirmation,
         replacements: { name: 'Test' },
+      });
+
+      expect(mailId).toBeNull();
+      expect(mockMailAdd).not.toHaveBeenCalled();
+    } finally {
+      environment.email.from = originalFrom;
+    }
+  });
+
+  it('skips enqueueing if the member has opted out of this specific email kind', async () => {
+    const originalFrom = environment.email.from;
+    environment.email.from = 'orders@iliqchuan.com';
+
+    // Mock member query returning opted-out settings
+    mockDb.collection = vi.fn().mockImplementation((col: string) => {
+      if (col === 'members') {
+        return {
+          where: () => ({
+            limit: () => ({
+              get: vi.fn().mockResolvedValue({
+                empty: false,
+                docs: [
+                  {
+                    data: () => ({
+                      name: 'Opted Out User',
+                      emails: ['optout@example.com'],
+                      notificationSettings: {
+                        emailEnabled: {
+                          [TransactionalEmailKey.OrderConfirmation]: false,
+                        },
+                      },
+                    }),
+                  },
+                ],
+              }),
+            }),
+          }),
+        };
+      }
+      return { add: mockMailAdd };
+    });
+
+    try {
+      const mailId = await sendTransactionalEmail(mockDb, {
+        to: 'optout@example.com',
+        templateKey: TransactionalEmailKey.OrderConfirmation,
+        replacements: { name: 'Opted Out User' },
       });
 
       expect(mailId).toBeNull();

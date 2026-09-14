@@ -1,5 +1,6 @@
 import { GenericFsDoc } from './base';
 import { OrderStatus } from './orders';
+import { TransactionalEmailKey } from './mail';
 
 export enum NotificationKind {
   GradingRequestAccepted = 'GradingRequestAccepted',
@@ -400,7 +401,9 @@ export interface MemberNotificationSettings {
   pushEnabled: { [kind in NotificationKind]?: boolean };
   homeEnabled: { [kind in NotificationKind]?: boolean };
   globalPushEnabled?: boolean;
+  globalEmailEnabled?: boolean;
   eventDigestFrequency?: EventDigestFrequency;
+  emailEnabled?: { [key in TransactionalEmailKey]?: boolean };
 }
 
 export type MemberNotificationFsDoc = Omit<MemberNotification, 'docId'>;

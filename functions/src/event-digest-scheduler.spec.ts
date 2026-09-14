@@ -190,7 +190,11 @@ describe('processEventDigest', () => {
       expect(mailPayload.message.text).not.toContain('Far Future Retreat');
       expect(mailPayload.message.text).not.toContain('Past Workshop');
       expect(mailPayload.templateData.eventsCount).toBe('2');
+      expect(mailPayload.templateData.unsubscribeUrl).toContain('/unsubscribe?mid=member-1&token=');
+      expect(mailPayload.headers['List-Unsubscribe']).toContain('/unsubscribe?mid=member-1&token=');
+      expect(mailPayload.headers['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
       expect(mailPayload.message.html).toContain('<strong><a href="https://app.iliqchuan.com/events/event-1">Pushing Hands Masterclass</a></strong>');
+      expect(mailPayload.message.html).toContain('Unsubscribe with one click');
     } finally {
       environment.email.from = originalFrom;
     }

@@ -3,7 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import nodemailer, { type Transporter, type SentMessageInfo } from 'nodemailer';
+import nodemailer, { type Transporter, type SentMessageInfo, type SendMailOptions } from 'nodemailer';
 import { environment } from './environment/environment';
 import { assertAdmin, allowedOrigins } from './common';
 import { markdownToHtml, formatTemplate } from './email-markdown';
@@ -51,28 +51,233 @@ export async function sendSmtpEmail(
   const html = doc.message?.html || doc.html || '';
   const to = Array.isArray(doc.to) ? doc.to.join(', ') : doc.to;
 
-  return await transporter.sendMail({
+  const mailOptions: SendMailOptions = {
     from: `"${fromName}" <${fromAddress}>`,
     to,
     replyTo,
     subject,
     text,
     html,
+  };
+
+  if (doc.headers) {
+    mailOptions.headers = doc.headers;
+  }
+
+  return await transporter.sendMail(mailOptions);
+}
+
+/**
+ * Validates global sending status and document fields.
+ * Records early errors if recipient or from address is missing.
+ */
+export async function checkMailSendability(
+  db: admin.firestore.Firestore,
+  data: MailQueueDoc,
+  mailId: string,
+  ref: admin.firestore.DocumentReference,
+): Promise<{ canSend: boolean; recipients?: string }> {
+  const mailSettingsSnap = await db.doc('system/mail-settings').get();
+  const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
+  const status: MailSendingStatus =
+    mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+
+  if (!data.metadata?.adminTest) {
+    if (status === MailSendingStatus.Off) {
+      logger.info(`[MailProcessor] Mail sending is OFF. Skipping document ${mailId}.`);
+      return { canSend: false };
+    }
+    if (status === MailSendingStatus.Paused) {
+      logger.info(`[MailProcessor] Mail sending is PAUSED. Setting document ${mailId} to PAUSED.`);
+      await ref.update({
+        status: MailDeliveryState.Paused,
+        'delivery.state': MailDeliveryState.Paused,
+      });
+      return { canSend: false };
+    }
+  }
+
+  const recipients = Array.isArray(data.to) ? data.to.join(', ') : data.to;
+  if (!recipients) {
+    logger.warn(`[MailProcessor] Mail document ${mailId} has no recipient. Skipping.`);
+    await ref.update({
+      status: MailDeliveryState.Error,
+      'delivery.state': MailDeliveryState.Error,
+      'delivery.error': 'No recipient specified in mail document',
+      'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { canSend: false };
+  }
+
+  const fromAddress = data.from || environment.email?.from;
+  if (!fromAddress) {
+    logger.error(
+      `[MailProcessor] Mail document ${mailId} has no "from" address and environment.email.from is not set.`,
+    );
+    await ref.update({
+      status: MailDeliveryState.Error,
+      'delivery.state': MailDeliveryState.Error,
+      'delivery.error': 'No sender "from" address specified in mail document or environment.email.from',
+      'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { canSend: false };
+  }
+
+  return { canSend: true, recipients };
+}
+
+/**
+ * Atomically locks the mail document in Firestore transitioning status from PENDING to PROCESSING.
+ */
+export async function acquireMailLock(
+  db: admin.firestore.Firestore,
+  docRef: admin.firestore.DocumentReference,
+  mailId: string,
+): Promise<boolean> {
+  try {
+    return await db.runTransaction(async (tx) => {
+      const curDoc = await tx.get(docRef);
+      if (!curDoc.exists) return false;
+      const curData = curDoc.data() as MailQueueDoc;
+      const curState = curData.status || curData.delivery?.state || MailDeliveryState.Pending;
+      if (curState !== MailDeliveryState.Pending) {
+        return false;
+      }
+      tx.update(docRef, {
+        status: MailDeliveryState.Processing,
+        'delivery.state': MailDeliveryState.Processing,
+        'delivery.startTime': admin.firestore.FieldValue.serverTimestamp(),
+        'delivery.attempts': admin.firestore.FieldValue.increment(1),
+      });
+      return true;
+    });
+  } catch (txErr) {
+    logger.warn(`[MailProcessor] Lock transaction failed for mailId ${mailId}:`, txErr);
+    return false;
+  }
+}
+
+/**
+ * If the document specifies a templateKey and templateData, dynamically re-renders the latest
+ * templates from /system/email-templates so any edits made while queued take immediate effect.
+ */
+export async function renderQueuedMailTemplate(
+  db: admin.firestore.Firestore,
+  docRef: admin.firestore.DocumentReference,
+  data: MailQueueDoc,
+  mailId: string,
+): Promise<void> {
+  if (!data.templateKey || !data.templateData) return;
+
+  try {
+    const templateSnap = await db.doc('system/email-templates').get();
+    const customTemplates = templateSnap.exists ? (templateSnap.data() as Partial<EmailTemplates>) : {};
+    const defaults = initEmailTemplates();
+
+    const subjectKey = `${data.templateKey}Subject` as keyof EmailTemplates;
+    const bodyKey = `${data.templateKey}Body` as keyof EmailTemplates;
+
+    const subjectTemplate = customTemplates[subjectKey] || defaults[subjectKey] || '';
+    const bodyTemplate = customTemplates[bodyKey] || defaults[bodyKey] || '';
+
+    if (subjectTemplate || bodyTemplate) {
+      const renderedSubject = formatTemplate(subjectTemplate, data.templateData);
+      const renderedMarkdown = formatTemplate(bodyTemplate, data.templateData);
+      const renderedHtml = markdownToHtml(renderedMarkdown);
+
+      data.message = {
+        subject: renderedSubject,
+        text: renderedMarkdown,
+        html: renderedHtml,
+      };
+
+      await docRef.update({
+        message: data.message,
+      });
+    }
+  } catch (renderErr) {
+    logger.warn(`[MailProcessor] Failed to dynamically render template for ${mailId}:`, renderErr);
+  }
+}
+
+/**
+ * Dispatches the email over SMTP (or simulates delivery in emulator / missing secret mode)
+ * and records the resulting delivery outcome.
+ */
+export async function dispatchAndRecordDelivery(
+  docRef: admin.firestore.DocumentReference,
+  data: MailQueueDoc,
+  mailId: string,
+  recipients: string,
+  password: string,
+): Promise<void> {
+  const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+
+  if (isEmulator || !password) {
+    logger.info(
+      `[MailProcessor] Simulating delivery for mailId ${mailId} to [${recipients}] (${
+        !password ? 'No SMTP_PASSWORD secret configured' : 'Running in local emulator'
+      }).`,
+    );
+    await docRef.update({
+      status: MailDeliveryState.Success,
+      'delivery.state': MailDeliveryState.Success,
+      'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
+      'delivery.info': {
+        simulated: true,
+        reason: !password ? 'No SMTP_PASSWORD secret set' : 'Emulator mode',
+      },
+    });
+    return;
+  }
+
+  const host = environment.email?.smtpHost || 'smtp-relay.gmail.com';
+  const port = environment.email?.smtpPort || 465;
+  const user = environment.email?.smtpUser || environment.email?.from || data.from || '';
+  const secure = port === 465;
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: {
+      user,
+      pass: password.replace(/\s+/g, ''),
+    },
   });
+
+  try {
+    const info = await sendSmtpEmail(transporter, data, 'I Liq Chuan Association');
+
+    logger.info(
+      `[MailProcessor] Successfully sent email ${mailId} to [${recipients}]: messageId=${info.messageId}`,
+    );
+
+    await docRef.update({
+      status: MailDeliveryState.Success,
+      'delivery.state': MailDeliveryState.Success,
+      'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
+      'delivery.info': {
+        messageId: info.messageId,
+        response: info.response,
+      },
+    });
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    logger.error(`[MailProcessor] Failed to deliver email ${mailId} to [${recipients}]:`, err);
+    await docRef.update({
+      status: MailDeliveryState.Error,
+      'delivery.state': MailDeliveryState.Error,
+      'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
+      'delivery.error': errorMsg,
+    });
+  }
 }
 
 /**
  * Cloud Function that processes task documents in the `/mail` collection.
  * Replaces the heavy Firebase "Trigger Email" extension with a simple, secure,
  * native Cloud Function that authenticates with the SMTP_PASSWORD secret.
- *
- * ANTI-CIRCULAR SENDING PROTECTION:
- * - Triggers on document write (allowing retries when an admin sets status: 'PENDING').
- * - Fast-check: if document status is NOT 'PENDING', returns immediately.
- * - Atomically locks the document inside a Firestore transaction, transitioning it
- *   from 'PENDING' -> 'PROCESSING'.
- * - Any subsequent writes (such as marking 'SUCCESS' or 'ERROR') will see status !== 'PENDING'
- *   and will NEVER re-trigger email sending.
  */
 export const processMailQueue = onDocumentWritten(
   {
@@ -88,128 +293,25 @@ export const processMailQueue = onDocumentWritten(
 
     const mailId = event.params.mailId;
 
-    // 1. Fast guard: ONLY send emails that are explicitly 'PENDING'.
-    // If status is 'PROCESSING', 'SUCCESS', 'ERROR', or 'PAUSED', exit immediately to avoid circular sends.
+    // Fast guard: ONLY process emails that are explicitly 'PENDING'.
     const effectiveState = data.status || data.delivery?.state || MailDeliveryState.Pending;
     if (effectiveState !== MailDeliveryState.Pending) {
       return;
     }
 
     const db = admin.firestore();
-
-    // Check if mail sending is globally active, paused, or off in /system/mail-settings.
-    // Admin test emails always bypass this check to allow admins to safely test configurations.
-    const mailSettingsSnap = await db.doc('system/mail-settings').get();
-    const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-    const status: MailSendingStatus =
-      mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
-
-    if (!data.metadata?.adminTest) {
-      if (status === MailSendingStatus.Off) {
-        logger.info(`[MailProcessor] Mail sending is OFF. Skipping document ${mailId}.`);
-        return;
-      }
-      if (status === MailSendingStatus.Paused) {
-        logger.info(`[MailProcessor] Mail sending is PAUSED. Setting document ${mailId} to PAUSED.`);
-        await snap.ref.update({
-          status: MailDeliveryState.Paused,
-          'delivery.state': MailDeliveryState.Paused,
-        });
-        return;
-      }
-    }
-
-    const recipients = Array.isArray(data.to) ? data.to.join(', ') : data.to;
-    if (!recipients) {
-      logger.warn(`[MailProcessor] Mail document ${mailId} has no recipient. Skipping.`);
-      await snap.ref.update({
-        status: MailDeliveryState.Error,
-        'delivery.state': MailDeliveryState.Error,
-        'delivery.error': 'No recipient specified in mail document',
-        'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
-      });
+    const { canSend, recipients } = await checkMailSendability(db, data, mailId, snap.ref);
+    if (!canSend || !recipients) {
       return;
     }
 
-    const fromAddress = data.from || environment.email?.from;
-    if (!fromAddress) {
-      logger.error(
-        `[MailProcessor] Mail document ${mailId} has no "from" address and environment.email.from is not set.`,
-      );
-      await snap.ref.update({
-        status: MailDeliveryState.Error,
-        'delivery.state': MailDeliveryState.Error,
-        'delivery.error':
-          'No sender "from" address specified in mail document or environment.email.from',
-        'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
-      });
-      return;
-    }
-
-    // 2. Atomic lock: ensure we are the sole processor and prevent duplicate/circular runs
-    const docRef = snap.ref;
-    let locked = false;
-
-    try {
-      locked = await db.runTransaction(async (tx) => {
-        const curDoc = await tx.get(docRef);
-        if (!curDoc.exists) return false;
-        const curData = curDoc.data() as MailQueueDoc;
-        const curState = curData.status || curData.delivery?.state || MailDeliveryState.Pending;
-        if (curState !== MailDeliveryState.Pending) {
-          return false;
-        }
-        tx.update(docRef, {
-          status: MailDeliveryState.Processing,
-          'delivery.state': MailDeliveryState.Processing,
-          'delivery.startTime': admin.firestore.FieldValue.serverTimestamp(),
-          'delivery.attempts': admin.firestore.FieldValue.increment(1),
-        });
-        return true;
-      });
-    } catch (txErr) {
-      logger.warn(`[MailProcessor] Lock transaction failed for mailId ${mailId}:`, txErr);
-      return;
-    }
-
+    const locked = await acquireMailLock(db, snap.ref, mailId);
     if (!locked) {
       logger.info(`[MailProcessor] Document ${mailId} is already locked or completed. Skipping.`);
       return;
     }
 
-    // 3. Dynamic template interpretation: If document specifies a templateKey and templateData,
-    // render the latest templates from /system/email-templates so any edits made while queued take effect.
-    if (data.templateKey && data.templateData) {
-      try {
-        const templateSnap = await db.doc('system/email-templates').get();
-        const customTemplates = templateSnap.exists ? (templateSnap.data() as Partial<EmailTemplates>) : {};
-        const defaults = initEmailTemplates();
-
-        const subjectKey = `${data.templateKey}Subject` as keyof EmailTemplates;
-        const bodyKey = `${data.templateKey}Body` as keyof EmailTemplates;
-
-        const subjectTemplate = customTemplates[subjectKey] || defaults[subjectKey] || '';
-        const bodyTemplate = customTemplates[bodyKey] || defaults[bodyKey] || '';
-
-        if (subjectTemplate || bodyTemplate) {
-          const renderedSubject = formatTemplate(subjectTemplate, data.templateData);
-          const renderedMarkdown = formatTemplate(bodyTemplate, data.templateData);
-          const renderedHtml = markdownToHtml(renderedMarkdown);
-
-          data.message = {
-            subject: renderedSubject,
-            text: renderedMarkdown,
-            html: renderedHtml,
-          };
-
-          await snap.ref.update({
-            message: data.message,
-          });
-        }
-      } catch (renderErr) {
-        logger.warn(`[MailProcessor] Failed to dynamically render template for ${mailId}:`, renderErr);
-      }
-    }
+    await renderQueuedMailTemplate(db, snap.ref, data, mailId);
 
     let password = '';
     try {
@@ -218,69 +320,7 @@ export const processMailQueue = onDocumentWritten(
       password = '';
     }
 
-    const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
-
-    // In local emulator mode or when no SMTP_PASSWORD secret is configured,
-    // simulate successful delivery without throwing network errors.
-    if (isEmulator || !password) {
-      logger.info(
-        `[MailProcessor] Simulating delivery for mailId ${mailId} to [${recipients}] (${
-          !password ? 'No SMTP_PASSWORD secret configured' : 'Running in local emulator'
-        }).`,
-      );
-      await snap.ref.update({
-        status: MailDeliveryState.Success,
-        'delivery.state': MailDeliveryState.Success,
-        'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
-        'delivery.info': {
-          simulated: true,
-          reason: !password ? 'No SMTP_PASSWORD secret set' : 'Emulator mode',
-        },
-      });
-      return;
-    }
-
-    const host = environment.email?.smtpHost || 'smtp-relay.gmail.com';
-    const port = environment.email?.smtpPort || 465;
-    const user = environment.email?.smtpUser || environment.email?.from || data.from || '';
-    const secure = port === 465;
-
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: {
-        user,
-        pass: password.replace(/\s+/g, ''),
-      },
-    });
-
-    try {
-      const info = await sendSmtpEmail(transporter, data, 'I Liq Chuan Association');
-
-      logger.info(
-        `[MailProcessor] Successfully sent email ${mailId} to [${recipients}]: messageId=${info.messageId}`,
-      );
-
-      await snap.ref.update({
-        status: MailDeliveryState.Success,
-        'delivery.state': MailDeliveryState.Success,
-        'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
-        'delivery.info': {
-          messageId: info.messageId,
-          response: info.response,
-        },
-      });
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      logger.error(`[MailProcessor] Failed to deliver email ${mailId} to [${recipients}]:`, err);
-      await snap.ref.update({
-        status: MailDeliveryState.Error,
-        'delivery.state': MailDeliveryState.Error,
-        'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
-        'delivery.error': errorMsg,
-      });
-    }
+    await dispatchAndRecordDelivery(snap.ref, data, mailId, recipients, password);
   },
 );
 

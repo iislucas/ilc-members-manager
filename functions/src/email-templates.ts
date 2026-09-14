@@ -1,42 +1,38 @@
 // Email template functions using TypeScript template literals.
 
-// Links in email must be absolute, so every body that links back into the app
-// takes the app's origin as a parameter rather than hardcoding a host. The
-// caller supplies the real values from environment.links (sendTemplateEmail);
-// initEmailTemplates passes the `{token}` form instead, so the editable
-// template defaults shown in Settings keep the placeholders visible.
-export interface MembershipEmailParams {
+// Common base parameters for all email templates, enabling standardized links and footers.
+export interface BaseEmailParams {
   name?: string;
-  memberId?: string;
   email?: string;
   // App origin with no trailing slash, e.g. 'https://app.iliqchuan.com'.
   appBase?: string;
+  // One-click unsubscribe URL.
+  unsubscribeUrl?: string;
+  // Link to account notification preferences page.
+  preferencesUrl?: string;
 }
 
-export interface InstructorEmailParams {
-  name?: string;
+export interface MembershipEmailParams extends BaseEmailParams {
+  memberId?: string;
+}
+
+export interface InstructorEmailParams extends BaseEmailParams {
   memberId?: string;
   instructorId?: string;
-  email?: string;
-  // App origin with no trailing slash, e.g. 'https://app.iliqchuan.com'.
-  appBase?: string;
   // Absolute URL of the Instructors Area post holding the instructor SOP.
   instructorSopUrl?: string;
 }
 
-export interface OrderEmailParams {
-  name?: string;
+export interface OrderEmailParams extends BaseEmailParams {
   orderNumber?: string;
   orderDate?: string;
   amount?: string;
   currency?: string;
   itemsSummary?: string;
   receiptUrl?: string;
-  appBase?: string;
 }
 
-export interface EventRegistrationEmailParams {
-  name?: string;
+export interface EventRegistrationEmailParams extends BaseEmailParams {
   eventTitle?: string;
   eventDates?: string;
   eventLocation?: string;
@@ -45,47 +41,37 @@ export interface EventRegistrationEmailParams {
   specialInstructions?: string;
   amount?: string;
   receiptUrl?: string;
-  appBase?: string;
 }
 
-export interface VodEmailParams {
-  name?: string;
+export interface VodEmailParams extends BaseEmailParams {
   videoTitle?: string;
   videoUrl?: string;
   amount?: string;
   receiptUrl?: string;
-  appBase?: string;
 }
 
-export interface GradingEmailParams {
-  name?: string;
+export interface GradingEmailParams extends BaseEmailParams {
   memberId?: string;
   gradingLevel?: string;
   gradingEventName?: string;
   gradingDate?: string;
   amount?: string;
   gradingUrl?: string;
-  appBase?: string;
 }
 
-export interface SubscriptionRenewalEmailParams {
-  name?: string;
+export interface SubscriptionRenewalEmailParams extends BaseEmailParams {
   planName?: string;
   amount?: string;
   renewalDate?: string;
   nextRenewalDate?: string;
   receiptUrl?: string;
-  appBase?: string;
 }
 
-export interface EventDigestOverallEmailParams {
-  name?: string;
+export interface EventDigestOverallEmailParams extends BaseEmailParams {
   period?: string;
   eventsCount?: string;
   eventsList?: string;
   calendarUrl?: string;
-  preferencesUrl?: string;
-  appBase?: string;
 }
 
 export interface EventDigestItemParams {
@@ -99,6 +85,25 @@ export interface EventDigestItemParams {
   eventSummary?: string;
 }
 
+/**
+ * Standardized email footer helper providing context, one-click unsubscribe,
+ * preferences management link, and organization identity.
+ */
+export function renderEmailFooter(options: {
+  reason: string;
+  unsubscribeUrl?: string;
+  preferencesUrl?: string;
+  appBase?: string;
+}): string {
+  const appBase = options.appBase || '{appBase}';
+  const unsubscribeUrl = options.unsubscribeUrl || '{unsubscribeUrl}';
+  const preferencesUrl = options.preferencesUrl || '{preferencesUrl}';
+
+  return `---
+*${options.reason}*  
+[Unsubscribe with one click](${unsubscribeUrl}) • [Notification Preferences](${preferencesUrl}) • [I Liq Chuan Association](${appBase})`;
+}
+
 // Subject for membership activation email.
 export function membershipActivatedSubject(params?: MembershipEmailParams): string {
   return 'Welcome to the I Liq Chuan Family!';
@@ -108,11 +113,20 @@ export function membershipActivatedSubject(params?: MembershipEmailParams): stri
 export function membershipActivatedBody(params?: MembershipEmailParams): string {
   const name = params?.name || '{name}';
   const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: 'You received this email because your I Liq Chuan membership was activated.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
+
   return `Hi ${name},
 
 Welcome to the I Liq Chuan family! Your membership is now active.
 
-You can now access the [Active Members Area](${appBase}/members-area) to read the blog, view classes, and more.`;
+You can now access the [Active Members Area](${appBase}/members-area) to read the blog, view classes, and more.
+
+${footer}`;
 }
 
 // Subject for instructor license activation email.
@@ -126,11 +140,20 @@ export function instructorLicenseActivatedBody(params?: InstructorEmailParams): 
   const instructorId = params?.instructorId || '{instructorId}';
   const appBase = params?.appBase || '{appBase}';
   const sopUrl = params?.instructorSopUrl || '{instructorSopUrl}';
+  const footer = renderEmailFooter({
+    reason: 'You received this email because your I Liq Chuan instructor license was issued or renewed.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
+
   return `Hi ${name},
 
 Congratulations on getting your Instructor ID **${instructorId}**!
 
-Please [update your public instructor profile](${appBase}/myProfile) with a bio, photos, and links, and make sure to review the [Instructor Standard Operating Procedures (SOP)](${sopUrl}) in the Instructors Area.`;
+Please [update your public instructor profile](${appBase}/myProfile) with a bio, photos, and links, and make sure to review the [Instructor Standard Operating Procedures (SOP)](${sopUrl}) in the Instructors Area.
+
+${footer}`;
 }
 
 // Subject for general order confirmation email.
@@ -148,6 +171,12 @@ export function orderConfirmationBody(params?: OrderEmailParams): string {
   const amount = params?.amount || '{amount}';
   const currency = params?.currency || '{currency}';
   const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: 'You received this email as a receipt for your order with I Liq Chuan.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
 
   return `Hi ${name},
 
@@ -158,7 +187,9 @@ ${itemsSummary}
 
 **Total:** ${amount} ${currency}
 
-You can view your order history and profile details in your [Account](${appBase}/myProfile).`;
+You can view your order history and profile details in your [Account](${appBase}/myProfile).
+
+${footer}`;
 }
 
 // Subject for event registration confirmation email.
@@ -177,6 +208,12 @@ export function eventRegistrationConfirmationBody(params?: EventRegistrationEmai
   const onlineJoiningLink = params?.onlineJoiningLink || '{onlineJoiningLink}';
   const specialInstructions = params?.specialInstructions || '{specialInstructions}';
   const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: 'You received this email because you registered for an I Liq Chuan workshop or event.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
 
   return `Hi ${name},
 
@@ -189,7 +226,9 @@ You are confirmed for **${eventTitle}**!
 **Instructions:**
 ${specialInstructions}
 
-You can find complete workshop schedules and resources on the [Events Page](${appBase}/events).`;
+You can find complete workshop schedules and resources on the [Events Page](${appBase}/events).
+
+${footer}`;
 }
 
 // Subject for VOD purchase confirmation email.
@@ -204,13 +243,22 @@ export function vodPurchaseConfirmationBody(params?: VodEmailParams): string {
   const videoTitle = params?.videoTitle || '{videoTitle}';
   const videoUrl = params?.videoUrl || '{videoUrl}';
   const amount = params?.amount || '{amount}';
+  const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: 'You received this email as a confirmation of your Video on Demand purchase.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
 
   return `Hi ${name},
 
 Thank you for purchasing **${videoTitle}** (${amount}).
 
 You have instant access to watch this video in your account:
-[Watch Video Now](${videoUrl})`;
+[Watch Video Now](${videoUrl})
+
+${footer}`;
 }
 
 // Subject for grading payment confirmation email.
@@ -226,12 +274,21 @@ export function gradingPaymentConfirmationBody(params?: GradingEmailParams): str
   const gradingEventName = params?.gradingEventName || '{gradingEventName}';
   const amount = params?.amount || '{amount}';
   const gradingUrl = params?.gradingUrl || '{gradingUrl}';
+  const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: 'You received this email because a grading assessment fee was paid.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
 
   return `Hi ${name},
 
 Your assessment fee of **${amount}** for **${gradingLevel}** (${gradingEventName}) has been received.
 
-You can review your assessment details and requirements in the [Grading Portal](${gradingUrl}).`;
+You can review your assessment details and requirements in the [Grading Portal](${gradingUrl}).
+
+${footer}`;
 }
 
 // Subject for subscription renewal receipt email.
@@ -248,6 +305,12 @@ export function subscriptionRenewalBody(params?: SubscriptionRenewalEmailParams)
   const renewalDate = params?.renewalDate || '{renewalDate}';
   const nextRenewalDate = params?.nextRenewalDate || '{nextRenewalDate}';
   const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: 'You received this recurring billing receipt for your active subscription.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
 
   return `Hi ${name},
 
@@ -256,7 +319,9 @@ Your subscription for **${planName}** renewed successfully on ${renewalDate}.
 **Amount Paid:** ${amount}
 **Next Scheduled Renewal:** ${nextRenewalDate}
 
-You can review and manage your subscriptions anytime in your [Account Settings](${appBase}/settings?tab=subscriptions).`;
+You can review and manage your subscriptions anytime in your [Account Settings](${appBase}/settings?tab=subscriptions).
+
+${footer}`;
 }
 
 // Subject for upcoming events digest overall email.
@@ -271,7 +336,13 @@ export function eventDigestOverallBody(params?: EventDigestOverallEmailParams): 
   const period = params?.period || '{period}';
   const eventsList = params?.eventsList || '{eventsList}';
   const calendarUrl = params?.calendarUrl || '{calendarUrl}';
-  const preferencesUrl = params?.preferencesUrl || '{preferencesUrl}';
+  const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: `You received this email because you opted into ${period} event updates.`,
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
 
   return `Hi ${name},
 
@@ -281,7 +352,7 @@ ${eventsList}
 
 Browse the complete calendar anytime at the [Events & Workshops Calendar](${calendarUrl}).
 
-You received this email because you opted into ${period} event updates. You can change your frequency or unsubscribe in your [Notification Preferences](${preferencesUrl}).`;
+${footer}`;
 }
 
 // Template for a single event card within the upcoming events digest {eventsList}.

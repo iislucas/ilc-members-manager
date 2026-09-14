@@ -98,12 +98,12 @@
 
     <div class="divider"></div>
 
-    <!-- Upcoming Events Digest Section -->
+    <!-- Email Notifications Section -->
     <div class="settings-section">
-      <h3>Upcoming Events Digest</h3>
+      <h3>Email Notifications</h3>
       <div class="pref-row">
         <div class="pref-info">
-          <span class="pref-title">Email Newsletter</span>
+          <span class="pref-title">Upcoming Events Digest</span>
           <span class="pref-sub">
             Receive scheduled summaries of forthcoming I Liq Chuan workshops and events.
           </span>
@@ -121,6 +121,57 @@
             <option value="weekly">Weekly digest (Every Monday)</option>
             <option value="monthly">Monthly digest (1st of month)</option>
           </select>
+        </div>
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-title">Order & Payment Receipts</span>
+          <span class="pref-sub">Receipts for store purchases, grading assessment fees, and video orders.</span>
+        </div>
+        <div class="toggle-control">
+          <input
+            type="checkbox"
+            id="email-orders"
+            [disabled]="digestBusy()"
+            [checked]="isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation)"
+            (change)="toggleEmailKind(TransactionalEmailKey.OrderConfirmation, $any($event.target).checked)"
+          />
+          <label for="email-orders">Receipts</label>
+        </div>
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-title">Subscription Renewals</span>
+          <span class="pref-sub">Invoices and renewal confirmations for ongoing recurring subscriptions.</span>
+        </div>
+        <div class="toggle-control">
+          <input
+            type="checkbox"
+            id="email-subscriptions"
+            [disabled]="digestBusy()"
+            [checked]="isEmailKindEnabled(TransactionalEmailKey.SubscriptionRenewal)"
+            (change)="toggleEmailKind(TransactionalEmailKey.SubscriptionRenewal, $any($event.target).checked)"
+          />
+          <label for="email-subscriptions">Renewals</label>
+        </div>
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-title">Event Registration Confirmations</span>
+          <span class="pref-sub">Confirmations, dates, and online links for registered workshops and events.</span>
+        </div>
+        <div class="toggle-control">
+          <input
+            type="checkbox"
+            id="email-event-regs"
+            [disabled]="digestBusy()"
+            [checked]="isEmailKindEnabled(TransactionalEmailKey.EventRegistrationConfirmation)"
+            (change)="toggleEmailKind(TransactionalEmailKey.EventRegistrationConfirmation, $any($event.target).checked)"
+          />
+          <label for="email-event-regs">Confirmations</label>
         </div>
       </div>
     </div>

@@ -725,6 +725,7 @@ export type EventDigestOverallContext = {
   eventsList: string;
   calendarUrl: string;
   preferencesUrl: string;
+  unsubscribeUrl?: string;
   appBase: string;
 };
 

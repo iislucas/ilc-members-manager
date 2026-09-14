@@ -66,6 +66,7 @@ export interface TestEmailReplacements {
   eventsCount: string;
   calendarUrl: string;
   preferencesUrl: string;
+  unsubscribeUrl: string;
   [key: string]: string;
 }
 
@@ -119,6 +120,8 @@ export class EmailNotificationsComponent {
     { token: '{name}', description: "Recipient's full name" },
     { token: '{memberId}', description: 'Official ILC Member ID' },
     { token: '{email}', description: "Recipient's email address" },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
@@ -127,8 +130,10 @@ export class EmailNotificationsComponent {
     { token: '{memberId}', description: 'Official ILC Member ID' },
     { token: '{instructorId}', description: 'Official Instructor ID' },
     { token: '{email}', description: "Recipient's email address" },
-    { token: '{appBase}', description: 'Application base URL' },
     { token: '{instructorSopUrl}', description: 'Link to Instructor SOP' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
+    { token: '{appBase}', description: 'Application base URL' },
   ];
 
   readonly orderChips: EditorChip[] = [
@@ -139,6 +144,8 @@ export class EmailNotificationsComponent {
     { token: '{currency}', description: 'Currency code (e.g. USD)' },
     { token: '{itemsSummary}', description: 'Itemized list of items' },
     { token: '{receiptUrl}', description: 'Link to receipt / invoice' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
@@ -152,6 +159,8 @@ export class EmailNotificationsComponent {
     { token: '{specialInstructions}', description: 'Instructions from organizer' },
     { token: '{amount}', description: 'Registration fee paid' },
     { token: '{receiptUrl}', description: 'Link to receipt' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
@@ -161,6 +170,8 @@ export class EmailNotificationsComponent {
     { token: '{videoUrl}', description: 'Direct link to watch video' },
     { token: '{amount}', description: 'Purchase price paid' },
     { token: '{receiptUrl}', description: 'Link to receipt' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
@@ -172,6 +183,8 @@ export class EmailNotificationsComponent {
     { token: '{gradingDate}', description: 'Date of grading examination' },
     { token: '{amount}', description: 'Assessment fee paid' },
     { token: '{gradingUrl}', description: 'Grading portal link' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
@@ -181,6 +194,8 @@ export class EmailNotificationsComponent {
     { token: '{amount}', description: 'Renewal price paid' },
     { token: '{renewalDate}', description: 'Date of current renewal' },
     { token: '{receiptUrl}', description: 'Link to receipt' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
@@ -190,6 +205,7 @@ export class EmailNotificationsComponent {
     { token: '{eventsCount}', description: 'Number of upcoming events' },
     { token: '{eventsList}', description: 'Compiled Markdown list of upcoming events' },
     { token: '{calendarUrl}', description: 'Link to full events calendar' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
     { token: '{preferencesUrl}', description: 'Link to update notification preferences' },
     { token: '{appBase}', description: 'Application base URL' },
   ];
@@ -405,6 +421,7 @@ export class EmailNotificationsComponent {
       eventsCount: String(upcomingEvents.length),
       calendarUrl: `${origin}/events`,
       preferencesUrl: `${origin}/settings/notifications`,
+      unsubscribeUrl: `${origin}/unsubscribe?demo=true`,
     };
   }
 
