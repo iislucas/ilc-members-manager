@@ -5,7 +5,7 @@ import { environment } from './environment/environment';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 import { formatTemplate, markdownToHtml } from './email-markdown';
 import { Member } from './data-model/members';
-import { IlcEvent, resolveEventDates, formatEventDigestItemContext } from './data-model/events';
+import { IlcEvent, resolveEventDates, formatEventDigestItemContext, firestoreDocToIlcEvent } from './data-model/events';
 import { FirestoreCollection } from './data-model/collections';
 import { MailSettings, MailSendingStatus } from './data-model/mail';
 
@@ -71,28 +71,25 @@ export async function processEventDigest(
 
   // Query listed events from /events
   const eventsSnap = await db
-    .collection('events')
+    .collection(FirestoreCollection.Events)
     .where('status', '==', 'listed')
     .get();
 
   // Filter events occurring within the next 3 months: [today, maxDate]
   // Includes events that start within the window, or ongoing multi-day events that started before today and end >= today
-  const upcomingEvents: Array<{ docId: string; data: IlcEvent }> = [];
+  const upcomingEvents: IlcEvent[] = [];
   for (const doc of eventsSnap.docs) {
-    const raw = doc.data() as IlcEvent;
-    const { start, end } = resolveEventDates(raw);
+    const evt = firestoreDocToIlcEvent(doc);
+    const { start, end } = resolveEventDates(evt);
     if (start && start <= maxDate && end >= today) {
-      upcomingEvents.push({
-        docId: raw.docId || doc.id,
-        data: raw,
-      });
+      upcomingEvents.push(evt);
     }
   }
 
   // Sort chronologically ascending by start date
   upcomingEvents.sort((a, b) => {
-    const { start: aStart } = resolveEventDates(a.data);
-    const { start: bStart } = resolveEventDates(b.data);
+    const { start: aStart } = resolveEventDates(a);
+    const { start: bStart } = resolveEventDates(b);
     return aStart.localeCompare(bStart);
   });
 
@@ -103,7 +100,7 @@ export async function processEventDigest(
 
   // 2. Query opted-in members
   const membersSnap = await db
-    .collection('members')
+    .collection(FirestoreCollection.Members)
     .where('notificationSettings.eventDigestFrequency', '==', frequency)
     .get();
 
@@ -123,8 +120,8 @@ export async function processEventDigest(
 
   // 4. Compile {eventsList} by formatting each event card
   const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
-  const compiledEventItems = upcomingEvents.map(({ docId, data: evt }) => {
-    const itemContext = formatEventDigestItemContext({ ...evt, docId: evt.docId || docId }, appBase);
+  const compiledEventItems = upcomingEvents.map((evt) => {
+    const itemContext = formatEventDigestItemContext(evt, appBase);
     return formatTemplate(itemTpl, itemContext);
   });
 

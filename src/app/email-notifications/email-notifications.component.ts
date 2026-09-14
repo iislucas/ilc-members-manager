@@ -10,7 +10,7 @@ import { MarkdownEditor, EditorChip, MarkdownFeature } from '../markdown-editor/
 import { IconComponent } from '../icons/icon.component';
 import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { Member } from '../../../functions/src/data-model/members';
-import { IlcEvent, EventStatus, resolveEventDates, formatEventDigestItemContext } from '../../../functions/src/data-model/events';
+import { IlcEvent, EventStatus, resolveEventDates, formatEventDigestItemContext, initEvent } from '../../../functions/src/data-model/events';
 import { EmailTemplates, initEmailTemplates } from '../../../functions/src/data-model/content-cache';
 import { MailQueueDoc, MailSendingStatus } from '../../../functions/src/data-model/mail';
 import {
@@ -253,26 +253,30 @@ export class EmailNotificationsComponent {
   }
 
   // Sample data fallback for when no upcoming events exist in cache or offline
-  private readonly sampleDigestEvents: Record<string, string>[] = [
+  private readonly sampleDigestEvents: IlcEvent[] = [
     {
-      eventTitle: 'Zhong Xin Dao Summer Retreat',
-      eventDetailsUrl: 'https://app.iliqchuan.com/events/summer-retreat',
-      eventDates: 'July 15 - July 20, 2026',
-      eventLocation: 'Fishkill, NY, USA',
-      attendanceType: 'In-Person & Online',
-      eventInstructors: 'Grandmaster Sam F.S. Chin, Master Hsin Chin',
-      eventPrice: '$750',
-      eventSummary: 'Intensive 5-day retreat focusing on the 21 Form and spinning hands applications.',
+      ...initEvent(),
+      docId: 'sample-retreat',
+      title: 'Zhong Xin Dao Summer Retreat',
+      start: '2026-07-15',
+      end: '2026-07-20',
+      location: 'Fishkill, NY, USA',
+      status: EventStatus.Listed,
+      ownerName: 'Grandmaster Sam F.S. Chin, Master Hsin Chin',
+      productId: 'prod-retreat',
+      descriptionMarkdown: 'Intensive 5-day retreat focusing on the 21 Form and spinning hands applications.',
     },
     {
-      eventTitle: 'European Instructors Workshop & Grading',
-      eventDetailsUrl: 'https://app.iliqchuan.com/events/europe-workshop',
-      eventDates: 'August 8 - August 10, 2026',
-      eventLocation: 'Vienna, Austria',
-      attendanceType: 'In-Person',
-      eventInstructors: 'Master Joshua Craig',
-      eventPrice: '€280',
-      eventSummary: 'Specialized seminar for certified instructors and senior students preparing for grading.',
+      ...initEvent(),
+      docId: 'sample-workshop',
+      title: 'European Instructors Workshop & Grading',
+      start: '2026-08-08',
+      end: '2026-08-10',
+      location: 'Vienna, Austria',
+      status: EventStatus.Listed,
+      ownerName: 'Master Joshua Craig',
+      productId: 'prod-workshop',
+      descriptionMarkdown: 'Specialized seminar for certified instructors and senior students preparing for grading.',
     },
   ];
 
@@ -309,11 +313,8 @@ export class EmailNotificationsComponent {
       return aStart.localeCompare(bStart);
     });
 
-    if (matched.length > 0) {
-      return matched.map((evt) => formatEventDigestItemContext(evt, appBase));
-    }
-
-    return this.sampleDigestEvents;
+    const eventsToFormat = matched.length > 0 ? matched : this.sampleDigestEvents;
+    return eventsToFormat.map((evt) => formatEventDigestItemContext(evt, appBase));
   });
 
   getTestReplacements(): Record<string, string> {

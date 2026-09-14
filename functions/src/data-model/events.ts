@@ -192,11 +192,15 @@ export function initEvent(): IlcEvent {
 }
 
 export function firestoreDocToIlcEvent(doc: GenericFsDoc): IlcEvent {
-  const data = (doc.data() || {}) as Partial<IlcEvent>;
+  const data = (doc.data() || {}) as Partial<IlcEvent> & { startDate?: string; endDate?: string };
   const lastUpdated = normalizeLastUpdated(data.lastUpdated);
+  const start = data.start || data.startDate || '';
+  const end = data.end || data.endDate || start;
   return {
     ...initEvent(),
     ...data,
+    start,
+    end,
     docId: doc.id,
     lastUpdated,
   };
@@ -683,13 +687,11 @@ export function firestoreDocToEventRegistration(doc: {
 }
 
 /**
- * Helper to resolve start and end date strings (YYYY-MM-DD) from an event document.
+ * Helper to resolve start and end date strings (YYYY-MM-DD) from an IlcEvent.
  */
-export function resolveEventDates(evt: IlcEvent | Record<string, any>): { start: string; end: string } {
-  const startRaw = evt.start || (evt as any).startDate || '';
-  const endRaw = evt.end || (evt as any).endDate || '';
-  const start = typeof startRaw === 'string' ? startRaw.split('T')[0] : '';
-  const end = typeof endRaw === 'string' ? endRaw.split('T')[0] : '';
+export function resolveEventDates(evt: IlcEvent): { start: string; end: string } {
+  const start = evt.start ? evt.start.split('T')[0] : '';
+  const end = evt.end ? evt.end.split('T')[0] : '';
   return { start, end: end || start };
 }
 
@@ -697,10 +699,10 @@ export function resolveEventDates(evt: IlcEvent | Record<string, any>): { start:
  * Builds template replacement parameters for an individual event item card in event digests.
  */
 export function formatEventDigestItemContext(
-  evt: IlcEvent | Record<string, any>,
+  evt: IlcEvent,
   appBase = 'https://app.iliqchuan.com',
 ): Record<string, string> {
-  const eventDocId = (evt as any).docId || '';
+  const eventDocId = evt.docId;
   const { start: startDate, end: endDate } = resolveEventDates(evt);
   const dates =
     startDate === endDate || !endDate
@@ -718,7 +720,7 @@ export function formatEventDigestItemContext(
       ? 'Online'
       : 'In-Person';
 
-  const contactsList = ((evt.contacts || []) as Array<{ name?: string }>).map((c) => c.name).filter(Boolean);
+  const contactsList = (evt.contacts || []).map((c) => c.name).filter(Boolean);
   if (contactsList.length === 0 && evt.ownerName) {
     contactsList.push(evt.ownerName);
   }
@@ -733,14 +735,7 @@ export function formatEventDigestItemContext(
     : '';
   const detailsUrl = `${appBase}/events/${eventDocId}`;
 
-  const raw = evt as any;
-  const price = raw.pricingDetailsMarkdown
-    ? raw.pricingDetailsMarkdown
-    : raw.memberPrice
-    ? `$${raw.memberPrice}`
-    : raw.productId
-    ? 'Paid'
-    : 'Free / Included';
+  const price = evt.productId ? 'Paid' : 'Free / Included';
 
   return {
     eventTitle: evt.title || 'Untitled Event',
