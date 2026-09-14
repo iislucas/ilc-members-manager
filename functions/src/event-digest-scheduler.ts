@@ -5,9 +5,11 @@ import { environment } from './environment/environment';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 import { formatTemplate, markdownToHtml } from './email-markdown';
 import { Member } from './data-model/members';
-import { IlcEvent } from './data-model/events';
+import { IlcEvent, resolveEventDates, formatEventDigestItemContext } from './data-model/events';
 import { FirestoreCollection } from './data-model/collections';
 import { MailSettings, MailSendingStatus } from './data-model/mail';
+
+export { resolveEventDates, formatEventDigestItemContext };
 
 /**
  * Weekly upcoming events digest: runs every Monday at 08:00 UTC.
@@ -30,17 +32,6 @@ export const sendMonthlyEventDigest = onSchedule(
     await processEventDigest(db, 'monthly', 'the next 3 months');
   },
 );
-
-/**
- * Helper to resolve start and end date strings (YYYY-MM-DD) from an event document.
- */
-export function resolveEventDates(evt: IlcEvent | Record<string, any>): { start: string; end: string } {
-  const startRaw = evt.start || (evt as any).startDate || '';
-  const endRaw = evt.end || (evt as any).endDate || '';
-  const start = typeof startRaw === 'string' ? startRaw.split('T')[0] : '';
-  const end = typeof endRaw === 'string' ? endRaw.split('T')[0] : '';
-  return { start, end: end || start };
-}
 
 /**
  * Core event digest processor. Queries upcoming listed events occurring in the next 3 months,
@@ -133,50 +124,8 @@ export async function processEventDigest(
   // 4. Compile {eventsList} by formatting each event card
   const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
   const compiledEventItems = upcomingEvents.map(({ docId, data: evt }) => {
-    const eventDocId = evt.docId || docId;
-    const { start: startDate, end: endDate } = resolveEventDates(evt);
-    const dates =
-      startDate === endDate || !endDate
-        ? startDate || ''
-        : `${startDate} - ${endDate}`;
-    const hasOnline = Boolean(evt.onlineJoiningLink && evt.onlineJoiningLink.trim());
-    const hasInPerson = Boolean(
-      (evt.location && evt.location.trim()) ||
-      (evt.inPersonDetailsMarkdown && evt.inPersonDetailsMarkdown.trim())
-    );
-    const attendanceType =
-      hasInPerson && hasOnline
-        ? 'In-Person & Online'
-        : hasOnline
-        ? 'Online'
-        : 'In-Person';
-
-    const contactsList = (evt.contacts || []).map((c) => c.name).filter(Boolean);
-    if (contactsList.length === 0 && evt.ownerName) {
-      contactsList.push(evt.ownerName);
-    }
-    const instructors = contactsList.join(', ') || 'ILC Instructors';
-
-    const rawDesc = evt.descriptionMarkdown || evt.description || '';
-    const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '').trim();
-    const summary = cleanDesc
-      ? cleanDesc.length > 200
-        ? cleanDesc.slice(0, 197) + '...'
-        : cleanDesc
-      : '';
-    const detailsUrl = `${appBase}/events/${eventDocId}`;
-
-    return formatTemplate(itemTpl, {
-      eventTitle: evt.title || 'Untitled Event',
-      eventDetailsUrl: detailsUrl,
-      eventDates: dates,
-      eventLocation: evt.location || (hasOnline ? 'Online' : 'TBD'),
-      attendanceType,
-      eventInstructors: instructors,
-      eventPrice: evt.productId ? 'Paid' : 'Free / Included',
-      eventSummary: summary,
-      appBase,
-    });
+    const itemContext = formatEventDigestItemContext({ ...evt, docId: evt.docId || docId }, appBase);
+    return formatTemplate(itemTpl, itemContext);
   });
 
   const eventsListMarkdown = compiledEventItems.join('\n\n');

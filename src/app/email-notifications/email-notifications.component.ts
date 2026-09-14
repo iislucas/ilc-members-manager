@@ -10,6 +10,7 @@ import { MarkdownEditor, EditorChip, MarkdownFeature } from '../markdown-editor/
 import { IconComponent } from '../icons/icon.component';
 import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { Member } from '../../../functions/src/data-model/members';
+import { IlcEvent, EventStatus, resolveEventDates, formatEventDigestItemContext } from '../../../functions/src/data-model/events';
 import { EmailTemplates, initEmailTemplates } from '../../../functions/src/data-model/content-cache';
 import { MailQueueDoc, MailSendingStatus } from '../../../functions/src/data-model/mail';
 import {
@@ -251,6 +252,70 @@ export class EmailNotificationsComponent {
     this.selectedTestMember.set(null);
   }
 
+  // Sample data fallback for when no upcoming events exist in cache or offline
+  private readonly sampleDigestEvents: Record<string, string>[] = [
+    {
+      eventTitle: 'Zhong Xin Dao Summer Retreat',
+      eventDetailsUrl: 'https://app.iliqchuan.com/events/summer-retreat',
+      eventDates: 'July 15 - July 20, 2026',
+      eventLocation: 'Fishkill, NY, USA',
+      attendanceType: 'In-Person & Online',
+      eventInstructors: 'Grandmaster Sam F.S. Chin, Master Hsin Chin',
+      eventPrice: '$750',
+      eventSummary: 'Intensive 5-day retreat focusing on the 21 Form and spinning hands applications.',
+    },
+    {
+      eventTitle: 'European Instructors Workshop & Grading',
+      eventDetailsUrl: 'https://app.iliqchuan.com/events/europe-workshop',
+      eventDates: 'August 8 - August 10, 2026',
+      eventLocation: 'Vienna, Austria',
+      attendanceType: 'In-Person',
+      eventInstructors: 'Master Joshua Craig',
+      eventPrice: '€280',
+      eventSummary: 'Specialized seminar for certified instructors and senior students preparing for grading.',
+    },
+  ];
+
+  /**
+   * Resolves real upcoming listed events in the next 3 months from the database,
+   * matching the scheduled weekly and monthly cron behavior.
+   * If none are found (e.g. offline testing or empty database), falls back to sample events.
+   */
+  readonly upcomingDigestEvents = computed<Record<string, string>[]>(() => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const future = new Date(now);
+    future.setMonth(future.getMonth() + 3);
+    const maxDate = future.toISOString().split('T')[0];
+    const appBase = typeof window !== 'undefined' ? window.location.origin : 'https://app.iliqchuan.com';
+
+    const allEvents = this.dataManager.events.entries();
+    const matched: IlcEvent[] = [];
+
+    for (const evt of allEvents) {
+      if (evt.status && evt.status !== EventStatus.Listed) {
+        continue;
+      }
+      const { start, end } = resolveEventDates(evt);
+      if (start && start <= maxDate && end >= today) {
+        matched.push(evt);
+      }
+    }
+
+    // Sort chronologically ascending by start date
+    matched.sort((a, b) => {
+      const { start: aStart } = resolveEventDates(a);
+      const { start: bStart } = resolveEventDates(b);
+      return aStart.localeCompare(bStart);
+    });
+
+    if (matched.length > 0) {
+      return matched.map((evt) => formatEventDigestItemContext(evt, appBase));
+    }
+
+    return this.sampleDigestEvents;
+  });
+
   getTestReplacements(): Record<string, string> {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.iliqchuan.com';
     const user = this.firebaseState.user();
@@ -259,6 +324,7 @@ export class EmailNotificationsComponent {
     const recipientName = selMember?.name || user?.member?.name || user?.firebaseUser?.displayName || 'Alex Chen';
     const memberId = selMember?.memberId || user?.member?.memberId || 'US402';
     const instructorId = selMember?.instructorId || '101';
+    const upcomingEvents = this.upcomingDigestEvents();
 
     return {
       name: recipientName,
@@ -289,7 +355,7 @@ export class EmailNotificationsComponent {
       renewalDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       nextRenewalDate: 'Next billing cycle',
       period: 'the next 3 months',
-      eventsCount: '2',
+      eventsCount: String(upcomingEvents.length),
       calendarUrl: `${origin}/events`,
       preferencesUrl: `${origin}/settings/notifications`,
     };
@@ -335,12 +401,14 @@ export class EmailNotificationsComponent {
     } else if (type === 'digest') {
       const itemTpl = this.templates().eventDigestItemTemplate || '';
       const overallTpl = this.templates().eventDigestOverallBody || '';
-      const compiledItems = this.sampleDigestEvents
+      const upcomingEvents = this.upcomingDigestEvents();
+      const compiledItems = upcomingEvents
         .map((evt) => formatTemplate(itemTpl, evt))
         .join('\n\n');
       raw = formatTemplate(overallTpl, {
         ...replacements,
         eventsList: compiledItems,
+        eventsCount: String(upcomingEvents.length),
       });
     }
     const formatted = formatTemplate(raw, replacements);
@@ -412,37 +480,14 @@ export class EmailNotificationsComponent {
   isSaving = signal(false);
   statusMessage = signal('');
 
-  // Sample data for the live combined digest preview
-  private readonly sampleDigestEvents = [
-    {
-      eventTitle: 'Zhong Xin Dao Summer Retreat',
-      eventDetailsUrl: 'https://app.iliqchuan.com/events/summer-retreat',
-      eventDates: 'July 15 - July 20, 2026',
-      eventLocation: 'Fishkill, NY, USA',
-      attendanceType: 'In-Person & Online',
-      eventInstructors: 'Grandmaster Sam F.S. Chin, Master Hsin Chin',
-      eventPrice: '$750',
-      eventSummary: 'Intensive 5-day retreat focusing on the 21 Form and spinning hands applications.',
-    },
-    {
-      eventTitle: 'European Instructors Workshop & Grading',
-      eventDetailsUrl: 'https://app.iliqchuan.com/events/europe-workshop',
-      eventDates: 'August 8 - August 10, 2026',
-      eventLocation: 'Vienna, Austria',
-      attendanceType: 'In-Person',
-      eventInstructors: 'Master Joshua Craig',
-      eventPrice: '€280',
-      eventSummary: 'Specialized seminar for certified instructors and senior students preparing for grading.',
-    },
-  ];
-
   // Live combined preview of the two-tier digest
   digestPreviewHtml = computed(() => {
     const tpl = this.templates();
     const overall = tpl.eventDigestOverallBody || '';
     const itemTpl = tpl.eventDigestItemTemplate || '';
 
-    const compiledItems = this.sampleDigestEvents
+    const upcomingEvents = this.upcomingDigestEvents();
+    const compiledItems = upcomingEvents
       .map((evt) => formatTemplate(itemTpl, evt))
       .join('\n\n');
 
@@ -450,7 +495,7 @@ export class EmailNotificationsComponent {
     const compiledOverall = formatTemplate(overall, {
       name: 'Alex Chen',
       period: 'the next 3 months',
-      eventsCount: String(this.sampleDigestEvents.length),
+      eventsCount: String(upcomingEvents.length),
       eventsList: compiledItems,
       calendarUrl: `${appBase}/events`,
       preferencesUrl: `${appBase}/settings/notifications`,
@@ -523,6 +568,11 @@ export class EmailNotificationsComponent {
     if (userEmail) {
       this.testRecipient.set(userEmail);
     }
+    // Ensure public events are synced so upcoming digest events are available
+    if (this.dataManager.events.entries().length === 0) {
+      this.dataManager.updateEventsSync().catch(() => {});
+    }
+
     // If the view initializes directly with tab='logs' or mailId is present, load logs immediately
     if (this.viewSignals.urlParams.tab() === 'logs' || this.viewSignals.urlParams.mailId()) {
       this.loadMailLogs();
@@ -597,11 +647,13 @@ export class EmailNotificationsComponent {
       rawSubject = this.templates().eventDigestOverallSubject || 'Upcoming I Liq Chuan Events - {period}';
       const itemTpl = this.templates().eventDigestItemTemplate || '';
       const overallTpl = this.templates().eventDigestOverallBody || '';
-      const compiledItems = this.sampleDigestEvents
+      const upcomingEvents = this.upcomingDigestEvents();
+      const compiledItems = upcomingEvents
         .map((evt) => formatTemplate(itemTpl, evt))
         .join('\n\n');
       rawBodyMarkdown = formatTemplate(overallTpl, {
         eventsList: compiledItems,
+        eventsCount: String(upcomingEvents.length),
       });
     }
 

@@ -681,3 +681,76 @@ export function firestoreDocToEventRegistration(doc: {
     docId: doc.id,
   };
 }
+
+/**
+ * Helper to resolve start and end date strings (YYYY-MM-DD) from an event document.
+ */
+export function resolveEventDates(evt: IlcEvent | Record<string, any>): { start: string; end: string } {
+  const startRaw = evt.start || (evt as any).startDate || '';
+  const endRaw = evt.end || (evt as any).endDate || '';
+  const start = typeof startRaw === 'string' ? startRaw.split('T')[0] : '';
+  const end = typeof endRaw === 'string' ? endRaw.split('T')[0] : '';
+  return { start, end: end || start };
+}
+
+/**
+ * Builds template replacement parameters for an individual event item card in event digests.
+ */
+export function formatEventDigestItemContext(
+  evt: IlcEvent | Record<string, any>,
+  appBase = 'https://app.iliqchuan.com',
+): Record<string, string> {
+  const eventDocId = (evt as any).docId || '';
+  const { start: startDate, end: endDate } = resolveEventDates(evt);
+  const dates =
+    startDate === endDate || !endDate
+      ? startDate || ''
+      : `${startDate} - ${endDate}`;
+  const hasOnline = Boolean(evt.onlineJoiningLink && evt.onlineJoiningLink.trim());
+  const hasInPerson = Boolean(
+    (evt.location && evt.location.trim()) ||
+    (evt.inPersonDetailsMarkdown && evt.inPersonDetailsMarkdown.trim())
+  );
+  const attendanceType =
+    hasInPerson && hasOnline
+      ? 'In-Person & Online'
+      : hasOnline
+      ? 'Online'
+      : 'In-Person';
+
+  const contactsList = ((evt.contacts || []) as Array<{ name?: string }>).map((c) => c.name).filter(Boolean);
+  if (contactsList.length === 0 && evt.ownerName) {
+    contactsList.push(evt.ownerName);
+  }
+  const instructors = contactsList.join(', ') || 'ILC Instructors';
+
+  const rawDesc = evt.descriptionMarkdown || evt.description || '';
+  const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '').trim();
+  const summary = cleanDesc
+    ? cleanDesc.length > 200
+      ? cleanDesc.slice(0, 197) + '...'
+      : cleanDesc
+    : '';
+  const detailsUrl = `${appBase}/events/${eventDocId}`;
+
+  const raw = evt as any;
+  const price = raw.pricingDetailsMarkdown
+    ? raw.pricingDetailsMarkdown
+    : raw.memberPrice
+    ? `$${raw.memberPrice}`
+    : raw.productId
+    ? 'Paid'
+    : 'Free / Included';
+
+  return {
+    eventTitle: evt.title || 'Untitled Event',
+    eventDates: dates,
+    eventLocation: evt.location || (hasOnline ? 'Online via Zoom' : 'TBD'),
+    attendanceType,
+    eventInstructors: instructors,
+    eventPrice: price,
+    eventSummary: summary,
+    eventDetailsUrl: detailsUrl,
+    appBase,
+  };
+}

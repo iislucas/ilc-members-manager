@@ -8,6 +8,7 @@ import { signal } from '@angular/core';
 import { vi, describe, beforeEach, it, expect } from 'vitest';
 import { SearchableSet } from '../searchable-set';
 import { Member } from '../../../functions/src/data-model/members';
+import { IlcEvent, EventStatus } from '../../../functions/src/data-model/events';
 import { initEmailTemplates } from '../../../functions/src/data-model/content-cache';
 import { initMailSettings, MailSendingStatus } from '../../../functions/src/data-model/mail';
 
@@ -21,6 +22,7 @@ describe('EmailNotificationsComponent', () => {
   let subtabSignal: any;
   let mailIdSignal: any;
   let mockTestMember: Member;
+  let eventsSet: SearchableSet<'docId', IlcEvent>;
 
   beforeEach(async () => {
     tabSignal = signal('onboarding');
@@ -83,8 +85,13 @@ describe('EmailNotificationsComponent', () => {
     const membersSet = new SearchableSet<'docId', Member>(['name', 'memberId', 'instructorId'], 'docId');
     membersSet.setEntries([mockTestMember]);
 
+    eventsSet = new SearchableSet<'docId', IlcEvent>(['title', 'location'], 'docId');
+    eventsSet.setEntries([]);
+
     mockDataManager = {
       members: membersSet,
+      events: eventsSet,
+      updateEventsSync: vi.fn().mockResolvedValue(eventsSet),
       getMember: vi.fn((id: string) => (id === 'US101' || id === 'doc_101' ? mockTestMember : undefined)),
       getMemberByMemberId: vi.fn((id: string) => (id === 'US101' ? mockTestMember : undefined)),
       emailTemplates: signal(initEmailTemplates()),
@@ -700,9 +707,69 @@ describe('EmailNotificationsComponent', () => {
       expect(component.subscriptionPreviewHtml()).toContain('Alex Chen');
     });
 
-    it('substitutes tokens in digest preview computeds', () => {
+    it('substitutes tokens in digest preview computeds with fallback sample events when no database events exist', () => {
       expect(component.digestPreviewSubject()).toBe('Upcoming I Liq Chuan Events - the next 3 months');
       expect(component.digestPreviewHtml()).toContain('Workshop');
+      expect(component.digestPreviewHtml()).toContain('Zhong Xin Dao Summer Retreat');
+    });
+
+    it('uses real upcoming database events for the next 3 months in digest preview and test email dispatch', async () => {
+      const now = new Date();
+      const inOneWeek = new Date(now);
+      inOneWeek.setDate(inOneWeek.getDate() + 7);
+      const inTwoWeeks = new Date(now);
+      inTwoWeeks.setDate(inTwoWeeks.getDate() + 14);
+
+      const realEvent1: IlcEvent = {
+        docId: 'evt_real_1',
+        title: 'Real Berlin Intensive Workshop',
+        start: inOneWeek.toISOString().split('T')[0],
+        end: inOneWeek.toISOString().split('T')[0],
+        location: 'Berlin, Germany',
+        status: EventStatus.Listed,
+        descriptionMarkdown: 'An authentic hands-on seminar with Grandmaster Sam Chin.',
+      } as any;
+
+      const realEvent2: IlcEvent = {
+        docId: 'evt_real_2',
+        title: 'Real Rome Spinning Hands Seminar',
+        start: inTwoWeeks.toISOString().split('T')[0],
+        end: inTwoWeeks.toISOString().split('T')[0],
+        location: 'Rome, Italy',
+        status: EventStatus.Listed,
+        descriptionMarkdown: 'Deep dive into 15 basic exercises and applications.',
+      } as any;
+
+      eventsSet.setEntries([realEvent2, realEvent1]); // Unsorted, should sort ascending by start
+      fixture.detectChanges();
+
+      // Verify digest tab preview uses real events
+      const digestHtml = component.digestPreviewHtml();
+      expect(digestHtml).toContain('Real Berlin Intensive Workshop');
+      expect(digestHtml).toContain('Real Rome Spinning Hands Seminar');
+      expect(digestHtml).not.toContain('European Instructors Workshop & Grading');
+
+      // Verify test tab email uses real events
+      component.setTestEmailType('digest');
+      component.testRecipient.set('admin@iliqchuan.com');
+      fixture.detectChanges();
+
+      const testHtml = component.testPreviewHtml();
+      expect(testHtml).toContain('Real Berlin Intensive Workshop');
+      expect(testHtml).toContain('Real Rome Spinning Hands Seminar');
+
+      await component.sendTestEmail();
+      expect(mockDataManager.sendAdminTestEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'admin@iliqchuan.com',
+          subject: 'Upcoming I Liq Chuan Events - the next 3 months',
+          bodyMarkdown: expect.stringContaining('Real Berlin Intensive Workshop'),
+          replacements: expect.objectContaining({
+            eventsCount: '2',
+            period: 'the next 3 months',
+          }),
+        }),
+      );
     });
 
     it('substitutes {name} and tokens in test email preview and outbound test send', async () => {
