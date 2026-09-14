@@ -895,7 +895,7 @@
     @if (activeCategory() === 'logs') {
       <div class="template-section mail-logs-section">
         @if (selectedLog(); as item) {
-          @let state = item.status || item.delivery?.state || 'PENDING';
+          @let state = item.status || item.delivery?.state || MailDeliveryState.Pending;
           <div class="log-detail-view">
             <div class="detail-top-nav">
               <button type="button" class="subtle-button" (click)="clearSelectedLog()">
@@ -914,7 +914,7 @@
                 <button
                   type="button"
                   class="subtle-button"
-                  [disabled]="state === 'PROCESSING'"
+                  [disabled]="state === MailDeliveryState.Processing"
                   (click)="openEditMail(item)">
                   <app-icon name="edit"></app-icon> Edit Email
                 </button>
@@ -924,12 +924,12 @@
                   <button
                     type="button"
                     class="delete-button"
-                    [disabled]="state === 'PROCESSING'"
+                    [disabled]="state === MailDeliveryState.Processing"
                     (click)="deleteSingleMail(item.docId)">
                     <app-icon name="delete"></app-icon> Delete Email
                   </button>
                 }
-                @if (state === 'ERROR') {
+                @if (state === MailDeliveryState.Error) {
                   @if (isRetryingId() === item.docId) {
                     <app-spinner>Retrying...</app-spinner>
                   } @else {
@@ -995,7 +995,7 @@
                 </div>
 
                 <div class="message-content-area">
-                  @if (state === 'PAUSED' && !item.message?.html && !item.html) {
+                  @if (state === MailDeliveryState.Paused && !item.message?.html && !item.html) {
                     <div class="paused-placeholder-box">
                       <p><em>Template has not yet been rendered. Content will be compiled dynamically from template <code>{{ item.templateKey }}</code> upon unpausing.</em></p>
                     </div>
@@ -1137,7 +1137,7 @@
                         </table>
                       </div>
                     }
-                    @if (state === 'PAUSED') {
+                    @if (state === MailDeliveryState.Paused) {
                       <p class="placeholder-note">
                         ⏸ This email was queued while mail sending was paused. When sending resumes,
                         the latest template definition for <code>{{ item.templateKey }}</code> will be rendered dynamically with these parameters.
@@ -1152,7 +1152,7 @@
                   <button
                     type="button"
                     class="subtle-button"
-                    [disabled]="state === 'PROCESSING'"
+                    [disabled]="state === MailDeliveryState.Processing"
                     (click)="openEditMail(item)">
                     <app-icon name="edit"></app-icon> Edit Email
                   </button>
@@ -1162,14 +1162,14 @@
                     <button
                       type="button"
                       class="delete-button"
-                      [disabled]="state === 'PROCESSING'"
+                      [disabled]="state === MailDeliveryState.Processing"
                       (click)="deleteSingleMail(item.docId)">
                       <app-icon name="delete"></app-icon> Delete Email
                     </button>
                   }
                 </div>
                 <div class="detail-footer-right">
-                  @if (state === 'ERROR') {
+                  @if (state === MailDeliveryState.Error) {
                     @if (isRetryingId() === item.docId) {
                       <app-spinner>Retrying...</app-spinner>
                     } @else {
@@ -1210,19 +1210,19 @@
               <span class="stat-label">Total Tracked</span>
               <span class="stat-value">{{ logCounts().total }}</span>
             </div>
-            <div class="stat-card success" [class.selected]="logsFilter() === 'SUCCESS'" (click)="logsFilter.set('SUCCESS')">
+            <div class="stat-card success" [class.selected]="logsFilter() === MailDeliveryState.Success" (click)="logsFilter.set(MailDeliveryState.Success)">
               <span class="stat-label">Delivered</span>
               <span class="stat-value">{{ logCounts().success }}</span>
             </div>
-            <div class="stat-card pending" [class.selected]="logsFilter() === 'PENDING'" (click)="logsFilter.set('PENDING')">
+            <div class="stat-card pending" [class.selected]="logsFilter() === MailDeliveryState.Pending" (click)="logsFilter.set(MailDeliveryState.Pending)">
               <span class="stat-label">In-Flight / Pending</span>
               <span class="stat-value">{{ logCounts().pending }}</span>
             </div>
-            <div class="stat-card paused" [class.selected]="logsFilter() === 'PAUSED'" (click)="logsFilter.set('PAUSED')">
+            <div class="stat-card paused" [class.selected]="logsFilter() === MailDeliveryState.Paused" (click)="logsFilter.set(MailDeliveryState.Paused)">
               <span class="stat-label">Queued / Paused</span>
               <span class="stat-value">{{ logCounts().paused }}</span>
             </div>
-            <div class="stat-card error" [class.selected]="logsFilter() === 'ERROR'" (click)="logsFilter.set('ERROR')">
+            <div class="stat-card error" [class.selected]="logsFilter() === MailDeliveryState.Error" (click)="logsFilter.set(MailDeliveryState.Error)">
               <span class="stat-label">Delivery Errors</span>
               <span class="stat-value">{{ logCounts().error }}</span>
             </div>
@@ -1249,29 +1249,29 @@
               <button
                 type="button"
                 class="pill-btn success"
-                [class.active]="logsFilter() === 'SUCCESS'"
-                (click)="logsFilter.set('SUCCESS')">
+                [class.active]="logsFilter() === MailDeliveryState.Success"
+                (click)="logsFilter.set(MailDeliveryState.Success)">
                 Delivered ({{ logCounts().success }})
               </button>
               <button
                 type="button"
                 class="pill-btn pending"
-                [class.active]="logsFilter() === 'PENDING'"
-                (click)="logsFilter.set('PENDING')">
+                [class.active]="logsFilter() === MailDeliveryState.Pending"
+                (click)="logsFilter.set(MailDeliveryState.Pending)">
                 In-Flight ({{ logCounts().pending }})
               </button>
               <button
                 type="button"
                 class="pill-btn paused"
-                [class.active]="logsFilter() === 'PAUSED'"
-                (click)="logsFilter.set('PAUSED')">
+                [class.active]="logsFilter() === MailDeliveryState.Paused"
+                (click)="logsFilter.set(MailDeliveryState.Paused)">
                 Queued / Paused ({{ logCounts().paused }})
               </button>
               <button
                 type="button"
                 class="pill-btn error"
-                [class.active]="logsFilter() === 'ERROR'"
-                (click)="logsFilter.set('ERROR')">
+                [class.active]="logsFilter() === MailDeliveryState.Error"
+                (click)="logsFilter.set(MailDeliveryState.Error)">
                 Errors ({{ logCounts().error }})
               </button>
             </div>
@@ -1354,7 +1354,7 @@
                         />
                       </div>
                       <div class="col-status">
-                        @let curState = log.status || log.delivery?.state || 'PENDING';
+                        @let curState = log.status || log.delivery?.state || MailDeliveryState.Pending;
                         <span class="status-badge" [class]="curState.toLowerCase()">
                           {{ curState }}
                         </span>
@@ -1378,12 +1378,12 @@
                         <button
                           type="button"
                           class="subtle-button row-action-btn"
-                          [disabled]="(log.status || log.delivery?.state) === 'PROCESSING'"
+                          [disabled]="(log.status || log.delivery?.state) === MailDeliveryState.Processing"
                           (click)="openEditMail(log, $event)"
                           title="Edit email">
                           Edit
                         </button>
-                        @if ((log.status || log.delivery?.state) === 'ERROR') {
+                        @if ((log.status || log.delivery?.state) === MailDeliveryState.Error) {
                           @if (isRetryingId() === log.docId) {
                             <app-spinner></app-spinner>
                           } @else {
@@ -1398,7 +1398,7 @@
                         <button
                           type="button"
                           class="icon-only-button delete-button"
-                          [disabled]="(log.status || log.delivery?.state) === 'PROCESSING' || isDeleting()"
+                          [disabled]="(log.status || log.delivery?.state) === MailDeliveryState.Processing || isDeleting()"
                           (click)="deleteSingleMail(log.docId, $event)"
                           title="Delete email">
                           <app-icon name="delete"></app-icon>
@@ -1415,7 +1415,7 @@
         <!-- Edit Mail Modal -->
         @if (editingMail()) {
           @let editItem = editingMail()!;
-          @let isProcessing = (editItem.status || editItem.delivery?.state) === 'PROCESSING';
+          @let isProcessing = (editItem.status || editItem.delivery?.state) === MailDeliveryState.Processing;
           <div class="modal-backdrop" (click)="closeEditMail()">
             <div class="edit-mail-modal" (click)="$event.stopPropagation()">
               <div class="modal-header">
@@ -1435,7 +1435,7 @@
                   </div>
                 }
 
-                @if ((editItem.status || editItem.delivery?.state) === 'SUCCESS') {
+                @if ((editItem.status || editItem.delivery?.state) === MailDeliveryState.Success) {
                   <div class="alert-box alert-warning">
                     ⚠️ <strong>Note:</strong> This email was already dispatched and marked as delivered. Saving with status <strong>PENDING</strong> will re-dispatch it.
                   </div>
@@ -1473,9 +1473,9 @@
                     class="select-style"
                     [(ngModel)]="editStatus"
                     [disabled]="isSavingEdit()">
-                    <option value="PENDING">PENDING (Ready to deliver)</option>
-                    <option value="PAUSED">PAUSED (Hold in queue)</option>
-                    <option value="ERROR">ERROR (Mark as delivery failure)</option>
+                    <option [value]="MailDeliveryState.Pending">PENDING (Ready to deliver)</option>
+                    <option [value]="MailDeliveryState.Paused">PAUSED (Hold in queue)</option>
+                    <option [value]="MailDeliveryState.Error">ERROR (Mark as delivery failure)</option>
                   </select>
                 </div>
 

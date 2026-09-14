@@ -39,6 +39,7 @@ import {
   DeleteMailItemsResponse,
   UpdateMailItemRequest,
   UpdateMailItemResponse,
+  MailDeliveryState,
 } from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';

@@ -10,7 +10,7 @@ import { SearchableSet } from '../searchable-set';
 import { Member } from '../../../functions/src/data-model/members';
 import { IlcEvent, EventStatus } from '../../../functions/src/data-model/events';
 import { initEmailTemplates } from '../../../functions/src/data-model/content-cache';
-import { initMailSettings, MailSendingStatus } from '../../../functions/src/data-model/mail';
+import { initMailSettings, MailSendingStatus, MailDeliveryState } from '../../../functions/src/data-model/mail';
 
 describe('EmailNotificationsComponent', () => {
   let component: EmailNotificationsComponent;
@@ -108,26 +108,26 @@ describe('EmailNotificationsComponent', () => {
         {
           docId: 'mail_1',
           to: ['student@example.com'],
-          status: 'SUCCESS',
-          delivery: { state: 'SUCCESS', info: { messageId: 'msg_1' } },
+          status: MailDeliveryState.Success,
+          delivery: { state: MailDeliveryState.Success, info: { messageId: 'msg_1' } },
           message: { subject: 'Welcome Student', html: '<p>Welcome!</p>' },
           createdAt: new Date().toISOString(),
         },
         {
           docId: 'mail_2',
           to: ['fail@example.com'],
-          status: 'ERROR',
-          delivery: { state: 'ERROR', error: 'SMTP Timeout' },
+          status: MailDeliveryState.Error,
+          delivery: { state: MailDeliveryState.Error, error: 'SMTP Timeout' },
           message: { subject: 'Order Confirmation' },
           createdAt: new Date().toISOString(),
         },
         {
           docId: 'mail_3',
           to: ['paused@example.com'],
-          status: 'PAUSED',
+          status: MailDeliveryState.Paused,
           templateKey: 'orderConfirmation',
           templateData: { name: 'Paused User', orderNumber: 'ORD-999' },
-          delivery: { state: 'PAUSED' },
+          delivery: { state: MailDeliveryState.Paused },
           message: { subject: '[Queued / Paused] Template: orderConfirmation' },
           createdAt: new Date().toISOString(),
         },
@@ -137,26 +137,26 @@ describe('EmailNotificationsComponent', () => {
           {
             docId: 'mail_1',
             to: ['student@example.com'],
-            status: 'SUCCESS',
-            delivery: { state: 'SUCCESS', info: { messageId: 'msg_1' } },
+            status: MailDeliveryState.Success,
+            delivery: { state: MailDeliveryState.Success, info: { messageId: 'msg_1' } },
             message: { subject: 'Welcome Student', html: '<p>Welcome!</p>' },
             createdAt: new Date().toISOString(),
           },
           {
             docId: 'mail_2',
             to: ['fail@example.com'],
-            status: 'ERROR',
-            delivery: { state: 'ERROR', error: 'SMTP Timeout' },
+            status: MailDeliveryState.Error,
+            delivery: { state: MailDeliveryState.Error, error: 'SMTP Timeout' },
             message: { subject: 'Order Confirmation' },
             createdAt: new Date().toISOString(),
           },
           {
             docId: 'mail_3',
             to: ['paused@example.com'],
-            status: 'PAUSED',
+            status: MailDeliveryState.Paused,
             templateKey: 'orderConfirmation',
             templateData: { name: 'Paused User', orderNumber: 'ORD-999' },
-            delivery: { state: 'PAUSED' },
+            delivery: { state: MailDeliveryState.Paused },
             message: { subject: '[Queued / Paused] Template: orderConfirmation' },
             createdAt: new Date().toISOString(),
           },
@@ -364,11 +364,11 @@ describe('EmailNotificationsComponent', () => {
     await component.loadMailLogs();
     fixture.detectChanges();
 
-    component.logsFilter.set('ERROR');
+    component.logsFilter.set(MailDeliveryState.Error);
     expect(component.filteredMailLogs().length).toBe(1);
     expect(component.filteredMailLogs()[0].docId).toBe('mail_2');
 
-    component.logsFilter.set('PAUSED');
+    component.logsFilter.set(MailDeliveryState.Paused);
     expect(component.filteredMailLogs().length).toBe(1);
     expect(component.filteredMailLogs()[0].docId).toBe('mail_3');
 
@@ -543,7 +543,7 @@ describe('EmailNotificationsComponent', () => {
       expect(component.editingMail()).toBe(mailItem);
       expect(component.editTo()).toBe('fail@example.com');
       expect(component.editSubject()).toBe('Order Confirmation');
-      expect(component.editStatus()).toBe('ERROR');
+      expect(component.editStatus()).toBe(MailDeliveryState.Error);
 
       component.closeEditMail();
       expect(component.editingMail()).toBeNull();
@@ -576,7 +576,7 @@ describe('EmailNotificationsComponent', () => {
       component.editTo.set('fixed@example.com');
       component.editSubject.set('Updated Subject');
       component.editText.set('Updated **Body**');
-      component.editStatus.set('PENDING');
+      component.editStatus.set(MailDeliveryState.Pending);
 
       await component.saveEditedMail();
 
@@ -586,7 +586,7 @@ describe('EmailNotificationsComponent', () => {
           to: 'fixed@example.com',
           subject: 'Updated Subject',
           text: 'Updated **Body**',
-          status: 'PENDING',
+          status: MailDeliveryState.Pending,
         }),
       );
       expect(component.editingMail()).toBeNull();

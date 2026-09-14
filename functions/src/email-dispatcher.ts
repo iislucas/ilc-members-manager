@@ -5,7 +5,7 @@ import { FirestoreCollection } from './data-model/collections';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 import { formatTemplate, markdownToHtml } from './email-markdown';
 
-import { MailSettings, MailQueueDoc, MailSendingStatus } from './data-model/mail';
+import { MailSettings, MailQueueDoc, MailSendingStatus, MailDeliveryState } from './data-model/mail';
 
 export type TransactionalEmailKey =
   | 'membershipActivated'
@@ -75,9 +75,9 @@ export async function sendTransactionalEmail(
         to: validRecipients,
         from: fromAddress,
         replyTo: options.replyTo || environment.email?.contact || fromAddress,
-        status: 'PAUSED',
+        status: MailDeliveryState.Paused,
         delivery: {
-          state: 'PAUSED',
+          state: MailDeliveryState.Paused,
           attempts: 0,
           error: null,
         },
@@ -125,9 +125,9 @@ export async function sendTransactionalEmail(
       to: validRecipients,
       from: fromAddress,
       replyTo: options.replyTo || environment.email?.contact || fromAddress,
-      status: 'PENDING',
+      status: MailDeliveryState.Pending,
       delivery: {
-        state: 'PENDING',
+        state: MailDeliveryState.Pending,
         attempts: 0,
         error: null,
       },

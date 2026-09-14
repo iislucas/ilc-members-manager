@@ -9,6 +9,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { Member, InstructorPublicData } from '../functions/src/data-model/members';
 import type { School } from '../functions/src/data-model/schools';
+import { MailDeliveryState } from '../functions/src/data-model/mail';
 
 type Firestore = firebase.default.firestore.Firestore;
 
@@ -1911,15 +1912,15 @@ describe('Firestore Rules', () => {
     it('should allow admin to delete and update mail docs unless actively in PROCESSING', async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection('mail').doc('mail-pending').set({
-          status: 'PENDING',
+          status: MailDeliveryState.Pending,
           to: 'user@example.com',
           message: { subject: 'Pending Mail' },
         });
         await context.firestore().collection('mail').doc('mail-processing').set({
-          status: 'PROCESSING',
+          status: MailDeliveryState.Processing,
           to: 'user@example.com',
           message: { subject: 'In Flight' },
-          delivery: { state: 'PROCESSING' },
+          delivery: { state: MailDeliveryState.Processing },
         });
       });
 

@@ -12,7 +12,7 @@ import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { Member } from '../../../functions/src/data-model/members';
 import { IlcEvent, EventStatus, resolveEventDates, formatEventDigestItemContext, initEvent } from '../../../functions/src/data-model/events';
 import { EmailTemplates, initEmailTemplates } from '../../../functions/src/data-model/content-cache';
-import { MailQueueDoc, MailSendingStatus } from '../../../functions/src/data-model/mail';
+import { MailQueueDoc, MailSendingStatus, MailDeliveryState } from '../../../functions/src/data-model/mail';
 import {
   findUnsupportedEmailMarkdown,
   SUPPORTED_EMAIL_MARKDOWN,
@@ -45,6 +45,7 @@ export class EmailNotificationsComponent {
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
   private viewSignals = this.routingService.signals[Views.EmailNotifications];
+  readonly MailDeliveryState = MailDeliveryState;
 
   // Derive active category from the URL `tab` query param, with fallback to 'settings'
   activeCategory = computed<TemplateCategory>(() => {
@@ -779,7 +780,7 @@ export class EmailNotificationsComponent {
   // --- MAIL QUEUE & LOGS FUNCTIONALITY ---
   mailLogs = signal<MailQueueDoc[]>([]);
   isLoadingLogs = signal<boolean>(false);
-  logsFilter = signal<'ALL' | 'SUCCESS' | 'ERROR' | 'PENDING' | 'PROCESSING' | 'PAUSED'>('ALL');
+  logsFilter = signal<'ALL' | MailDeliveryState>('ALL');
   logsSearch = signal<string>('');
   selectedLog = signal<MailQueueDoc | null>(null);
   isRetryingId = signal<string | null>(null);
@@ -791,12 +792,17 @@ export class EmailNotificationsComponent {
     const query = this.logsSearch().trim().toLowerCase();
 
     return logs.filter((log) => {
-      const state = log.status || log.delivery?.state || 'PENDING';
-      if (filter === 'SUCCESS' && state !== 'SUCCESS') return false;
-      if (filter === 'ERROR' && state !== 'ERROR') return false;
-      if (filter === 'PENDING' && state !== 'PENDING' && state !== 'PROCESSING') return false;
-      if (filter === 'PROCESSING' && state !== 'PROCESSING') return false;
-      if (filter === 'PAUSED' && state !== 'PAUSED') return false;
+      const state = log.status || log.delivery?.state || MailDeliveryState.Pending;
+      if (filter === MailDeliveryState.Success && state !== MailDeliveryState.Success) return false;
+      if (filter === MailDeliveryState.Error && state !== MailDeliveryState.Error) return false;
+      if (
+        filter === MailDeliveryState.Pending &&
+        state !== MailDeliveryState.Pending &&
+        state !== MailDeliveryState.Processing
+      )
+        return false;
+      if (filter === MailDeliveryState.Processing && state !== MailDeliveryState.Processing) return false;
+      if (filter === MailDeliveryState.Paused && state !== MailDeliveryState.Paused) return false;
 
       if (query) {
         const toStr = Array.isArray(log.to) ? log.to.join(' ') : log.to || '';
@@ -821,10 +827,10 @@ export class EmailNotificationsComponent {
     let pending = 0;
     let paused = 0;
     for (const log of logs) {
-      const state = log.status || log.delivery?.state || 'PENDING';
-      if (state === 'SUCCESS') success++;
-      else if (state === 'ERROR') error++;
-      else if (state === 'PAUSED') paused++;
+      const state = log.status || log.delivery?.state || MailDeliveryState.Pending;
+      if (state === MailDeliveryState.Success) success++;
+      else if (state === MailDeliveryState.Error) error++;
+      else if (state === MailDeliveryState.Paused) paused++;
       else pending++;
     }
     return {
@@ -1070,7 +1076,7 @@ export class EmailNotificationsComponent {
   editTo = signal<string>('');
   editSubject = signal<string>('');
   editText = signal<string>('');
-  editStatus = signal<'PENDING' | 'PAUSED' | 'ERROR'>('PENDING');
+  editStatus = signal<MailDeliveryState>(MailDeliveryState.Pending);
   editTemplateDataEntries = signal<Array<{ key: string; value: string }>>([]);
   isSavingEdit = signal<boolean>(false);
   editFeedback = signal<{ success: boolean; message: string } | null>(null);
@@ -1102,13 +1108,13 @@ export class EmailNotificationsComponent {
     this.editSubject.set(mail.message?.subject || mail.subject || '');
     this.editText.set(mail.message?.text || mail.text || '');
 
-    const curState = mail.status || mail.delivery?.state || 'PENDING';
-    if (curState === 'PAUSED') {
-      this.editStatus.set('PAUSED');
-    } else if (curState === 'ERROR') {
-      this.editStatus.set('ERROR');
+    const curState = mail.status || mail.delivery?.state || MailDeliveryState.Pending;
+    if (curState === MailDeliveryState.Paused) {
+      this.editStatus.set(MailDeliveryState.Paused);
+    } else if (curState === MailDeliveryState.Error) {
+      this.editStatus.set(MailDeliveryState.Error);
     } else {
-      this.editStatus.set('PENDING');
+      this.editStatus.set(MailDeliveryState.Pending);
     }
 
     if (mail.templateData) {

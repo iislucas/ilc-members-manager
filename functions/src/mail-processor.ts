@@ -90,8 +90,8 @@ export const processMailQueue = onDocumentWritten(
 
     // 1. Fast guard: ONLY send emails that are explicitly 'PENDING'.
     // If status is 'PROCESSING', 'SUCCESS', 'ERROR', or 'PAUSED', exit immediately to avoid circular sends.
-    const effectiveState = data.status || data.delivery?.state || 'PENDING';
-    if (effectiveState !== 'PENDING') {
+    const effectiveState = data.status || data.delivery?.state || MailDeliveryState.Pending;
+    if (effectiveState !== MailDeliveryState.Pending) {
       return;
     }
 
@@ -112,8 +112,8 @@ export const processMailQueue = onDocumentWritten(
       if (status === MailSendingStatus.Paused) {
         logger.info(`[MailProcessor] Mail sending is PAUSED. Setting document ${mailId} to PAUSED.`);
         await snap.ref.update({
-          status: 'PAUSED',
-          'delivery.state': 'PAUSED',
+          status: MailDeliveryState.Paused,
+          'delivery.state': MailDeliveryState.Paused,
         });
         return;
       }
@@ -123,8 +123,8 @@ export const processMailQueue = onDocumentWritten(
     if (!recipients) {
       logger.warn(`[MailProcessor] Mail document ${mailId} has no recipient. Skipping.`);
       await snap.ref.update({
-        status: 'ERROR',
-        'delivery.state': 'ERROR',
+        status: MailDeliveryState.Error,
+        'delivery.state': MailDeliveryState.Error,
         'delivery.error': 'No recipient specified in mail document',
         'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -137,8 +137,8 @@ export const processMailQueue = onDocumentWritten(
         `[MailProcessor] Mail document ${mailId} has no "from" address and environment.email.from is not set.`,
       );
       await snap.ref.update({
-        status: 'ERROR',
-        'delivery.state': 'ERROR',
+        status: MailDeliveryState.Error,
+        'delivery.state': MailDeliveryState.Error,
         'delivery.error':
           'No sender "from" address specified in mail document or environment.email.from',
         'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
@@ -155,13 +155,13 @@ export const processMailQueue = onDocumentWritten(
         const curDoc = await tx.get(docRef);
         if (!curDoc.exists) return false;
         const curData = curDoc.data() as MailQueueDoc;
-        const curState = curData.status || curData.delivery?.state || 'PENDING';
-        if (curState !== 'PENDING') {
+        const curState = curData.status || curData.delivery?.state || MailDeliveryState.Pending;
+        if (curState !== MailDeliveryState.Pending) {
           return false;
         }
         tx.update(docRef, {
-          status: 'PROCESSING',
-          'delivery.state': 'PROCESSING',
+          status: MailDeliveryState.Processing,
+          'delivery.state': MailDeliveryState.Processing,
           'delivery.startTime': admin.firestore.FieldValue.serverTimestamp(),
           'delivery.attempts': admin.firestore.FieldValue.increment(1),
         });
@@ -229,8 +229,8 @@ export const processMailQueue = onDocumentWritten(
         }).`,
       );
       await snap.ref.update({
-        status: 'SUCCESS',
-        'delivery.state': 'SUCCESS',
+        status: MailDeliveryState.Success,
+        'delivery.state': MailDeliveryState.Success,
         'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
         'delivery.info': {
           simulated: true,
@@ -263,8 +263,8 @@ export const processMailQueue = onDocumentWritten(
       );
 
       await snap.ref.update({
-        status: 'SUCCESS',
-        'delivery.state': 'SUCCESS',
+        status: MailDeliveryState.Success,
+        'delivery.state': MailDeliveryState.Success,
         'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
         'delivery.info': {
           messageId: info.messageId,
@@ -275,8 +275,8 @@ export const processMailQueue = onDocumentWritten(
       const errorMsg = err instanceof Error ? err.message : String(err);
       logger.error(`[MailProcessor] Failed to deliver email ${mailId} to [${recipients}]:`, err);
       await snap.ref.update({
-        status: 'ERROR',
-        'delivery.state': 'ERROR',
+        status: MailDeliveryState.Error,
+        'delivery.state': MailDeliveryState.Error,
         'delivery.endTime': admin.firestore.FieldValue.serverTimestamp(),
         'delivery.error': errorMsg,
       });
@@ -383,9 +383,9 @@ export const sendAdminTestEmail = onCall(
       to: [recipient],
       from: fromAddress,
       replyTo: data.replyTo || environment.email?.contact || fromAddress,
-      status: 'PENDING',
+      status: MailDeliveryState.Pending,
       delivery: {
-        state: 'PENDING',
+        state: MailDeliveryState.Pending,
         attempts: 0,
         error: null,
       },
@@ -483,7 +483,7 @@ export const retryMailItem = onCall(
 
     const mailData = snap.data() as MailQueueDoc | undefined;
     const currentState = mailData?.status || mailData?.delivery?.state;
-    if (currentState === 'PROCESSING') {
+    if (currentState === MailDeliveryState.Processing) {
       throw new HttpsError(
         'failed-precondition',
         `Mail document "${mailId}" is currently being processed.`,
@@ -491,8 +491,8 @@ export const retryMailItem = onCall(
     }
 
     await docRef.update({
-      status: 'PENDING',
-      'delivery.state': 'PENDING',
+      status: MailDeliveryState.Pending,
+      'delivery.state': MailDeliveryState.Pending,
       'delivery.error': null,
       'delivery.retryRequestedAt': admin.firestore.FieldValue.serverTimestamp(),
       'delivery.retryRequestedBy': request.auth?.token.email || 'admin',
@@ -547,7 +547,7 @@ export const deleteMailItems = onCall(
 
       const mailData = snap.data() as MailQueueDoc | undefined;
       const state = mailData?.status || mailData?.delivery?.state;
-      if (state === 'PROCESSING') {
+      if (state === MailDeliveryState.Processing) {
         skippedProcessingIds.push(snap.id);
         continue;
       }
@@ -603,7 +603,7 @@ export const updateMailItem = onCall(
 
     const mailData = snap.data() as MailQueueDoc | undefined;
     const currentState = mailData?.status || mailData?.delivery?.state;
-    if (currentState === 'PROCESSING') {
+    if (currentState === MailDeliveryState.Processing) {
       throw new HttpsError(
         'failed-precondition',
         `Mail document "${mailId}" is currently being processed and cannot be edited.`,
@@ -658,13 +658,13 @@ export const updateMailItem = onCall(
     }
 
     if (data.status) {
-      if (!['PENDING', 'PAUSED', 'ERROR'].includes(data.status)) {
+      if (![MailDeliveryState.Pending, MailDeliveryState.Paused, MailDeliveryState.Error].includes(data.status)) {
         throw new HttpsError('invalid-argument', `Invalid status "${data.status}".`);
       }
       updates['status'] = data.status;
       updates['delivery.state'] = data.status;
 
-      if (data.status === 'PENDING') {
+      if (data.status === MailDeliveryState.Pending) {
         updates['delivery.error'] = null;
         updates['delivery.retryRequestedAt'] = admin.firestore.FieldValue.serverTimestamp();
         updates['delivery.retryRequestedBy'] = request.auth?.token.email || 'admin';
@@ -734,15 +734,15 @@ export const setMailSendingState = onCall(
     if (status === MailSendingStatus.Active) {
       const pausedDocsSnap = await db
         .collection(FirestoreCollection.Mail)
-        .where('status', '==', 'PAUSED')
+        .where('status', '==', MailDeliveryState.Paused)
         .get();
 
       if (!pausedDocsSnap.empty) {
         const batch = db.batch();
         for (const doc of pausedDocsSnap.docs) {
           batch.update(doc.ref, {
-            status: 'PENDING',
-            'delivery.state': 'PENDING',
+            status: MailDeliveryState.Pending,
+            'delivery.state': MailDeliveryState.Pending,
             'delivery.resumedAt': admin.firestore.FieldValue.serverTimestamp(),
             'delivery.resumedBy': adminEmail,
           });
@@ -811,15 +811,15 @@ export const setMailSendingPaused = onCall(
     if (!data.paused) {
       const pausedDocsSnap = await db
         .collection(FirestoreCollection.Mail)
-        .where('status', '==', 'PAUSED')
+        .where('status', '==', MailDeliveryState.Paused)
         .get();
 
       if (!pausedDocsSnap.empty) {
         const batch = db.batch();
         for (const doc of pausedDocsSnap.docs) {
           batch.update(doc.ref, {
-            status: 'PENDING',
-            'delivery.state': 'PENDING',
+            status: MailDeliveryState.Pending,
+            'delivery.state': MailDeliveryState.Pending,
             'delivery.resumedAt': admin.firestore.FieldValue.serverTimestamp(),
             'delivery.resumedBy': adminEmail,
           });

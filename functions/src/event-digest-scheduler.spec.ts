@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
 import { processEventDigest } from './event-digest-scheduler';
 import { environment } from './environment/environment';
-import { MailSendingStatus } from './data-model/mail';
+import { MailSendingStatus, MailDeliveryState } from './data-model/mail';
 
 describe('processEventDigest', () => {
   let mockDb: any;
@@ -313,11 +313,11 @@ describe('processEventDigest', () => {
       expect(mockBatchSet).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          status: 'PAUSED',
+          status: MailDeliveryState.Paused,
           to: ['student@example.com'],
           templateKey: 'eventDigestOverall',
           delivery: expect.objectContaining({
-            state: 'PAUSED',
+            state: MailDeliveryState.Paused,
           }),
           message: expect.objectContaining({
             subject: expect.stringContaining('[Queued / Paused]'),

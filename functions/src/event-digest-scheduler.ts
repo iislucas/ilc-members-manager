@@ -7,7 +7,7 @@ import { formatTemplate, markdownToHtml } from './email-markdown';
 import { Member } from './data-model/members';
 import { IlcEvent, resolveEventDates, formatEventDigestItemContext, firestoreDocToIlcEvent } from './data-model/events';
 import { FirestoreCollection } from './data-model/collections';
-import { MailSettings, MailSendingStatus } from './data-model/mail';
+import { MailSettings, MailSendingStatus, MailDeliveryState } from './data-model/mail';
 
 export { resolveEventDates, formatEventDigestItemContext };
 
@@ -157,9 +157,9 @@ export async function processEventDigest(
       to: [recipientEmail.trim().toLowerCase()],
       from: fromAddress,
       replyTo: environment.email?.contact || fromAddress,
-      status: isPaused ? 'PAUSED' : 'PENDING',
+      status: isPaused ? MailDeliveryState.Paused : MailDeliveryState.Pending,
       delivery: {
-        state: isPaused ? 'PAUSED' : 'PENDING',
+        state: isPaused ? MailDeliveryState.Paused : MailDeliveryState.Pending,
         attempts: 0,
         error: null,
       },

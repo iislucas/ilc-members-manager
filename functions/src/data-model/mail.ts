@@ -5,7 +5,13 @@
  * delivery attempt metrics, and error traces.
  */
 
-export type MailDeliveryState = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'ERROR' | 'PAUSED';
+export enum MailDeliveryState {
+  Pending = 'PENDING',
+  Processing = 'PROCESSING',
+  Success = 'SUCCESS',
+  Error = 'ERROR',
+  Paused = 'PAUSED',
+}
 
 export interface MailDeliveryInfo {
   state?: MailDeliveryState;
@@ -66,9 +72,9 @@ export function initMailDoc(): MailQueueDoc {
     to: [],
     from: '',
     replyTo: '',
-    status: 'PENDING',
+    status: MailDeliveryState.Pending,
     delivery: {
-      state: 'PENDING',
+      state: MailDeliveryState.Pending,
       attempts: 0,
       error: null,
     },
@@ -125,7 +131,7 @@ export interface UpdateMailItemRequest {
   text?: string;
   html?: string;
   templateData?: Record<string, string>;
-  status?: 'PENDING' | 'PAUSED' | 'ERROR';
+  status?: MailDeliveryState;
 }
 
 export interface UpdateMailItemResponse {

@@ -4,6 +4,7 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import {
   sendSmtpEmail,
   MailQueueDoc,
+  MailDeliveryState,
   sendAdminTestEmail,
   retryMailItem,
   setMailSendingPaused,
@@ -233,9 +234,9 @@ describe('mail-processor', () => {
           to: ['admin@iliqchuan.com'],
           from: 'notifications@iliqchuan.com',
           replyTo: 'web-helper-team@iliqchuan.com',
-          status: 'PENDING',
+          status: MailDeliveryState.Pending,
           delivery: expect.objectContaining({
-            state: 'PENDING',
+            state: MailDeliveryState.Pending,
           }),
           message: {
             subject: 'Test Subject',
@@ -256,9 +257,9 @@ describe('mail-processor', () => {
         id: 'mail_test_token',
         get: vi.fn().mockResolvedValue({
           data: () => ({
-            status: 'SUCCESS',
+            status: MailDeliveryState.Success,
             delivery: {
-              state: 'SUCCESS',
+              state: MailDeliveryState.Success,
               info: { messageId: 'msg_test_tok', simulated: true },
             },
           }),
@@ -300,9 +301,9 @@ describe('mail-processor', () => {
         id: 'mail_test_fail',
         get: vi.fn().mockResolvedValue({
           data: () => ({
-            status: 'ERROR',
+            status: MailDeliveryState.Error,
             delivery: {
-              state: 'ERROR',
+              state: MailDeliveryState.Error,
               error: 'Invalid SMTP credentials',
             },
           }),
@@ -379,7 +380,7 @@ describe('mail-processor', () => {
       const mockDoc = {
         get: vi.fn().mockResolvedValue({
           exists: true,
-          data: () => ({ status: 'PROCESSING', delivery: { state: 'PROCESSING' } }),
+          data: () => ({ status: MailDeliveryState.Processing, delivery: { state: MailDeliveryState.Processing } }),
         }),
       };
       vi.spyOn(admin, 'firestore').mockReturnValue({
@@ -402,7 +403,7 @@ describe('mail-processor', () => {
       const mockDoc = {
         get: vi.fn().mockResolvedValue({
           exists: true,
-          data: () => ({ status: 'ERROR', delivery: { state: 'ERROR', error: 'Timed out' } }),
+          data: () => ({ status: MailDeliveryState.Error, delivery: { state: MailDeliveryState.Error, error: 'Timed out' } }),
         }),
         update: mockUpdate,
       };
@@ -421,8 +422,8 @@ describe('mail-processor', () => {
       expect(res.docId).toBe('mail_retry_123');
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          status: 'PENDING',
-          'delivery.state': 'PENDING',
+          status: MailDeliveryState.Pending,
+          'delivery.state': MailDeliveryState.Pending,
           'delivery.error': null,
           'delivery.retryRequestedBy': 'admin@iliqchuan.com',
         }),
@@ -441,7 +442,7 @@ describe('mail-processor', () => {
           after: {
             exists: true,
             ref: mockDocRef,
-            data: () => ({ status: 'SUCCESS', to: 'a@example.com' }),
+            data: () => ({ status: MailDeliveryState.Success, to: 'a@example.com' }),
           },
         },
         params: { mailId: 'doc_success' },
@@ -453,7 +454,7 @@ describe('mail-processor', () => {
           after: {
             exists: true,
             ref: mockDocRef,
-            data: () => ({ status: 'ERROR', to: 'b@example.com' }),
+            data: () => ({ status: MailDeliveryState.Error, to: 'b@example.com' }),
           },
         },
         params: { mailId: 'doc_error' },
@@ -465,7 +466,7 @@ describe('mail-processor', () => {
           after: {
             exists: true,
             ref: mockDocRef,
-            data: () => ({ status: 'PROCESSING', to: 'c@example.com' }),
+            data: () => ({ status: MailDeliveryState.Processing, to: 'c@example.com' }),
           },
         },
         params: { mailId: 'doc_processing' },
@@ -497,15 +498,15 @@ describe('mail-processor', () => {
           after: {
             exists: true,
             ref: mockDocRef,
-            data: () => ({ status: 'PENDING', to: 'paused@example.com' }),
+            data: () => ({ status: MailDeliveryState.Pending, to: 'paused@example.com' }),
           },
         },
         params: { mailId: 'mail_paused_1' },
       });
 
       expect(mockUpdate).toHaveBeenCalledWith({
-        status: 'PAUSED',
-        'delivery.state': 'PAUSED',
+        status: MailDeliveryState.Paused,
+        'delivery.state': MailDeliveryState.Paused,
       });
     });
 
@@ -532,7 +533,7 @@ describe('mail-processor', () => {
           after: {
             exists: true,
             ref: mockDocRef,
-            data: () => ({ status: 'PENDING', to: 'off@example.com' }),
+            data: () => ({ status: MailDeliveryState.Pending, to: 'off@example.com' }),
           },
         },
         params: { mailId: 'mail_off_1' },
@@ -561,7 +562,7 @@ describe('mail-processor', () => {
           return await cb({
             get: vi.fn().mockResolvedValue({
               exists: true,
-              data: () => ({ status: 'PENDING', to: 'admin@iliqchuan.com' }),
+              data: () => ({ status: MailDeliveryState.Pending, to: 'admin@iliqchuan.com' }),
             }),
             update: mockUpdate,
           });
@@ -575,7 +576,7 @@ describe('mail-processor', () => {
             exists: true,
             ref: mockDocRef,
             data: () => ({
-              status: 'PENDING',
+              status: MailDeliveryState.Pending,
               to: 'admin@iliqchuan.com',
               from: 'notifications@iliqchuan.com',
               metadata: { adminTest: true },
@@ -588,7 +589,7 @@ describe('mail-processor', () => {
       // Document was processed and marked SUCCESS
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          status: 'SUCCESS',
+          status: MailDeliveryState.Success,
         }),
       );
     });
@@ -819,8 +820,8 @@ describe('mail-processor', () => {
       expect(mockBatchUpdate).toHaveBeenCalledWith(
         pausedDoc1.ref,
         expect.objectContaining({
-          status: 'PENDING',
-          'delivery.state': 'PENDING',
+          status: MailDeliveryState.Pending,
+          'delivery.state': MailDeliveryState.Pending,
         }),
       );
       expect(mockBatchCommit).toHaveBeenCalled();
@@ -881,13 +882,13 @@ describe('mail-processor', () => {
         id: 'doc1',
         exists: true,
         ref: { id: 'doc1' },
-        data: () => ({ status: 'ERROR' }),
+        data: () => ({ status: MailDeliveryState.Error }),
       };
       const snapDoc2 = {
         id: 'doc2',
         exists: true,
         ref: { id: 'doc2' },
-        data: () => ({ status: 'PROCESSING' }),
+        data: () => ({ status: MailDeliveryState.Processing }),
       };
       const snapDoc3 = {
         id: 'doc3',
@@ -958,7 +959,7 @@ describe('mail-processor', () => {
           doc: vi.fn().mockReturnValue({
             get: vi.fn().mockResolvedValue({
               exists: true,
-              data: () => ({ status: 'PROCESSING' }),
+              data: () => ({ status: MailDeliveryState.Processing }),
             }),
           }),
         }),
@@ -980,7 +981,7 @@ describe('mail-processor', () => {
           doc: vi.fn().mockReturnValue({
             get: vi.fn().mockResolvedValue({
               exists: true,
-              data: () => ({ status: 'ERROR', delivery: { state: 'ERROR', error: 'Fail' } }),
+              data: () => ({ status: MailDeliveryState.Error, delivery: { state: MailDeliveryState.Error, error: 'Fail' } }),
             }),
             update: mockUpdate,
           }),
@@ -994,7 +995,7 @@ describe('mail-processor', () => {
           to: 'fixed@example.com',
           subject: 'Corrected Subject',
           text: 'Hello **World**',
-          status: 'PENDING',
+          status: MailDeliveryState.Pending,
           templateData: { key: 'value' },
         },
       } as any);
@@ -1011,8 +1012,8 @@ describe('mail-processor', () => {
           html: expect.stringContaining('<strong>World</strong>'),
           'message.html': expect.stringContaining('<strong>World</strong>'),
           templateData: { key: 'value' },
-          status: 'PENDING',
-          'delivery.state': 'PENDING',
+          status: MailDeliveryState.Pending,
+          'delivery.state': MailDeliveryState.Pending,
           'delivery.error': null,
           'metadata.lastEditedBy': 'admin@iliqchuan.com',
         }),

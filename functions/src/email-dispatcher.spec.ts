@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
 import { sendTransactionalEmail } from './email-dispatcher';
 import { environment } from './environment/environment';
-import { MailSendingStatus } from './data-model/mail';
+import { MailSendingStatus, MailDeliveryState } from './data-model/mail';
 
 describe('sendTransactionalEmail', () => {
   let mockDb: any;
@@ -183,14 +183,14 @@ describe('sendTransactionalEmail', () => {
       expect(mockMailAdd).toHaveBeenCalledWith(
         expect.objectContaining({
           to: ['member@example.com'],
-          status: 'PAUSED',
+          status: MailDeliveryState.Paused,
           templateKey: 'orderConfirmation',
           templateData: {
             name: 'Paused Member',
             orderNumber: 'ORD-1111',
           },
           delivery: expect.objectContaining({
-            state: 'PAUSED',
+            state: MailDeliveryState.Paused,
           }),
           message: expect.objectContaining({
             text: '',
