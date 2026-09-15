@@ -122,6 +122,17 @@
   }
 }
 
+.permission-help-note {
+  font-size: 0.85rem;
+  color: v.$text-secondary;
+  background-color: #f8fafd;
+  border: 1px solid #e1e7f0;
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  margin-top: 0.75rem;
+  line-height: 1.4;
+}
+
 // Test Button styling (placed cleanly below banner)
 .test-trigger-container {
   display: flex;
@@ -139,7 +150,9 @@
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    transition: background-color 0.2s, transform 0.1s;
+    transition:
+      background-color 0.2s,
+      transform 0.1s;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
     &:hover {
@@ -306,7 +319,9 @@
     color: v.$text-primary;
     cursor: pointer;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
 
     &:focus {
       border-color: #4d7cfe;
