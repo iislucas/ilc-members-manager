@@ -43,6 +43,10 @@ describe('GrantVodModalComponent', () => {
         grantedCount: 1,
         recipientEmail: 'student@example.com',
       }),
+      getVideoSeriesList: vi.fn().mockReturnValue([
+        { seriesId: 'series_basics', title: 'Basics Series', videoCount: 3 },
+      ]),
+      videos: { entries: signal([]) },
     };
 
     await TestBed.configureTestingModule({
@@ -58,19 +62,21 @@ describe('GrantVodModalComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create and default to series access when item belongs to a series', () => {
     expect(component).toBeTruthy();
-    expect(component.effectiveTitle()).toBe('Neutral Stance Practice');
     expect(component.canGrantSeries()).toBe(true);
+    expect(component.grantScope()).toBe('series');
+    expect(component.effectiveTitle()).toBe('Basics Series');
   });
 
-  it('should toggle scope to series and update effectiveTitle', () => {
-    component.grantScope.set('series');
-    expect(component.effectiveTitle()).toBe('Basics Series');
-    expect(component.effectiveTargetId()).toBe('series_basics');
+  it('should toggle scope to video and update effectiveTitle and targetId', () => {
+    component.grantScope.set('video');
+    expect(component.effectiveTitle()).toBe('Neutral Stance Practice');
+    expect(component.effectiveTargetId()).toBe('vid_test_1');
   });
 
   it('should submit grant successfully for selected member', async () => {
+    component.grantScope.set('video');
     component.onMemberSelected(mockMember);
     component.grantKind.set(VideoGrantKind.AdminGrant);
     component.notes.set('Complimentary pass');
@@ -100,6 +106,29 @@ describe('GrantVodModalComponent', () => {
       }),
     );
     expect(closedSpy).toHaveBeenCalled();
+  });
+
+  it('should submit series grant with series target and series video count in button', async () => {
+    component.onMemberSelected(mockMember);
+    component.grantKind.set(VideoGrantKind.GiftPurchase);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const submitBtn = compiled.querySelector('.btn-primary');
+    expect(submitBtn?.textContent).toContain('Grant Series Access');
+
+    await component.submitGrant();
+
+    expect(mockDataManagerService.grantVideoAccess).toHaveBeenCalledWith({
+      targetType: 'series',
+      targetId: 'series_basics',
+      recipientEmail: 'student@example.com',
+      recipientMemberDocId: 'mem_123',
+      recipientName: 'Test Student',
+      grantKind: 'gift_purchase',
+      notes: undefined,
+    });
   });
 
   it('should validate missing recipient email', async () => {

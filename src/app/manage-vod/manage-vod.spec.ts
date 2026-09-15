@@ -9,7 +9,8 @@ import { ManageVodComponent } from './manage-vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initVideoItem, VideoItem, VodAccessTier, VodStatus, TagItem } from '../../../functions/src/data-model/vod';
+import { initVideoItem, VideoItem, VideoSeries, VodAccessTier, VodStatus, TagItem } from '../../../functions/src/data-model/vod';
+import { initMailSettings } from '../../../functions/src/data-model/mail';
 import { SearchableSet } from '../searchable-set';
 import { signal, WritableSignal, computed } from '@angular/core';
 
@@ -22,10 +23,17 @@ describe('ManageVodComponent', () => {
       loading: WritableSignal<boolean>;
       get: (id: string) => VideoItem | undefined;
     };
+    members: SearchableSet<'memberId', any>;
+    mailSettings: WritableSignal<any>;
+    getMemberByMemberId: ReturnType<typeof vi.fn>;
+    grantVideoAccess: ReturnType<typeof vi.fn>;
+    getVideoById: ReturnType<typeof vi.fn>;
     tagsSet: SearchableSet<'tag', TagItem>;
     getTagMeta: ReturnType<typeof vi.fn>;
     getTagDescription: ReturnType<typeof vi.fn>;
     updateVideoMetadata: ReturnType<typeof vi.fn>;
+    getVideoSeriesList: ReturnType<typeof vi.fn>;
+    updateVideoSeries: ReturnType<typeof vi.fn>;
     deleteVideo: ReturnType<typeof vi.fn>;
     transcodeVideoForVod: ReturnType<typeof vi.fn>;
     checkVodJobStatus: ReturnType<typeof vi.fn>;
@@ -44,6 +52,9 @@ describe('ManageVodComponent', () => {
           instructorId: WritableSignal<string | null>;
           videoId: WritableSignal<string | null>;
           editVideoId: WritableSignal<string | null>;
+          grantVideoId: WritableSignal<string | null>;
+          grantSeriesId: WritableSignal<string | null>;
+          tab: WritableSignal<string | null>;
         };
       };
     };
@@ -91,6 +102,17 @@ describe('ManageVodComponent', () => {
       },
     ];
 
+    const sampleSeries: VideoSeries = {
+      seriesId: 'series-1',
+      title: 'Sample Series 1',
+      description: 'A great series',
+      tags: ['basics'],
+      videoCount: 2,
+      totalDurationSeconds: 5400,
+      videos: [sampleVideos[0], sampleVideos[1]],
+      isPublished: true,
+    };
+
     mockDataService = {
       videos: {
         entries: signal(sampleVideos),
@@ -113,7 +135,7 @@ describe('ManageVodComponent', () => {
         return '';
       }),
       updateVideoMetadata: vi.fn().mockResolvedValue(undefined),
-      getVideoSeriesList: vi.fn().mockReturnValue([]),
+      getVideoSeriesList: vi.fn().mockReturnValue([sampleSeries]),
       updateVideoSeries: vi.fn().mockResolvedValue(undefined),
       deleteVideo: vi.fn().mockResolvedValue(undefined),
       transcodeVideoForVod: vi.fn().mockResolvedValue({ success: true }),
@@ -122,6 +144,15 @@ describe('ManageVodComponent', () => {
         videoId: 'v2',
         vodStatus: VodStatus.Ready,
       }),
+      members: new SearchableSet(['name'], 'memberId'),
+      mailSettings: signal(initMailSettings()),
+      getMemberByMemberId: vi.fn(),
+      grantVideoAccess: vi.fn().mockResolvedValue({
+        success: true,
+        grantedCount: 1,
+        recipientEmail: 'test@example.com',
+      }),
+      getVideoById: vi.fn((id: string) => Promise.resolve(mockDataService.videos.get(id))),
     };
 
     mockFirebaseState = {
@@ -139,6 +170,9 @@ describe('ManageVodComponent', () => {
             instructorId: signal(null),
             videoId: signal(null),
             editVideoId: signal(null),
+            grantVideoId: signal<string | null>(null),
+            grantSeriesId: signal<string | null>(null),
+            tab: signal<string | null>(null),
           },
         },
       },
@@ -391,6 +425,7 @@ describe('ManageVodComponent', () => {
   });
 
   it('should display loading state when videos.loading is true', () => {
+    component.setViewMode('all_videos');
     mockDataService.videos.loading.set(true);
     fixture.detectChanges();
 
@@ -399,6 +434,7 @@ describe('ManageVodComponent', () => {
   });
 
   it('should track deleting status and call deleteVideo on dataService', async () => {
+    component.setViewMode('all_videos');
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     let resolveDelete: () => void;
     const deletePromise = new Promise<void>((res) => {
@@ -424,6 +460,7 @@ describe('ManageVodComponent', () => {
   });
 
   it('should render supported resolutions in the resolutions column', () => {
+    component.setViewMode('all_videos');
     const sampleWithResolutions: VideoItem = {
       ...mockDataService.videos.entries()[0],
       resolutions: ['1080p', '720p', '480p', '360p'],
@@ -439,6 +476,7 @@ describe('ManageVodComponent', () => {
   });
 
   it('should format and display date and time added under title and tags without Added prefix', () => {
+    component.setViewMode('all_videos');
     const videoWithDate: VideoItem = {
       ...mockDataService.videos.entries()[0],
       createdAt: '2026-05-15T10:30:00Z',
@@ -456,23 +494,59 @@ describe('ManageVodComponent', () => {
     expect(dateEl?.textContent).not.toContain('Added');
   });
 
-  it('should open and close the grant modal for a video', () => {
+  it('should open and close the grant modal for a video and sync URL params', () => {
     const video = mockDataService.videos.entries()[0];
     component.openGrantModal(video);
     expect(component.grantingVideo()).toEqual(video);
     expect(component.grantingSeries()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('v1');
+    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
 
     component.closeGrantModal();
     expect(component.grantingVideo()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
+    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
   });
 
-  it('should open and close the grant modal for a series', () => {
+  it('should open and close the grant modal for a series and sync URL params', () => {
     const series = mockDataService.getVideoSeriesList()[0];
     component.openGrantSeriesModal(series);
     expect(component.grantingSeries()).toEqual(series);
     expect(component.grantingVideo()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('series-1');
+    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
 
     component.closeGrantModal();
     expect(component.grantingSeries()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
+    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
+  });
+
+  it('should default to series_collections viewMode and sync tab changes with URL', () => {
+    expect(component.viewMode()).toBe('series_collections');
+
+    component.setViewMode('all_videos');
+    expect(component.viewMode()).toBe('all_videos');
+    expect(mockRoutingService.signals.manageVod.urlParams.tab()).toBe('all_videos');
+
+    component.setViewMode('series_collections');
+    expect(component.viewMode()).toBe('series_collections');
+    expect(mockRoutingService.signals.manageVod.urlParams.tab()).toBe('series_collections');
+  });
+
+  it('should open grant modal when grantVideoId URL param is present on deep link', async () => {
+    mockRoutingService.signals.manageVod.urlParams.grantVideoId.set('v2');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.grantingVideo()?.docId).toBe('v2');
+  });
+
+  it('should open grant modal when grantSeriesId URL param is present on deep link', async () => {
+    mockRoutingService.signals.manageVod.urlParams.grantSeriesId.set('series-1');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.grantingSeries()?.seriesId).toBe('series-1');
   });
 });
