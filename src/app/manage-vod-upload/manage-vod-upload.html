@@ -363,7 +363,12 @@
       @if (fileEntries().length > 0) {
         <div class="file-entries-list">
           @for (entry of fileEntries(); track entry.id; let idx = $index) {
-            <div class="file-entry-item card" [class.item-done]="entry.status === 'done'" [class.item-error]="entry.status === 'error'">
+            <div
+              class="file-entry-item card"
+              [class.item-done]="entry.status === 'done'"
+              [class.item-error]="entry.status === 'error'"
+              [class.item-paused]="entry.status === 'paused'"
+            >
               <!-- Thumbnail Preview -->
               <div class="entry-thumbnail-wrapper">
                 @if (entry.previewUrl) {
@@ -386,6 +391,12 @@
                   }
                   <span class="file-size-label">{{ formatBytes(entry.file.size) }}</span>
                   <span class="raw-filename">({{ entry.file.name }})</span>
+                  @if (entry.hasSavedSession) {
+                    <span class="session-badge" title="Saved upload session available - will resume without starting from 0%">
+                      <app-icon name="refresh" width="12px" height="12px"></app-icon>
+                      <span>Resumable session found</span>
+                    </span>
+                  }
                 </div>
 
                 <div class="entry-inputs">
@@ -395,7 +406,7 @@
                     placeholder="Episode Title..."
                     [ngModel]="entry.title"
                     (ngModelChange)="entry.title = $event"
-                    [disabled]="isProcessing()"
+                    [disabled]="isProcessing() && entry.status === 'uploading'"
                   />
                   <input
                     type="text"
@@ -403,11 +414,11 @@
                     placeholder="Optional episode notes / topics..."
                     [ngModel]="entry.description"
                     (ngModelChange)="entry.description = $event"
-                    [disabled]="isProcessing()"
+                    [disabled]="isProcessing() && entry.status === 'uploading'"
                   />
                 </div>
 
-                <!-- Progress Bar if active -->
+                <!-- Progress Bar if active or done/error/paused -->
                 @if (entry.status !== 'idle') {
                   <div class="entry-progress-bar-wrapper">
                     <div class="progress-bar-track">
@@ -415,29 +426,91 @@
                         class="progress-bar-fill"
                         [style.width.%]="entry.progressPercent"
                         [class.progress-error]="entry.status === 'error'"
+                        [class.progress-paused]="entry.status === 'paused'"
                         [class.progress-done]="entry.status === 'done'"
                       ></div>
                     </div>
                     <div class="progress-status-line">
                       @if (entry.status === 'uploading') {
-                        <span class="status-text text-warn">Uploading original video &bull; {{ entry.progressPercent }}%</span>
+                        <span class="status-text text-warn">
+                          Uploading &bull; {{ entry.progressPercent }}%
+                          @if (entry.bytesTransferred) {
+                            ({{ formatBytes(entry.bytesTransferred) }} / {{ formatBytes(entry.totalBytes || entry.file.size) }})
+                          }
+                          @if (entry.uploadSpeed) {
+                            &bull; {{ entry.uploadSpeed }}
+                          }
+                          @if (entry.eta) {
+                            &bull; {{ entry.eta }}
+                          }
+                        </span>
+                      } @else if (entry.status === 'paused') {
+                        <span class="status-text text-muted">
+                          <app-icon name="pause" width="14px" height="14px"></app-icon>
+                          Paused at {{ entry.progressPercent }}%
+                          @if (entry.bytesTransferred) {
+                            ({{ formatBytes(entry.bytesTransferred) }} / {{ formatBytes(entry.totalBytes || entry.file.size) }})
+                          }
+                        </span>
                       } @else if (entry.status === 'transcoding') {
-                        <span class="status-text text-info">Queuing ABR Transcoder pipeline...</span>
+                        <span class="status-text text-info">
+                          <app-spinner size="14px"></app-spinner>
+                          Uploaded &bull; Queuing ABR Transcoder pipeline...
+                        </span>
                       } @else if (entry.status === 'done') {
                         <span class="status-text text-success">
                           <app-icon name="check" width="14px" height="14px"></app-icon>
                           Ready in Catalog
                         </span>
                       } @else if (entry.status === 'error') {
-                        <span class="status-text text-danger">{{ entry.errorMessage || 'Upload failed' }}</span>
+                        <span class="status-text text-danger">
+                          {{ entry.errorMessage || 'Upload interrupted. Click Resume to continue from last uploaded byte.' }}
+                        </span>
                       }
                     </div>
                   </div>
                 }
               </div>
 
-              <!-- Actions & Reorder -->
+              <!-- Actions & Controls -->
               <div class="entry-actions">
+                <!-- Pause button -->
+                @if (entry.status === 'uploading') {
+                  <button
+                    type="button"
+                    class="icon-only-button action-btn pause-btn"
+                    (click)="pauseUpload(entry)"
+                    title="Pause Upload"
+                  >
+                    <app-icon name="pause"></app-icon>
+                  </button>
+                }
+
+                <!-- Resume button -->
+                @if (entry.status === 'paused') {
+                  <button
+                    type="button"
+                    class="icon-only-button action-btn resume-btn"
+                    (click)="resumeUpload(entry)"
+                    title="Resume Upload"
+                  >
+                    <app-icon name="play_arrow"></app-icon>
+                  </button>
+                }
+
+                <!-- Retry button -->
+                @if (entry.status === 'error') {
+                  <button
+                    type="button"
+                    class="icon-only-button action-btn retry-btn"
+                    (click)="retryUpload(entry)"
+                    title="Resume / Retry Upload"
+                  >
+                    <app-icon name="refresh"></app-icon>
+                  </button>
+                }
+
+                <!-- Move & Delete buttons -->
                 <button
                   type="button"
                   class="icon-only-button"
@@ -459,7 +532,7 @@
                 <button
                   type="button"
                   class="icon-only-button delete-btn"
-                  [disabled]="isProcessing()"
+                  [disabled]="isProcessing() && entry.status === 'uploading'"
                   (click)="removeFile(entry.id)"
                   title="Remove Video"
                 >
@@ -489,15 +562,30 @@
             Cancel
           </a>
 
+          @if (hasErrors()) {
+            <button
+              type="button"
+              class="outlined-button retry-failed-btn"
+              [disabled]="isProcessing()"
+              (click)="retryAllFailed()"
+            >
+              <app-icon name="refresh"></app-icon>
+              <span>Resume Failed Videos</span>
+            </button>
+          }
+
           <button
             type="button"
             class="primary-btn submit-btn"
-            [disabled]="fileEntries().length === 0 || isProcessing()"
+            [disabled]="fileEntries().length === 0 || isProcessing() || allDone()"
             (click)="startUploadAndTranscode()"
           >
             @if (isProcessing()) {
               <app-spinner size="18px"></app-spinner>
               <span>Uploading &amp; Transcoding...</span>
+            } @else if (allDone()) {
+              <app-icon name="check"></app-icon>
+              <span>All Videos Uploaded</span>
             } @else {
               <app-icon name="cloud_upload"></app-icon>
               <span>

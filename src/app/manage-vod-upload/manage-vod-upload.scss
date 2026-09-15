@@ -543,10 +543,57 @@
       justify-content: flex-end;
     }
 
+    .action-btn {
+      color: #0284c7;
+
+      &:hover {
+        background: #e0f2fe;
+      }
+
+      &.pause-btn {
+        color: #d97706;
+        &:hover {
+          background: #fef3c7;
+        }
+      }
+
+      &.resume-btn {
+        color: #16a34a;
+        &:hover {
+          background: #dcfce7;
+        }
+      }
+
+      &.retry-btn {
+        color: #dc2626;
+        &:hover {
+          background: #fee2e2;
+        }
+      }
+    }
+
     .delete-btn:hover {
       color: #dc2626;
     }
   }
+
+  &.item-paused {
+    border-color: #fde68a;
+    background: #fffbeb;
+  }
+}
+
+.session-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 9999px;
 }
 
 .entry-progress-bar-wrapper {
@@ -572,6 +619,10 @@
 
       &.progress-error {
         background: #dc2626;
+      }
+
+      &.progress-paused {
+        background: #d97706;
       }
     }
   }
@@ -622,6 +673,18 @@
     align-items: center;
     gap: 1rem;
 
+    .retry-failed-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #dc2626;
+      border-color: #fca5a5;
+
+      &:hover:not(:disabled) {
+        background: #fee2e2;
+      }
+    }
+
     .submit-btn {
       display: inline-flex;
       align-items: center;
@@ -636,3 +699,4 @@
 .text-warn { color: #d97706; }
 .text-info { color: #0284c7; }
 .text-danger { color: #dc2626; }
+.text-muted { color: v.$text-muted; }

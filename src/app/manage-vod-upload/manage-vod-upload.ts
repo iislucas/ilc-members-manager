@@ -2,6 +2,8 @@
  *
  * Dedicated admin console for uploading single videos or creating multi-part
  * video series collections with a unified price, metadata, and automated transcoding.
+ * Includes chunked resumable upload support, live speed/ETA tracking, pause/resume,
+ * and cross-session persistence in localStorage for large files.
  */
 
 import {
@@ -11,14 +13,15 @@ import {
   signal,
   computed,
   ChangeDetectionStrategy,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, UploadTask } from 'firebase/storage';
 import { IlcEvent } from '../../../functions/src/data-model/events';
 import { UploadItem, UploadItemSource } from '../../../functions/src/data-model/materials';
 import { InstructorPublicData } from '../../../functions/src/data-model/members';
-import { VideoItem, VideoSeries, VodAccessTier, VodStatus, TagItem } from '../../../functions/src/data-model/vod';
+import { VideoItem, VideoSeries, VodAccessTier } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -28,7 +31,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 import { TagInputComponent } from '../tag-input/tag-input';
 import { SearchableSet } from '../searchable-set';
-import { makeThumbnail } from '../utils';
+import { ResumableUploadService, UploadProgressUpdate } from './resumable-upload.service';
 
 export interface UploadFileEntry {
   id: string;
@@ -39,10 +42,18 @@ export interface UploadFileEntry {
   durationSeconds: number;
   previewUrl: string;
   previewBlob: Blob | null;
-  status: 'idle' | 'uploading' | 'transcoding' | 'done' | 'error';
+  status: 'idle' | 'uploading' | 'paused' | 'transcoding' | 'done' | 'error';
   progressPercent: number;
+  bytesTransferred?: number;
+  totalBytes?: number;
+  uploadSpeed?: string;
+  eta?: string;
   errorMessage?: string;
   createdVideoId?: string;
+  uploadItemId?: string;
+  storagePath?: string;
+  uploadTask?: UploadTask;
+  hasSavedSession?: boolean;
 }
 
 @Component({
@@ -64,6 +75,7 @@ export class ManageVodUploadComponent implements OnInit {
   public dataService = inject(DataManagerService);
   public firebaseState = inject(FirebaseStateService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  public resumableService = inject(ResumableUploadService);
 
   readonly Views = Views;
   readonly VodAccessTier = VodAccessTier;
@@ -112,6 +124,20 @@ export class ManageVodUploadComponent implements OnInit {
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
+  // Active status indicators
+  hasActiveUploads = computed(() => {
+    return this.fileEntries().some((e) => e.status === 'uploading' || e.status === 'transcoding');
+  });
+
+  hasErrors = computed(() => {
+    return this.fileEntries().some((e) => e.status === 'error');
+  });
+
+  allDone = computed(() => {
+    const entries = this.fileEntries();
+    return entries.length > 0 && entries.every((e) => e.status === 'done');
+  });
+
   // Available access tiers
   readonly availableAccessTiers = [
     { value: VodAccessTier.Public, label: 'Public (Free to everyone)', description: 'Accessible without sign in' },
@@ -154,11 +180,17 @@ export class ManageVodUploadComponent implements OnInit {
     });
   }
 
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasActiveUploads()) {
+      event.preventDefault();
+    }
+  }
+
   // --- Mode & Quality Helpers ---
   setUploadMode(mode: 'new_series' | 'existing_series' | 'standalone'): void {
     this.uploadMode.set(mode);
     if (mode === 'standalone' && this.fileEntries().length > 0) {
-      // Re-index
       this.recalculatePartIndices();
     }
   }
@@ -311,6 +343,8 @@ export class ManageVodUploadComponent implements OnInit {
         title = `Part ${partIndex}: ${cleanName}`;
       }
 
+      const savedSession = this.resumableService.getSavedSession(file);
+
       const entry: UploadFileEntry = {
         id,
         file,
@@ -322,6 +356,9 @@ export class ManageVodUploadComponent implements OnInit {
         previewBlob: null,
         status: 'idle',
         progressPercent: 0,
+        uploadItemId: savedSession?.uploadItemId,
+        storagePath: savedSession?.storagePath,
+        hasSavedSession: Boolean(savedSession),
       };
 
       newEntries.push(entry);
@@ -356,8 +393,6 @@ export class ManageVodUploadComponent implements OnInit {
 
     videoElem.onloadedmetadata = () => {
       entry.durationSeconds = Math.round(videoElem.duration || 0);
-
-      // Seek 5% into video for thumbnail snapshot
       videoElem.currentTime = Math.min(Math.max(1, videoElem.duration * 0.05), 10);
     };
 
@@ -393,6 +428,17 @@ export class ManageVodUploadComponent implements OnInit {
   }
 
   removeFile(id: string): void {
+    const entry = this.fileEntries().find((e) => e.id === id);
+    if (entry) {
+      if (entry.uploadTask) {
+        try {
+          entry.uploadTask.cancel();
+        } catch {
+          // ignore
+        }
+      }
+      this.resumableService.clearSession(entry.file);
+    }
     this.fileEntries.update((entries) => entries.filter((e) => e.id !== id));
     this.recalculatePartIndices();
   }
@@ -438,14 +484,48 @@ export class ManageVodUploadComponent implements OnInit {
     );
   }
 
-  // --- Upload & Transcode Execution ---
-  async startUploadAndTranscode(): Promise<void> {
-    const files = this.fileEntries();
-    if (files.length === 0) {
-      this.errorMessage.set('Please select at least one video file.');
-      return;
+  // --- Per-File Controls: Pause, Resume, Retry ---
+  pauseUpload(entry: UploadFileEntry): void {
+    if (entry.uploadTask && entry.status === 'uploading') {
+      entry.uploadTask.pause();
+      entry.status = 'paused';
+      entry.uploadSpeed = '';
+      entry.eta = 'Paused';
+      this.fileEntries.update((list) => [...list]);
     }
+  }
 
+  resumeUpload(entry: UploadFileEntry): void {
+    if (entry.uploadTask && entry.status === 'paused') {
+      entry.uploadTask.resume();
+      entry.status = 'uploading';
+      this.fileEntries.update((list) => [...list]);
+    } else if (entry.status === 'paused' || entry.status === 'error') {
+      this.retryUpload(entry);
+    }
+  }
+
+  async retryUpload(entry: UploadFileEntry): Promise<void> {
+    if (this.isProcessing() && entry.status === 'uploading') return;
+    this.isProcessing.set(true);
+    this.errorMessage.set(null);
+    try {
+      await this.processSingleFile(entry);
+    } catch {
+      // processSingleFile sets status to error
+    } finally {
+      this.isProcessing.set(this.hasActiveUploads());
+    }
+  }
+
+  async retryAllFailed(): Promise<void> {
+    const failed = this.fileEntries().filter((e) => e.status === 'error' || e.status === 'paused');
+    if (failed.length === 0) return;
+    this.startUploadAndTranscode();
+  }
+
+  // --- Core Processing per File ---
+  private async processSingleFile(entry: UploadFileEntry): Promise<void> {
     const mode = this.uploadMode();
     let finalSeriesId = '';
     let finalSeriesTitle = '';
@@ -457,155 +537,213 @@ export class ManageVodUploadComponent implements OnInit {
 
     if (mode === 'new_series') {
       finalSeriesTitle = this.seriesTitle().trim();
-      if (!finalSeriesTitle) {
-        this.errorMessage.set('Please provide a title for the new video series.');
-        return;
-      }
       finalSeriesId = `series_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     } else if (mode === 'existing_series') {
       finalSeriesId = this.existingSeriesId();
-      if (!finalSeriesId) {
-        this.errorMessage.set('Please select an existing video series.');
-        return;
-      }
-      finalSeriesTitle = this.seriesTitle().trim() || this.availableSeries().find((s) => s.seriesId === finalSeriesId)?.title || '';
-    } else {
-      // Standalone
-      finalSeriesId = '';
-      finalSeriesTitle = '';
+      finalSeriesTitle =
+        this.seriesTitle().trim() ||
+        this.availableSeries().find((s) => s.seriesId === finalSeriesId)?.title ||
+        '';
     }
 
     const adminUser = this.firebaseState.user();
     const adminMember = adminUser?.member;
     const adminDocId = adminMember?.docId || 'admin';
 
+    // 1. Maintain or assign uploadItemId and storage paths
+    if (!entry.uploadItemId) {
+      const saved = this.resumableService.getSavedSession(entry.file);
+      entry.uploadItemId =
+        saved?.uploadItemId || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    const originalStoragePath = `members/${adminDocId}/materials/originals/${entry.uploadItemId}/original`;
+    const previewStoragePath = `members/${adminDocId}/materials/previews/${entry.uploadItemId}.jpg`;
+    entry.storagePath = originalStoragePath;
+
+    entry.status = 'uploading';
+    entry.errorMessage = undefined;
+    this.fileEntries.update((list) => [...list]);
+
+    try {
+      // 2. Perform chunked resumable upload
+      const { task, promise } = this.resumableService.uploadVideo(
+        entry.file,
+        originalStoragePath,
+        entry.uploadItemId,
+        (update: UploadProgressUpdate) => {
+          entry.progressPercent = update.progressPercent;
+          entry.bytesTransferred = update.bytesTransferred;
+          entry.totalBytes = update.totalBytes;
+          entry.uploadSpeed = update.uploadSpeed;
+          entry.eta = update.eta;
+          if (update.state === 'paused') {
+            entry.status = 'paused';
+          } else if (update.state === 'running') {
+            entry.status = 'uploading';
+          }
+          this.fileEntries.update((list) => [...list]);
+        },
+      );
+
+      entry.uploadTask = task;
+      this.fileEntries.update((list) => [...list]);
+
+      const { downloadUrl: originalUrl } = await promise;
+
+      // 3. Upload thumbnail preview if generated
+      let previewUrl = '';
+      if (entry.previewBlob) {
+        try {
+          const storage = this.resumableService.getStorageInstance();
+          const previewRef = ref(storage, previewStoragePath);
+          await uploadBytes(previewRef, entry.previewBlob, { contentType: 'image/jpeg' });
+          previewUrl = await getDownloadURL(previewRef);
+        } catch (thumbErr) {
+          console.warn('Thumbnail upload warning:', thumbErr);
+        }
+      }
+
+      // 4. Create UploadItem record in Firestore
+      const uploadItemPayload: Omit<UploadItem, 'docId'> = {
+        memberDocId: adminDocId,
+        memberId: adminMember?.memberId || 'ADMIN',
+        memberName: adminMember?.name || 'Administrator',
+        instructorId: this.selectedInstructorId() || adminMember?.instructorId || '',
+        name: entry.title || entry.file.name,
+        contentType: entry.file.type || 'video/mp4',
+        size: entry.file.size,
+        url: originalUrl,
+        previewUrl,
+        storagePath: originalStoragePath,
+        previewStoragePath: previewUrl ? previewStoragePath : '',
+        date: this.recordedDate(),
+        location: this.location(),
+        eventDocId: this.selectedEventDocId(),
+        eventTitle: this.selectedEventTitle(),
+        notes: entry.description || this.seriesDescription(),
+        tags: this.tags(),
+        source: UploadItemSource.Direct,
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+      };
+
+      const docId = await this.dataService.createUploadItem(uploadItemPayload);
+
+      // 5. Trigger VOD Transcoding Cloud Function with Series Configuration
+      entry.status = 'transcoding';
+      entry.uploadSpeed = '';
+      entry.eta = '';
+      this.fileEntries.update((list) => [...list]);
+
+      const vodConfig: Partial<VideoItem> = {
+        title: entry.title || entry.file.name,
+        description: entry.description || this.seriesDescription(),
+        tags: this.tags(),
+        accessTiers: this.selectedAccessTiers(),
+        accessTier: this.selectedAccessTiers()[0] || VodAccessTier.MembersOnly,
+        isBuyable: Boolean(priceCents && priceCents > 0),
+        priceCents,
+        currency: 'usd',
+        seriesId: finalSeriesId || undefined,
+        seriesTitle: finalSeriesTitle || undefined,
+        seriesDescription: this.seriesDescription() || undefined,
+        seriesPartIndex: mode !== 'standalone' ? entry.partIndex : undefined,
+        seriesPriceCents: priceCents,
+        instructorDocId: this.selectedInstructorDocId() || undefined,
+        instructorName: this.selectedInstructorName() || undefined,
+        instructorId: this.selectedInstructorId() || undefined,
+        eventDocId: this.selectedEventDocId() || undefined,
+        eventTitle: this.selectedEventTitle() || undefined,
+        recordedDate: this.recordedDate(),
+        location: this.location(),
+        featured: this.isFeatured(),
+        resolutions: this.selectedResolutions(),
+        thumbnailUrl: previewUrl,
+      };
+
+      const transcodeResult = await this.dataService.transcodeVideoForVod(
+        docId,
+        adminDocId,
+        vodConfig,
+      );
+
+      entry.createdVideoId = transcodeResult.videoId || docId;
+      entry.status = 'done';
+      entry.progressPercent = 100;
+      entry.uploadTask = undefined;
+      entry.hasSavedSession = false;
+      this.fileEntries.update((list) => [...list]);
+    } catch (err: unknown) {
+      console.error(`Failed uploading file "${entry.file.name}":`, err);
+      entry.status = 'error';
+      entry.uploadSpeed = '';
+      entry.eta = '';
+      entry.errorMessage = err instanceof Error ? err.message : 'Upload failed.';
+      this.fileEntries.update((list) => [...list]);
+      throw err;
+    }
+  }
+
+  // --- Upload & Transcode Execution ---
+  async startUploadAndTranscode(): Promise<void> {
+    const files = this.fileEntries();
+    if (files.length === 0) {
+      this.errorMessage.set('Please select at least one video file.');
+      return;
+    }
+
+    const mode = this.uploadMode();
+    let finalSeriesTitle = '';
+
+    if (mode === 'new_series') {
+      finalSeriesTitle = this.seriesTitle().trim();
+      if (!finalSeriesTitle) {
+        this.errorMessage.set('Please provide a title for the new video series.');
+        return;
+      }
+    } else if (mode === 'existing_series') {
+      const finalSeriesId = this.existingSeriesId();
+      if (!finalSeriesId) {
+        this.errorMessage.set('Please select an existing video series.');
+        return;
+      }
+      finalSeriesTitle =
+        this.seriesTitle().trim() ||
+        this.availableSeries().find((s) => s.seriesId === finalSeriesId)?.title ||
+        '';
+    }
+
+    const pendingFiles = this.fileEntries().filter((e) => e.status !== 'done');
+    if (pendingFiles.length === 0) {
+      this.successMessage.set('All videos have already been successfully uploaded and queued.');
+      return;
+    }
+
     this.isProcessing.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.uploadComplete.set(false);
 
-    const storage = getStorage(this.firebaseState.app);
-    let successCount = 0;
+    let successCount = this.fileEntries().filter((e) => e.status === 'done').length;
+    const totalCount = this.fileEntries().length;
 
-    for (let i = 0; i < files.length; i++) {
-      this.currentFileIndex.set(i + 1);
-      const entry = files[i];
-
-      entry.status = 'uploading';
-      entry.progressPercent = 10;
-      this.fileEntries.update((list) => [...list]);
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const entry = pendingFiles[i];
+      this.currentFileIndex.set(successCount + 1);
 
       try {
-        const uploadItemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        const originalStoragePath = `members/${adminDocId}/materials/originals/${uploadItemId}/original`;
-        const previewStoragePath = `members/${adminDocId}/materials/previews/${uploadItemId}.jpg`;
-
-        // 1. Upload original video file
-        const originalRef = ref(storage, originalStoragePath);
-        await uploadBytes(originalRef, entry.file, {
-          contentType: entry.file.type || 'video/mp4',
-          customMetadata: { name: entry.file.name },
-        });
-        const originalUrl = await getDownloadURL(originalRef);
-
-        entry.progressPercent = 50;
-        this.fileEntries.update((list) => [...list]);
-
-        // 2. Upload thumbnail preview
-        let previewUrl = '';
-        if (entry.previewBlob) {
-          try {
-            const previewRef = ref(storage, previewStoragePath);
-            await uploadBytes(previewRef, entry.previewBlob, { contentType: 'image/jpeg' });
-            previewUrl = await getDownloadURL(previewRef);
-          } catch (thumbErr) {
-            console.warn('Thumbnail upload warning:', thumbErr);
-          }
-        }
-
-        entry.progressPercent = 70;
-        this.fileEntries.update((list) => [...list]);
-
-        // 3. Create UploadItem record in Firestore
-        const uploadItemPayload: Omit<UploadItem, 'docId'> = {
-          memberDocId: adminDocId,
-          memberId: adminMember?.memberId || 'ADMIN',
-          memberName: adminMember?.name || 'Administrator',
-          instructorId: this.selectedInstructorId() || adminMember?.instructorId || '',
-          name: entry.title || entry.file.name,
-          contentType: entry.file.type || 'video/mp4',
-          size: entry.file.size,
-          url: originalUrl,
-          previewUrl,
-          storagePath: originalStoragePath,
-          previewStoragePath: previewUrl ? previewStoragePath : '',
-          date: this.recordedDate(),
-          location: this.location(),
-          eventDocId: this.selectedEventDocId(),
-          eventTitle: this.selectedEventTitle(),
-          notes: entry.description || this.seriesDescription(),
-          tags: this.tags(),
-          source: UploadItemSource.Direct,
-          createdAt: new Date().toISOString(),
-          lastUpdated: new Date().toISOString(),
-        };
-
-        const docId = await this.dataService.createUploadItem(uploadItemPayload);
-
-        // 4. Trigger VOD Transcoding Cloud Function with Series Configuration
-        entry.status = 'transcoding';
-        entry.progressPercent = 85;
-        this.fileEntries.update((list) => [...list]);
-
-        const vodConfig: Partial<VideoItem> = {
-          title: entry.title || entry.file.name,
-          description: entry.description || this.seriesDescription(),
-          tags: this.tags(),
-          accessTiers: this.selectedAccessTiers(),
-          accessTier: this.selectedAccessTiers()[0] || VodAccessTier.MembersOnly,
-          isBuyable: Boolean(priceCents && priceCents > 0),
-          priceCents,
-          currency: 'usd',
-          seriesId: finalSeriesId || undefined,
-          seriesTitle: finalSeriesTitle || undefined,
-          seriesDescription: this.seriesDescription() || undefined,
-          seriesPartIndex: mode !== 'standalone' ? entry.partIndex : undefined,
-          seriesPriceCents: priceCents,
-          instructorDocId: this.selectedInstructorDocId() || undefined,
-          instructorName: this.selectedInstructorName() || undefined,
-          instructorId: this.selectedInstructorId() || undefined,
-          eventDocId: this.selectedEventDocId() || undefined,
-          eventTitle: this.selectedEventTitle() || undefined,
-          recordedDate: this.recordedDate(),
-          location: this.location(),
-          featured: this.isFeatured(),
-          resolutions: this.selectedResolutions(),
-          thumbnailUrl: previewUrl,
-        };
-
-        const transcodeResult = await this.dataService.transcodeVideoForVod(
-          docId,
-          adminDocId,
-          vodConfig,
-        );
-
-        entry.createdVideoId = transcodeResult.videoId || docId;
-        entry.status = 'done';
-        entry.progressPercent = 100;
+        await this.processSingleFile(entry);
         successCount++;
-        this.fileEntries.update((list) => [...list]);
-      } catch (err: unknown) {
-        console.error(`Failed uploading file "${entry.file.name}":`, err);
-        entry.status = 'error';
-        entry.errorMessage = err instanceof Error ? err.message : 'Upload failed.';
-        this.fileEntries.update((list) => [...list]);
+      } catch {
+        // Individual file error caught and status reflected on entry card
       }
 
-      this.overallProgressPercent.set(Math.round(((i + 1) / files.length) * 100));
+      this.overallProgressPercent.set(Math.round((successCount / totalCount) * 100));
     }
 
     this.isProcessing.set(false);
-    if (successCount === files.length) {
+    if (successCount === totalCount) {
       this.uploadComplete.set(true);
       this.successMessage.set(
         mode !== 'standalone'
@@ -613,9 +751,13 @@ export class ManageVodUploadComponent implements OnInit {
           : `Successfully uploaded and queued transcoding for ${successCount} video(s).`,
       );
     } else if (successCount > 0) {
-      this.successMessage.set(`Uploaded ${successCount} of ${files.length} videos. Please check failed items below.`);
+      this.successMessage.set(
+        `Uploaded ${successCount} of ${totalCount} videos. Some items failed or were paused — you can resume them below.`,
+      );
     } else {
-      this.errorMessage.set('Failed to upload video files. Please review errors and try again.');
+      this.errorMessage.set(
+        'Upload failed for one or more video files. You can retry failed items below without losing progress.',
+      );
     }
   }
 
