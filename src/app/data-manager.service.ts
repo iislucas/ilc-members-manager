@@ -1475,27 +1475,23 @@ export class DataManagerService {
       this.mailSettingsUnsubscribe();
       this.mailSettingsUnsubscribe = null;
     }
-    if (user?.isAdmin) {
-      const mailSettingsRef = doc(this.db, 'system', 'mail-settings');
-      this.mailSettingsUnsubscribe = onSnapshot(
-        mailSettingsRef,
-        (snap) => {
-          if (snap.exists()) {
-            this.mailSettings.set({
-              ...initMailSettings(),
-              ...(snap.data() as Partial<MailSettings>),
-            });
-          } else {
-            this.mailSettings.set(initMailSettings());
-          }
-        },
-        (error) => {
-          console.error('Error fetching mail settings:', error);
-        },
-      );
-    } else {
-      this.mailSettings.set(initMailSettings());
-    }
+    const mailSettingsRef = doc(this.db, 'system', 'mail-settings');
+    this.mailSettingsUnsubscribe = onSnapshot(
+      mailSettingsRef,
+      (snap) => {
+        if (snap.exists()) {
+          this.mailSettings.set({
+            ...initMailSettings(),
+            ...(snap.data() as Partial<MailSettings>),
+          });
+        } else {
+          this.mailSettings.set(initMailSettings());
+        }
+      },
+      (error) => {
+        console.error('Error fetching mail settings:', error);
+      },
+    );
   }
 
   private gradingsUnsubscribe: (() => void) | null = null;
@@ -2981,6 +2977,49 @@ export class DataManagerService {
       }
     >(getFunctions(this.firebaseService.app), 'checkVodJobStatus');
     const result = await fn({ videoId });
+    return result.data;
+  }
+
+  /**
+   * Grants access to a video or entire series to a member or email address via Cloud Function.
+   */
+  async grantVideoAccess(req: {
+    targetType: 'video' | 'series';
+    targetId: string;
+    recipientEmail: string;
+    recipientMemberDocId?: string;
+    recipientName?: string;
+    grantKind?: VideoGrantKind;
+    notes?: string;
+    expiresAt?: string;
+    sendNotification?: boolean;
+  }): Promise<{
+    success: boolean;
+    grantedCount: number;
+    recipientEmail: string;
+    recipientMemberDocId?: string;
+  }> {
+    const fn = httpsCallable<
+      {
+        targetType: 'video' | 'series';
+        targetId: string;
+        recipientEmail: string;
+        recipientMemberDocId?: string;
+        recipientName?: string;
+        grantKind?: VideoGrantKind;
+        notes?: string;
+        expiresAt?: string;
+        sendNotification?: boolean;
+      },
+      {
+        success: boolean;
+        grantedCount: number;
+        recipientEmail: string;
+        recipientMemberDocId?: string;
+      }
+    >(getFunctions(this.firebaseService.app), 'grantVideoAccess');
+
+    const result = await fn(req);
     return result.data;
   }
 

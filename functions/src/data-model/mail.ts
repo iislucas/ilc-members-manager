@@ -53,6 +53,7 @@ export enum TransactionalEmailKey {
   OrderConfirmation = 'orderConfirmation',
   EventRegistrationConfirmation = 'eventRegistrationConfirmation',
   VodPurchaseConfirmation = 'vodPurchaseConfirmation',
+  VodGiftReceived = 'vodGiftReceived',
   GradingPaymentConfirmation = 'gradingPaymentConfirmation',
   SubscriptionRenewal = 'subscriptionRenewal',
   EventDigestOverall = 'eventDigestOverall',

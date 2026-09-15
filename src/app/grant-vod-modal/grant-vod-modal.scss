@@ -1,0 +1,448 @@
+@use "sass:color";
+@use "../../scss_variables.scss" as v;
+@use "../../styles" as *;
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+
+.modal-dialog {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  animation: modalFadeIn 0.2s ease-out;
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid v.$border-color-light;
+
+    .header-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .header-icon {
+        font-size: 1.4rem;
+        color: v.$primary-color;
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: v.$text-primary;
+      }
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: v.$text-muted;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease;
+
+      &:hover {
+        background-color: #f1f5f9;
+        color: v.$text-primary;
+      }
+    }
+  }
+
+  .modal-body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+
+    .mail-off-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background-color: #fefce8;
+      border: 1px solid #fef08a;
+      color: #854d0e;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+
+      app-icon {
+        color: #ca8a04;
+        font-size: 1.15rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+    }
+  }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid v.$border-color-light;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    background-color: #f8fafc;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+  }
+}
+
+.target-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  border: 1px solid v.$border-color-light;
+
+  .target-thumbnail {
+    width: 80px;
+    height: 45px;
+    object-fit: cover;
+    border-radius: 4px;
+    background-color: #000;
+  }
+
+  .target-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .target-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: v.$text-primary;
+    }
+
+    .target-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: v.$text-secondary;
+
+      .badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+        text-transform: uppercase;
+
+        &.badge-video {
+          background-color: #e0e7ff;
+          color: #3730a3;
+        }
+
+        &.badge-series {
+          background-color: #fce7f3;
+          color: #9d174d;
+        }
+      }
+    }
+  }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .form-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: v.$text-primary;
+    margin: 0;
+  }
+
+  .text-link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.8rem;
+    color: v.$primary-color;
+    cursor: pointer;
+    text-decoration: underline;
+
+    &:hover {
+      color: color.adjust(v.$primary-color, $lightness: -10%);
+    }
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: v.$primary-color;
+      box-shadow: 0 0 0 2px rgba(v.$primary-color, 0.15);
+    }
+  }
+
+  .form-help {
+    font-size: 0.75rem;
+    color: v.$text-muted;
+  }
+}
+
+.scope-toggle-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+
+  .scope-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    background-color: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: v.$text-secondary;
+    transition: all 0.15s ease;
+
+    &:hover:not(:disabled) {
+      border-color: v.$primary-color;
+      color: v.$primary-color;
+    }
+
+    &.active {
+      background-color: rgba(v.$primary-color, 0.08);
+      border-color: v.$primary-color;
+      color: v.$primary-color;
+      font-weight: 600;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.recipient-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-top: 4px;
+
+  &.success {
+    background-color: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+
+    app-icon {
+      font-size: 1.1rem;
+      color: #059669;
+    }
+  }
+}
+
+.manual-email-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.grant-kind-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .radio-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      border-color: v.$primary-color;
+    }
+
+    &.selected {
+      border-color: v.$primary-color;
+      background-color: rgba(v.$primary-color, 0.04);
+    }
+
+    input[type="radio"] {
+      margin-top: 3px;
+    }
+
+    .radio-card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .card-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: v.$text-primary;
+      }
+
+      .card-desc {
+        font-size: 0.75rem;
+        color: v.$text-secondary;
+      }
+    }
+  }
+}
+
+.notification-option-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid v.$border-color-light;
+  border-radius: 6px;
+  background-color: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: v.$text-muted;
+  }
+
+  &.checked {
+    border-color: v.$border-color-light;
+    background-color: #ffffff;
+  }
+
+  input[type="checkbox"] {
+    margin-top: 3px;
+    cursor: pointer;
+  }
+
+  .checkbox-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .checkbox-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: v.$text-primary;
+    }
+
+    .checkbox-sub {
+      font-size: 0.75rem;
+      color: v.$text-secondary;
+      line-height: 1.35;
+    }
+  }
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #991b1b;
+  font-size: 0.85rem;
+
+  app-icon {
+    font-size: 1.1rem;
+    color: #dc2626;
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+
+  &.btn-secondary {
+    background-color: white;
+    border-color: v.$border-color-light;
+    color: v.$text-primary;
+
+    &:hover:not(:disabled) {
+      background-color: #f8fafc;
+      border-color: #cbd5e1;
+    }
+  }
+
+  &.btn-primary {
+    background-color: v.$primary-color;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background-color: color.adjust(v.$primary-color, $lightness: -8%);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
