@@ -84,6 +84,17 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     relatedPatterns: [],
   },
   {
+    path: ".agent/skills/security-policy/SKILL.md",
+    layer: ArchitecturalLayer.Configuration,
+    responsibility: "Security architecture, canonical authorization rules, anti-patterns, and defense-in-depth guidelines",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
     path: ".agents/skills/angular-developer/SKILL.md",
     layer: ArchitecturalLayer.Configuration,
     responsibility: "Provides implementation for SKILL.md",

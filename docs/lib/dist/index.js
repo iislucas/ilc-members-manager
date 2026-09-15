@@ -19,6 +19,4 @@ __exportStar(require("./catalog"), exports);
 __exportStar(require("./resolvers/code-link-resolver"), exports);
 __exportStar(require("./resolvers/interlink-resolver"), exports);
 __exportStar(require("./search/docs-search-index"), exports);
-__exportStar(require("./validator/completeness-checker"), exports);
-__exportStar(require("./validator/link-integrity-checker"), exports);
 //# sourceMappingURL=index.js.map

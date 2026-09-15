@@ -1,1 +1,1 @@
-{"version":3,"file":"setup-catalog.d.ts","sourceRoot":"","sources":["../../src/catalog/setup-catalog.ts"],"names":[],"mappings":"AAKA,OAAO,EAAE,eAAe,EAAiB,MAAM,uBAAuB,CAAC;AAEvE,eAAO,MAAM,aAAa,EAAE,eAAe,EA+F1C,CAAC"}
+{"version":3,"file":"setup-catalog.d.ts","sourceRoot":"","sources":["../../src/catalog/setup-catalog.ts"],"names":[],"mappings":"AAKA,OAAO,EAAE,eAAe,EAAiB,MAAM,uBAAuB,CAAC;AAEvE,eAAO,MAAM,aAAa,EAAE,eAAe,EAuH1C,CAAC"}

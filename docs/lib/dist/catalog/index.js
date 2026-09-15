@@ -22,4 +22,6 @@ __exportStar(require("./stories-catalog"), exports);
 __exportStar(require("./flows-catalog"), exports);
 __exportStar(require("./setup-catalog"), exports);
 __exportStar(require("./patterns-catalog"), exports);
+__exportStar(require("./user-taxonomy-catalog"), exports);
+__exportStar(require("./permissions-catalog"), exports);
 //# sourceMappingURL=index.js.map

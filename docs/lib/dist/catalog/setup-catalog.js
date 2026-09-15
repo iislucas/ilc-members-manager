@@ -96,5 +96,28 @@ exports.SETUP_CATALOG = [
         ],
         verifiedFlows: ['ecommerce-webhooks', 'media-transcoding'],
     },
+    {
+        id: 'email-smtp-setup',
+        title: 'Outbound Email, Google Workspace SMTP & Dispatch State Setup',
+        category: setup_guide_1.SetupCategory.ThirdPartyIntegrations,
+        summary: 'Configuring Google Workspace Gmail SMTP credentials, routing mail through notifications@iliqchuan.com with web-helper-team@iliqchuan.com reply-to, managing the 3-state dispatch lifecycle (Off, Paused, Active), and verifying connectivity via the Test Email Sender tool.',
+        prerequisites: [
+            'Google Workspace administrator access with Gmail App Passwords enabled',
+            'Google Group web-helper-team@iliqchuan.com configured as collaborative inbox',
+            'Administrator account for accessing /email-notifications',
+        ],
+        commands: [
+            { command: 'firebase functions:secrets:set GMAIL_SMTP_APP_PASSWORD', explanation: 'Stores Google Workspace 16-character App Password securely in GCP Secret Manager' },
+            { command: 'pnpm --prefix functions test functions/src/mail-processor.spec.ts', explanation: 'Runs local unit tests verifying zero-write Off enforcement, placeholder queuing, and adminTest bypass' },
+            { command: 'pnpm --prefix functions test functions/src/unsubscribe-handler.spec.ts', explanation: 'Runs unit tests for RFC 8058 one-click unsubscribe and token verification' },
+        ],
+        commonGotchas: [
+            { issue: 'Emails failing with invalid credentials (535-5.7.8)', resolution: 'Standard Google account passwords will not work. Generate a 16-character App Password in Google Workspace Security under 2-Step Verification.' },
+            { issue: 'No emails delivered in development or staging', resolution: 'Check /email-notifications status banner. Default state is OFF (zero writes to /mail). Switch to PAUSED or ACTIVE, or send an Admin Test Email to bypass the OFF state.' },
+            { issue: 'Hash symbols (#/) breaking email confirmation links', resolution: 'The client router uses HTML5 path routing without hash URLs. Ensure email templates never contain /# or #/.' },
+            { issue: 'Unsubscribe token verification fails in local test suites', resolution: 'In production /system/mail-settings auto-generates a persistent 32-byte unsubscribeSecret; unit tests fall back to UNSUBSCRIBE_SECRET environment variable.' },
+        ],
+        verifiedFlows: ['email-queue-processor', 'one-click-unsubscribe'],
+    },
 ];
 //# sourceMappingURL=setup-catalog.js.map
