@@ -202,6 +202,9 @@ export async function refreshACLAdminStatus(email: string) {
 
   const data = aclSnap.data() as ACL;
   if (!data.memberDocIds || data.memberDocIds.length === 0) {
+    if (data.isAdmin === true) {
+      return;
+    }
     await aclRef.delete();
     return;
   }
@@ -213,11 +216,6 @@ export async function refreshACLAdminStatus(email: string) {
   if (memberRefs.length > 0) {
     memberSnaps = await getDb().getAll(...memberRefs);
   }
-
-  const anyAdmin = memberSnaps.some(
-    (snap: admin.firestore.DocumentSnapshot) =>
-      snap.exists && snap.data()?.isAdmin === true,
-  );
 
   const anyFullMember = memberSnaps.some(
     (snap: admin.firestore.DocumentSnapshot) =>
@@ -249,7 +247,7 @@ export async function refreshACLAdminStatus(email: string) {
   const wasAdmin = data.isAdmin === true;
 
   await aclRef.update({
-    isAdmin: wasAdmin || anyAdmin,
+    isAdmin: wasAdmin,
     instructorIds: Array.from(newInstructorIds),
     schoolDocIds: schoolInfo.docIds,
     notYetLinkedToMember: !anyFullMember,

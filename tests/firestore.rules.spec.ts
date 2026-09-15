@@ -637,13 +637,26 @@ describe('Firestore Rules', () => {
       });
     });
 
-    it('should allow event owner to update their proposed event', async () => {
+    it('should allow event owner to update their proposed event with serverTimestamp', async () => {
       const db = testEnv
         .authenticatedContext('member1', { email: 'member1@ilc.com' })
         .firestore();
       await assertSucceeds(
         db.collection('events').doc('test-event').update({
           title: 'Updated Event',
+          status: 'proposed',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should deny event owner from updating without serverTimestamp', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('events').doc('test-event').update({
+          title: 'Updated Event Without Timestamp',
           status: 'proposed',
         }),
       );
@@ -657,6 +670,7 @@ describe('Firestore Rules', () => {
         db.collection('events').doc('test-event').update({
           title: 'Updated by manager',
           status: 'proposed',
+          lastUpdated: serverTimestamp(),
         }),
       );
     });
@@ -690,6 +704,7 @@ describe('Firestore Rules', () => {
         db.collection('events').doc('test-event').update({
           title: 'Test Event',
           status: 'cancelled',
+          lastUpdated: serverTimestamp(),
         }),
       );
     });
@@ -702,6 +717,7 @@ describe('Firestore Rules', () => {
         db.collection('events').doc('test-event').update({
           title: 'Test Event',
           status: 'listed',
+          lastUpdated: serverTimestamp(),
         }),
       );
     });
@@ -713,6 +729,7 @@ describe('Firestore Rules', () => {
       await assertFails(
         db.collection('events').doc('test-event').update({
           status: 'cancelled',
+          lastUpdated: serverTimestamp(),
         }),
       );
     });

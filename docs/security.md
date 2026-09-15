@@ -70,8 +70,13 @@ Storage paths enforce resource scoping and MIME-type restrictions:
     - File size must be under 5 MB (`request.resource.size < 5 * 1024 * 1024`).
     - Content type must match approved image MIME types: `image/(jpeg|png|webp|gif)`.
 - **VOD Stream Protection**:
-  - Full feature streams (`/vod/{videoId}/{allFiles=**}`) require authentication (`request.auth != null`) or admin privileges.
-  - Trailers (`isTrailer == true` in Firestore `/videos/{videoId}`) are publicly readable for preview playback.
+  - Full feature streams (`/vod/{videoId}/{allFiles=**}`) enforce granular entitlement verification (`isVodAuthorized()`):
+    - Admins (`isAdmin()`) have unrestricted access.
+    - Trailers (`isTrailer == true` in Firestore `/videos/{videoId}`) and `public` access tier videos are readable.
+    - Active members (`hasActiveMembership()`) can access `members` tier videos.
+    - Active instructors (`hasActiveInstructorLicense()`) can access `instructors` tier videos.
+    - Direct video purchasers with an active grant record (`/video_grants/{email}_{videoId}`) can access purchased videos.
+    - Anonymous or unauthorized requests are rejected, preventing paywall bypass on HLS manifests and media chunks.
 - **Path Traversal Protection**:
   - Event asset cleanup triggers assert that any storage file path to be deleted begins with `events/${eventId}/`, blocking arbitrary file deletion across the bucket.
 
@@ -85,9 +90,15 @@ Storage paths enforce resource scoping and MIME-type restrictions:
   - An in-memory sliding window rate limiter throttles calls per client IP (30 requests/min), preventing mass automated email scraping.
 - **Event Product Association (`submitProposedEvent`)**:
   - Re-linking products requires verifying product ownership or admin rights, preventing organizers from re-assigning foreign products to newly created events.
-- **Canonical Admin Authorization Authority (`/acl/{email}`)**:
+- **Event Updates Concurrency & Integrity (`firestore.rules`)**:
+  - `match /events/{eventId}` updates enforce `hasValidEditUpdate()`, ensuring `lastUpdated == request.time` on every write to prevent stale overwrite races.
+- **Event Checkout & Registration Authorization (`stripe-product-checkout`)**:
+  - `createProductCheckoutSession` and `registerEventInPerson` require an active authenticated Firebase session (`request.auth.token.email`) when claiming member/instructor pricing tiers or registering for members-only events.
+  - `updateProductRegistration` strictly mandates authentication (`request.auth.token.email`), verifying that the caller is the registration owner, an event manager, or an administrator. Unauthenticated callers cannot spoof attendee emails to modify attendee details or trigger unpaid registration upgrades.
+- **Canonical Admin Authorization Authority & ACL Synchronization (`/acl/{email}`)**:
   - Administrative authority across all callable Cloud Functions (`assertAdmin`, `assertAdminOrSchoolManager`, `getUserDetails`, `markEventRegistrationPaid`, `unmarkEventRegistrationPaid`, `createProductCheckoutSession`, `updateProductRegistration`, etc.) is resolved strictly against `/acl/{email}.isAdmin === true`.
   - Deprecated Auth token custom claims (`request.auth.token.admin`) and unverified member profile fields (`member.isAdmin`) are not used as the authorization authority, eliminating privilege revocation desyncs and supporting administrative users before profile linkage.
+  - `refreshACLAdminStatus` in `on-member-update.ts` preserves `isAdmin` from `/acl/{email}` without deriving it from member profiles and never deletes an administrator's ACL document even if no member profile is linked.
 
 ---
 
