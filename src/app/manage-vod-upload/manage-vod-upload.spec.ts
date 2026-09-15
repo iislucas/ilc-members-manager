@@ -5,25 +5,43 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ManageVodUploadComponent } from './manage-vod-upload';
+import { ManageVodUploadComponent, UploadFileEntry } from './manage-vod-upload';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { initVideoItem, VideoItem, VideoSeries, VodAccessTier, VodStatus } from '../../../functions/src/data-model/vod';
 import { SearchableSet } from '../searchable-set';
 import { signal, WritableSignal } from '@angular/core';
+import { ResumableUploadService } from './resumable-upload.service';
 
 // Mock image-utils
 vi.mock('../image-utils', () => ({
   makeThumbnail: vi.fn().mockResolvedValue(new Blob(['thumb'], { type: 'image/jpeg' })),
 }));
 
+const { MockTask } = vi.hoisted(() => {
+  class MockTask {
+    on = vi.fn((event: string, onNext?: any, onError?: any, onComplete?: any) => {
+      if (onComplete) {
+        setTimeout(() => onComplete(), 0);
+      }
+    });
+    pause = vi.fn();
+    resume = vi.fn();
+    cancel = vi.fn();
+  }
+  return { MockTask };
+});
+
 // Mock firebase/storage
 vi.mock('firebase/storage', () => ({
-  getStorage: vi.fn().mockReturnValue({}),
+  getStorage: vi.fn().mockReturnValue({ maxUploadRetryTime: 600000 }),
   ref: vi.fn().mockReturnValue({}),
   uploadBytes: vi.fn().mockResolvedValue({}),
+  uploadBytesResumable: vi.fn().mockReturnValue(new MockTask()),
   getDownloadURL: vi.fn().mockResolvedValue('https://storage.googleapis.com/test-url'),
+  _UploadTask: MockTask,
+  _FbsBlob: class {},
 }));
 
 describe('ManageVodUploadComponent', () => {
@@ -51,6 +69,14 @@ describe('ManageVodUploadComponent', () => {
     hrefForView: ReturnType<typeof vi.fn>;
   };
 
+  let mockResumableService: {
+    getStorageInstance: ReturnType<typeof vi.fn>;
+    getSavedSession: ReturnType<typeof vi.fn>;
+    saveSession: ReturnType<typeof vi.fn>;
+    clearSession: ReturnType<typeof vi.fn>;
+    uploadVideo: ReturnType<typeof vi.fn>;
+  };
+
   const sampleSeries: VideoSeries[] = [
     {
       seriesId: 'series_123',
@@ -68,6 +94,8 @@ describe('ManageVodUploadComponent', () => {
   ];
 
   beforeEach(async () => {
+    localStorage.clear();
+
     mockDataService = {
       videos: {
         entries: signal([]),
@@ -94,12 +122,35 @@ describe('ManageVodUploadComponent', () => {
       hrefForView: vi.fn().mockReturnValue('#/manage-vod'),
     };
 
+    const taskInstance = new MockTask();
+    mockResumableService = {
+      getStorageInstance: vi.fn().mockReturnValue({ maxUploadRetryTime: 24 * 60 * 60 * 1000 }),
+      getSavedSession: vi.fn().mockReturnValue(null),
+      saveSession: vi.fn(),
+      clearSession: vi.fn(),
+      uploadVideo: vi.fn().mockImplementation((file, storagePath, uploadItemId, onProgress) => {
+        onProgress({
+          bytesTransferred: file.size,
+          totalBytes: file.size,
+          progressPercent: 100,
+          uploadSpeed: '15 MB/s',
+          eta: '',
+          state: 'success',
+        });
+        return {
+          task: taskInstance,
+          promise: Promise.resolve({ downloadUrl: 'https://storage.googleapis.com/test-url' }),
+        };
+      }),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ManageVodUploadComponent],
       providers: [
         { provide: DataManagerService, useValue: mockDataService },
         { provide: FirebaseStateService, useValue: mockFirebaseState },
         { provide: RoutingService, useValue: mockRoutingService },
+        { provide: ResumableUploadService, useValue: mockResumableService },
       ],
     }).compileComponents();
 
@@ -142,6 +193,25 @@ describe('ManageVodUploadComponent', () => {
     expect(component.fileEntries()[1].partIndex).toBe(2);
   });
 
+  it('should detect existing resumable session when adding files', async () => {
+    mockResumableService.getSavedSession.mockReturnValueOnce({
+      uploadUrl: 'https://gcs.resumable.url',
+      storagePath: 'path/to/part_1.mp4',
+      uploadItemId: 'saved_item_id_1',
+      fileName: 'part_1.mp4',
+      fileSize: 100,
+      fileLastModified: 12345,
+      createdAt: Date.now(),
+    });
+
+    const file = new File(['fake'], 'part_1.mp4', { type: 'video/mp4' });
+    await component.addFiles([file]);
+
+    expect(component.fileEntries().length).toBe(1);
+    expect(component.fileEntries()[0].hasSavedSession).toBe(true);
+    expect(component.fileEntries()[0].uploadItemId).toBe('saved_item_id_1');
+  });
+
   it('should allow reordering files up and down', async () => {
     const file1 = new File(['fake-1'], 'first.mp4', { type: 'video/mp4' });
     const file2 = new File(['fake-2'], 'second.mp4', { type: 'video/mp4' });
@@ -170,9 +240,28 @@ describe('ManageVodUploadComponent', () => {
     expect(component.fileEntries().length).toBe(1);
     expect(component.fileEntries()[0].file.name).toBe('second.mp4');
     expect(component.fileEntries()[0].partIndex).toBe(1);
+    expect(mockResumableService.clearSession).toHaveBeenCalledWith(file1);
   });
 
-  it('should validate before uploading and call storage & transcodeVideoForVod', async () => {
+  it('should pause and resume active uploads', async () => {
+    const file = new File(['video'], 'episode.mp4', { type: 'video/mp4' });
+    await component.addFiles([file]);
+
+    const task = new MockTask();
+    const entry = component.fileEntries()[0];
+    entry.status = 'uploading';
+    entry.uploadTask = task as any;
+
+    component.pauseUpload(entry);
+    expect(task.pause).toHaveBeenCalled();
+    expect(entry.status).toBe('paused');
+
+    component.resumeUpload(entry);
+    expect(task.resume).toHaveBeenCalled();
+    expect(entry.status).toBe('uploading');
+  });
+
+  it('should execute resumable upload and trigger transcodeVideoForVod', async () => {
     const file1 = new File(['fake-1'], 'episode_1.mp4', { type: 'video/mp4' });
     await component.addFiles([file1]);
 
@@ -181,6 +270,7 @@ describe('ManageVodUploadComponent', () => {
 
     await component.startUploadAndTranscode();
 
+    expect(mockResumableService.uploadVideo).toHaveBeenCalled();
     expect(mockDataService.createUploadItem).toHaveBeenCalled();
     expect(mockDataService.transcodeVideoForVod).toHaveBeenCalledWith(
       'upload_item_123',
@@ -193,5 +283,6 @@ describe('ManageVodUploadComponent', () => {
       }),
     );
     expect(component.uploadComplete()).toBe(true);
+    expect(component.fileEntries()[0].status).toBe('done');
   });
 });
