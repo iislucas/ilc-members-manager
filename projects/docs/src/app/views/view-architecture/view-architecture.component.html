@@ -1,0 +1,55 @@
+<div class="view-architecture">
+  <div class="view-header">
+    <h1>⚡ View 4: Information Flow & System Architecture</h1>
+    <p class="view-desc">
+      The 7 end-to-end multi-tier data pipelines, asynchronous cloud triggers, VOD streaming, Stripe webhooks, and RFC 8058 email delivery &amp; unsubscribe flows.
+    </p>
+  </div>
+
+  <div class="flows-list">
+    @for (flow of docs.flowsCatalog; track flow.id) {
+      <section
+        [id]="'flow-' + flow.id"
+        class="content-card"
+        [class.highlight-active]="docs.activeHighlightedFlowId() === flow.id"
+      >
+        <div class="content-header">
+          <div>
+            <span class="tag-badge">{{ flow.category }}</span>
+            <h2>{{ flow.title }}</h2>
+          </div>
+        </div>
+
+        <p class="flow-summary">{{ flow.summary }}</p>
+
+        <!-- Interactive Flowchart Diagram & Stages Component -->
+        <doc-pipeline-flowchart [flow]="flow" />
+
+        <div class="interlinks-panel">
+          <span style="font-weight:600;">Input Data Entities:</span>
+          @for (dt of flow.inputDataTypes; track dt) {
+            <button
+              type="button"
+              (click)="docs.navigateToDataType(dt)"
+              class="interlink-chip"
+              title="View {{ dt }} in Core Data Types"
+            >
+              📥 {{ dt }}
+            </button>
+          }
+          <span style="font-weight:600;margin-left:1rem;">Output Data Entities:</span>
+          @for (dt of flow.outputDataTypes; track dt) {
+            <button
+              type="button"
+              (click)="docs.navigateToDataType(dt)"
+              class="interlink-chip"
+              title="View {{ dt }} in Core Data Types"
+            >
+              📤 {{ dt }}
+            </button>
+          }
+        </div>
+      </section>
+    }
+  </div>
+</div>

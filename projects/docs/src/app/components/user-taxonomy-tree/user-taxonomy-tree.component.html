@@ -1,0 +1,75 @@
+<div class="tree-wrapper content-card">
+  <div class="tree-header">
+    <div class="tree-title-area">
+      <span class="tag-badge">Visual Taxonomy</span>
+      <h3>Ecosystem User Actors & Personas</h3>
+      <p class="subtitle">Click any persona node in the D3 tree to explore its journey starting points, multi-actor plans, and user stories.</p>
+    </div>
+
+    <div class="tree-actions">
+      @if (!isTreeCollapsed()) {
+        <button type="button" class="action-btn" (click)="zoomIn()" title="Zoom in">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Zoom In
+        </button>
+        <button type="button" class="action-btn" (click)="zoomOut()" title="Zoom out">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Zoom Out
+        </button>
+        <button type="button" class="action-btn" (click)="resetZoom()" title="Reset to standard view">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+          Reset
+        </button>
+        <button type="button" class="action-btn" (click)="fitView()" title="Fit all nodes to view">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h6v6"></path>
+            <path d="M9 21H3v-6"></path>
+            <path d="M21 3l-7 7"></path>
+            <path d="M3 21l7-7"></path>
+          </svg>
+          Fit View
+        </button>
+      }
+      <button
+        type="button"
+        class="action-btn collapse-toggle-btn"
+        (click)="toggleCollapse()"
+        [title]="isTreeCollapsed() ? 'Expand taxonomy tree' : 'Collapse taxonomy tree to focus on details below'"
+      >
+        @if (isTreeCollapsed()) {
+          <span>⌄ Expand Tree</span>
+        } @else {
+          <span>⌃ Collapse Tree</span>
+        }
+      </button>
+    </div>
+  </div>
+
+  <div class="svg-viewport-container" [class.collapsed]="isTreeCollapsed()">
+    <svg #treeSvg class="tree-svg"></svg>
+    <div class="tree-hint">💡 Scroll page normally • Hold Ctrl/⌘ + scroll to zoom • Drag to pan • Click node to select</div>
+  </div>
+
+  <div class="tree-footer-bar">
+    @if (docs.selectedTaxonomyNode(); as node) {
+      <div class="selected-persona-indicator">
+        Active Persona: <strong>{{ node.name }}</strong> ({{ node.category }})
+      </div>
+      <button type="button" class="jump-details-btn" (click)="scrollToDetails()">
+        <span>Explore {{ node.name }} Details & Journeys</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <polyline points="19 12 12 19 5 12"></polyline>
+        </svg>
+      </button>
+    }
+  </div>
+</div>

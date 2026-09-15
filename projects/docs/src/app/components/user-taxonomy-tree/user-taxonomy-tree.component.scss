@@ -1,0 +1,149 @@
+.tree-wrapper {
+  margin-bottom: 2rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-top: 0.3rem;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+}
+
+.tree-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.775rem;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+  }
+}
+
+.svg-viewport-container {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  height: 520px;
+  overflow: hidden;
+  transition: all 0.25s ease;
+
+  &.collapsed {
+    height: 0;
+    min-height: 0;
+    border-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.tree-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+}
+
+.tree-hint {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #f1f5f9;
+  font-size: 0.725rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  pointer-events: none;
+  font-family: var(--font-sans);
+}
+
+.tree-footer-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+
+  .selected-persona-indicator {
+    font-size: 0.825rem;
+    color: var(--text-muted);
+
+    strong {
+      color: var(--primary);
+    }
+  }
+
+  .jump-details-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--primary-light);
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: var(--primary);
+      color: #ffffff;
+    }
+  }
+}
+
+:host ::ng-deep {
+  .tree-node {
+    transition: opacity 0.2s;
+
+    &:hover {
+      circle.node-circle {
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+      }
+    }
+  }
+
+  .tree-link {
+    transition: stroke-opacity 0.2s;
+  }
+}

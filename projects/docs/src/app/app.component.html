@@ -1,0 +1,163 @@
+<header class="app-header">
+  <div class="brand-title">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--primary);">
+      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+      <path d="M6 6h10"></path>
+      <path d="M6 10h10"></path>
+    </svg>
+    <span>ILC Members Manager</span>
+    <span class="badge-pwa">Docs Angular App</span>
+  </div>
+
+  <!-- 5-View Navigation Switcher -->
+  <nav class="view-switcher">
+    <button
+      type="button"
+      class="view-btn"
+      [class.active]="docs.currentView() === 'setup'"
+      (click)="onViewClick('setup')"
+    >
+      🚀 1. Setup & Instances
+    </button>
+    <button
+      type="button"
+      class="view-btn"
+      [class.active]="docs.currentView() === 'journeys'"
+      (click)="onViewClick('journeys')"
+    >
+      👥 2. Users, Journeys & Plans
+    </button>
+    <button
+      type="button"
+      class="view-btn"
+      [class.active]="docs.currentView() === 'datatypes'"
+      (click)="onViewClick('datatypes')"
+    >
+      📦 3. Core Data Types
+    </button>
+    <button
+      type="button"
+      class="view-btn"
+      [class.active]="docs.currentView() === 'architecture'"
+      (click)="onViewClick('architecture')"
+    >
+      ⚡ 4. Architecture Flow
+    </button>
+    <button
+      type="button"
+      class="view-btn"
+      [class.active]="docs.currentView() === 'patterns'"
+      (click)="onViewClick('patterns')"
+    >
+      🧩 5. Core Patterns
+    </button>
+    <button
+      type="button"
+      class="view-btn"
+      [class.active]="docs.currentView() === 'files'"
+      (click)="onViewClick('files')"
+    >
+      📁 Codebase Files ({{ docs.filesCount }})
+    </button>
+  </nav>
+
+  <div class="header-actions">
+    <button type="button" class="search-btn" (click)="docs.openSearch()" title="Search docs (⌘K)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <span>Quick Search</span>
+      <span class="search-kbd">⌘K</span>
+    </button>
+
+    <button type="button" class="theme-btn" (click)="docs.toggleTheme()" title="Toggle dark/light theme">
+      @if (docs.isDarkTheme()) {
+        🌙 Dark
+      } @else {
+        ☀️ Light
+      }
+    </button>
+  </div>
+</header>
+
+<div class="main-container">
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    @switch (docs.currentView()) {
+      @case ('setup') {
+        <div class="sidebar-section">Setup Guides</div>
+        @for (guide of docs.setupCatalog; track guide.id) {
+          <a [href]="'#setup-' + guide.id" class="sidebar-link">{{ guide.title }}</a>
+        }
+      }
+      @case ('journeys') {
+        <div class="sidebar-section">User Taxonomy Personas</div>
+        @for (cat of docs.taxonomyTree; track cat.id) {
+          <div class="sidebar-group-title">{{ cat.category }}</div>
+          @for (persona of cat.children; track persona.id) {
+            <a
+              href="javascript:void(0)"
+              class="sidebar-link"
+              [class.active]="docs.selectedTaxonomyNode()?.id === persona.id"
+              (click)="docs.selectTaxonomyNode(persona)"
+            >
+              {{ persona.name }}
+            </a>
+          }
+        }
+      }
+      @case ('datatypes') {
+        <div class="sidebar-section">Data Collections</div>
+        @for (dt of docs.dataTypesCatalog; track dt.id) {
+          <a [href]="'#datatype-' + dt.id" class="sidebar-link">{{ dt.name }}</a>
+        }
+      }
+      @case ('architecture') {
+        <div class="sidebar-section">Pipelines & Flows</div>
+        @for (fl of docs.flowsCatalog; track fl.id) {
+          <a [href]="'#flow-' + fl.id" class="sidebar-link">{{ fl.title }}</a>
+        }
+      }
+      @case ('patterns') {
+        <div class="sidebar-section">System Patterns</div>
+        @for (p of docs.patternsCatalog; track p.id) {
+          <a [href]="'#pattern-' + p.id" class="sidebar-link">{{ p.name }}</a>
+        }
+      }
+      @case ('files') {
+        <div class="sidebar-section">Architectural Layers</div>
+        @for (layer of docs.filesSummary.layers | keyvalue; track layer.key) {
+          <div class="sidebar-link">{{ layer.key }} ({{ layer.value }})</div>
+        }
+      }
+    }
+  </aside>
+
+  <!-- Main View Container -->
+  <main class="content-scroll">
+    @switch (docs.currentView()) {
+      @case ('setup') {
+        <doc-view-setup />
+      }
+      @case ('journeys') {
+        <doc-view-user-journeys />
+      }
+      @case ('datatypes') {
+        <doc-view-data-types />
+      }
+      @case ('architecture') {
+        <doc-view-architecture />
+      }
+      @case ('patterns') {
+        <doc-view-patterns />
+      }
+      @case ('files') {
+        <doc-view-files />
+      }
+    }
+  </main>
+</div>
+
+<!-- Global Search Modal -->
+<doc-search-modal />

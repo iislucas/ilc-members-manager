@@ -452,6 +452,49 @@ pre code {
   font-size: 0.85rem;
 }
 
+.code-block-wrapper {
+  position: relative;
+  margin: 0.4rem 0 0.8rem 0;
+}
+
+.code-block-wrapper pre {
+  margin: 0;
+  padding-right: 4.8rem;
+}
+
+.copy-code-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  background: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  font-size: 0.725rem;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  user-select: none;
+  z-index: 5;
+}
+
+.copy-code-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.copy-code-btn.copied {
+  background: #059669;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
 /* Architecture Diagram Canvas */
 .diagram-container {
   background: #ffffff;

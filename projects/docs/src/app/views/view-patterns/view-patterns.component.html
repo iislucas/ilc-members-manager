@@ -1,0 +1,53 @@
+<div class="view-patterns">
+  <div class="view-header">
+    <h1>🧩 View 5: Core Architectural & Data Patterns</h1>
+    <p class="view-desc">
+      The 10 abstract design patterns, concurrency invariants, and typing paradigms governing how the application is built.
+    </p>
+  </div>
+
+  <div class="patterns-list">
+    @for (p of docs.patternsCatalog; track p.id) {
+      <section [id]="'pattern-' + p.id" class="content-card">
+        <div class="content-header">
+          <div>
+            <span class="tag-badge">Architectural Pattern</span>
+            <h2>{{ p.name }}</h2>
+          </div>
+        </div>
+
+        <p class="tagline">{{ p.tagline }}</p>
+
+        <div class="pattern-section">
+          <h4>The Problem:</h4>
+          <p class="problem-text">{{ p.problem }}</p>
+        </div>
+
+        <div class="pattern-section">
+          <h4>The Solution:</h4>
+          <p class="solution-text">{{ p.solution }}</p>
+        </div>
+
+        <div class="pattern-section">
+          <h4>Consequences & Guarantees:</h4>
+          <p class="consequences-text">{{ p.consequences }}</p>
+        </div>
+
+        <h4>Canonical Implementation Code Pointers:</h4>
+        <div class="pointers-list">
+          @for (c of p.canonicalCodePointers; track c.file) {
+            <div class="pointer-item">
+              <div>
+                <span class="pointer-file">{{ c.file }}</span>
+                <span class="pointer-desc">{{ c.description }}</span>
+              </div>
+              <a [href]="docs.getVsCodeLink(c.file)" class="code-btn">
+                💻 Open {{ c.lineRange || '' }}
+              </a>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  </div>
+</div>

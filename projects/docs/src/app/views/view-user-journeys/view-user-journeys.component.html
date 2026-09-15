@@ -1,0 +1,684 @@
+<div class="view-user-journeys">
+  <div class="view-header">
+    <div class="view-title">
+      <h1>👥 View 2: Users, Key Journeys & Multi-Actor Plans</h1>
+      <p class="view-desc">
+        Explore system actors across the visual hierarchy tree, discover each persona's journey starting points, inspect collaborative directed node-edge plans, and review acceptance criteria stories indexed by taxonomy.
+      </p>
+    </div>
+  </div>
+
+  <!-- 1. Interactive D3 User Taxonomy Tree -->
+  <doc-user-taxonomy-tree />
+
+  <!-- 2. Sub-Tabs Navigation -->
+  <div id="personaDetails" class="sub-tabs-bar">
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'starting-points'"
+      (click)="setSubTab('starting-points')"
+    >
+      🎯 Persona Starting Points & Journeys
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'taxonomy-tree'"
+      (click)="setSubTab('taxonomy-tree')"
+    >
+      🏛️ Taxonomy: Users ➔ Journeys ➔ Steps
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'plans'"
+      (click)="setSubTab('plans')"
+    >
+      🔄 Collaborative Multi-Actor Plans (Graphs)
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'stories'"
+      (click)="setSubTab('stories')"
+    >
+      📖 User Stories (Indexed by Taxonomy)
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'surface-map'"
+      (click)="setSubTab('surface-map')"
+    >
+      🗺️ Site Surface Map (97+ Views)
+    </button>
+    <button
+      type="button"
+      class="sub-tab-btn"
+      [class.active]="activeSubTab() === 'permissions'"
+      (click)="setSubTab('permissions')"
+    >
+      🔐 Permissions & Rules Glossary
+    </button>
+  </div>
+
+  <!-- TAB 1: Persona Starting Points & Journeys -->
+  @if (activeSubTab() === 'starting-points') {
+    @if (selectedPersona(); as persona) {
+      <div class="persona-detail-card content-card">
+        <div class="persona-card-header">
+          <div>
+            <span class="tag-badge">{{ persona.category }}</span>
+            <h2>{{ persona.name }}</h2>
+            <p class="role-summary">{{ persona.roleSummary }}</p>
+          </div>
+        </div>
+
+        <div class="persona-grid-info">
+          <div class="info-block">
+            <h4>Key Responsibilities:</h4>
+            <ul>
+              @for (resp of persona.responsibilities; track resp) {
+                <li>{{ resp }}</li>
+              }
+            </ul>
+          </div>
+
+          <div class="info-block">
+            <div class="info-block-header">
+              <h4>Granted Permissions & Roles:</h4>
+              <button
+                type="button"
+                class="glossary-link-btn"
+                (click)="openPermissionsGlossary()"
+                title="Open full Permissions & Security Rules Glossary"
+              >
+                📖 Rules Glossary ➔
+              </button>
+            </div>
+            <div class="chips-container">
+              @for (perm of persona.permissionsSnapshot; track perm) {
+                <button
+                  type="button"
+                  class="perm-chip-btn"
+                  (click)="selectPermission(perm)"
+                  title="Click to view rule mechanics and target data types"
+                >
+                  🔑 {{ perm }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Journey Starting Points -->
+        <div class="starting-points-section">
+          <h3>🚀 Journey Starting Points for {{ persona.name }}:</h3>
+          <p class="section-intro">Routes and initial interaction triggers where this user initiates flows:</p>
+
+          <div class="starting-routes-grid">
+            @for (route of persona.startingRoutes; track route.path) {
+              <div class="route-card">
+                <div class="route-card-header">
+                  <span class="route-path-badge">{{ route.path }}</span>
+                  <span class="route-title">{{ route.title }}</span>
+                </div>
+                <p class="route-desc">{{ route.description }}</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Core Journeys Involving this Persona -->
+    <div class="journeys-section">
+      <h3>Core User Journeys ({{ relevantJourneys().length }})</h3>
+      @for (journey of relevantJourneys(); track journey.id) {
+        <div class="journey-card content-card" [id]="'journey-' + journey.id">
+          <div class="content-header">
+            <div>
+              <span class="tag-badge">Journey</span>
+              <h3>{{ journey.title }}</h3>
+              <div class="journey-actors-line">
+                Primary: <strong>{{ journey.primaryActor }}</strong> • Participating: {{ journey.participatingActors.join(', ') }}
+              </div>
+            </div>
+          </div>
+
+          <p class="journey-summary">{{ journey.summary }}</p>
+
+          <h4>Journey Steps & Transitions:</h4>
+          <div class="steps-track">
+            @for (step of journey.steps; track step.stepNumber) {
+              <div
+                class="step-card"
+                [id]="'step-' + journey.id + '-' + step.stepNumber"
+                [class.highlight-active]="docs.activeHighlightedStepId() === ('step-' + journey.id + '-' + step.stepNumber)"
+              >
+                <div class="step-badge">Step {{ step.stepNumber }}</div>
+                <div class="step-actor">{{ step.actor }}</div>
+                <div class="step-title">{{ step.title }}</div>
+                <div class="step-desc">{{ step.description }}</div>
+                @if (step.screenPath) {
+                  <div class="step-screen">
+                    <code>{{ step.screenPath }}</code> @if (step.screenViewId) { ({{ step.screenViewId }}) }
+                  </div>
+                }
+
+                @if (step.handoff; as handoff) {
+                  <div class="handoff-box outgoing">
+                    <div class="handoff-header">
+                      <span>👉 Interacts with / Handoff:</span>
+                      <span class="handoff-badge">{{ handoff.interactionType }}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="handoff-action-btn"
+                      (click)="navigateToHandoff(handoff)"
+                      title="Jump to {{ handoff.targetTaxonomyName }} step"
+                    >
+                      🔗 {{ handoff.targetTaxonomyName }} ➔ {{ handoff.targetJourneyTitle }} (Step {{ handoff.targetStepNumber }})
+                    </button>
+                    <div class="handoff-desc">{{ handoff.description }}</div>
+                  </div>
+                }
+
+                @if (step.receivedFrom; as recv) {
+                  <div class="handoff-box incoming">
+                    <div class="handoff-header">
+                      <span>👈 Triggered by / Received from:</span>
+                      <span class="handoff-badge">{{ recv.interactionType }}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="handoff-action-btn"
+                      (click)="navigateToHandoff(recv)"
+                      title="Jump to initiator {{ recv.targetTaxonomyName }} step"
+                    >
+                      🔗 {{ recv.targetTaxonomyName }} ➔ {{ recv.targetJourneyTitle }} (Step {{ recv.targetStepNumber }})
+                    </button>
+                    <div class="handoff-desc">{{ recv.description }}</div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="interlinks-panel">
+            <span style="font-weight:600;">Mutated Entities:</span>
+            @for (dt of journey.relatedDataTypes; track dt) {
+              <button
+                type="button"
+                class="interlink-chip"
+                (click)="docs.navigateToDataType(dt)"
+                title="View {{ dt }} in Core Data Types"
+              >
+                📦 {{ dt }}
+              </button>
+            }
+            <span style="font-weight:600;margin-left:1rem;">Triggered Pipelines:</span>
+            @for (fl of journey.relatedFlows; track fl) {
+              <button
+                type="button"
+                class="interlink-chip"
+                (click)="docs.navigateToFlow(fl)"
+                title="View {{ fl }} in Architecture Flows"
+              >
+                ⚡ {{ fl }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- TAB: 3-Tier Taxonomy: Users ➔ Journeys ➔ Steps -->
+  @if (activeSubTab() === 'taxonomy-tree') {
+    <div class="taxonomy-hierarchy-explorer content-card">
+      <div class="hierarchy-header">
+        <div>
+          <span class="tag-badge">3-Tier Taxonomy Drilldown</span>
+          <h2>🏛️ User Taxonomy ➔ Journeys ➔ Steps</h2>
+          <p class="subtitle">
+            Systematic drill-down from Persona Taxonomy Node to Owned & Participating Journeys, and their exact ordered Steps with inter-actor handoff transitions.
+          </p>
+        </div>
+        <div class="hierarchy-stats">
+          <span class="stat-pill"><strong>{{ docs.taxonomyHierarchy().length }}</strong> Personas</span>
+          <span class="stat-pill"><strong>{{ docs.journeysCatalog.length }}</strong> Canonical Journeys</span>
+        </div>
+      </div>
+
+      <div class="persona-accordion-list">
+        @for (persona of docs.taxonomyHierarchy(); track persona.personaId) {
+          <div class="persona-accordion-card" [class.is-expanded]="expandedPersonaId() === persona.personaId">
+            <button
+              type="button"
+              class="persona-accordion-header"
+              (click)="togglePersonaAccordion(persona.personaId)"
+              [attr.aria-expanded]="expandedPersonaId() === persona.personaId"
+            >
+              <div class="header-left">
+                <span class="category-chip">{{ persona.category }}</span>
+                <span class="persona-title">{{ persona.personaName }}</span>
+                <span class="journey-count-badge">{{ persona.journeys.length }} Journeys</span>
+              </div>
+              <div class="header-right">
+                <span class="accordion-chevron">{{ expandedPersonaId() === persona.personaId ? '▲' : '▼' }}</span>
+              </div>
+            </button>
+
+            @if (expandedPersonaId() === persona.personaId) {
+              <div class="persona-accordion-body">
+                <p class="role-desc">{{ persona.roleSummary }}</p>
+
+                <div class="hierarchy-journeys-container">
+                  @for (journey of persona.journeys; track journey.journeyId) {
+                    <div class="hierarchy-journey-card">
+                      <div class="journey-header">
+                        <div class="journey-meta">
+                          <span
+                            class="ownership-badge"
+                            [class.owner]="journey.isOwner"
+                            [class.participant]="!journey.isOwner"
+                          >
+                            {{ journey.isOwner ? '👑 Primary Owner' : '👥 Participating Actor' }}
+                          </span>
+                          <span class="journey-title">{{ journey.title }}</span>
+                        </div>
+                        <p class="journey-summary-small">{{ journey.summary }}</p>
+                      </div>
+
+                      <div class="hierarchy-steps-grid">
+                        @for (step of journey.steps; track step.stepNumber) {
+                          <div
+                            class="hierarchy-step-card"
+                            [id]="'hier-step-' + journey.journeyId + '-' + step.stepNumber"
+                            [class.highlight-active]="docs.activeHighlightedStepId() === ('step-' + journey.journeyId + '-' + step.stepNumber)"
+                          >
+                            <div class="step-num-badge">Step {{ step.stepNumber }}</div>
+                            <div class="step-actor-label">{{ step.actor }}</div>
+                            <div class="step-name">{{ step.title }}</div>
+                            <div class="step-detail">{{ step.description }}</div>
+                            @if (step.screenPath) {
+                              <div class="step-screen-path"><code>{{ step.screenPath }}</code></div>
+                            }
+
+                            @if (step.handoff; as handoff) {
+                              <div class="handoff-box outgoing">
+                                <div class="handoff-header">
+                                  <span>👉 Hands off to:</span>
+                                  <span class="handoff-badge">{{ handoff.interactionType }}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  class="handoff-action-btn"
+                                  (click)="navigateToHandoff(handoff)"
+                                  title="Jump to {{ handoff.targetTaxonomyName }}"
+                                >
+                                  🔗 {{ handoff.targetTaxonomyName }} ➔ {{ handoff.targetJourneyTitle }} (Step {{ handoff.targetStepNumber }})
+                                </button>
+                                <div class="handoff-desc">{{ handoff.description }}</div>
+                              </div>
+                            }
+
+                            @if (step.receivedFrom; as recv) {
+                              <div class="handoff-box incoming">
+                                <div class="handoff-header">
+                                  <span>👈 Received from:</span>
+                                  <span class="handoff-badge">{{ recv.interactionType }}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  class="handoff-action-btn"
+                                  (click)="navigateToHandoff(recv)"
+                                  title="Jump to {{ recv.targetTaxonomyName }}"
+                                >
+                                  🔗 {{ recv.targetTaxonomyName }} ➔ {{ recv.targetJourneyTitle }} (Step {{ recv.targetStepNumber }})
+                                </button>
+                                <div class="handoff-desc">{{ recv.description }}</div>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- TAB 2: Multi-Actor Collaborative Plans -->
+  @if (activeSubTab() === 'plans') {
+    <doc-plan-graph-viewer />
+  }
+
+  <!-- TAB 3: User Stories (Indexed by Taxonomy) -->
+  @if (activeSubTab() === 'stories') {
+    <div class="stories-index-container content-card">
+      <div class="stories-header">
+        <div>
+          <span class="tag-badge">Acceptance Criteria</span>
+          <h2>User Stories Indexed by User Taxonomy</h2>
+          <p class="subtitle">Filtered acceptance criteria stories from <code>docs/user-stories/*.md</code> mapped directly to user roles.</p>
+        </div>
+
+        <div class="taxonomy-filter">
+          <label for="storyTaxonomyFilter">Filter by Persona:</label>
+          <select id="storyTaxonomyFilter" [value]="storyFilterTaxonomyId()" (change)="storyFilterTaxonomyId.set($any($event.target).value)">
+            <option value="all">★ All Stories / Current Selection</option>
+            @for (node of docs.flatTaxonomy; track node.id) {
+              <option [value]="node.id">{{ node.name }} ({{ node.category }})</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="stories-grid">
+        @for (story of filteredStories(); track story.id) {
+          <div class="story-card">
+            <div class="story-top">
+              <span class="story-status-badge">{{ story.status }}</span>
+              <span class="story-area-badge">{{ story.area }}</span>
+            </div>
+
+            <h3 class="story-title">{{ story.title }}</h3>
+            <div class="story-role">Role: <strong>{{ story.role }}</strong></div>
+
+            <div class="story-statement">
+              <div class="statement-line"><strong>As a:</strong> {{ story.role }}</div>
+              <div class="statement-line"><strong>I want to:</strong> {{ story.capability }}</div>
+              <div class="statement-line"><strong>So that:</strong> {{ story.benefit }}</div>
+            </div>
+
+            <h4>Scenarios (Given / When / Then):</h4>
+            @for (sc of story.scenarios; track sc.name) {
+              <div class="scenario-box">
+                <div class="scenario-name">{{ sc.name }}</div>
+                <div class="sc-step"><span class="sc-label">Given:</span> {{ sc.given }}</div>
+                <div class="sc-step"><span class="sc-label">When:</span> {{ sc.when }}</div>
+                <div class="sc-step"><span class="sc-label">Then:</span> {{ sc.then }}</div>
+              </div>
+            }
+
+            <div class="code-pointers">
+              <div class="pointer-header">Source Code & Tests:</div>
+              @for (cr of story.codeReferences; track cr.file) {
+                <div class="pointer-row">
+                  <span class="file-path">{{ cr.file }}</span>
+                  <a [href]="docs.getVsCodeLink(cr.file, cr.line)" class="code-btn">💻 Open IDE</a>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- TAB 4: Site Surface Map -->
+  @if (activeSubTab() === 'surface-map') {
+    <div class="surface-map-container content-card">
+      <div class="surface-header">
+        <div>
+          <span class="tag-badge">Surface Map</span>
+          <h2>Site Surface Map (97+ Application Views)</h2>
+          <p class="subtitle">Complete catalog of views, routes, allowed actors, and mutations from <code>app.config.ts</code>.</p>
+        </div>
+
+        <div class="surface-filter">
+          <label for="roleFilter">Filter by Role:</label>
+          <select id="roleFilter" [value]="surfaceRoleFilter()" (change)="surfaceRoleFilter.set($any($event.target).value)">
+            <option value="all">All Roles</option>
+            <option value="member">Members</option>
+            <option value="instructor">Instructors</option>
+            <option value="school">School Managers</option>
+            <option value="event">Event Organizers</option>
+            <option value="admin">HQ Admins</option>
+            <option value="public">Public</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="surface-table">
+          <thead>
+            <tr>
+              <th>View ID</th>
+              <th>Path Pattern</th>
+              <th>Allowed Actors</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of filteredSurfaceMap(); track item.viewId) {
+              <tr>
+                <td><code>{{ item.viewId }}</code></td>
+                <td><span class="route-code">{{ item.pathPattern }}</span></td>
+                <td>
+                  <div class="actor-tags">
+                    @for (actor of item.permittedRoles; track actor) {
+                      <span class="actor-tag">{{ actor }}</span>
+                    }
+                  </div>
+                </td>
+                <td>{{ item.objective }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- TAB 5: Permissions & Security Rules Glossary -->
+  @if (activeSubTab() === 'permissions') {
+    <div id="permissionsGlossary" class="permissions-glossary-container content-card">
+      <div class="glossary-header">
+        <div>
+          <span class="tag-badge">Security Rules & Authorization Taxonomy</span>
+          <h2>🔐 Permissions & Security Rules Glossary</h2>
+          <p class="subtitle">
+            Exhaustive taxonomy of all {{ docs.permissionsCatalog.length }} access control tokens, mapped to their enforcement mechanism in <code>firestore.rules</code>, allowed read/write operations, target data entities, and granted user personas.
+          </p>
+        </div>
+
+        <div class="glossary-filters">
+          <div class="search-input-wrap">
+            <input
+              type="text"
+              class="filter-input"
+              placeholder="Search permissions, rules, data types..."
+              [value]="permissionSearchQuery()"
+              (input)="permissionSearchQuery.set($any($event.target).value)"
+            />
+          </div>
+
+          <div class="filter-selects">
+            <select
+              [value]="permissionCategoryFilter()"
+              (change)="permissionCategoryFilter.set($any($event.target).value)"
+              class="filter-select"
+            >
+              <option value="all">All Categories</option>
+              @for (cat of permissionCategories(); track cat) {
+                <option [value]="cat">{{ cat }}</option>
+              }
+            </select>
+
+            <select
+              [value]="permissionAccessTypeFilter()"
+              (change)="permissionAccessTypeFilter.set($any($event.target).value)"
+              class="filter-select"
+            >
+              <option value="all">All Access Types</option>
+              <option value="read">Read</option>
+              <option value="write">Write</option>
+              <option value="read-write">Read-Write</option>
+              <option value="admin">Admin</option>
+              <option value="system">System</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="permissions-grid">
+        @for (perm of filteredPermissions(); track perm.id) {
+          <div
+            class="permission-card"
+            [id]="'perm-' + perm.id"
+            [class.highlight-active]="docs.activeHighlightedPermissionId() === perm.id"
+          >
+            <div class="perm-card-top">
+              <div class="perm-badges">
+                <span class="category-chip">{{ perm.category }}</span>
+                <span class="access-badge" [attr.data-access]="perm.accessType">
+                  {{ perm.accessType }}
+                </span>
+              </div>
+              <code class="perm-id-code">{{ perm.id }}</code>
+            </div>
+
+            <h3 class="perm-card-title">{{ perm.title }}</h3>
+            <p class="perm-card-desc">{{ perm.description }}</p>
+
+            <div class="rules-snippet-box">
+              <div class="rules-snippet-label">
+                <span>Security Rules Enforcement:</span>
+                <code>firestore.rules</code>
+              </div>
+              <p class="rules-mech-text">{{ perm.securityRulesMechanism }}</p>
+              <pre><code>{{ perm.ruleCodeSnippet }}</code></pre>
+            </div>
+
+            <div class="perm-associations">
+              <div class="association-row">
+                <span class="assoc-label">Target Data Types:</span>
+                <div class="chips-wrap">
+                  @for (dt of perm.targetDataTypes; track dt) {
+                    <button
+                      type="button"
+                      class="interlink-chip"
+                      (click)="docs.navigateToDataType(dt)"
+                      title="View {{ dt }} in Core Data Types"
+                    >
+                      📦 {{ dt }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="association-row">
+                <span class="assoc-label">Granted Personas:</span>
+                <div class="chips-wrap">
+                  @for (personaId of perm.grantedPersonas; track personaId) {
+                    <button
+                      type="button"
+                      class="interlink-chip persona-chip"
+                      (click)="docs.navigateToPersona(personaId)"
+                      title="View {{ personaId }} persona details"
+                    >
+                      👤 {{ personaId }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Quick Permission Detail Modal / Drawer -->
+  @if (activePermissionModal(); as perm) {
+    <div class="modal-backdrop" (click)="closePermissionModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <div class="modal-badges">
+              <span class="category-chip">{{ perm.category }}</span>
+              <span class="access-badge" [attr.data-access]="perm.accessType">
+                {{ perm.accessType }}
+              </span>
+            </div>
+            <h3>{{ perm.title }}</h3>
+            <code class="perm-token">{{ perm.id }}</code>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="closePermissionModal()" aria-label="Close">
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="perm-desc">{{ perm.description }}</p>
+
+          <div class="rules-detail-section">
+            <h4>Firestore Rules Mechanism:</h4>
+            <p class="rules-mech-desc">{{ perm.securityRulesMechanism }}</p>
+            <pre class="rules-code"><code>{{ perm.ruleCodeSnippet }}</code></pre>
+          </div>
+
+          <div class="perm-relations-grid">
+            <div class="relation-block">
+              <h4>Target Data Types:</h4>
+              <div class="chips-container">
+                @for (dt of perm.targetDataTypes; track dt) {
+                  <button
+                    type="button"
+                    class="interlink-chip"
+                    (click)="docs.navigateToDataType(dt); closePermissionModal()"
+                    title="View {{ dt }} in View 3 Data Types"
+                  >
+                    📦 {{ dt }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="relation-block">
+              <h4>Granted Personas:</h4>
+              <div class="chips-container">
+                @for (personaId of perm.grantedPersonas; track personaId) {
+                  <button
+                    type="button"
+                    class="interlink-chip persona-chip"
+                    (click)="docs.navigateToPersona(personaId); closePermissionModal()"
+                    title="Select {{ personaId }} persona"
+                  >
+                    👤 {{ personaId }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="modal-secondary-btn"
+            (click)="viewPermissionInGlossary(perm.id)"
+          >
+            📖 View in Full Glossary
+          </button>
+          <button
+            type="button"
+            class="modal-primary-btn"
+            (click)="closePermissionModal()"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

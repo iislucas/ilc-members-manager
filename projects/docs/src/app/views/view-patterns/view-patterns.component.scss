@@ -1,0 +1,81 @@
+.view-patterns {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.view-header {
+  margin-bottom: 0.5rem;
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+
+  .view-desc {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-top: 0.35rem;
+  }
+}
+
+.tagline {
+  font-style: italic;
+  color: var(--primary);
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.pattern-section {
+  margin-bottom: 1rem;
+
+  h4 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: var(--text);
+  }
+
+  p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .solution-text {
+    color: var(--text);
+  }
+}
+
+h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.5rem 0;
+}
+
+.pointers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  .pointer-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg);
+    border-radius: 6px;
+    font-size: 0.825rem;
+    border: 1px solid var(--border);
+
+    .pointer-file {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .pointer-desc {
+      color: var(--text-muted);
+      margin-left: 0.6rem;
+    }
+  }
+}

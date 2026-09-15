@@ -1,0 +1,260 @@
+<div class="pipeline-flowchart-card">
+  <!-- View Mode Switcher & Header Bar -->
+  <div class="flowchart-header-bar">
+    <div class="flowchart-title-area">
+      <span class="flowchart-tier-badge">Visual Architecture Flowchart</span>
+      <span class="flow-trigger-info"><strong>Trigger:</strong> {{ flow.trigger }}</span>
+    </div>
+
+    <div class="flowchart-mode-pills">
+      <button
+        type="button"
+        class="mode-pill-btn"
+        [class.active]="viewMode() === 'flowchart'"
+        (click)="setViewMode('flowchart')"
+        title="Visual connected stage flowchart"
+      >
+        📊 Visual Flowchart
+      </button>
+      <button
+        type="button"
+        class="mode-pill-btn"
+        [class.active]="viewMode() === 'stages'"
+        (click)="setViewMode('stages')"
+        title="Tabular stage execution matrix"
+      >
+        📋 Stage Matrix
+      </button>
+      <button
+        type="button"
+        class="mode-pill-btn"
+        [class.active]="viewMode() === 'mermaid'"
+        (click)="setViewMode('mermaid')"
+        title="Mermaid flowchart definition"
+      >
+        🧜 Mermaid Code
+      </button>
+    </div>
+  </div>
+
+  <!-- MODE 1: Visual Interactive Flowchart -->
+  @if (viewMode() === 'flowchart') {
+    <div class="flowchart-viewport">
+      <!-- Specialized Branching Banners for Complex Pipelines -->
+      @if (flow.id === 'email-queue-processor') {
+        <div class="decision-gate-banner">
+          <div class="gate-title">
+            <span class="gate-icon">⚖️</span>
+            <span>Global <code>MailSendingStatus</code> 3-State Decision Gate:</span>
+          </div>
+          <div class="gate-branches">
+            <div class="branch-item branch-off">
+              <span class="branch-pill">Status: Off</span>
+              <span class="branch-arrow">➔</span>
+              <span class="branch-desc">🚫 Zero database writes; immediate log and exit</span>
+            </div>
+            <div class="branch-item branch-paused">
+              <span class="branch-pill">Status: Paused</span>
+              <span class="branch-arrow">➔</span>
+              <span class="branch-desc">⏸️ Enqueue placeholder with <code>PAUSED</code> status</span>
+            </div>
+            <div class="branch-item branch-active">
+              <span class="branch-pill">Status: Active / Admin Test</span>
+              <span class="branch-arrow">➔</span>
+              <span class="branch-desc">▶️ Interpret template, write <code>PENDING</code>, proceed to SMTP</span>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (flow.id === 'one-click-unsubscribe') {
+        <div class="decision-gate-banner">
+          <div class="gate-title">
+            <span class="gate-icon">🔐</span>
+            <span>RFC 8058 HMAC-SHA256 Token Verification Gate:</span>
+          </div>
+          <div class="gate-branches">
+            <div class="branch-item branch-off">
+              <span class="branch-pill">Invalid / Expired Token</span>
+              <span class="branch-arrow">➔</span>
+              <span class="branch-desc">❌ Reject with 400 Bad Request or error page</span>
+            </div>
+            <div class="branch-item branch-active">
+              <span class="branch-pill">Valid HMAC Hash</span>
+              <span class="branch-arrow">➔</span>
+              <span class="branch-desc">✅ Atomically update member opt-outs; return 200 OK</span>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Horizontal Flowchart Nodes Sequence -->
+      <div class="flowchart-track">
+        @for (step of flow.steps; track step.stepNumber; let idx = $index; let last = $last) {
+          <!-- Stage Flowchart Card -->
+          <div
+            class="flowchart-node-card"
+            [attr.data-tier]="step.tierType || inferTier(step.sourceTier)"
+            [class.is-selected]="selectedStep()?.stepNumber === step.stepNumber"
+            (click)="selectStep(step)"
+            role="button"
+            tabindex="0"
+            title="Click to inspect code files and payload details for Stage {{ step.stepNumber }}"
+          >
+            <div class="node-top">
+              <span class="node-step-pill">Stage {{ step.stepNumber }}</span>
+              <span class="tier-tag" [attr.data-tier]="step.tierType || inferTier(step.sourceTier)">
+                {{ getTierIcon(step.tierType, step.sourceTier) }} {{ getTierLabel(step.tierType, step.sourceTier) }}
+              </span>
+            </div>
+
+            <div class="node-tiers-flow">
+              <span class="source-tier">{{ step.sourceTier }}</span>
+              <span class="tier-arrow">➔</span>
+              <span class="target-tier">{{ step.targetTier }}</span>
+            </div>
+
+            <div class="node-action-text">{{ step.action }}</div>
+
+            <div class="node-payload-pill">
+              <span class="payload-label">Payload:</span>
+              <span class="payload-value">{{ step.payloadDescription }}</span>
+            </div>
+
+            <div class="node-inspect-hint">
+              <span>{{ selectedStep()?.stepNumber === step.stepNumber ? '▲ Close Details' : '🔍 Inspect Details' }}</span>
+              @if (step.codePointers.length > 0) {
+                <span class="code-count">{{ step.codePointers.length }} file(s)</span>
+              }
+            </div>
+          </div>
+
+          <!-- Connecting Arrow Between Nodes -->
+          @if (!last) {
+            <div class="flowchart-connector">
+              <svg class="connector-arrow-svg" viewBox="0 0 44 24" width="44" height="24">
+                <line x1="2" y1="12" x2="34" y2="12" stroke="currentColor" stroke-width="2" stroke-dasharray="3 2" />
+                <polygon points="34,7 43,12 34,17" fill="currentColor" />
+              </svg>
+              @if (step.protocol) {
+                <span class="connector-protocol-label">{{ step.protocol }}</span>
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- Active Stage Details Inspection Drawer -->
+    @if (selectedStep(); as step) {
+      <div class="stage-inspection-drawer">
+        <div class="drawer-header">
+          <div class="drawer-title-group">
+            <span class="stage-badge">Stage {{ step.stepNumber }} Inspection</span>
+            <h4>{{ step.sourceTier }} ➔ {{ step.targetTier }}</h4>
+            @if (step.protocol) {
+              <span class="protocol-chip">{{ step.protocol }}</span>
+            }
+          </div>
+          <button type="button" class="drawer-close-btn" (click)="closeStepDetails()" aria-label="Close details">✕</button>
+        </div>
+
+        <div class="drawer-body">
+          <div class="drawer-section">
+            <div class="section-heading">Action &amp; Processing Logic:</div>
+            <p class="section-content">{{ step.action }}</p>
+          </div>
+
+          <div class="drawer-section">
+            <div class="section-heading">Data Payload &amp; Schema:</div>
+            <div class="payload-box">
+              <code>{{ step.payloadDescription }}</code>
+            </div>
+          </div>
+
+          @if (step.codePointers.length > 0) {
+            <div class="drawer-section">
+              <div class="section-heading">Source Code Implementations:</div>
+              <div class="code-pointers-list">
+                @for (file of step.codePointers; track file) {
+                  <div class="pointer-item">
+                    <span class="file-path">{{ file }}</span>
+                    <div class="pointer-actions">
+                      <a [href]="docs.getVsCodeLink(file)" class="code-btn" title="Open in VS Code">
+                        💻 VS Code
+                      </a>
+                      <a [href]="docs.getGitHubLink(file)" class="code-btn" target="_blank" title="View on GitHub">
+                        🌐 GitHub
+                      </a>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <!-- MODE 2: Tabular Stage Matrix -->
+  @if (viewMode() === 'stages') {
+    <div class="stages-matrix-container">
+      <table class="stages-table">
+        <thead>
+          <tr>
+            <th>Stage</th>
+            <th>Source Tier</th>
+            <th>Protocol / Channel</th>
+            <th>Target Tier</th>
+            <th>Action</th>
+            <th>Payload Description</th>
+            <th>Source Files</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (step of flow.steps; track step.stepNumber) {
+            <tr>
+              <td><span class="step-cell-badge">#{{ step.stepNumber }}</span></td>
+              <td>
+                <span class="tier-tag-small" [attr.data-tier]="step.tierType || inferTier(step.sourceTier)">
+                  {{ getTierIcon(step.tierType, step.sourceTier) }} {{ step.sourceTier }}
+                </span>
+              </td>
+              <td><code>{{ step.protocol || 'Internal' }}</code></td>
+              <td><strong>{{ step.targetTier }}</strong></td>
+              <td>{{ step.action }}</td>
+              <td><code>{{ step.payloadDescription }}</code></td>
+              <td>
+                <div class="code-links-cell">
+                  @for (file of step.codePointers; track file) {
+                    <a [href]="docs.getVsCodeLink(file)" class="mini-code-link" title="Open in IDE">
+                      {{ file.split('/').pop() }}
+                    </a>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- MODE 3: Mermaid DSL Diagram -->
+  @if (viewMode() === 'mermaid') {
+    <div class="mermaid-dsl-container">
+      <div class="code-block-wrapper">
+        <pre><code>{{ flow.mermaidDiagram }}</code></pre>
+        <button
+          type="button"
+          class="copy-code-btn"
+          [class.copied]="copiedMermaid()"
+          (click)="copyMermaid()"
+        >
+          {{ copiedMermaid() ? '✓ Copied' : 'Copy Mermaid' }}
+        </button>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,216 @@
+<div class="view-data-types">
+  <div class="view-header">
+    <h1>📦 View 3: Core Data Types & Field Dictionaries</h1>
+    <p class="view-desc">
+      All 14 Firestore collections and TypeScript models across 8 functional domain groups with 3 hierarchical levels of detail: Executive Summary, Rules & Data Flow, and Technical Schemas.
+    </p>
+  </div>
+
+  <div class="data-types-list">
+    @for (dt of docs.dataTypesCatalog; track dt.id) {
+      <section
+        [id]="'datatype-' + dt.id"
+        class="content-card"
+        [class.highlight-active]="docs.activeHighlightedDataTypeId() === dt.id"
+      >
+        <div class="content-header">
+          <div>
+            <span class="tag-badge">{{ dt.domain }}</span>
+            <h2>{{ dt.name }}</h2>
+            <div class="collection-path">
+              Firestore Collection: <code>{{ dt.collectionPath }}</code>
+            </div>
+          </div>
+
+          <div class="code-actions">
+            <a [href]="docs.getVsCodeLink(dt.sourceFile)" class="code-btn" title="Open source file in VS Code">
+              💻 VS Code
+            </a>
+            <a [href]="docs.getGitHubLink(dt.sourceFile)" class="code-btn" target="_blank" title="View on GitHub">
+              🌐 GitHub
+            </a>
+          </div>
+        </div>
+
+        <!-- 3-Level Detail Switcher -->
+        <div class="level-tabs">
+          <button
+            type="button"
+            class="level-tab"
+            [class.active]="getLevel(dt.id) === 1"
+            (click)="setLevel(dt.id, 1)"
+          >
+            Level 1: Executive Summary
+          </button>
+          <button
+            type="button"
+            class="level-tab"
+            [class.active]="getLevel(dt.id) === 2"
+            (click)="setLevel(dt.id, 2)"
+          >
+            Level 2: Rules & Data Flow
+          </button>
+          <button
+            type="button"
+            class="level-tab"
+            [class.active]="getLevel(dt.id) === 3"
+            (click)="setLevel(dt.id, 3)"
+          >
+            Level 3: Technical Schema & Fields
+          </button>
+        </div>
+
+        <!-- LEVEL 1 -->
+        @if (getLevel(dt.id) === 1) {
+          <div class="level-panel">
+            <p class="summary-text">{{ dt.summary }}</p>
+            <div class="meta-grid">
+              <div><strong>Owner / Authority:</strong> {{ dt.ownership }}</div>
+              <div><strong>Cardinality:</strong> {{ dt.cardinality }}</div>
+              <div><strong>Source File:</strong> <code>{{ dt.sourceFile }}</code></div>
+            </div>
+          </div>
+        }
+
+        <!-- LEVEL 2 -->
+        @if (getLevel(dt.id) === 2) {
+          <div class="level-panel">
+            <div class="rules-block">
+              <h4>Security Rules & Access Control (firestore.rules):</h4>
+              <p>{{ dt.rulesSummary }}</p>
+            </div>
+            <div class="concurrency-block">
+              <h4>Read / Write Roles:</h4>
+              <p>Read: {{ dt.readRoles.join(', ') }} • Write: {{ dt.writeRoles.join(', ') }}</p>
+            </div>
+            @if (dt.enforcingPermissions?.length) {
+              <div class="permissions-enforcement-block">
+                <h4>Enforcing Permissions & Access Rules:</h4>
+                <div class="chips-container">
+                  @for (p of dt.enforcingPermissions; track p) {
+                    <button
+                      type="button"
+                      class="perm-chip-btn"
+                      (click)="docs.navigateToPermission(p)"
+                      title="View {{ p }} in Security Rules Glossary"
+                    >
+                      🔐 {{ p }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+            @if (dt.affectedTriggers.length) {
+              <div class="triggers-block">
+                <strong>Attached Cloud Triggers:</strong> {{ dt.affectedTriggers.join(', ') }}
+              </div>
+            }
+            @if (dt.mirrorTargets.length) {
+              <div class="mirror-block">
+                <strong>Subcollection Mirroring Targets:</strong> {{ dt.mirrorTargets.join(', ') }}
+              </div>
+            }
+          </div>
+        }
+
+        <!-- LEVEL 3 -->
+        @if (getLevel(dt.id) === 3) {
+          <div class="level-panel">
+            <h4>TypeScript Interface:</h4>
+            <div class="code-block-wrapper">
+              <pre><code>{{ dt.tsInterface }}</code></pre>
+              <button
+                type="button"
+                class="copy-code-btn"
+                [class.copied]="copiedInterfaceId() === dt.id"
+                (click)="copyInterface(dt.tsInterface, dt.id)"
+              >
+                {{ copiedInterfaceId() === dt.id ? '✓ Copied' : 'Copy' }}
+              </button>
+            </div>
+
+            <h4>Field Dictionary:</h4>
+            <div class="table-wrapper">
+              <table class="fields-table">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (f of dt.fields; track f.name) {
+                    <tr>
+                      <td><code>{{ f.name }}</code></td>
+                      <td><span class="type-code">{{ f.type }}</span></td>
+                      <td>{{ f.required ? 'Yes' : 'No' }}</td>
+                      <td style="color:var(--text-muted);">{{ f.description }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+
+        <div class="interlinks-panel">
+          @if (dt.relatedPersonas?.length) {
+            <div class="interlink-group">
+              <span class="interlink-label">Referencing Users:</span>
+              <div class="interlink-chips">
+                @for (p of dt.relatedPersonas; track p) {
+                  <button
+                    type="button"
+                    class="interlink-chip persona-chip"
+                    (click)="docs.navigateToPersona(p)"
+                    title="View {{ p }} persona"
+                  >
+                    👤 {{ p }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          @if (dt.relatedJourneys.length) {
+            <div class="interlink-group">
+              <span class="interlink-label">Referencing Journeys:</span>
+              <div class="interlink-chips">
+                @for (j of dt.relatedJourneys; track j) {
+                  <button
+                    type="button"
+                    class="interlink-chip journey-chip"
+                    (click)="docs.navigateToJourney(j)"
+                    title="View journey {{ j }}"
+                  >
+                    👥 {{ j }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          @if (dt.relatedFlows.length) {
+            <div class="interlink-group">
+              <span class="interlink-label">Information Flows:</span>
+              <div class="interlink-chips">
+                @for (fl of dt.relatedFlows; track fl) {
+                  <button
+                    type="button"
+                    class="interlink-chip flow-chip"
+                    (click)="docs.navigateToFlow(fl)"
+                    title="View architecture flow {{ fl }}"
+                  >
+                    ⚡ {{ fl }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  </div>
+</div>
