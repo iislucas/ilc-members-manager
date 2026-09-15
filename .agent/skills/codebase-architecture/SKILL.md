@@ -38,6 +38,8 @@ to the relevant files instead of re-exploring.
 | `VideoItem`, `VideoGrant`, `VideoProgress`, `VodAccessTier`, `VodStatus` | [functions/src/data-model/vod.ts](../../functions/src/data-model/vod.ts) |
 | Streaming Session & Access Verification (`getVideoPlaybackSession`) | [functions/src/vod/get-playback-session.ts](../../functions/src/vod/get-playback-session.ts) |
 | Transcoding Pipeline (GCP Transcoder API, Cloud Pub/Sub) | [functions/src/vod/transcode-video.ts](../../functions/src/vod/transcode-video.ts), [functions/src/vod/on-transcode-finished.ts](../../functions/src/vod/on-transcode-finished.ts) |
+| Resumable Chunked Upload Engine (`ResumableUploadService`) | [src/app/manage-vod-upload/resumable-upload.service.ts](../../src/app/manage-vod-upload/resumable-upload.service.ts) |
+| VOD Upload Console with Multi-Part Series & Pause/Resume (`/manage-vod/upload`) | [src/app/manage-vod-upload/](../../src/app/manage-vod-upload/) |
 | Unified Catalog Component (`mode="vod"` \| `"class_library"`) | [src/app/videos-catalog/](../../src/app/videos-catalog/) |
 | Dedicated Class Video Library Page (`/class-video-library`) | [src/app/class-video-library/](../../src/app/class-video-library/) |
 | Video Playback & Trailer Preview Page (`/videos/:videoId`) | [src/app/video-view/](../../src/app/video-view/) |

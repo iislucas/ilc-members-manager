@@ -283,3 +283,26 @@ This security rule supports both standard direct reads `/members/{memberDocId}/u
    └── pnpm build
 ```
 
+---
+
+## 8. Resumable Uploads for Large Files (VOD & Multi-Gigabyte Media)
+
+To prevent upload failures on large multi-gigabyte video files (e.g. 8 GB seminar or class recordings), the platform provides chunked, resumable uploads via [`ResumableUploadService`](../src/app/manage-vod-upload/resumable-upload.service.ts):
+
+1. **Protocol (`uploadBytesResumable`)**:
+   - Uses the native Google Cloud Storage Resumable Upload protocol.
+   - Splits transfers into 256 KB-scaled chunks with exponential backoff on transient network failures.
+   - **No special Cloud project setup needed**: The GCS Resumable Upload API protocol is supported natively out-of-the-box by all standard Google Cloud Storage / Firebase Storage buckets and emulators without requiring new IAM roles, CORS adjustments, or enabled APIs.
+2. **Extended Timeout (`maxUploadRetryTime`)**:
+   - Firebase Storage Web SDK defaults to a 10-minute retry limit (`maxUploadRetryTime = 600000`), which fails with `storage/retry-limit-exceeded` for any 8 GB file requiring more than 10 minutes to upload (under ~107 Mbps sustained upload).
+   - `ResumableUploadService` sets `storage.maxUploadRetryTime = 24 * 60 * 60 * 1000` (24 hours) on the storage instance, allowing transfers to run for hours without timeout aborts.
+3. **Session Persistence in `localStorage`**:
+   - The unique GCS `uploadUrl` session is cached in `localStorage` keyed by `file.name + file.size + file.lastModified`.
+   - If an upload is paused, the network disconnects, or the user refreshes/re-selects the file, the service sends `X-Goog-Upload-Command: query` to GCS to retrieve `X-Goog-Upload-Size-Received`.
+   - The upload continues directly from that byte offset without restarting from 0% or wasting user bandwidth.
+   - Sessions expire after 7 days and are cleaned up immediately upon upload completion or file removal.
+4. **Per-File Controls & Protection**:
+   - Independent file states (`idle`, `uploading`, `paused`, `transcoding`, `done`, `error`) allow retrying failed parts without re-uploading completed parts in multi-part series.
+   - Per-item Pause, Resume, and Retry buttons with live byte counters, transfer speed (MB/s), and ETA.
+   - Window `beforeunload` protection warns users against closing the tab during active transfers.
+
