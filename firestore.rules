@@ -55,8 +55,19 @@ service cloud.firestore {
       }
       allow read: if isOwner() || isAdmin() || isManagerOfMemberSchool();
       allow delete: if isAdmin();
-      allow write: if hasValidEditUpdate() && (isAdmin() || isManagerOfMemberSchool());
+      allow write: if hasValidEditUpdate() && isAdmin();
+      allow update: if hasValidEditUpdate() && isManagerOfMemberSchool() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
+           'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone',
+           'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId',
+           'notificationSettings', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicCoverImageUrl', 'publicBioMarkdown',
+           'membershipType', 'firstMembershipStarted', 'lastRenewalDate', 'currentMembershipExpires',
+           'studentLevel', 'applicationLevel', 'mastersLevels',
+           'instructorId', 'instructorLicenseExpires', 'instructorLicenseRenewalDate', 'instructorLicenseType',
+           'notes']);
       allow update: if hasValidEditUpdate() && isOwner() && 
+         (!('emails' in request.resource.data.diff(resource.data).affectedKeys()) || (request.auth.token.email in request.resource.data.emails)) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
            'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone',
@@ -255,6 +266,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Mail secrets (e.g. HMAC unsubscribe secret). Admin only.
+    match /system/mail-secrets {
+      allow read, write: if isAdmin();
+    }
+
     match /system/deletions/{collectionName}/{document=**} {
       allow read: if (collectionName in ['instructors', 'schools', 'events', 'videos']) || isAdmin();
       allow write: if isAdmin();
@@ -422,16 +438,18 @@ service cloud.firestore {
              'paymentStatus', 'paymentNote', 'studentLevelAtAcceptance', 'applicationLevelAtAcceptance',
              'declineNotes']);
       // Before acceptance the student owns the linked event and request fields.
+      // Students may only move status to pending or awaiting-instructor-acceptance.
       allow update: if hasValidEditUpdate() && isGradingStudent() && !gradingIsAccepted() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingEvent', 'gradingEventDate', 'gradingEventDocId',
              'gradingInstructorId', 'studentNotes', 'declineNotes',
-             'statusChangedByMemberDocId', 'statusChangedByName']);
-      // After acceptance the event fields belong to the grading manager, so the
-      // student may update everything else but no longer the linked event.
+             'statusChangedByMemberDocId', 'statusChangedByName']) &&
+          request.resource.data.status in [resource.data.status, 'pending', 'awaiting-instructor-acceptance'];
+      // After acceptance the event fields and status belong to the grading manager/admin,
+      // so the student may update notes/instructors but no longer the linked event or status.
       allow update: if hasValidEditUpdate() && isGradingStudent() && gradingIsAccepted() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'status', 'gradingInstructorId', 'studentNotes', 'declineNotes',
+            ['lastUpdated', 'gradingInstructorId', 'studentNotes', 'declineNotes',
              'statusChangedByMemberDocId', 'statusChangedByName']);
     }
 

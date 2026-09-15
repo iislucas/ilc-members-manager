@@ -5,6 +5,7 @@ import {
   injectMeta,
   formatEventDate,
   buildEventPreview,
+  resolveWhitelistedHost,
   Preview,
 } from './social-preview';
 
@@ -146,5 +147,26 @@ describe('injectMeta', () => {
       'https://x/e/1',
     );
     expect(out).toContain('content="A &quot;quoted&quot; &amp; &lt;tag&gt;"');
+  });
+});
+
+describe('resolveWhitelistedHost', () => {
+  it('allows whitelisted domains including ports', () => {
+    expect(resolveWhitelistedHost('app.iliqchuan.com')).toBe('app.iliqchuan.com');
+    expect(resolveWhitelistedHost('iliqchuan.com')).toBe('iliqchuan.com');
+    expect(resolveWhitelistedHost('localhost:5001')).toBe('localhost:5001');
+    expect(resolveWhitelistedHost('127.0.0.1:8080')).toBe('127.0.0.1:8080');
+    expect(resolveWhitelistedHost('ilc-paris-class-tracker.web.app')).toBe('ilc-paris-class-tracker.web.app');
+  });
+
+  it('rejects untrusted external domains and falls back to app.iliqchuan.com (CRIT-5)', () => {
+    expect(resolveWhitelistedHost('evil.com')).toBe('app.iliqchuan.com');
+    expect(resolveWhitelistedHost('attacker.example.org:1234')).toBe('app.iliqchuan.com');
+    expect(resolveWhitelistedHost('not-iliqchuan.com')).toBe('app.iliqchuan.com');
+  });
+
+  it('returns default fallback when host is empty or undefined', () => {
+    expect(resolveWhitelistedHost(undefined)).toBe('app.iliqchuan.com');
+    expect(resolveWhitelistedHost('')).toBe('app.iliqchuan.com');
   });
 });

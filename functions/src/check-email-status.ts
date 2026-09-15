@@ -10,7 +10,7 @@
  * a much clearer login UX.
  */
 
-import { onCall } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
@@ -18,10 +18,41 @@ import { CheckEmailStatusResult } from './data-model/system';
 
 const GOOGLE_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
 
+// In-memory sliding-window rate limiter per client IP to hinder automated email enumeration
+const ipRequests = new Map<string, number[]>();
+const WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 30;
+
+export function isCheckEmailRateLimited(ip: string, now = Date.now()): boolean {
+  if (!ip || ip === 'unknown') return false;
+  const timestamps = ipRequests.get(ip) || [];
+  const validTimestamps = timestamps.filter((t) => now - t < WINDOW_MS);
+  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    ipRequests.set(ip, validTimestamps);
+    return true;
+  }
+  validTimestamps.push(now);
+  ipRequests.set(ip, validTimestamps);
+  if (ipRequests.size > 5000) {
+    for (const [k, times] of ipRequests.entries()) {
+      if (times.every((t) => now - t >= WINDOW_MS)) {
+        ipRequests.delete(k);
+      }
+    }
+  }
+  return false;
+}
+
 export const checkEmailStatus = onCall<
   { email: string },
   Promise<CheckEmailStatusResult>
 >({ cors: allowedOrigins }, async (request) => {
+  const clientIp = request.rawRequest?.ip || 'unknown';
+  if (isCheckEmailRateLimited(clientIp)) {
+    logger.warn('checkEmailStatus: rate limit exceeded', { ip: clientIp });
+    throw new HttpsError('resource-exhausted', 'Too many requests. Please try again later.');
+  }
+
   const email = request.data?.email?.trim().toLowerCase();
   if (!email) {
     return { hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: false };

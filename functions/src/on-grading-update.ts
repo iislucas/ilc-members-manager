@@ -831,6 +831,20 @@ export const onGradingUpdated = onDocumentUpdated(
       grading.studentMemberId &&
       grading.level !== StudentLevel.None
     ) {
+      // Backend defense (CRIT-1): Verify the student did not self-promote to Passed (unless admin)
+      const actorIsAdmin = await isMemberAdmin(grading.statusChangedByMemberDocId);
+      if (
+        !actorIsAdmin &&
+        grading.studentMemberDocId &&
+        grading.statusChangedByMemberDocId &&
+        grading.studentMemberDocId === grading.statusChangedByMemberDocId
+      ) {
+        logger.error(
+          `Security violation: Student ${grading.studentMemberId} (${grading.studentMemberDocId}) attempted self-promotion to Passed on grading ${gradingDocId}. Level update blocked.`,
+        );
+        return;
+      }
+
       // Look up the student by their human-readable memberId
       const studentQuery = await db
         .collection('members')

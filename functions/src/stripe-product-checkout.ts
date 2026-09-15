@@ -1159,7 +1159,11 @@ export const markEventRegistrationPaid = onCall<
   }
   const event = eventSnap.data() as IlcEvent;
   const callerEmail = (request.auth?.token?.email || '').toLowerCase().trim();
-  const isAdmin = request.auth?.token?.admin === true;
+  let isAdmin = false;
+  if (callerEmail) {
+    const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
+    isAdmin = aclSnap.data()?.isAdmin === true;
+  }
 
   let isManager = false;
   if (callerEmail) {

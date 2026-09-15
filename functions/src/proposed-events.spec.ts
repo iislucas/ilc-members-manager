@@ -1,6 +1,13 @@
-/* proposed-events.spec.ts — tests for event proposal validation. */
-import { describe, it, expect } from 'vitest';
-import { validateProposal, validateProposalStatus, buildManagerDocIds, resolveEventContacts, sameContacts } from './proposed-events';
+import { describe, it, expect, vi } from 'vitest';
+import * as admin from 'firebase-admin';
+import {
+  validateProposal,
+  validateProposalStatus,
+  buildManagerDocIds,
+  resolveEventContacts,
+  sameContacts,
+  deleteStorageFiles,
+} from './proposed-events';
 import { EventContact, EventStatus, initEventContact } from './data-model/events';
 import { Member, MembershipType } from './data-model/members';
 
@@ -181,5 +188,30 @@ describe('sameContacts', () => {
   it('is sensitive to order and content', () => {
     expect(sameContacts([a], [])).toBe(false);
     expect(sameContacts([a], [{ ...a, name: 'Someone Else' }])).toBe(false);
+  });
+});
+
+describe('deleteStorageFiles', () => {
+  it('skips URLs that do not start with events/{eventId}/ prefix (CRIT-3)', async () => {
+    const deletedPaths: string[] = [];
+    const mockFile = (path: string) => ({
+      delete: async () => {
+        deletedPaths.push(path);
+      },
+    });
+    vi.spyOn(admin, 'storage').mockReturnValue({
+      bucket: () => ({
+        file: mockFile,
+      }),
+    } as any);
+
+    const urls = [
+      'https://firebasestorage.googleapis.com/v0/b/bucket/o/events%2Fevt123%2Fdoc.pdf?alt=media',
+      'https://firebasestorage.googleapis.com/v0/b/bucket/o/events%2Fother-evt%2Fdoc.pdf?alt=media',
+      'https://firebasestorage.googleapis.com/v0/b/bucket/o/members%2Fsecret.png?alt=media',
+    ];
+
+    await deleteStorageFiles(urls, 'evt123');
+    expect(deletedPaths).toEqual(['events/evt123/doc.pdf']);
   });
 });

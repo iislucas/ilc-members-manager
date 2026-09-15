@@ -2,28 +2,53 @@ import * as crypto from 'crypto';
 import * as admin from 'firebase-admin';
 import { MailSettings } from './data-model/mail';
 
+import { FieldValue } from 'firebase-admin/firestore';
+
 /**
  * Fallback static secret used ONLY in test/offline environments when Firestore is unavailable.
  */
 const DEFAULT_TEST_SECRET = 'ilc-insecure-test-unsubscribe-secret';
 
 /**
- * Retrieves or automatically initializes a persistent 32-byte secret in `/system/mail-settings`.
- * This self-bootstrapping secret avoids needing interactive Google Cloud Secret Manager prompts during deploys.
+ * Retrieves or automatically initializes a persistent 32-byte secret in `/system/mail-secrets` (admin-only).
+ * Migrates any legacy secret from the public `/system/mail-settings` to avoid breaking existing links.
  */
 export async function getUnsubscribeSecret(db: admin.firestore.Firestore): Promise<string> {
-  try {
-    const mailSettingsRef = db.doc('system/mail-settings');
-    const snap = await mailSettingsRef.get();
-    const data = snap.data() as MailSettings | undefined;
+  if (process.env['UNSUBSCRIBE_SECRET']) {
+    return process.env['UNSUBSCRIBE_SECRET'];
+  }
 
-    if (data?.unsubscribeSecret) {
-      return data.unsubscribeSecret;
+  try {
+    const secretsRef = db.doc('system/mail-secrets');
+    const secretsSnap = await secretsRef.get();
+    const secretsData = secretsSnap.data() as { unsubscribeSecret?: string } | undefined;
+    if (secretsData?.unsubscribeSecret) {
+      return secretsData.unsubscribeSecret;
     }
 
-    const newSecret = crypto.randomBytes(32).toString('hex');
-    await mailSettingsRef.set({ unsubscribeSecret: newSecret }, { merge: true });
-    return newSecret;
+    // Check if a legacy secret exists in system/mail-settings to migrate
+    const mailSettingsRef = db.doc('system/mail-settings');
+    const settingsSnap = await mailSettingsRef.get();
+    const settingsData = settingsSnap.data() as MailSettings & { unsubscribeSecret?: string } | undefined;
+
+    let secretToPersist = settingsData?.unsubscribeSecret;
+    if (!secretToPersist) {
+      secretToPersist = crypto.randomBytes(32).toString('hex');
+    }
+
+    // Save to private /system/mail-secrets
+    await secretsRef.set({ unsubscribeSecret: secretToPersist }, { merge: true });
+
+    // Clean up legacy key from public /system/mail-settings if it was present
+    if (settingsData?.unsubscribeSecret) {
+      try {
+        await mailSettingsRef.update({ unsubscribeSecret: FieldValue.delete() });
+      } catch {
+        // Non-blocking cleanup
+      }
+    }
+
+    return secretToPersist;
   } catch {
     return process.env['UNSUBSCRIBE_SECRET'] || DEFAULT_TEST_SECRET;
   }

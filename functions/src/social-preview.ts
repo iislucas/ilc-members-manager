@@ -224,11 +224,48 @@ export function injectMeta(html: string, preview: Preview, url: string): string 
   return out;
 }
 
+const DEFAULT_FALLBACK_HOST = 'app.iliqchuan.com';
+
+export function resolveWhitelistedHost(rawHost?: string): string {
+  if (!rawHost) return DEFAULT_FALLBACK_HOST;
+  const hostWithoutPort = rawHost.split(':')[0].toLowerCase().trim();
+
+  const allowedExact = [
+    'app.iliqchuan.com',
+    'iliqchuan.com',
+    'ilc-paris-class-tracker.web.app',
+    'ilc-paris-class-tracker.firebaseapp.com',
+    'localhost',
+    '127.0.0.1',
+  ];
+
+  if (process.env.GCLOUD_PROJECT) {
+    allowedExact.push(`${process.env.GCLOUD_PROJECT}.web.app`);
+    allowedExact.push(`${process.env.GCLOUD_PROJECT}.firebaseapp.com`);
+  }
+
+  if (allowedExact.includes(hostWithoutPort)) {
+    return rawHost.trim();
+  }
+
+  if (
+    hostWithoutPort.endsWith('.iliqchuan.com') ||
+    hostWithoutPort.endsWith('.web.app') ||
+    hostWithoutPort.endsWith('.firebaseapp.com')
+  ) {
+    return rawHost.trim();
+  }
+
+  logger.warn(`socialPreview: untrusted host header rejected: "${rawHost}". Falling back to ${DEFAULT_FALLBACK_HOST}`);
+  return DEFAULT_FALLBACK_HOST;
+}
+
 export const socialPreview = onRequest(async (request, response) => {
-  const host =
+  const rawHost =
     request.get('x-forwarded-host') ||
     request.get('host') ||
-    `${process.env.GCLOUD_PROJECT}.web.app`;
+    (process.env.GCLOUD_PROJECT ? `${process.env.GCLOUD_PROJECT}.web.app` : undefined);
+  const host = resolveWhitelistedHost(rawHost);
   const path = request.path;
   const canonicalUrl = `https://${host}${path}`;
 
