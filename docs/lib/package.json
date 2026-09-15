@@ -1,0 +1,30 @@
+{
+  "name": "@ilc/docs-core",
+  "version": "1.0.0",
+  "description": "Core documentation knowledge base, 5-view catalog, code link resolver, and website generator for ILC Members Manager",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --config vitest.config.ts --no-color",
+    "generate": "ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' src/renderer/build-site.ts"
+  },
+  "keywords": [
+    "documentation",
+    "ilc",
+    "architecture",
+    "catalogs",
+    "resolver"
+  ],
+  "author": "ILC Dev Team",
+  "license": "MIT",
+  "dependencies": {
+    "minisearch": "^7.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.0"
+  }
+}
