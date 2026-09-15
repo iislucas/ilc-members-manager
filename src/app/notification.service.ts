@@ -21,19 +21,64 @@ import {
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { FirebaseStateService } from './firebase-state.service';
-import { CachedBlogPost, initCachedBlogPost } from '../../functions/src/data-model/content-cache';
-import { EventStatus, IlcEvent, eventStatusLabel, initEvent } from '../../functions/src/data-model/events';
-import { Grading, GradingStatus, firestoreDocToGrading, isGradingPaid } from '../../functions/src/data-model/gradings';
-import { UploadItem, firestoreDocToUploadItem } from '../../functions/src/data-model/materials';
-import { ExpiryStatus, Member, MembershipType, PushSubscriptionDoc } from '../../functions/src/data-model/members';
-import { MemberNotification, NotificationBlogPostData, NotificationBlogPostsSummaryData, NotificationEventData, NotificationGradingData, NotificationKind, NotificationOrderIssueData, NotificationOrderIssuesSummaryData, NotificationPendingEventsSummaryData, NotificationStyle, NotificationUnpaidGradingsSummaryData, NotificationUploadData, NotificationUploadsSummaryData, firestoreDocToMemberNotification, notificationStyle } from '../../functions/src/data-model/notifications';
-import { Order, OrderKind, OrderStatus, SquareSpaceOrder, SquarespaceFulfillmentStatus, firestoreDocToOrder } from '../../functions/src/data-model/orders';
+import {
+  CachedBlogPost,
+  initCachedBlogPost,
+} from '../../functions/src/data-model/content-cache';
+import {
+  EventStatus,
+  IlcEvent,
+  eventStatusLabel,
+  initEvent,
+} from '../../functions/src/data-model/events';
+import {
+  Grading,
+  GradingStatus,
+  firestoreDocToGrading,
+  isGradingPaid,
+} from '../../functions/src/data-model/gradings';
+import {
+  UploadItem,
+  firestoreDocToUploadItem,
+} from '../../functions/src/data-model/materials';
+import {
+  ExpiryStatus,
+  Member,
+  MembershipType,
+  PushSubscriptionDoc,
+} from '../../functions/src/data-model/members';
+import {
+  MemberNotification,
+  NotificationBlogPostData,
+  NotificationBlogPostsSummaryData,
+  NotificationEventData,
+  NotificationGradingData,
+  NotificationKind,
+  NotificationOrderIssueData,
+  NotificationOrderIssuesSummaryData,
+  NotificationPendingEventsSummaryData,
+  NotificationStyle,
+  NotificationUnpaidGradingsSummaryData,
+  NotificationUploadData,
+  NotificationUploadsSummaryData,
+  firestoreDocToMemberNotification,
+  notificationStyle,
+} from '../../functions/src/data-model/notifications';
+import {
+  Order,
+  OrderKind,
+  OrderStatus,
+  SquareSpaceOrder,
+  SquarespaceFulfillmentStatus,
+  firestoreDocToOrder,
+} from '../../functions/src/data-model/orders';
 import { getInstructorExpiryStatus } from './member-tags';
 import { environment } from '../environments/environment';
 
 export interface LocalNotificationSettings {
   pushEnabled: { [kind in NotificationKind]?: boolean };
   homeEnabled: { [kind in NotificationKind]?: boolean };
+  devicePushEnabled?: boolean;
 }
 
 // The subset of PushSubscription.toJSON() we rely on: the endpoint plus the two
@@ -98,11 +143,16 @@ export class NotificationService implements OnDestroy {
   // notifications and the remaining items are grouped into a single summary notification.
   private static readonly MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP = 3;
 
-  private static readonly MAX_BLOG_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
-  private static readonly MAX_PENDING_EVENT_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
-  private static readonly MAX_ORDER_ISSUE_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
-  private static readonly MAX_NEW_UPLOAD_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
-  private static readonly MAX_UNPAID_GRADING_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_BLOG_NOTIFICATIONS =
+    NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_PENDING_EVENT_NOTIFICATIONS =
+    NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_ORDER_ISSUE_NOTIFICATIONS =
+    NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_NEW_UPLOAD_NOTIFICATIONS =
+    NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_UNPAID_GRADING_NOTIFICATIONS =
+    NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
 
   // Grading statuses that count as "completed" for the unpaid-grading check.
   private static readonly COMPLETED_GRADING_STATUSES: GradingStatus[] = [
@@ -118,9 +168,21 @@ export class NotificationService implements OnDestroy {
 
   // The blog feeds we surface notifications for. `route` is the hash-router
   // path prefix used to deep-link to an individual post by its urlId.
-  private static readonly BLOG_FEEDS: { collection: string; label: string; route: string }[] = [
-    { collection: 'members-post', label: 'Members', route: 'members-area/post' },
-    { collection: 'instructors-post', label: "Instructors'", route: 'instructors-area/post' },
+  private static readonly BLOG_FEEDS: {
+    collection: string;
+    label: string;
+    route: string;
+  }[] = [
+    {
+      collection: 'members-post',
+      label: 'Members',
+      route: 'members-area/post',
+    },
+    {
+      collection: 'instructors-post',
+      label: "Instructors'",
+      route: 'instructors-area/post',
+    },
   ];
 
   public dismissSyncError() {
@@ -143,9 +205,14 @@ export class NotificationService implements OnDestroy {
     // Track this device's live push subscription so the UI reflects whether
     // push is currently enabled here.
     if (this.swPush?.isEnabled) {
-      this.swPush.subscription.subscribe((sub) =>
-        this.pushDeviceEnabled.set(!!sub),
-      );
+      this.swPush.subscription.subscribe((sub) => {
+        if (this.localSettings().devicePushEnabled === undefined && sub) {
+          this.updateLocalSettings({ devicePushEnabled: true });
+        }
+        this.pushDeviceEnabled.set(
+          !!sub && this.localSettings().devicePushEnabled !== false,
+        );
+      });
     }
 
     // Effect to react to changes in the authenticated user
@@ -186,11 +253,13 @@ export class NotificationService implements OnDestroy {
             this.setSyncError('Failed to sync new upload notifications', e);
           });
         }
-        // If the member has already granted notification permission, (re)register
-        // this device's web-push subscription so background pushes can reach them.
-        this.registerPushSubscription(user.member.docId).catch((e) =>
-          console.error('Failed to register push subscription:', e),
-        );
+        // If the member has already granted notification permission and device push is not disabled,
+        // (re)register this device's web-push subscription so background pushes can reach them.
+        if (this.localSettings().devicePushEnabled !== false) {
+          this.registerPushSubscription(user.member.docId).catch((e) =>
+            console.error('Failed to register push subscription:', e),
+          );
+        }
       } else {
         this.unsubscribe();
         this.notifications.set([]);
@@ -257,7 +326,9 @@ export class NotificationService implements OnDestroy {
     }
     try {
       const sub = await firstValueFrom(this.swPush.subscription);
-      this.pushDeviceEnabled.set(!!sub);
+      this.pushDeviceEnabled.set(
+        !!sub && this.localSettings().devicePushEnabled !== false,
+      );
     } catch (e) {
       console.error('Failed to read push subscription state:', e);
     }
@@ -268,6 +339,8 @@ export class NotificationService implements OnDestroy {
   public async enablePushOnThisDevice(): Promise<boolean> {
     const memberDocId = this.firebaseService.user()?.member?.docId;
     if (!memberDocId || !this.isPushSupported) return false;
+
+    this.updateLocalSettings({ devicePushEnabled: true });
 
     let permission = this.permissionStatus();
     if (permission !== 'granted') {
@@ -284,17 +357,21 @@ export class NotificationService implements OnDestroy {
   // Turns off push for THIS device: removes the stored subscription document and
   // unsubscribes the browser. Other devices are unaffected.
   public async disablePushOnThisDevice(): Promise<void> {
+    this.updateLocalSettings({ devicePushEnabled: false });
+    this.pushDeviceEnabled.set(false);
     if (!this.swPush?.isEnabled) return;
     const memberDocId = this.firebaseService.user()?.member?.docId;
     try {
       const sub = await firstValueFrom(this.swPush.subscription);
-      const endpoint = (sub?.toJSON() as WebPushSubscriptionJson | undefined)?.endpoint;
+      const endpoint = (sub?.toJSON() as WebPushSubscriptionJson | undefined)
+        ?.endpoint;
       if (memberDocId && endpoint) {
         const subId = await this.hashString(endpoint);
-        await deleteDoc(doc(this.db, 'members', memberDocId, 'pushSubscriptions', subId));
+        await deleteDoc(
+          doc(this.db, 'members', memberDocId, 'pushSubscriptions', subId),
+        );
       }
       await this.swPush.unsubscribe();
-      this.pushDeviceEnabled.set(false);
     } catch (e) {
       console.error('Failed to disable push on this device:', e);
     } finally {
@@ -308,10 +385,14 @@ export class NotificationService implements OnDestroy {
   // unless the service worker is active, a VAPID public key is configured, and
   // the user has granted notification permission. Safe to call repeatedly.
   private async registerPushSubscription(memberDocId: string): Promise<void> {
+    if (this.localSettings().devicePushEnabled === false) return;
     if (this.pushSubscribedForMemberDocId === memberDocId) return;
     if (!this.swPush?.isEnabled) return; // SW not active (e.g. dev server / unsupported)
     if (!environment.vapidPublicKey) return; // web push not configured
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+    if (
+      typeof Notification === 'undefined' ||
+      Notification.permission !== 'granted'
+    ) {
       return;
     }
     this.pushSubscribedForMemberDocId = memberDocId;
@@ -324,7 +405,9 @@ export class NotificationService implements OnDestroy {
       const endpoint = json.endpoint;
       const keys = json.keys;
       if (!endpoint || !keys?.p256dh || !keys?.auth) {
-        console.warn('Push subscription missing endpoint/keys; skipping store.');
+        console.warn(
+          'Push subscription missing endpoint/keys; skipping store.',
+        );
         return;
       }
 
@@ -365,16 +448,25 @@ export class NotificationService implements OnDestroy {
     this.unsubscribe();
     this.isFirstSnapshot = true;
 
-    const notifCollection = collection(this.db, 'members', memberDocId, 'notifications');
+    const notifCollection = collection(
+      this.db,
+      'members',
+      memberDocId,
+      'notifications',
+    );
     const q = query(notifCollection, where('dismissed', '==', false));
 
     this.unsubscripton = onSnapshot(
       q,
       (snapshot) => {
-        const list: MemberNotification[] = snapshot.docs.map(firestoreDocToMemberNotification);
+        const list: MemberNotification[] = snapshot.docs.map(
+          firestoreDocToMemberNotification,
+        );
 
         // Sort by createdAt desc
-        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        list.sort((a, b) =>
+          (b.createdAt || '').localeCompare(a.createdAt || ''),
+        );
 
         this.notifications.set(list);
 
@@ -390,7 +482,7 @@ export class NotificationService implements OnDestroy {
       (error) => {
         console.error('Error listening to notifications subcollection:', error);
         this.setSyncError('Error listening to notifications', error);
-      }
+      },
     );
   }
 
@@ -405,18 +497,30 @@ export class NotificationService implements OnDestroy {
       return;
     }
 
-    const notifCollection = collection(this.db, 'members', memberDocId, 'notifications');
+    const notifCollection = collection(
+      this.db,
+      'members',
+      memberDocId,
+      'notifications',
+    );
     this.allUnsub = onSnapshot(
       notifCollection,
       (snapshot) => {
-        const list: MemberNotification[] = snapshot.docs.map(firestoreDocToMemberNotification);
-        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        const list: MemberNotification[] = snapshot.docs.map(
+          firestoreDocToMemberNotification,
+        );
+        list.sort((a, b) =>
+          (b.createdAt || '').localeCompare(a.createdAt || ''),
+        );
         this.allNotifications.set(list);
       },
       (error) => {
-        console.error('Error listening to full notifications subcollection:', error);
+        console.error(
+          'Error listening to full notifications subcollection:',
+          error,
+        );
         this.setSyncError('Error listening to full notifications', error);
-      }
+      },
     );
   }
 
@@ -448,7 +552,12 @@ export class NotificationService implements OnDestroy {
     entityIdField: string,
     resolve: (
       notif: MemberNotification,
-    ) => Promise<{ markdown: string; data: object; resolved: boolean; kind?: NotificationKind } | null>,
+    ) => Promise<{
+      markdown: string;
+      data: object;
+      resolved: boolean;
+      kind?: NotificationKind;
+    } | null>,
   ): Promise<void> {
     const batch = writeBatch(this.db);
     let writes = 0;
@@ -458,7 +567,12 @@ export class NotificationService implements OnDestroy {
       const data = notif.data as unknown as Record<string, unknown> | undefined;
       if (!data || !data[entityIdField]) continue;
 
-      let desired: { markdown: string; data: object; resolved: boolean; kind?: NotificationKind } | null;
+      let desired: {
+        markdown: string;
+        data: object;
+        resolved: boolean;
+        kind?: NotificationKind;
+      } | null;
       try {
         desired = await resolve(notif);
       } catch (e) {
@@ -468,8 +582,11 @@ export class NotificationService implements OnDestroy {
       if (!desired) continue;
 
       const patch: Record<string, unknown> = {};
-      if (desired.markdown !== notif.markdown) patch['markdown'] = desired.markdown;
-      if (this.stableStringify(desired.data) !== this.stableStringify(notif.data)) {
+      if (desired.markdown !== notif.markdown)
+        patch['markdown'] = desired.markdown;
+      if (
+        this.stableStringify(desired.data) !== this.stableStringify(notif.data)
+      ) {
         patch['data'] = desired.data;
       }
       if (desired.kind && desired.kind !== notif.kind) {
@@ -490,7 +607,8 @@ export class NotificationService implements OnDestroy {
   // `data` against the freshly-built desired value so reconciliation only writes
   // on a real change regardless of object key ordering.
   private stableStringify(value: unknown): string {
-    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (value === null || typeof value !== 'object')
+      return JSON.stringify(value);
     if (Array.isArray(value)) {
       return '[' + value.map((v) => this.stableStringify(v)).join(',') + ']';
     }
@@ -550,7 +668,10 @@ export class NotificationService implements OnDestroy {
       try {
         await this.syncBlogFeedNotifications(member.docId, feed);
       } catch (e) {
-        console.error(`Failed to sync blog notifications for ${feed.collection}:`, e);
+        console.error(
+          `Failed to sync blog notifications for ${feed.collection}:`,
+          e,
+        );
       }
     }
   }
@@ -559,7 +680,12 @@ export class NotificationService implements OnDestroy {
     memberDocId: string,
     feed: { collection: string; label: string; route: string },
   ): Promise<void> {
-    const notifCollection = collection(this.db, 'members', memberDocId, 'notifications');
+    const notifCollection = collection(
+      this.db,
+      'members',
+      memberDocId,
+      'notifications',
+    );
 
     // Find the most recent post (and the set of post IDs) we've already
     // notified this member about for this feed. We read all BlogPost
@@ -585,12 +711,16 @@ export class NotificationService implements OnDestroy {
         if (!data || data.blogPath !== feed.collection) return;
         feedDocs.push(d);
         if (data.blogPostId) notifiedPostIds.add(data.blogPostId);
-        const ms = data.lastSeenDateStr ? Date.parse(data.lastSeenDateStr) : NaN;
+        const ms = data.lastSeenDateStr
+          ? Date.parse(data.lastSeenDateStr)
+          : NaN;
         if (!isNaN(ms) && ms > cutoffMs) cutoffMs = ms;
       } else if (notif.kind === NotificationKind.BlogPostsSummary) {
         const data = notif.data as NotificationBlogPostsSummaryData;
         if (!data || data.feedCollection !== feed.collection) return;
-        const ms = data.lastSeenDateStr ? Date.parse(data.lastSeenDateStr) : NaN;
+        const ms = data.lastSeenDateStr
+          ? Date.parse(data.lastSeenDateStr)
+          : NaN;
         if (!isNaN(ms) && ms > cutoffMs) cutoffMs = ms;
       }
     });
@@ -601,10 +731,10 @@ export class NotificationService implements OnDestroy {
     const postsQuery =
       cutoffMs > 0
         ? query(
-          postsCollection,
-          where('publishOn', '>', cutoffMs),
-          orderBy('publishOn', 'desc'),
-        )
+            postsCollection,
+            where('publishOn', '>', cutoffMs),
+            orderBy('publishOn', 'desc'),
+          )
         : query(postsCollection, orderBy('publishOn', 'desc'), limit(50));
 
     const postsSnap = await getDocs(postsQuery);
@@ -613,7 +743,10 @@ export class NotificationService implements OnDestroy {
     // nothing new has been published since the cut-off — that's the common case,
     // and we still fall through to reconciliation below.
     const posts = postsSnap.docs
-      .map((d) => ({ ...initCachedBlogPost(), ...(d.data() as CachedBlogPost) }))
+      .map((d) => ({
+        ...initCachedBlogPost(),
+        ...(d.data() as CachedBlogPost),
+      }))
       .filter((p) => p.id && !notifiedPostIds.has(p.id))
       .sort((a, b) => (b.publishOn || 0) - (a.publishOn || 0));
 
@@ -655,7 +788,10 @@ export class NotificationService implements OnDestroy {
 
         const count = remainingPosts.length;
         const plural = count === 1 ? 'post' : 'posts';
-        const areaRoute = feed.collection === 'members-post' ? 'members-area' : 'instructors-area';
+        const areaRoute =
+          feed.collection === 'members-post'
+            ? 'members-area'
+            : 'instructors-area';
         const summaryMarkdown = `📰 **${count}** more ${feed.label} ${plural}: [View in ${feed.label} Area](/${areaRoute})`;
         const summaryRef = doc(notifCollection);
         const newestRemaining = remainingPosts[0];
@@ -716,7 +852,10 @@ export class NotificationService implements OnDestroy {
         resolved: true,
       };
     }
-    const post = { ...initCachedBlogPost(), ...(snap.docs[0].data() as CachedBlogPost) };
+    const post = {
+      ...initCachedBlogPost(),
+      ...(snap.docs[0].data() as CachedBlogPost),
+    };
     return { ...this.blogPostFields(feed, post), resolved: false };
   }
 
@@ -753,7 +892,12 @@ export class NotificationService implements OnDestroy {
     if (this.pendingEventsSyncedForMemberDocId === member.docId) return;
     this.pendingEventsSyncedForMemberDocId = member.docId;
 
-    const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
+    const notifCollection = collection(
+      this.db,
+      'members',
+      member.docId,
+      'notifications',
+    );
 
     // Which proposed events have we already notified this admin about?
     const existingSnap = await getDocs(
@@ -851,32 +995,40 @@ export class NotificationService implements OnDestroy {
     // cancelled (or deleted) is rewritten to say so and dismissed. A per-event
     // getDoc also lets us distinguish "no longer proposed" from "beyond the live
     // query's limit", which the create pass's capped query cannot.
-    await this.reconcileNotifications(existingEventDocs, 'eventId', async (notif) => {
-      const data = notif.data as NotificationEventData;
-      const snap = await getDoc(doc(this.db, 'events', data.eventId));
-      if (!snap.exists()) {
-        return {
-          markdown: `Event "${data.title}" — removed`,
-          data: { ...data },
-          resolved: true,
+    await this.reconcileNotifications(
+      existingEventDocs,
+      'eventId',
+      async (notif) => {
+        const data = notif.data as NotificationEventData;
+        const snap = await getDoc(doc(this.db, 'events', data.eventId));
+        if (!snap.exists()) {
+          return {
+            markdown: `Event "${data.title}" — removed`,
+            data: { ...data },
+            resolved: true,
+          };
+        }
+        const event = {
+          ...initEvent(),
+          ...(snap.data() as IlcEvent),
+          docId: snap.id,
         };
-      }
-      const event = { ...initEvent(), ...(snap.data() as IlcEvent), docId: snap.id };
-      const title = event.title || 'Untitled event';
-      const link = `/manage-events/${event.docId}`;
-      if (event.status !== EventStatus.Proposed) {
+        const title = event.title || 'Untitled event';
+        const link = `/manage-events/${event.docId}`;
+        if (event.status !== EventStatus.Proposed) {
+          return {
+            markdown: `Event [${title}](${link}) — ${eventStatusLabel(event.status).toLowerCase()}`,
+            data: { eventId: event.docId, title },
+            resolved: true,
+          };
+        }
         return {
-          markdown: `Event [${title}](${link}) — ${eventStatusLabel(event.status).toLowerCase()}`,
+          markdown: this.pendingEventMarkdown(event.docId, title),
           data: { eventId: event.docId, title },
-          resolved: true,
+          resolved: false,
         };
-      }
-      return {
-        markdown: this.pendingEventMarkdown(event.docId, title),
-        data: { eventId: event.docId, title },
-        resolved: false,
-      };
-    });
+      },
+    );
   }
 
   // The markdown for a pending-event-approval notification, shared by the create
@@ -905,7 +1057,10 @@ export class NotificationService implements OnDestroy {
   // Empty string when neither is known.
   private orderCustomer(order: Order): string {
     if (order.ilcAppOrderKind === OrderKind.Squarespace) {
-      const name = [order.billingAddress?.firstName, order.billingAddress?.lastName]
+      const name = [
+        order.billingAddress?.firstName,
+        order.billingAddress?.lastName,
+      ]
         .filter(Boolean)
         .join(' ')
         .trim();
@@ -914,7 +1069,10 @@ export class NotificationService implements OnDestroy {
     if (order.ilcAppOrderKind === OrderKind.Stripe) {
       return (order.customerName || order.customerEmail || '').trim();
     }
-    const name = [order.firstName, order.lastName].filter(Boolean).join(' ').trim();
+    const name = [order.firstName, order.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
     return name || order.email || '';
   }
 
@@ -923,9 +1081,13 @@ export class NotificationService implements OnDestroy {
   private orderItemsSummary(order: Order): string {
     let names: string[] = [];
     if (order.ilcAppOrderKind === OrderKind.Squarespace) {
-      names = (order.lineItems || []).map((li) => (li.productName || li.sku || '').trim());
+      names = (order.lineItems || []).map((li) =>
+        (li.productName || li.sku || '').trim(),
+      );
     } else if (order.ilcAppOrderKind === OrderKind.Stripe) {
-      names = (order.lineItems || []).map((li) => (li.description || '').trim());
+      names = (order.lineItems || []).map((li) =>
+        (li.description || '').trim(),
+      );
     } else {
       names = [order.paidFor, order.orderType].map((s) => (s || '').trim());
     }
@@ -942,7 +1104,12 @@ export class NotificationService implements OnDestroy {
     if (this.orderIssuesSyncedForMemberDocId === member.docId) return;
     this.orderIssuesSyncedForMemberDocId = member.docId;
 
-    const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
+    const notifCollection = collection(
+      this.db,
+      'members',
+      member.docId,
+      'notifications',
+    );
 
     // Which order-issue notifications have we already created for this admin?
     // Single-field filter (no composite index needed).
@@ -975,7 +1142,11 @@ export class NotificationService implements OnDestroy {
     const ordersSnap = await getDocs(
       query(
         collection(this.db, 'orders'),
-        where('ilcAppOrderStatus', 'in', NotificationService.ORDER_ATTENTION_STATUSES),
+        where(
+          'ilcAppOrderStatus',
+          'in',
+          NotificationService.ORDER_ATTENTION_STATUSES,
+        ),
       ),
     );
     // May be empty when no orders currently need attention — we still fall
@@ -1045,61 +1216,73 @@ export class NotificationService implements OnDestroy {
     // is rewritten as an FYI ManualOrderFulfilled notification; an order that has since
     // been resolved (no longer in an attention status, or deleted) is rewritten to say so
     // and dismissed.
-    await this.reconcileNotifications(existingOrderDocs, 'orderDocId', async (notif) => {
-      const data = notif.data as NotificationOrderIssueData;
-      const snap = await getDoc(doc(this.db, 'orders', data.orderDocId));
-      if (!snap.exists()) {
+    await this.reconcileNotifications(
+      existingOrderDocs,
+      'orderDocId',
+      async (notif) => {
+        const data = notif.data as NotificationOrderIssueData;
+        const snap = await getDoc(doc(this.db, 'orders', data.orderDocId));
+        if (!snap.exists()) {
+          return {
+            markdown: `Order #${data.orderRef} — no longer present`,
+            data: { ...data },
+            resolved: true,
+          };
+        }
+        const order = firestoreDocToOrder(snap);
+        const status = order.ilcAppOrderStatus as OrderStatus;
+
+        const hasErrors =
+          order.ilcAppOrderStatus === OrderStatus.Error ||
+          (order.ilcAppOrderKind === OrderKind.Squarespace &&
+            (order.lineItems || []).some(
+              (li) => li.ilcAppProcessingStatus === OrderStatus.Error,
+            ));
+
+        const wasManual =
+          !hasErrors &&
+          (notif.kind === NotificationKind.ManualOrderFulfilled ||
+            data.status === OrderStatus.NeedsManualProcessing ||
+            notif.markdown.includes('needs manual processing') ||
+            notif.markdown.includes('manual order was fulfilled'));
+
+        const isFulfilled =
+          (order as SquareSpaceOrder).fulfillmentStatus ===
+            SquarespaceFulfillmentStatus.Fulfilled ||
+          status === OrderStatus.Processed;
+
+        if (
+          wasManual &&
+          isFulfilled &&
+          status === OrderStatus.Processed &&
+          !hasErrors
+        ) {
+          return {
+            markdown: this.manualOrderFulfilledMarkdown(order),
+            data: {
+              ...this.orderIssueFields(order).data,
+              status: OrderStatus.Processed,
+              issues: [],
+            },
+            resolved: false,
+            kind: NotificationKind.ManualOrderFulfilled,
+          };
+        }
+
+        if (!NotificationService.ORDER_ATTENTION_STATUSES.includes(status)) {
+          return {
+            markdown: `Order [#${this.orderRef(order)}](/order-view/${order.docId}) — now resolved (${status})`,
+            data: this.orderIssueFields(order).data,
+            resolved: true,
+          };
+        }
         return {
-          markdown: `Order #${data.orderRef} — no longer present`,
-          data: { ...data },
-          resolved: true,
-        };
-      }
-      const order = firestoreDocToOrder(snap);
-      const status = order.ilcAppOrderStatus as OrderStatus;
-
-      const hasErrors =
-        order.ilcAppOrderStatus === OrderStatus.Error ||
-        (order.ilcAppOrderKind === OrderKind.Squarespace &&
-          (order.lineItems || []).some((li) => li.ilcAppProcessingStatus === OrderStatus.Error));
-
-      const wasManual =
-        !hasErrors &&
-        (notif.kind === NotificationKind.ManualOrderFulfilled ||
-          data.status === OrderStatus.NeedsManualProcessing ||
-          notif.markdown.includes('needs manual processing') ||
-          notif.markdown.includes('manual order was fulfilled'));
-
-      const isFulfilled =
-        (order as SquareSpaceOrder).fulfillmentStatus === SquarespaceFulfillmentStatus.Fulfilled ||
-        status === OrderStatus.Processed;
-
-      if (wasManual && isFulfilled && status === OrderStatus.Processed && !hasErrors) {
-        return {
-          markdown: this.manualOrderFulfilledMarkdown(order),
-          data: {
-            ...this.orderIssueFields(order).data,
-            status: OrderStatus.Processed,
-            issues: [],
-          },
+          ...this.orderIssueFields(order),
           resolved: false,
-          kind: NotificationKind.ManualOrderFulfilled,
+          kind: NotificationKind.OrderNeedsAttention,
         };
-      }
-
-      if (!NotificationService.ORDER_ATTENTION_STATUSES.includes(status)) {
-        return {
-          markdown: `Order [#${this.orderRef(order)}](/order-view/${order.docId}) — now resolved (${status})`,
-          data: this.orderIssueFields(order).data,
-          resolved: true,
-        };
-      }
-      return {
-        ...this.orderIssueFields(order),
-        resolved: false,
-        kind: NotificationKind.OrderNeedsAttention,
-      };
-    });
+      },
+    );
   }
 
   private manualOrderFulfilledMarkdown(order: Order): string {
@@ -1124,7 +1307,8 @@ export class NotificationService implements OnDestroy {
   } {
     const orderRef = this.orderRef(order);
     const status = order.ilcAppOrderStatus as OrderStatus;
-    const verb = status === 'error' ? 'failed with an error' : 'needs manual processing';
+    const verb =
+      status === 'error' ? 'failed with an error' : 'needs manual processing';
     const issues = order.ilcAppOrderIssues || [];
     const issuesSuffix = issues.length > 0 ? ` — ${issues.join('; ')}` : '';
     // Basic context so the admin can tell what the order is at a glance: who
@@ -1134,7 +1318,9 @@ export class NotificationService implements OnDestroy {
     const details = [
       customer ? `from ${customer}` : '',
       items ? `for ${items}` : '',
-    ].filter(Boolean).join(' ');
+    ]
+      .filter(Boolean)
+      .join(' ');
     const detailsSuffix = details ? ` (${details})` : '';
     return {
       markdown: `Order [#${orderRef}](/order-view/${order.docId})${detailsSuffix} ${verb}${issuesSuffix}`,
@@ -1156,7 +1342,12 @@ export class NotificationService implements OnDestroy {
     if (this.newUploadsSyncedForMemberDocId === member.docId) return;
     this.newUploadsSyncedForMemberDocId = member.docId;
 
-    const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
+    const notifCollection = collection(
+      this.db,
+      'members',
+      member.docId,
+      'notifications',
+    );
 
     // Find previous upload notifications to determine the cutoff timestamp and
     // the set of upload IDs already notified for this admin.
@@ -1184,7 +1375,8 @@ export class NotificationService implements OnDestroy {
         if (ts && ts > cutoffIso) cutoffIso = ts;
       } else if (notif.kind === NotificationKind.NewUploadsSummary) {
         const data = notif.data as NotificationUploadsSummaryData;
-        const ts = data?.lastSeenDateStr || data?.endDate || notif.createdAt || '';
+        const ts =
+          data?.lastSeenDateStr || data?.endDate || notif.createdAt || '';
         if (ts && ts > cutoffIso) cutoffIso = ts;
       }
     });
@@ -1210,7 +1402,9 @@ export class NotificationService implements OnDestroy {
     }
 
     // Sort newest first (descending by createdAt)
-    newUploads.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    newUploads.sort((a, b) =>
+      (b.createdAt || '').localeCompare(a.createdAt || ''),
+    );
 
     if (newUploads.length > 0) {
       const max = NotificationService.MAX_NEW_UPLOAD_NOTIFICATIONS;
@@ -1284,34 +1478,44 @@ export class NotificationService implements OnDestroy {
 
     // Reconcile already-surfaced upload notifications: update title/metadata if
     // changed, or mark as removed + dismissed if deleted (or if uploaded by the user themselves).
-    await this.reconcileNotifications(existingUploadDocs, 'uploadDocId', async (notif) => {
-      const data = notif.data as NotificationUploadData;
-      if (!data?.memberDocId || !data?.uploadDocId) return null;
-      if (data.memberDocId === member.docId) {
-        return {
-          markdown: notif.markdown,
-          data: { ...data },
-          resolved: true,
-        };
-      }
-      try {
-        const snap = await getDoc(
-          doc(this.db, 'members', data.memberDocId, 'uploads', data.uploadDocId),
-        );
-        if (!snap.exists()) {
+    await this.reconcileNotifications(
+      existingUploadDocs,
+      'uploadDocId',
+      async (notif) => {
+        const data = notif.data as NotificationUploadData;
+        if (!data?.memberDocId || !data?.uploadDocId) return null;
+        if (data.memberDocId === member.docId) {
           return {
-            markdown: `Upload "${data.uploadName || 'item'}" — removed`,
+            markdown: notif.markdown,
             data: { ...data },
             resolved: true,
           };
         }
-        const upload = firestoreDocToUploadItem(snap);
-        return { ...this.uploadNotificationFields(upload), resolved: false };
-      } catch (e) {
-        console.error('Failed to reconcile upload notification:', e);
-        return null;
-      }
-    });
+        try {
+          const snap = await getDoc(
+            doc(
+              this.db,
+              'members',
+              data.memberDocId,
+              'uploads',
+              data.uploadDocId,
+            ),
+          );
+          if (!snap.exists()) {
+            return {
+              markdown: `Upload "${data.uploadName || 'item'}" — removed`,
+              data: { ...data },
+              resolved: true,
+            };
+          }
+          const upload = firestoreDocToUploadItem(snap);
+          return { ...this.uploadNotificationFields(upload), resolved: false };
+        } catch (e) {
+          console.error('Failed to reconcile upload notification:', e);
+          return null;
+        }
+      },
+    );
   }
 
   // Formats a human-readable date range description, e.g. "on 2026-08-11" or "between 2026-08-01 and 2026-08-05".
@@ -1331,8 +1535,10 @@ export class NotificationService implements OnDestroy {
   } {
     const uploader = upload.memberName
       ? `${upload.memberName}${upload.memberId ? ` (${upload.memberId})` : ''}`
-      : (upload.memberId || 'a member');
-    const eventSuffix = upload.eventTitle ? ` for **${upload.eventTitle}**` : '';
+      : upload.memberId || 'a member';
+    const eventSuffix = upload.eventTitle
+      ? ` for **${upload.eventTitle}**`
+      : '';
     const locationSuffix = upload.location ? ` in ${upload.location}` : '';
     const link = `/manage-materials?q=${encodeURIComponent(upload.name)}`;
     return {
@@ -1359,7 +1565,12 @@ export class NotificationService implements OnDestroy {
     if (this.unpaidGradingsSyncedForMemberDocId === member.docId) return;
     this.unpaidGradingsSyncedForMemberDocId = member.docId;
 
-    const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
+    const notifCollection = collection(
+      this.db,
+      'members',
+      member.docId,
+      'notifications',
+    );
 
     // Which gradings have we already surfaced as unpaid for this member?
     const existingSnap = await getDocs(
@@ -1429,7 +1640,10 @@ export class NotificationService implements OnDestroy {
           const ref = doc(notifCollection);
           const notification: MemberNotification = {
             docId: ref.id,
-            markdown: this.unpaidGradingMarkdown(g, g.studentMemberDocId === member.docId),
+            markdown: this.unpaidGradingMarkdown(
+              g,
+              g.studentMemberDocId === member.docId,
+            ),
             createdAt: new Date().toISOString(),
             dismissed: false,
             kind: NotificationKind.GradingUnpaid,
@@ -1445,7 +1659,10 @@ export class NotificationService implements OnDestroy {
           const ref = doc(notifCollection);
           const notification: MemberNotification = {
             docId: ref.id,
-            markdown: this.unpaidGradingMarkdown(g, g.studentMemberDocId === member.docId),
+            markdown: this.unpaidGradingMarkdown(
+              g,
+              g.studentMemberDocId === member.docId,
+            ),
             createdAt: new Date().toISOString(),
             dismissed: false,
             kind: NotificationKind.GradingUnpaid,
@@ -1456,7 +1673,8 @@ export class NotificationService implements OnDestroy {
 
         const count = remainingUnpaid.length;
         const plural = count === 1 ? 'unpaid grading' : 'unpaid gradings';
-        const isStudent = member.docId === remainingUnpaid[0].studentMemberDocId;
+        const isStudent =
+          member.docId === remainingUnpaid[0].studentMemberDocId;
         const link = member.instructorId ? '/gradings' : '/my-gradings';
         const summaryMarkdown = `🥋 **${count}** more ${plural}: [View in Gradings](${link})`;
         const summaryRef = doc(notifCollection);
@@ -1477,38 +1695,47 @@ export class NotificationService implements OnDestroy {
     // Reconcile already-surfaced unpaid-grading TODOs: a grading that is now paid
     // (or no longer completed, or deleted) is rewritten to say so and dismissed; an
     // outstanding one has its message refreshed in place.
-    await this.reconcileNotifications(existingGradingDocs, 'gradingDocId', async (notif) => {
-      const data = notif.data as NotificationGradingData;
-      const snap = await getDoc(doc(this.db, 'gradings', data.gradingDocId));
-      if (!snap.exists()) {
+    await this.reconcileNotifications(
+      existingGradingDocs,
+      'gradingDocId',
+      async (notif) => {
+        const data = notif.data as NotificationGradingData;
+        const snap = await getDoc(doc(this.db, 'gradings', data.gradingDocId));
+        if (!snap.exists()) {
+          return {
+            markdown: `Grading for **${data.level}** — no longer present.`,
+            data: { ...data },
+            resolved: true,
+          };
+        }
+        const g = firestoreDocToGrading(snap);
+        const gradingData = { gradingDocId: g.docId, level: g.level };
+        if (
+          !NotificationService.COMPLETED_GRADING_STATUSES.includes(g.status)
+        ) {
+          return {
+            markdown: `Grading for **${g.level}** — no longer awaiting payment.`,
+            data: gradingData,
+            resolved: true,
+          };
+        }
+        if (isGradingPaid(g)) {
+          return {
+            markdown: `✅ Grading for **${g.level}** is now paid.`,
+            data: gradingData,
+            resolved: true,
+          };
+        }
         return {
-          markdown: `Grading for **${data.level}** — no longer present.`,
-          data: { ...data },
-          resolved: true,
-        };
-      }
-      const g = firestoreDocToGrading(snap);
-      const gradingData = { gradingDocId: g.docId, level: g.level };
-      if (!NotificationService.COMPLETED_GRADING_STATUSES.includes(g.status)) {
-        return {
-          markdown: `Grading for **${g.level}** — no longer awaiting payment.`,
+          markdown: this.unpaidGradingMarkdown(
+            g,
+            g.studentMemberDocId === member.docId,
+          ),
           data: gradingData,
-          resolved: true,
+          resolved: false,
         };
-      }
-      if (isGradingPaid(g)) {
-        return {
-          markdown: `✅ Grading for **${g.level}** is now paid.`,
-          data: gradingData,
-          resolved: true,
-        };
-      }
-      return {
-        markdown: this.unpaidGradingMarkdown(g, g.studentMemberDocId === member.docId),
-        data: gradingData,
-        resolved: false,
-      };
-    });
+      },
+    );
   }
 
   // The markdown for an unpaid-grading TODO notification, shared by the create and
@@ -1524,7 +1751,9 @@ export class NotificationService implements OnDestroy {
 
   private seedPushedCache(activeNotifications: MemberNotification[]) {
     const pushedIds = this.getPushedIds();
-    const merged = Array.from(new Set([...pushedIds, ...activeNotifications.map((n) => n.docId)]));
+    const merged = Array.from(
+      new Set([...pushedIds, ...activeNotifications.map((n) => n.docId)]),
+    );
     try {
       localStorage.setItem(this.pushedIdsKey, JSON.stringify(merged));
     } catch (e) {
@@ -1537,7 +1766,10 @@ export class NotificationService implements OnDestroy {
       const stored = localStorage.getItem(this.pushedIdsKey);
       return stored ? JSON.parse(stored) : [];
     } catch (e) {
-      console.error('Error reading pushed notifications local storage cache:', e);
+      console.error(
+        'Error reading pushed notifications local storage cache:',
+        e,
+      );
       return [];
     }
   }
@@ -1554,7 +1786,10 @@ export class NotificationService implements OnDestroy {
           homeEnabled: {},
         };
         this.localSettings.set(defaults);
-        localStorage.setItem('localNotificationSettings', JSON.stringify(defaults));
+        localStorage.setItem(
+          'localNotificationSettings',
+          JSON.stringify(defaults),
+        );
       }
     } catch (e) {
       console.error('Error loading local notification settings:', e);
@@ -1573,21 +1808,38 @@ export class NotificationService implements OnDestroy {
   }
 
   private processPushNotifications(activeNotifications: MemberNotification[]) {
-    console.log('[NotificationService] Processing push notifications, active count:', activeNotifications.length);
+    console.log(
+      '[NotificationService] Processing push notifications, active count:',
+      activeNotifications.length,
+    );
 
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      console.log('[NotificationService] Notification API is not available on this window context');
+    if (this.localSettings().devicePushEnabled === false) {
+      console.log(
+        '[NotificationService] Device push is locally disabled, skipping native alert processing',
+      );
       return;
     }
 
-    console.log('[NotificationService] Current Browser Notification Permission:', Notification.permission);
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      console.log(
+        '[NotificationService] Notification API is not available on this window context',
+      );
+      return;
+    }
+
+    console.log(
+      '[NotificationService] Current Browser Notification Permission:',
+      Notification.permission,
+    );
     if (Notification.permission !== 'granted') {
       return;
     }
 
     const member = this.firebaseService.user()?.member;
     if (!member) {
-      console.log('[NotificationService] No logged-in member found, skipping push checks');
+      console.log(
+        '[NotificationService] No logged-in member found, skipping push checks',
+      );
       return;
     }
 
@@ -1596,11 +1848,16 @@ export class NotificationService implements OnDestroy {
     const unpushed = activeNotifications.filter((n) => {
       const isAlreadyPushed = pushedIds.includes(n.docId);
       const isPushEnabled = settings.pushEnabled[n.kind] !== false;
-      console.log(`[NotificationService] Notification ${n.docId}: alreadyPushed=${isAlreadyPushed}, pushEnabled=${isPushEnabled}`);
+      console.log(
+        `[NotificationService] Notification ${n.docId}: alreadyPushed=${isAlreadyPushed}, pushEnabled=${isPushEnabled}`,
+      );
       return !isAlreadyPushed && isPushEnabled;
     });
 
-    console.log('[NotificationService] Filtered unpushed alerts:', unpushed.length);
+    console.log(
+      '[NotificationService] Filtered unpushed alerts:',
+      unpushed.length,
+    );
     if (unpushed.length === 0) return;
 
     // Trigger Browser Notification
@@ -1613,7 +1870,10 @@ export class NotificationService implements OnDestroy {
         icon: '/iliqchuan.png',
       });
     } else {
-      console.log('[NotificationService] Triggering summary alert, count:', unpushed.length);
+      console.log(
+        '[NotificationService] Triggering summary alert, count:',
+        unpushed.length,
+      );
       this.triggerNativeNotification('New Notifications Summary', {
         body: `You have ${unpushed.length} new updates in your member portal.`,
         icon: '/iliqchuan.png',
@@ -1621,38 +1881,65 @@ export class NotificationService implements OnDestroy {
     }
 
     // Save newly pushed notification IDs to local storage
-    const newPushedIds = Array.from(new Set([...pushedIds, ...unpushed.map((n) => n.docId)]));
+    const newPushedIds = Array.from(
+      new Set([...pushedIds, ...unpushed.map((n) => n.docId)]),
+    );
     try {
       localStorage.setItem(this.pushedIdsKey, JSON.stringify(newPushedIds));
     } catch (e) {
-      console.error('Error writing pushed notifications local storage cache:', e);
+      console.error(
+        'Error writing pushed notifications local storage cache:',
+        e,
+      );
     }
   }
 
   private stripMarkdown(md: string): string {
-    return md
-      // Remove link URLs e.g. [text](url) -> text
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Remove other basic markdown formatting characters
-      .replace(/[\#\*\_\[\]\-\(\)\`]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return (
+      md
+        // Remove link URLs e.g. [text](url) -> text
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        // Remove other basic markdown formatting characters
+        .replace(/[\#\*\_\[\]\-\(\)\`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    );
   }
 
-  private triggerNativeNotification(title: string, options: NotificationOptions) {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.ready.then((registration) => {
-        console.log('[NotificationService] Dispatching notification via Service Worker Registration:', title);
-        registration.showNotification(title, options);
-      }).catch((err) => {
-        console.warn('[NotificationService] Service Worker not ready, falling back to window.Notification:', err);
-        new Notification(title, options);
-      });
+  private triggerNativeNotification(
+    title: string,
+    options: NotificationOptions,
+  ) {
+    if (
+      typeof window !== 'undefined' &&
+      'serviceWorker' in navigator &&
+      navigator.serviceWorker.controller
+    ) {
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          console.log(
+            '[NotificationService] Dispatching notification via Service Worker Registration:',
+            title,
+          );
+          registration.showNotification(title, options);
+        })
+        .catch((err) => {
+          console.warn(
+            '[NotificationService] Service Worker not ready, falling back to window.Notification:',
+            err,
+          );
+          new Notification(title, options);
+        });
     } else if (typeof window !== 'undefined' && 'Notification' in window) {
-      console.log('[NotificationService] Service Worker API not active/present, using window.Notification fallback:', title);
+      console.log(
+        '[NotificationService] Service Worker API not active/present, using window.Notification fallback:',
+        title,
+      );
       new Notification(title, options);
     } else {
-      console.log('[NotificationService] Native Notification APIs not supported on this device context');
+      console.log(
+        '[NotificationService] Native Notification APIs not supported on this device context',
+      );
     }
   }
 
@@ -1660,7 +1947,13 @@ export class NotificationService implements OnDestroy {
     const member = this.firebaseService.user()?.member;
     if (!member) return;
 
-    const notifRef = doc(this.db, 'members', member.docId, 'notifications', notificationId);
+    const notifRef = doc(
+      this.db,
+      'members',
+      member.docId,
+      'notifications',
+      notificationId,
+    );
     await updateDoc(notifRef, { dismissed: true });
   }
 
@@ -1670,7 +1963,13 @@ export class NotificationService implements OnDestroy {
     const member = this.firebaseService.user()?.member;
     if (!member) return;
 
-    const notifRef = doc(this.db, 'members', member.docId, 'notifications', notificationId);
+    const notifRef = doc(
+      this.db,
+      'members',
+      member.docId,
+      'notifications',
+      notificationId,
+    );
     await updateDoc(notifRef, { dismissed: false });
   }
 
@@ -1679,7 +1978,13 @@ export class NotificationService implements OnDestroy {
     const member = this.firebaseService.user()?.member;
     if (!member) return;
 
-    const notifRef = doc(this.db, 'members', member.docId, 'notifications', notificationId);
+    const notifRef = doc(
+      this.db,
+      'members',
+      member.docId,
+      'notifications',
+      notificationId,
+    );
     await deleteDoc(notifRef);
   }
 
@@ -1690,7 +1995,13 @@ export class NotificationService implements OnDestroy {
 
     const batch = writeBatch(this.db);
     active.forEach((n) => {
-      const ref = doc(this.db, 'members', member.docId, 'notifications', n.docId);
+      const ref = doc(
+        this.db,
+        'members',
+        member.docId,
+        'notifications',
+        n.docId,
+      );
       batch.update(ref, { dismissed: true });
     });
     await batch.commit();
@@ -1705,7 +2016,13 @@ export class NotificationService implements OnDestroy {
 
     const batch = writeBatch(this.db);
     active.forEach((n) => {
-      const ref = doc(this.db, 'members', member.docId, 'notifications', n.docId);
+      const ref = doc(
+        this.db,
+        'members',
+        member.docId,
+        'notifications',
+        n.docId,
+      );
       batch.update(ref, { dismissed: true });
     });
     await batch.commit();

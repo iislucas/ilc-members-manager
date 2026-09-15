@@ -32,10 +32,15 @@
         <div class="pref-row">
           <div class="pref-info">
             <span class="pref-title">Receive push notifications</span>
-            <span class="pref-sub"
-              >Account-wide setting. Turn this on to allow push on your
-              devices.</span
-            >
+            <span class="pref-sub">
+              @if (globalPushEnabled()) {
+                Account-wide setting is active. Push notifications can reach
+                your enabled devices.
+              } @else {
+                Account-wide setting is off. Push notifications are paused
+                across all your devices.
+              }
+            </span>
           </div>
           <div class="toggle-control">
             <input
@@ -45,21 +50,25 @@
               [disabled]="pushBusy()"
               (change)="setGlobalPush($any($event.target).checked)"
             />
-            <label for="global-push">Enabled</label>
+            <label for="global-push" class="switch-label">
+              {{ globalPushEnabled() ? "Enabled" : "Disabled" }}
+            </label>
           </div>
         </div>
 
         <!-- Per-device switch -->
         <div class="pref-row">
           <div class="pref-info">
-            <span class="pref-title">Enable push on this device</span>
+            <span class="pref-title">Push notifications on this device</span>
             <span class="pref-sub">
               @if (!globalPushEnabled()) {
                 Turn on account-wide push above first.
               } @else if (perm === "denied") {
                 Blocked by your browser settings for this site.
+              } @else if (pushDeviceEnabled()) {
+                Active — receiving background notifications on this device.
               } @else {
-                Receive background notifications on this device.
+                Disabled — notifications are turned off for this device.
               }
             </span>
           </div>
@@ -73,9 +82,19 @@
               "
               (change)="toggleDevicePush($any($event.target).checked)"
             />
-            <label for="device-push">This device</label>
+            <label for="device-push" class="switch-label">
+              {{ pushDeviceEnabled() ? "Enabled" : "Disabled" }}
+            </label>
           </div>
         </div>
+
+        @if (perm === "denied") {
+          <div class="permission-help-note">
+            ℹ️ To unblock notifications, click the lock / site settings icon in
+            your browser address bar, set Notifications to "Allow", and reload
+            the page.
+          </div>
+        }
 
         <!-- Test Button -->
         @if (perm === "granted" && pushDeviceEnabled()) {
@@ -106,7 +125,10 @@
       <div class="pref-row">
         <div class="pref-info">
           <span class="pref-title">Receive email notifications</span>
-          <span class="pref-sub">Account-wide setting. Turn this on to allow transactional email notifications.</span>
+          <span class="pref-sub"
+            >Account-wide setting. Turn this on to allow transactional email
+            notifications.</span
+          >
         </div>
         <div class="toggle-control">
           <input
@@ -123,15 +145,25 @@
       <div class="pref-row">
         <div class="pref-info">
           <span class="pref-title">Video Access & Gifts</span>
-          <span class="pref-sub">Notifications when on-demand video access or a video gift is granted to your account.</span>
+          <span class="pref-sub"
+            >Notifications when on-demand video access or a video gift is
+            granted to your account.</span
+          >
         </div>
         <div class="toggle-control">
           <input
             type="checkbox"
             id="email-vod-gift"
             [disabled]="digestBusy() || !globalEmailEnabled()"
-            [checked]="isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived)"
-            (change)="toggleEmailKind(TransactionalEmailKey.VodGiftReceived, $any($event.target).checked)"
+            [checked]="
+              isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived)
+            "
+            (change)="
+              toggleEmailKind(
+                TransactionalEmailKey.VodGiftReceived,
+                $any($event.target).checked
+              )
+            "
           />
           <label for="email-vod-gift">Video Gifts</label>
         </div>
@@ -141,7 +173,8 @@
         <div class="pref-info">
           <span class="pref-title">Upcoming Events Digest</span>
           <span class="pref-sub">
-            Receive scheduled summaries of forthcoming I Liq Chuan workshops and events.
+            Receive scheduled summaries of forthcoming I Liq Chuan workshops and
+            events.
           </span>
         </div>
         <div class="select-control">
@@ -163,15 +196,25 @@
       <div class="pref-row">
         <div class="pref-info">
           <span class="pref-title">Order & Payment Receipts</span>
-          <span class="pref-sub">Receipts for store purchases, grading assessment fees, and video orders.</span>
+          <span class="pref-sub"
+            >Receipts for store purchases, grading assessment fees, and video
+            orders.</span
+          >
         </div>
         <div class="toggle-control">
           <input
             type="checkbox"
             id="email-orders"
             [disabled]="digestBusy() || !globalEmailEnabled()"
-            [checked]="isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation)"
-            (change)="toggleEmailKind(TransactionalEmailKey.OrderConfirmation, $any($event.target).checked)"
+            [checked]="
+              isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation)
+            "
+            (change)="
+              toggleEmailKind(
+                TransactionalEmailKey.OrderConfirmation,
+                $any($event.target).checked
+              )
+            "
           />
           <label for="email-orders">Receipts</label>
         </div>
@@ -180,15 +223,25 @@
       <div class="pref-row">
         <div class="pref-info">
           <span class="pref-title">Subscription Renewals</span>
-          <span class="pref-sub">Invoices and renewal confirmations for ongoing recurring subscriptions.</span>
+          <span class="pref-sub"
+            >Invoices and renewal confirmations for ongoing recurring
+            subscriptions.</span
+          >
         </div>
         <div class="toggle-control">
           <input
             type="checkbox"
             id="email-subscriptions"
             [disabled]="digestBusy() || !globalEmailEnabled()"
-            [checked]="isEmailKindEnabled(TransactionalEmailKey.SubscriptionRenewal)"
-            (change)="toggleEmailKind(TransactionalEmailKey.SubscriptionRenewal, $any($event.target).checked)"
+            [checked]="
+              isEmailKindEnabled(TransactionalEmailKey.SubscriptionRenewal)
+            "
+            (change)="
+              toggleEmailKind(
+                TransactionalEmailKey.SubscriptionRenewal,
+                $any($event.target).checked
+              )
+            "
           />
           <label for="email-subscriptions">Renewals</label>
         </div>
@@ -197,15 +250,27 @@
       <div class="pref-row">
         <div class="pref-info">
           <span class="pref-title">Event Registration Confirmations</span>
-          <span class="pref-sub">Confirmations, dates, and online links for registered workshops and events.</span>
+          <span class="pref-sub"
+            >Confirmations, dates, and online links for registered workshops and
+            events.</span
+          >
         </div>
         <div class="toggle-control">
           <input
             type="checkbox"
             id="email-event-regs"
             [disabled]="digestBusy() || !globalEmailEnabled()"
-            [checked]="isEmailKindEnabled(TransactionalEmailKey.EventRegistrationConfirmation)"
-            (change)="toggleEmailKind(TransactionalEmailKey.EventRegistrationConfirmation, $any($event.target).checked)"
+            [checked]="
+              isEmailKindEnabled(
+                TransactionalEmailKey.EventRegistrationConfirmation
+              )
+            "
+            (change)="
+              toggleEmailKind(
+                TransactionalEmailKey.EventRegistrationConfirmation,
+                $any($event.target).checked
+              )
+            "
           />
           <label for="email-event-regs">Confirmations</label>
         </div>

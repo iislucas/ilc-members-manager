@@ -5,7 +5,10 @@ import { NotificationSettingsComponent } from './notification-settings.component
 import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
-import { NotificationKind, EventDigestFrequency } from '../../../../functions/src/data-model/notifications';
+import {
+  NotificationKind,
+  EventDigestFrequency,
+} from '../../../../functions/src/data-model/notifications';
 import { TransactionalEmailKey } from '../../../../functions/src/data-model/mail';
 import { provideNavigationTreeStub } from '../../navigation-tree.testing';
 
@@ -70,7 +73,9 @@ describe('NotificationSettingsComponent', () => {
   it('should render settings cards and options', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.settings-card')).toBeTruthy();
-    expect(compiled.querySelector('h2')?.textContent).toContain('Local Notification Settings');
+    expect(compiled.querySelector('h2')?.textContent).toContain(
+      'Local Notification Settings',
+    );
   });
 
   it('should toggle all push settings and trigger request permission if default', () => {
@@ -107,7 +112,9 @@ describe('NotificationSettingsComponent', () => {
     const dataManager = TestBed.inject(DataManagerService);
     expect(component['eventDigestFrequency']()).toBe(EventDigestFrequency.None);
 
-    const select = fixture.nativeElement.querySelector('#event-digest-frequency') as HTMLSelectElement;
+    const select = fixture.nativeElement.querySelector(
+      '#event-digest-frequency',
+    ) as HTMLSelectElement;
     expect(select).toBeTruthy();
     expect(select.value).toBe(EventDigestFrequency.None);
 
@@ -127,9 +134,14 @@ describe('NotificationSettingsComponent', () => {
     fixture.detectChanges();
     const dataManager = TestBed.inject(DataManagerService);
 
-    expect(component.isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation)).toBe(true);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation),
+    ).toBe(true);
 
-    await component.toggleEmailKind(TransactionalEmailKey.OrderConfirmation, false);
+    await component.toggleEmailKind(
+      TransactionalEmailKey.OrderConfirmation,
+      false,
+    );
     expect(dataManager.updateMember).toHaveBeenCalledWith(
       'member-123',
       expect.objectContaining({
@@ -148,7 +160,9 @@ describe('NotificationSettingsComponent', () => {
     const dataManager = TestBed.inject(DataManagerService);
 
     expect(component['globalEmailEnabled']()).toBe(true);
-    expect(component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived)).toBe(true);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived),
+    ).toBe(true);
 
     await component.setGlobalEmail(false);
     expect(dataManager.updateMember).toHaveBeenCalledWith(
@@ -174,16 +188,23 @@ describe('NotificationSettingsComponent', () => {
     });
     fixture.detectChanges();
     expect(component['globalEmailEnabled']()).toBe(false);
-    expect(component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived)).toBe(false);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived),
+    ).toBe(false);
   });
 
   it('should toggle VodGiftReceived email preference specifically', async () => {
     fixture.detectChanges();
     const dataManager = TestBed.inject(DataManagerService);
 
-    expect(component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived)).toBe(true);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived),
+    ).toBe(true);
 
-    await component.toggleEmailKind(TransactionalEmailKey.VodGiftReceived, false);
+    await component.toggleEmailKind(
+      TransactionalEmailKey.VodGiftReceived,
+      false,
+    );
     expect(dataManager.updateMember).toHaveBeenCalledWith(
       'member-123',
       expect.objectContaining({
@@ -196,5 +217,45 @@ describe('NotificationSettingsComponent', () => {
       expect.any(Object),
     );
   });
-});
 
+  describe('device push toggle', () => {
+    it('calls enablePushOnThisDevice when toggled to true and globalPush is enabled', async () => {
+      mockFirebaseService.user.set({
+        member: {
+          docId: 'member-123',
+          notificationSettings: { globalPushEnabled: true },
+        },
+      });
+
+      await component.toggleDevicePush(true);
+      expect(mockNotificationService.enablePushOnThisDevice).toHaveBeenCalled();
+    });
+
+    it('calls disablePushOnThisDevice when toggled to false', async () => {
+      await component.toggleDevicePush(false);
+      expect(
+        mockNotificationService.disablePushOnThisDevice,
+      ).toHaveBeenCalled();
+    });
+
+    it('renders correct labels when push is supported', async () => {
+      mockNotificationService.isPushSupported = true;
+      mockNotificationService.pushDeviceEnabled.set(true);
+      mockFirebaseService.user.set({
+        member: {
+          docId: 'member-123',
+          notificationSettings: { globalPushEnabled: true },
+        },
+      });
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain(
+        'Push notifications on this device',
+      );
+      expect(compiled.textContent).toContain(
+        'Active — receiving background notifications on this device.',
+      );
+    });
+  });
+});

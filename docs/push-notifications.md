@@ -31,12 +31,12 @@ through the shared helper `createMemberNotification` in
 de‑duplicates by the entity a notification is about (`gradingDocId`, `eventId`,
 or `orderId`).
 
-| Trigger | Where | Kind(s) |
-| --- | --- | --- |
-| A grading is purchased / created | `onGradingCreated` in [`functions/src/on-grading-update.ts`](../functions/src/on-grading-update.ts) | `GradingPurchased`, `GradingRequestsYouAsInstructor` |
-| A grading is accepted/declined/assigned/passed/not‑passed | `onGradingUpdated` (same file) | `GradingRequestAccepted`, `GradingPassed`, `GradingNotPassed`, … |
-| Any order is fully processed | `notifyPurchaseFulfilled` in [`functions/src/squarespace-orders/api.ts`](../functions/src/squarespace-orders/api.ts) | `PurchaseFulfilled` |
-| New blog posts the member hasn't seen | `syncBlogPostNotifications` in [`src/app/notification.service.ts`](../src/app/notification.service.ts) (runs on the **client** at login) | `BlogPost` |
+| Trigger                                                   | Where                                                                                                                                    | Kind(s)                                                          |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| A grading is purchased / created                          | `onGradingCreated` in [`functions/src/on-grading-update.ts`](../functions/src/on-grading-update.ts)                                      | `GradingPurchased`, `GradingRequestsYouAsInstructor`             |
+| A grading is accepted/declined/assigned/passed/not‑passed | `onGradingUpdated` (same file)                                                                                                           | `GradingRequestAccepted`, `GradingPassed`, `GradingNotPassed`, … |
+| Any order is fully processed                              | `notifyPurchaseFulfilled` in [`functions/src/squarespace-orders/api.ts`](../functions/src/squarespace-orders/api.ts)                     | `PurchaseFulfilled`                                              |
+| New blog posts the member hasn't seen                     | `syncBlogPostNotifications` in [`src/app/notification.service.ts`](../src/app/notification.service.ts) (runs on the **client** at login) | `BlogPost`                                                       |
 
 Note that blog‑post notifications are written by the client, while the rest are
 written by Cloud Functions. It doesn't matter for the rest of the flow — once a
@@ -52,7 +52,7 @@ member's `notifications` subcollection with `onSnapshot`:
 - The full notifications view shows the complete history.
 
 While the app is open and the OS has granted permission, the service can also
-pop a *local* OS banner via the service worker
+pop a _local_ OS banner via the service worker
 (`registration.showNotification`). This is gated by the per‑device "Browser
 Push" preferences in localStorage and only works while a tab is alive — it is
 **not** the same as background push below.
@@ -127,9 +127,12 @@ There are two scopes of preference:
   - `globalPushEnabled` — the master switch. Background push is **opt‑in**: if
     this is not `true`, `sendPushOnNotification` sends nothing.
   - `pushEnabled[kind]` — lets a member mute specific kinds for background push.
-- **Per‑device (this browser)** — whether *this* browser holds an active push
-  subscription, controlled by the "Enable push on this device" toggle. It can
-  only be turned on while the account‑wide switch is on.
+- **Per‑device (this browser)** — whether _this_ browser holds an active push
+  subscription, controlled by the "Push notifications on this device" toggle.
+  Persisted locally in `localStorage` (`devicePushEnabled`) so that disabling
+  push on a device prevents automatic background re-subscription even if browser
+  permissions remain granted. It can only be turned on while the account‑wide
+  switch is on.
 
 Managed from [`src/app/settings/notification-settings/`](../src/app/settings/notification-settings/).
 

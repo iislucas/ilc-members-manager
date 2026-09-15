@@ -2,8 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { writeBatch, getDocs, getDoc, where } from 'firebase/firestore';
 import { NotificationService } from './notification.service';
-import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
-import { MemberNotification, NotificationKind } from '../../functions/src/data-model/notifications';
+import {
+  FirebaseStateService,
+  createFirebaseStateServiceMock,
+} from './firebase-state.service';
+import {
+  MemberNotification,
+  NotificationKind,
+} from '../../functions/src/data-model/notifications';
 import { OrderKind, OrderStatus } from '../../functions/src/data-model/orders';
 
 // Partial-mock firebase/firestore so reconciliation's writes/reads can be
@@ -49,7 +55,8 @@ describe('NotificationService', () => {
   });
 
   it('should correctly strip markdown for notification push alerts', () => {
-    const rawMd = '# Hello *World*!\n\nThis is a [link](https://test.com) and some `code`.';
+    const rawMd =
+      '# Hello *World*!\n\nThis is a [link](https://test.com) and some `code`.';
     const stripped = (service as any).stripMarkdown(rawMd);
     expect(stripped).toBe('Hello World! This is a link and some code.');
   });
@@ -85,7 +92,9 @@ describe('NotificationService', () => {
     const store: Record<string, string> = {
       pushedNotificationDocIds: JSON.stringify(['id1']),
     };
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => store[key] || null);
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(
+      (key) => store[key] || null,
+    );
 
     // Mock member settings to have BlogPost enabled
     const user = {
@@ -112,11 +121,17 @@ describe('NotificationService', () => {
     (service as any).processPushNotifications(active);
 
     // Should push a notification for id2 and update localStorage
-    expect(mockNotificationConstructor).toHaveBeenCalledWith('New Member Notification', {
-      body: 'Update 2',
-      icon: '/iliqchuan.png',
-    });
-    expect(spyLocalStorageSet).toHaveBeenCalledWith('pushedNotificationDocIds', JSON.stringify(['id1', 'id2']));
+    expect(mockNotificationConstructor).toHaveBeenCalledWith(
+      'New Member Notification',
+      {
+        body: 'Update 2',
+        icon: '/iliqchuan.png',
+      },
+    );
+    expect(spyLocalStorageSet).toHaveBeenCalledWith(
+      'pushedNotificationDocIds',
+      JSON.stringify(['id1', 'id2']),
+    );
 
     vi.unstubAllGlobals();
   });
@@ -131,18 +146,20 @@ describe('NotificationService', () => {
       data: () => n,
     });
 
-    const notif = (over: Partial<MemberNotification>): MemberNotification => ({
-      docId: 'x',
-      markdown: 'old',
-      createdAt: '2026-05-14T12:00:00Z',
-      dismissed: false,
-      kind: NotificationKind.OrderNeedsAttention,
-      data: { orderDocId: 'o-x', orderRef: 'X', status: 'error', issues: [] },
-      ...over,
-    } as MemberNotification);
+    const notif = (over: Partial<MemberNotification>): MemberNotification =>
+      ({
+        docId: 'x',
+        markdown: 'old',
+        createdAt: '2026-05-14T12:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.OrderNeedsAttention,
+        data: { orderDocId: 'o-x', orderRef: 'X', status: 'error', issues: [] },
+        ...over,
+      }) as MemberNotification;
 
     it('rewrites + dismisses resolved, updates changed in place, and skips unchanged', async () => {
-      const updates: { ref: { id: string }; patch: Record<string, unknown> }[] = [];
+      const updates: { ref: { id: string }; patch: Record<string, unknown> }[] =
+        [];
       const commit = vi.fn().mockResolvedValue(undefined);
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         update: (ref: { id: string }, patch: Record<string, unknown>) =>
@@ -150,11 +167,32 @@ describe('NotificationService', () => {
         commit,
       });
 
-      const resolved = notif({ docId: 'resolved', markdown: 'old', data: { orderDocId: 'o1' } as any });
-      const changed = notif({ docId: 'changed', markdown: 'old', data: { orderDocId: 'o2' } as any });
-      const unchanged = notif({ docId: 'unchanged', markdown: 'same', data: { orderDocId: 'o3' } as any });
-      const dismissed = notif({ docId: 'dismissed', markdown: 'old', dismissed: true, data: { orderDocId: 'o4' } as any });
-      const noEntity = notif({ docId: 'no-entity', markdown: 'old', data: {} as any });
+      const resolved = notif({
+        docId: 'resolved',
+        markdown: 'old',
+        data: { orderDocId: 'o1' } as any,
+      });
+      const changed = notif({
+        docId: 'changed',
+        markdown: 'old',
+        data: { orderDocId: 'o2' } as any,
+      });
+      const unchanged = notif({
+        docId: 'unchanged',
+        markdown: 'same',
+        data: { orderDocId: 'o3' } as any,
+      });
+      const dismissed = notif({
+        docId: 'dismissed',
+        markdown: 'old',
+        dismissed: true,
+        data: { orderDocId: 'o4' } as any,
+      });
+      const noEntity = notif({
+        docId: 'no-entity',
+        markdown: 'old',
+        data: {} as any,
+      });
 
       await (service as any).reconcileNotifications(
         [resolved, changed, unchanged, dismissed, noEntity].map(makeDoc),
@@ -178,7 +216,10 @@ describe('NotificationService', () => {
       const byId = (id: string) => updates.find((u) => u.ref.id === id)?.patch;
 
       // resolved: markdown rewritten AND dismissed set.
-      expect(byId('resolved')).toEqual({ markdown: 'now resolved', dismissed: true });
+      expect(byId('resolved')).toEqual({
+        markdown: 'now resolved',
+        dismissed: true,
+      });
       // changed but live: markdown only, dismissed untouched.
       expect(byId('changed')).toEqual({ markdown: 'new text' });
       // unchanged: no write.
@@ -192,7 +233,8 @@ describe('NotificationService', () => {
     });
 
     it('patches kind to ManualOrderFulfilled and updates markdown when a manual order is fulfilled', async () => {
-      const updates: { ref: { id: string }; patch: Record<string, unknown> }[] = [];
+      const updates: { ref: { id: string }; patch: Record<string, unknown> }[] =
+        [];
       const commit = vi.fn().mockResolvedValue(undefined);
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         update: (ref: { id: string }, patch: Record<string, unknown>) =>
@@ -203,7 +245,8 @@ describe('NotificationService', () => {
       const manualOrderNotif = notif({
         docId: 'notif1',
         kind: NotificationKind.OrderNeedsAttention,
-        markdown: 'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership) needs manual processing',
+        markdown:
+          'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership) needs manual processing',
         data: {
           orderDocId: 'o1',
           orderRef: '1234',
@@ -240,7 +283,8 @@ describe('NotificationService', () => {
       expect(updates).toHaveLength(1);
       expect(updates[0].patch).toEqual({
         kind: NotificationKind.ManualOrderFulfilled,
-        markdown: 'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership) — manual order was fulfilled',
+        markdown:
+          'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership) — manual order was fulfilled',
         data: {
           orderDocId: 'o1',
           orderRef: '1234',
@@ -270,10 +314,15 @@ describe('NotificationService', () => {
         ],
       });
 
-      const feed = { collection: 'members-post', label: 'Members', route: 'members-area/post' };
+      const feed = {
+        collection: 'members-post',
+        label: 'Members',
+        route: 'members-area/post',
+      };
       const notif: MemberNotification = {
         docId: 'n1',
-        markdown: 'New Members post: [Old Title](#/members-area/post/old-title)',
+        markdown:
+          'New Members post: [Old Title](#/members-area/post/old-title)',
         createdAt: '2026-05-14T12:00:00Z',
         dismissed: false,
         kind: NotificationKind.BlogPost,
@@ -286,7 +335,10 @@ describe('NotificationService', () => {
         },
       };
 
-      const result = await (service as any).resolveBlogNotification(feed, notif);
+      const result = await (service as any).resolveBlogNotification(
+        feed,
+        notif,
+      );
 
       // Looked up by the source id field, not the document id.
       expect(where).toHaveBeenCalledWith('id', '==', 'src-123');
@@ -302,10 +354,15 @@ describe('NotificationService', () => {
         docs: [],
       });
 
-      const feed = { collection: 'members-post', label: 'Members', route: 'members-area/post' };
+      const feed = {
+        collection: 'members-post',
+        label: 'Members',
+        route: 'members-area/post',
+      };
       const notif: MemberNotification = {
         docId: 'n1',
-        markdown: 'New Members post: [Old Title](#/members-area/post/old-title)',
+        markdown:
+          'New Members post: [Old Title](#/members-area/post/old-title)',
         createdAt: '2026-05-14T12:00:00Z',
         dismissed: false,
         kind: NotificationKind.BlogPost,
@@ -318,7 +375,10 @@ describe('NotificationService', () => {
         },
       };
 
-      const result = await (service as any).resolveBlogNotification(feed, notif);
+      const result = await (service as any).resolveBlogNotification(
+        feed,
+        notif,
+      );
       expect(result.resolved).toBe(true);
       expect(result.markdown).toBe('~~New Members post~~ (post removed)');
     });
@@ -333,7 +393,8 @@ describe('NotificationService', () => {
 
       const existingNotif: MemberNotification = {
         docId: 'n1',
-        markdown: 'New Members post: [Old Title](#/members-area/post/old-title)',
+        markdown:
+          'New Members post: [Old Title](#/members-area/post/old-title)',
         createdAt: '2026-05-14T12:00:00Z',
         dismissed: false,
         kind: NotificationKind.BlogPost,
@@ -345,7 +406,11 @@ describe('NotificationService', () => {
           blogPostUrlId: 'old-title',
         },
       };
-      const existingDoc = { id: 'n1', ref: { id: 'n1' }, data: () => existingNotif };
+      const existingDoc = {
+        id: 'n1',
+        ref: { id: 'n1' },
+        data: () => existingNotif,
+      };
       const existingSnap = {
         forEach: (cb: (d: unknown) => void) => [existingDoc].forEach(cb),
         docs: [existingDoc],
@@ -374,11 +439,16 @@ describe('NotificationService', () => {
       const updates: { patch: Record<string, unknown> }[] = [];
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         set: vi.fn(),
-        update: (_ref: unknown, patch: Record<string, unknown>) => updates.push({ patch }),
+        update: (_ref: unknown, patch: Record<string, unknown>) =>
+          updates.push({ patch }),
         commit: vi.fn().mockResolvedValue(undefined),
       });
 
-      const feed = { collection: 'members-post', label: 'Members', route: 'members-area/post' };
+      const feed = {
+        collection: 'members-post',
+        label: 'Members',
+        route: 'members-area/post',
+      };
       await (service as any).syncBlogFeedNotifications('member1', feed);
 
       expect(updates).toHaveLength(1);
@@ -394,12 +464,20 @@ describe('NotificationService', () => {
         commit,
       });
 
-      const n = notif({ docId: 'a', markdown: 'same', data: { orderDocId: 'o1' } as any });
-      await (service as any).reconcileNotifications([makeDoc(n)], 'orderDocId', async () => ({
+      const n = notif({
+        docId: 'a',
         markdown: 'same',
-        data: n.data,
-        resolved: false,
-      }));
+        data: { orderDocId: 'o1' } as any,
+      });
+      await (service as any).reconcileNotifications(
+        [makeDoc(n)],
+        'orderDocId',
+        async () => ({
+          markdown: 'same',
+          data: n.data,
+          resolved: false,
+        }),
+      );
 
       expect(commit).not.toHaveBeenCalled();
     });
@@ -416,7 +494,10 @@ describe('NotificationService', () => {
         orderNumber: '1234',
         customerEmail: 'jane@example.com',
         billingAddress: { firstName: 'Jane', lastName: 'Doe' },
-        lineItems: [{ productName: 'Annual Membership' }, { productName: 'Video Library' }],
+        lineItems: [
+          { productName: 'Annual Membership' },
+          { productName: 'Video Library' },
+        ],
       };
       expect(fields(order).markdown).toBe(
         'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership, Video Library) needs manual processing',
@@ -448,7 +529,10 @@ describe('NotificationService', () => {
         // A physical book (as displayed "1x BOOK : System Guide - 3rd Edition")
         // plus a second item that only carries a SKU.
         lineItems: [
-          { productName: 'BOOK : System Guide - 3rd Edition', sku: 'PRINT-3SGUIDE' },
+          {
+            productName: 'BOOK : System Guide - 3rd Edition',
+            sku: 'PRINT-3SGUIDE',
+          },
           { sku: 'PRINT-POSTER' },
         ],
       };
@@ -472,7 +556,8 @@ describe('NotificationService', () => {
   });
 
   describe('manualOrderFulfilledMarkdown', () => {
-    const md = (order: unknown) => (service as any).manualOrderFulfilledMarkdown(order);
+    const md = (order: unknown) =>
+      (service as any).manualOrderFulfilledMarkdown(order);
 
     it('includes who placed a Squarespace order and what it was for with fulfilled phrasing', () => {
       const order = {
@@ -483,7 +568,10 @@ describe('NotificationService', () => {
         orderNumber: '1234',
         customerEmail: 'jane@example.com',
         billingAddress: { firstName: 'Jane', lastName: 'Doe' },
-        lineItems: [{ productName: 'Annual Membership' }, { productName: 'Video Library' }],
+        lineItems: [
+          { productName: 'Annual Membership' },
+          { productName: 'Video Library' },
+        ],
       };
       expect(md(order)).toBe(
         'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership, Video Library) — manual order was fulfilled',
@@ -505,8 +593,10 @@ describe('NotificationService', () => {
   });
 
   describe('upload notifications', () => {
-    const uploadFields = (upload: unknown) => (service as any).uploadNotificationFields(upload);
-    const dateRangeDisplay = (x: string, y: string) => (service as any).formatDateRangeDisplay(x, y);
+    const uploadFields = (upload: unknown) =>
+      (service as any).uploadNotificationFields(upload);
+    const dateRangeDisplay = (x: string, y: string) =>
+      (service as any).formatDateRangeDisplay(x, y);
 
     it('generates markdown with uploader, link, event, and location for uploadNotificationFields', () => {
       const upload = {
@@ -529,8 +619,12 @@ describe('NotificationService', () => {
     });
 
     it('formats date range display correctly for same date and different dates', () => {
-      expect(dateRangeDisplay('2026-08-11T10:00:00Z', '2026-08-11T18:00:00Z')).toBe('on 2026-08-11');
-      expect(dateRangeDisplay('2026-08-01T10:00:00Z', '2026-08-05T18:00:00Z')).toBe('between 2026-08-01 and 2026-08-05');
+      expect(
+        dateRangeDisplay('2026-08-11T10:00:00Z', '2026-08-11T18:00:00Z'),
+      ).toBe('on 2026-08-11');
+      expect(
+        dateRangeDisplay('2026-08-01T10:00:00Z', '2026-08-05T18:00:00Z'),
+      ).toBe('between 2026-08-01 and 2026-08-05');
     });
 
     it('creates individual notifications when new uploads count <= 3', async () => {
@@ -571,7 +665,8 @@ describe('NotificationService', () => {
 
       const writes: { notif: MemberNotification }[] = [];
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        set: (_ref: unknown, notif: MemberNotification) =>
+          writes.push({ notif }),
         update: vi.fn(),
         commit: vi.fn().mockResolvedValue(undefined),
       });
@@ -595,13 +690,55 @@ describe('NotificationService', () => {
 
       // 2) collection group query on uploads: returns 7 uploads
       const uploads = [
-        { docId: 'up7', memberDocId: 'm1', name: 'V7.mp4', memberName: 'User', createdAt: '2026-08-07T12:00:00Z' },
-        { docId: 'up6', memberDocId: 'm1', name: 'V6.mp4', memberName: 'User', createdAt: '2026-08-06T12:00:00Z' },
-        { docId: 'up5', memberDocId: 'm1', name: 'V5.mp4', memberName: 'User', createdAt: '2026-08-05T12:00:00Z' },
-        { docId: 'up4', memberDocId: 'm1', name: 'V4.mp4', memberName: 'User', createdAt: '2026-08-04T12:00:00Z' },
-        { docId: 'up3', memberDocId: 'm1', name: 'V3.mp4', memberName: 'User', createdAt: '2026-08-03T12:00:00Z' },
-        { docId: 'up2', memberDocId: 'm1', name: 'V2.mp4', memberName: 'User', createdAt: '2026-08-02T12:00:00Z' },
-        { docId: 'up1', memberDocId: 'm1', name: 'V1.mp4', memberName: 'User', createdAt: '2026-08-01T12:00:00Z' },
+        {
+          docId: 'up7',
+          memberDocId: 'm1',
+          name: 'V7.mp4',
+          memberName: 'User',
+          createdAt: '2026-08-07T12:00:00Z',
+        },
+        {
+          docId: 'up6',
+          memberDocId: 'm1',
+          name: 'V6.mp4',
+          memberName: 'User',
+          createdAt: '2026-08-06T12:00:00Z',
+        },
+        {
+          docId: 'up5',
+          memberDocId: 'm1',
+          name: 'V5.mp4',
+          memberName: 'User',
+          createdAt: '2026-08-05T12:00:00Z',
+        },
+        {
+          docId: 'up4',
+          memberDocId: 'm1',
+          name: 'V4.mp4',
+          memberName: 'User',
+          createdAt: '2026-08-04T12:00:00Z',
+        },
+        {
+          docId: 'up3',
+          memberDocId: 'm1',
+          name: 'V3.mp4',
+          memberName: 'User',
+          createdAt: '2026-08-03T12:00:00Z',
+        },
+        {
+          docId: 'up2',
+          memberDocId: 'm1',
+          name: 'V2.mp4',
+          memberName: 'User',
+          createdAt: '2026-08-02T12:00:00Z',
+        },
+        {
+          docId: 'up1',
+          memberDocId: 'm1',
+          name: 'V1.mp4',
+          memberName: 'User',
+          createdAt: '2026-08-01T12:00:00Z',
+        },
       ];
 
       getDocsMock.mockResolvedValueOnce({
@@ -610,7 +747,8 @@ describe('NotificationService', () => {
 
       const writes: { notif: MemberNotification }[] = [];
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        set: (_ref: unknown, notif: MemberNotification) =>
+          writes.push({ notif }),
         update: vi.fn(),
         commit: vi.fn().mockResolvedValue(undefined),
       });
@@ -621,15 +759,23 @@ describe('NotificationService', () => {
       // 3 individual + 1 summary = 4 notifications
       expect(writes).toHaveLength(4);
 
-      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.NewUpload);
-      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.NewUploadsSummary);
+      const individuals = writes.filter(
+        (w) => w.notif.kind === NotificationKind.NewUpload,
+      );
+      const summaries = writes.filter(
+        (w) => w.notif.kind === NotificationKind.NewUploadsSummary,
+      );
 
       expect(individuals).toHaveLength(3);
       expect(summaries).toHaveLength(1);
 
       const summary = summaries[0].notif;
-      expect(summary.markdown).toContain('**4** more uploads between 2026-08-01 and 2026-08-04');
-      expect(summary.markdown).toContain('/manage-materials?startDate=2026-08-01&endDate=2026-08-04');
+      expect(summary.markdown).toContain(
+        '**4** more uploads between 2026-08-01 and 2026-08-04',
+      );
+      expect(summary.markdown).toContain(
+        '/manage-materials?startDate=2026-08-01&endDate=2026-08-04',
+      );
       expect((summary.data as any).count).toBe(4);
       expect((summary.data as any).startDate).toBe('2026-08-01');
       expect((summary.data as any).endDate).toBe('2026-08-04');
@@ -644,8 +790,20 @@ describe('NotificationService', () => {
 
       // 2) collection group query on uploads: includes 1 self upload and 1 other upload
       const uploads = [
-        { docId: 'up-self', memberDocId: 'admin1', name: 'MyVid.mp4', memberName: 'Admin', createdAt: '2026-08-11T12:00:00Z' },
-        { docId: 'up-other', memberDocId: 'other-mem', name: 'OtherVid.mp4', memberName: 'Other', createdAt: '2026-08-11T11:00:00Z' },
+        {
+          docId: 'up-self',
+          memberDocId: 'admin1',
+          name: 'MyVid.mp4',
+          memberName: 'Admin',
+          createdAt: '2026-08-11T12:00:00Z',
+        },
+        {
+          docId: 'up-other',
+          memberDocId: 'other-mem',
+          name: 'OtherVid.mp4',
+          memberName: 'Other',
+          createdAt: '2026-08-11T11:00:00Z',
+        },
       ];
 
       getDocsMock.mockResolvedValueOnce({
@@ -654,7 +812,8 @@ describe('NotificationService', () => {
 
       const writes: { notif: MemberNotification }[] = [];
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        set: (_ref: unknown, notif: MemberNotification) =>
+          writes.push({ notif }),
         update: vi.fn(),
         commit: vi.fn().mockResolvedValue(undefined),
       });
@@ -663,7 +822,9 @@ describe('NotificationService', () => {
       await (service as any).syncNewUploadNotifications(member);
 
       expect(writes).toHaveLength(1);
-      expect((writes[0].notif.data as { uploadDocId?: string })?.uploadDocId).toBe('up-other');
+      expect(
+        (writes[0].notif.data as { uploadDocId?: string })?.uploadDocId,
+      ).toBe('up-other');
     });
   });
 
@@ -690,21 +851,32 @@ describe('NotificationService', () => {
 
       const writes: { notif: MemberNotification }[] = [];
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        set: (_ref: unknown, notif: MemberNotification) =>
+          writes.push({ notif }),
         update: vi.fn(),
         commit: vi.fn().mockResolvedValue(undefined),
       });
 
-      const feed = { collection: 'members-post', label: 'Members', route: 'members-area/post' };
+      const feed = {
+        collection: 'members-post',
+        label: 'Members',
+        route: 'members-area/post',
+      };
       await (service as any).syncBlogFeedNotifications('mem1', feed);
 
       expect(writes).toHaveLength(4);
-      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.BlogPost);
-      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.BlogPostsSummary);
+      const individuals = writes.filter(
+        (w) => w.notif.kind === NotificationKind.BlogPost,
+      );
+      const summaries = writes.filter(
+        (w) => w.notif.kind === NotificationKind.BlogPostsSummary,
+      );
 
       expect(individuals).toHaveLength(3);
       expect(summaries).toHaveLength(1);
-      expect(summaries[0].notif.markdown).toContain('**2** more Members posts: [View in Members Area](/members-area)');
+      expect(summaries[0].notif.markdown).toContain(
+        '**2** more Members posts: [View in Members Area](/members-area)',
+      );
       expect((summaries[0].notif.data as any).count).toBe(2);
     });
   });
@@ -719,11 +891,36 @@ describe('NotificationService', () => {
 
       // 2) events query: returns 5 proposed events
       const events = [
-        { docId: 'e5', title: 'Event 5', status: 'proposed', createdAt: '2026-08-05T12:00:00Z' },
-        { docId: 'e4', title: 'Event 4', status: 'proposed', createdAt: '2026-08-04T12:00:00Z' },
-        { docId: 'e3', title: 'Event 3', status: 'proposed', createdAt: '2026-08-03T12:00:00Z' },
-        { docId: 'e2', title: 'Event 2', status: 'proposed', createdAt: '2026-08-02T12:00:00Z' },
-        { docId: 'e1', title: 'Event 1', status: 'proposed', createdAt: '2026-08-01T12:00:00Z' },
+        {
+          docId: 'e5',
+          title: 'Event 5',
+          status: 'proposed',
+          createdAt: '2026-08-05T12:00:00Z',
+        },
+        {
+          docId: 'e4',
+          title: 'Event 4',
+          status: 'proposed',
+          createdAt: '2026-08-04T12:00:00Z',
+        },
+        {
+          docId: 'e3',
+          title: 'Event 3',
+          status: 'proposed',
+          createdAt: '2026-08-03T12:00:00Z',
+        },
+        {
+          docId: 'e2',
+          title: 'Event 2',
+          status: 'proposed',
+          createdAt: '2026-08-02T12:00:00Z',
+        },
+        {
+          docId: 'e1',
+          title: 'Event 1',
+          status: 'proposed',
+          createdAt: '2026-08-01T12:00:00Z',
+        },
       ];
 
       getDocsMock.mockResolvedValueOnce({
@@ -732,7 +929,8 @@ describe('NotificationService', () => {
 
       const writes: { notif: MemberNotification }[] = [];
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        set: (_ref: unknown, notif: MemberNotification) =>
+          writes.push({ notif }),
         update: vi.fn(),
         commit: vi.fn().mockResolvedValue(undefined),
       });
@@ -741,12 +939,18 @@ describe('NotificationService', () => {
       await (service as any).syncPendingEventNotifications(member);
 
       expect(writes).toHaveLength(4);
-      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.PendingEventApproval);
-      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.PendingEventsSummary);
+      const individuals = writes.filter(
+        (w) => w.notif.kind === NotificationKind.PendingEventApproval,
+      );
+      const summaries = writes.filter(
+        (w) => w.notif.kind === NotificationKind.PendingEventsSummary,
+      );
 
       expect(individuals).toHaveLength(3);
       expect(summaries).toHaveLength(1);
-      expect(summaries[0].notif.markdown).toContain('**2** more proposed events awaiting approval: [View in Manage Events](/manage-events?status=proposed)');
+      expect(summaries[0].notif.markdown).toContain(
+        '**2** more proposed events awaiting approval: [View in Manage Events](/manage-events?status=proposed)',
+      );
       expect((summaries[0].notif.data as any).count).toBe(2);
     });
   });
@@ -761,11 +965,31 @@ describe('NotificationService', () => {
 
       // 2) orders query: returns 5 order issues
       const orders = [
-        { docId: 'o5', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-05T12:00:00Z' },
-        { docId: 'o4', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-04T12:00:00Z' },
-        { docId: 'o3', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-03T12:00:00Z' },
-        { docId: 'o2', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-02T12:00:00Z' },
-        { docId: 'o1', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-01T12:00:00Z' },
+        {
+          docId: 'o5',
+          ilcAppOrderStatus: 'error',
+          lastUpdated: '2026-08-05T12:00:00Z',
+        },
+        {
+          docId: 'o4',
+          ilcAppOrderStatus: 'error',
+          lastUpdated: '2026-08-04T12:00:00Z',
+        },
+        {
+          docId: 'o3',
+          ilcAppOrderStatus: 'error',
+          lastUpdated: '2026-08-03T12:00:00Z',
+        },
+        {
+          docId: 'o2',
+          ilcAppOrderStatus: 'error',
+          lastUpdated: '2026-08-02T12:00:00Z',
+        },
+        {
+          docId: 'o1',
+          ilcAppOrderStatus: 'error',
+          lastUpdated: '2026-08-01T12:00:00Z',
+        },
       ];
 
       getDocsMock.mockResolvedValueOnce({
@@ -774,7 +998,8 @@ describe('NotificationService', () => {
 
       const writes: { notif: MemberNotification }[] = [];
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        set: (_ref: unknown, notif: MemberNotification) =>
+          writes.push({ notif }),
         update: vi.fn(),
         commit: vi.fn().mockResolvedValue(undefined),
       });
@@ -783,12 +1008,18 @@ describe('NotificationService', () => {
       await (service as any).syncOrderIssueNotifications(member);
 
       expect(writes).toHaveLength(4);
-      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.OrderNeedsAttention);
-      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.OrderIssuesSummary);
+      const individuals = writes.filter(
+        (w) => w.notif.kind === NotificationKind.OrderNeedsAttention,
+      );
+      const summaries = writes.filter(
+        (w) => w.notif.kind === NotificationKind.OrderIssuesSummary,
+      );
 
       expect(individuals).toHaveLength(3);
       expect(summaries).toHaveLength(1);
-      expect(summaries[0].notif.markdown).toContain('**2** more orders need attention: [View in Manage Orders](/orders)');
+      expect(summaries[0].notif.markdown).toContain(
+        '**2** more orders need attention: [View in Manage Orders](/orders)',
+      );
       expect((summaries[0].notif.data as any).count).toBe(2);
     });
   });
@@ -796,7 +1027,8 @@ describe('NotificationService', () => {
   describe('unpaid gradings summary notifications', () => {
     it('creates 3 individual notifications and 1 summary notification when unpaid gradings > 3', async () => {
       const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
-      const getDocMock = (await import('firebase/firestore')).getDoc as unknown as ReturnType<typeof vi.fn>;
+      const getDocMock = (await import('firebase/firestore'))
+        .getDoc as unknown as ReturnType<typeof vi.fn>;
       getDocsMock.mockReset();
       getDocMock.mockReset();
 
@@ -829,7 +1061,8 @@ describe('NotificationService', () => {
 
       const writes: { notif: MemberNotification }[] = [];
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        set: (_ref: unknown, notif: MemberNotification) =>
+          writes.push({ notif }),
         update: vi.fn(),
         commit: vi.fn().mockResolvedValue(undefined),
       });
@@ -837,12 +1070,18 @@ describe('NotificationService', () => {
       await (service as any).syncUnpaidGradingNotifications(member);
 
       expect(writes).toHaveLength(4);
-      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.GradingUnpaid);
-      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.UnpaidGradingsSummary);
+      const individuals = writes.filter(
+        (w) => w.notif.kind === NotificationKind.GradingUnpaid,
+      );
+      const summaries = writes.filter(
+        (w) => w.notif.kind === NotificationKind.UnpaidGradingsSummary,
+      );
 
       expect(individuals).toHaveLength(3);
       expect(summaries).toHaveLength(1);
-      expect(summaries[0].notif.markdown).toContain('**2** more unpaid gradings: [View in Gradings](/gradings)');
+      expect(summaries[0].notif.markdown).toContain(
+        '**2** more unpaid gradings: [View in Gradings](/gradings)',
+      );
       expect((summaries[0].notif.data as any).count).toBe(2);
     });
   });
@@ -851,7 +1090,9 @@ describe('NotificationService', () => {
     it('sets and formats sync error with clickable markdown links for URLs', () => {
       service.setSyncError(
         'Failed to sync uploads',
-        new Error('Missing index: https://console.firebase.google.com/indexes?create=123 for collection'),
+        new Error(
+          'Missing index: https://console.firebase.google.com/indexes?create=123 for collection',
+        ),
       );
       expect(service.syncError()).toBe(
         'Failed to sync uploads: Missing index: [https://console.firebase.google.com/indexes?create=123](https://console.firebase.google.com/indexes?create=123) for collection',
@@ -889,7 +1130,8 @@ describe('NotificationService', () => {
       const member = { docId: 'mem1' } as any;
       vi.spyOn(mockFirebaseService, 'user').mockReturnValue({ member } as any);
 
-      const updates: { ref: { id: string }; patch: Record<string, unknown> }[] = [];
+      const updates: { ref: { id: string }; patch: Record<string, unknown> }[] =
+        [];
       const commit = vi.fn().mockResolvedValue(undefined);
       (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         update: (ref: { id: string }, patch: Record<string, unknown>) =>
@@ -902,6 +1144,59 @@ describe('NotificationService', () => {
       expect(updates).toHaveLength(1);
       expect(updates[0].patch).toEqual({ dismissed: true });
       expect(commit).toHaveBeenCalled();
+    });
+  });
+
+  describe('devicePushEnabled and subscription controls', () => {
+    it('sets devicePushEnabled to false when disablePushOnThisDevice is called', async () => {
+      service.updateLocalSettings({ devicePushEnabled: true });
+      await service.disablePushOnThisDevice();
+      expect(service.localSettings().devicePushEnabled).toBe(false);
+      expect(service.pushDeviceEnabled()).toBe(false);
+    });
+
+    it('sets devicePushEnabled to true when enablePushOnThisDevice is called', async () => {
+      vi.spyOn(service, 'isPushSupported', 'get').mockReturnValue(true);
+      const user = { member: { docId: 'mem-1' } } as any;
+      vi.spyOn(mockFirebaseService, 'user').mockReturnValue(user);
+      service.permissionStatus.set('granted');
+
+      await service.enablePushOnThisDevice();
+      expect(service.localSettings().devicePushEnabled).toBe(true);
+    });
+
+    it('does not register push subscription if devicePushEnabled is false', async () => {
+      service.updateLocalSettings({ devicePushEnabled: false });
+      const requestSubSpy = vi.fn();
+      (service as any).swPush = {
+        isEnabled: true,
+        requestSubscription: requestSubSpy,
+      };
+
+      await (service as any).registerPushSubscription('mem-1');
+      expect(requestSubSpy).not.toHaveBeenCalled();
+    });
+
+    it('skips processing push notifications if devicePushEnabled is false', () => {
+      service.updateLocalSettings({ devicePushEnabled: false });
+      const triggerSpy = vi.spyOn(service as any, 'triggerNativeNotification');
+      const active: MemberNotification[] = [
+        {
+          docId: 'id1',
+          markdown: 'Update 1',
+          createdAt: '2026-05-14T12:00:00Z',
+          dismissed: false,
+          kind: NotificationKind.BlogPost,
+          data: {
+            blogPath: '/members-post',
+            blogCategory: 'members',
+            lastSeenDateStr: '2026-05-14T12:05:00Z',
+          },
+        },
+      ];
+
+      (service as any).processPushNotifications(active);
+      expect(triggerSpy).not.toHaveBeenCalled();
     });
   });
 });
