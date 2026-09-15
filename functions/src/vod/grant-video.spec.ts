@@ -314,4 +314,21 @@ describe('grantVideoAccess', () => {
     expect(result.success).toBe(true);
     expect(result.grantedCount).toBe(1);
   });
+
+  it('skips in-app notification and email when sendNotification is false', async () => {
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      recipientMemberDocId: 'target_mem_42',
+      grantKind: VideoGrantKind.AdminGrant,
+      sendNotification: false,
+    });
+
+    const result = await (grantVideoAccess as any).run(req);
+    expect(result.success).toBe(true);
+    expect(result.grantedCount).toBe(1);
+    expect(mockNotificationsSet).not.toHaveBeenCalled();
+    expect(sendTransactionalEmail).not.toHaveBeenCalled();
+  });
 });

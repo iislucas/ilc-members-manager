@@ -85,6 +85,7 @@ export class GrantVodModalComponent {
   // Grant parameters
   grantKind = signal<VideoGrantKind>(VideoGrantKind.AdminGrant);
   notes = signal<string>('');
+  sendNotification = signal<boolean>(true);
   isGranting = signal<boolean>(false);
   errorMessage = signal<string>('');
 
@@ -166,6 +167,7 @@ export class GrantVodModalComponent {
         recipientName: this.recipientName().trim() || undefined,
         grantKind: this.grantKind(),
         notes: this.notes().trim() || undefined,
+        sendNotification: this.sendNotification(),
       });
 
       if (res.success) {

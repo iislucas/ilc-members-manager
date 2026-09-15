@@ -337,6 +337,50 @@
   }
 }
 
+.notification-option-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid v.$border-color-light;
+  border-radius: 6px;
+  background-color: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: v.$text-muted;
+  }
+
+  &.checked {
+    border-color: v.$border-color-light;
+    background-color: #ffffff;
+  }
+
+  input[type="checkbox"] {
+    margin-top: 3px;
+    cursor: pointer;
+  }
+
+  .checkbox-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .checkbox-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: v.$text-primary;
+    }
+
+    .checkbox-sub {
+      font-size: 0.75rem;
+      color: v.$text-secondary;
+      line-height: 1.35;
+    }
+  }
+}
+
 .error-banner {
   display: flex;
   align-items: center;

@@ -2992,6 +2992,7 @@ export class DataManagerService {
     grantKind?: VideoGrantKind;
     notes?: string;
     expiresAt?: string;
+    sendNotification?: boolean;
   }): Promise<{
     success: boolean;
     grantedCount: number;
@@ -3008,6 +3009,7 @@ export class DataManagerService {
         grantKind?: VideoGrantKind;
         notes?: string;
         expiresAt?: string;
+        sendNotification?: boolean;
       },
       {
         success: boolean;

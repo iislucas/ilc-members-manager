@@ -180,7 +180,26 @@
           [value]="notes()"
           (input)="notes.set($any($event.target).value)"
         ></textarea>
-        <span class="form-help">This note will appear in the recipient's notification.</span>
+        @if (sendNotification()) {
+          <span class="form-help">This note will appear in the recipient's notification and email.</span>
+        }
+      </div>
+
+      <!-- Notification Option -->
+      <div class="form-group">
+        <label class="notification-option-card" [class.checked]="sendNotification()">
+          <input
+            type="checkbox"
+            [checked]="sendNotification()"
+            (change)="sendNotification.set($any($event.target).checked)"
+          />
+          <div class="checkbox-content">
+            <span class="checkbox-title">Send notification to recipient</span>
+            <span class="checkbox-sub">
+              Sends an in-app alert and transactional email (subject to the recipient's notification settings).
+            </span>
+          </div>
+        </label>
       </div>
 
       <!-- Error Message -->
