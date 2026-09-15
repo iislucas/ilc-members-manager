@@ -120,14 +120,9 @@ export const getVideoPlaybackSession = onCall(
     const email = request.auth.token.email.toLowerCase();
 
     // 4. Check if admin (admins have access to all videos)
-    let member: Member | null = null;
-    try {
-      member = await getMemberByEmail(email, db);
-    } catch {
-      // Member record might not be linked yet
-    }
-
-    if (member && member.isAdmin) {
+    const aclDoc = await db.collection('acl').doc(email).get();
+    const isAdmin = aclDoc.exists && aclDoc.data()?.isAdmin === true;
+    if (isAdmin) {
       return {
         authorized: true,
         manifestUrl: video.manifestUrl,
@@ -136,6 +131,13 @@ export const getVideoPlaybackSession = onCall(
         trailerVideoId: video.trailerVideoId || undefined,
         trailerManifestUrl,
       };
+    }
+
+    let member: Member | null = null;
+    try {
+      member = await getMemberByEmail(email, db);
+    } catch {
+      // Member record might not be linked yet
     }
 
     // 5. Check video grants (video docId or parent seriesId)

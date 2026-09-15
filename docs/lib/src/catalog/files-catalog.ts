@@ -3713,17 +3713,7 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     relatedFlows: [],
     relatedPatterns: [],
   },
-  {
-    path: "functions/src/delete-user.ts",
-    layer: ArchitecturalLayer.CloudFunction,
-    responsibility: "Implements deleteUser",
-    keySymbols: ["deleteUser"],
-    relatedJourneys: [],
-    relatedDataTypes: [],
-    relatedStories: [],
-    relatedFlows: [],
-    relatedPatterns: [],
-  },
+
   {
     path: "functions/src/email-dispatcher.spec.ts",
     layer: ArchitecturalLayer.CloudFunction,

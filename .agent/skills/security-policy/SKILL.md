@@ -145,6 +145,35 @@ This skill records mandatory security principles, canonical authorization rules,
 
 ---
 
+### Anti-Pattern 7: Client-Supplied Input Elevation to Admin (`auth?.email || data.email`)
+- **The Pitfall**:
+  Allowing `callerEmail` to fall back to unverified client request data before performing an admin check:
+  ```typescript
+  // ❌ ANTI-PATTERN: Unauthenticated callers supplying an admin's email in data.email get elevated to admin!
+  const callerEmail = (request.auth?.token?.email || data.attendeeDetails.email || '').toLowerCase().trim();
+  const aclSnap = await db.collection('acl').doc(callerEmail).get();
+  const isAdmin = aclSnap.data()?.isAdmin === true;
+  ```
+- **Why It Is Dangerous**:
+  - An unauthenticated user can pass an administrator's email in `data.attendeeDetails.email`.
+  - The lookup to `/acl/{callerEmail}` succeeds and returns `isAdmin: true`.
+  - The unauthenticated caller is elevated to an administrator, bypassing all ownership checks.
+- **The Correct Pattern**:
+  Admin status must **only** be derived from the cryptographically verified auth token:
+  ```typescript
+  // ✅ SECURE:
+  const authEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+  const callerEmail = (authEmail || data.attendeeDetails?.email || '').toLowerCase().trim();
+
+  let isAdmin = false;
+  if (authEmail) {
+    const aclSnap = await db.collection(FirestoreCollection.Acl).doc(authEmail).get();
+    isAdmin = aclSnap.data()?.isAdmin === true;
+  }
+  ```
+
+---
+
 ## 3. Pre-Commit Security Checklist
 
 Before finalizing any changes to Cloud Functions, rules, or authorization logic:

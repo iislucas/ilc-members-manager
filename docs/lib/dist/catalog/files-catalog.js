@@ -3715,17 +3715,6 @@ exports.FILES_CATALOG = [
         relatedPatterns: [],
     },
     {
-        path: "functions/src/delete-user.ts",
-        layer: code_file_1.ArchitecturalLayer.CloudFunction,
-        responsibility: "Implements deleteUser",
-        keySymbols: ["deleteUser"],
-        relatedJourneys: [],
-        relatedDataTypes: [],
-        relatedStories: [],
-        relatedFlows: [],
-        relatedPatterns: [],
-    },
-    {
         path: "functions/src/email-dispatcher.spec.ts",
         layer: code_file_1.ArchitecturalLayer.CloudFunction,
         responsibility: "Unit and regression tests for email-dispatcher",

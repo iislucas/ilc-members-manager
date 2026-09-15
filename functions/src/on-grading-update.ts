@@ -15,6 +15,7 @@ import { NotificationKind, MemberNotification } from './data-model/notifications
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import { recordTombstone } from './common';
+import { Member } from './data-model/members';
 import * as logger from 'firebase-functions/logger';
 
 const db = admin.firestore();
@@ -312,11 +313,21 @@ async function resolveGradingNames(
   return { studentName, gradingInstructorName };
 }
 
-/** Whether the member with this doc ID is an admin. */
+/** Whether the member with this doc ID is an admin according to /acl/{email}. */
 async function isMemberAdmin(memberDocId: string | undefined): Promise<boolean> {
   if (!memberDocId) return false;
   const snap = await db.collection('members').doc(memberDocId).get();
-  return snap.exists ? !!snap.data()?.isAdmin : false;
+  if (!snap.exists) return false;
+  const member = snap.data() as Member;
+  const emails = member.emails || [];
+  for (const email of emails) {
+    if (!email) continue;
+    const aclDoc = await db.collection('acl').doc(email.toLowerCase().trim()).get();
+    if (aclDoc.exists && aclDoc.data()?.isAdmin === true) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

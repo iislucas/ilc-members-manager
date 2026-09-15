@@ -58,8 +58,15 @@ async function getCallerMember(
 async function verifySubscriptionOwnership(
   subscription: Stripe.Subscription,
   member: Member,
+  db: admin.firestore.Firestore,
+  authEmail?: string,
 ): Promise<void> {
-  if (member.isAdmin) return;
+  if (authEmail) {
+    const aclDoc = await db.collection('acl').doc(authEmail.toLowerCase().trim()).get();
+    if (aclDoc.exists && aclDoc.data()?.isAdmin === true) {
+      return;
+    }
+  }
 
   const customerId =
     typeof subscription.customer === 'string'
@@ -110,7 +117,7 @@ export const cancelSubscriptionRenewal = onCall<
     throw new HttpsError('not-found', 'Subscription not found in Stripe.');
   }
 
-  await verifySubscriptionOwnership(subscription, member);
+  await verifySubscriptionOwnership(subscription, member, db, request.auth?.token?.email);
 
   const updatedSub = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: true,
@@ -187,7 +194,7 @@ export const resumeSubscriptionRenewal = onCall<
     throw new HttpsError('not-found', 'Subscription not found in Stripe.');
   }
 
-  await verifySubscriptionOwnership(subscription, member);
+  await verifySubscriptionOwnership(subscription, member, db, request.auth?.token?.email);
 
   const updatedSub = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: false,
