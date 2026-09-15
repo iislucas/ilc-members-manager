@@ -2,25 +2,34 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    function getUserEmail() {
+      return (request.auth != null && 'email' in request.auth.token) ? request.auth.token.email : '';
+    }
+
+    function getAclPath() {
+      let email = getUserEmail();
+      return email != '' ? /databases/(default)/documents/acl/$(email) : /databases/(default)/documents/acl/_invalid_;
+    }
+
     function isAdmin() {
-      let email = request.auth != null ? request.auth.token.email : null;
-      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
-      return email != null && firestore.exists(aclPath) && firestore.get(aclPath).data.isAdmin == true;
+      let email = getUserEmail();
+      let aclPath = getAclPath();
+      return email != '' && firestore.exists(aclPath) && firestore.get(aclPath).data.get('isAdmin', false) == true;
     }
 
     // Returns the list of member document IDs linked to this user's ACL.
     function getUserMemberDocIds() {
-      let email = request.auth != null ? request.auth.token.email : null;
-      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
-      return (email != null && firestore.exists(aclPath)) ? firestore.get(aclPath).data.memberDocIds : [];
+      let email = getUserEmail();
+      let aclPath = getAclPath();
+      return (email != '' && firestore.exists(aclPath)) ? firestore.get(aclPath).data.memberDocIds : [];
     }
 
     // Returns the list of school document IDs this user owns or manages,
     // cached on the user's ACL document.
     function getUserSchoolDocIds() {
-      let email = request.auth != null ? request.auth.token.email : null;
-      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
-      return (email != null && firestore.exists(aclPath)) ? firestore.get(aclPath).data.schoolDocIds : [];
+      let email = getUserEmail();
+      let aclPath = getAclPath();
+      return (email != '' && firestore.exists(aclPath)) ? firestore.get(aclPath).data.schoolDocIds : [];
     }
 
     match /backups/{backupFile} {
@@ -120,9 +129,9 @@ service firebase.storage {
     // Values: "life" (always valid — 'l' > '9' in ASCII), "YYYY-MM-DD"
     // (valid if >= today), or "" / missing (no membership).
     function hasActiveMembership() {
-      let email = request.auth != null ? request.auth.token.email : null;
-      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
-      return email != null && firestore.exists(aclPath) &&
+      let email = getUserEmail();
+      let aclPath = getAclPath();
+      return email != '' && firestore.exists(aclPath) &&
         firestore.get(aclPath).data.get('membershipExpires', '') is string &&
         firestore.get(aclPath).data.get('membershipExpires', '') >= todayStr();
     }
@@ -130,9 +139,9 @@ service firebase.storage {
     // Check if the ACL's instructorLicenseExpires field grants access.
     // Same value semantics as hasActiveMembership().
     function hasActiveInstructorLicense() {
-      let email = request.auth != null ? request.auth.token.email : null;
-      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
-      return email != null && firestore.exists(aclPath) &&
+      let email = getUserEmail();
+      let aclPath = getAclPath();
+      return email != '' && firestore.exists(aclPath) &&
         firestore.get(aclPath).data.get('instructorLicenseExpires', '') is string &&
         firestore.get(aclPath).data.get('instructorLicenseExpires', '') >= todayStr();
     }
@@ -141,9 +150,9 @@ service firebase.storage {
     // The field tracks the latest school license expiry across all
     // schools this user owns or manages.
     function hasActiveSchoolLicense() {
-      let email = request.auth != null ? request.auth.token.email : null;
-      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
-      return email != null && firestore.exists(aclPath) &&
+      let email = getUserEmail();
+      let aclPath = getAclPath();
+      return email != '' && firestore.exists(aclPath) &&
         firestore.get(aclPath).data.get('schoolLicenseExpires', '') is string &&
         firestore.get(aclPath).data.get('schoolLicenseExpires', '') >= todayStr();
     }
@@ -175,41 +184,47 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    function getVideoData(videoId) {
+      let videoPath = /databases/(default)/documents/videos/$(videoId);
+      return firestore.exists(videoPath) ? firestore.get(videoPath).data : {};
+    }
+
+    function isVideoPublicOrTrailer(videoData) {
+      return videoData.get('isTrailer', false) == true ||
+        videoData.get('accessTier', '') == 'public' ||
+        videoData.get('accessTiers', []).hasAny(['public']);
+    }
+
+    function hasVideoGrant(videoData, videoId) {
+      let email = getUserEmail();
+      let seriesId = videoData.get('seriesId', '');
+      return email != '' && (
+        firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + videoId)) ||
+        (seriesId != '' && firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + seriesId)))
+      );
+    }
+
+    function isVideoTierAllowed(videoData) {
+      let allowsMembers = videoData.get('accessTier', '') in ['members', 'members_only'] ||
+        videoData.get('accessTiers', []).hasAny(['members', 'members_only']) ||
+        (!('accessTier' in videoData) && !('accessTiers' in videoData));
+      let allowsInstructors = videoData.get('accessTier', '') in ['instructors', 'instructors_only'] ||
+        videoData.get('accessTiers', []).hasAny(['instructors', 'instructors_only']);
+      return (allowsMembers && (hasActiveMembership() || hasActiveInstructorLicense())) ||
+        (allowsInstructors && hasActiveInstructorLicense());
+    }
+
     // Video on Demand (VOD) transcoded streaming chunks and manifests.
     // Read is permitted for admins, trailers, public videos, active members/instructors
     // for videos in matching tiers, or members holding an explicit purchase grant.
     match /vod/{videoId}/{allFiles=**} {
       function isVodAuthorized() {
-        let videoPath = /databases/(default)/documents/videos/$(videoId);
-        let existsVideo = firestore.exists(videoPath);
-        let videoData = existsVideo ? firestore.get(videoPath).data : null;
-        let isTrailer = videoData != null && videoData.get('isTrailer', false) == true;
-        let isPublic = videoData != null && (
-          videoData.get('accessTier', '') == 'public' ||
-          videoData.get('accessTiers', []).hasAny(['public'])
-        );
-        let email = request.auth != null ? request.auth.token.email : null;
-        let seriesId = videoData != null ? videoData.get('seriesId', '') : '';
-        let hasDirectGrant = email != null && (
-          firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + videoId)) ||
-          (seriesId != '' && firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + seriesId)))
-        );
-        let allowsMembers = videoData != null && (
-          videoData.get('accessTier', '') == 'members' ||
-          videoData.get('accessTier', '') == 'members_only' ||
-          videoData.get('accessTiers', []).hasAny(['members', 'members_only']) ||
-          (!('accessTier' in videoData) && !('accessTiers' in videoData))
-        );
-        let allowsInstructors = videoData != null && (
-          videoData.get('accessTier', '') == 'instructors' ||
-          videoData.get('accessTier', '') == 'instructors_only' ||
-          videoData.get('accessTiers', []).hasAny(['instructors', 'instructors_only'])
-        );
-        let memberEntitled = allowsMembers && (hasActiveMembership() || hasActiveInstructorLicense());
-        let instructorEntitled = allowsInstructors && hasActiveInstructorLicense();
-        return isTrailer || isPublic || (
+        let videoData = getVideoData(videoId);
+        return isVideoPublicOrTrailer(videoData) || (
           request.auth != null && (
-            isAdmin() || memberEntitled || instructorEntitled || hasDirectGrant
+            isAdmin() ||
+            hasVideoGrant(videoData, videoId) ||
+            isVideoTierAllowed(videoData)
           )
         );
       }
