@@ -14,6 +14,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { MasterLevel, InstructorLicenseType, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
 import { Member, MembershipType, InstructorPublicData, AgeCategory, initMember } from '../../../functions/src/data-model/members';
+import { VideoGrant } from '../../../functions/src/data-model/vod';
 import { NotificationKind } from '../../../functions/src/data-model/notifications';
 import { School } from '../../../functions/src/data-model/schools';
 import {
@@ -577,8 +578,51 @@ export class MemberDetailsComponent {
     });
   });
 
-  // Erro handling.
+  // Error handling.
   asyncError = signal<Error | null>(null);
+
+  // VOD Video & Series Grants state (for admin inspection)
+  memberVideoGrants = signal<VideoGrant[]>([]);
+  isLoadingVideoGrants = signal<boolean>(false);
+  showVideoGrantsFold = signal<boolean>(false);
+
+  getGrantDisplayTitle(grant: VideoGrant): { title: string; subtitle?: string; isSeries: boolean } {
+    const targetId = grant.videoId || grant.docId;
+    const seriesList = typeof this.membersService.getVideoSeriesList === 'function'
+      ? this.membersService.getVideoSeriesList()
+      : [];
+    const matchedSeries = seriesList.find((s) => s.seriesId === targetId);
+    if (matchedSeries) {
+      return {
+        title: matchedSeries.title,
+        subtitle: `Series (${matchedSeries.videoCount} parts)`,
+        isSeries: true,
+      };
+    }
+
+    const allVideos = this.membersService.videos?.entries?.() || [];
+    const matchedVideo = allVideos.find((v) => v.docId === targetId);
+    if (matchedVideo) {
+      const part = matchedVideo.seriesPartIndex ? `Part ${matchedVideo.seriesPartIndex}: ` : '';
+      const seriesInfo = matchedVideo.seriesTitle ? `Series: ${matchedVideo.seriesTitle}` : '';
+      return {
+        title: `${part}${matchedVideo.title}`,
+        subtitle: seriesInfo || 'Individual Video',
+        isSeries: false,
+      };
+    }
+
+    return {
+      title: targetId,
+      subtitle: 'Target ID',
+      isSeries: false,
+    };
+  }
+
+  formatGrantDate(isoDate?: string): string {
+    if (!isoDate) return '';
+    return isoDate.split('T')[0] || isoDate;
+  }
 
 
 
@@ -789,6 +833,24 @@ export class MemberDetailsComponent {
         this.studentsToUpdateCount.set(count);
       } else {
         this.studentsToUpdateCount.set(0);
+      }
+    });
+
+    effect(async () => {
+      const docId = this.editableMember()?.docId;
+      if (docId && this.userIsAdmin()) {
+        this.isLoadingVideoGrants.set(true);
+        try {
+          const grants = await this.membersService.getMemberVideoGrants(docId);
+          this.memberVideoGrants.set(grants);
+        } catch (err) {
+          console.error('Failed to load member video grants:', err);
+          this.memberVideoGrants.set([]);
+        } finally {
+          this.isLoadingVideoGrants.set(false);
+        }
+      } else {
+        this.memberVideoGrants.set([]);
       }
     });
   }

@@ -119,11 +119,12 @@ All actions and types are exported directly from `functions/src/actions` (or `fu
 | `createVideo(ctx, input)` | Initializes video catalog entry in `/videos`. | `title`, `accessTier`, `tags`, `priceCents` |
 | `getVideo(ctx, videoId)` | Fetches video catalog item. | `videoId` |
 | `listVideos(ctx, options)` | Filters catalog by access tier, published state, series, or tag. | `isPublished`, `seriesId`, `tag` |
+| `listVideoSeries(ctx, options)` | Lists curated series with grouped videos, pricing, and metadata. | `searchTerm`, `limitCount` |
 | `updateVideo(ctx, videoId, patch)` | Updates video metadata, tags, or pricing. | `videoId`, `patch` |
 | `setVideoPublished(ctx, videoId, isPublished)` | Publishes/unpublishes video item. | `videoId`, `isPublished` |
 | `createOrUpdateVideoSeries(ctx, seriesId, data, ids)` | Batches series title, price, and sequence indices across videos. | `seriesId`, `seriesData`, `orderedVideoIds` |
-| `grantVideoAccess(ctx, input)` | Provisions individual video or entire series grant in `/members/{id}/videoGrants`. | `videoId` or `seriesId`, `recipientMemberDocId` |
-| `revokeVideoAccess(ctx, memberDocId, videoId)` | Revokes grant. | `memberDocId`, `videoId` |
+| `grantVideoAccess(ctx, input)` | Provisions video or entire series grant in `/members/{id}/videoGrants` & `/video_grants`. | `videoId` or `seriesId`, `recipientMemberDocId` |
+| `revokeVideoAccess(ctx, memberDocId, videoId)` | Revokes grant from member subcollection and global collection. | `memberDocId`, `videoId` |
 | `listMemberVideoGrants(ctx, memberDocId)` | Lists all grants assigned to member. | `memberDocId` |
 
 ### Orders (`orders.ts`)
@@ -203,4 +204,43 @@ pnpm exec ts-node scripts/run-action.ts --action renew-member --member <DOC_ID> 
 
 # Record grading result (awards level automatically on pass!)
 pnpm exec ts-node scripts/run-action.ts --action record-grading --grading <GRADING_DOC_ID> --pass true --notes "Excellent progress"
+
+# List or search video series in catalog
+pnpm exec ts-node scripts/run-action.ts --action list-series --search "spinning"
+
+# Grant a single video or an entire series to a member
+pnpm exec ts-node scripts/run-action.ts --action grant-video --member "US658" --series 504000
+pnpm exec ts-node scripts/run-action.ts --action grant-video --member "sam@example.com" --video vimeo_123812468
 ```
+
+> [!TIP]
+> **Admin Web Verification URL**:
+> After granting videos or series to a member, administrators can confirm active grants on the web at:
+> `https://app.iliqchuan.com/members/<MEMBER_DOC_ID>` (or navigate to **Manage Members** -> search member ID/name -> expand the **VOD Video & Series Grants** card).
+
+---
+
+## 6. VOD Batch Analysis & Grant Tool: `functions/scripts/grant-member-vod-series.ts`
+
+For multi-series catalog matching and batch grants to a member:
+
+```bash
+cd functions
+
+# 1. Search series catalog
+pnpm exec ts-node scripts/grant-member-vod-series.ts --search "butterfly"
+
+# 2. Fuzzy match multiple requested titles against the catalog
+pnpm exec ts-node scripts/grant-member-vod-series.ts --match "Meet and Match; Finding the Center; Butterfly form"
+
+# 3. Dry-run grant multiple series to a member (preview without writes)
+pnpm exec ts-node scripts/grant-member-vod-series.ts --member US658 --series 504000,36073,143555 --dry-run
+
+# 4. Live commit multi-series grant
+pnpm exec ts-node scripts/grant-member-vod-series.ts --member US658 --series 504000,36073,143555 --notes "Purchased via manual bank transfer"
+```
+
+After granting, the script outputs the direct URL to inspect on the web:
+`https://app.iliqchuan.com/members/<MEMBER_DOC_ID>`
+
+

@@ -55,6 +55,7 @@ import {
   grantVideoAccess,
   revokeVideoAccess,
   listMemberVideoGrants,
+  listVideoSeries,
   deleteVideo,
   getOrder,
   getOrderByNumber,
@@ -740,6 +741,38 @@ describe('Database Actions Library', () => {
 
       const grantsAfter = await listMemberVideoGrants(ctx, memberDocId);
       expect(grantsAfter.length).toBe(0);
+    });
+
+    it('lists video series and grants access by seriesId', async () => {
+      const v1 = await createVideo(ctx, { title: 'Tai Chi Part 1' });
+      const v2 = await createVideo(ctx, { title: 'Tai Chi Part 2' });
+
+      await createOrUpdateVideoSeries(
+        ctx,
+        'tai-chi-101',
+        { title: 'Tai Chi Fundamentals', priceCents: 1999 },
+        [v1.data!.docId, v2.data!.docId],
+      );
+
+      const seriesList = await listVideoSeries(ctx, { searchTerm: 'fundamentals' });
+      expect(seriesList.length).toBe(1);
+      expect(seriesList[0].seriesId).toBe('tai-chi-101');
+      expect(seriesList[0].videos.length).toBe(2);
+
+      const grantRes = await grantVideoAccess(ctx, {
+        seriesId: 'tai-chi-101',
+        recipientMemberDocId: memberDocId,
+      });
+
+      expect(grantRes.success).toBe(true);
+      // Includes both video docIds and the seriesId itself
+      expect(grantRes.data?.grantedCount).toBe(3);
+      expect(grantRes.data?.videoIds).toContain(v1.data!.docId);
+      expect(grantRes.data?.videoIds).toContain(v2.data!.docId);
+      expect(grantRes.data?.videoIds).toContain('tai-chi-101');
+
+      const grants = await listMemberVideoGrants(ctx, memberDocId);
+      expect(grants.length).toBe(3);
     });
 
     it('deletes a video from the catalog', async () => {

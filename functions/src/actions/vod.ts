@@ -17,6 +17,7 @@ import {
   initVideoGrant,
   firestoreDocToVideoItem,
   firestoreDocToVideoGrant,
+  groupVideosIntoSeries,
 } from '../data-model/vod';
 import { getMember, getMemberByEmail } from './members';
 import { ActionContext, ActionResult } from './types';
@@ -135,6 +136,37 @@ export async function listVideos(
   }
 
   return videos;
+}
+
+/** Options for filtering/querying video series collections. */
+export interface VideoSeriesListOptions {
+  searchTerm?: string;
+  limitCount?: number;
+}
+
+/**
+ * Lists curated video series by querying catalog videos and grouping them.
+ */
+export async function listVideoSeries(
+  ctx: ActionContext,
+  options?: VideoSeriesListOptions,
+): Promise<VideoSeries[]> {
+  const allVideos = await listVideos(ctx, { limitCount: options?.limitCount || 500 });
+  const { seriesList } = groupVideosIntoSeries(allVideos);
+
+  if (options?.searchTerm) {
+    const term = options.searchTerm.toLowerCase().trim();
+    return seriesList.filter(
+      (s) =>
+        s.seriesId.toLowerCase().includes(term) ||
+        s.title.toLowerCase().includes(term) ||
+        s.description.toLowerCase().includes(term) ||
+        (s.instructorName ? s.instructorName.toLowerCase().includes(term) : false) ||
+        s.tags?.some((t) => t.toLowerCase().includes(term)),
+    );
+  }
+
+  return seriesList;
 }
 
 /**
@@ -329,6 +361,9 @@ export async function grantVideoAccess(
   } else if (input.seriesId) {
     const seriesVideos = await listVideos(ctx, { seriesId: input.seriesId, limitCount: 100 });
     targetVideoIds = seriesVideos.map((v) => v.docId);
+    if (!targetVideoIds.includes(input.seriesId)) {
+      targetVideoIds.push(input.seriesId);
+    }
   }
 
   if (targetVideoIds.length === 0) {
@@ -338,7 +373,7 @@ export async function grantVideoAccess(
   const recipientEmail = recipientMember.emails[0] || '';
 
   if (ctx.dryRun) {
-    ctx.logger?.(`[DRY-RUN] Granted ${targetVideoIds.length} video(s) to ${recipientMember.name} (${recipientEmail})`);
+    ctx.logger?.(`[DRY-RUN] Granted ${targetVideoIds.length} video(s)/series to ${recipientMember.name} (${recipientEmail})`);
     return {
       success: true,
       data: { grantedCount: targetVideoIds.length, videoIds: targetVideoIds },
@@ -350,30 +385,32 @@ export async function grantVideoAccess(
   const nowIso = new Date().toISOString();
 
   for (const vId of targetVideoIds) {
-    const grantRef = ctx.db
-      .collection(FirestoreCollection.Members)
-      .doc(recipientMember.docId)
-      .collection(FirestoreSubcollection.VideoGrants)
-      .doc(vId);
-
-    const grantPayload: VideoGrant = {
+    const grantPayload: Record<string, unknown> = {
       ...initVideoGrant(vId, recipientMember.docId),
       memberEmail: recipientEmail,
       grantKind: input.grantKind || VideoGrantKind.AdminGrant,
       grantedByMemberDocId: ctx.actor?.memberDocId || '',
       notes: input.notes || '',
-      orderDocId: input.orderDocId,
-      expiresAt: input.expiresAt,
       grantedAt: nowIso,
-    };
-
-    const fsPayload = {
-      ...grantPayload,
       lastUpdated: FieldValue.serverTimestamp(),
     };
-    delete (fsPayload as { docId?: string }).docId;
+    if (input.orderDocId) grantPayload['orderDocId'] = input.orderDocId;
+    if (input.expiresAt) grantPayload['expiresAt'] = input.expiresAt;
+    delete grantPayload['docId'];
 
-    batch.set(grantRef, fsPayload, { merge: true });
+    // 1. Subcollection: /members/{memberDocId}/videoGrants/{targetId}
+    const grantRef = ctx.db
+      .collection(FirestoreCollection.Members)
+      .doc(recipientMember.docId)
+      .collection(FirestoreSubcollection.VideoGrants)
+      .doc(vId);
+    batch.set(grantRef, grantPayload, { merge: true });
+
+    // 2. Global collection: /video_grants/{memberDocId}_{targetId}
+    const globalGrantRef = ctx.db
+      .collection(FirestoreCollection.VideoGrants)
+      .doc(`${recipientMember.docId}_${vId}`);
+    batch.set(globalGrantRef, grantPayload, { merge: true });
   }
 
   await batch.commit();
@@ -407,8 +444,13 @@ export async function revokeVideoAccess(
     .doc(memberDocId)
     .collection(FirestoreSubcollection.VideoGrants)
     .doc(videoId);
-
   await grantRef.delete();
+
+  const globalGrantRef = ctx.db
+    .collection(FirestoreCollection.VideoGrants)
+    .doc(`${memberDocId}_${videoId}`);
+  await globalGrantRef.delete();
+
   ctx.logger?.(`Revoked video grant ${videoId} from member ${memberDocId}`);
 
   return { success: true };

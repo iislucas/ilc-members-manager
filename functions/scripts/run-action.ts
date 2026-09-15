@@ -48,6 +48,7 @@ import {
   acceptGrading,
   recordGradingResult,
   grantVideoAccess,
+  listVideoSeries,
 } from '../src/actions';
 
 const argv = yargs(hideBin(process.argv))
@@ -64,6 +65,7 @@ const argv = yargs(hideBin(process.argv))
       'create-grading',
       'accept-grading',
       'record-grading',
+      'list-series',
       'grant-video',
     ],
   })
@@ -118,10 +120,18 @@ const argv = yargs(hideBin(process.argv))
     type: 'string',
     description: 'Notes for grading or audit description',
   })
-  // Video fields
+  // Video & Series fields
   .option('video', {
     type: 'string',
     description: 'Video ID',
+  })
+  .option('series', {
+    type: 'string',
+    description: 'Video Series ID',
+  })
+  .option('search', {
+    type: 'string',
+    description: 'Search term for querying series or videos',
   })
   .parseSync();
 
@@ -292,9 +302,25 @@ async function main() {
       break;
     }
 
+    case 'list-series': {
+      const seriesList = await listVideoSeries(ctx, { searchTerm: argv.search });
+      console.log(`\nFound ${seriesList.length} video series:\n`);
+      for (const s of seriesList) {
+        const priceStr = typeof s.priceCents === 'number' ? `$${(s.priceCents / 100).toFixed(2)}` : 'N/A';
+        console.log(`[Series ID: ${s.seriesId}] "${s.title}"`);
+        console.log(`   Videos: ${s.videoCount} | Price: ${priceStr} | Tier: ${s.accessTier}`);
+        if (s.instructorName) console.log(`   Instructor: ${s.instructorName}`);
+        for (const v of s.videos) {
+          console.log(`     - Part ${v.seriesPartIndex ?? '?'}: [${v.docId}] "${v.title}"`);
+        }
+        console.log('');
+      }
+      break;
+    }
+
     case 'grant-video': {
-      if (!argv.video || !argv.member) {
-        console.error('❌ --video <id> and --member <docId|email> are required.');
+      if ((!argv.video && !argv.series) || !argv.member) {
+        console.error('❌ Either --video <id> or --series <id> AND --member <docId|email|memberId> are required.');
         process.exit(1);
       }
       const memberDocId = await resolveMemberDocId(ctx, argv.member);
@@ -304,6 +330,7 @@ async function main() {
       }
       const res = await grantVideoAccess(ctx, {
         videoId: argv.video,
+        seriesId: argv.series,
         recipientMemberDocId: memberDocId,
         notes: argv.notes || 'Granted via CLI runner',
       });
@@ -312,6 +339,8 @@ async function main() {
         process.exit(1);
       }
       console.log('✅ Video access granted:', JSON.stringify(res.data, null, 2));
+      console.log(`\n🔗 Confirm on the web (Admin Member Details):`);
+      console.log(`   https://app.iliqchuan.com/members/${memberDocId}\n`);
       break;
     }
 
