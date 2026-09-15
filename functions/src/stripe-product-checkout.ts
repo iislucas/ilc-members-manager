@@ -90,6 +90,7 @@ export const createProductCheckoutSession = onCall<
   const authEmail = request.auth?.token?.email
     ? request.auth.token.email.toLowerCase().trim()
     : undefined;
+  const emailToLookup = authEmail || (data.attendeeDetails?.email ? data.attendeeDetails.email.toLowerCase().trim() : undefined);
   if (authEmail) {
     try {
       member = await getMemberByEmail(authEmail, db);
