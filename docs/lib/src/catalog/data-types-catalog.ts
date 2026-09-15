@@ -25,9 +25,13 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
       { targetTypeId: 'instructor-profile', targetTypeName: 'InstructorPublicData', relation: 'Mirrored to public instructor profile' },
     ],
     readRoles: ['Admin (HQ)', 'Self (matching email)', 'School Manager (students of school)'],
-    writeRoles: ['Admin (full write)', 'Self (contact details only)'],
+    writeRoles: [
+      'Admin (full write)',
+      'Self (contact details only, auth email preservation required)',
+      'School Manager (scoped whitelist: contact, address, levels, notes; strictly no isAdmin or memberId mutation)',
+    ],
     rulesSummary:
-      'Self can update contact, name, and address. Level, instructor licensing, and admin flags require Admin role.',
+      'Self can update contact, name, and address (must preserve auth email). School managers have scoped operational update permissions for affiliated students. isAdmin, memberId, and document creation/deletion require Admin role.',
     affectedTriggers: ['on-member-update.ts', 'mirror-instructors-to-public-profile.ts'],
     mirrorTargets: ['/acl/{email}', '/instructors/{instructorId}', '/schools/{schoolId}/members/{docId}'],
     relatedJourneys: ['member-onboarding', 'grading-progression', 'instructor-licensing', 'push-notifications'],
@@ -738,10 +742,10 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     keyRelations: [
       { targetTypeId: 'mail', targetTypeName: 'MailQueueDoc', relation: 'Controls queue dispatch and placeholder release' },
     ],
-    readRoles: ['Admin (HQ)'],
+    readRoles: ['Public (read status indicators)', 'Admin (HQ)'],
     writeRoles: ['Admin (HQ) via callable setMailSendingState'],
     rulesSummary:
-      'Admin-only access; modified via secure callable Cloud Function setMailSendingState.',
+      'Public read allowed for status indicators; secrets isolated in /system/mail-secrets. Write modified via secure callable Cloud Function setMailSendingState.',
     affectedTriggers: ['mail-processor.ts (processMailQueue)'],
     mirrorTargets: [],
     relatedJourneys: ['outbound-email-notifications'],
@@ -751,7 +755,6 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     tsInterface: `export interface MailSettings {
   status: MailSendingStatus; // 'active' | 'paused' | 'off'
   sendingPaused?: boolean;
-  unsubscribeSecret?: string;
   updatedAt?: string;
   updatedBy?: string;
   pausedAt?: string;
@@ -762,7 +765,6 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     fields: [
       { name: 'status', type: 'MailSendingStatus', required: true, description: 'active | paused | off' },
       { name: 'sendingPaused', type: 'boolean', required: false, description: 'Legacy boolean flag' },
-      { name: 'unsubscribeSecret', type: 'string', required: false, description: 'Persistent 32-byte HMAC-SHA256 secret for one-click unsubscribe links' },
       { name: 'updatedAt', type: 'string', required: false, description: 'ISO timestamp of state change' },
       { name: 'updatedBy', type: 'string', required: false, description: 'Admin email who modified status' },
     ],
