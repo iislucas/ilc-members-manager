@@ -362,55 +362,65 @@ describe('role authorization verification logic', () => {
   describe('registration upgrade & update authorization', () => {
     function checkAuthorization({
       authEmail,
-      attendeeEmail,
       regEmail,
       callerMemberDocId,
       regMemberDocId,
       aclIsAdmin,
+      isEventManager,
     }: {
       authEmail?: string;
-      attendeeEmail?: string;
       regEmail: string;
       callerMemberDocId?: string;
       regMemberDocId?: string;
       aclIsAdmin?: boolean;
+      isEventManager?: boolean;
     }) {
       const verifiedAuthEmail = (authEmail || '').toLowerCase().trim();
-      const callerEmail = (verifiedAuthEmail || attendeeEmail || '').toLowerCase().trim();
+      if (!verifiedAuthEmail) {
+        return false; // Authentication is strictly required
+      }
+      const callerEmail = verifiedAuthEmail;
       const existingRegEmail = (regEmail || '').toLowerCase().trim();
 
-      // Admin authorization is strictly derived from verified auth token
-      const isAdmin = Boolean(verifiedAuthEmail && aclIsAdmin);
+      const isAdmin = Boolean(aclIsAdmin);
+      const isManager = Boolean(isEventManager);
 
       const isAuthorized =
         (callerEmail && callerEmail === existingRegEmail) ||
         (callerMemberDocId && regMemberDocId && callerMemberDocId === regMemberDocId) ||
-        isAdmin;
+        isAdmin ||
+        isManager;
 
       return isAuthorized;
     }
 
-    it('allows owner by matching email', () => {
-      expect(checkAuthorization({ attendeeEmail: 'student@example.com', regEmail: 'student@example.com' })).toBe(true);
+    it('allows owner by matching verified auth email', () => {
+      expect(checkAuthorization({ authEmail: 'student@example.com', regEmail: 'student@example.com' })).toBe(true);
+    });
+
+    it('rejects unauthenticated caller even if email matches registration', () => {
+      expect(checkAuthorization({ authEmail: undefined, regEmail: 'student@example.com' })).toBe(false);
     });
 
     it('allows authenticated admin even with different reg email', () => {
       expect(checkAuthorization({ authEmail: 'admin@example.com', regEmail: 'student@example.com', aclIsAdmin: true })).toBe(true);
     });
 
-    it('rejects unauthenticated caller attempting to claim admin privileges by entering admin email', () => {
+    it('allows authenticated event manager even with different reg email', () => {
+      expect(checkAuthorization({ authEmail: 'manager@example.com', regEmail: 'student@example.com', isEventManager: true })).toBe(true);
+    });
+
+    it('rejects unauthenticated caller attempting to claim admin privileges', () => {
       expect(checkAuthorization({
         authEmail: undefined,
-        attendeeEmail: 'admin@example.com',
         regEmail: 'victim@example.com',
         aclIsAdmin: true,
       })).toBe(false);
     });
 
-    it('rejects caller when auth token has isAdmin: false even if attendee email matches an admin', () => {
+    it('rejects authenticated caller when not admin and email does not match', () => {
       expect(checkAuthorization({
         authEmail: 'attacker@example.com',
-        attendeeEmail: 'admin@example.com',
         regEmail: 'victim@example.com',
         aclIsAdmin: false,
       })).toBe(false);

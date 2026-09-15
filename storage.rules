@@ -175,14 +175,46 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    // Video on Demand (VOD) transcoded streaming chunks and manifests
+    // Video on Demand (VOD) transcoded streaming chunks and manifests.
+    // Read is permitted for admins, trailers, public videos, active members/instructors
+    // for videos in matching tiers, or members holding an explicit purchase grant.
     match /vod/{videoId}/{allFiles=**} {
-      allow read: if isAdmin() || (
-        firestore.exists(/databases/(default)/documents/videos/$(videoId)) &&
-        firestore.get(/databases/(default)/documents/videos/$(videoId)).data.get('isTrailer', false) == true
-      ) || (
-        request.auth != null
-      );
+      function isVodAuthorized() {
+        let videoPath = /databases/(default)/documents/videos/$(videoId);
+        let existsVideo = firestore.exists(videoPath);
+        let videoData = existsVideo ? firestore.get(videoPath).data : null;
+        let isTrailer = videoData != null && videoData.get('isTrailer', false) == true;
+        let isPublic = videoData != null && (
+          videoData.get('accessTier', '') == 'public' ||
+          videoData.get('accessTiers', []).hasAny(['public'])
+        );
+        let email = request.auth != null ? request.auth.token.email : null;
+        let seriesId = videoData != null ? videoData.get('seriesId', '') : '';
+        let hasDirectGrant = email != null && (
+          firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + videoId)) ||
+          (seriesId != '' && firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + seriesId)))
+        );
+        let allowsMembers = videoData != null && (
+          videoData.get('accessTier', '') == 'members' ||
+          videoData.get('accessTier', '') == 'members_only' ||
+          videoData.get('accessTiers', []).hasAny(['members', 'members_only']) ||
+          (!('accessTier' in videoData) && !('accessTiers' in videoData))
+        );
+        let allowsInstructors = videoData != null && (
+          videoData.get('accessTier', '') == 'instructors' ||
+          videoData.get('accessTier', '') == 'instructors_only' ||
+          videoData.get('accessTiers', []).hasAny(['instructors', 'instructors_only'])
+        );
+        let memberEntitled = allowsMembers && (hasActiveMembership() || hasActiveInstructorLicense());
+        let instructorEntitled = allowsInstructors && hasActiveInstructorLicense();
+        return isTrailer || isPublic || (
+          request.auth != null && (
+            isAdmin() || memberEntitled || instructorEntitled || hasDirectGrant
+          )
+        );
+      }
+
+      allow read: if isVodAuthorized();
       allow write: if isAdmin();
     }
 

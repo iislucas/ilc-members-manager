@@ -87,51 +87,53 @@ export const createProductCheckoutSession = onCall<
   let memberId: string | undefined;
   let member: Member | undefined;
 
-  const emailToLookup = request.auth?.token?.email || data.attendeeDetails?.email;
-  if (emailToLookup) {
+  const authEmail = request.auth?.token?.email
+    ? request.auth.token.email.toLowerCase().trim()
+    : undefined;
+  if (authEmail) {
     try {
-      member = await getMemberByEmail(emailToLookup, db);
+      member = await getMemberByEmail(authEmail, db);
       memberDocId = member.docId;
       memberId = member.memberId;
     } catch {
-      // Guest attendee or unlinked member email
+      // Authenticated but unlinked member email
     }
   }
 
   // 3. Verify role authorization (only checked if event restricts non-members or has special pricing for that role)
   if (!product.allowNonMembers) {
-    if (!member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
+    if (!authEmail || !member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
       throw new HttpsError(
         'permission-denied',
-        'Active membership is required to register for this event.',
+        'Active authenticated membership is required to register for this event.',
       );
     }
   }
 
   if (role === AttendeeRole.Member) {
     if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
-      if (!member || !hasActiveMembership(member)) {
+      if (!authEmail || !member || !hasActiveMembership(member)) {
         throw new HttpsError(
           'permission-denied',
-          'Active membership is required to register at the member rate.',
+          'Active authenticated membership is required to register at the member rate.',
         );
       }
     }
   } else if (role === AttendeeRole.Instructor) {
     if (hasSpecialRolePrice(product, AttendeeRole.Instructor)) {
-      if (!member || !hasActiveInstructorLicense(member)) {
+      if (!authEmail || !member || !hasActiveInstructorLicense(member)) {
         throw new HttpsError(
           'permission-denied',
-          'Active instructor license is required to register at the instructor rate.',
+          'Active authenticated instructor license is required to register at the instructor rate.',
         );
       }
     } else if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
       // If there is no dedicated instructor price but there is a special member price,
       // instructors must have active membership or an active instructor license.
-      if (!member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
+      if (!authEmail || !member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
         throw new HttpsError(
           'permission-denied',
-          'Active membership is required to register at the member rate.',
+          'Active authenticated membership is required to register at the member rate.',
         );
       }
     }
@@ -614,30 +616,41 @@ export const updateProductRegistration = onCall<
   const existingReg = regSnap.data() as EventRegistration;
 
   // 3. Verify Authorization
-  const authEmail = (request.auth?.token?.email || '').toLowerCase().trim();
-  const callerEmail = (authEmail || data.attendeeDetails.email || '').toLowerCase().trim();
+  if (!request.auth || !request.auth.token.email) {
+    throw new HttpsError('unauthenticated', 'You must be authenticated to update a registration.');
+  }
+
+  const authEmail = request.auth.token.email.toLowerCase().trim();
   const regEmail = (existingReg.email || '').toLowerCase().trim();
   let callerMemberDocId: string | undefined;
 
-  if (callerEmail) {
-    try {
-      const member = await getMemberByEmail(callerEmail, db);
-      callerMemberDocId = member.docId;
-    } catch {
-      // Unlinked email
-    }
+  try {
+    const member = await getMemberByEmail(authEmail, db);
+    callerMemberDocId = member.docId;
+  } catch {
+    // Unlinked email
   }
 
   let isAdmin = false;
-  if (authEmail) {
-    const aclSnap = await db.collection(FirestoreCollection.Acl).doc(authEmail).get();
-    isAdmin = aclSnap.data()?.isAdmin === true;
+  const aclSnap = await db.collection(FirestoreCollection.Acl).doc(authEmail).get();
+  isAdmin = aclSnap.data()?.isAdmin === true;
+
+  let isEventManager = false;
+  if (product.eventDocId && callerMemberDocId) {
+    const eventSnap = await db.collection('events').doc(product.eventDocId).get();
+    if (eventSnap.exists) {
+      const eventData = eventSnap.data();
+      isEventManager =
+        eventData?.ownerDocId === callerMemberDocId ||
+        (eventData?.managerDocIds || []).includes(callerMemberDocId);
+    }
   }
 
   const isAuthorized =
-    (callerEmail && callerEmail === regEmail) ||
+    authEmail === regEmail ||
     (callerMemberDocId && existingReg.memberDocId && callerMemberDocId === existingReg.memberDocId) ||
-    isAdmin;
+    isAdmin ||
+    isEventManager;
 
   if (!isAuthorized) {
     throw new HttpsError('permission-denied', 'You are not authorized to update this registration.');
@@ -936,51 +949,53 @@ export const registerEventInPerson = onCall<
   let memberId: string | undefined;
   let member: Member | undefined;
 
-  const emailToLookup = request.auth?.token?.email || email;
-  if (emailToLookup) {
+  const authEmail = request.auth?.token?.email
+    ? request.auth.token.email.toLowerCase().trim()
+    : undefined;
+  if (authEmail) {
     try {
-      member = await getMemberByEmail(emailToLookup, db);
+      member = await getMemberByEmail(authEmail, db);
       memberDocId = member.docId;
       memberId = member.memberId;
     } catch {
-      // Guest attendee
+      // Authenticated but unlinked member email
     }
   }
 
   // 4. Verify role authorization (only checked if event restricts non-members or has special pricing for that role)
   if (!product.allowNonMembers) {
-    if (!member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
+    if (!authEmail || !member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
       throw new HttpsError(
         'permission-denied',
-        'Active membership is required to register for this event.',
+        'Active authenticated membership is required to register for this event.',
       );
     }
   }
 
   if (role === AttendeeRole.Member) {
     if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
-      if (!member || !hasActiveMembership(member)) {
+      if (!authEmail || !member || !hasActiveMembership(member)) {
         throw new HttpsError(
           'permission-denied',
-          'Active membership is required to register at the member rate.',
+          'Active authenticated membership is required to register at the member rate.',
         );
       }
     }
   } else if (role === AttendeeRole.Instructor) {
     if (hasSpecialRolePrice(product, AttendeeRole.Instructor)) {
-      if (!member || !hasActiveInstructorLicense(member)) {
+      if (!authEmail || !member || !hasActiveInstructorLicense(member)) {
         throw new HttpsError(
           'permission-denied',
-          'Active instructor license is required to register at the instructor rate.',
+          'Active authenticated instructor license is required to register at the instructor rate.',
         );
       }
     } else if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
       // If there is no dedicated instructor price but there is a special member price,
       // instructors must have active membership or an active instructor license.
-      if (!member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
+      if (!authEmail || !member || (!hasActiveMembership(member) && !hasActiveInstructorLicense(member))) {
         throw new HttpsError(
           'permission-denied',
-          'Active membership is required to register at the member rate.',
+          'Active authenticated membership is required to register at the member rate.',
         );
       }
     }

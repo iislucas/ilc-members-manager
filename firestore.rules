@@ -319,18 +319,21 @@ service cloud.firestore {
           getUserMemberDocIds().hasAny(resource.data.get('managerDocIds', []))
         );
       }
+      function hasValidEditUpdate() {
+        return request.resource.data.lastUpdated == request.time;
+      }
       allow read: if true;
       allow create: if isAdmin();
       allow delete: if isAdmin() || (
         isEventOwnerOrManager() &&
         resource.data.status == 'proposed'
       );
-      allow update: if isAdmin() || (
+      allow update: if hasValidEditUpdate() && (isAdmin() || (
         isEventOwnerOrManager() && (
           request.resource.data.status == resource.data.status ||
           request.resource.data.status == 'cancelled'
         )
-      );
+      ));
 
       match /registrations/{registrationId} {
         function isParentEventOwnerOrManager() {

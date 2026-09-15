@@ -67,6 +67,7 @@ describe('on-member-update triggers logic', () => {
   let handleMembershipActivation: MemberUpdateModule['handleMembershipActivation'];
   let handleInstructorActivation: MemberUpdateModule['handleInstructorActivation'];
   let updateACL: MemberUpdateModule['updateACL'];
+  let refreshACLAdminStatus: MemberUpdateModule['refreshACLAdminStatus'];
   let bestExpiry: MemberUpdateModule['bestExpiry'];
 
   let mockDb: MockFirestore;
@@ -91,6 +92,7 @@ describe('on-member-update triggers logic', () => {
     handleMembershipActivation = mod.handleMembershipActivation;
     handleInstructorActivation = mod.handleInstructorActivation;
     updateACL = mod.updateACL;
+    refreshACLAdminStatus = mod.refreshACLAdminStatus;
     bestExpiry = mod.bestExpiry;
   });
 
@@ -593,6 +595,89 @@ describe('on-member-update triggers logic', () => {
 
       // Ensure batch.set was NOT called to union student-member-1 into admin ACL
       expect(mockBatch.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('refreshACLAdminStatus', () => {
+    it('should not delete ACL doc if memberDocIds is empty but user is an admin', async () => {
+      const mockAclRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ isAdmin: true, memberDocIds: [] }),
+        }),
+        delete: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+      };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockImplementation((col: string) => {
+          if (col === 'acl') return { doc: vi.fn().mockReturnValue(mockAclRef) };
+          return {};
+        }),
+      } as any);
+
+      await refreshACLAdminStatus('admin@iliqchuan.com');
+
+      expect(mockAclRef.delete).not.toHaveBeenCalled();
+    });
+
+    it('should delete ACL doc if memberDocIds is empty and user is not an admin', async () => {
+      const mockAclRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ isAdmin: false, memberDocIds: [] }),
+        }),
+        delete: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+      };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockImplementation((col: string) => {
+          if (col === 'acl') return { doc: vi.fn().mockReturnValue(mockAclRef) };
+          return {};
+        }),
+      } as any);
+
+      await refreshACLAdminStatus('former-member@example.com');
+
+      expect(mockAclRef.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it('should preserve canonical isAdmin: wasAdmin and not elevate from stale member profiles', async () => {
+      const mockAclRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ isAdmin: false, memberDocIds: ['m1'] }),
+        }),
+        update: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const mockMemberSnap = {
+        exists: true,
+        data: () => ({
+          docId: 'm1',
+          isAdmin: true, // Stale or unsynced member profile claims admin
+          membershipType: 'Life',
+        }),
+      };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockImplementation((col: string) => {
+          if (col === 'acl') return { doc: vi.fn().mockReturnValue(mockAclRef) };
+          if (col === 'members') return { doc: vi.fn().mockReturnValue({}) };
+          if (col === 'schools') return { where: vi.fn().mockReturnValue({ get: vi.fn().mockResolvedValue({ docs: [] }) }) };
+          return {};
+        }),
+        getAll: vi.fn().mockResolvedValue([mockMemberSnap]),
+      } as any);
+
+      await refreshACLAdminStatus('revoked-admin@example.com');
+
+      expect(mockAclRef.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isAdmin: false,
+        }),
+      );
     });
   });
 });
