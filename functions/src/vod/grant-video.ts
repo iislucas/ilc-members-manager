@@ -26,6 +26,7 @@ export interface GrantVideoAccessRequest {
   grantKind?: VideoGrantKind;
   notes?: string;
   expiresAt?: string;
+  sendNotification?: boolean;
 }
 
 export interface GrantVideoAccessResponse {
@@ -171,7 +172,9 @@ export const grantVideoAccess = onCall(
       grantedCount++;
     }
 
-    if (recipientMemberDocId) {
+    const sendNotification = data.sendNotification !== false;
+
+    if (sendNotification && recipientMemberDocId) {
       const kindLabel = grantKind === VideoGrantKind.Complimentary
         ? 'complimentary access'
         : grantKind === VideoGrantKind.GiftPurchase
@@ -183,10 +186,11 @@ export const grantVideoAccess = onCall(
         : `/videos?series=${data.targetId}`;
 
       const notesSnippet = data.notes ? `\n\n> "${data.notes}"` : '';
+      const icon = grantKind === VideoGrantKind.GiftPurchase ? '🎁' : '🎬';
 
       await createMemberNotification(db, recipientMemberDocId, {
         kind: NotificationKind.VideoAccessGranted,
-        markdown: `🎁 You have been granted ${kindLabel} to [**${contentTitle}**](${watchLink})!${notesSnippet}`,
+        markdown: `${icon} You have been granted ${kindLabel} to [**${contentTitle}**](${watchLink})!${notesSnippet}`,
         createdAt: nowIso,
         dismissed: false,
         data: {
@@ -201,8 +205,9 @@ export const grantVideoAccess = onCall(
       });
     }
 
-    // Send transactional email notification to recipient
-    if (recipientEmail) {
+    // Send transactional email notification to recipient if notifications enabled
+    // Note: sendTransactionalEmail checks user opt-out preferences and global email settings
+    if (sendNotification && recipientEmail) {
       try {
         const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
         const watchUrl = data.targetType === 'video'
@@ -217,7 +222,13 @@ export const grantVideoAccess = onCall(
             giverName: adminName,
             videoTitle: contentTitle,
             videoUrl: watchUrl,
-            giftMessage: data.notes || 'Access has been granted to your account.',
+            giftMessage: data.notes || (
+              grantKind === VideoGrantKind.GiftPurchase
+                ? 'Enjoy your video gift!'
+                : grantKind === VideoGrantKind.Complimentary
+                ? 'Complimentary access has been granted to your account.'
+                : 'Access has been granted to your account.'
+            ),
             appBase,
           },
         });

@@ -96,6 +96,7 @@ describe('GrantVodModalComponent', () => {
       recipientName: 'Test Student',
       grantKind: 'admin_grant',
       notes: 'Complimentary pass',
+      sendNotification: true,
     });
 
     expect(grantedSpy).toHaveBeenCalledWith(
@@ -128,7 +129,24 @@ describe('GrantVodModalComponent', () => {
       recipientName: 'Test Student',
       grantKind: 'gift_purchase',
       notes: undefined,
+      sendNotification: true,
     });
+  });
+
+  it('should allow disabling sendNotification option', async () => {
+    component.onMemberSelected(mockMember);
+    expect(component.sendNotification()).toBe(true);
+
+    component.sendNotification.set(false);
+    expect(component.sendNotification()).toBe(false);
+
+    await component.submitGrant();
+
+    expect(mockDataManagerService.grantVideoAccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sendNotification: false,
+      }),
+    );
   });
 
   it('should validate missing recipient email', async () => {

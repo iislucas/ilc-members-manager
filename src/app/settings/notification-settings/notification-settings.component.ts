@@ -95,6 +95,33 @@ export class NotificationSettingsComponent implements OnInit {
   readonly EventDigestFrequency = EventDigestFrequency;
   readonly TransactionalEmailKey = TransactionalEmailKey;
 
+  // Account-wide email master switch. Defaults to true unless explicitly set to false.
+  protected globalEmailEnabled = computed(
+    () => this.currentUser()?.member?.notificationSettings?.globalEmailEnabled !== false,
+  );
+
+  async setGlobalEmail(enabled: boolean) {
+    const member = this.currentUser()?.member;
+    if (!member) return;
+    this.digestBusy.set(true);
+    try {
+      const updated: Member = {
+        ...member,
+        notificationSettings: {
+          pushEnabled: {},
+          homeEnabled: {},
+          ...member.notificationSettings,
+          globalEmailEnabled: enabled,
+        },
+      };
+      await this.dataManager.updateMember(member.docId, updated, member);
+    } catch (e) {
+      console.error('Failed to update account global email setting', e);
+    } finally {
+      this.digestBusy.set(false);
+    }
+  }
+
   // Account-wide event digest email frequency preference.
   protected eventDigestFrequency = computed<EventDigestFrequency>(
     () => this.currentUser()?.member?.notificationSettings?.eventDigestFrequency || EventDigestFrequency.None
@@ -264,6 +291,8 @@ export class NotificationSettingsComponent implements OnInit {
         return 'Event Registration Confirmed';
       case NotificationKind.EventVideoAvailable:
         return 'Event Video Recording Available';
+      case NotificationKind.VideoAccessGranted:
+        return 'Video Access & Gift Granted';
       default:
         return kind;
     }
