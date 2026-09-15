@@ -22,4 +22,6 @@ __exportStar(require("./user-story"), exports);
 __exportStar(require("./arch-flow"), exports);
 __exportStar(require("./setup-guide"), exports);
 __exportStar(require("./pattern-doc"), exports);
+__exportStar(require("./user-taxonomy"), exports);
+__exportStar(require("./permission-entry"), exports);
 //# sourceMappingURL=index.js.map

@@ -15,7 +15,7 @@ exports.DATA_TYPES_CATALOG = [
         collectionPath: '/members/{docId}',
         isSubcollection: false,
         sourceFile: 'functions/src/data-model/members.ts',
-        summary: 'The core membership identity document representing an individual practitioner, instructor, school manager, or administrator.',
+        summary: 'The core membership identity document representing an individual practitioner, instructor, school manager, or administrator. Maintains personal profile, ranks, licensing credentials, and account-wide push/email notification preferences (paired with client-side localStorage devicePushEnabled).',
         cardinality: 'One document per registered member profile.',
         ownership: 'Linked to user email addresses in member.emails; administered by HQ Admins.',
         keyRelations: [
@@ -25,12 +25,18 @@ exports.DATA_TYPES_CATALOG = [
             { targetTypeId: 'instructor-profile', targetTypeName: 'InstructorPublicData', relation: 'Mirrored to public instructor profile' },
         ],
         readRoles: ['Admin (HQ)', 'Self (matching email)', 'School Manager (students of school)'],
-        writeRoles: ['Admin (full write)', 'Self (contact details only)'],
-        rulesSummary: 'Self can update contact, name, and address. Level, instructor licensing, and admin flags require Admin role.',
+        writeRoles: [
+            'Admin (full write)',
+            'Self (contact details only, auth email preservation required)',
+            'School Manager (scoped whitelist: contact, address, levels, notes; strictly no isAdmin or memberId mutation)',
+        ],
+        rulesSummary: 'Self can update contact, name, and address (must preserve auth email). School managers have scoped operational update permissions for affiliated students. isAdmin, memberId, and document creation/deletion require Admin role.',
         affectedTriggers: ['on-member-update.ts', 'mirror-instructors-to-public-profile.ts'],
         mirrorTargets: ['/acl/{email}', '/instructors/{instructorId}', '/schools/{schoolId}/members/{docId}'],
-        relatedJourneys: ['member-onboarding', 'grading-progression', 'instructor-licensing'],
-        relatedFlows: ['client-reactivity', 'trigger-mirroring'],
+        relatedJourneys: ['member-onboarding', 'grading-progression', 'instructor-licensing', 'push-notifications'],
+        relatedFlows: ['client-reactivity', 'trigger-mirroring', 'one-click-unsubscribe'],
+        relatedPersonas: ["active-member", "grading-candidate", "apprentice-instructor", "school-manager", "hq-admin"],
+        enforcingPermissions: ["read:member-passbook", "read:member-profile", "update:instructor-profile", "read:student-roster", "manage:school-roster", "verify:members", "admin:all"],
         tsInterface: `export interface Member {
   docId: string;
   memberId: string;
@@ -89,6 +95,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: ['/instructors/{id}/gradings/{id}', '/schools/{id}/gradings/{id}'],
         relatedJourneys: ['grading-progression'],
         relatedFlows: ['client-reactivity', 'trigger-mirroring'],
+        relatedPersonas: ["grading-candidate", "sifu-instructor", "grading-examiner", "event-organizer", "hq-admin"],
+        enforcingPermissions: ["request:grading", "create:grading-request", "purchase:grading-fee", "read:grading-feedback", "accept:grading-request", "evaluate:grading", "record:grading-result", "manage:event-gradings", "admin:all"],
         tsInterface: `export interface Grading {
   docId: string;
   studentMemberDocId: string;
@@ -143,6 +151,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: [],
         relatedJourneys: ['event-hosting-ticketing'],
         relatedFlows: ['client-reactivity', 'ecommerce-webhooks', 'micro-frontends'],
+        relatedPersonas: ["event-organizer", "external-attendee", "school-manager", "hq-admin", "anonymous-visitor"],
+        enforcingPermissions: ["read:public-events", "purchase:event-ticket", "manage:event", "manage:event-gradings", "admin:all"],
         tsInterface: `export interface IlcEvent {
   docId: string;
   title: string;
@@ -192,6 +202,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: ['/members/{memberDocId}/registrations/{regId}'],
         relatedJourneys: ['event-hosting-ticketing'],
         relatedFlows: ['ecommerce-webhooks'],
+        relatedPersonas: ["external-attendee", "event-organizer", "active-member", "hq-admin"],
+        enforcingPermissions: ["purchase:event-ticket", "read:own-registrations", "checkin:attendees", "admin:all"],
         tsInterface: `export interface EventRegistration {
   docId: string;
   eventDocId: string;
@@ -236,6 +248,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: ['/acl/{managerEmail}'],
         relatedJourneys: ['instructor-licensing'],
         relatedFlows: ['client-reactivity', 'trigger-mirroring'],
+        relatedPersonas: ["school-manager", "apprentice-instructor", "hq-admin", "anonymous-visitor"],
+        enforcingPermissions: ["read:public-schools", "read:student-roster", "read:school-gradings", "manage:school", "manage:school-roster", "license:school-renewal", "admin:all"],
         tsInterface: `export interface School {
   docId: string;
   schoolId: string;
@@ -278,6 +292,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: [],
         relatedJourneys: ['instructor-licensing'],
         relatedFlows: ['trigger-mirroring', 'micro-frontends'],
+        relatedPersonas: ["sifu-instructor", "apprentice-instructor", "anonymous-visitor", "hq-admin"],
+        enforcingPermissions: ["read:public-instructors", "update:instructor-profile", "mentor:students", "admin:all"],
         tsInterface: `export interface InstructorPublicData {
   docId: string;
   instructorId: string;
@@ -319,6 +335,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: [],
         relatedJourneys: ['vod-streaming'],
         relatedFlows: ['media-transcoding'],
+        relatedPersonas: ["student-practitioner", "active-member", "hq-admin"],
+        enforcingPermissions: ["stream:vod", "read:syllabus", "transcoder:gcp", "admin:all"],
         tsInterface: `export interface VideoItem {
   docId: string;
   title: string;
@@ -345,37 +363,63 @@ exports.DATA_TYPES_CATALOG = [
         id: 'video-grant',
         name: 'VideoGrant',
         domain: data_type_1.DataDomainGroup.MediaVod,
-        collectionPath: '/members/{id}/videoGrants/{videoId}',
+        collectionPath: '/members/{id}/videoGrants/{videoId} & /videoGrants/{globalGrantKey}',
         isSubcollection: true,
         parentCollection: 'members',
         sourceFile: 'functions/src/data-model/vod.ts',
-        summary: 'User access grant record verifying purchase or complimentary access to a specific VideoItem.',
-        cardinality: 'One document per user per granted video.',
-        ownership: 'Owned by member; granted via Stripe fulfillment or Admin.',
+        summary: 'User access grant record verifying access to a specific VideoItem. Issued via Stripe purchases, gifts from peers, admin complimentary grants, or event attendance.',
+        cardinality: 'One document per user per granted video in member subcollection, mirrored to global /videoGrants collection.',
+        ownership: 'Owned by member; granted via Stripe fulfillment (self/gift) or Admin direct grant callable.',
         keyRelations: [
             { targetTypeId: 'video-item', targetTypeName: 'VideoItem', relation: 'Target video granted' },
             { targetTypeId: 'member', targetTypeName: 'Member', relation: 'Parent member subcollection' },
-            { targetTypeId: 'order', targetTypeName: 'Order', relation: 'Associated purchase order' },
+            { targetTypeId: 'order', targetTypeName: 'Order', relation: 'Associated purchase or gift order' },
         ],
         readRoles: ['Owner Member', 'Admin'],
-        writeRoles: ['Cloud Functions (Stripe fulfillment) / Admin'],
-        rulesSummary: 'Member can read own grants; writes restricted to backend triggers.',
+        writeRoles: ['Cloud Functions (Stripe fulfillment) / Admin callable (grantVideoAccess)'],
+        rulesSummary: 'Member can read own grants; writes restricted to Cloud Functions and Admin SDK.',
         affectedTriggers: [],
-        mirrorTargets: [],
+        mirrorTargets: ['/videoGrants/{globalGrantKey}'],
         relatedJourneys: ['vod-streaming'],
         relatedFlows: ['ecommerce-webhooks', 'media-transcoding'],
-        tsInterface: `export interface VideoGrant {
+        relatedPersonas: ["active-member", "student-practitioner", "hq-admin", "system-automation"],
+        enforcingPermissions: ["stream:vod", "webhook:stripe", "admin:all", "grant:vod-access"],
+        tsInterface: `export type VideoGrant = {
+  docId: string;
   videoId: string;
-  grantedDate: string;
-  orderId: string;
-  expiresDate: string;
-  grantType: 'purchase' | 'subscription' | 'comp';
-}`,
-        initDefaults: 'initVideoGrant(): grantType: purchase, empty expiry',
+  memberDocId: string;
+  memberEmail: string;
+  grantKind: VideoGrantKind; // StripePurchase | AdminGrant | EventAttendance | Complimentary | GiftPurchase
+  orderDocId?: string;
+  stripeSessionId?: string;
+  amountPaidCents?: number;
+  grantedByMemberDocId?: string;
+  giftedByMemberDocId?: string;
+  giftedByName?: string;
+  giftedByEmail?: string;
+  giftMessage?: string;
+  notes?: string;
+  grantedAt: string;
+  expiresAt?: string;
+};`,
+        initDefaults: 'initVideoGrant(videoId, memberDocId): grantKind: StripePurchase, grantedAt: nowIso',
         converterFunction: 'firestoreDocToVideoGrant',
         fields: [
+            { name: 'docId', type: 'string', required: true, description: 'Matches videoId' },
             { name: 'videoId', type: 'string', required: true, description: 'Granted video docId' },
-            { name: 'grantType', type: 'string', required: true, description: 'Purchase or subscription' },
+            { name: 'memberDocId', type: 'string', required: true, description: 'Member document ID' },
+            { name: 'memberEmail', type: 'string', required: true, description: 'Recipient email snapshot' },
+            { name: 'grantKind', type: 'VideoGrantKind', required: true, description: 'stripe_purchase | admin_grant | event_attendance | complimentary | gift_purchase' },
+            { name: 'orderDocId', type: 'string', required: false, description: 'Reference to associated /orders/{orderDocId}' },
+            { name: 'stripeSessionId', type: 'string', required: false, description: 'Stripe checkout session ID' },
+            { name: 'giftedByMemberDocId', type: 'string', required: false, description: 'Member docId of gift sender' },
+            { name: 'giftedByName', type: 'string', required: false, description: 'Display name snapshot of gift sender' },
+            { name: 'giftedByEmail', type: 'string', required: false, description: 'Email address of gift sender' },
+            { name: 'giftMessage', type: 'string', required: false, description: 'Optional personal greeting from gift sender' },
+            { name: 'grantedByMemberDocId', type: 'string', required: false, description: 'Admin docId if granted manually via grantVideoAccess' },
+            { name: 'notes', type: 'string', required: false, description: 'Reason or reference notes' },
+            { name: 'grantedAt', type: 'string', required: true, description: 'ISO 8601 timestamp of grant issuance' },
+            { name: 'expiresAt', type: 'string', required: false, description: 'Optional expiration timestamp for temporary access' },
         ],
     },
     {
@@ -397,6 +441,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: [],
         relatedJourneys: ['vod-streaming'],
         relatedFlows: ['client-reactivity'],
+        relatedPersonas: ["active-member", "student-practitioner", "hq-admin"],
+        enforcingPermissions: ["stream:vod", "admin:all"],
         tsInterface: `export interface VideoProgress {
   videoId: string;
   currentTimeSeconds: number;
@@ -433,6 +479,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: ['/members/{memberDocId}/orders/{orderDocId}'],
         relatedJourneys: ['event-hosting-ticketing', 'vod-streaming', 'instructor-licensing'],
         relatedFlows: ['ecommerce-webhooks'],
+        relatedPersonas: ["active-member", "grading-candidate", "external-attendee", "school-manager", "hq-admin", "system-automation"],
+        enforcingPermissions: ["read:own-orders", "manage:billing-portal", "purchase:grading-fee", "license:school-renewal", "override:orders", "webhook:stripe", "admin:all"],
         tsInterface: `export interface Order {
   docId: string;
   orderNumber: string;
@@ -477,6 +525,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: [],
         relatedJourneys: ['member-onboarding', 'instructor-licensing'],
         relatedFlows: ['trigger-mirroring'],
+        relatedPersonas: ["active-member", "hq-admin", "system-automation"],
+        enforcingPermissions: ["admin:all", "service:firebase-admin"],
         tsInterface: `export interface ACL {
   email: string;
   isAdmin: boolean;
@@ -518,6 +568,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: [],
         relatedJourneys: ['event-hosting-ticketing'],
         relatedFlows: ['ecommerce-webhooks'],
+        relatedPersonas: ["active-member", "anonymous-visitor", "hq-admin"],
+        enforcingPermissions: ["admin:all"],
         tsInterface: `export interface Product {
   docId: string;
   name: string;
@@ -555,6 +607,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: [],
         relatedJourneys: [],
         relatedFlows: ['client-reactivity'],
+        relatedPersonas: ["student-practitioner", "anonymous-visitor", "sifu-instructor", "hq-admin"],
+        enforcingPermissions: ["read:public-data", "admin:all"],
         tsInterface: `export interface Post {
   docId: string;
   title: string;
@@ -588,6 +642,8 @@ exports.DATA_TYPES_CATALOG = [
         mirrorTargets: [],
         relatedJourneys: ['member-onboarding'],
         relatedFlows: ['trigger-mirroring'],
+        relatedPersonas: ["hq-admin", "system-automation"],
+        enforcingPermissions: ["manage:backups", "admin:all", "service:firebase-admin"],
         tsInterface: `export interface Counters {
   nextMemberNumber: number;
   nextInstructorNumber: number;
@@ -597,6 +653,101 @@ exports.DATA_TYPES_CATALOG = [
         converterFunction: 'firestoreDocToCounters',
         fields: [
             { name: 'nextMemberNumber', type: 'number', required: true, description: 'Next sequential member ID' },
+        ],
+    },
+    {
+        id: 'mail',
+        name: 'MailQueueDoc',
+        domain: data_type_1.DataDomainGroup.SystemInfrastructure,
+        collectionPath: '/mail/{docId}',
+        isSubcollection: false,
+        sourceFile: 'functions/src/data-model/mail.ts',
+        summary: 'Outbound transactional and scheduled email queue documents. Tracks delivery state machine (PENDING -> PROCESSING -> SUCCESS | ERROR | PAUSED), retry metadata, attempt counters, and Nodemailer SMTP message headers.',
+        cardinality: 'One document per enqueued outbound email.',
+        ownership: 'Created by server-side Cloud Functions (Admin SDK); inspected and managed by HQ Administrators.',
+        keyRelations: [
+            { targetTypeId: 'order', targetTypeName: 'Order', relation: 'Enqueued on purchase confirmations' },
+            { targetTypeId: 'member', targetTypeName: 'Member', relation: 'Enqueued on member onboarding welcome emails' },
+            { targetTypeId: 'ilc-event', targetTypeName: 'IlcEvent', relation: 'Enqueued for weekly/monthly event digests' },
+            { targetTypeId: 'mail-settings', targetTypeName: 'MailSettings', relation: 'Global dispatch behavior governed by /system/mail-settings' },
+            { targetTypeId: 'video-grant', targetTypeName: 'VideoGrant', relation: 'Enqueued when VOD access is gifted or granted (vodGiftReceived)' },
+        ],
+        readRoles: ['Admin (HQ)'],
+        writeRoles: ['None (allow write: if false; direct client writes strictly prohibited; mediated exclusively by Cloud Functions)'],
+        rulesSummary: 'Direct client writes are prohibited (allow write: if false;). Closed security model prevents open relay or malicious mail injection.',
+        affectedTriggers: ['mail-processor.ts (processMailQueue)'],
+        mirrorTargets: [],
+        relatedJourneys: ['member-onboarding', 'event-hosting-ticketing', 'outbound-email-notifications', 'vod-streaming'],
+        relatedFlows: ['ecommerce-webhooks', 'email-queue-processor'],
+        relatedPersonas: ["hq-admin", "system-automation"],
+        enforcingPermissions: ["admin:all", "service:firebase-admin"],
+        tsInterface: `export interface MailQueueDoc {
+  docId?: string;
+  to: string | string[];
+  from?: string;
+  replyTo?: string;
+  subject?: string;
+  text?: string;
+  html?: string;
+  message?: MailMessage;
+  status?: MailDeliveryState;
+  delivery?: MailDeliveryInfo;
+  metadata?: MailMetadata;
+  templateKey?: string;
+  templateData?: Record<string, string>;
+  createdAt?: unknown;
+}`,
+        initDefaults: 'initMailDoc(): to: [], from: "", replyTo: "", status: "PENDING", delivery: { state: "PENDING", attempts: 0 }',
+        converterFunction: 'initMailDoc',
+        fields: [
+            { name: 'to', type: 'string | string[]', required: true, description: 'Recipient email address(es)' },
+            { name: 'from', type: 'string', required: false, description: 'Sender email (e.g. notifications@iliqchuan.com)' },
+            { name: 'replyTo', type: 'string', required: false, description: 'Reply-to mailbox (e.g. web-helper-team@iliqchuan.com)' },
+            { name: 'subject', type: 'string', required: false, description: 'Subject line' },
+            { name: 'text', type: 'string', required: false, description: 'Plain-text body' },
+            { name: 'html', type: 'string', required: false, description: 'Rendered HTML email body' },
+            { name: 'status', type: 'MailDeliveryState', required: false, description: 'PENDING | PROCESSING | SUCCESS | ERROR | PAUSED' },
+            { name: 'delivery', type: 'MailDeliveryInfo', required: false, description: 'Execution metadata, attempts count, messageId, and error trace' },
+            { name: 'metadata', type: 'MailMetadata', required: false, description: 'Context tags e.g. adminTest, templateKey, orderNumber' },
+        ],
+    },
+    {
+        id: 'mail-settings',
+        name: 'MailSettings',
+        domain: data_type_1.DataDomainGroup.SystemInfrastructure,
+        collectionPath: '/system/mail-settings',
+        isSubcollection: false,
+        sourceFile: 'functions/src/data-model/mail.ts',
+        summary: 'Global dispatch state governing system outbound mail (Off, Paused, Active). Supports zero-write enforcement on Off, placeholder queuing on Paused, and deferred template interpretation upon activation.',
+        cardinality: 'Singleton document at /system/mail-settings.',
+        ownership: 'Managed by HQ Administrators via Email Notifications space.',
+        keyRelations: [
+            { targetTypeId: 'mail', targetTypeName: 'MailQueueDoc', relation: 'Controls queue dispatch and placeholder release' },
+        ],
+        readRoles: ['Public (read status indicators)', 'Admin (HQ)'],
+        writeRoles: ['Admin (HQ) via callable setMailSendingState'],
+        rulesSummary: 'Public read allowed for status indicators; secrets isolated in /system/mail-secrets. Write modified via secure callable Cloud Function setMailSendingState.',
+        affectedTriggers: ['mail-processor.ts (processMailQueue)'],
+        mirrorTargets: [],
+        relatedJourneys: ['outbound-email-notifications'],
+        relatedFlows: ['email-queue-processor', 'one-click-unsubscribe'],
+        relatedPersonas: ["hq-admin", "system-automation"],
+        enforcingPermissions: ["admin:all", "service:firebase-admin"],
+        tsInterface: `export interface MailSettings {
+  status: MailSendingStatus; // 'active' | 'paused' | 'off'
+  sendingPaused?: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+  pausedAt?: string;
+  resumedAt?: string;
+}`,
+        initDefaults: 'initMailSettings(): status: MailSendingStatus.Off, sendingPaused: false',
+        converterFunction: 'initMailSettings',
+        fields: [
+            { name: 'status', type: 'MailSendingStatus', required: true, description: 'active | paused | off' },
+            { name: 'sendingPaused', type: 'boolean', required: false, description: 'Legacy boolean flag' },
+            { name: 'updatedAt', type: 'string', required: false, description: 'ISO timestamp of state change' },
+            { name: 'updatedBy', type: 'string', required: false, description: 'Admin email who modified status' },
         ],
     },
 ];

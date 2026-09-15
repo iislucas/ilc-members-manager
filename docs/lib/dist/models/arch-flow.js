@@ -12,5 +12,6 @@ var FlowCategory;
     FlowCategory["ECommerceWebhooks"] = "ECommerceWebhooks";
     FlowCategory["MediaTranscoding"] = "MediaTranscoding";
     FlowCategory["MicroFrontends"] = "MicroFrontends";
+    FlowCategory["EmailAndNotifications"] = "EmailAndNotifications";
 })(FlowCategory || (exports.FlowCategory = FlowCategory = {}));
 //# sourceMappingURL=arch-flow.js.map

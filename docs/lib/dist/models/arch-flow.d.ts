@@ -3,8 +3,10 @@ export declare enum FlowCategory {
     TriggerMirroring = "TriggerMirroring",
     ECommerceWebhooks = "ECommerceWebhooks",
     MediaTranscoding = "MediaTranscoding",
-    MicroFrontends = "MicroFrontends"
+    MicroFrontends = "MicroFrontends",
+    EmailAndNotifications = "EmailAndNotifications"
 }
+export type FlowTierType = 'client' | 'cloud-functions' | 'database' | 'external' | 'user';
 export interface FlowStep {
     stepNumber: number;
     sourceTier: string;
@@ -12,6 +14,8 @@ export interface FlowStep {
     action: string;
     payloadDescription: string;
     codePointers: string[];
+    tierType?: FlowTierType;
+    protocol?: string;
 }
 export interface ArchFlowEntry {
     id: string;
