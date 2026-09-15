@@ -233,7 +233,7 @@ describe('HomeComponent', () => {
     expect(articleLink).toBeTruthy();
   });
 
-  it('shows Manage VOD card with In Testing tag on Admin tab for admin users', async () => {
+  it('shows Manage VOD card on Admin tab for admin users', async () => {
     (firebaseService.user as any).set({
       isAdmin: true,
       schoolsManaged: [],
@@ -251,7 +251,7 @@ describe('HomeComponent', () => {
 
     const element: HTMLElement = fixture.nativeElement;
     expect(element.textContent).toContain('Manage VOD');
-    expect(element.textContent).toContain('In Testing');
+    expect(element.textContent).not.toContain('In Testing');
   });
 });
 

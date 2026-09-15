@@ -9,6 +9,7 @@ import {
   input,
   output,
   signal,
+  linkedSignal,
   computed,
   inject,
   ChangeDetectionStrategy,
@@ -46,8 +47,33 @@ export class GrantVodModalComponent {
   closed = output<void>();
   granted = output<{ targetId: string; recipientEmail: string; grantedCount: number }>();
 
-  // Scope: 'video' | 'series'
-  grantScope = signal<'video' | 'series'>('video');
+  // Scope: 'video' | 'series', defaults to 'series' if item belongs to a series
+  grantScope = linkedSignal<'video' | 'series'>(() => {
+    if (this.series() || Boolean(this.video()?.seriesId || this.video()?.forVodPageId)) {
+      return 'series';
+    }
+    return 'video';
+  });
+
+  // Count of videos in the target series
+  seriesVideoCount = computed(() => {
+    const s = this.series();
+    if (s) return s.videoCount || s.videos?.length || 0;
+    const v = this.video();
+    if (!v) return 0;
+    const allSeries = typeof this.dataService.getVideoSeriesList === 'function'
+      ? this.dataService.getVideoSeriesList()
+      : [];
+    const matched = allSeries.find(
+      (item) => item.seriesId === v.seriesId || (Boolean(v.forVodPageId) && item.seriesId === v.forVodPageId)
+    );
+    if (matched) return matched.videoCount || matched.videos?.length || 0;
+    if (v.seriesId && typeof this.dataService.videos?.entries === 'function') {
+      const count = (this.dataService.videos.entries() || []).filter((item) => item.seriesId === v.seriesId).length;
+      if (count > 0) return count;
+    }
+    return 0;
+  });
 
   // Recipient selection
   selectedMemberId = signal<string>('');

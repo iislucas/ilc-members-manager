@@ -57,7 +57,7 @@
               (click)="grantScope.set('series')"
             >
               <app-icon name="video_library"></app-icon>
-              <span>Entire Series</span>
+              <span>Entire Series @if (seriesVideoCount(); as cnt) { ({{ cnt }} videos) }</span>
             </button>
           </div>
         </div>
@@ -207,7 +207,13 @@
           [disabled]="!effectiveRecipientEmail()"
         >
           <app-icon name="card_giftcard"></app-icon>
-          <span>Grant Access</span>
+          <span>
+            @if (grantScope() === 'series') {
+              Grant Series Access @if (seriesVideoCount(); as cnt) { ({{ cnt }} videos) }
+            } @else {
+              Grant Video Access
+            }
+          </span>
         </button>
       }
     </div>
