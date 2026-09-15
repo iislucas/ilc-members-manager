@@ -202,22 +202,37 @@ export const createProductCheckoutSession = onCall<
       }
 
       existingReg = regSnap.data() as EventRegistration;
-      const authEmail = (request.auth?.token?.email || '').toLowerCase().trim();
-      const callerEmail = (emailToLookup || '').toLowerCase().trim();
+      const verifiedAuthEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+      if (!verifiedAuthEmail) {
+        throw new HttpsError(
+          'unauthenticated',
+          'You must be authenticated to upgrade an existing registration.',
+        );
+      }
       const regEmail = (existingReg.email || '').toLowerCase().trim();
       const callerMemberDoc = memberDocId || '';
       const regMemberDoc = existingReg.memberDocId || '';
 
       let isAdmin = false;
-      if (authEmail) {
-        const aclSnap = await db.collection(FirestoreCollection.Acl).doc(authEmail).get();
-        isAdmin = aclSnap.data()?.isAdmin === true;
+      const aclSnap = await db.collection(FirestoreCollection.Acl).doc(verifiedAuthEmail).get();
+      isAdmin = aclSnap.data()?.isAdmin === true;
+
+      let isEventManager = false;
+      if (product.eventDocId && callerMemberDoc) {
+        const eventSnap = await db.collection('events').doc(product.eventDocId).get();
+        if (eventSnap.exists) {
+          const eventData = eventSnap.data();
+          isEventManager =
+            eventData?.ownerDocId === callerMemberDoc ||
+            (eventData?.managerDocIds || []).includes(callerMemberDoc);
+        }
       }
 
       const isAuthorized =
-        (callerEmail && callerEmail === regEmail) ||
+        verifiedAuthEmail === regEmail ||
         (callerMemberDoc && regMemberDoc && callerMemberDoc === regMemberDoc) ||
-        isAdmin;
+        isAdmin ||
+        isEventManager;
 
       if (!isAuthorized) {
         throw new HttpsError('permission-denied', 'You are not authorized to upgrade this registration.');
@@ -429,20 +444,20 @@ export const createProductCheckoutSession = onCall<
   const stripe = getStripeClient();
 
   // 6. Ensure Stripe customer is created / linked
-  if (member && emailToLookup) {
+  if (member && authEmail) {
     try {
       if (member.stripeCustomerId) {
         customerId = member.stripeCustomerId;
       } else {
         const existing = await stripe.customers.list({
-          email: emailToLookup,
+          email: authEmail,
           limit: 1,
         });
         if (existing.data.length > 0) {
           customerId = existing.data[0].id;
         } else {
           const created = await stripe.customers.create({
-            email: emailToLookup,
+            email: authEmail,
             name: data.attendeeDetails?.name || member.name || undefined,
             metadata: {
               memberDocId: member.docId,
@@ -457,7 +472,7 @@ export const createProductCheckoutSession = onCall<
         });
       }
     } catch (e) {
-      logger.warn('Could not sync Stripe customer for member', { emailToLookup, error: e });
+      logger.warn('Could not sync Stripe customer for member', { authEmail, error: e });
     }
   }
 
