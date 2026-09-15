@@ -9,8 +9,21 @@ import {
 } from '../firebase-state.service';
 import { ROUTING_CONFIG, initPathPatterns, FIREBASE_APP } from '../app.config';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
-import { initMember, Member, MembershipType, InstructorPublicData } from '../../../functions/src/data-model/members';
+import {
+  initMember,
+  Member,
+  MembershipType,
+  InstructorPublicData,
+} from '../../../functions/src/data-model/members';
 import { School } from '../../../functions/src/data-model/schools';
+import {
+  VideoItem,
+  VideoGrant,
+  VideoSeries,
+  VideoGrantKind,
+  initVideoItem,
+  initVideoGrant,
+} from '../../../functions/src/data-model/vod';
 import { SearchableSet } from '../searchable-set';
 import { CountryCode } from '../country-codes';
 import { User } from 'firebase/auth';
@@ -37,12 +50,11 @@ describe('MemberDetailsComponent', () => {
       addMember: vi.fn(),
       createNextMemberId: vi.fn(),
       createNextInstructorId: vi.fn(),
+      getMemberVideoGrants: vi.fn().mockResolvedValue([]),
+      getVideoSeriesList: vi.fn().mockReturnValue([]),
+      videos: new SearchableSet<'docId', VideoItem>(['title'], 'docId', []),
       loadingState: signal(DataServiceState.Loaded),
-      members: new SearchableSet<'docId', Member>(
-        ['name'],
-        'docId',
-        [],
-      ),
+      members: new SearchableSet<'docId', Member>(['name'], 'docId', []),
       instructors: new SearchableSet<'instructorId', InstructorPublicData>(
         ['name'],
         'instructorId',
@@ -76,7 +88,10 @@ describe('MemberDetailsComponent', () => {
         provideZonelessChangeDetection(),
         { provide: DataManagerService, useValue: dataManagerServiceMock },
         { provide: FirebaseStateService, useValue: firebaseStateServiceMock },
-        { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
+        {
+          provide: ROUTING_CONFIG,
+          useValue: { validPathPatterns: initPathPatterns },
+        },
         { provide: FIREBASE_APP, useValue: {} },
       ],
     }).compileComponents();
@@ -118,7 +133,9 @@ describe('MemberDetailsComponent', () => {
     await fixture.whenStable();
 
     const event = { preventDefault: vi.fn() } as unknown as Event;
-    (dataManagerServiceMock.addMember as Mock).mockResolvedValue({ id: 'new-id' });
+    (dataManagerServiceMock.addMember as Mock).mockResolvedValue({
+      id: 'new-id',
+    });
 
     await component.saveMember(event);
 
@@ -258,7 +275,11 @@ describe('MemberDetailsComponent', () => {
     it('should re-order emails and mark form dirty when makePrimaryEmail is called', async () => {
       const multiEmailMember: Member = {
         ...mockMember,
-        emails: ['first@example.com', 'second@example.com', 'third@example.com'],
+        emails: [
+          'first@example.com',
+          'second@example.com',
+          'third@example.com',
+        ],
       };
       fixture.componentRef.setInput('member', multiEmailMember);
       fixture.detectChanges();
@@ -322,21 +343,29 @@ describe('MemberDetailsComponent', () => {
       const gradingsLink = navButtons?.querySelector('a[href*="gradings"]');
       expect(gradingsLink).toBeTruthy();
       expect(gradingsLink?.textContent).toContain('Gradings');
-      expect(gradingsLink?.getAttribute('href')).toContain('studentMemberDocId=m123');
+      expect(gradingsLink?.getAttribute('href')).toContain(
+        'studentMemberDocId=m123',
+      );
 
       const ordersLink = navButtons?.querySelector('a[href*="orders"]');
       expect(ordersLink).toBeTruthy();
       expect(ordersLink?.textContent).toContain('Orders');
       expect(ordersLink?.getAttribute('href')).toContain('searchField=email');
-      expect(ordersLink?.getAttribute('href')).toContain('q=john%40example.com');
+      expect(ordersLink?.getAttribute('href')).toContain(
+        'q=john%40example.com',
+      );
 
       const eventsLink = navButtons?.querySelector('a[href*="manage-events"]');
       expect(eventsLink).toBeTruthy();
       expect(eventsLink?.textContent).toContain('Events');
-      expect(eventsLink?.getAttribute('href')).toContain('searchField=leadingInstructorId');
+      expect(eventsLink?.getAttribute('href')).toContain(
+        'searchField=leadingInstructorId',
+      );
       expect(eventsLink?.getAttribute('href')).toContain('q=101');
 
-      const materialsLink = navButtons?.querySelector('a[href*="manage-materials"]');
+      const materialsLink = navButtons?.querySelector(
+        'a[href*="manage-materials"]',
+      );
       expect(materialsLink).toBeTruthy();
       expect(materialsLink?.textContent).toContain('Materials');
       expect(materialsLink?.getAttribute('href')).toContain('instructorId=101');
@@ -345,11 +374,15 @@ describe('MemberDetailsComponent', () => {
       expect(studentsLink).toBeTruthy();
       expect(studentsLink?.textContent).toContain('Students');
 
-      const publicProfileLink = navButtons?.querySelector('a[href="/instructors/101"]');
+      const publicProfileLink = navButtons?.querySelector(
+        'a[href="/instructors/101"]',
+      );
       expect(publicProfileLink).toBeTruthy();
       expect(publicProfileLink?.textContent).toContain('Public Profile');
 
-      const schoolLink = navButtons?.querySelector('a[href*="school/SCH01/members"]');
+      const schoolLink = navButtons?.querySelector(
+        'a[href*="school/SCH01/members"]',
+      );
       expect(schoolLink).toBeTruthy();
       expect(schoolLink?.textContent).toContain('School');
     });
@@ -454,6 +487,255 @@ describe('MemberDetailsComponent', () => {
 
       expect(component.userIsSchoolManagerOrAdmin()).toBe(false);
       expect(component.form.notes().disabled()).toBe(true);
+    });
+  });
+
+  describe('VOD Video & Series Grants grouping and unfolding', () => {
+    const sampleVideo1: VideoItem = {
+      ...initVideoItem(),
+      docId: 'vid-1',
+      title: 'Spinning Hands Part 1',
+      seriesId: 'series-spin',
+      seriesTitle: 'Spinning Hands Series',
+      seriesPartIndex: 1,
+      durationSeconds: 900, // 15 mins
+      isPublished: true,
+    };
+
+    const sampleVideo2: VideoItem = {
+      ...initVideoItem(),
+      docId: 'vid-2',
+      title: 'Spinning Hands Part 2',
+      seriesId: 'series-spin',
+      seriesTitle: 'Spinning Hands Series',
+      seriesPartIndex: 2,
+      durationSeconds: 1500, // 25 mins
+      isPublished: true,
+    };
+
+    const sampleSeries: VideoSeries = {
+      seriesId: 'series-spin',
+      title: 'Spinning Hands Series',
+      description: 'Master the art of spinning hands.',
+      videoCount: 2,
+      totalDurationSeconds: 2400,
+      videos: [sampleVideo1, sampleVideo2],
+    };
+
+    const sampleStandaloneVideo: VideoItem = {
+      ...initVideoItem(),
+      docId: 'vid-standalone',
+      title: 'Standalone Workshop',
+      durationSeconds: 3600, // 1h
+      isPublished: true,
+    };
+
+    beforeEach(() => {
+      (dataManagerServiceMock.getVideoSeriesList as Mock).mockReturnValue([
+        sampleSeries,
+      ]);
+      dataManagerServiceMock.videos.setEntries([
+        sampleVideo1,
+        sampleVideo2,
+        sampleStandaloneVideo,
+      ]);
+    });
+
+    it('should group full series grant and its constituent video grants into a single series row', () => {
+      // Simulating what grantVideoAccess stores: 1 series grant + 2 video grants
+      const grants: VideoGrant[] = [
+        {
+          ...initVideoGrant('series-spin', 'test-id'),
+          grantKind: VideoGrantKind.AdminGrant,
+          grantedAt: '2026-09-15T12:00:00.000Z',
+          notes: 'Full series grant for student',
+        },
+        {
+          ...initVideoGrant('vid-1', 'test-id'),
+          grantKind: VideoGrantKind.AdminGrant,
+          grantedAt: '2026-09-15T12:00:01.000Z',
+        },
+        {
+          ...initVideoGrant('vid-2', 'test-id'),
+          grantKind: VideoGrantKind.AdminGrant,
+          grantedAt: '2026-09-15T12:00:02.000Z',
+        },
+      ];
+
+      component.memberVideoGrants.set(grants);
+
+      const grouped = component.groupedVideoGrants();
+      expect(grouped.length).toBe(1);
+
+      const seriesRow = grouped[0];
+      expect(seriesRow.id).toBe('series-spin');
+      expect(seriesRow.isSeries).toBe(true);
+      expect(seriesRow.title).toBe('Spinning Hands Series');
+      expect(seriesRow.description).toBe('Master the art of spinning hands.');
+      expect(seriesRow.totalVideosCount).toBe(2);
+      expect(seriesRow.grantedVideosCount).toBe(2);
+      expect(seriesRow.isFullSeriesGranted).toBe(true);
+      expect(seriesRow.subtitle).toBe('All 2 videos granted');
+      expect(seriesRow.notes).toBe('Full series grant for student');
+      expect(seriesRow.items.length).toBe(2);
+      expect(seriesRow.items[0].videoId).toBe('vid-1');
+      expect(seriesRow.items[0].isGranted).toBe(true);
+      expect(seriesRow.items[0].partIndex).toBe(1);
+      expect(seriesRow.items[1].videoId).toBe('vid-2');
+      expect(seriesRow.items[1].isGranted).toBe(true);
+      expect(seriesRow.items[1].partIndex).toBe(2);
+    });
+
+    it('should correctly reflect partial series grant when only one video is granted', () => {
+      const grants: VideoGrant[] = [
+        {
+          ...initVideoGrant('vid-1', 'test-id'),
+          grantKind: VideoGrantKind.AdminGrant,
+          grantedAt: '2026-09-15T12:00:01.000Z',
+        },
+      ];
+
+      component.memberVideoGrants.set(grants);
+
+      const grouped = component.groupedVideoGrants();
+      expect(grouped.length).toBe(1);
+
+      const seriesRow = grouped[0];
+      expect(seriesRow.id).toBe('series-spin');
+      expect(seriesRow.isSeries).toBe(true);
+      expect(seriesRow.totalVideosCount).toBe(2);
+      expect(seriesRow.grantedVideosCount).toBe(1);
+      expect(seriesRow.isFullSeriesGranted).toBe(false);
+      expect(seriesRow.subtitle).toBe('1 of 2 videos granted');
+
+      expect(seriesRow.items.length).toBe(2);
+      const item1 = seriesRow.items.find((i) => i.videoId === 'vid-1');
+      const item2 = seriesRow.items.find((i) => i.videoId === 'vid-2');
+      expect(item1?.isGranted).toBe(true);
+      expect(item2?.isGranted).toBe(false);
+    });
+
+    it('should list standalone video grant as an individual video row', () => {
+      const grants: VideoGrant[] = [
+        {
+          ...initVideoGrant('vid-standalone', 'test-id'),
+          grantKind: VideoGrantKind.StripePurchase,
+          grantedAt: '2026-09-14T10:00:00.000Z',
+        },
+      ];
+
+      component.memberVideoGrants.set(grants);
+
+      const grouped = component.groupedVideoGrants();
+      expect(grouped.length).toBe(1);
+
+      const row = grouped[0];
+      expect(row.id).toBe('vid-standalone');
+      expect(row.isSeries).toBe(false);
+      expect(row.title).toBe('Standalone Workshop');
+      expect(row.totalVideosCount).toBe(1);
+      expect(row.grantedVideosCount).toBe(1);
+      expect(row.isFullSeriesGranted).toBe(true);
+      expect(row.subtitle).toBe('Single Video');
+    });
+
+    it('should handle uncataloged target ID grants gracefully', () => {
+      const grants: VideoGrant[] = [
+        {
+          ...initVideoGrant('unknown-id-123', 'test-id'),
+          grantKind: VideoGrantKind.AdminGrant,
+          grantedAt: '2026-09-10T00:00:00.000Z',
+        },
+      ];
+
+      component.memberVideoGrants.set(grants);
+
+      const grouped = component.groupedVideoGrants();
+      expect(grouped.length).toBe(1);
+      expect(grouped[0].id).toBe('unknown-id-123');
+      expect(grouped[0].isSeries).toBe(false);
+      expect(grouped[0].title).toBe('unknown-id-123');
+      expect(grouped[0].subtitle).toBe('Target ID Grant');
+    });
+
+    it('should toggle series fold and support expandAll and collapseAll', () => {
+      component.memberVideoGrants.set([
+        initVideoGrant('series-spin', 'test-id'),
+        initVideoGrant('vid-standalone', 'test-id'),
+      ]);
+
+      expect(component.isSeriesExpanded('series-spin')).toBe(false);
+
+      component.toggleSeriesFold('series-spin');
+      expect(component.isSeriesExpanded('series-spin')).toBe(true);
+
+      component.toggleSeriesFold('series-spin');
+      expect(component.isSeriesExpanded('series-spin')).toBe(false);
+
+      component.expandAllSeries();
+      expect(component.isSeriesExpanded('series-spin')).toBe(true);
+      expect(component.isSeriesExpanded('vid-standalone')).toBe(true);
+
+      component.collapseAllSeries();
+      expect(component.isSeriesExpanded('series-spin')).toBe(false);
+      expect(component.isSeriesExpanded('vid-standalone')).toBe(false);
+    });
+
+    it('should format durations correctly', () => {
+      expect(component.formatDuration(0)).toBe('0 min');
+      expect(component.formatDuration(45)).toBe('45s');
+      expect(component.formatDuration(900)).toBe('15m');
+      expect(component.formatDuration(3600)).toBe('1h');
+      expect(component.formatDuration(5400)).toBe('1h 30m');
+    });
+
+    it('should render series row in DOM and unfold constituent videos on click', async () => {
+      const grants: VideoGrant[] = [
+        {
+          ...initVideoGrant('series-spin', 'test-id'),
+          grantKind: VideoGrantKind.AdminGrant,
+          grantedAt: '2026-09-15T12:00:00.000Z',
+          notes: 'Full series granted',
+        },
+        {
+          ...initVideoGrant('vid-1', 'test-id'),
+          grantKind: VideoGrantKind.AdminGrant,
+          grantedAt: '2026-09-15T12:00:01.000Z',
+        },
+        {
+          ...initVideoGrant('vid-2', 'test-id'),
+          grantKind: VideoGrantKind.AdminGrant,
+          grantedAt: '2026-09-15T12:00:02.000Z',
+        },
+      ];
+
+      component.memberVideoGrants.set(grants);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const seriesRow = el.querySelector('.series-row');
+      expect(seriesRow).toBeTruthy();
+      expect(seriesRow?.textContent).toContain('Spinning Hands Series');
+      expect(seriesRow?.textContent).toContain('All 2 videos granted');
+
+      // Before unfolding, nested table should not exist
+      expect(el.querySelector('.nested-videos-table')).toBeNull();
+
+      // Click row to unfold
+      (seriesRow as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      // Now nested table should exist and show both videos
+      const nestedTable = el.querySelector('.nested-videos-table');
+      expect(nestedTable).toBeTruthy();
+      const videoRows = nestedTable?.querySelectorAll('.nested-video-row');
+      expect(videoRows?.length).toBe(2);
+      expect(nestedTable?.textContent).toContain('Spinning Hands Part 1');
+      expect(nestedTable?.textContent).toContain('Spinning Hands Part 2');
+      expect(nestedTable?.textContent).toContain('15m');
+      expect(nestedTable?.textContent).toContain('25m');
     });
   });
 });
