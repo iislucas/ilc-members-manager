@@ -40,6 +40,8 @@ export interface DataTypeEntry {
     mirrorTargets: string[];
     relatedJourneys: string[];
     relatedFlows: string[];
+    relatedPersonas?: string[];
+    enforcingPermissions?: string[];
     tsInterface: string;
     initDefaults: string;
     converterFunction: string;

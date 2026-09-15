@@ -242,7 +242,7 @@ export class MemberDetailsComponent {
     disabled(schema.classVideoLibraryLastRenewalDate, () => !this.userIsAdmin());
     disabled(schema.classVideoLibraryExpirationDate, () => !this.userIsAdmin());
     disabled(schema.isAdmin, () => !this.userIsAdmin());
-    disabled(schema.notes, () => !this.userIsAdmin());
+    disabled(schema.notes, () => !this.userIsSchoolManagerOrAdmin());
     disabled(schema.tags, () => !this.userIsAdmin());
   });
 
@@ -432,7 +432,10 @@ export class MemberDetailsComponent {
     if (!user) return false;
     if (user.isAdmin) return true;
     const member = this.member();
-    return user.schoolsManaged.includes(member.primarySchoolId);
+    return (
+      (!!member.primarySchoolId && user.schoolsManaged.includes(member.primarySchoolId)) ||
+      (!!member.primarySchoolDocId && user.schoolsManaged.includes(member.primarySchoolDocId))
+    );
   });
   userIsAdmin = computed(() => {
     const user = this.firebaseState.user();
@@ -448,11 +451,13 @@ export class MemberDetailsComponent {
   userIsMemberSchoolManagerOrAdmin = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
-    const emails = this.member().emails || [];
+    if (user.isAdmin) return true;
+    const member = this.member();
+    const emails = member.emails || [];
     return (
-      user.isAdmin ||
       emails.includes(user.firebaseUser.email || '') ||
-      user.schoolsManaged.includes(this.member().primarySchoolId)
+      (!!member.primarySchoolId && user.schoolsManaged.includes(member.primarySchoolId)) ||
+      (!!member.primarySchoolDocId && user.schoolsManaged.includes(member.primarySchoolDocId))
     );
   });
 

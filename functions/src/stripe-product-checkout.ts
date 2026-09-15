@@ -194,21 +194,27 @@ export const createProductCheckoutSession = onCall<
         .collection('registrations')
         .doc(data.existingRegistrationDocId)
         .get();
-
       if (!regSnap.exists) {
         throw new HttpsError('not-found', 'Existing registration not found for upgrade.');
       }
 
       existingReg = regSnap.data() as EventRegistration;
+      const authEmail = (request.auth?.token?.email || '').toLowerCase().trim();
       const callerEmail = (emailToLookup || '').toLowerCase().trim();
       const regEmail = (existingReg.email || '').toLowerCase().trim();
       const callerMemberDoc = memberDocId || '';
       const regMemberDoc = existingReg.memberDocId || '';
 
+      let isAdmin = false;
+      if (authEmail) {
+        const aclSnap = await db.collection(FirestoreCollection.Acl).doc(authEmail).get();
+        isAdmin = aclSnap.data()?.isAdmin === true;
+      }
+
       const isAuthorized =
         (callerEmail && callerEmail === regEmail) ||
         (callerMemberDoc && regMemberDoc && callerMemberDoc === regMemberDoc) ||
-        (request.auth?.token?.admin === true);
+        isAdmin;
 
       if (!isAuthorized) {
         throw new HttpsError('permission-denied', 'You are not authorized to upgrade this registration.');
@@ -608,7 +614,8 @@ export const updateProductRegistration = onCall<
   const existingReg = regSnap.data() as EventRegistration;
 
   // 3. Verify Authorization
-  const callerEmail = (request.auth?.token?.email || data.attendeeDetails.email || '').toLowerCase().trim();
+  const authEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+  const callerEmail = (authEmail || data.attendeeDetails.email || '').toLowerCase().trim();
   const regEmail = (existingReg.email || '').toLowerCase().trim();
   let callerMemberDocId: string | undefined;
 
@@ -621,10 +628,16 @@ export const updateProductRegistration = onCall<
     }
   }
 
+  let isAdmin = false;
+  if (authEmail) {
+    const aclSnap = await db.collection(FirestoreCollection.Acl).doc(authEmail).get();
+    isAdmin = aclSnap.data()?.isAdmin === true;
+  }
+
   const isAuthorized =
     (callerEmail && callerEmail === regEmail) ||
     (callerMemberDocId && existingReg.memberDocId && callerMemberDocId === existingReg.memberDocId) ||
-    (request.auth?.token?.admin === true);
+    isAdmin;
 
   if (!isAuthorized) {
     throw new HttpsError('permission-denied', 'You are not authorized to update this registration.');

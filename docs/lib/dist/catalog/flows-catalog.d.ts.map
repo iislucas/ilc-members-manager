@@ -1,1 +1,1 @@
-{"version":3,"file":"flows-catalog.d.ts","sourceRoot":"","sources":["../../src/catalog/flows-catalog.ts"],"names":[],"mappings":"AAKA,OAAO,EAAE,aAAa,EAAgB,MAAM,qBAAqB,CAAC;AAElE,eAAO,MAAM,aAAa,EAAE,aAAa,EA6QxC,CAAC"}
+{"version":3,"file":"flows-catalog.d.ts","sourceRoot":"","sources":["../../src/catalog/flows-catalog.ts"],"names":[],"mappings":"AAKA,OAAO,EAAE,aAAa,EAAgB,MAAM,qBAAqB,CAAC;AAElE,eAAO,MAAM,aAAa,EAAE,aAAa,EAqexC,CAAC"}

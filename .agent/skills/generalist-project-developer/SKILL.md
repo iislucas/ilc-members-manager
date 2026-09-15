@@ -40,6 +40,7 @@ The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](
 | [`html-css-developer`](.agent/skills/html-css-developer/SKILL.md) | When editing HTML templates or SCSS styles |
 | [`logo-iteration`](.agent/skills/logo-iteration/SKILL.md) | When working on the SVG logo generator in `mini-tools/` |
 | [`debug-user-access`](.agent/skills/debug-user-access/SKILL.md) | When investigating user login, permission, ACL desync, or resource access issues |
+| [`security-policy`](.agent/skills/security-policy/SKILL.md) | When writing Cloud Functions, Firestore/Storage rules, or security-sensitive permissions and avoiding critical anti-patterns |
 | [`database-actions`](.agent/skills/database-actions/SKILL.md) | When querying, creating, updating, or performing administrative mutations on members, schools, gradings, events, videos, or orders via the actions library |
 
 **Adding a new skill**: create `.agent/skills/{skill-name}/SKILL.md` with frontmatter `name:` and `description:`, then populate it.

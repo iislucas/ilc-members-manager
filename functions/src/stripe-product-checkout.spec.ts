@@ -358,7 +358,66 @@ describe('role authorization verification logic', () => {
     const res = verifyRoleAuth(product, AttendeeRole.Instructor, member);
     expect(res.allowed).toBe(true);
   });
+
+  describe('registration upgrade & update authorization', () => {
+    function checkAuthorization({
+      authEmail,
+      attendeeEmail,
+      regEmail,
+      callerMemberDocId,
+      regMemberDocId,
+      aclIsAdmin,
+    }: {
+      authEmail?: string;
+      attendeeEmail?: string;
+      regEmail: string;
+      callerMemberDocId?: string;
+      regMemberDocId?: string;
+      aclIsAdmin?: boolean;
+    }) {
+      const verifiedAuthEmail = (authEmail || '').toLowerCase().trim();
+      const callerEmail = (verifiedAuthEmail || attendeeEmail || '').toLowerCase().trim();
+      const existingRegEmail = (regEmail || '').toLowerCase().trim();
+
+      // Admin authorization is strictly derived from verified auth token
+      const isAdmin = Boolean(verifiedAuthEmail && aclIsAdmin);
+
+      const isAuthorized =
+        (callerEmail && callerEmail === existingRegEmail) ||
+        (callerMemberDocId && regMemberDocId && callerMemberDocId === regMemberDocId) ||
+        isAdmin;
+
+      return isAuthorized;
+    }
+
+    it('allows owner by matching email', () => {
+      expect(checkAuthorization({ attendeeEmail: 'student@example.com', regEmail: 'student@example.com' })).toBe(true);
+    });
+
+    it('allows authenticated admin even with different reg email', () => {
+      expect(checkAuthorization({ authEmail: 'admin@example.com', regEmail: 'student@example.com', aclIsAdmin: true })).toBe(true);
+    });
+
+    it('rejects unauthenticated caller attempting to claim admin privileges by entering admin email', () => {
+      expect(checkAuthorization({
+        authEmail: undefined,
+        attendeeEmail: 'admin@example.com',
+        regEmail: 'victim@example.com',
+        aclIsAdmin: true,
+      })).toBe(false);
+    });
+
+    it('rejects caller when auth token has isAdmin: false even if attendee email matches an admin', () => {
+      expect(checkAuthorization({
+        authEmail: 'attacker@example.com',
+        attendeeEmail: 'admin@example.com',
+        regEmail: 'victim@example.com',
+        aclIsAdmin: false,
+      })).toBe(false);
+    });
+  });
 });
+
 
 
 

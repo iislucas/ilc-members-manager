@@ -414,15 +414,86 @@ function buildSite() {
       color: var(--primary);
       background: var(--primary-light);
     }
-    pre code {
-      display: block;
-      padding: 1rem;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
+    pre {
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 0.85rem 1.15rem;
       font-family: var(--font-mono);
       font-size: 0.85rem;
+      line-height: 1.55;
       overflow-x: auto;
+      margin: 0.4rem 0 0.8rem 0;
+      position: relative;
+    }
+    [data-theme="dark"] pre {
+      background: #070c18 !important;
+      border-color: #1e293b;
+      color: #f8fafc !important;
+    }
+    pre code {
+      display: block;
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      border-radius: 0;
+      font-family: inherit;
+      font-size: inherit;
+      color: #f8fafc !important;
+      overflow-x: visible;
+      line-height: inherit;
+    }
+    code:not(pre code) {
+      font-family: var(--font-mono);
+      font-size: 0.825rem;
+      background: var(--primary-light);
+      color: var(--primary-hover);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    [data-theme="dark"] code:not(pre code) {
+      background: rgba(217, 119, 6, 0.25);
+      color: #fbbf24;
+    }
+    .code-block-wrapper {
+      position: relative;
+      margin: 0.4rem 0 0.8rem 0;
+    }
+    .code-block-wrapper pre {
+      margin: 0;
+      padding-right: 4.8rem;
+    }
+    .copy-code-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.6rem;
+      background: rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      font-size: 0.725rem;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      padding: 0.25rem 0.55rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      user-select: none;
+      z-index: 5;
+    }
+    .copy-code-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+    .copy-code-btn.copied {
+      background: #059669;
+      border-color: #10b981;
+      color: #ffffff;
     }
     .search-modal-backdrop {
       position: fixed;
@@ -631,8 +702,11 @@ function buildSite() {
               <div style="margin:0.75rem 0;">
                 \${s.commands.map(c => \`
                   <div style="margin-bottom:0.75rem;">
-                    <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.2rem;">\${c.explanation}</div>
-                    <pre><code>\${c.command}</code></pre>
+                    <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.25rem;">\${c.explanation}</div>
+                    <div class="code-block-wrapper">
+                      <pre><code>\${c.command}</code></pre>
+                      <button class="copy-code-btn" onclick="copyCode(this)" title="Copy command">Copy</button>
+                    </div>
                   </div>
                 \`).join('')}
               </div>
@@ -815,7 +889,10 @@ function buildSite() {
               <!-- Level 3 -->
               <div id="l3-\${d.id}" class="detail-panel" style="display:none;">
                 <h4>TypeScript Interface:</h4>
-                <pre><code>\${d.tsInterface}</code></pre>
+                <div class="code-block-wrapper">
+                  <pre><code>\${d.tsInterface}</code></pre>
+                  <button class="copy-code-btn" onclick="copyCode(this)" title="Copy interface">Copy</button>
+                </div>
                 <h4 style="margin-top:1rem;">Field Dictionary:</h4>
                 <div style="overflow-x:auto;margin-top:0.5rem;">
                   <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
@@ -879,7 +956,10 @@ function buildSite() {
               </div>
               \${f.mermaidDiagram ? \`
                 <h4>Pipeline Flowchart:</h4>
-                <pre><code>\${f.mermaidDiagram}</code></pre>
+                <div class="code-block-wrapper">
+                  <pre><code>\${f.mermaidDiagram}</code></pre>
+                  <button class="copy-code-btn" onclick="copyCode(this)" title="Copy diagram definition">Copy</button>
+                </div>
               \` : ''}
               <div class="interlinks-panel">
                 <span style="font-weight:600;">Data Entities:</span>
@@ -1000,6 +1080,23 @@ function buildSite() {
     function toggleTheme() {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    }
+
+    function copyCode(btn) {
+      const wrapper = btn.closest('.code-block-wrapper');
+      const code = wrapper ? wrapper.querySelector('code') : null;
+      if (!code) return;
+      navigator.clipboard.writeText(code.innerText.trim()).then(() => {
+        const origText = btn.innerText;
+        btn.innerText = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerText = origText;
+          btn.classList.remove('copied');
+        }, 2000);
+      }).catch(() => {
+        btn.innerText = 'Copied';
+      });
     }
 
     document.addEventListener('keydown', (e) => {

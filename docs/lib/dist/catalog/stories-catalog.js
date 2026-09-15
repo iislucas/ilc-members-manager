@@ -12,6 +12,7 @@ exports.STORIES_CATALOG = [
         status: 'Implemented',
         area: 'Gradings',
         role: 'Instructor (Sifu)',
+        taxonomyNodeId: 'sifu-instructor',
         capability: 'receive automated notifications whenever my student requests, schedules, or completes a grading',
         benefit: 'I can mentor and track my students progression without manual check-ins',
         scenarios: [
@@ -35,6 +36,7 @@ exports.STORIES_CATALOG = [
         status: 'Implemented',
         area: 'Gradings',
         role: 'Instructor / Grading Manager',
+        taxonomyNodeId: 'sifu-instructor',
         capability: 'accept or decline a students examination request with explanatory feedback',
         benefit: 'the student knows whether they are approved to attend the grading examination',
         scenarios: [
@@ -59,6 +61,7 @@ exports.STORIES_CATALOG = [
         status: 'Implemented',
         area: 'Gradings',
         role: 'Student / Member',
+        taxonomyNodeId: 'student-practitioner',
         capability: 'view my finalized examination outcome and see my student or application level advance automatically',
         benefit: 'my digital passbook is always accurate immediately after passing',
         scenarios: [
@@ -82,6 +85,7 @@ exports.STORIES_CATALOG = [
         status: 'Implemented',
         area: 'Gradings',
         role: 'Event Organizer / Manager',
+        taxonomyNodeId: 'event-organizer',
         capability: 'manage, schedule, and grade students who linked their grading to my event',
         benefit: 'visiting examiners can evaluate attendees without needing permanent global instructor rights',
         scenarios: [
@@ -106,6 +110,7 @@ exports.STORIES_CATALOG = [
         status: 'Implemented',
         area: 'Gradings',
         role: 'System Administrator',
+        taxonomyNodeId: 'grading-candidate',
         capability: 'prevent students from submitting multiple redundant unpaid grading requests',
         benefit: 'the examination queue remains clean and accurate',
         scenarios: [
@@ -121,6 +126,65 @@ exports.STORIES_CATALOG = [
         ],
         testReferences: [
             { file: 'tests/e2e/grading-paid-and-snapshot.spec.ts', testSuite: 'story: grading-unpaid-request-guard' },
+        ],
+    },
+    {
+        id: 'email-notifications-dispatch',
+        title: 'Administrator manages outbound email dispatch lifecycle and tests SMTP connectivity',
+        status: 'Implemented',
+        area: 'Email Notifications',
+        role: 'HQ Administrator',
+        taxonomyNodeId: 'hq-admin',
+        capability: 'manage global outbound email sending state (Off, Paused, Active), send admin test emails, and monitor delivery queue',
+        benefit: 'we can test email functionality safely without accidental member spam and have full observability over outbound delivery',
+        scenarios: [
+            {
+                name: 'Off state zero-write enforcement',
+                given: 'Global mail sending status is Off in /system/mail-settings',
+                when: 'A purchase or onboarding notification is triggered',
+                then: 'The dispatcher logs and exits with zero writes to /mail',
+            },
+            {
+                name: 'Admin test email bypasses Off and Paused',
+                given: 'Global mail sending is Off or Paused',
+                when: 'An administrator sends a test email from /email-notifications',
+                then: 'The document is enqueued with metadata.adminTest: true and dispatched via SMTP',
+            },
+            {
+                name: 'Paused placeholder queuing and unpause release',
+                given: 'Global mail sending is Paused',
+                when: 'Notifications are triggered and status is later switched to Active',
+                then: 'Placeholders are stored with raw template keys and rendered with latest templates upon unpause',
+            },
+            {
+                name: 'Failed delivery retry',
+                given: 'An email failed delivery with status ERROR',
+                when: 'An administrator clicks Retry in the Mail Logs & Queue viewer',
+                then: 'The document is reset to PENDING and automatically retried by the queue trigger',
+            },
+            {
+                name: 'One-click unsubscribe via RFC 8058 header',
+                given: 'An email is dispatched with List-Unsubscribe and List-Unsubscribe-Post headers',
+                when: 'A mail client sends a POST request with valid HMAC token',
+                then: 'unsubscribeHandler validates HMAC and updates member notification preferences with 200 OK',
+            },
+            {
+                name: 'Queue item editing and batch deletion',
+                given: 'Multiple pending or failed items exist in the mail queue',
+                when: 'An administrator edits content or selects multiple items and clicks Batch Delete',
+                then: 'The documents are updated or removed from /mail with confirmation',
+            },
+        ],
+        codeReferences: [
+            { file: 'src/app/email-notifications/email-notifications.component.ts', symbol: 'EmailNotificationsComponent', line: 1 },
+            { file: 'functions/src/mail-processor.ts', symbol: 'processMailQueue', line: 1 },
+            { file: 'functions/src/unsubscribe-handler.ts', symbol: 'unsubscribeHandler', line: 1 },
+            { file: 'functions/src/email-dispatcher.ts', symbol: 'sendSmtpEmail', line: 1 },
+        ],
+        testReferences: [
+            { file: 'functions/src/mail-processor.spec.ts', testSuite: 'Mail Processor' },
+            { file: 'functions/src/unsubscribe-handler.spec.ts', testSuite: 'Unsubscribe Handler' },
+            { file: 'src/app/email-notifications/email-notifications.component.spec.ts', testSuite: 'EmailNotificationsComponent' },
         ],
     },
 ];

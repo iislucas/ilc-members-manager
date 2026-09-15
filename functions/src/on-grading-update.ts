@@ -15,6 +15,7 @@ import { NotificationKind, MemberNotification } from './data-model/notifications
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import { recordTombstone } from './common';
+import { Member } from './data-model/members';
 import * as logger from 'firebase-functions/logger';
 
 const db = admin.firestore();
@@ -312,11 +313,19 @@ async function resolveGradingNames(
   return { studentName, gradingInstructorName };
 }
 
-/** Whether the member with this doc ID is an admin. */
+/**
+ * Whether the member with this doc ID is an admin member profile.
+ *
+ * Security Note: We check `snap.data()?.isAdmin === true` on the member document itself.
+ * In Firestore security rules, non-admin owners and school managers are strictly denied
+ * from setting or modifying `isAdmin` on member documents (only admins can write it).
+ * We NEVER check `member.emails` against `/acl/{email}` here, because any member can add
+ * contact aliases to their `emails` array, which must never confer administrative privileges.
+ */
 async function isMemberAdmin(memberDocId: string | undefined): Promise<boolean> {
   if (!memberDocId) return false;
   const snap = await db.collection('members').doc(memberDocId).get();
-  return snap.exists ? !!snap.data()?.isAdmin : false;
+  return snap.exists ? snap.data()?.isAdmin === true : false;
 }
 
 /**

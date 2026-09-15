@@ -17,6 +17,10 @@ This document records the security architecture, authorization tiers, data acces
     - `membershipExpires`, `instructorLicenseExpires`, `schoolLicenseExpires`: Expiration dates used by Storage and Firestore rules.
 - **Account Linking & Email Integrity**:
   - Member profile updates strictly require that the authenticated email (`request.auth.token.email`) is preserved in `member.emails` if modified, preventing email hijacking or accidental identity detachment.
+- **Active Session Email Authority vs. Contact Email Aliases**:
+  - All administrative and elevated permissions are strictly bound to the actively authenticated session email (`request.auth.token.email`).
+  - Contact aliases stored in `member.emails` are unverified document strings and must **never** be used to confer administrative privileges.
+  - Adding an administrator's email to a member profile's `emails` array does not grant that member admin access. Furthermore, backend triggers (`onMemberUpdated`) actively prevent non-admin member profiles from attaching to or modifying administrator `/acl` records.
 
 ---
 
@@ -81,8 +85,9 @@ Storage paths enforce resource scoping and MIME-type restrictions:
   - An in-memory sliding window rate limiter throttles calls per client IP (30 requests/min), preventing mass automated email scraping.
 - **Event Product Association (`submitProposedEvent`)**:
   - Re-linking products requires verifying product ownership or admin rights, preventing organizers from re-assigning foreign products to newly created events.
-- **Admin Authorization Consistency (`markEventRegistrationPaid`)**:
-  - Verified against `/acl/{email}` document rather than deprecated or missing token claims.
+- **Canonical Admin Authorization Authority (`/acl/{email}`)**:
+  - Administrative authority across all callable Cloud Functions (`assertAdmin`, `assertAdminOrSchoolManager`, `getUserDetails`, `markEventRegistrationPaid`, `unmarkEventRegistrationPaid`, `createProductCheckoutSession`, `updateProductRegistration`, etc.) is resolved strictly against `/acl/{email}.isAdmin === true`.
+  - Deprecated Auth token custom claims (`request.auth.token.admin`) and unverified member profile fields (`member.isAdmin`) are not used as the authorization authority, eliminating privilege revocation desyncs and supporting administrative users before profile linkage.
 
 ---
 

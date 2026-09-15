@@ -242,8 +242,12 @@ export const submitProposedEvent = onCall(
       throw new HttpsError('permission-denied', error);
     }
 
+    const callerEmail = (request.auth.token.email || '').toLowerCase().trim();
+    const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
+    const isAdmin = aclSnap.data()?.isAdmin === true;
+
     const data = request.data;
-    const statusValidation = validateProposalStatus(data.status, !!member.isAdmin);
+    const statusValidation = validateProposalStatus(data.status, isAdmin);
     if (statusValidation.error) {
       throw new HttpsError('permission-denied', statusValidation.error);
     }

@@ -22,6 +22,7 @@ export interface UserStoryEntry {
     capability: string;
     benefit: string;
     scenarios: StoryScenario[];
+    taxonomyNodeId?: string;
     codeReferences: CodeReference[];
     testReferences: TestReference[];
 }
