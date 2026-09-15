@@ -387,4 +387,73 @@ describe('MemberDetailsComponent', () => {
       expect(navButtons).toBeNull();
     });
   });
+
+  describe('notes field permissions', () => {
+    it('should enable notes editing for a school manager managing the member school via primarySchoolId', async () => {
+      const studentMember: Member = {
+        ...mockMember,
+        primarySchoolId: 'SCH-01',
+        primarySchoolDocId: 'school-doc-1',
+      };
+      firebaseStateServiceMock.user.set({
+        isAdmin: false,
+        member: mockMember,
+        schoolsManaged: ['SCH-01'],
+        firebaseUser: { email: 'manager@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+
+      fixture.componentRef.setInput('member', studentMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.userIsSchoolManagerOrAdmin()).toBe(true);
+      expect(component.form.notes().disabled()).toBe(false);
+    });
+
+    it('should enable notes editing for a school manager managing the member school via primarySchoolDocId', async () => {
+      const studentMember: Member = {
+        ...mockMember,
+        primarySchoolId: 'SCH-01',
+        primarySchoolDocId: 'school-doc-1',
+      };
+      firebaseStateServiceMock.user.set({
+        isAdmin: false,
+        member: mockMember,
+        schoolsManaged: ['school-doc-1'],
+        firebaseUser: { email: 'manager@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+
+      fixture.componentRef.setInput('member', studentMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.userIsSchoolManagerOrAdmin()).toBe(true);
+      expect(component.form.notes().disabled()).toBe(false);
+    });
+
+    it('should disable notes editing for a non-admin non-manager student viewing their own profile', async () => {
+      const studentMember: Member = {
+        ...mockMember,
+        primarySchoolId: 'SCH-01',
+        primarySchoolDocId: 'school-doc-1',
+        emails: ['student@example.com'],
+      };
+      firebaseStateServiceMock.user.set({
+        isAdmin: false,
+        member: studentMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'student@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+
+      fixture.componentRef.setInput('member', studentMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.userIsSchoolManagerOrAdmin()).toBe(false);
+      expect(component.form.notes().disabled()).toBe(true);
+    });
+  });
 });

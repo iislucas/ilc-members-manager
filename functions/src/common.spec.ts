@@ -1,8 +1,15 @@
 /* common.spec.ts — tests for shared membership helpers. */
-import { describe, it, expect } from 'vitest';
-import { hasActiveMembership, hasActiveInstructorLicense } from './common';
+import * as admin from 'firebase-admin';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  hasActiveMembership,
+  hasActiveInstructorLicense,
+  assertAdmin,
+  assertAdminOrSchoolManager,
+} from './common';
 import { Member, MembershipType } from './data-model/members';
 import { InstructorLicenseType } from './data-model/curriculum';
+import { HttpsError } from 'firebase-functions/v2/https';
 
 describe('hasActiveMembership', () => {
   const today = new Date().toISOString().split('T')[0];
@@ -76,5 +83,93 @@ describe('hasActiveInstructorLicense', () => {
 
   it('is false for empty license expiry', () => {
     expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseExpires: '' })).toBe(false);
+  });
+});
+
+describe('assertAdmin and assertAdminOrSchoolManager', () => {
+  let mockAcl: Record<string, unknown> | null = null;
+  let mockMember: Record<string, unknown> | null = null;
+
+  beforeEach(() => {
+    mockAcl = null;
+    mockMember = null;
+    vi.spyOn(admin, 'firestore').mockReturnValue({
+      collection: (col: string) => {
+        if (col === 'acl') {
+          return {
+            doc: (_docId: string) => ({
+              get: vi.fn().mockResolvedValue({
+                exists: mockAcl !== null,
+                data: () => mockAcl,
+              }),
+            }),
+          };
+        }
+        if (col === 'members') {
+          return {
+            doc: (_id: string) => ({
+              get: vi.fn().mockResolvedValue({
+                exists: mockMember !== null,
+                id: 'mem-1',
+                data: () => mockMember,
+              }),
+            }),
+            where: () => ({
+              limit: () => ({
+                get: vi.fn().mockResolvedValue({
+                  empty: mockMember === null,
+                  docs: mockMember !== null ? [{ id: 'mem-1', data: () => mockMember }] : [],
+                }),
+              }),
+            }),
+          };
+        }
+        return {} as any;
+      },
+    } as any);
+  });
+
+  const makeReq = (email?: string) =>
+    ({
+      auth: email ? { token: { email }, uid: 'user-1' } : undefined,
+      data: {},
+    }) as any;
+
+  it('assertAdmin throws unauthenticated when unauthenticated', async () => {
+    await expect(assertAdmin(makeReq())).rejects.toThrowError(HttpsError);
+  });
+
+  it('assertAdmin throws permission-denied when acl has isAdmin: false', async () => {
+    mockAcl = { isAdmin: false, memberDocIds: ['mem-1'] };
+    mockMember = { name: 'Regular User', emails: ['user@example.com'] };
+    await expect(assertAdmin(makeReq('user@example.com'))).rejects.toThrowError(HttpsError);
+  });
+
+  it('assertAdmin succeeds when acl has isAdmin: true', async () => {
+    mockAcl = { isAdmin: true, memberDocIds: ['mem-1'] };
+    mockMember = { name: 'Admin User', emails: ['admin@example.com'], isAdmin: true };
+    const res = await assertAdmin(makeReq('admin@example.com'));
+    expect(res.isAdmin).toBe(true);
+  });
+
+  it('assertAdmin succeeds for admin without member profile yet', async () => {
+    mockAcl = { isAdmin: true, memberDocIds: [] };
+    mockMember = null;
+    const res = await assertAdmin(makeReq('admin@example.com'));
+    expect(res.isAdmin).toBe(true);
+    expect(res.emails).toContain('admin@example.com');
+  });
+
+  it('assertAdminOrSchoolManager allows school manager when acl has schoolDocIds', async () => {
+    mockAcl = { isAdmin: false, schoolDocIds: ['SCH-1'], memberDocIds: ['mem-1'] };
+    mockMember = { name: 'School Manager', emails: ['manager@example.com'] };
+    const res = await assertAdminOrSchoolManager(makeReq('manager@example.com'));
+    expect(res).toBeDefined();
+  });
+
+  it('assertAdminOrSchoolManager rejects non-admin non-school-manager', async () => {
+    mockAcl = { isAdmin: false, schoolDocIds: [], memberDocIds: ['mem-1'] };
+    mockMember = { name: 'Student', emails: ['student@example.com'] };
+    await expect(assertAdminOrSchoolManager(makeReq('student@example.com'))).rejects.toThrowError(HttpsError);
   });
 });

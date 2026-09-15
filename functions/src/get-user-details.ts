@@ -98,7 +98,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       }
     }
 
-    const aclData = aclDoc.data() as { memberDocIds: string[]; schoolDocIds?: string[] };
+    const aclData = aclDoc.data() as { memberDocIds: string[]; schoolDocIds?: string[]; isAdmin?: boolean };
     const memberDocIds = aclData.memberDocIds || [];
 
     const memberRefs = memberDocIds.map((id) => db.collection('members').doc(id));
@@ -110,7 +110,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       .map(firestoreDocToMember);
 
     if (userMemberProfiles.length === 0) {
-      return { userMemberProfiles: [], isAdmin: false, schoolsManaged: [] };
+      return { userMemberProfiles: [], isAdmin: aclData.isAdmin === true, schoolsManaged: [] };
     }
 
     const primaryMember = userMemberProfiles[0];
@@ -122,7 +122,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     return {
       userMemberProfiles,
       schoolsManaged,
-      isAdmin: primaryMember.isAdmin,
+      isAdmin: aclData.isAdmin === true,
     };
   } catch (error: unknown) {
     logger.error('Error getting members:', error);

@@ -5,6 +5,7 @@ import {
   MembershipType,
   hasActiveMembership as hasActiveMembershipModel,
   hasActiveInstructorLicense,
+  initMember,
 } from './data-model/members';
 import { School } from './data-model/schools';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
@@ -105,14 +106,25 @@ export async function assertAdmin(
     );
   }
   const db = admin.firestore();
-  const member = await getMemberByEmail(request.auth.token.email, db);
-  if (!member.isAdmin) {
+  const email = request.auth.token.email.toLowerCase().trim();
+
+  // Canonical authorization check against /acl/{email}
+  const aclSnap = await db.collection('acl').doc(email).get();
+  const isAdmin = aclSnap.exists && aclSnap.data()?.isAdmin === true;
+
+  if (!isAdmin) {
     throw new HttpsError(
       'permission-denied',
       'You do not have permission to perform this action.',
     );
   }
-  return member;
+
+  try {
+    const member = await getMemberByEmail(email, db);
+    return { ...member, isAdmin: true };
+  } catch {
+    return { ...initMember(), emails: [email], isAdmin: true } as Member;
+  }
 }
 
 export async function assertAdminOrSchoolManager(
@@ -125,24 +137,27 @@ export async function assertAdminOrSchoolManager(
     );
   }
   const db = admin.firestore();
-  const member = await getMemberByEmail(request.auth.token.email, db);
-  if (member.isAdmin) {
-    return member;
+  const email = request.auth.token.email.toLowerCase().trim();
+
+  // Check the ACL for admin or cached schoolDocIds
+  const aclDoc = await db.collection('acl').doc(email).get();
+  const aclData = aclDoc.exists ? (aclDoc.data() as { isAdmin?: boolean; schoolDocIds?: string[] }) : undefined;
+  const isAdmin = aclData?.isAdmin === true;
+  const isSchoolManager = !!(aclData?.schoolDocIds && aclData.schoolDocIds.length > 0);
+
+  if (!isAdmin && !isSchoolManager) {
+    throw new HttpsError(
+      'permission-denied',
+      'You do not have permission to perform this action.',
+    );
   }
 
-  // Check the ACL for cached schoolDocIds instead of querying schools.
-  const aclDoc = await db.collection('acl').doc(request.auth.token.email).get();
-  if (aclDoc.exists) {
-    const aclData = aclDoc.data() as { schoolDocIds?: string[] };
-    if (aclData.schoolDocIds && aclData.schoolDocIds.length > 0) {
-      return member;
-    }
+  try {
+    const member = await getMemberByEmail(email, db);
+    return { ...member, isAdmin };
+  } catch {
+    return { ...initMember(), emails: [email], isAdmin } as Member;
   }
-
-  throw new HttpsError(
-    'permission-denied',
-    'You do not have permission to perform this action.',
-  );
 }
 
 /**

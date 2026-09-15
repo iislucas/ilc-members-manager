@@ -81,8 +81,9 @@ Storage paths enforce resource scoping and MIME-type restrictions:
   - An in-memory sliding window rate limiter throttles calls per client IP (30 requests/min), preventing mass automated email scraping.
 - **Event Product Association (`submitProposedEvent`)**:
   - Re-linking products requires verifying product ownership or admin rights, preventing organizers from re-assigning foreign products to newly created events.
-- **Admin Authorization Consistency (`markEventRegistrationPaid`)**:
-  - Verified against `/acl/{email}` document rather than deprecated or missing token claims.
+- **Canonical Admin Authorization Authority (`/acl/{email}`)**:
+  - Administrative authority across all callable Cloud Functions (`assertAdmin`, `assertAdminOrSchoolManager`, `getUserDetails`, `markEventRegistrationPaid`, `unmarkEventRegistrationPaid`, `createProductCheckoutSession`, `updateProductRegistration`, etc.) is resolved strictly against `/acl/{email}.isAdmin === true`.
+  - Deprecated Auth token custom claims (`request.auth.token.admin`) and unverified member profile fields (`member.isAdmin`) are not used as the authorization authority, eliminating privilege revocation desyncs and supporting administrative users before profile linkage.
 
 ---
 

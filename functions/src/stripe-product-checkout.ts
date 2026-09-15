@@ -205,10 +205,16 @@ export const createProductCheckoutSession = onCall<
       const callerMemberDoc = memberDocId || '';
       const regMemberDoc = existingReg.memberDocId || '';
 
+      let isAdmin = false;
+      if (callerEmail) {
+        const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
+        isAdmin = aclSnap.data()?.isAdmin === true;
+      }
+
       const isAuthorized =
         (callerEmail && callerEmail === regEmail) ||
         (callerMemberDoc && regMemberDoc && callerMemberDoc === regMemberDoc) ||
-        (request.auth?.token?.admin === true);
+        isAdmin;
 
       if (!isAuthorized) {
         throw new HttpsError('permission-denied', 'You are not authorized to upgrade this registration.');
@@ -621,10 +627,16 @@ export const updateProductRegistration = onCall<
     }
   }
 
+  let isAdmin = false;
+  if (callerEmail) {
+    const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
+    isAdmin = aclSnap.data()?.isAdmin === true;
+  }
+
   const isAuthorized =
     (callerEmail && callerEmail === regEmail) ||
     (callerMemberDocId && existingReg.memberDocId && callerMemberDocId === existingReg.memberDocId) ||
-    (request.auth?.token?.admin === true);
+    isAdmin;
 
   if (!isAuthorized) {
     throw new HttpsError('permission-denied', 'You are not authorized to update this registration.');
