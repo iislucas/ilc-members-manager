@@ -198,4 +198,41 @@ export const PATTERNS_CATALOG: PatternEntry[] = [
     relatedDataTypes: ['mail', 'mail-settings', 'order', 'member'],
     relatedFlows: ['email-queue-processor'],
   },
+  {
+    id: 'resumable-chunked-uploads',
+    name: 'The Resumable Chunked Media Upload & Session Persistence Pattern',
+    tagline: 'Native Google Cloud Storage uploadBytesResumable, 24-hour timeout override, localStorage uploadUrl caching, and byte-offset query resumption.',
+    problem:
+      'Multi-gigabyte video files (e.g. 8 GB seminar or class recordings) abort due to transient network drops or the Firebase Storage SDK default 10-minute retry limit (maxUploadRetryTime = 600000), causing storage/retry-limit-exceeded and forcing admins to start over from 0%.',
+    solution:
+      'Leverage Google Cloud Storage native Resumable Upload protocol (uploadBytesResumable) with 256 KB chunking. Explicitly override SDK timeout on the storage instance to 24 hours (storage.maxUploadRetryTime = 86400000). Persist the unique GCS uploadUrl session in browser localStorage keyed by file.name + file.size + file.lastModified. When an upload is paused or interrupted, query the received byte offset via X-Goog-Upload-Command: query and resume from X-Goog-Upload-Size-Received without re-uploading completed bytes.',
+    consequences:
+      'Allows multi-hour uploads on slower connections without timeout failures. Gives administrators pause/resume control and protects in-flight uploads with window beforeunload warnings. Sessions auto-expire after 7 days and clean up on completion.',
+    canonicalCodePointers: [
+      { file: 'src/app/manage-vod-upload/resumable-upload.service.ts', lineRange: 'L30-L120', description: 'ResumableUploadService chunked GCS upload, timeout override, and query command resume' },
+      { file: 'src/app/manage-vod-upload/manage-vod-upload.ts', lineRange: 'L80-L180', description: 'Upload queue state management, pause/resume/retry, and beforeunload guard' },
+      { file: 'docs/materials-management.md', lineRange: 'L285-L310', description: 'Section 8 resumable video upload architecture documentation' },
+    ],
+    relatedDataTypes: ['video-item'],
+    relatedFlows: ['media-transcoding'],
+  },
+  {
+    id: 'per-device-notification-state',
+    name: 'The Decoupled Account-Wide & Per-Device Notification State Pattern',
+    tagline: 'Separating server-side Firestore subscription preferences from client-side localStorage hardware activation flags.',
+    problem:
+      'If push notification preferences are stored solely in the cloud on the Member document, turning off notifications on a laptop mutes notifications on the user phone. Conversely, logging into a browser where OS permissions were previously granted would automatically resubscribe a device the user deliberately silenced.',
+    solution:
+      'Decouple notification intent into two distinct scopes: (1) Account-wide preferences (globalPushEnabled, pushEnabled[kind]) stored on /members/{id} for backend Cloud Function dispatch filtering, and (2) Per-device hardware subscription state persisted in browser localStorage (devicePushEnabled). When devicePushEnabled is false, client Service Worker will never auto-subscribe or push tokens to the server, preventing unwanted background resubscription even if browser-level Notification permission remains granted.',
+    consequences:
+      'Gives users granular hardware-level control over which physical devices receive alerts without corrupting shared cloud preferences or causing unexpected auto-resubscribes upon login.',
+    canonicalCodePointers: [
+      { file: 'src/app/notification.service.ts', lineRange: 'L120-L210', description: 'Separation of globalPushEnabled Firestore preference from devicePushEnabled localStorage flag' },
+      { file: 'src/app/settings/notification-settings/notification-settings.component.ts', lineRange: 'L30-L75', description: 'Per-device push toggle UI and local persistence binding' },
+      { file: 'docs/push-notifications.md', lineRange: 'L125-L140', description: 'Push notification preferences and per-device subscription documentation' },
+    ],
+    relatedDataTypes: ['member'],
+    relatedFlows: ['client-reactivity', 'trigger-mirroring'],
+  },
 ];
+

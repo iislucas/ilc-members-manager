@@ -15,7 +15,7 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     isSubcollection: false,
     sourceFile: 'functions/src/data-model/members.ts',
     summary:
-      'The core membership identity document representing an individual practitioner, instructor, school manager, or administrator.',
+      'The core membership identity document representing an individual practitioner, instructor, school manager, or administrator. Maintains personal profile, ranks, licensing credentials, and account-wide push/email notification preferences (paired with client-side localStorage devicePushEnabled).',
     cardinality: 'One document per registered member profile.',
     ownership: 'Linked to user email addresses in member.emails; administered by HQ Admins.',
     keyRelations: [
@@ -30,7 +30,7 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
       'Self can update contact, name, and address. Level, instructor licensing, and admin flags require Admin role.',
     affectedTriggers: ['on-member-update.ts', 'mirror-instructors-to-public-profile.ts'],
     mirrorTargets: ['/acl/{email}', '/instructors/{instructorId}', '/schools/{schoolId}/members/{docId}'],
-    relatedJourneys: ['member-onboarding', 'grading-progression', 'instructor-licensing'],
+    relatedJourneys: ['member-onboarding', 'grading-progression', 'instructor-licensing', 'push-notifications'],
     relatedFlows: ['client-reactivity', 'trigger-mirroring', 'one-click-unsubscribe'],
     relatedPersonas: ["active-member","grading-candidate","apprentice-instructor","school-manager","hq-admin"],
     enforcingPermissions: ["read:member-passbook","read:member-profile","update:instructor-profile","read:student-roster","manage:school-roster","verify:members","admin:all"],
@@ -367,40 +367,64 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     id: 'video-grant',
     name: 'VideoGrant',
     domain: DataDomainGroup.MediaVod,
-    collectionPath: '/members/{id}/videoGrants/{videoId}',
+    collectionPath: '/members/{id}/videoGrants/{videoId} & /videoGrants/{globalGrantKey}',
     isSubcollection: true,
     parentCollection: 'members',
     sourceFile: 'functions/src/data-model/vod.ts',
     summary:
-      'User access grant record verifying purchase or complimentary access to a specific VideoItem.',
-    cardinality: 'One document per user per granted video.',
-    ownership: 'Owned by member; granted via Stripe fulfillment or Admin.',
+      'User access grant record verifying access to a specific VideoItem. Issued via Stripe purchases, gifts from peers, admin complimentary grants, or event attendance.',
+    cardinality: 'One document per user per granted video in member subcollection, mirrored to global /videoGrants collection.',
+    ownership: 'Owned by member; granted via Stripe fulfillment (self/gift) or Admin direct grant callable.',
     keyRelations: [
       { targetTypeId: 'video-item', targetTypeName: 'VideoItem', relation: 'Target video granted' },
       { targetTypeId: 'member', targetTypeName: 'Member', relation: 'Parent member subcollection' },
-      { targetTypeId: 'order', targetTypeName: 'Order', relation: 'Associated purchase order' },
+      { targetTypeId: 'order', targetTypeName: 'Order', relation: 'Associated purchase or gift order' },
     ],
     readRoles: ['Owner Member', 'Admin'],
-    writeRoles: ['Cloud Functions (Stripe fulfillment) / Admin'],
-    rulesSummary: 'Member can read own grants; writes restricted to backend triggers.',
+    writeRoles: ['Cloud Functions (Stripe fulfillment) / Admin callable (grantVideoAccess)'],
+    rulesSummary: 'Member can read own grants; writes restricted to Cloud Functions and Admin SDK.',
     affectedTriggers: [],
-    mirrorTargets: [],
+    mirrorTargets: ['/videoGrants/{globalGrantKey}'],
     relatedJourneys: ['vod-streaming'],
     relatedFlows: ['ecommerce-webhooks', 'media-transcoding'],
     relatedPersonas: ["active-member","student-practitioner","hq-admin","system-automation"],
-    enforcingPermissions: ["stream:vod","webhook:stripe","admin:all"],
-    tsInterface: `export interface VideoGrant {
+    enforcingPermissions: ["stream:vod","webhook:stripe","admin:all","grant:vod-access"],
+    tsInterface: `export type VideoGrant = {
+  docId: string;
   videoId: string;
-  grantedDate: string;
-  orderId: string;
-  expiresDate: string;
-  grantType: 'purchase' | 'subscription' | 'comp';
-}`,
-    initDefaults: 'initVideoGrant(): grantType: purchase, empty expiry',
+  memberDocId: string;
+  memberEmail: string;
+  grantKind: VideoGrantKind; // StripePurchase | AdminGrant | EventAttendance | Complimentary | GiftPurchase
+  orderDocId?: string;
+  stripeSessionId?: string;
+  amountPaidCents?: number;
+  grantedByMemberDocId?: string;
+  giftedByMemberDocId?: string;
+  giftedByName?: string;
+  giftedByEmail?: string;
+  giftMessage?: string;
+  notes?: string;
+  grantedAt: string;
+  expiresAt?: string;
+};`,
+    initDefaults: 'initVideoGrant(videoId, memberDocId): grantKind: StripePurchase, grantedAt: nowIso',
     converterFunction: 'firestoreDocToVideoGrant',
     fields: [
+      { name: 'docId', type: 'string', required: true, description: 'Matches videoId' },
       { name: 'videoId', type: 'string', required: true, description: 'Granted video docId' },
-      { name: 'grantType', type: 'string', required: true, description: 'Purchase or subscription' },
+      { name: 'memberDocId', type: 'string', required: true, description: 'Member document ID' },
+      { name: 'memberEmail', type: 'string', required: true, description: 'Recipient email snapshot' },
+      { name: 'grantKind', type: 'VideoGrantKind', required: true, description: 'stripe_purchase | admin_grant | event_attendance | complimentary | gift_purchase' },
+      { name: 'orderDocId', type: 'string', required: false, description: 'Reference to associated /orders/{orderDocId}' },
+      { name: 'stripeSessionId', type: 'string', required: false, description: 'Stripe checkout session ID' },
+      { name: 'giftedByMemberDocId', type: 'string', required: false, description: 'Member docId of gift sender' },
+      { name: 'giftedByName', type: 'string', required: false, description: 'Display name snapshot of gift sender' },
+      { name: 'giftedByEmail', type: 'string', required: false, description: 'Email address of gift sender' },
+      { name: 'giftMessage', type: 'string', required: false, description: 'Optional personal greeting from gift sender' },
+      { name: 'grantedByMemberDocId', type: 'string', required: false, description: 'Admin docId if granted manually via grantVideoAccess' },
+      { name: 'notes', type: 'string', required: false, description: 'Reason or reference notes' },
+      { name: 'grantedAt', type: 'string', required: true, description: 'ISO 8601 timestamp of grant issuance' },
+      { name: 'expiresAt', type: 'string', required: false, description: 'Optional expiration timestamp for temporary access' },
     ],
   },
   {
@@ -658,6 +682,7 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
       { targetTypeId: 'member', targetTypeName: 'Member', relation: 'Enqueued on member onboarding welcome emails' },
       { targetTypeId: 'ilc-event', targetTypeName: 'IlcEvent', relation: 'Enqueued for weekly/monthly event digests' },
       { targetTypeId: 'mail-settings', targetTypeName: 'MailSettings', relation: 'Global dispatch behavior governed by /system/mail-settings' },
+      { targetTypeId: 'video-grant', targetTypeName: 'VideoGrant', relation: 'Enqueued when VOD access is gifted or granted (vodGiftReceived)' },
     ],
     readRoles: ['Admin (HQ)'],
     writeRoles: ['None (allow write: if false; direct client writes strictly prohibited; mediated exclusively by Cloud Functions)'],
@@ -665,7 +690,7 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
       'Direct client writes are prohibited (allow write: if false;). Closed security model prevents open relay or malicious mail injection.',
     affectedTriggers: ['mail-processor.ts (processMailQueue)'],
     mirrorTargets: [],
-    relatedJourneys: ['member-onboarding', 'event-hosting-ticketing', 'outbound-email-notifications'],
+    relatedJourneys: ['member-onboarding', 'event-hosting-ticketing', 'outbound-email-notifications', 'vod-streaming'],
     relatedFlows: ['ecommerce-webhooks', 'email-queue-processor'],
     relatedPersonas: ["hq-admin","system-automation"],
     enforcingPermissions: ["admin:all","service:firebase-admin"],

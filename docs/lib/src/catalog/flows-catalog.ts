@@ -148,8 +148,8 @@ export const FLOWS_CATALOG: ArchFlowEntry[] = [
         stepNumber: 1,
         sourceTier: 'Angular Client',
         targetTier: 'Cloud Function Callable',
-        action: 'Calls createStripeCheckoutSession with product docId or tier',
-        payloadDescription: 'Product reference & return URLs',
+        action: 'Calls createStripeCheckoutSession with product docId, tier, or gift parameters (isGift, recipientEmail, giftMessage)',
+        payloadDescription: 'Product reference, gift metadata & return URLs',
         codePointers: ['src/app/stripe.service.ts', 'functions/src/stripe-checkout.ts'],
         tierType: 'client',
         protocol: 'HTTPS Callable SDK',
@@ -178,15 +178,15 @@ export const FLOWS_CATALOG: ArchFlowEntry[] = [
         stepNumber: 4,
         sourceTier: 'Fulfillment Engine',
         targetTier: 'Target Collections',
-        action: 'Fulfills line items idempotently: extends member expiration, marks grading paid, grants VOD, issues or upgrades event registration',
-        payloadDescription: 'Idempotent fulfillment updates across Member, Grading, EventRegistration',
+        action: 'Fulfills line items idempotently: extends member expiration, marks grading paid, grants VOD access (self or gifted with VideoGrantKind.GiftPurchase), and queues transactional notification emails (e.g. vodGiftReceived)',
+        payloadDescription: 'Idempotent fulfillment updates across Member, Grading, EventRegistration, VideoGrant, and MailQueue',
         codePointers: ['functions/src/stripe-fulfillment.ts'],
         tierType: 'cloud-functions',
         protocol: 'Idempotent Transactional Fulfillment',
       },
     ],
     inputDataTypes: ['product', 'order'],
-    outputDataTypes: ['order', 'member', 'grading', 'event-registration', 'video-grant'],
+    outputDataTypes: ['order', 'member', 'grading', 'event-registration', 'video-grant', 'mail'],
     cloudFunctions: ['createStripeCheckoutSession', 'stripeWebhook'],
     clientServices: ['StripeService', 'DataManagerService'],
     mermaidDiagram: `flowchart LR
@@ -195,25 +195,27 @@ export const FLOWS_CATALOG: ArchFlowEntry[] = [
     StripePlatform --> Webhook[stripeWebhook]
     Webhook --> Order[(Order Record)]
     Webhook --> Fulfill[stripe-fulfillment.ts]
-    Fulfill --> Members[(Members / Gradings / Tickets)]`,
+    Fulfill --> Members[(Members / Gradings / Tickets)]
+    Fulfill --> VideoGrant[(VideoGrant Gift/Self)]
+    Fulfill --> MailQueue[(/mail Queue: vodGiftReceived)]`,
   },
   {
     id: 'media-transcoding',
     title: 'VOD Media Transcoding & HLS Streaming Pipeline',
     category: FlowCategory.MediaTranscoding,
     summary:
-      'Automated pipeline from master video file upload in GCS to GCP Transcoder API, multi-bitrate HLS generation, access token authorization, and offline player caching.',
-    trigger: 'Administrator uploads a video master file or member requests playback.',
+      'Automated pipeline from master video file upload in GCS to GCP Transcoder API, multi-bitrate HLS generation, access token authorization, offline player caching, and admin direct access grants.',
+    trigger: 'Administrator uploads a video master file, grants video access, or member requests playback.',
     steps: [
       {
         stepNumber: 1,
         sourceTier: 'Admin / Storage',
         targetTier: 'Cloud Storage Incoming',
-        action: 'Master video file uploaded to incoming storage bucket',
-        payloadDescription: 'Raw MP4 master',
-        codePointers: ['src/app/manage-vod/manage-vod.ts'],
+        action: 'Master video file uploaded using GCS Resumable Upload protocol with 24h timeout override (storage.maxUploadRetryTime = 86400000) and localStorage session persistence',
+        payloadDescription: 'Chunked MP4 master (256KB chunks, query command resumption)',
+        codePointers: ['src/app/manage-vod/manage-vod.ts', 'src/app/manage-vod-upload/resumable-upload.service.ts'],
         tierType: 'client',
-        protocol: 'GCS Resumable Upload',
+        protocol: 'GCS Chunked Resumable Upload (X-Goog-Upload-Command)',
       },
       {
         stepNumber: 2,
@@ -255,16 +257,29 @@ export const FLOWS_CATALOG: ArchFlowEntry[] = [
         tierType: 'client',
         protocol: 'Hls.js Chunk Streaming & IndexedDB',
       },
+      {
+        stepNumber: 6,
+        sourceTier: 'Admin / Modal',
+        targetTier: 'grantVideoAccess',
+        action: 'Administrator directly grants video or series access to member or external email with optional expiration and notes',
+        payloadDescription: 'GrantVideoAccessRequest (targetType, targetId, recipientEmail, notes)',
+        codePointers: ['src/app/grant-vod-modal/grant-vod-modal.ts', 'functions/src/vod/grant-video.ts'],
+        tierType: 'client',
+        protocol: 'HTTPS Callable SDK',
+      },
     ],
     inputDataTypes: ['video-item', 'video-grant'],
-    outputDataTypes: ['video-item', 'video-progress'],
-    cloudFunctions: ['transcodeVideo', 'onTranscodeFinished', 'getVideoPlaybackSession'],
-    clientServices: ['VodOfflineStorageService'],
+    outputDataTypes: ['video-item', 'video-progress', 'video-grant', 'mail'],
+    cloudFunctions: ['transcodeVideo', 'onTranscodeFinished', 'getVideoPlaybackSession', 'grantVideoAccess'],
+    clientServices: ['VodOfflineStorageService', 'ResumableUploadService'],
     mermaidDiagram: `flowchart TD
-    Upload[Raw Video Upload] --> Transcoder[GCP Transcoder API]
+    AdminUpload[ResumableUploadService Chunked GCS Upload] --> Storage[(Incoming Storage)]
+    Storage --> Transcoder[GCP Transcoder API]
     Transcoder --> HLS[Multi-bitrate HLS Streams]
     HLS --> Ready[onTranscodeFinished Trigger]
     Ready --> VideoDoc[(/videos/{id} Ready)]
+    AdminGrant[Admin grantVideoAccess Callable] --> GrantDoc[(/members/{id}/videoGrants & /videoGrants)]
+    AdminGrant --> MailDoc[(/mail: vodGiftReceived)]
     PlayReq[Player Request] --> Session[getVideoPlaybackSession]
     Session --> Player[Hls.js Player + IndexedDB Cache]`,
   },

@@ -447,8 +447,20 @@ export const PERMISSIONS_CATALOG: PermissionEntry[] = [
     ruleCodeSnippet: 'TranscoderServiceClient',
     grantedPersonas: ['system-automation'],
   },
+  {
+    id: 'grant:vod-access',
+    title: 'Grant VOD Access (Admin Direct Grant)',
+    category: 'Governance & Administration',
+    description: 'Allows administrators to grant complimentary, gifted, or direct access to individual videos or series for members or external emails.',
+    accessType: 'admin',
+    targetDataTypes: ['video-grant', 'video-item'],
+    securityRulesMechanism: 'Callable function grantVideoAccess verifies assertAdmin(request) and provisions VideoGrant records in subcollections and root /videoGrants.',
+    ruleCodeSnippet: 'Cloud Function: grantVideoAccess (assertAdmin)',
+    grantedPersonas: ['hq-admin'],
+  },
 ];
 
 export function findPermission(id: string): PermissionEntry | undefined {
   return PERMISSIONS_CATALOG.find((p) => p.id === id);
 }
+
