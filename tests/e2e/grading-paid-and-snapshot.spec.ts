@@ -375,6 +375,7 @@ describe('story: a result cannot be recorded without a grading event date', () =
     });
     await db.collection('gradings').doc(gradingDocId).update({
       status: GradingStatus.Passed,
+      statusChangedByMemberDocId: 'examiner',
       lastUpdated: ts(),
     });
 

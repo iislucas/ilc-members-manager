@@ -831,8 +831,10 @@ export const onGradingUpdated = onDocumentUpdated(
       grading.studentMemberId &&
       grading.level !== StudentLevel.None
     ) {
-      // Backend defense (CRIT-1): Verify the student did not self-promote to Passed
+      // Backend defense (CRIT-1): Verify the student did not self-promote to Passed (unless admin)
+      const actorIsAdmin = await isMemberAdmin(grading.statusChangedByMemberDocId);
       if (
+        !actorIsAdmin &&
         grading.studentMemberDocId &&
         grading.statusChangedByMemberDocId &&
         grading.studentMemberDocId === grading.statusChangedByMemberDocId

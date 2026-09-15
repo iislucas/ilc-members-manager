@@ -11,6 +11,7 @@
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import * as logger from 'firebase-functions/logger';
 import {
   IlcEvent,
@@ -698,7 +699,7 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
 
   if (becameListed || wasListedAndChanged) {
     // Update lastUpdated timestamp
-    await event.data.after.ref.update({ lastUpdated: admin.firestore.FieldValue.serverTimestamp() });
+    await event.data.after.ref.update({ lastUpdated: FieldValue.serverTimestamp() });
   }
 });
 
