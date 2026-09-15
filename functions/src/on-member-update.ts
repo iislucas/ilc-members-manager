@@ -70,6 +70,14 @@ export async function updateACL(aclUpdate: {
   for (const email of added) {
     if (!email) continue;
     const aclRef = getDb().collection('acl').doc(email);
+    const aclSnap = await aclRef.get();
+    // Security check: If target ACL is an admin account, never attach a non-admin member document to it
+    if (aclSnap.exists && aclSnap.data()?.isAdmin === true && !member?.isAdmin) {
+      logger.warn(
+        `Security violation: Non-admin member ${memberDocId} attempted to link to admin ACL ${email}. Ignored.`,
+      );
+      continue;
+    }
     const update: FirestoreUpdate<ACL> = {
       memberDocIds: FieldValue.arrayUnion(memberDocId),
     };
@@ -238,8 +246,10 @@ export async function refreshACLAdminStatus(email: string) {
     data.memberDocIds || [],
   );
 
+  const wasAdmin = data.isAdmin === true;
+
   await aclRef.update({
-    isAdmin: anyAdmin,
+    isAdmin: wasAdmin || anyAdmin,
     instructorIds: Array.from(newInstructorIds),
     schoolDocIds: schoolInfo.docIds,
     notYetLinkedToMember: !anyFullMember,

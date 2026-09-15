@@ -174,6 +174,27 @@ This skill records mandatory security principles, canonical authorization rules,
 
 ---
 
+### Anti-Pattern 8: Checking `member.emails` for Administrative Privileges (Contact Aliases ≠ Auth Identity)
+- **The Pitfall**:
+  Checking if *any* email inside a `member.emails` array is an admin or has elevated permissions:
+  ```typescript
+  // ❌ ANTI-PATTERN: Iterating over member.emails to resolve admin status
+  for (const email of member.emails) {
+    const aclDoc = await db.collection('acl').doc(email).get();
+    if (aclDoc.data()?.isAdmin === true) return true; // Elevation vulnerability!
+  }
+  ```
+- **Why It Is Dangerous**:
+  - `member.emails` is an array of contact aliases stored on a Firestore document.
+  - While an owner cannot remove their authenticated email, they are permitted to add secondary contact emails.
+  - If any authorization logic treats `member.emails` as an identity source, a regular student can simply add `admin@iliqchuan.com` to their profile and immediately inherit administrative powers.
+- **The Correct Pattern**:
+  - Administrative authority is **strictly bound to the active authenticated session email** (`request.auth.token.email`).
+  - Contact aliases in `member.emails` are never evaluated for admin rights.
+  - If assessing whether a member document itself represents an admin profile in backend triggers (e.g. `on-grading-update`), check `snap.data()?.isAdmin === true` on the document directly (a field that Firestore security rules strictly protect so that non-admins cannot write to it).
+
+---
+
 ## 3. Pre-Commit Security Checklist
 
 Before finalizing any changes to Cloud Functions, rules, or authorization logic:

@@ -544,10 +544,55 @@ describe('on-member-update triggers logic', () => {
       const firestoreSpy = vi.spyOn(admin, 'firestore');
       firestoreSpy.mockClear();
 
-      await updateACL({ previous, member });
-
       // No firestore calls should have occurred because updateACL returned early
       expect(firestoreSpy).not.toHaveBeenCalled();
+    });
+
+    it('should refuse to link a non-admin member document to an admin ACL document', async () => {
+      const mockBatch = {
+        set: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const mockAdminAclRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ isAdmin: true, memberDocIds: ['admin-doc-1'] }),
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      };
+
+      const member = {
+        docId: 'student-member-1',
+        name: 'Attacker Student',
+        isAdmin: false,
+        emails: ['student@example.com', 'admin@example.com'],
+      } as Member;
+
+      const previous = {
+        docId: 'student-member-1',
+        name: 'Attacker Student',
+        isAdmin: false,
+        emails: ['student@example.com'],
+      } as Member;
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        batch: vi.fn().mockReturnValue(mockBatch),
+        collection: vi.fn().mockImplementation((col: string) => {
+          if (col === 'acl') return { doc: vi.fn().mockReturnValue(mockAdminAclRef) };
+          if (col === 'members') return { doc: vi.fn().mockReturnValue({ get: vi.fn().mockResolvedValue({ exists: true, data: () => member }) }) };
+          if (col === 'schools') return { where: vi.fn().mockReturnValue({ get: vi.fn().mockResolvedValue({ docs: [] }) }) };
+          return {};
+        }),
+        getAll: vi.fn().mockResolvedValue([]),
+      } as any);
+
+      await updateACL({ previous, member });
+
+      // Ensure batch.set was NOT called to union student-member-1 into admin ACL
+      expect(mockBatch.set).not.toHaveBeenCalled();
     });
   });
 });

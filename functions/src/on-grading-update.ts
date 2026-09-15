@@ -313,21 +313,19 @@ async function resolveGradingNames(
   return { studentName, gradingInstructorName };
 }
 
-/** Whether the member with this doc ID is an admin according to /acl/{email}. */
+/**
+ * Whether the member with this doc ID is an admin member profile.
+ *
+ * Security Note: We check `snap.data()?.isAdmin === true` on the member document itself.
+ * In Firestore security rules, non-admin owners and school managers are strictly denied
+ * from setting or modifying `isAdmin` on member documents (only admins can write it).
+ * We NEVER check `member.emails` against `/acl/{email}` here, because any member can add
+ * contact aliases to their `emails` array, which must never confer administrative privileges.
+ */
 async function isMemberAdmin(memberDocId: string | undefined): Promise<boolean> {
   if (!memberDocId) return false;
   const snap = await db.collection('members').doc(memberDocId).get();
-  if (!snap.exists) return false;
-  const member = snap.data() as Member;
-  const emails = member.emails || [];
-  for (const email of emails) {
-    if (!email) continue;
-    const aclDoc = await db.collection('acl').doc(email.toLowerCase().trim()).get();
-    if (aclDoc.exists && aclDoc.data()?.isAdmin === true) {
-      return true;
-    }
-  }
-  return false;
+  return snap.exists ? snap.data()?.isAdmin === true : false;
 }
 
 /**
