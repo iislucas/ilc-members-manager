@@ -152,12 +152,10 @@ describe('assertAdmin and assertAdminOrSchoolManager', () => {
     expect(res.isAdmin).toBe(true);
   });
 
-  it('assertAdmin succeeds for admin without member profile yet', async () => {
+  it('assertAdmin fails if admin has no member profile', async () => {
     mockAcl = { isAdmin: true, memberDocIds: [] };
     mockMember = null;
-    const res = await assertAdmin(makeReq('admin@example.com'));
-    expect(res.isAdmin).toBe(true);
-    expect(res.emails).toContain('admin@example.com');
+    await expect(assertAdmin(makeReq('admin@example.com'))).rejects.toThrowError(HttpsError);
   });
 
   it('assertAdminOrSchoolManager allows school manager when acl has schoolDocIds', async () => {

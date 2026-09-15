@@ -5,7 +5,6 @@ import {
   MembershipType,
   hasActiveMembership as hasActiveMembershipModel,
   hasActiveInstructorLicense,
-  initMember,
 } from './data-model/members';
 import { School } from './data-model/schools';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
@@ -119,12 +118,8 @@ export async function assertAdmin(
     );
   }
 
-  try {
-    const member = await getMemberByEmail(email, db);
-    return { ...member, isAdmin: true };
-  } catch {
-    return { ...initMember(), emails: [email], isAdmin: true } as Member;
-  }
+  const member = await getMemberByEmail(email, db);
+  return { ...member, isAdmin: true };
 }
 
 export async function assertAdminOrSchoolManager(
@@ -152,12 +147,8 @@ export async function assertAdminOrSchoolManager(
     );
   }
 
-  try {
-    const member = await getMemberByEmail(email, db);
-    return { ...member, isAdmin };
-  } catch {
-    return { ...initMember(), emails: [email], isAdmin } as Member;
-  }
+  const member = await getMemberByEmail(email, db);
+  return { ...member, isAdmin };
 }
 
 /**
