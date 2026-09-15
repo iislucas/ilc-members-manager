@@ -632,5 +632,78 @@ describe('VideoViewComponent', () => {
         'Email notifications are currently turned off. Gifts can only be sent to existing member accounts.',
       );
     });
+
+    it('should render exactly one gift button on page in chips section and not in series playlist or meta-row', async () => {
+      await component.ngOnInit();
+      await fixture.whenStable();
+
+      const ep1: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v100',
+        title: 'Series Part 1',
+        seriesId: 'series-spacing',
+        seriesTitle: 'Understanding Spacing',
+        seriesStripePriceId: 'price_series_spacing',
+        seriesPriceCents: 5000,
+        isBuyable: true,
+        isPublished: true,
+        priceCents: 2500,
+        stripePriceId: 'price_v1',
+      };
+      const ep2: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v101',
+        title: 'Series Part 2',
+        seriesId: 'series-spacing',
+        seriesTitle: 'Understanding Spacing',
+        seriesStripePriceId: 'price_series_spacing',
+        seriesPriceCents: 5000,
+        isPublished: true,
+      };
+
+      mockDataService.videos.entries.set([ep1, ep2]);
+      component.video.set(ep1);
+      component.isLoading.set(false);
+      component.errorMessage.set(null);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      // Ensure "Who can access:" line is NOT rendered
+      expect(compiled.textContent).not.toContain('Who can access:');
+
+      // Ensure no gift button in series playlist
+      expect(compiled.querySelector('.series-playlist-gift')).toBeNull();
+
+      // Ensure no gift button in meta-row
+      expect(compiled.querySelector('.meta-row .gift-action-btn')).toBeNull();
+
+      // Ensure single gift button in chips section
+      const giftButtons = compiled.querySelectorAll('.gift-action-btn');
+      expect(giftButtons.length).toBe(1);
+      const giftBtn = compiled.querySelector('.chips-section .gift-action-btn');
+      expect(giftBtn).toBeTruthy();
+      expect(giftBtn?.textContent).toContain('Gift Series');
+
+      // Clicking gift button opens modal and allows toggling between series and video
+      (giftBtn as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.isGiftModalOpen()).toBe(true);
+      expect(component.giftModalTarget()).toBe('series');
+
+      const modalPills = compiled.querySelectorAll('.gift-target-toggle-wrap .pill-tab');
+      expect(modalPills.length).toBe(2);
+
+      // Switch to video
+      (modalPills[1] as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.giftModalTarget()).toBe('video');
+    });
   });
 });

@@ -130,17 +130,6 @@
                       <app-icon name="shopping_cart"></app-icon>
                       <span>Buy Full Series (${{ (s.priceCents / 100).toFixed(2) }})</span>
                     </button>
-                    @if (canGiftSeries()) {
-                      <button
-                        type="button"
-                        class="secondary-btn unlock-gift-btn"
-                        (click)="openGiftModal('series')"
-                        title="Buy this series as a gift for someone else"
-                      >
-                        <app-icon name="card_giftcard"></app-icon>
-                        <span>Gift Series</span>
-                      </button>
-                    }
                   }
                 } @else if (isBuyable(v) && v.priceCents) {
                   <button
@@ -151,17 +140,6 @@
                     <app-icon name="shopping_cart"></app-icon>
                     <span>Buy Full Video (${{ (v.priceCents / 100).toFixed(2) }})</span>
                   </button>
-                  @if (canGiftVideo()) {
-                    <button
-                      type="button"
-                      class="secondary-btn unlock-gift-btn"
-                      (click)="openGiftModal('video')"
-                      title="Buy this video as a gift for someone else"
-                    >
-                      <app-icon name="card_giftcard"></app-icon>
-                      <span>Gift Video</span>
-                    </button>
-                  }
                 } @else if (sessionState()?.reason === 'class_sub_required') {
                   <a class="primary-btn" [href]="getMembershipHref()">
                     <app-icon name="shopping_cart"></app-icon>
@@ -557,18 +535,20 @@
 
           <!-- Tags & Access Chips Section -->
           <div class="chips-section">
-            <!-- Access Tiers (Grey Chips) -->
-            <div class="chips-group">
-              <span class="chips-heading">Who can access:</span>
-              <div class="chips-row">
-                @for (chip of getAccessTierChips(v); track chip.label) {
-                  <span class="access-grey-chip">
-                    <app-icon [name]="chip.icon"></app-icon>
-                    <span>{{ chip.label }}</span>
-                  </span>
-                }
+            <!-- Gift Button (Single gift button on site) -->
+            @if (canGiftSeries() || canGiftVideo()) {
+              <div class="chips-group gift-action-row">
+                <button
+                  type="button"
+                  class="gift-action-btn"
+                  (click)="openGiftModal(canGiftSeries() ? 'series' : 'video')"
+                  [title]="canGiftSeries() ? 'Buy this series as a gift for someone else' : 'Buy this video as a gift for someone else'"
+                >
+                  <app-icon name="card_giftcard"></app-icon>
+                  <span>{{ canGiftSeries() ? 'Gift Series' : 'Gift Video' }}</span>
+                </button>
               </div>
-            </div>
+            }
 
             <!-- Supported Quality Options (Interactive Chips) -->
             @if (getVideoResolutions(v); as resList) {
@@ -633,17 +613,6 @@
                 <app-icon name="location_on"></app-icon>
                 <span>{{ v.location }}</span>
               </span>
-            }
-            @if (canGiftVideo()) {
-              <button
-                type="button"
-                class="gift-action-btn"
-                (click)="openGiftModal('video')"
-                title="Buy this video as a gift for someone else"
-              >
-                <app-icon name="card_giftcard"></app-icon>
-                <span>Gift this Video</span>
-              </button>
             }
           </div>
         </div>
@@ -712,19 +681,6 @@
                   >
                     <app-icon name="shopping_cart"></app-icon>
                     <span>Buy Full Series (${{ (s.priceCents / 100).toFixed(2) }})</span>
-                  </button>
-                </div>
-              }
-              @if (canGiftSeries()) {
-                <div class="series-playlist-gift">
-                  <button
-                    type="button"
-                    class="gift-action-btn subtle series-gift-btn"
-                    (click)="openGiftModal('series')"
-                    title="Buy this series as a gift for someone else"
-                  >
-                    <app-icon name="card_giftcard"></app-icon>
-                    <span>Gift Series</span>
                   </button>
                 </div>
               }
@@ -806,6 +762,28 @@
           </div>
 
           <div class="gift-modal-body">
+            @if (canGiftSeries() && canGiftVideo()) {
+              <div class="gift-target-toggle-wrap">
+                <div class="pill-tabs">
+                  <button
+                    type="button"
+                    class="pill-tab"
+                    [class.active]="giftModalTarget() === 'series'"
+                    (click)="giftModalTarget.set('series')"
+                  >
+                    Full Series ({{ series()?.videos?.length || '' }} episodes)
+                  </button>
+                  <button
+                    type="button"
+                    class="pill-tab"
+                    [class.active]="giftModalTarget() === 'video'"
+                    (click)="giftModalTarget.set('video')"
+                  >
+                    This Video Only
+                  </button>
+                </div>
+              </div>
+            }
             <p class="gift-modal-desc">
               @if (giftModalTarget() === 'series') {
                 Gift lifetime streaming access to all {{ series()?.videos?.length || '' }} episodes in
