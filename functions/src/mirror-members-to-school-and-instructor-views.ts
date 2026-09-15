@@ -44,8 +44,12 @@ export async function updateMemberViewForSchoolAndInstrucor(
   }
 
   // Remove from previous instructor if it changed.
-  const primaryInstructorId = member?.primaryInstructorId;
-  const previousPrimaryInstructorId = previousMember?.primaryInstructorId;
+  const primaryInstructorId = member?.primaryInstructorId
+    ? member.primaryInstructorId.trim().toUpperCase()
+    : '';
+  const previousPrimaryInstructorId = previousMember?.primaryInstructorId
+    ? previousMember.primaryInstructorId.trim().toUpperCase()
+    : '';
   if (
     previousPrimaryInstructorId &&
     previousPrimaryInstructorId !== primaryInstructorId
@@ -93,11 +97,16 @@ export async function updateMemberViewForSchoolAndInstrucor(
 /**
  * Given an instructorId (e.g. "INST-001"), find the member document that has
  * that instructorId and return its Firestore doc ID.
+ * Searches in a case-insensitive manner by matching uppercase trimmed ID.
  */
 async function findInstructorMemberDocId(instructorId: string): Promise<string | undefined> {
+  const cleanId = String(instructorId || '').trim().toUpperCase();
+  if (!cleanId) {
+    return undefined;
+  }
   const snap = await db
     .collection('members')
-    .where('instructorId', '==', instructorId)
+    .where('instructorId', '==', cleanId)
     .limit(1)
     .get();
   if (snap.empty) {

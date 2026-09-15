@@ -382,6 +382,99 @@ describe('DataManagerService - searchEvents', () => {
       );
     });
   });
+
+  describe('updateMyStudentsSync and student local persistence', () => {
+    it('updateMyStudentsSync passes additionalFilter and filterFn ensuring only matching students are loaded', async () => {
+      const syncService = TestBed.inject(IncrementalSyncService);
+      vi.mocked(syncService.syncCollection).mockClear();
+      vi.mocked(syncService.loadCachedData).mockClear();
+
+      const instructorUser = {
+        member: {
+          docId: 'inst_doc_1',
+          instructorId: 'INST-101',
+        },
+      } as any;
+
+      await service.updateMyStudentsSync(instructorUser);
+
+      expect(syncService.loadCachedData).toHaveBeenCalledWith(
+        'my_students_inst_doc_1',
+        service.myStudents,
+        expect.any(Function),
+        expect.any(Function),
+      );
+
+      const filterFn = vi.mocked(syncService.loadCachedData).mock.calls[0][3] as (m: Member) => boolean;
+      expect(filterFn({ ...initMember(), primaryInstructorId: 'INST-101' })).toBe(true);
+      expect(filterFn({ ...initMember(), primaryInstructorId: 'inst-101' })).toBe(true);
+      expect(filterFn({ ...initMember(), primaryInstructorId: 'INST-202' })).toBe(false);
+      expect(filterFn({ ...initMember(), primaryInstructorId: '' })).toBe(false);
+
+      expect(syncService.syncCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cacheKey: 'my_students_inst_doc_1',
+          collectionPath: 'instructors/inst_doc_1/members',
+          idField: 'docId',
+          additionalFilter: expect.any(Function),
+        }),
+      );
+
+      const additionalFilter = (vi.mocked(syncService.syncCollection).mock.calls[0][0] as any).additionalFilter;
+      expect(additionalFilter({ ...initMember(), primaryInstructorId: 'INST-101' })).toBe(true);
+      expect(additionalFilter({ ...initMember(), primaryInstructorId: 'INST-202' })).toBe(false);
+    });
+
+    it('persistMemberLocally removes member from myStudents and deletes from cache if not student of user', async () => {
+      const firebaseState = TestBed.inject(FirebaseStateService);
+      const syncService = TestBed.inject(IncrementalSyncService);
+      vi.mocked(syncService.upsertCachedEntry).mockClear();
+      vi.mocked(syncService.deleteCachedEntry).mockClear();
+
+      vi.mocked(firebaseState.user).mockReturnValue({
+        member: {
+          docId: 'inst_doc_1',
+          instructorId: 'INST-101',
+        },
+      } as any);
+
+      const studentOfUser: Member = {
+        ...initMember(),
+        docId: 'student_1',
+        name: 'Student One',
+        primaryInstructorId: 'INST-101',
+      };
+
+      // Initially student is saved
+      await (service as any).persistMemberLocally(studentOfUser);
+      expect(service.myStudents.get('student_1')).toBeDefined();
+      expect(syncService.upsertCachedEntry).toHaveBeenCalledWith(
+        'my_students_inst_doc_1',
+        'docId',
+        studentOfUser,
+      );
+
+      vi.mocked(syncService.upsertCachedEntry).mockClear();
+      vi.mocked(syncService.deleteCachedEntry).mockClear();
+
+      // Student changes primary instructor to someone else
+      const reassignedStudent: Member = {
+        ...studentOfUser,
+        primaryInstructorId: 'INST-999',
+      };
+
+      await (service as any).persistMemberLocally(reassignedStudent);
+
+      // Must be deleted from myStudents
+      expect(service.myStudents.get('student_1')).toBeUndefined();
+      // Must be deleted from instructor cache
+      expect(syncService.deleteCachedEntry).toHaveBeenCalledWith(
+        'my_students_inst_doc_1',
+        'docId',
+        'student_1',
+      );
+    });
+  });
 });
 
 

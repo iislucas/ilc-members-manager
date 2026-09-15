@@ -33,8 +33,9 @@ export function findPrimaryInstructorProfile(
   student: Member,
 ): Member | undefined {
   if (!student.primaryInstructorId) return undefined;
+  const studentInstId = student.primaryInstructorId.trim().toUpperCase();
   return callerProfiles.find(
-    (m) => !!m.instructorId && m.instructorId === student.primaryInstructorId,
+    (m) => !!m.instructorId && m.instructorId.trim().toUpperCase() === studentInstId,
   );
 }
 

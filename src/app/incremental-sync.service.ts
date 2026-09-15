@@ -68,11 +68,13 @@ export class IncrementalSyncService {
     cacheKey: string,
     targetSet: SearchableSet<ID, T>,
     sortFn?: (a: T, b: T) => number,
+    filterFn?: (item: T) => boolean,
   ): Promise<boolean> {
     try {
       const bundle = await this.idb.get<CachedCollectionBundle<T>>(cacheKey);
       if (bundle && Array.isArray(bundle.entries)) {
-        const sorted = sortFn ? [...bundle.entries].sort(sortFn) : bundle.entries;
+        const filtered = filterFn ? bundle.entries.filter(filterFn) : bundle.entries;
+        const sorted = sortFn ? [...filtered].sort(sortFn) : filtered;
         targetSet.setEntries(sorted);
         return true;
       }
@@ -111,7 +113,10 @@ export class IncrementalSyncService {
 
       // Populate memory if targetSet is still in loading state
       if (Array.isArray(cachedBundle.entries) && targetSet.loading()) {
-        const initialSorted = sortFn ? [...cachedBundle.entries].sort(sortFn) : cachedBundle.entries;
+        const filtered = additionalFilter
+          ? cachedBundle.entries.filter(additionalFilter)
+          : cachedBundle.entries;
+        const initialSorted = sortFn ? [...filtered].sort(sortFn) : filtered;
         targetSet.setEntries(initialSorted);
       }
 
@@ -152,8 +157,12 @@ export class IncrementalSyncService {
         return;
       }
 
-      // If no updates and no deletions, cache is already up-to-date!
-      if (deltaSnap.empty && tombstones.length === 0) {
+      const hasInvalidCachedEntries = additionalFilter
+        ? cachedBundle.entries.some((entry) => !additionalFilter(entry))
+        : false;
+
+      // If no updates and no deletions and cache has no invalid entries, cache is already up-to-date!
+      if (deltaSnap.empty && tombstones.length === 0 && !hasInvalidCachedEntries) {
         if (targetSet.loading()) {
           const initialSorted = sortFn ? [...cachedBundle.entries].sort(sortFn) : cachedBundle.entries;
           targetSet.setEntries(initialSorted);
@@ -161,10 +170,12 @@ export class IncrementalSyncService {
         return;
       }
 
-      // Build working map from cached entries
+      // Build working map from cached entries, pruning any that violate additionalFilter
       const map = new Map<string, T>();
       for (const item of cachedBundle.entries) {
-        map.set(item[idField], item);
+        if (!additionalFilter || additionalFilter(item)) {
+          map.set(item[idField], item);
+        }
       }
 
       // Merge additions and modifications

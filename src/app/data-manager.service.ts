@@ -1277,11 +1277,17 @@ export class DataManagerService {
 
   async updateMyStudentsSync(user: UserDetails, forceFullRefresh = false) {
     // If the user is an instructor (has an instructorId), load their students.
-    // Note: We check if they have a numeric instructorId, as that indicates they are an instructor.
     if (user.member.instructorId && user.member.docId) {
+      const instructorIdUpper = user.member.instructorId.trim().toUpperCase();
       const cacheKey = `my_students_${user.member.docId}`;
-      this.syncService.loadCachedData(cacheKey, this.myStudents, (a, b) =>
-        (a.name || '').localeCompare(b.name || ''),
+      const isStudentOfInstructor = (m: Member) =>
+        Boolean(m.primaryInstructorId && m.primaryInstructorId.trim().toUpperCase() === instructorIdUpper);
+
+      this.syncService.loadCachedData(
+        cacheKey,
+        this.myStudents,
+        (a, b) => (a.name || '').localeCompare(b.name || ''),
+        isStudentOfInstructor,
       );
       await this.syncService.syncCollection({
         cacheKey,
@@ -1290,6 +1296,7 @@ export class DataManagerService {
         targetSet: this.myStudents,
         docConverter: firestoreDocToMember,
         sortFn: (a, b) => (a.name || '').localeCompare(b.name || ''),
+        additionalFilter: isStudentOfInstructor,
         forceFullRefresh,
       });
     } else {
@@ -1707,10 +1714,30 @@ export class DataManagerService {
 
   private async persistMemberLocally(member: Member): Promise<void> {
     this.members.upsert(member);
-    if (this.myStudents.get(member.docId)) {
-      this.myStudents.upsert(member);
-    }
     const user = this.firebaseService.user();
+    const userInstructorId = user?.member?.instructorId
+      ? user.member.instructorId.trim().toUpperCase()
+      : '';
+    const memberInstructorId = member.primaryInstructorId
+      ? member.primaryInstructorId.trim().toUpperCase()
+      : '';
+    const isMyStudent =
+      Boolean(userInstructorId && memberInstructorId && memberInstructorId === userInstructorId);
+
+    if (isMyStudent) {
+      this.myStudents.upsert(member);
+      if (user?.member?.docId) {
+        const instructorCacheKey = `my_students_${user.member.docId}`;
+        await this.syncService.upsertCachedEntry(instructorCacheKey, 'docId', member);
+      }
+    } else {
+      this.myStudents.delete(member.docId);
+      if (user?.member?.docId) {
+        const instructorCacheKey = `my_students_${user.member.docId}`;
+        await this.syncService.deleteCachedEntry(instructorCacheKey, 'docId', member.docId);
+      }
+    }
+
     if (user?.isAdmin) {
       const adminCacheKey = `members_admin_${user.firebaseUser?.uid || 'admin'}`;
       await this.syncService.upsertCachedEntry(adminCacheKey, 'docId', member);
@@ -1718,10 +1745,6 @@ export class DataManagerService {
     if (member.primarySchoolId) {
       const schoolCacheKey = `school_members_${member.primarySchoolId}`;
       await this.syncService.upsertCachedEntry(schoolCacheKey, 'docId', member);
-    }
-    if (user?.member?.docId) {
-      const instructorCacheKey = `my_students_${user.member.docId}`;
-      await this.syncService.upsertCachedEntry(instructorCacheKey, 'docId', member);
     }
   }
 
