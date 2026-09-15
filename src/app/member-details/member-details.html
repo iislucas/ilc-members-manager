@@ -918,6 +918,73 @@
         }
       }
 
+      @if (userIsAdmin() && editableMember().docId) {
+        <h3>VOD Video &amp; Series Grants</h3>
+        <label>Granted Items</label>
+        <div class="rhs">
+          @if (isLoadingVideoGrants()) {
+            <span class="muted-text"><app-spinner /> Loading video grants...</span>
+          } @else if (memberVideoGrants().length === 0) {
+            <span class="muted-text">No VOD video or series grants for this member.</span>
+          } @else {
+            <div class="vod-grants-summary-box">
+              <div class="vod-grants-header">
+                <span class="grants-count"><strong>{{ memberVideoGrants().length }}</strong> Granted Targets</span>
+                <button
+                  type="button"
+                  class="subtle-button toggle-grants-btn"
+                  (click)="showVideoGrantsFold.set(!showVideoGrantsFold())"
+                >
+                  <app-icon [name]="showVideoGrantsFold() ? 'expand_less' : 'expand_more'" />
+                  <span>{{ showVideoGrantsFold() ? 'Hide Details' : 'View Details' }}</span>
+                </button>
+              </div>
+
+              @if (showVideoGrantsFold()) {
+                <div class="vod-grants-table-wrapper">
+                  <table class="vod-grants-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Title / Target</th>
+                        <th>Target ID</th>
+                        <th>Kind</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (g of memberVideoGrants(); track (g.docId || g.videoId)) {
+                        @let info = getGrantDisplayTitle(g);
+                        <tr>
+                          <td class="type-cell">
+                            <span class="type-badge" [class.is-series]="info.isSeries">
+                              <app-icon [name]="info.isSeries ? 'collections' : 'play_circle'" />
+                              {{ info.isSeries ? 'Series' : 'Video' }}
+                            </span>
+                          </td>
+                          <td class="title-cell">
+                            <strong>{{ info.title }}</strong>
+                            @if (info.subtitle) {
+                              <span class="series-meta">{{ info.subtitle }}</span>
+                            }
+                            @if (g.notes) {
+                              <span class="grant-notes">{{ g.notes }}</span>
+                            }
+                          </td>
+                          <td class="target-id-cell"><code>{{ g.videoId || g.docId }}</code></td>
+                          <td class="kind-cell">{{ g.grantKind || 'admin_grant' }}</td>
+                          <td class="date-cell">{{ formatGrantDate(g.grantedAt) }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
       @if (userIsAdmin()) {
         <h3>Admin</h3>
         <label for="isAdmin">Is Admin</label>

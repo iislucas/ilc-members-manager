@@ -3349,6 +3349,16 @@ export class DataManagerService {
   }
 
   /**
+   * Retrieves all individual video grants purchased or assigned to an arbitrary member (admin only).
+   */
+  async getMemberVideoGrants(memberDocId: string): Promise<VideoGrant[]> {
+    if (!memberDocId) return [];
+    const grantsRef = collection(this.db, 'members', memberDocId, 'videoGrants');
+    const snap = await getDocs(grantsRef);
+    return snap.docs.map(firestoreDocToVideoGrant);
+  }
+
+  /**
    * Retrieves personal time ranges / annotations for a specific video.
    * Checks Firestore for authenticated members and falls back / merges with localStorage.
    */
