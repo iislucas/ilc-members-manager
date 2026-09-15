@@ -842,7 +842,36 @@ export async function fulfillEventRegistration(
 
       if (existingSnap.exists) {
         const existing = existingSnap.data() as EventRegistration;
-        finalAmountPaidCents = (existing.amountPaidCents || 0) + amountPaidCents;
+
+        // Idempotency check: If this Stripe session has already been recorded in upgradeHistory or matches stripeSessionId,
+        // do not re-apply the upgrade or re-add the upgrade payment amount.
+        const alreadyApplied = Boolean(
+          order.checkoutSessionId &&
+          (
+            existing.stripeSessionId === order.checkoutSessionId ||
+            (existing.upgradeHistory || []).some(
+              (u) => u.stripeSessionId && u.stripeSessionId === order.checkoutSessionId,
+            )
+          ),
+        );
+
+        if (alreadyApplied) {
+          logger.info('Event registration upgrade already applied for Stripe session, skipping duplicate processing', {
+            existingRegistrationDocId,
+            checkoutSessionId: order.checkoutSessionId,
+            eventDocId,
+          });
+          return;
+        }
+
+        const metaTotal = order.metadata?.['totalAmountPaidCents']
+          ? parseInt(order.metadata['totalAmountPaidCents'], 10)
+          : undefined;
+        finalAmountPaidCents =
+          typeof metaTotal === 'number' && !isNaN(metaTotal)
+            ? metaTotal
+            : (existing.amountPaidCents || 0) + amountPaidCents;
+
         finalHasVideoAccess = existing.hasVideoAccess || hasVideoAccess;
 
         if (
