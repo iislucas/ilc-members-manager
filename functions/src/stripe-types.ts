@@ -107,6 +107,14 @@ export interface CreateCheckoutSessionRequest {
   cancelUrl?: string;
   /** Optional metadata to attach to the Stripe Checkout session. */
   metadata?: Record<string, string>;
+  /** Whether this purchase is a gift for another person. */
+  isGift?: boolean;
+  /** Recipient email when buying as a gift. */
+  recipientEmail?: string;
+  /** Optional recipient name when buying as a gift. */
+  recipientName?: string;
+  /** Optional gift message for the recipient. */
+  giftMessage?: string;
 }
 
 export interface CreateCheckoutSessionResult {

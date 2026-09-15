@@ -259,7 +259,7 @@ describe('mail-processor', () => {
       expect(mockAdd).toHaveBeenCalledWith(
         expect.objectContaining({
           to: ['admin@iliqchuan.com'],
-          from: 'notifications@iliqchuan.com',
+          from: environment.email.from,
           replyTo: 'web-helper-team@iliqchuan.com',
           status: MailDeliveryState.Pending,
           delivery: expect.objectContaining({

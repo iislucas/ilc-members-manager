@@ -248,6 +248,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Global mail settings (sending status: active, paused, off).
+    // Publicly readable so clients know if email notifications are active/paused/off.
+    match /system/mail-settings {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /system/deletions/{collectionName}/{document=**} {
       allow read: if (collectionName in ['instructors', 'schools', 'events', 'videos']) || isAdmin();
       allow write: if isAdmin();

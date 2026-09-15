@@ -50,6 +50,15 @@ export interface VodEmailParams extends BaseEmailParams {
   receiptUrl?: string;
 }
 
+export interface VodGiftEmailParams extends BaseEmailParams {
+  name?: string;
+  giverName?: string;
+  videoTitle?: string;
+  videoUrl?: string;
+  giftMessage?: string;
+  appBase?: string;
+}
+
 export interface GradingEmailParams extends BaseEmailParams {
   memberId?: string;
   gradingLevel?: string;
@@ -271,6 +280,41 @@ export function vodPurchaseConfirmationBody(params?: VodEmailParams): string {
   return `Hi ${name},
 
 Thank you for purchasing **${videoTitle}** (${amount}).
+
+You have instant access to watch this video in your account:
+[Watch Video Now](${videoUrl})
+
+${footer}`;
+}
+
+// Subject for VOD gift received email.
+export function vodGiftReceivedSubject(params?: VodGiftEmailParams): string {
+  const videoTitle = params?.videoTitle || '{videoTitle}';
+  const giverName = params?.giverName || '{giverName}';
+  return `You received a gift: ${videoTitle} from ${giverName}`;
+}
+
+// Body for VOD gift received email.
+export function vodGiftReceivedBody(params?: VodGiftEmailParams): string {
+  const name = params?.name || '{name}';
+  const giverName = params?.giverName || '{giverName}';
+  const videoTitle = params?.videoTitle || '{videoTitle}';
+  const videoUrl = params?.videoUrl || '{videoUrl}';
+  const giftMessage = params?.giftMessage || '{giftMessage}';
+  const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: 'You received this email because someone gifted you access to an I Liq Chuan video.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
+
+  return `Hi ${name},
+
+**${giverName}** has gifted you access to **${videoTitle}**!
+
+Personal note from ${giverName}:
+${giftMessage}
 
 You have instant access to watch this video in your account:
 [Watch Video Now](${videoUrl})

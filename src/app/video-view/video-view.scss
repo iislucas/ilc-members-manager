@@ -657,6 +657,27 @@
       font-weight: 600;
       text-decoration: none;
     }
+
+    .unlock-gift-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      color: #b45309;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: #fef3c7;
+        color: #92400e;
+      }
+    }
   }
 
   @media (max-width: 768px) {
@@ -667,6 +688,7 @@
       width: 100%;
 
       .unlock-buy-btn,
+      .unlock-gift-btn,
       .primary-btn {
         width: 100%;
         justify-content: center;
@@ -792,6 +814,131 @@
         font-size: 0.88rem;
         color: rgba(255, 255, 255, 0.85);
       }
+
+      .gift-toggle-row {
+        margin-top: 2px;
+
+        .gift-checkbox-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.9);
+          cursor: pointer;
+          user-select: none;
+          padding: 6px 14px;
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          transition: all 0.15s ease;
+
+          &:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.35);
+          }
+
+          input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            accent-color: #38bdf8;
+          }
+
+          app-icon {
+            color: #f59e0b;
+          }
+        }
+      }
+
+      .inline-gift-inputs {
+        width: 100%;
+        max-width: 380px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 14px;
+        box-sizing: border-box;
+        text-align: left;
+
+        .gift-input-field {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+
+          label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+
+            .required {
+              color: #f87171;
+            }
+          }
+
+          input,
+          textarea {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.88rem;
+            color: white;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s ease;
+
+            &::placeholder {
+              color: rgba(255, 255, 255, 0.4);
+            }
+
+            &:focus {
+              border-color: #38bdf8;
+              background: rgba(255, 255, 255, 0.18);
+            }
+          }
+
+          textarea {
+            resize: vertical;
+            min-height: 48px;
+          }
+        }
+
+        .mail-off-notice {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          color: #fef08a;
+          font-size: 0.8rem;
+          line-height: 1.4;
+          background: rgba(234, 179, 8, 0.15);
+          border: 1px solid rgba(234, 179, 8, 0.35);
+          padding: 8px 10px;
+          border-radius: 4px;
+
+          app-icon {
+            color: #facc15;
+            font-size: 1rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+          }
+        }
+
+        .gift-inline-error {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: #fca5a5;
+          font-size: 0.8rem;
+          background: rgba(239, 68, 68, 0.2);
+          border: 1px solid rgba(239, 68, 68, 0.35);
+          padding: 6px 10px;
+          border-radius: 4px;
+        }
+      }
     }
 
     .purchase-box {
@@ -806,12 +953,29 @@
         color: white;
       }
 
+      .purchasing-spinner-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+      }
+
       .purchase-btn {
         display: inline-flex;
         align-items: center;
         gap: 8px;
         padding: 12px 24px;
         font-size: 1rem;
+
+        &.gift-active-btn {
+          background: #f59e0b;
+          border-color: #d97706;
+
+          &:hover {
+            background: #d97706;
+            border-color: #b45309;
+          }
+        }
       }
     }
   }
@@ -897,6 +1061,10 @@
           align-items: center;
           gap: 6px;
           flex-wrap: wrap;
+        }
+
+        &.gift-action-row {
+          margin-bottom: 4px;
         }
       }
 
@@ -1415,5 +1583,349 @@
         margin-left: 6px;
       }
     }
+  }
+}
+
+.series-playlist-gift {
+  margin-top: 6px;
+
+  .series-gift-btn {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+}
+
+// Gift Provenance Banner
+.gift-provenance-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: linear-gradient(135deg, #eff6ff 0%, #fef3c7 100%);
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 14px 18px;
+  color: #78350f;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.08);
+
+  .gift-provenance-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f59e0b;
+    color: white;
+    flex-shrink: 0;
+
+    app-icon {
+      font-size: 1.25rem;
+    }
+  }
+
+  .gift-provenance-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .gift-provenance-title {
+      font-size: 0.95rem;
+      color: #92400e;
+
+      strong {
+        font-weight: 700;
+        color: #78350f;
+      }
+    }
+
+    .gift-provenance-message {
+      font-size: 0.88rem;
+      color: #78350f;
+      font-style: italic;
+      line-height: 1.4;
+
+      .quote-mark {
+        font-weight: 700;
+        font-style: normal;
+      }
+    }
+  }
+}
+
+// Gift Action Buttons
+.gift-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #b45309;
+  transition: all 0.15s ease;
+  font-family: inherit;
+
+  app-icon {
+    color: #f59e0b;
+  }
+
+  &:hover {
+    background: #fef3c7;
+    border-color: #d97706;
+    color: #92400e;
+    transform: translateY(-1px);
+  }
+
+  &.subtle {
+    border-color: #e2e8f0;
+    background: white;
+    color: v.$text-secondary;
+
+    app-icon {
+      color: #f59e0b;
+    }
+
+    &:hover {
+      border-color: #f59e0b;
+      color: #b45309;
+      background: #fffbeb;
+    }
+  }
+}
+
+// Gift Modal Backdrop & Dialog
+.gift-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+
+  .gift-modal-card {
+    background: white;
+    border-radius: 12px;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalPop 0.2s ease-out;
+
+    .gift-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        app-icon {
+          color: #f59e0b;
+          font-size: 1.4rem;
+        }
+
+        h3 {
+          margin: 0;
+          font-size: 1.15rem;
+          color: v.$text-primary;
+          font-weight: 600;
+        }
+      }
+
+      .close-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        padding: 4px;
+        border-radius: 4px;
+
+        &:hover {
+          color: #475569;
+          background: #e2e8f0;
+        }
+      }
+    }
+
+    .gift-modal-body {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      .gift-target-toggle-wrap {
+        display: flex;
+        justify-content: center;
+
+        .pill-tabs {
+          margin-bottom: 0;
+          width: 100%;
+
+          .pill-tab {
+            flex: 1;
+            text-align: center;
+          }
+        }
+      }
+
+      .gift-modal-desc {
+        margin: 0;
+        font-size: 0.9rem;
+        color: v.$text-secondary;
+        line-height: 1.5;
+      }
+
+      .gift-price-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: #f1f5f9;
+        border-radius: 8px;
+
+        .summary-label {
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: v.$text-secondary;
+        }
+
+        .summary-value {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #0369a1;
+        }
+      }
+
+      .gift-modal-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        .modal-form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+
+          label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+
+            .required {
+              color: #dc2626;
+            }
+          }
+
+          input,
+          textarea {
+            padding: 9px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: v.$text-primary;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+            &:focus {
+              border-color: #38bdf8;
+              box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+            }
+
+            &::placeholder {
+              color: #94a3b8;
+            }
+          }
+
+          textarea {
+            resize: vertical;
+          }
+        }
+
+        .mail-off-modal-notice {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          color: #854d0e;
+          font-size: 0.85rem;
+          line-height: 1.4;
+          background: #fefce8;
+          border: 1px solid #fef08a;
+          padding: 10px 12px;
+          border-radius: 6px;
+
+          app-icon {
+            color: #ca8a04;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+          }
+        }
+
+        .gift-modal-error {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: #dc2626;
+          font-size: 0.85rem;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          padding: 8px 12px;
+          border-radius: 6px;
+        }
+      }
+    }
+
+    .gift-modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px 24px;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+
+      .gift-checkout-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #f59e0b;
+        color: white;
+        border-color: #d97706;
+
+        &:hover:not(:disabled) {
+          background: #d97706;
+          border-color: #b45309;
+        }
+      }
+    }
+  }
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
