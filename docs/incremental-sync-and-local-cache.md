@@ -117,7 +117,6 @@ If a document is deleted while a client is offline or between sessions, a delta 
 All synced collections enforce native Firestore `Timestamp` objects for the `lastUpdated` field:
 - **Write Operations**: All client services and Cloud Functions must use `serverTimestamp()` or `admin.firestore.FieldValue.serverTimestamp()`. ISO date strings (`new Date().toISOString()`) must not be written to Firestore `lastUpdated` fields.
 - **Read Normalization**: When reading documents, `normalizeLastUpdated()` converts native Firestore `Timestamp` or legacy ISO strings into a standard ISO UTC string for Angular components and client models.
-- **Database Backfill**: All production collections are backfilled to 100% native `Timestamp` via [`scripts/backfill-collection-timestamps.ts`](../scripts/backfill-collection-timestamps.ts).
 
 ---
 

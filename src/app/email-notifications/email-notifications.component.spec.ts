@@ -265,7 +265,7 @@ describe('EmailNotificationsComponent', () => {
     const editors = el.querySelectorAll('app-markdown-editor');
     expect(editors.length).toBe(2);
     expect(component.templates().membershipActivatedBody).toContain(
-      'Welcome to the I Liq Chuan family!',
+      'Welcome to Zhong Xin Dao / I Liq Chuan',
     );
     expect(component.templates().instructorLicenseActivatedBody).toContain(
       'Congratulations on getting your Instructor ID',

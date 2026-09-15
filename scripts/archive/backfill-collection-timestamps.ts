@@ -1,21 +1,20 @@
-/* backfill-collection-timestamps.ts
+//**
+ * @file scripts/archive/backfill-collection-timestamps.ts
+ * @status ARCHIVED / MIGRATION COMPLETED
+ * @pr PR #93 (feat/incremental-sync-and-plan-lifecycle) & PR #95 (feat/purchase-confirmations-and-notifications)
+ * @commit bac0f39 (initial), f350a63 (orders & videos extension)
+ * @date 2026-08-14 to 2026-09-11
  *
- * One-off / utility script to audit and backfill `lastUpdated` timestamps
- * on all documents across Firestore collections (`instructors`, `members`,
- * `schools`, `events`, `gradings`).
+ * Description:
+ * One-off utility script that audited and normalized `lastUpdated` timestamps
+ * to native Firestore `Timestamp` objects across all synced Firestore collections
+ * (`instructors`, `members`, `schools`, `events`, `gradings`, `orders`, `videos`).
  *
- * Ensures all existing records have a valid timestamp so incremental
- * delta sync (`where('lastUpdated', '>', timestamp)`) functions accurately.
+ * This ensured all existing documents have a valid native Firestore Timestamp so
+ * IndexedDB incremental delta sync (`where('lastUpdated', '>', timestamp)`)
+ * queries work accurately without skipping records or miscomparing types.
  *
- * Usage:
- *   # Dry run (checks collections and reports count of missing timestamps):
- *   pnpm tsx scripts/backfill-collection-timestamps.ts
- *
- *   # Apply changes with commit:
- *   pnpm tsx scripts/backfill-collection-timestamps.ts --commit
- *
- *   # Target a specific project:
- *   pnpm tsx scripts/backfill-collection-timestamps.ts --project=ilc-paris-class-tracker --commit
+ * Verified in production: 5,181 of 5,182 records valid.
  */
 
 import * as admin from 'firebase-admin';

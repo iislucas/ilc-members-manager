@@ -1,15 +1,14 @@
-/* backfill-event-registrations-member-info.ts
+//**
+ * @file scripts/archive/backfill-event-registrations-member-info.ts
+ * @status ARCHIVED / MIGRATION COMPLETED
+ * @pr PR #86 (feat(events): event registration naming, upgrades, in-person details, and notifications)
+ * @commit 52d54ca
+ * @date 2026-09-08
  *
+ * Description:
  * Inspects and backfills `memberId`, `studentLevel`, and `applicationLevel`
  * on EventRegistration documents (`events/{eventId}/registrations/{regId}`)
  * and member mirror registrations (`members/{memberDocId}/events/{eventId}`).
- *
- * Usage:
- *   # Dry run (inspect only, no writes):
- *   pnpm --prefix functions exec ts-node -O '{"module":"commonjs"}' ../scripts/backfill-event-registrations-member-info.ts
- *
- *   # Commit changes:
- *   pnpm --prefix functions exec ts-node -O '{"module":"commonjs"}' ../scripts/backfill-event-registrations-member-info.ts --commit
  */
 
 import * as admin from 'firebase-admin';

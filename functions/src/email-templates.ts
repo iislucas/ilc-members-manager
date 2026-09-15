@@ -122,9 +122,26 @@ export function membershipActivatedBody(params?: MembershipEmailParams): string 
 
   return `Hi ${name},
 
-Welcome to the I Liq Chuan family! Your membership is now active.
+Welcome to Zhong Xin Dao / I Liq Chuan.
 
-You can now access the [Active Members Area](${appBase}/members-area) to read the blog, view classes, and more.
+Your membership gives you direct access to the global martial arts community and tools to support your training. 
+
+**Your Digital Passbook: The Member Portal** Log in to your member portal to access exclusive resources:
+
+* **Members-Only Content:** View exclusive articles, updates, and training guides.
+* **Grading Requests:** Submit requests for grading directly through your account dashboard.
+* **Complimentary Live Classes:** Join weekly online classes included with your membership. Look for announcement in Members Area for log in details.
+* **Class Library Subscription:** Missed a live session? Subscribe to the Class Library for a nominal fee to access recordings of weekly classes plus hundreds of private training videos. 
+
+**Your Physical Passbook** Along with your digital account, a physical passbook can also be requested to tracks your journey offline. Use it to record your membership details, instructor licenses, and workshop participation.
+
+**Membership & Billing** Membership automatically renew annually, and cancellation is available at any time through your account settings.
+
+Thank you for joining. Student dedication drives this entire community, and support is available every step of the way.
+
+Sincerely,
+
+Chin Family
 
 ${footer}`;
 }

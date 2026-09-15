@@ -1,24 +1,21 @@
-/* scripts/backfill-video-series.ts
+//**
+ * @file scripts/archive/backfill-video-series.ts
+ * @status ARCHIVED / MIGRATION COMPLETED
+ * @pr PR #77 (feat(vod): Add video series collections, bundle pricing, and admin upload workflow)
+ * @commit 6658fc8
+ * @date 2026-09-04
  *
+ * Description:
  * Backfill script for updating all existing Vimeo VOD videos in Firestore
- * with seriesId, seriesTitle, seriesPartIndex, and seriesPriceCents.
- *
- * Usage:
- *   # Dry run:
- *   ts-node -O '{"module": "commonjs", "esModuleInterop": true}' scripts/backfill-video-series.ts --dry-run
- *
- *   # Commit to Firestore:
- *   ts-node -O '{"module": "commonjs", "esModuleInterop": true}' scripts/backfill-video-series.ts --commit
- *
- *   # Custom project:
- *   ts-node -O '{"module": "commonjs", "esModuleInterop": true}' scripts/backfill-video-series.ts --project=ilc-paris-class-tracker --commit
+ * with seriesId, seriesTitle, seriesPartIndex, and seriesPriceCents, mapping
+ * 45 Vimeo VOD series into Firestore VideoItem records.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as admin from 'firebase-admin';
 
-const ROOT_DIR = path.resolve(__dirname, '..');
+const ROOT_DIR = path.resolve(__dirname, '../..');
 const TMP_DIR = path.join(ROOT_DIR, 'tmp');
 
 const DRY_RUN = !process.argv.includes('--commit');

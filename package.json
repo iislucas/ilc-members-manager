@@ -3,7 +3,6 @@
   "name": "ilc-members-manager",
   "version": "0.0.1",
   "scripts": {
-    "backfill:event-materials": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\"}' ../scripts/backfill-event-materials.ts",
     "build:all": "pnpm run build && pnpm run build:functions",
     "build:events-wc": "ng build --project events-viewer-wc",
     "build:find-instructor-wc": "ng build --project find-an-instructor-wc",
@@ -38,8 +37,6 @@
     "test:rules": "pnpm exec firebase emulators:exec --only firestore \"pnpm test:rules:in_emulator\"",
     "test:watch": "vitest --no-color",
     "test": "pnpm test:once",
-    "backfill:timestamps": "ts-node -O '{\"module\": \"commonjs\"}' scripts/backfill-collection-timestamps.ts",
-    "backfill:video-series": "ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' scripts/backfill-video-series.ts",
     "typecheck:tests": "tsc -p tsconfig.spec.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "generate:diagram": "ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' docs/minitools/diagram-router/scripts/generate-architecture-diagram.ts",
     "test:diagram": "vitest run --config docs/minitools/diagram-router/vitest.config.ts --no-color",

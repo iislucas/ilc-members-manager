@@ -192,8 +192,8 @@ describe('on-member-update triggers logic', () => {
       const addCall = mockAdd.mock.calls[0][0] as MailDocument;
       expect(addCall.to).toEqual(['member-email@example.com']);
       expect(addCall.message.subject).toBe('Welcome to the I Liq Chuan Family!');
-      expect(addCall.message.html).toContain('Welcome to the I Liq Chuan family');
-      expect(addCall.message.html).toContain(`${environment.links.appBase}/members-area`);
+      expect(addCall.message.html).toContain('Welcome to Zhong Xin Dao / I Liq Chuan');
+      expect(addCall.message.html).toContain(environment.links.appBase);
     });
 
     it('should use custom templates from Firestore system/email-templates document if present', async () => {
