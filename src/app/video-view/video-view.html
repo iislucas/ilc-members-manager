@@ -113,53 +113,49 @@
               </div>
             </div>
             <div class="unlock-cta-actions">
-              @if (series(); as s) {
-                @if (s.priceCents) {
+              @if (isPurchasing()) {
+                <div class="purchasing-spinner-wrapper">
+                  <app-spinner>
+                    <span>Processing...</span>
+                  </app-spinner>
+                </div>
+              } @else {
+                @if (series(); as s) {
+                  @if (s.priceCents) {
+                    <button
+                      type="button"
+                      class="primary-btn unlock-buy-btn"
+                      (click)="startSeriesPurchase()"
+                    >
+                      <app-icon name="shopping_cart"></app-icon>
+                      <span>Buy Full Series (${{ (s.priceCents / 100).toFixed(2) }})</span>
+                    </button>
+                  }
+                } @else if (isBuyable(v) && v.priceCents) {
                   <button
                     type="button"
                     class="primary-btn unlock-buy-btn"
-                    [disabled]="isPurchasing()"
-                    (click)="startSeriesPurchase()"
+                    (click)="startPurchase()"
                   >
-                    @if (isPurchasing()) {
-                      <app-spinner></app-spinner>
-                      <span>Processing...</span>
-                    } @else {
-                      <app-icon name="shopping_cart"></app-icon>
-                      <span>Buy Full Series (${{ (s.priceCents / 100).toFixed(2) }})</span>
-                    }
-                  </button>
-                }
-              } @else if (isBuyable(v) && v.priceCents) {
-                <button
-                  type="button"
-                  class="primary-btn unlock-buy-btn"
-                  [disabled]="isPurchasing()"
-                  (click)="startPurchase()"
-                >
-                  @if (isPurchasing()) {
-                    <app-spinner></app-spinner>
-                    <span>Processing...</span>
-                  } @else {
                     <app-icon name="shopping_cart"></app-icon>
                     <span>Buy Full Video (${{ (v.priceCents / 100).toFixed(2) }})</span>
-                  }
-                </button>
-              } @else if (sessionState()?.reason === 'class_sub_required') {
-                <a class="primary-btn" [href]="getMembershipHref()">
-                  <app-icon name="shopping_cart"></app-icon>
-                  <span>Subscribe to Video Library</span>
-                </a>
-              } @else if (sessionState()?.reason === 'subscription_required') {
+                  </button>
+                } @else if (sessionState()?.reason === 'class_sub_required') {
+                  <a class="primary-btn" [href]="getMembershipHref()">
+                    <app-icon name="shopping_cart"></app-icon>
+                    <span>Subscribe to Video Library</span>
+                  </a>
+                } @else if (sessionState()?.reason === 'subscription_required') {
                 <a class="primary-btn" [href]="getMembershipHref()">
                   <app-icon name="person"></app-icon>
                   <span>Join / Renew Membership</span>
                 </a>
-              } @else if (sessionState()?.reason === 'unauthenticated') {
-                <a class="primary-btn" [href]="getLoginHref()">
-                  <app-icon name="person"></app-icon>
-                  <span>Sign In to Access</span>
-                </a>
+                } @else if (sessionState()?.reason === 'unauthenticated') {
+                  <a class="primary-btn" [href]="getLoginHref()">
+                    <app-icon name="person"></app-icon>
+                    <span>Sign In to Access</span>
+                  </a>
+                }
               }
             </div>
           </div>
@@ -227,22 +223,89 @@
                 <div class="purchase-box-section">
                   <div class="or-divider"><span>OR</span></div>
                   <p class="purchase-subtext">Buy on-demand lifetime access to this masterclass recording:</p>
+
+                  <div class="gift-toggle-row">
+                    <label class="gift-checkbox-label">
+                      <input
+                        type="checkbox"
+                        [checked]="isGiftPurchase()"
+                        (change)="toggleGiftPurchase($event)"
+                      />
+                      <app-icon name="card_giftcard"></app-icon>
+                      <span>Buy as a gift for someone else</span>
+                    </label>
+                  </div>
+
+                  @if (isGiftPurchase()) {
+                    <div class="inline-gift-inputs">
+                      @if (isMailOff()) {
+                        <div class="mail-off-notice">
+                          <app-icon name="info"></app-icon>
+                          <span>Email notifications are currently turned off. Gifts can only be sent to existing ILC member accounts.</span>
+                        </div>
+                      }
+                      <div class="gift-input-field">
+                        <label for="lockGiftEmail">Recipient Email <span class="required">*</span></label>
+                        <input
+                          id="lockGiftEmail"
+                          type="email"
+                          placeholder="recipient@example.com"
+                          [value]="giftRecipientEmail()"
+                          (input)="giftRecipientEmail.set($any($event.target).value)"
+                        />
+                      </div>
+                      <div class="gift-input-field">
+                        <label for="lockGiftName">Recipient Name (optional)</label>
+                        <input
+                          id="lockGiftName"
+                          type="text"
+                          placeholder="Friend's Name"
+                          [value]="giftRecipientName()"
+                          (input)="giftRecipientName.set($any($event.target).value)"
+                        />
+                      </div>
+                      <div class="gift-input-field">
+                        <label for="lockGiftMsg">Personal Note (optional)</label>
+                        <textarea
+                          id="lockGiftMsg"
+                          rows="2"
+                          placeholder="Add a friendly gift note..."
+                          [value]="giftMessage()"
+                          (input)="giftMessage.set($any($event.target).value)"
+                        ></textarea>
+                      </div>
+                      @if (giftValidationError()) {
+                        <div class="gift-inline-error">
+                          <app-icon name="error"></app-icon>
+                          <span>{{ giftValidationError() }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
+
                   <div class="purchase-box">
                     <span class="price-tag">${{ (v.priceCents / 100).toFixed(2) }}</span>
-                    <button
-                      type="button"
-                      class="primary-btn purchase-btn"
-                      [disabled]="isPurchasing()"
-                      (click)="startPurchase()"
-                    >
-                      @if (isPurchasing()) {
-                        <app-spinner></app-spinner>
-                        <span>Processing...</span>
-                      } @else {
-                        <app-icon name="shopping_cart"></app-icon>
-                        <span>Buy Video (${{ (v.priceCents / 100).toFixed(2) }})</span>
-                      }
-                    </button>
+                    @if (isPurchasing()) {
+                      <div class="purchasing-spinner-wrapper">
+                        <app-spinner>
+                          <span>Processing...</span>
+                        </app-spinner>
+                      </div>
+                    } @else {
+                      <button
+                        type="button"
+                        class="primary-btn purchase-btn"
+                        [class.gift-active-btn]="isGiftPurchase()"
+                        (click)="startPurchase()"
+                      >
+                        <app-icon [name]="isGiftPurchase() ? 'card_giftcard' : 'shopping_cart'"></app-icon>
+                        @if (isGiftPurchase()) {
+                          <span>Send as Gift (${{ (v.priceCents / 100).toFixed(2) }})</span>
+                        } @else {
+                          <span>Buy Video (${{ (v.priceCents / 100).toFixed(2) }})</span>
+                        }
+                      </button>
+                    }
                   </div>
                 </div>
               }
@@ -435,6 +498,25 @@
       </div>
     </div>
 
+    <!-- Gift Provenance Banner (if viewer received this as a gift) -->
+    @if (giftProvenance(); as gift) {
+      <div class="gift-provenance-banner">
+        <div class="gift-provenance-icon">
+          <app-icon name="card_giftcard"></app-icon>
+        </div>
+        <div class="gift-provenance-content">
+          <div class="gift-provenance-title">
+            <span>Gifted to you by <strong>{{ gift.from }}</strong></span>
+          </div>
+          @if (gift.message) {
+            <div class="gift-provenance-message">
+              <span class="quote-mark">&ldquo;</span>{{ gift.message }}<span class="quote-mark">&rdquo;</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
     <!-- Video Metadata & Details Layout -->
     <div class="video-details-layout">
       <!-- Main Column: Info, Instructor, Description, Chapters -->
@@ -453,18 +535,20 @@
 
           <!-- Tags & Access Chips Section -->
           <div class="chips-section">
-            <!-- Access Tiers (Grey Chips) -->
-            <div class="chips-group">
-              <span class="chips-heading">Who can access:</span>
-              <div class="chips-row">
-                @for (chip of getAccessTierChips(v); track chip.label) {
-                  <span class="access-grey-chip">
-                    <app-icon [name]="chip.icon"></app-icon>
-                    <span>{{ chip.label }}</span>
-                  </span>
-                }
+            <!-- Gift Button (Single gift button on site) -->
+            @if (canGiftSeries() || canGiftVideo()) {
+              <div class="chips-group gift-action-row">
+                <button
+                  type="button"
+                  class="gift-action-btn"
+                  (click)="openGiftModal(canGiftSeries() ? 'series' : 'video')"
+                  [title]="canGiftSeries() ? 'Buy this series as a gift for someone else' : 'Buy this video as a gift for someone else'"
+                >
+                  <app-icon name="card_giftcard"></app-icon>
+                  <span>{{ canGiftSeries() ? 'Gift Series' : 'Gift Video' }}</span>
+                </button>
               </div>
-            </div>
+            }
 
             <!-- Supported Quality Options (Interactive Chips) -->
             @if (getVideoResolutions(v); as resList) {
@@ -593,7 +677,6 @@
                   <button
                     type="button"
                     class="primary-btn series-buy-pill-btn"
-                    [disabled]="isPurchasing()"
                     (click)="startSeriesPurchase()"
                   >
                     <app-icon name="shopping_cart"></app-icon>
@@ -657,5 +740,156 @@
         </div>
       </div>
     </div>
+
+    <!-- Gift Purchase Modal Dialog -->
+    @if (isGiftModalOpen()) {
+      <div class="gift-modal-backdrop" (click)="closeGiftModal()">
+        <div class="gift-modal-card" (click)="$event.stopPropagation()">
+          <div class="gift-modal-header">
+            <div class="header-left">
+              <app-icon name="card_giftcard"></app-icon>
+              <h3>
+                @if (giftModalTarget() === 'series') {
+                  Gift Full Series
+                } @else {
+                  Gift Video Access
+                }
+              </h3>
+            </div>
+            <button type="button" class="close-btn" (click)="closeGiftModal()" title="Close">
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+
+          <div class="gift-modal-body">
+            @if (canGiftSeries() && canGiftVideo()) {
+              <div class="gift-target-toggle-wrap">
+                <div class="pill-tabs">
+                  <button
+                    type="button"
+                    class="pill-tab"
+                    [class.active]="giftModalTarget() === 'series'"
+                    (click)="giftModalTarget.set('series')"
+                  >
+                    Full Series ({{ series()?.videos?.length || '' }} episodes)
+                  </button>
+                  <button
+                    type="button"
+                    class="pill-tab"
+                    [class.active]="giftModalTarget() === 'video'"
+                    (click)="giftModalTarget.set('video')"
+                  >
+                    This Video Only
+                  </button>
+                </div>
+              </div>
+            }
+            <p class="gift-modal-desc">
+              @if (giftModalTarget() === 'series') {
+                Gift lifetime streaming access to all {{ series()?.videos?.length || '' }} episodes in
+                <strong>{{ series()?.title }}</strong>.
+              } @else {
+                Gift lifetime on-demand access to <strong>{{ v.title }}</strong>.
+              }
+              The recipient will receive an in-app notification and immediate streaming access.
+            </p>
+
+            <div class="gift-price-summary">
+              <span class="summary-label">Amount:</span>
+              <span class="summary-value">
+                @if (giftModalTarget() === 'series') {
+                  ${{ (((series()?.priceCents || sessionState()?.seriesPriceCents) || 0) / 100).toFixed(2) }}
+                } @else {
+                  ${{ (((v.priceCents || sessionState()?.priceCents) || 0) / 100).toFixed(2) }}
+                }
+              </span>
+            </div>
+
+            <div class="gift-modal-form">
+              @if (isMailOff()) {
+                <div class="mail-off-modal-notice">
+                  <app-icon name="info"></app-icon>
+                  <span>Email notifications are currently turned off. Gifts can only be sent to existing ILC member accounts.</span>
+                </div>
+              }
+              <div class="modal-form-group">
+                <label for="modalRecipientEmail">Recipient's Email <span class="required">*</span></label>
+                <input
+                  id="modalRecipientEmail"
+                  type="email"
+                  placeholder="recipient@example.com"
+                  [value]="giftRecipientEmail()"
+                  (input)="giftRecipientEmail.set($any($event.target).value)"
+                />
+              </div>
+
+              <div class="modal-form-group">
+                <label for="modalRecipientName">Recipient's Name (optional)</label>
+                <input
+                  id="modalRecipientName"
+                  type="text"
+                  placeholder="Recipient's Name"
+                  [value]="giftRecipientName()"
+                  (input)="giftRecipientName.set($any($event.target).value)"
+                />
+              </div>
+
+              <div class="modal-form-group">
+                <label for="modalGiftMessage">Personal Gift Note (optional)</label>
+                <textarea
+                  id="modalGiftMessage"
+                  rows="3"
+                  placeholder="Write a message to accompany your gift..."
+                  [value]="giftMessage()"
+                  (input)="giftMessage.set($any($event.target).value)"
+                ></textarea>
+              </div>
+
+              @if (giftValidationError()) {
+                <div class="gift-modal-error">
+                  <app-icon name="error"></app-icon>
+                  <span>{{ giftValidationError() }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="gift-modal-actions">
+            <button
+              type="button"
+              class="subtle-btn"
+              [disabled]="isPurchasing()"
+              (click)="closeGiftModal()"
+            >
+              Cancel
+            </button>
+            @if (isPurchasing()) {
+              <div class="purchasing-spinner-wrapper">
+                <app-spinner>
+                  <span>Redirecting to Checkout...</span>
+                </app-spinner>
+              </div>
+            } @else {
+              <button
+                type="button"
+                class="primary-btn gift-checkout-btn"
+                (click)="startGiftModalPurchase()"
+              >
+                <app-icon name="card_giftcard"></app-icon>
+                <span>
+                  Proceed to Gift Checkout (
+                  @if (giftModalTarget() === 'series') {
+                    ${{ (((series()?.priceCents || sessionState()?.seriesPriceCents) || 0) / 100).toFixed(2) }}
+                  } @else {
+                    ${{ (((v.priceCents || sessionState()?.priceCents) || 0) / 100).toFixed(2) }}
+                  }
+                  )
+                </span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
   }
 </div>

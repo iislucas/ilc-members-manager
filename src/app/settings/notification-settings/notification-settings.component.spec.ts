@@ -155,6 +155,69 @@ describe('NotificationSettingsComponent', () => {
     );
   });
 
+  it('should manage global email setting and respect it in isEmailKindEnabled', async () => {
+    fixture.detectChanges();
+    const dataManager = TestBed.inject(DataManagerService);
+
+    expect(component['globalEmailEnabled']()).toBe(true);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived),
+    ).toBe(true);
+
+    await component.setGlobalEmail(false);
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          globalEmailEnabled: false,
+        }),
+      }),
+      expect.any(Object),
+    );
+
+    // When global email is disabled, all email kinds report disabled
+    mockFirebaseService.user.set({
+      email: 'test@example.com',
+      member: {
+        docId: 'member-123',
+        name: 'Test Student',
+        notificationSettings: {
+          globalEmailEnabled: false,
+        },
+      },
+    });
+    fixture.detectChanges();
+    expect(component['globalEmailEnabled']()).toBe(false);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived),
+    ).toBe(false);
+  });
+
+  it('should toggle VodGiftReceived email preference specifically', async () => {
+    fixture.detectChanges();
+    const dataManager = TestBed.inject(DataManagerService);
+
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived),
+    ).toBe(true);
+
+    await component.toggleEmailKind(
+      TransactionalEmailKey.VodGiftReceived,
+      false,
+    );
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          emailEnabled: expect.objectContaining({
+            [TransactionalEmailKey.VodGiftReceived]: false,
+          }),
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+
   describe('device push toggle', () => {
     it('calls enablePushOnThisDevice when toggled to true and globalPush is enabled', async () => {
       mockFirebaseService.user.set({

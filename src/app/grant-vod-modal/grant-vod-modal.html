@@ -1,0 +1,240 @@
+<div class="modal-backdrop" (click)="close()">
+  <div class="modal-dialog" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="header-title-group">
+        <app-icon name="card_giftcard" class="header-icon"></app-icon>
+        <h3>Grant / Gift VOD Access</h3>
+      </div>
+      <button type="button" class="btn-icon close-btn" (click)="close()" aria-label="Close dialog">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Target Video / Series Summary Card -->
+      <div class="target-summary-card">
+        @if (video()?.thumbnailUrl || series()?.thumbnailUrl) {
+          <img
+            [src]="video()?.thumbnailUrl || series()?.thumbnailUrl"
+            alt="Thumbnail"
+            class="target-thumbnail"
+          />
+        }
+        <div class="target-info">
+          <div class="target-title">{{ effectiveTitle() }}</div>
+          <div class="target-meta">
+            @if (grantScope() === 'series') {
+              <span class="badge badge-series">Series Access</span>
+            } @else {
+              <span class="badge badge-video">Single Video</span>
+            }
+            @if (video()?.instructorName || series()?.instructorName) {
+              <span class="instructor-name">{{ video()?.instructorName || series()?.instructorName }}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Scope Switcher (if video belongs to a series or series was selected) -->
+      @if (canGrantSeries()) {
+        <div class="form-group">
+          <label class="form-label">Access Scope</label>
+          <div class="scope-toggle-group">
+            <button
+              type="button"
+              class="scope-btn"
+              [class.active]="grantScope() === 'video'"
+              (click)="grantScope.set('video')"
+              [disabled]="!video()"
+            >
+              <app-icon name="play_arrow"></app-icon>
+              <span>This Video Only</span>
+            </button>
+            <button
+              type="button"
+              class="scope-btn"
+              [class.active]="grantScope() === 'series'"
+              (click)="grantScope.set('series')"
+            >
+              <app-icon name="video_library"></app-icon>
+              <span>Entire Series @if (seriesVideoCount(); as cnt) { ({{ cnt }} videos) }</span>
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Mail Status Warning -->
+      @if (isMailOff()) {
+        <div class="mail-off-banner">
+          <app-icon name="info"></app-icon>
+          <span>Email notifications are currently turned off. Video access can only be granted to existing member accounts.</span>
+        </div>
+      }
+
+      <!-- Recipient Member Selection -->
+      <div class="form-group">
+        <div class="label-row">
+          <label class="form-label">Recipient</label>
+          @if (!isMailOff()) {
+            <button
+              type="button"
+              class="text-link-btn"
+              (click)="useManualEmail.set(!useManualEmail())"
+            >
+              {{ useManualEmail() ? '← Select existing member' : 'Or enter non-member email' }}
+            </button>
+          }
+        </div>
+
+        @if (!useManualEmail()) {
+          <app-member-selector
+            [value]="selectedMemberId()"
+            (valueChange)="selectedMemberId.set($event)"
+            (memberSelected)="onMemberSelected($event)"
+            placeholder="Search member by ID or name..."
+          ></app-member-selector>
+
+          @if (selectedMember(); as m) {
+            <div class="recipient-badge success">
+              <app-icon name="check_circle"></app-icon>
+              <span>
+                Selected: <strong>{{ m.name }}</strong> ({{ m.memberId || m.docId }}) &bull; {{ m.emails[0] }}
+              </span>
+            </div>
+          }
+        } @else {
+          <div class="manual-email-fields">
+            <input
+              type="email"
+              class="form-control"
+              placeholder="recipient@example.com"
+              [value]="manualEmail()"
+              (input)="manualEmail.set($any($event.target).value)"
+            />
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Recipient Name (optional)"
+              [value]="recipientName()"
+              (input)="recipientName.set($any($event.target).value)"
+            />
+          </div>
+        }
+      </div>
+
+      <!-- Grant Kind -->
+      <div class="form-group">
+        <label class="form-label">Grant Type</label>
+        <div class="grant-kind-options">
+          <label class="radio-card" [class.selected]="grantKind() === VideoGrantKind.AdminGrant">
+            <input
+              type="radio"
+              name="grantKind"
+              [value]="VideoGrantKind.AdminGrant"
+              [checked]="grantKind() === VideoGrantKind.AdminGrant"
+              (change)="grantKind.set(VideoGrantKind.AdminGrant)"
+            />
+            <div class="radio-card-content">
+              <span class="card-title">Staff / Admin Grant</span>
+              <span class="card-desc">Standard access granted by HQ administrators</span>
+            </div>
+          </label>
+
+          <label class="radio-card" [class.selected]="grantKind() === VideoGrantKind.Complimentary">
+            <input
+              type="radio"
+              name="grantKind"
+              [value]="VideoGrantKind.Complimentary"
+              [checked]="grantKind() === VideoGrantKind.Complimentary"
+              (change)="grantKind.set(VideoGrantKind.Complimentary)"
+            />
+            <div class="radio-card-content">
+              <span class="card-title">Complimentary Access</span>
+              <span class="card-desc">Free promotional or VIP access</span>
+            </div>
+          </label>
+
+          <label class="radio-card" [class.selected]="grantKind() === VideoGrantKind.GiftPurchase">
+            <input
+              type="radio"
+              name="grantKind"
+              [value]="VideoGrantKind.GiftPurchase"
+              [checked]="grantKind() === VideoGrantKind.GiftPurchase"
+              (change)="grantKind.set(VideoGrantKind.GiftPurchase)"
+            />
+            <div class="radio-card-content">
+              <span class="card-title">Courtesy Gift</span>
+              <span class="card-desc">Awarded as a gift or courtesy token</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Optional Message / Reason -->
+      <div class="form-group">
+        <label class="form-label">Personal Note / Gift Message (Optional)</label>
+        <textarea
+          class="form-control"
+          rows="3"
+          placeholder="e.g. Gift for passing Level 3 grading, or thank you for volunteering..."
+          [value]="notes()"
+          (input)="notes.set($any($event.target).value)"
+        ></textarea>
+        @if (sendNotification()) {
+          <span class="form-help">This note will appear in the recipient's notification and email.</span>
+        }
+      </div>
+
+      <!-- Notification Option -->
+      <div class="form-group">
+        <label class="notification-option-card" [class.checked]="sendNotification()">
+          <input
+            type="checkbox"
+            [checked]="sendNotification()"
+            (change)="sendNotification.set($any($event.target).checked)"
+          />
+          <div class="checkbox-content">
+            <span class="checkbox-title">Send notification to recipient</span>
+            <span class="checkbox-sub">
+              Sends an in-app alert and transactional email (subject to the recipient's notification settings).
+            </span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Error Message -->
+      @if (errorMessage()) {
+        <div class="error-banner">
+          <app-icon name="error"></app-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" (click)="close()" [disabled]="isGranting()">
+        Cancel
+      </button>
+
+      @if (isGranting()) {
+        <app-spinner>Granting access...</app-spinner>
+      } @else {
+        <button
+          type="button"
+          class="btn btn-primary"
+          (click)="submitGrant()"
+          [disabled]="!effectiveRecipientEmail()"
+        >
+          <app-icon name="card_giftcard"></app-icon>
+          <span>
+            @if (grantScope() === 'series') {
+              Grant Series Access @if (seriesVideoCount(); as cnt) { ({{ cnt }} videos) }
+            } @else {
+              Grant Video Access
+            }
+          </span>
+        </button>
+      }
+    </div>
+  </div>
+</div>

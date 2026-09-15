@@ -9,6 +9,8 @@ import {
   eventRegistrationConfirmationBody,
   vodPurchaseConfirmationSubject,
   vodPurchaseConfirmationBody,
+  vodGiftReceivedSubject,
+  vodGiftReceivedBody,
   gradingPaymentConfirmationSubject,
   gradingPaymentConfirmationBody,
   subscriptionRenewalSubject,
@@ -146,6 +148,9 @@ export interface EmailTemplates {
   vodPurchaseConfirmationSubject: string;
   vodPurchaseConfirmationBody: string;
 
+  vodGiftReceivedSubject: string;
+  vodGiftReceivedBody: string;
+
   gradingPaymentConfirmationSubject: string;
   gradingPaymentConfirmationBody: string;
 
@@ -206,6 +211,16 @@ export function initEmailTemplates(): EmailTemplates {
       videoUrl: '{videoUrl}',
       amount: '{amount}',
       receiptUrl: '{receiptUrl}',
+      appBase: '{appBase}',
+    }),
+
+    vodGiftReceivedSubject: vodGiftReceivedSubject(),
+    vodGiftReceivedBody: vodGiftReceivedBody({
+      name: '{name}',
+      giverName: '{giverName}',
+      videoTitle: '{videoTitle}',
+      videoUrl: '{videoUrl}',
+      giftMessage: '{giftMessage}',
       appBase: '{appBase}',
     }),
 

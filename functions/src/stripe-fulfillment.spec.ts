@@ -15,6 +15,15 @@ import {
   syncSubscriptionStatusToMember,
   fulfillEventRegistration,
 } from './stripe-fulfillment';
+import { sendTransactionalEmail } from './email-dispatcher.js';
+
+vi.mock('./email-dispatcher.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./email-dispatcher.js')>();
+  return {
+    ...actual,
+    sendTransactionalEmail: vi.fn().mockResolvedValue('mock_mail_fulfillment'),
+  };
+});
 
 // The address members are pointed at when a purchase needs a human is
 // deployment configuration, and `environment.ts` is gitignored — so pin it here
@@ -56,18 +65,32 @@ describe('stripe-fulfillment', () => {
     classVideoLibraryNextAutoRenewDate: '',
   };
 
+  let mockVideoGrantsSet: any;
+  let mockMemberVideoGrantsSet: any;
+
   beforeEach(() => {
     mockNotificationSet = vi.fn().mockResolvedValue({});
+    mockVideoGrantsSet = vi.fn().mockResolvedValue({});
+    mockMemberVideoGrantsSet = vi.fn().mockResolvedValue({});
     mockMemberRef = {
       update: vi.fn().mockResolvedValue({}),
-      collection: vi.fn().mockReturnValue({
-        doc: vi.fn().mockReturnValue({
-          id: 'mock_doc_id',
-          set: mockNotificationSet,
-        }),
-        where: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
-        }),
+      collection: vi.fn((subCol: string) => {
+        if (subCol === 'videoGrants') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              set: mockMemberVideoGrantsSet,
+            }),
+          };
+        }
+        return {
+          doc: vi.fn().mockReturnValue({
+            id: 'mock_doc_id',
+            set: mockNotificationSet,
+          }),
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+          }),
+        };
       }),
     };
 
@@ -141,6 +164,13 @@ describe('stripe-fulfillment', () => {
                 exists: true,
                 data: () => ({ memberDocIds: ['mem_123'] }),
               }),
+            }),
+          };
+        }
+        if (colName === 'video_grants') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              set: mockVideoGrantsSet,
             }),
           };
         }
@@ -1560,6 +1590,229 @@ describe('stripe-fulfillment', () => {
                 status: 'active',
                 currentPeriodEnd: '2027-08-15',
               }),
+            }),
+          }),
+        );
+      });
+    });
+
+    describe('VOD and gift fulfillment', () => {
+      it('provisions personal VOD grant for buyer', async () => {
+        const order: StripeOrder = {
+          docId: 'order_vod_1',
+          lastUpdated: '2026-05-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_vod_1',
+          checkoutSessionId: 'cs_vod_1',
+          created: '2026-05-15T00:00:00Z',
+          customerEmail: 'sam@example.com',
+          amountTotal: 2500,
+          currency: 'usd',
+          mode: StripeCheckoutMode.Payment,
+          metadata: {
+            memberDocId: 'mem_123',
+            videoId: 'vid_spinning_hands',
+            orderType: 'vod',
+          },
+          lineItems: [
+            {
+              description: 'Spinning Hands Workshop',
+              quantity: 1,
+              amountTotal: 2500,
+              currency: 'usd',
+              priceId: 'price_vod_1',
+              productId: 'prod_vid_spinning_hands',
+            },
+          ],
+        };
+
+        mockMemberRef.get = vi.fn().mockResolvedValue({
+          exists: true,
+          id: 'mem_123',
+          data: () => ({ ...sampleMember }),
+        });
+
+        await fulfillStripeOrder(mockDb, sampleMember, order, 'order_vod_1');
+
+        expect(mockMemberVideoGrantsSet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            docId: 'vid_spinning_hands',
+            videoId: 'vid_spinning_hands',
+            memberDocId: 'mem_123',
+            grantKind: 'stripe_purchase',
+          }),
+        );
+        expect(mockVideoGrantsSet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            docId: 'vid_spinning_hands',
+            videoId: 'vid_spinning_hands',
+            memberDocId: 'mem_123',
+            grantKind: 'stripe_purchase',
+          }),
+        );
+      });
+
+      it('provisions gifted VOD grant to recipient and sends notification', async () => {
+        const order: StripeOrder = {
+          docId: 'order_vod_gift_1',
+          lastUpdated: '2026-05-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_gift_1',
+          checkoutSessionId: 'cs_gift_1',
+          created: '2026-05-15T00:00:00Z',
+          customerEmail: 'sam@example.com',
+          amountTotal: 4999,
+          currency: 'usd',
+          mode: StripeCheckoutMode.Payment,
+          metadata: {
+            memberDocId: 'mem_123',
+            videoId: 'vid_level_3',
+            isGift: 'true',
+            recipientEmail: 'friend@example.com',
+            recipientName: 'Kung Fu Friend',
+            giftMessage: 'Happy Birthday! Enjoy training.',
+            orderType: 'vod',
+          },
+          lineItems: [
+            {
+              description: 'Level 3 Complete Masterclass',
+              quantity: 1,
+              amountTotal: 4999,
+              currency: 'usd',
+              priceId: 'price_level_3',
+              productId: 'prod_vid_level_3',
+            },
+          ],
+        };
+
+        const buyerMember = {
+          ...sampleMember,
+          docId: 'mem_123',
+          name: 'Sam Chin',
+        };
+
+        const recipientMember = {
+          ...initMember(),
+          docId: 'mem_friend_456',
+          name: 'Kung Fu Friend',
+          emails: ['friend@example.com'],
+        };
+
+        mockMemberRef.get = vi.fn().mockImplementation(() =>
+          Promise.resolve({
+            exists: true,
+            id: 'mem_123',
+            data: () => buyerMember,
+          }),
+        );
+
+        const originalCollection = mockDb.collection;
+        mockDb.collection = vi.fn((colName: string) => {
+          if (colName === 'acl') {
+            return {
+              doc: vi.fn((email: string) => ({
+                get: vi.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({
+                    memberDocIds: email === 'friend@example.com' ? ['mem_friend_456'] : ['mem_123'],
+                  }),
+                }),
+              })),
+            };
+          }
+          if (colName === 'members') {
+            return {
+              doc: vi.fn((docId: string) => {
+                if (docId === 'mem_friend_456') {
+                  return {
+                    get: vi.fn().mockResolvedValue({
+                      exists: true,
+                      id: 'mem_friend_456',
+                      data: () => recipientMember,
+                    }),
+                    collection: vi.fn().mockReturnValue({
+                      doc: vi.fn().mockReturnValue({
+                        set: mockMemberVideoGrantsSet,
+                      }),
+                      where: vi.fn().mockReturnValue({
+                        get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+                      }),
+                    }),
+                  };
+                }
+                return mockMemberRef;
+              }),
+              where: vi.fn((field: string, op: string, val: string) => {
+                if (field === 'emails' && val === 'friend@example.com') {
+                  return {
+                    limit: vi.fn().mockReturnValue({
+                      get: vi.fn().mockResolvedValue({
+                        empty: false,
+                        docs: [{ id: 'mem_friend_456', data: () => recipientMember }],
+                      }),
+                    }),
+                  };
+                }
+                return {
+                  limit: vi.fn().mockReturnValue({
+                    get: vi.fn().mockResolvedValue({
+                      empty: false,
+                      docs: [{ id: 'mem_123', data: () => buyerMember }],
+                    }),
+                  }),
+                };
+              }),
+            };
+          }
+          if (colName === 'video_grants') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                set: mockVideoGrantsSet,
+              }),
+            };
+          }
+          return originalCollection(colName);
+        });
+
+        await fulfillStripeOrder(mockDb, buyerMember, order, 'order_vod_gift_1');
+
+        expect(mockVideoGrantsSet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            docId: 'vid_level_3',
+            videoId: 'vid_level_3',
+            memberDocId: 'mem_friend_456',
+            memberEmail: 'friend@example.com',
+            grantKind: 'gift_purchase',
+            giftedByName: 'Sam Chin',
+            giftMessage: 'Happy Birthday! Enjoy training.',
+          }),
+        );
+
+        // Recipient received vodGiftReceived email
+        expect(sendTransactionalEmail).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            to: 'friend@example.com',
+            templateKey: 'vodGiftReceived',
+            replacements: expect.objectContaining({
+              name: 'Kung Fu Friend',
+              giverName: 'Sam Chin',
+              videoTitle: 'Level 3 Complete Masterclass',
+              giftMessage: 'Happy Birthday! Enjoy training.',
+            }),
+          }),
+        );
+
+        // Buyer received purchase confirmation indicating it was a gift
+        expect(sendTransactionalEmail).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            to: 'sam@example.com',
+            templateKey: 'vodPurchaseConfirmation',
+            replacements: expect.objectContaining({
+              videoTitle: 'Level 3 Complete Masterclass (Gift for Kung Fu Friend)',
             }),
           }),
         );

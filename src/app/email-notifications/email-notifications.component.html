@@ -351,6 +351,14 @@
           <button
             type="button"
             class="pill-tab"
+            data-label="VOD Gift Received"
+            [class.active]="activePurchaseSubtype() === 'vod-gift'"
+            (click)="setPurchaseSubtype('vod-gift')">
+            VOD Gift Received
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
             data-label="Grading Assessment"
             [class.active]="activePurchaseSubtype() === 'grading'"
             (click)="setPurchaseSubtype('grading')">
@@ -375,6 +383,7 @@
             <option value="order">Store Orders</option>
             <option value="event">Event Registration</option>
             <option value="vod">Video on Demand (VOD)</option>
+            <option value="vod-gift">VOD Gift Received</option>
             <option value="grading">Grading Assessment</option>
             <option value="subscription">Subscription Renewal</option>
           </select>
@@ -500,6 +509,41 @@
               </div>
               <div class="preview-body" [innerHTML]="vodPreviewHtml()"></div>
             </div>
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'vod-gift') {
+        <div class="template-section">
+          <h4>VOD Gift Received Notification</h4>
+          <p class="section-subtext">
+            Sent to the recipient when a member or admin gifts them on-demand video or series access.
+          </p>
+          <div class="form-group">
+            <label for="vod-gift-subject">Email Subject</label>
+            <input
+              id="vod-gift-subject"
+              type="text"
+              [(ngModel)]="templates().vodGiftReceivedSubject"
+              placeholder="Gift Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().vodGiftReceivedBody"
+                [chips]="vodGiftChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('vodGiftReceivedBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (vodGiftBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ vodGiftBodyWarnings().join(', ') }}.
+              </div>
+            }
           </div>
         </div>
       }

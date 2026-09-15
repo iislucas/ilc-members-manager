@@ -10,7 +10,8 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { StripeService } from '../stripe.service';
-import { initVideoItem, VideoItem, VideoTimeRange, VodAccessTier, VodStatus } from '../../../functions/src/data-model/vod';
+import { initVideoItem, VideoItem, VideoTimeRange, VodAccessTier, VodStatus, VideoGrant, VideoGrantKind } from '../../../functions/src/data-model/vod';
+import { initMailSettings, MailSendingStatus, MailSettings } from '../../../functions/src/data-model/mail';
 import { signal, WritableSignal } from '@angular/core';
 
 describe('VideoViewComponent', () => {
@@ -25,6 +26,8 @@ describe('VideoViewComponent', () => {
     saveVideoTimeRanges: ReturnType<typeof vi.fn>;
     getTagMeta: ReturnType<typeof vi.fn>;
     videos: { entries: WritableSignal<VideoItem[]> };
+    myVideoGrants: { entries: WritableSignal<VideoGrant[]> };
+    mailSettings: WritableSignal<MailSettings>;
   };
   let mockFirebaseState: {
     user: WritableSignal<null>;
@@ -73,6 +76,10 @@ describe('VideoViewComponent', () => {
       videos: {
         entries: signal([]),
       },
+      myVideoGrants: {
+        entries: signal<VideoGrant[]>([]),
+      },
+      mailSettings: signal(initMailSettings()),
     };
 
     mockFirebaseState = {
@@ -396,5 +403,307 @@ describe('VideoViewComponent', () => {
 
     expect(seekSpy).toHaveBeenCalledWith(200);
     expect(component.activeLoopRange()).toBeNull();
+  });
+
+  describe('VOD Gifting', () => {
+    beforeEach(() => {
+      const buyableVideo: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v100',
+        title: 'Mastering Zhong Xin Dao',
+        isBuyable: true,
+        stripePriceId: 'price_vod_100',
+        priceCents: 2500,
+        isPublished: true,
+      };
+      component.video.set(buyableVideo);
+      component.isLoading.set(false);
+    });
+
+    it('should validate recipient email when purchasing as a gift', async () => {
+      component.isGiftPurchase.set(true);
+      component.giftRecipientEmail.set(''); // Empty email
+
+      await component.startPurchase();
+
+      expect(component.giftValidationError()).toBe('Please enter a valid recipient email address.');
+      expect(mockStripeService.createCheckoutSession).not.toHaveBeenCalled();
+
+      // Invalid email without @
+      component.giftRecipientEmail.set('invalid-email');
+      await component.startPurchase();
+      expect(component.giftValidationError()).toBe('Please enter a valid recipient email address.');
+      expect(mockStripeService.createCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    it('should initiate checkout with gift parameters for a single video', async () => {
+      component.isGiftPurchase.set(true);
+      component.giftRecipientEmail.set('friend@example.com');
+      component.giftRecipientName.set('Jane Doe');
+      component.giftMessage.set('Enjoy learning ZXD!');
+
+      await component.startPurchase();
+
+      expect(component.giftValidationError()).toBeNull();
+      expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
+        'price_vod_100',
+        expect.any(String),
+        1,
+        expect.objectContaining({
+          isGift: true,
+          recipientEmail: 'friend@example.com',
+          recipientName: 'Jane Doe',
+          giftMessage: 'Enjoy learning ZXD!',
+          metadata: expect.objectContaining({
+            videoId: 'v100',
+            orderType: 'vod',
+          }),
+        }),
+      );
+    });
+
+    it('should initiate checkout with gift parameters for a series via gift modal', async () => {
+      const ep1: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v100',
+        title: 'Part 1',
+        seriesId: 'series-gift-1',
+        seriesTitle: 'Advanced Series',
+        seriesStripePriceId: 'price_series_gift',
+        seriesPriceCents: 6000,
+        isPublished: true,
+      };
+      const ep2: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v101',
+        title: 'Part 2',
+        seriesId: 'series-gift-1',
+        seriesTitle: 'Advanced Series',
+        seriesStripePriceId: 'price_series_gift',
+        seriesPriceCents: 6000,
+        isPublished: true,
+      };
+
+      mockDataService.videos.entries.set([ep1, ep2]);
+      component.video.set(ep1);
+
+      component.openGiftModal('series');
+      expect(component.isGiftModalOpen()).toBe(true);
+      expect(component.giftModalTarget()).toBe('series');
+
+      component.giftRecipientEmail.set('student@example.com');
+      component.giftRecipientName.set('Student Name');
+      component.giftMessage.set('Congrats on grading!');
+
+      await component.startGiftModalPurchase();
+
+      expect(component.giftValidationError()).toBeNull();
+      expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
+        'price_series_gift',
+        expect.any(String),
+        1,
+        expect.objectContaining({
+          isGift: true,
+          recipientEmail: 'student@example.com',
+          recipientName: 'Student Name',
+          giftMessage: 'Congrats on grading!',
+          metadata: expect.objectContaining({
+            seriesId: 'series-gift-1',
+            orderType: 'vod',
+          }),
+        }),
+      );
+    });
+
+    it('should detect gift provenance when current user has received a video gift', async () => {
+      await component.ngOnInit();
+      await fixture.whenStable();
+
+      const giftGrant: VideoGrant = {
+        docId: 'grant_1',
+        videoId: 'v100',
+        memberDocId: 'mem_1',
+        memberEmail: 'me@example.com',
+        grantKind: VideoGrantKind.GiftPurchase,
+        grantedAt: new Date().toISOString(),
+        giftedByName: 'Master Instructor',
+        giftedByEmail: 'master@ilc.com',
+        giftMessage: 'Special gift for dedicated practice',
+      };
+
+      mockDataService.myVideoGrants.entries.set([giftGrant]);
+      fixture.detectChanges();
+
+      const provenance = component.giftProvenance();
+      expect(provenance).toEqual({
+        from: 'Master Instructor',
+        message: 'Special gift for dedicated practice',
+      });
+
+      // Verify template renders the banner
+      const compiled = fixture.nativeElement as HTMLElement;
+      const banner = compiled.querySelector('.gift-provenance-banner');
+      expect(banner).toBeTruthy();
+      expect(banner?.textContent).toContain('Gifted to you by Master Instructor');
+      expect(banner?.textContent).toContain('Special gift for dedicated practice');
+    });
+
+    it('should reset gift state when navigating to another video', async () => {
+      component.isGiftPurchase.set(true);
+      component.isGiftModalOpen.set(true);
+      component.giftValidationError.set('Some previous error');
+
+      mockDataService.getVideoById.mockResolvedValueOnce({
+        ...initVideoItem(),
+        docId: 'v200',
+        title: 'Another Video',
+      });
+
+      await component.loadVideo('v200');
+
+      expect(component.isGiftPurchase()).toBe(false);
+      expect(component.isGiftModalOpen()).toBe(false);
+      expect(component.giftValidationError()).toBeNull();
+    });
+
+    it('should display mail-off notice when email notifications are off', async () => {
+      mockDataService.mailSettings.set({
+        ...initMailSettings(),
+        status: MailSendingStatus.Off,
+      });
+
+      mockDataService.getVideoById.mockResolvedValue({
+        ...initVideoItem(),
+        docId: 'v100',
+        title: 'Paid Video',
+        accessTier: VodAccessTier.DirectPurchase,
+        isBuyable: true,
+        priceCents: 2000,
+        stripePriceId: 'price_paid_1',
+      });
+      mockDataService.getVideoPlaybackSession.mockResolvedValue({
+        authorized: false,
+        requiresPurchase: true,
+        stripePriceId: 'price_paid_1',
+      });
+
+      await component.ngOnInit();
+      component.isGiftPurchase.set(true);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.isMailOff()).toBe(true);
+      const compiled = fixture.nativeElement as HTMLElement;
+      const notice = compiled.querySelector('.mail-off-notice');
+      expect(notice).toBeTruthy();
+      expect(notice?.textContent).toContain('Email notifications are currently turned off');
+
+      // Open gift modal
+      component.openGiftModal('video');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const modalNotice = compiled.querySelector('.mail-off-modal-notice');
+      expect(modalNotice).toBeTruthy();
+      expect(modalNotice?.textContent).toContain('Gifts can only be sent to existing ILC member accounts');
+    });
+
+    it('should display giftValidationError if gift checkout fails', async () => {
+      mockDataService.getVideoById.mockResolvedValueOnce({
+        ...initVideoItem(),
+        docId: 'v300',
+        title: 'Paid Video',
+        accessTier: VodAccessTier.DirectPurchase,
+        isBuyable: true,
+        priceCents: 2000,
+        stripePriceId: 'price_paid_1',
+      });
+      await component.loadVideo('v300');
+
+      mockStripeService.createCheckoutSession.mockRejectedValueOnce(
+        new Error('Email notifications are currently turned off. Gifts can only be sent to existing member accounts.'),
+      );
+
+      component.giftRecipientEmail.set('nonmember@example.com');
+      await component.startPurchase(true);
+
+      expect(component.giftValidationError()).toBe(
+        'Email notifications are currently turned off. Gifts can only be sent to existing member accounts.',
+      );
+    });
+
+    it('should render exactly one gift button on page in chips section and not in series playlist or meta-row', async () => {
+      await component.ngOnInit();
+      await fixture.whenStable();
+
+      const ep1: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v100',
+        title: 'Series Part 1',
+        seriesId: 'series-spacing',
+        seriesTitle: 'Understanding Spacing',
+        seriesStripePriceId: 'price_series_spacing',
+        seriesPriceCents: 5000,
+        isBuyable: true,
+        isPublished: true,
+        priceCents: 2500,
+        stripePriceId: 'price_v1',
+      };
+      const ep2: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v101',
+        title: 'Series Part 2',
+        seriesId: 'series-spacing',
+        seriesTitle: 'Understanding Spacing',
+        seriesStripePriceId: 'price_series_spacing',
+        seriesPriceCents: 5000,
+        isPublished: true,
+      };
+
+      mockDataService.videos.entries.set([ep1, ep2]);
+      component.video.set(ep1);
+      component.isLoading.set(false);
+      component.errorMessage.set(null);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      // Ensure "Who can access:" line is NOT rendered
+      expect(compiled.textContent).not.toContain('Who can access:');
+
+      // Ensure no gift button in series playlist
+      expect(compiled.querySelector('.series-playlist-gift')).toBeNull();
+
+      // Ensure no gift button in meta-row
+      expect(compiled.querySelector('.meta-row .gift-action-btn')).toBeNull();
+
+      // Ensure single gift button in chips section
+      const giftButtons = compiled.querySelectorAll('.gift-action-btn');
+      expect(giftButtons.length).toBe(1);
+      const giftBtn = compiled.querySelector('.chips-section .gift-action-btn');
+      expect(giftBtn).toBeTruthy();
+      expect(giftBtn?.textContent).toContain('Gift Series');
+
+      // Clicking gift button opens modal and allows toggling between series and video
+      (giftBtn as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.isGiftModalOpen()).toBe(true);
+      expect(component.giftModalTarget()).toBe('series');
+
+      const modalPills = compiled.querySelectorAll('.gift-target-toggle-wrap .pill-tab');
+      expect(modalPills.length).toBe(2);
+
+      // Switch to video
+      (modalPills[1] as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.giftModalTarget()).toBe('video');
+    });
   });
 });

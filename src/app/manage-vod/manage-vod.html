@@ -69,6 +69,34 @@
     </div>
   }
 
+  <!-- View Mode Pill Tabs -->
+  <div class="pill-tabs">
+    <button
+      type="button"
+      class="pill-tab"
+      [attr.data-label]="'Series Collections (' + filteredSeries().length + ')'"
+      [class.active]="viewMode() === 'series_collections'"
+      (click)="setViewMode('series_collections')"
+    >
+      <span class="tab-content">
+        <app-icon name="collections"></app-icon>
+        <span>Series Collections ({{ filteredSeries().length }})</span>
+      </span>
+    </button>
+    <button
+      type="button"
+      class="pill-tab"
+      [attr.data-label]="'All Videos (' + filteredVideos().length + ')'"
+      [class.active]="viewMode() === 'all_videos'"
+      (click)="setViewMode('all_videos')"
+    >
+      <span class="tab-content">
+        <app-icon name="video_library"></app-icon>
+        <span>All Videos ({{ filteredVideos().length }})</span>
+      </span>
+    </button>
+  </div>
+
   <!-- Filter & Search Toolbar -->
   <div class="filter-toolbar">
     <div class="search-box">
@@ -191,28 +219,6 @@
           <span>Clear Filters</span>
         </button>
       }
-    </div>
-
-    <!-- View Mode Selector -->
-    <div class="view-mode-tabs">
-      <button
-        type="button"
-        class="view-mode-btn"
-        [class.active]="viewMode() === 'all_videos'"
-        (click)="viewMode.set('all_videos')"
-      >
-        <app-icon name="video_library"></app-icon>
-        <span>All Videos ({{ filteredVideos().length }})</span>
-      </button>
-      <button
-        type="button"
-        class="view-mode-btn"
-        [class.active]="viewMode() === 'series_collections'"
-        (click)="viewMode.set('series_collections')"
-      >
-        <app-icon name="collections"></app-icon>
-        <span>Series Collections ({{ filteredSeries().length }})</span>
-      </button>
     </div>
   </div>
 
@@ -436,6 +442,16 @@
                         </button>
                       }
 
+                      <!-- Grant / Gift Video -->
+                      <button
+                        type="button"
+                        class="menu-item"
+                        (click)="openGrantModal(video, $event)"
+                      >
+                        <app-icon name="card_giftcard"></app-icon>
+                        <span>Grant Access / Gift</span>
+                      </button>
+
                       <div class="menu-divider"></div>
 
                       <!-- Delete Video -->
@@ -512,6 +528,15 @@
             >
               <app-icon name="edit"></app-icon>
               <span>Edit Series &amp; Parts</span>
+            </button>
+            <button
+              type="button"
+              class="secondary-btn"
+              (click)="openGrantSeriesModal(series, $event)"
+              title="Grant or gift access to all videos in this series"
+            >
+              <app-icon name="card_giftcard"></app-icon>
+              <span>Grant / Gift Series</span>
             </button>
           </div>
         </div>
@@ -649,6 +674,16 @@
                       <span>Re-trigger Transcoding</span>
                     </button>
                   }
+
+                  <!-- Grant / Gift Video -->
+                  <button
+                    type="button"
+                    class="menu-item"
+                    (click)="openGrantModal(d, $event)"
+                  >
+                    <app-icon name="card_giftcard"></app-icon>
+                    <span>Grant Access / Gift</span>
+                  </button>
 
                   <div class="menu-divider"></div>
 
@@ -1170,6 +1205,16 @@
         </div>
       </div>
     </div>
+  }
+
+  <!-- Grant / Gift VOD Access Modal -->
+  @if (grantingVideo() || grantingSeries()) {
+    <app-grant-vod-modal
+      [video]="grantingVideo()"
+      [series]="grantingSeries()"
+      (closed)="closeGrantModal()"
+      (granted)="onAccessGranted($event)"
+    ></app-grant-vod-modal>
   }
 </div>
 

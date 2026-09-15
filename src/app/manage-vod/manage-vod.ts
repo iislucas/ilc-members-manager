@@ -26,6 +26,7 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 import { TagInputComponent } from '../tag-input/tag-input';
+import { GrantVodModalComponent } from '../grant-vod-modal/grant-vod-modal';
 
 @Component({
   selector: 'app-manage-vod',
@@ -37,6 +38,7 @@ import { TagInputComponent } from '../tag-input/tag-input';
     SpinnerComponent,
     AutocompleteComponent,
     TagInputComponent,
+    GrantVodModalComponent,
   ],
   templateUrl: './manage-vod.html',
   styleUrl: './manage-vod.scss',
@@ -58,13 +60,21 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   selectedAccessTier = computed(() => this.viewSignals.urlParams.accessTier() || 'all');
   selectedVideoIdParam = computed(() => this.viewSignals.urlParams.videoId() || '');
   editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
+  grantVideoIdParam = computed(() => this.viewSignals.urlParams.grantVideoId() || '');
+  grantSeriesIdParam = computed(() => this.viewSignals.urlParams.grantSeriesId() || '');
+  tabParam = computed(() => this.viewSignals.urlParams.tab() || 'series_collections');
   selectedTagFilter = signal<string>('');
   selectedTagSearchTerm = signal<string>('');
 
   // Series & View Mode Signals
-  viewMode = signal<'all_videos' | 'series_collections'>('all_videos');
+  viewMode = signal<'all_videos' | 'series_collections'>('series_collections');
   selectedSeriesFilter = signal<string>('all');
   allSeries = computed<VideoSeries[]>(() => this.dataService.getVideoSeriesList());
+
+  setViewMode(mode: 'all_videos' | 'series_collections'): void {
+    this.viewMode.set(mode);
+    this.viewSignals.urlParams.tab.set(mode);
+  }
 
   // Edit Video Modal Series Signals
   editSeriesId = signal<string>('');
@@ -99,6 +109,45 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   // 3-Dots Action Menu state
   activeMenuVideoId = signal<string | null>(null);
   deletingVideoIds = signal<Set<string>>(new Set());
+
+  // Grant Access Modal state
+  grantingVideo = signal<VideoItem | null>(null);
+  grantingSeries = signal<VideoSeries | null>(null);
+
+  openGrantModal(video: VideoItem, event?: Event, updateUrl: boolean = true): void {
+    if (event) event.stopPropagation();
+    this.closeMenu();
+    if (updateUrl) {
+      this.viewSignals.urlParams.grantSeriesId.set('');
+      this.viewSignals.urlParams.grantVideoId.set(video.docId);
+    }
+    this.grantingSeries.set(null);
+    this.grantingVideo.set(video);
+  }
+
+  openGrantSeriesModal(series: VideoSeries, event?: Event, updateUrl: boolean = true): void {
+    if (event) event.stopPropagation();
+    this.closeMenu();
+    if (updateUrl) {
+      this.viewSignals.urlParams.grantVideoId.set('');
+      this.viewSignals.urlParams.grantSeriesId.set(series.seriesId);
+    }
+    this.grantingVideo.set(null);
+    this.grantingSeries.set(series);
+  }
+
+  closeGrantModal(updateUrl: boolean = true): void {
+    this.grantingVideo.set(null);
+    this.grantingSeries.set(null);
+    if (updateUrl) {
+      this.viewSignals.urlParams.grantVideoId.set('');
+      this.viewSignals.urlParams.grantSeriesId.set('');
+    }
+  }
+
+  onAccessGranted(result: { targetId: string; recipientEmail: string; grantedCount: number }): void {
+    console.info('VOD access granted successfully:', result);
+  }
 
   isDeleting(videoId?: string): boolean {
     if (!videoId) return false;
@@ -387,6 +436,53 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       } else {
         if (this.editingVideo()) {
           this.closeEditModal(false);
+        }
+      }
+    });
+
+    effect(() => {
+      const tab = this.tabParam();
+      if (tab === 'all_videos' || tab === 'series_collections') {
+        if (this.viewMode() !== tab) {
+          this.viewMode.set(tab);
+        }
+      }
+    });
+
+    effect(() => {
+      const gVid = this.grantVideoIdParam();
+      if (gVid) {
+        if (this.grantingVideo()?.docId !== gVid) {
+          const v = this.dataService.videos.get(gVid);
+          if (v) {
+            this.openGrantModal(v, undefined, false);
+          } else {
+            this.dataService.getVideoById(gVid).then((fetched) => {
+              if (fetched && this.grantVideoIdParam() === gVid) {
+                this.openGrantModal(fetched, undefined, false);
+              }
+            });
+          }
+        }
+      } else if (!this.grantSeriesIdParam()) {
+        if (this.grantingVideo()) {
+          this.closeGrantModal(false);
+        }
+      }
+    });
+
+    effect(() => {
+      const gSid = this.grantSeriesIdParam();
+      if (gSid) {
+        if (this.grantingSeries()?.seriesId !== gSid) {
+          const s = this.allSeries().find((item) => item.seriesId === gSid);
+          if (s) {
+            this.openGrantSeriesModal(s, undefined, false);
+          }
+        }
+      } else if (!this.grantVideoIdParam()) {
+        if (this.grantingSeries()) {
+          this.closeGrantModal(false);
         }
       }
     });

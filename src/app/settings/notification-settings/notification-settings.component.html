@@ -120,6 +120,55 @@
     <!-- Email Notifications Section -->
     <div class="settings-section">
       <h3>Email Notifications</h3>
+
+      <!-- Account-wide master switch (saved to your member profile) -->
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-title">Receive email notifications</span>
+          <span class="pref-sub"
+            >Account-wide setting. Turn this on to allow transactional email
+            notifications.</span
+          >
+        </div>
+        <div class="toggle-control">
+          <input
+            type="checkbox"
+            id="global-email"
+            [checked]="globalEmailEnabled()"
+            [disabled]="digestBusy()"
+            (change)="setGlobalEmail($any($event.target).checked)"
+          />
+          <label for="global-email">Enabled</label>
+        </div>
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-title">Video Access & Gifts</span>
+          <span class="pref-sub"
+            >Notifications when on-demand video access or a video gift is
+            granted to your account.</span
+          >
+        </div>
+        <div class="toggle-control">
+          <input
+            type="checkbox"
+            id="email-vod-gift"
+            [disabled]="digestBusy() || !globalEmailEnabled()"
+            [checked]="
+              isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived)
+            "
+            (change)="
+              toggleEmailKind(
+                TransactionalEmailKey.VodGiftReceived,
+                $any($event.target).checked
+              )
+            "
+          />
+          <label for="email-vod-gift">Video Gifts</label>
+        </div>
+      </div>
+
       <div class="pref-row">
         <div class="pref-info">
           <span class="pref-title">Upcoming Events Digest</span>
@@ -133,7 +182,7 @@
             #freqSelect
             id="event-digest-frequency"
             class="digest-select"
-            [disabled]="digestBusy()"
+            [disabled]="digestBusy() || !globalEmailEnabled()"
             [value]="eventDigestFrequency()"
             (change)="setEventDigestFrequency(freqSelect.value)"
           >
@@ -156,7 +205,7 @@
           <input
             type="checkbox"
             id="email-orders"
-            [disabled]="digestBusy()"
+            [disabled]="digestBusy() || !globalEmailEnabled()"
             [checked]="
               isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation)
             "
@@ -183,7 +232,7 @@
           <input
             type="checkbox"
             id="email-subscriptions"
-            [disabled]="digestBusy()"
+            [disabled]="digestBusy() || !globalEmailEnabled()"
             [checked]="
               isEmailKindEnabled(TransactionalEmailKey.SubscriptionRenewal)
             "
@@ -210,7 +259,7 @@
           <input
             type="checkbox"
             id="email-event-regs"
-            [disabled]="digestBusy()"
+            [disabled]="digestBusy() || !globalEmailEnabled()"
             [checked]="
               isEmailKindEnabled(
                 TransactionalEmailKey.EventRegistrationConfirmation
