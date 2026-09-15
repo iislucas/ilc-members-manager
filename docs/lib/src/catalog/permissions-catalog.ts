@@ -317,13 +317,13 @@ export const PERMISSIONS_CATALOG: PermissionEntry[] = [
   },
   {
     id: 'manage:school-roster',
-    title: 'Manage School Student Affiliations',
+    title: 'Manage School Student Affiliations & Scoped Records',
     category: 'Organization & Schools',
-    description: 'Allows school managers to affiliate or unaffiliate registered members with their school.',
+    description: 'Allows school managers to affiliate or unaffiliate registered members with their school and update operational fields (notes, address, levels) under strict whitelist enforcement.',
     accessType: 'write',
     targetDataTypes: ['member', 'school'],
-    securityRulesMechanism: 'isManagerOfMemberSchool() on /members/{id}.',
-    ruleCodeSnippet: 'allow write: if isManagerOfMemberSchool();',
+    securityRulesMechanism: 'isManagerOfMemberSchool() and isManagerAllowedUpdate() whitelist guard on /members/{id}. Prevents escalation to isAdmin or modifying memberId.',
+    ruleCodeSnippet: 'allow update: if hasValidEditUpdate() && isManagerOfMemberSchool() && isManagerAllowedUpdate();',
     grantedPersonas: ['school-manager'],
   },
   {
