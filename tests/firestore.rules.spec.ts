@@ -348,6 +348,54 @@ describe('Firestore Rules', () => {
       );
     });
 
+    it('should deny school manager updating isAdmin on a member (CRIT-2)', async () => {
+      const db = testEnv
+        .authenticatedContext('manager_user', { email: 'school_manager@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('members').doc('FirestoreDocID-student1').update({
+          isAdmin: true,
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should deny school manager updating memberId on a member', async () => {
+      const db = testEnv
+        .authenticatedContext('manager_user', { email: 'school_manager@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('members').doc('FirestoreDocID-student1').update({
+          memberId: 'FORGED-ID',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should deny owner updating emails if authenticated email is removed (MED-2)', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('members').doc('FirestoreDocID-student1').update({
+          emails: ['hijacked@ilc.com'],
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should allow owner updating emails if authenticated email is retained (MED-2)', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('members').doc('FirestoreDocID-student1').update({
+          emails: ['student1@ilc.com', 'additional@ilc.com'],
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
     it('should deny owner updating restricted fields (e.g. notes)', async () => {
       const db = testEnv
         .authenticatedContext('student1', { email: 'student1@ilc.com' })
@@ -793,6 +841,49 @@ describe('Firestore Rules', () => {
       await assertFails(
         db.collection('gradings').doc('grading-1').update({
           gradingEventDocId: 'event-doc-789',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should deny student from self-promoting grading status to passed before acceptance (CRIT-1)', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('gradings').doc('grading-1').update({
+          status: 'passed',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should allow student to update grading status to awaiting-instructor-acceptance before acceptance', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('gradings').doc('grading-1').update({
+          status: 'awaiting-instructor-acceptance',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should deny student from updating grading status once accepted (CRIT-1)', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context
+          .firestore()
+          .collection('gradings')
+          .doc('grading-1')
+          .update({ status: 'awaiting-instructor-grading' });
+      });
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('gradings').doc('grading-1').update({
+          status: 'passed',
           lastUpdated: serverTimestamp(),
         }),
       );
@@ -1563,6 +1654,40 @@ describe('Firestore Rules', () => {
         .authenticatedContext('student1', { email: 'student1@ilc.com' })
         .firestore();
       await assertFails(memberDb.collection('system').doc('email-templates').get());
+    });
+
+    it('should deny non-admin from reading or writing /system/mail-secrets (CRIT-4)', async () => {
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertFails(unauthDb.collection('system').doc('mail-secrets').get());
+      await assertFails(unauthDb.collection('system').doc('mail-secrets').set({ unsubscribeSecret: 'forged' }));
+
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(memberDb.collection('system').doc('mail-secrets').get());
+      await assertFails(memberDb.collection('system').doc('mail-secrets').set({ unsubscribeSecret: 'forged' }));
+    });
+
+    it('should allow admin to read and write /system/mail-secrets', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        adminDb.collection('system').doc('mail-secrets').set({
+          unsubscribeSecret: 'test-secret-12345',
+        }),
+      );
+      await assertSucceeds(adminDb.collection('system').doc('mail-secrets').get());
+    });
+
+    it('should allow anyone to read /system/mail-settings', async () => {
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertSucceeds(unauthDb.collection('system').doc('mail-settings').get());
+
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(memberDb.collection('system').doc('mail-settings').get());
     });
 
     it('should allow anyone to read deletions for public collections (instructors, schools, events)', async () => {

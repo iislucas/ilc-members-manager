@@ -48,13 +48,18 @@ function storagePathFromUrl(url: string): string | null {
 }
 
 /** Delete a list of Storage files by their download URLs. Logs errors but does not throw. */
-async function deleteStorageFiles(urls: string[]) {
+export async function deleteStorageFiles(urls: string[], eventId: string) {
   if (urls.length === 0) return;
   const bucket = admin.storage().bucket();
+  const allowedPrefix = `events/${eventId}/`;
   for (const url of urls) {
     const path = storagePathFromUrl(url);
     if (!path) {
       logger.warn(`Could not extract storage path from URL: ${url}`);
+      continue;
+    }
+    if (!path.startsWith(allowedPrefix)) {
+      logger.warn(`Security check failed: storage path ${path} does not start with expected prefix ${allowedPrefix}`);
       continue;
     }
     try {
@@ -339,10 +344,38 @@ export const submitProposedEvent = onCall(
     // If an online registration product was configured, link it to the newly created event
     if (data.productId) {
       try {
-        await db.collection(FirestoreCollection.Products).doc(data.productId).update({
-          eventDocId: docRef.id,
-          lastUpdated: new Date().toISOString(),
-        });
+        const prodRef = db.collection(FirestoreCollection.Products).doc(data.productId);
+        const prodSnap = await prodRef.get();
+        if (prodSnap.exists) {
+          const prodData = prodSnap.data() as { eventDocId?: string };
+          const existingEventDocId = prodData.eventDocId || '';
+          let isAuthorized = !existingEventDocId;
+          if (existingEventDocId) {
+            const callerEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+            const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
+            const isAdmin = aclSnap.data()?.isAdmin === true;
+            if (isAdmin) {
+              isAuthorized = true;
+            } else {
+              const existingEventSnap = await db.collection(FirestoreCollection.Events).doc(existingEventDocId).get();
+              if (existingEventSnap.exists) {
+                const existingEvent = existingEventSnap.data() as IlcEvent;
+                const callerMemberDocId = member.docId;
+                if (existingEvent.ownerDocId === callerMemberDocId || (existingEvent.managerDocIds || []).includes(callerMemberDocId)) {
+                  isAuthorized = true;
+                }
+              }
+            }
+          }
+          if (isAuthorized) {
+            await prodRef.update({
+              eventDocId: docRef.id,
+              lastUpdated: new Date().toISOString(),
+            });
+          } else {
+            logger.warn(`Caller ${member.memberId} unauthorized to re-link product ${data.productId} from event ${existingEventDocId}`);
+          }
+        }
       } catch (prodErr) {
         logger.warn(`Failed to link product ${data.productId} to event ${docRef.id}:`, prodErr);
       }
@@ -468,7 +501,7 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   const removedUrls = beforeDocs.map(d => d.url).filter(url => !afterUrls.has(url));
   if (removedUrls.length > 0) {
     logger.info(`Cleaning up ${removedUrls.length} removed document(s) for event ${event.params.docId}.`);
-    await deleteStorageFiles(removedUrls);
+    await deleteStorageFiles(removedUrls, event.params.docId);
   }
   const becameListed = before.status !== EventStatus.Listed && after.status === EventStatus.Listed;
   const contentFieldsChanged = contentChanged(

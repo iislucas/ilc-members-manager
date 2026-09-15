@@ -3,23 +3,23 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function isAdmin() {
-      let email = request.auth.token.email;
-      let aclPath = /databases/(default)/documents/acl/$(email);
+      let email = request.auth != null ? request.auth.token.email : null;
+      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
       return email != null && firestore.exists(aclPath) && firestore.get(aclPath).data.isAdmin == true;
     }
 
     // Returns the list of member document IDs linked to this user's ACL.
     function getUserMemberDocIds() {
-      let email = request.auth.token.email;
-      let aclPath = /databases/(default)/documents/acl/$(email);
+      let email = request.auth != null ? request.auth.token.email : null;
+      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
       return (email != null && firestore.exists(aclPath)) ? firestore.get(aclPath).data.memberDocIds : [];
     }
 
     // Returns the list of school document IDs this user owns or manages,
     // cached on the user's ACL document.
     function getUserSchoolDocIds() {
-      let email = request.auth.token.email;
-      let aclPath = /databases/(default)/documents/acl/$(email);
+      let email = request.auth != null ? request.auth.token.email : null;
+      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
       return (email != null && firestore.exists(aclPath)) ? firestore.get(aclPath).data.schoolDocIds : [];
     }
 
@@ -120,29 +120,32 @@ service firebase.storage {
     // Values: "life" (always valid — 'l' > '9' in ASCII), "YYYY-MM-DD"
     // (valid if >= today), or "" / missing (no membership).
     function hasActiveMembership() {
-      let email = request.auth.token.email;
-      let aclData = firestore.get(/databases/(default)/documents/acl/$(email)).data;
-      let expires = aclData.membershipExpires;
-      return email != null && expires is string && expires.size() > 0 && expires >= todayStr();
+      let email = request.auth != null ? request.auth.token.email : null;
+      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
+      return email != null && firestore.exists(aclPath) &&
+        firestore.get(aclPath).data.get('membershipExpires', '') is string &&
+        firestore.get(aclPath).data.get('membershipExpires', '') >= todayStr();
     }
 
     // Check if the ACL's instructorLicenseExpires field grants access.
     // Same value semantics as hasActiveMembership().
     function hasActiveInstructorLicense() {
-      let email = request.auth.token.email;
-      let aclData = firestore.get(/databases/(default)/documents/acl/$(email)).data;
-      let expires = aclData.instructorLicenseExpires;
-      return email != null && expires is string && expires.size() > 0 && expires >= todayStr();
+      let email = request.auth != null ? request.auth.token.email : null;
+      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
+      return email != null && firestore.exists(aclPath) &&
+        firestore.get(aclPath).data.get('instructorLicenseExpires', '') is string &&
+        firestore.get(aclPath).data.get('instructorLicenseExpires', '') >= todayStr();
     }
 
     // Check if the ACL's schoolLicenseExpires field grants access.
     // The field tracks the latest school license expiry across all
     // schools this user owns or manages.
     function hasActiveSchoolLicense() {
-      let email = request.auth.token.email;
-      let aclData = firestore.get(/databases/(default)/documents/acl/$(email)).data;
-      let expires = aclData.schoolLicenseExpires;
-      return email != null && expires is string && expires.size() > 0 && expires >= todayStr();
+      let email = request.auth != null ? request.auth.token.email : null;
+      let aclPath = email != null ? /databases/(default)/documents/acl/$(email) : null;
+      return email != null && firestore.exists(aclPath) &&
+        firestore.get(aclPath).data.get('schoolLicenseExpires', '') is string &&
+        firestore.get(aclPath).data.get('schoolLicenseExpires', '') >= todayStr();
     }
 
     // Resources are organised into subdirectories by access level.
@@ -174,7 +177,12 @@ service firebase.storage {
 
     // Video on Demand (VOD) transcoded streaming chunks and manifests
     match /vod/{videoId}/{allFiles=**} {
-      allow read: if true;
+      allow read: if isAdmin() || (
+        firestore.exists(/databases/(default)/documents/videos/$(videoId)) &&
+        firestore.get(/databases/(default)/documents/videos/$(videoId)).data.get('isTrailer', false) == true
+      ) || (
+        request.auth != null
+      );
       allow write: if isAdmin();
     }
 
@@ -187,7 +195,9 @@ service firebase.storage {
     // General editor image uploads
     match /editor-images/{fileId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
     match /{allPaths=**} {

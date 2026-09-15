@@ -46,25 +46,52 @@ describe('unsubscribe-token', () => {
     expect(verifyUnsubscribeToken('mem_abc', '', testSecret)).toBe(false);
   });
 
-  it('retrieves existing secret or sets a new one in /system/mail-settings', async () => {
-    let storedData: Record<string, any> = {};
+  it('retrieves existing secret or sets a new one in /system/mail-secrets (CRIT-4)', async () => {
+    const docs: Record<string, any> = {};
     const mockDb = {
-      doc: () => ({
+      doc: (path: string) => ({
         get: async () => ({
-          exists: Boolean(storedData.unsubscribeSecret),
-          data: () => storedData,
+          exists: Boolean(docs[path]?.unsubscribeSecret),
+          data: () => docs[path] || {},
         }),
         set: async (update: any) => {
-          storedData = { ...storedData, ...update };
+          docs[path] = { ...docs[path], ...update };
+        },
+        update: async (update: any) => {
+          docs[path] = { ...docs[path], ...update };
         },
       }),
     } as any;
 
     const secret1 = await getUnsubscribeSecret(mockDb);
     expect(secret1).toHaveLength(64); // 32 bytes in hex = 64 characters
-    expect(storedData.unsubscribeSecret).toBe(secret1);
+    expect(docs['system/mail-secrets']?.unsubscribeSecret).toBe(secret1);
 
     const secret2 = await getUnsubscribeSecret(mockDb);
     expect(secret2).toBe(secret1);
+  });
+
+  it('migrates legacy secret from /system/mail-settings to /system/mail-secrets', async () => {
+    const docs: Record<string, any> = {
+      'system/mail-settings': { unsubscribeSecret: 'legacy-secret-1234567890abcdef1234567890abcdef' },
+    };
+    const mockDb = {
+      doc: (path: string) => ({
+        get: async () => ({
+          exists: Boolean(docs[path]?.unsubscribeSecret),
+          data: () => docs[path] || {},
+        }),
+        set: async (update: any) => {
+          docs[path] = { ...docs[path], ...update };
+        },
+        update: async (update: any) => {
+          docs[path] = { ...docs[path], ...update };
+        },
+      }),
+    } as any;
+
+    const secret = await getUnsubscribeSecret(mockDb);
+    expect(secret).toBe('legacy-secret-1234567890abcdef1234567890abcdef');
+    expect(docs['system/mail-secrets']?.unsubscribeSecret).toBe(secret);
   });
 });

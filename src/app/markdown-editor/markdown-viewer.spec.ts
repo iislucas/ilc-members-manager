@@ -126,4 +126,28 @@ describe('MarkdownViewer', () => {
     expect(figure.querySelector('img')).toBeTruthy();
     expect(figure.querySelector('figcaption')).toBeNull();
   });
+
+  it('sanitizes script tags and inline event handlers to prevent XSS', async () => {
+    fixture.componentRef.setInput(
+      'markdown',
+      'Safe text <script>alert("xss")</script> and <img src="x" onerror="alert(1)"> and [link](javascript:alert(1))'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    fixture.detectChanges();
+
+    const scripts = fixture.nativeElement.querySelectorAll('script');
+    expect(scripts.length).toBe(0);
+
+    const img = fixture.nativeElement.querySelector('img');
+    if (img) {
+      expect(img.getAttribute('onerror')).toBeNull();
+    }
+
+    const link = fixture.nativeElement.querySelector('a');
+    if (link) {
+      expect(link.getAttribute('href') || '').not.toContain('javascript:');
+    }
+    expect(fixture.nativeElement.textContent).toContain('Safe text');
+  });
 });

@@ -43,13 +43,14 @@ const { mockMemberUpdate, mockMemberDoc, mockDb } = vi.hoisted(() => {
       return {};
     }),
     doc: vi.fn().mockImplementation((path: string) => {
-      if (path === 'system/mail-settings') {
+      if (path === 'system/mail-settings' || path === 'system/mail-secrets') {
         return {
           get: vi.fn().mockResolvedValue({
             exists: true,
             data: () => ({ unsubscribeSecret: '0123456789abcdef0123456789abcdef' }),
           }),
           set: vi.fn().mockResolvedValue(undefined),
+          update: vi.fn().mockResolvedValue(undefined),
         };
       }
       return {};
