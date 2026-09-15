@@ -1,10 +1,12 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { DocsDataService } from '../../services/docs-data.service';
+import { PipelineFlowchartComponent } from '../../components/pipeline-flowchart/pipeline-flowchart.component';
 
 @Component({
   selector: 'doc-view-architecture',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [PipelineFlowchartComponent],
   templateUrl: './view-architecture.component.html',
   styleUrl: './view-architecture.component.scss',
 })

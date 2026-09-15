@@ -114,13 +114,14 @@ export const SETUP_CATALOG: SetupGuideEntry[] = [
     commands: [
       { command: 'firebase functions:secrets:set GMAIL_SMTP_APP_PASSWORD', explanation: 'Stores Google Workspace 16-character App Password securely in GCP Secret Manager' },
       { command: 'pnpm --prefix functions test functions/src/mail-processor.spec.ts', explanation: 'Runs local unit tests verifying zero-write Off enforcement, placeholder queuing, and adminTest bypass' },
-      { command: 'pnpm --prefix functions test functions/src/email-dispatcher.spec.ts', explanation: 'Runs unit tests for Nodemailer MIME encoding and Gmail SMTP transport' },
+      { command: 'pnpm --prefix functions test functions/src/unsubscribe-handler.spec.ts', explanation: 'Runs unit tests for RFC 8058 one-click unsubscribe and token verification' },
     ],
     commonGotchas: [
       { issue: 'Emails failing with invalid credentials (535-5.7.8)', resolution: 'Standard Google account passwords will not work. Generate a 16-character App Password in Google Workspace Security under 2-Step Verification.' },
       { issue: 'No emails delivered in development or staging', resolution: 'Check /email-notifications status banner. Default state is OFF (zero writes to /mail). Switch to PAUSED or ACTIVE, or send an Admin Test Email to bypass the OFF state.' },
       { issue: 'Hash symbols (#/) breaking email confirmation links', resolution: 'The client router uses HTML5 path routing without hash URLs. Ensure email templates never contain /# or #/.' },
+      { issue: 'Unsubscribe token verification fails in local test suites', resolution: 'In production /system/mail-settings auto-generates a persistent 32-byte unsubscribeSecret; unit tests fall back to UNSUBSCRIBE_SECRET environment variable.' },
     ],
-    verifiedFlows: ['email-queue-processor'],
+    verifiedFlows: ['email-queue-processor', 'one-click-unsubscribe'],
   },
 ];

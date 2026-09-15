@@ -31,7 +31,7 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     affectedTriggers: ['on-member-update.ts', 'mirror-instructors-to-public-profile.ts'],
     mirrorTargets: ['/acl/{email}', '/instructors/{instructorId}', '/schools/{schoolId}/members/{docId}'],
     relatedJourneys: ['member-onboarding', 'grading-progression', 'instructor-licensing'],
-    relatedFlows: ['client-reactivity', 'trigger-mirroring'],
+    relatedFlows: ['client-reactivity', 'trigger-mirroring', 'one-click-unsubscribe'],
     relatedPersonas: ["active-member","grading-candidate","apprentice-instructor","school-manager","hq-admin"],
     enforcingPermissions: ["read:member-passbook","read:member-profile","update:instructor-profile","read:student-roster","manage:school-roster","verify:members","admin:all"],
     tsInterface: `export interface Member {
@@ -720,12 +720,13 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     affectedTriggers: ['mail-processor.ts (processMailQueue)'],
     mirrorTargets: [],
     relatedJourneys: ['outbound-email-notifications'],
-    relatedFlows: ['email-queue-processor'],
+    relatedFlows: ['email-queue-processor', 'one-click-unsubscribe'],
     relatedPersonas: ["hq-admin","system-automation"],
     enforcingPermissions: ["admin:all","service:firebase-admin"],
     tsInterface: `export interface MailSettings {
   status: MailSendingStatus; // 'active' | 'paused' | 'off'
   sendingPaused?: boolean;
+  unsubscribeSecret?: string;
   updatedAt?: string;
   updatedBy?: string;
   pausedAt?: string;
@@ -736,6 +737,7 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     fields: [
       { name: 'status', type: 'MailSendingStatus', required: true, description: 'active | paused | off' },
       { name: 'sendingPaused', type: 'boolean', required: false, description: 'Legacy boolean flag' },
+      { name: 'unsubscribeSecret', type: 'string', required: false, description: 'Persistent 32-byte HMAC-SHA256 secret for one-click unsubscribe links' },
       { name: 'updatedAt', type: 'string', required: false, description: 'ISO timestamp of state change' },
       { name: 'updatedBy', type: 'string', required: false, description: 'Admin email who modified status' },
     ],

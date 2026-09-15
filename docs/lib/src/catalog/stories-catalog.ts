@@ -162,14 +162,28 @@ export const STORIES_CATALOG: UserStoryEntry[] = [
         when: 'An administrator clicks Retry in the Mail Logs & Queue viewer',
         then: 'The document is reset to PENDING and automatically retried by the queue trigger',
       },
+      {
+        name: 'One-click unsubscribe via RFC 8058 header',
+        given: 'An email is dispatched with List-Unsubscribe and List-Unsubscribe-Post headers',
+        when: 'A mail client sends a POST request with valid HMAC token',
+        then: 'unsubscribeHandler validates HMAC and updates member notification preferences with 200 OK',
+      },
+      {
+        name: 'Queue item editing and batch deletion',
+        given: 'Multiple pending or failed items exist in the mail queue',
+        when: 'An administrator edits content or selects multiple items and clicks Batch Delete',
+        then: 'The documents are updated or removed from /mail with confirmation',
+      },
     ],
     codeReferences: [
       { file: 'src/app/email-notifications/email-notifications.component.ts', symbol: 'EmailNotificationsComponent', line: 1 },
       { file: 'functions/src/mail-processor.ts', symbol: 'processMailQueue', line: 1 },
+      { file: 'functions/src/unsubscribe-handler.ts', symbol: 'unsubscribeHandler', line: 1 },
       { file: 'functions/src/email-dispatcher.ts', symbol: 'sendSmtpEmail', line: 1 },
     ],
     testReferences: [
       { file: 'functions/src/mail-processor.spec.ts', testSuite: 'Mail Processor' },
+      { file: 'functions/src/unsubscribe-handler.spec.ts', testSuite: 'Unsubscribe Handler' },
       { file: 'src/app/email-notifications/email-notifications.component.spec.ts', testSuite: 'EmailNotificationsComponent' },
     ],
   },
