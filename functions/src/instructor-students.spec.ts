@@ -48,6 +48,11 @@ describe('findPrimaryInstructorProfile', () => {
   it('rejects when the caller manages no member profiles', () => {
     expect(findPrimaryInstructorProfile([], student)).toBeUndefined();
   });
+
+  it('matches case-insensitively and ignores surrounding whitespace', () => {
+    const studentWithLowercase = member({ docId: 'student-doc', primaryInstructorId: '  inst-1  ' });
+    expect(findPrimaryInstructorProfile([sifu], studentWithLowercase)).toBe(sifu);
+  });
 });
 
 describe('removedStudentMarkdown', () => {

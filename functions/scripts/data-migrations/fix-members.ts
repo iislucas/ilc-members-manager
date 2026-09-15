@@ -95,7 +95,7 @@ async function run() {
   const instructorIdToDocId = new Map<string, string>();
   for (const member of members) {
     if (member.instructorId) {
-      instructorIdToDocId.set(member.instructorId, member.docId);
+      instructorIdToDocId.set(member.instructorId.trim().toUpperCase(), member.docId);
     }
   }
   console.log(`Found ${instructorIdToDocId.size} members with an instructorId.`);
@@ -185,7 +185,7 @@ async function run() {
   let missingInstructorCount = 0;
 
   for (const student of studentsWithPrimaryInstructor) {
-    const primaryInstructorId = student.primaryInstructorId;
+    const primaryInstructorId = (student.primaryInstructorId || '').trim().toUpperCase();
     const instructorDocId = instructorIdToDocId.get(primaryInstructorId);
 
     if (!instructorDocId) {
@@ -283,7 +283,8 @@ async function run() {
         // Student has no primaryInstructorId
         shouldDelete = true;
       } else {
-        const expectedInstructorDocId = instructorIdToDocId.get(actualStudent.primaryInstructorId);
+        const studentPrimaryInstId = (actualStudent.primaryInstructorId || '').trim().toUpperCase();
+        const expectedInstructorDocId = instructorIdToDocId.get(studentPrimaryInstId);
         if (expectedInstructorDocId !== instructorDocId) {
           shouldDelete = true; // Belongs to a different instructor or none if not found
         }

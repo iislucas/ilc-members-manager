@@ -654,7 +654,7 @@ export class MemberDetailsComponent {
   updatePrimaryInstructorId(value: string) {
     const match = value.match(/\[([^\]]+)\]$/);
     const rawId = match ? match[1] : value;
-    this.form.primaryInstructorId().value.set(rawId);
+    this.form.primaryInstructorId().value.set(rawId.trim().toUpperCase());
     this.form.primaryInstructorId().markAsDirty();
   }
 
@@ -941,6 +941,13 @@ export class MemberDetailsComponent {
         member.instructorId = (
           await this.membersService.createNextInstructorId()
         ).toString();
+      }
+
+      if (member.primaryInstructorId) {
+        member.primaryInstructorId = member.primaryInstructorId.trim().toUpperCase();
+      }
+      if (member.instructorId) {
+        member.instructorId = member.instructorId.trim().toUpperCase();
       }
 
       if (member.docId) {

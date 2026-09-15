@@ -314,5 +314,63 @@ describe('IncrementalSyncService', () => {
       dummyConstraint,
     );
   });
+
+  it('loadCachedData filters entries using filterFn when provided', async () => {
+    const cachedData: CachedCollectionBundle<TestItem> = {
+      lastSyncTimestamp: '2026-08-01T12:00:00.000Z',
+      entries: [
+        { docId: '1', name: 'Alice', country: 'US', lastUpdated: '2026-08-01T10:00:00.000Z' },
+        { docId: '2', name: 'Bob', country: 'FR', lastUpdated: '2026-08-01T11:00:00.000Z' },
+      ],
+    };
+
+    await mockIdb.set('test_filter_cache', cachedData);
+
+    const loaded = await service.loadCachedData(
+      'test_filter_cache',
+      targetSet,
+      undefined,
+      (item) => item.country === 'US',
+    );
+
+    expect(loaded).toBe(true);
+    expect(targetSet.entries().length).toBe(1);
+    expect(targetSet.get('1')?.name).toBe('Alice');
+    expect(targetSet.get('2')).toBeUndefined();
+  });
+
+  it('syncCollection prunes cached entries that violate additionalFilter and updates IndexedDB', async () => {
+    await mockIdb.set('test_prune_filter', {
+      lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
+      entries: [
+        { docId: '1', name: 'Alice', country: 'US', lastUpdated: '2026-08-14T09:00:00.000Z' },
+        { docId: '2', name: 'Bob', country: 'FR', lastUpdated: '2026-08-14T09:30:00.000Z' },
+      ],
+    });
+
+    vi.mocked(firestore.getDocs).mockResolvedValue({
+      empty: true,
+      docs: [],
+    } as any);
+
+    await service.syncCollection({
+      cacheKey: 'test_prune_filter',
+      collectionPath: 'instructors/inst1/members',
+      idField: 'docId',
+      targetSet,
+      docConverter: firestoreDocToTestItem,
+      additionalFilter: (item) => item.country === 'US',
+    });
+
+    // Bob should be pruned from targetSet
+    expect(targetSet.entries().length).toBe(1);
+    expect(targetSet.get('1')?.name).toBe('Alice');
+    expect(targetSet.get('2')).toBeUndefined();
+
+    // Bob should also be pruned from persisted IndexedDB bundle
+    const bundle = await service.getCachedBundle<TestItem>('test_prune_filter');
+    expect(bundle?.entries.length).toBe(1);
+    expect(bundle?.entries[0].docId).toBe('1');
+  });
 });
 
