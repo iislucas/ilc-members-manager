@@ -21,6 +21,10 @@
         "function": "socialPreview"
       },
       {
+        "source": "/unsubscribe",
+        "function": "unsubscribeHandler"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

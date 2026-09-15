@@ -9,6 +9,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { Member, InstructorPublicData } from '../functions/src/data-model/members';
 import type { School } from '../functions/src/data-model/schools';
+import { MailDeliveryState } from '../functions/src/data-model/mail';
 
 type Firestore = firebase.default.firestore.Firestore;
 
@@ -1866,4 +1867,82 @@ describe('Firestore Rules', () => {
       );
     });
   });
+
+  describe('Outbound Mail Queue (/mail)', () => {
+    it('should allow admin to read mail queue documents, but deny regular members and unauthenticated users', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('mail').doc('mail-1').set({
+          to: 'member@ilc.com',
+          message: { subject: 'Test Email' },
+        });
+      });
+
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      const memberDb = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+
+      await assertSucceeds(adminDb.collection('mail').doc('mail-1').get());
+      await assertFails(memberDb.collection('mail').doc('mail-1').get());
+      await assertFails(unauthDb.collection('mail').doc('mail-1').get());
+    });
+
+    it('should deny client creates to /mail for everyone (including admins)', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      const memberDb = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+
+      const newMail = {
+        to: 'victim@example.com',
+        message: { subject: 'Spam' },
+      };
+
+      await assertFails(adminDb.collection('mail').doc('mail-bad').set(newMail));
+      await assertFails(memberDb.collection('mail').doc('mail-bad').set(newMail));
+      await assertFails(unauthDb.collection('mail').doc('mail-bad').set(newMail));
+    });
+
+    it('should allow admin to delete and update mail docs unless actively in PROCESSING', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('mail').doc('mail-pending').set({
+          status: MailDeliveryState.Pending,
+          to: 'user@example.com',
+          message: { subject: 'Pending Mail' },
+        });
+        await context.firestore().collection('mail').doc('mail-processing').set({
+          status: MailDeliveryState.Processing,
+          to: 'user@example.com',
+          message: { subject: 'In Flight' },
+          delivery: { state: MailDeliveryState.Processing },
+        });
+      });
+
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      const memberDb = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+
+      // Regular member cannot delete or update
+      await assertFails(memberDb.collection('mail').doc('mail-pending').delete());
+      await assertFails(memberDb.collection('mail').doc('mail-pending').update({ to: 'other@example.com' }));
+
+      // Admin CAN delete and update non-PROCESSING mail
+      await assertSucceeds(adminDb.collection('mail').doc('mail-pending').update({ to: 'updated@example.com' }));
+      await assertSucceeds(adminDb.collection('mail').doc('mail-pending').delete());
+
+      // Admin CANNOT delete or update mail actively in PROCESSING
+      await assertFails(adminDb.collection('mail').doc('mail-processing').delete());
+      await assertFails(adminDb.collection('mail').doc('mail-processing').update({ to: 'other@example.com' }));
+    });
+  });
 });
+

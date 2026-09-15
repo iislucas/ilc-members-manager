@@ -146,6 +146,12 @@ export class LocalCacheSettingsComponent implements OnInit {
         await this.findInstructors.updateInstructorsSync();
       } else if (key === 'schools') {
         await this.dataManager.updateSchoolsSync();
+      } else if (key === 'admin_orders') {
+        await this.dataManager.updateOrdersSync(true);
+      } else if (key === 'public_videos' || key === 'admin_videos') {
+        await this.dataManager.updateVideosSync(user, true);
+      } else if (key === 'public_events') {
+        await this.dataManager.updateEventsSync(true);
       } else if (key.startsWith('members_admin_') || key.startsWith('school_members_')) {
         if (user) {
           await this.dataManager.updateMembersSync(user);
@@ -262,6 +268,10 @@ export class LocalCacheSettingsComponent implements OnInit {
   friendlyCollectionName(key: string): string {
     if (key === 'public_instructors') return 'Public Instructors Directory';
     if (key === 'schools') return 'Schools Directory';
+    if (key === 'admin_orders') return 'Admin Orders & Transactions';
+    if (key === 'public_videos') return 'Public Video Catalog';
+    if (key === 'admin_videos') return 'Admin Video Catalog (All)';
+    if (key === 'public_events') return 'Events & Workshops Directory';
     if (key.startsWith('members_admin_')) return 'Admin Members Directory';
     if (key.startsWith('school_members_')) return 'School Members Roster';
     if (key.startsWith('my_students_')) return 'Instructor Students Roster';

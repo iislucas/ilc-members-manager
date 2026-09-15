@@ -185,22 +185,47 @@ describe('MarkdownEditor', () => {
     expect(labels().length).toBeGreaterThan(0);
   });
 
-  it('inserts a chip token at the cursor', async () => {
+  it('inserts a chip token at the cursor, displays descriptions, and supports folding', async () => {
     let emittedValue = '';
     component.changed.subscribe((value) => {
       emittedValue = value;
     });
 
     fixture.componentRef.setInput('initialValue', 'Hi ');
-    fixture.componentRef.setInput('chips', [{ token: '{name}' }]);
+    fixture.componentRef.setInput('chips', [{ token: '{name}', description: 'Member name' }]);
     fixture.detectChanges();
     await new Promise((resolve) => setTimeout(resolve, 500));
     fixture.detectChanges();
 
-    // Verify chips-section renders inside the toolbar
-    const chipBtn = fixture.nativeElement.querySelector('.chips-section .chip-insert');
+    // Verify toolbar-placeholders-group renders inside the toolbar
+    const placeholdersGroup = fixture.nativeElement.querySelector('.toolbar-placeholders-group');
+    expect(placeholdersGroup).toBeTruthy();
+
+    const chipBtn = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-insert');
     expect(chipBtn).toBeTruthy();
     expect(chipBtn.textContent.trim()).toBe('{name}');
+
+    // Verify description is rendered
+    const descSpan = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-description');
+    expect(descSpan).toBeTruthy();
+    expect(descSpan.textContent.trim()).toBe('Member name');
+
+    // Test folding
+    const toggleBtn = fixture.nativeElement.querySelector('.placeholders-toggle-btn');
+    expect(toggleBtn).toBeTruthy();
+    expect(component.placeholdersUnfolded()).toBe(true);
+
+    toggleBtn.click();
+    fixture.detectChanges();
+    expect(component.placeholdersUnfolded()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.placeholders-palette')).toBeNull();
+
+    // Unfold again
+    toggleBtn.click();
+    fixture.detectChanges();
+    expect(component.placeholdersUnfolded()).toBe(true);
+    const unfoldedChipBtn = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-insert');
+    expect(unfoldedChipBtn).toBeTruthy();
 
     component['editor']?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
@@ -208,7 +233,7 @@ describe('MarkdownEditor', () => {
     });
 
     // Click chip button in toolbar
-    chipBtn.click();
+    unfoldedChipBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 200));
     fixture.detectChanges();
 
@@ -1394,6 +1419,146 @@ describe('MarkdownEditor', () => {
     expect(md).toContain('- Dash item 2');
     expect(md).toContain('* Star item 1');
     expect(md).toContain('* Star item 2');
+  });
+
+  it('prevents default link navigation on click and opens the link input popup', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check out [ILC Home](https://ilc-kungfu.org) today.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Mock coordsAtPos to avoid jsdom measurement errors
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+    expect(anchor.getAttribute('href')).toBe('https://ilc-kungfu.org');
+
+    // Simulate clicking the link in the editor
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    anchor.dispatchEvent(clickEvent);
+
+    // Wait a tick for ProseMirror / link handling
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    // Verify browser default navigation was cancelled
+    expect(clickEvent.defaultPrevented).toBe(true);
+
+    // Verify link popup opened with the link's href
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://ilc-kungfu.org');
+
+    const popupInput = fixture.nativeElement.querySelector('.link-popup input') as HTMLInputElement;
+    expect(popupInput).toBeTruthy();
+    expect(popupInput.value).toBe('https://ilc-kungfu.org');
+
+    // Updating the link changes the URL in the markdown
+    component.updateLink('https://ilc-kungfu.org/updated');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    expect(component.getMarkdown()).toContain('[ILC Home](https://ilc-kungfu.org/updated)');
+  });
+
+  it('allows removing a link via removeLink, preserving the anchor text', async () => {
+    fixture.componentRef.setInput('initialValue', 'Visit [ILC](https://ilc-kungfu.org) now.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    anchor.dispatchEvent(clickEvent);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+
+    // Remove the link
+    component.removeLink();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    const md = component.getMarkdown();
+    expect(md).toContain('Visit ILC now.');
+    expect(md).not.toContain('https://ilc-kungfu.org');
+  });
+
+  it('closes the link input popup on Escape key', async () => {
+    fixture.componentRef.setInput('initialValue', 'Test [Link](https://example.com)');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+
+    // Trigger escape
+    component.onEscape();
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+  });
+
+  it('renders single newlines between consecutive lines as hard breaks on separate lines and preserves them across round-trips', async () => {
+    const templateText =
+      'Your subscription for **{planName}** renewed successfully on {renewalDate}.\n\n' +
+      '**Amount Paid:** {amount}\n' +
+      '**Next Scheduled Renewal:** {nextRenewalDate}\n\n' +
+      'You can review and manage your subscriptions anytime in your [Account Settings]({appBase}/settings?tab=subscriptions).';
+
+    fixture.componentRef.setInput('initialValue', templateText);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    // Verify DOM rendering has a hardbreak (<br>) separating the two lines
+    const editorEl = fixture.nativeElement.querySelector('.editor-content');
+    expect(editorEl).toBeTruthy();
+    const brTags = editorEl.querySelectorAll('br');
+    expect(brTags.length).toBeGreaterThanOrEqual(1);
+
+    // Verify getMarkdown() maintains them on separate lines
+    const serialized = component.getMarkdown();
+    expect(serialized).toContain('**Amount Paid:** {amount}\n**Next Scheduled Renewal:** {nextRenewalDate}');
+
+    // Toggle to Raw mode and verify rawContent matches exactly
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.rawContent().trim()).toBe(templateText.trim());
+
+    // Toggle back to Rich mode and verify serialization is still preserved
+    component.toggleRawMode();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.getMarkdown().trim()).toBe(templateText.trim());
   });
 });
 

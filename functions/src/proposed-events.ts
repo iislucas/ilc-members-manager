@@ -665,7 +665,7 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
 
   if (becameListed || wasListedAndChanged) {
     // Update lastUpdated timestamp
-    await event.data.after.ref.update({ lastUpdated: new Date().toISOString() });
+    await event.data.after.ref.update({ lastUpdated: admin.firestore.FieldValue.serverTimestamp() });
   }
 });
 

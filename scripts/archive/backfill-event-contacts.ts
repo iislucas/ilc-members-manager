@@ -1,41 +1,16 @@
-/* backfill-event-contacts.ts
+//**
+ * @file scripts/archive/backfill-event-contacts.ts
+ * @status ARCHIVED / MIGRATION COMPLETED
+ * @pr PR #55 (feat(events): creator + a chosen subset of managers as public contacts)
+ * @commit 2da5348
+ * @date 2026-07-31
  *
+ * Description:
  * One-off migration for the "creator + listed contacts" change to events.
- *
- * Background: an event's `ownerDocId` used to mean both "the creator" and "the
- * public contact". It now only means the creator; who is listed publicly is the
- * `contacts` array, whose members must be the creator or one of the managers
- * (`managerDocIds`). This script brings old events into that shape:
- *
- *   - adds `ownerDocId` to `managerDocIds` if it isn't there (the creator was
- *     always allowed to edit the event, so this only makes that explicit);
- *   - adds the creator to `contacts` if the event has no entry for them, built
- *     from the cached owner* fields, so the public page keeps showing exactly
- *     who it showed before;
- *   - mirrors the event into `members/{ownerDocId}/events/{eventId}` if adding
- *     the creator as a manager made that mirror missing.
- *
- * Events without a creator are left alone.
- *
- * Idempotent: a second run makes no further writes.
- *
- * Usage (Application Default Credentials, like the other admin scripts):
- *   # dry run — report what would change, write nothing:
- *   pnpm --prefix functions exec ts-node -O '{"module":"commonjs"}' \
- *     ../scripts/backfill-event-contacts.ts
- *   # apply the changes:
- *   pnpm --prefix functions exec ts-node -O '{"module":"commonjs"}' \
- *     ../scripts/backfill-event-contacts.ts --commit
- *   # target a different project (defaults to ilc-paris-class-tracker):
- *   pnpm --prefix functions exec ts-node -O '{"module":"commonjs"}' \
- *     ../scripts/backfill-event-contacts.ts --project=<project-id>
- *   # against a running emulator (after `pnpm seed:emulator`):
- *   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 pnpm --prefix functions exec \
- *     ts-node -O '{"module":"commonjs"}' \
- *     ../scripts/backfill-event-contacts.ts --commit
- *
- * The local seed export in tmp/seed-data/ has already been migrated in place,
- * so a fresh `pnpm seed:emulator` loads events in the new shape.
+ * An event's `ownerDocId` used to mean both "the creator" and "the public contact".
+ * It was updated to mean only the creator, while public contacts moved to the `contacts`
+ * array. This script added `ownerDocId` to `managerDocIds`, added the creator to `contacts`,
+ * and mirrored the event into `members/{ownerDocId}/events/{eventId}`.
  */
 
 import * as admin from 'firebase-admin';

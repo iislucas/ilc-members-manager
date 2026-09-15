@@ -1,18 +1,17 @@
-import { Component, computed, effect, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CountersComponent } from './counters/counters';
 import { CountryCodesComponent } from './country-codes/country-codes';
 import { Backups } from './backups/backups';
 import { ContentCacheComponent } from './content-cache/content-cache';
 import { ResourcesComponent } from './resources/resources';
-import { EmailTemplatesComponent } from './email-templates/email-templates';
 import { LocalCacheSettingsComponent } from './local-cache/local-cache';
 import { AppVersionSettingsComponent } from './app-version/app-version';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 
 // Valid tab identifiers for the settings page.
-type SettingsTab = 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources' | 'email-templates' | 'local-cache' | 'app-version';
-const VALID_TABS: SettingsTab[] = ['counters', 'country-codes', 'backups', 'content-cache', 'resources', 'email-templates', 'local-cache', 'app-version'];
+type SettingsTab = 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources' | 'local-cache' | 'app-version';
+const VALID_TABS: SettingsTab[] = ['counters', 'country-codes', 'backups', 'content-cache', 'resources', 'local-cache', 'app-version'];
 const DEFAULT_TAB: SettingsTab = 'counters';
 
 @Component({
@@ -24,7 +23,6 @@ const DEFAULT_TAB: SettingsTab = 'counters';
     Backups,
     ContentCacheComponent,
     ResourcesComponent,
-    EmailTemplatesComponent,
     LocalCacheSettingsComponent,
     AppVersionSettingsComponent,
   ],
@@ -39,6 +37,11 @@ export class SettingsComponent {
   // Derive the active tab from the URL `tab` parameter.
   activeTab = computed<SettingsTab>(() => {
     const urlTab = this.viewSignals.urlParams.tab();
+    if (urlTab === 'email-templates') {
+      // Backward compatibility redirect: route to dedicated Email Notifications view
+      this.routingService.navigateToParts(['email-notifications']);
+      return DEFAULT_TAB;
+    }
     if (urlTab && VALID_TABS.includes(urlTab as SettingsTab)) {
       return urlTab as SettingsTab;
     }

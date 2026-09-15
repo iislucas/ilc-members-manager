@@ -12,6 +12,20 @@
 // The supported constructs, for display in the editor UI.
 export const SUPPORTED_EMAIL_MARKDOWN = 'bold (**text**), links ([label](url)), and line breaks';
 
+// Replaces `{key}` tokens in a template string with the corresponding value from `replacements`.
+export function formatTemplate<T extends object = Record<string, unknown>>(
+  template: string,
+  replacements?: T,
+): string {
+  if (!template) return '';
+  if (!replacements) return template;
+  let result = template;
+  for (const [key, value] of Object.entries(replacements)) {
+    result = result.replace(new RegExp(`\\{\\s*${key}\\s*\\}`, 'g'), () => String(value ?? ''));
+  }
+  return result;
+}
+
 // Renders the supported Markdown subset to the HTML used in outbound emails:
 // line breaks, **bold**, and [label](url) links. Every other Markdown construct
 // is left as-is (so it appears literally in the email).

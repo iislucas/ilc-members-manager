@@ -27,6 +27,7 @@ import {
   Unsubscribe,
   doc,
   updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { FIREBASE_APP, Views } from '../app.config';
 import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../functions/src/data-model/events';
@@ -308,7 +309,13 @@ export class ManageEventsComponent implements OnDestroy {
   async setStatus(docId: string, status: EventStatus) {
     try {
       const docRef = doc(this.db, 'events', docId);
-      await updateDoc(docRef, { status, lastUpdated: new Date().toISOString() });
+      await updateDoc(docRef, { status, lastUpdated: serverTimestamp() });
+      const ev = this.dataService.events.get(docId) || this.rawEvents().find((e) => e.docId === docId);
+      if (ev) {
+        const updated = { ...ev, status, lastUpdated: new Date().toISOString() };
+        await this.dataService.persistEventLocally(updated);
+      }
+      this.rawEvents.update((list) => list.map((e) => (e.docId === docId ? { ...e, status } : e)));
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error updating event status:', error);

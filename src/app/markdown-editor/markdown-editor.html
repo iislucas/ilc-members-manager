@@ -127,14 +127,31 @@
 
             @if (chips().length > 0) {
               <div class="toolbar-divider"></div>
-              <div class="chips-section">
-                @if (showDescriptions()) {
-                  <span class="menu-title">Insert</span>
-                }
-                @for (chip of chips(); track chip.token) {
-                  <button type="button" class="chip-insert" (click)="insertChip(chip); $event.stopPropagation()" [title]="'Insert ' + chip.token">
-                    {{ chip.label || chip.token }}
-                  </button>
+              <div class="toolbar-placeholders-group" [class.unfolded]="placeholdersUnfolded()">
+                <button type="button"
+                        class="placeholders-toggle-btn"
+                        (click)="togglePlaceholdersFold(); $event.stopPropagation()"
+                        [title]="placeholdersUnfolded() ? 'Fold placeholder palette' : 'Unfold placeholder palette'">
+                  <span class="placeholder-tag">&#123; &#125;</span>
+                  <span class="toggle-label">Placeholders ({{ chips().length }})</span>
+                  <span class="fold-arrow">{{ placeholdersUnfolded() ? '▾' : '▸' }}</span>
+                </button>
+
+                @if (placeholdersUnfolded()) {
+                  <div class="placeholders-palette">
+                    @for (chip of chips(); track chip.token) {
+                      <div class="placeholder-item"
+                           (click)="insertChip(chip); $event.stopPropagation()"
+                           [title]="chip.description ? (chip.token + ' — ' + chip.description) : ('Insert ' + chip.token)">
+                        <button type="button" class="chip-insert">
+                          {{ chip.label || chip.token }}
+                        </button>
+                        @if (chip.description) {
+                          <span class="chip-description">{{ chip.description }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
                 }
               </div>
             }
@@ -211,26 +228,25 @@
 
   @if (linkPopupOpen()) {
     <div class="link-popup" [style.top.px]="linkPopupPos().top" [style.left.px]="linkPopupPos().left">
-      <input #linkInput [value]="linkUrl()" (keyup.enter)="updateLink(linkInput.value)"/>
+      <input #linkInput
+             [value]="linkUrl()"
+             placeholder="https://..."
+             autofocus
+             (keyup.enter)="updateLink(linkInput.value)"
+             (keyup.escape)="linkPopupOpen.set(false)"/>
       <button type="button" (click)="updateLink(linkInput.value)" class="icon-only-button" title="Save Link">
         <app-icon name="check" width="1em" height="1em"></app-icon>
       </button>
+      @if (linkUrl()) {
+        <a [href]="linkUrl()" target="_blank" rel="noopener noreferrer" class="icon-only-button" title="Open Link in New Tab">
+          <app-icon name="link" width="1em" height="1em"></app-icon>
+        </a>
+      }
       <button type="button" (click)="removeLink()" class="icon-only-button" title="Remove Link">
         <app-icon name="trash" width="1em" height="1em"></app-icon>
       </button>
     </div>
     <div class="menu-overlay" (click)="linkPopupOpen.set(false)"></div>
-  }
-
-  @if (linkPreviewOpen()) {
-    <div class="link-preview" [style.top.px]="linkPreviewPos().top" [style.left.px]="linkPreviewPos().left">
-      <span (click)="openLink()" class="preview-text">🔗 Open: {{ truncatedUrl() }}</span>
-      <div class="preview-actions">
-        <button type="button" (click)="toggleLink()" class="icon-only-button" title="Edit Link">
-          <app-icon name="edit" width="1em" height="1em"></app-icon>
-        </button>
-      </div>
-    </div>
   }
 
   @if (imageModalOpen()) {

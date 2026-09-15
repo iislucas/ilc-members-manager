@@ -1,26 +1,19 @@
-/* backfill-event-schools.ts
+//**
+ * @file scripts/archive/backfill-event-schools.ts
+ * @status ARCHIVED / MIGRATION COMPLETED
+ * @pr PR #13 (feat(school): dedicated school profile page + event/school association)
+ * @commit 2d48852
+ * @date 2026-06-14
  *
- * One-off backfill: populate `schoolId` / `schoolDocId` on existing events that
- * predate the event<->school association feature. For each event that has no
- * schoolId yet but does have a `leadingInstructorId`, we look up that
- * instructor's member record and copy their `primarySchoolId` /
- * `primarySchoolDocId` onto the event.
- *
- * Events that already have a schoolId, or whose leading instructor has no
- * primary school (HQ), are left unchanged.
- *
- * Usage (uses Application Default Credentials, like the other admin scripts):
- *   # dry run — report what would change, write nothing:
- *   pnpm backfill:event-schools
- *   # apply the changes:
- *   pnpm backfill:event-schools --commit
- *   # target a different project (defaults to ilc-paris-class-tracker):
- *   pnpm backfill:event-schools --project=<project-id>
+ * Description:
+ * One-off backfill that populated `schoolId` / `schoolDocId` on existing events
+ * that predated the event<->school association feature, copying the leading
+ * instructor's primarySchoolId onto the event document.
  */
 
 import * as admin from 'firebase-admin';
-import { IlcEvent } from '../functions/src/data-model/events';
-import { Member } from '../functions/src/data-model/members';
+import { IlcEvent } from '../../functions/src/data-model/events';
+import { Member } from '../../functions/src/data-model/members';
 
 const COMMIT = process.argv.includes('--commit');
 

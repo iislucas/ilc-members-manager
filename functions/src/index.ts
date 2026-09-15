@@ -84,5 +84,21 @@ export { deleteVideoFromCatalog } from './vod/delete-video';
 export { checkVodJobStatus } from './vod/check-vod-job-status';
 export { onTranscodeJobFinished } from './vod/on-transcode-finished';
 
+export {
+  sendWeeklyEventDigest,
+  sendMonthlyEventDigest,
+} from './event-digest-scheduler';
+
+export {
+  processMailQueue,
+  sendAdminTestEmail,
+  retryMailItem,
+  setMailSendingPaused,
+  setMailSendingState,
+  deleteMailItems,
+  updateMailItem,
+} from './mail-processor';
+
+export { unsubscribeHandler } from './unsubscribe-handler';
 
 

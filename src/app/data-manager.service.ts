@@ -29,9 +29,22 @@ import {
   limit,
   writeBatch,
 } from 'firebase/firestore';
+import { FirestoreCollection } from '../../functions/src/data-model/collections';
+import {
+  MailQueueDoc,
+  MailSettings,
+  MailSendingStatus,
+  initMailSettings,
+  DeleteMailItemsRequest,
+  DeleteMailItemsResponse,
+  UpdateMailItemRequest,
+  UpdateMailItemResponse,
+  MailDeliveryState,
+} from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
+import { GenericFsDoc } from '../../functions/src/data-model/base';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
-import { IlcEvent, EventStatus, initEvent } from '../../functions/src/data-model/events';
+import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent } from '../../functions/src/data-model/events';
 import { Grading, GradingFsDoc, firestoreDocToGrading } from '../../functions/src/data-model/gradings';
 import { UploadItem, firestoreDocToUploadItem, initUploadItem } from '../../functions/src/data-model/materials';
 import { Member, initMember, InstructorPublicData, initInstructor, MemberFsDoc, firestoreDocToMember, firestoreDocToInstructorPublicData } from '../../functions/src/data-model/members';
@@ -75,10 +88,20 @@ function orderSortDate(order: Order): string {
   }
 }
 
+export function compareOrdersByDateDesc(a: Order, b: Order): number {
+  return (orderSortDate(b) || '').localeCompare(orderSortDate(a) || '');
+}
+
 export function sortOrdersByDateDesc(orders: Order[]): Order[] {
-  return orders.sort((a, b) => {
-    return (orderSortDate(b) || '').localeCompare(orderSortDate(a) || '');
-  });
+  return orders.sort(compareOrdersByDateDesc);
+}
+
+export function compareEventsByStartDesc(a: IlcEvent, b: IlcEvent): number {
+  return (b.start || '').localeCompare(a.start || '');
+}
+
+export function sortEventsByStartDesc(events: IlcEvent[]): IlcEvent[] {
+  return events.sort(compareEventsByStartDesc);
 }
 
 export type OrderSearchCriteriaTerm = {
@@ -249,6 +272,7 @@ export class DataManagerService {
   );
   public counters = signal<Counters | null>(null);
   public emailTemplates = signal<EmailTemplates | null>(null);
+  public mailSettings = signal<MailSettings>(initMailSettings());
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
   public gradings = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
@@ -277,6 +301,10 @@ export class DataManagerService {
   );
   public videos = new SearchableSet<'docId', VideoItem>(
     ['title', 'description', 'instructorName', 'tags', 'location', 'eventTitle'],
+    'docId',
+  );
+  public events = new SearchableSet<'docId', IlcEvent>(
+    ['title', 'description', 'location', 'city', 'country', 'leadingInstructorName', 'schoolName', 'status'],
     'docId',
   );
 
@@ -382,11 +410,14 @@ export class DataManagerService {
   }
 
   constructor() {
-    // 1. Immediately load public schools from IndexedDB cache and sync in background
+    // 1. Immediately load public schools and events from IndexedDB cache and sync in background
     this.syncService.loadCachedData('schools', this.schools, (a, b) =>
       (b.schoolId || '').localeCompare(a.schoolId || ''),
     );
     this.updateSchoolsSync();
+
+    this.syncService.loadCachedData('public_events', this.events, compareEventsByStartDesc);
+    this.updateEventsSync();
 
     // 2. Setup public system listeners
     this.updateCountryCodesSync();
@@ -399,18 +430,25 @@ export class DataManagerService {
         this.updateMembersSync(user);
         this.updateMyStudentsSync(user);
         this.updateMyGradingsAssessedSync(user);
+        if (user.isAdmin) {
+          this.updateOrdersSync();
+        } else {
+          this.orders.setEntries([]);
+        }
       } else {
         this.members.setEntries([]);
         this.myStudents.setEntries([]);
         this.myGradingsAssessed.setEntries([]);
+        this.orders.setEntries([]);
       }
     });
 
-    // System listeners reactive to auth status (counters, email-templates, videos)
+    // System listeners reactive to auth status (counters, email-templates, mail-settings, videos)
     effect(() => {
       const user = this.firebaseService.user();
       this.updateCountersSync(user);
       this.updateEmailTemplatesSync(user);
+      this.updateMailSettingsSync(user);
       this.updateVideosSync(user);
     });
 
@@ -587,6 +625,10 @@ export class DataManagerService {
       this.emailTemplatesUnsubscribe();
       this.emailTemplatesUnsubscribe = null;
     }
+    if (this.mailSettingsUnsubscribe) {
+      this.mailSettingsUnsubscribe();
+      this.mailSettingsUnsubscribe = null;
+    }
     if (this.videosUnsubscribe) {
       this.videosUnsubscribe();
       this.videosUnsubscribe = null;
@@ -652,20 +694,47 @@ export class DataManagerService {
 
   // Instructor data is now managed by FindInstructorsService.
 
-  async updateOrdersSync() {
-    try {
-      const q = query(this.ordersCollection, orderBy('lastUpdated', 'desc'));
-      const snapshot = await getDocs(q);
-      const orders = sortOrdersByDateDesc(snapshot.docs.map(firestoreDocToOrder));
-      this.orders.setEntries(orders);
-      return this.orders;
-    } catch (error: any) {
-      this.orders.setError(error.message);
-      throw error;
-    }
+  async updateOrdersSync(forceFullRefresh = false) {
+    const cacheKey = 'admin_orders';
+    this.syncService.loadCachedData(cacheKey, this.orders, compareOrdersByDateDesc);
+    await this.syncService.syncCollection({
+      cacheKey,
+      collectionPath: 'orders',
+      idField: 'docId',
+      targetSet: this.orders,
+      docConverter: firestoreDocToOrder,
+      sortFn: compareOrdersByDateDesc,
+      forceFullRefresh,
+    });
+    return this.orders;
+  }
+
+  async updateEventsSync(forceFullRefresh = false) {
+    const cacheKey = 'public_events';
+    this.syncService.loadCachedData(cacheKey, this.events, compareEventsByStartDesc);
+    await this.syncService.syncCollection({
+      cacheKey,
+      collectionPath: 'events',
+      idField: 'docId',
+      targetSet: this.events,
+      docConverter: firestoreDocToIlcEvent,
+      sortFn: compareEventsByStartDesc,
+      forceFullRefresh,
+    });
+    return this.events;
   }
 
   async getRecentOrders(limitCount: number = 1000, status?: string, kindFilter?: string): Promise<Order[]> {
+    if (this.orders.entries().length > 0) {
+      let filtered = this.orders.entries();
+      if (status) {
+        filtered = filtered.filter((o) => o.ilcAppOrderStatus === status);
+      }
+      if (kindFilter === 'squarespace') {
+        filtered = filtered.filter((o) => o.ilcAppOrderKind === OrderKind.Squarespace);
+      }
+      return filtered.slice(0, limitCount);
+    }
     try {
       let q = query(
         this.ordersCollection,
@@ -692,6 +761,67 @@ export class DataManagerService {
     const status = criteria.statusFilter;
     const kindFilter = criteria.kindFilter;
 
+    if (this.orders.entries().length > 0) {
+      if (criteria.kind === 'term') {
+        const term = criteria.term.trim().toLowerCase();
+        const field = criteria.searchField;
+        if (!term) return [];
+
+        let results = this.orders.entries().filter((o) => {
+          const recO = o as Record<string, unknown>;
+          if (field === 'email' || field === 'customerEmail') {
+            const ce = (('customerEmail' in o && typeof o.customerEmail === 'string' ? o.customerEmail : '') || '').toLowerCase();
+            const em = (('email' in o && typeof o.email === 'string' ? o.email : '') || '').toLowerCase();
+            return ce.includes(term) || em.includes(term);
+          } else if (field === 'memberDocId' || field === 'ilcAppMemberDocId') {
+            const mid = (('ilcAppMemberDocId' in o && typeof o.ilcAppMemberDocId === 'string' ? o.ilcAppMemberDocId : '') || '').toLowerCase();
+            return mid === term;
+          } else if (field === 'orderNumber') {
+            const on = ('orderNumber' in o && typeof o.orderNumber === 'string' ? o.orderNumber : '') || '';
+            return on.toLowerCase().includes(term);
+          } else if (field === 'referenceNumber') {
+            const rn = ('referenceNumber' in o && typeof o.referenceNumber === 'string' ? o.referenceNumber : '') || '';
+            return rn.toLowerCase().includes(term);
+          } else if (field === 'id') {
+            const id = ('id' in o && typeof o.id === 'string' ? o.id : '') || '';
+            return id.toLowerCase().includes(term) || o.docId.toLowerCase().includes(term);
+          } else if (field === 'lastName' || field === 'billingAddress.lastName') {
+            const ln = (('lastName' in o && typeof o.lastName === 'string' ? o.lastName : '') ||
+              ('billingAddress' in o && o.billingAddress && typeof o.billingAddress === 'object' && 'lastName' in o.billingAddress ? String((o.billingAddress as Record<string, unknown>)['lastName'] || '') : '')).toLowerCase();
+            return ln.includes(term);
+          } else {
+            const val = String(recO[field] || '').toLowerCase();
+            return val.includes(term);
+          }
+        });
+
+        if (status) {
+          results = results.filter((o) => o.ilcAppOrderStatus === status);
+        }
+        if (kindFilter === 'squarespace') {
+          results = results.filter((o) => o.ilcAppOrderKind === OrderKind.Squarespace);
+        }
+
+        return sortOrdersByDateDesc(results);
+      } else if (criteria.kind === 'date') {
+        let results = this.orders.entries().filter((o) => {
+          const orderDate = orderSortDate(o);
+          if (criteria.startDate && (!orderDate || orderDate < criteria.startDate)) return false;
+          if (criteria.endDate && (!orderDate || orderDate > criteria.endDate + 'T23:59:59.999Z')) return false;
+          return true;
+        });
+
+        if (status) {
+          results = results.filter((o) => o.ilcAppOrderStatus === status);
+        }
+        if (kindFilter === 'squarespace') {
+          results = results.filter((o) => o.ilcAppOrderKind === OrderKind.Squarespace);
+        }
+
+        return sortOrdersByDateDesc(results);
+      }
+    }
+
     if (criteria.kind === 'term') {
       const term = criteria.term.trim();
       const field = criteria.searchField;
@@ -704,18 +834,18 @@ export class DataManagerService {
         const qEmail = query(this.ordersCollection, where('email', '==', term));
         const [snapC, snapE] = await Promise.all([getDocs(qCustomer), getDocs(qEmail)]);
         snapC.docs.forEach((docSnap) => {
-          const order = firestoreDocToOrder(docSnap as any);
+          const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
         snapE.docs.forEach((docSnap) => {
-          const order = firestoreDocToOrder(docSnap as any);
+          const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
       } else if (field === 'memberDocId' || field === 'ilcAppMemberDocId') {
         const q = query(this.ordersCollection, where('ilcAppMemberDocId', '==', term));
         const snap = await getDocs(q);
         snap.docs.forEach((docSnap) => {
-          const order = firestoreDocToOrder(docSnap as any);
+          const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
       } else {
@@ -731,7 +861,7 @@ export class DataManagerService {
 
         const snap = await getDocs(q);
         snap.docs.forEach((docSnap) => {
-          const order = firestoreDocToOrder(docSnap as any);
+          const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
       }
@@ -768,8 +898,8 @@ export class DataManagerService {
         const [snapS, snapH] = await Promise.all([getDocs(qSquareSpace), getDocs(qSheetsImport)]);
         const results: Order[] = [];
 
-        snapS.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as any)));
-        snapH.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as any)));
+        snapS.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as unknown as GenericFsDoc)));
+        snapH.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as unknown as GenericFsDoc)));
 
         return sortOrdersByDateDesc(results);
       } catch (error) {
@@ -782,6 +912,14 @@ export class DataManagerService {
   }
 
   async getRecentEvents(limitCount: number = 100, status?: string): Promise<IlcEvent[]> {
+    if (this.events.entries().length > 0) {
+      let evs = this.events.entries();
+      if (status) {
+        evs = evs.filter((e) => e.status === status);
+      }
+      evs = [...evs].sort((a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''));
+      return evs.slice(0, limitCount);
+    }
     try {
       let q = query(
         this.eventsCollection,
@@ -828,6 +966,44 @@ export class DataManagerService {
 
   async searchEvents(criteria: EventSearchCriteria): Promise<IlcEvent[]> {
     const status = criteria.statusFilter;
+
+    if (this.events.entries().length > 0) {
+      if (criteria.kind === 'term') {
+        const term = criteria.term.trim().toLowerCase();
+        const field = criteria.searchField;
+        if (!term) return [];
+
+        let results = this.events.entries().filter((e) => {
+          if (field === 'ownerEmails') {
+            return (e.ownerEmails || []).some((em) => em.toLowerCase().includes(term));
+          } else if (field === 'ownerDocId' || field === 'memberDocId') {
+            return (
+              (e.ownerDocId || '').toLowerCase() === term ||
+              (e.managerDocIds || []).some((mId) => mId.toLowerCase() === term)
+            );
+          } else {
+            const val = String((e as Record<string, unknown>)[field] || '').toLowerCase();
+            return val.includes(term);
+          }
+        });
+
+        if (status) {
+          results = results.filter((e) => e.status === status);
+        }
+        return results;
+      } else if (criteria.kind === 'date') {
+        let results = this.events.entries().filter((e) => {
+          if (criteria.startDate && (!e.start || e.start < criteria.startDate)) return false;
+          if (criteria.endDate && (!e.start || e.start > criteria.endDate + 'T23:59:59.999Z')) return false;
+          return true;
+        });
+
+        if (status) {
+          results = results.filter((e) => e.status === status);
+        }
+        return sortEventsByStartDesc(results);
+      }
+    }
 
     if (criteria.kind === 'term') {
       const term = criteria.term.trim();
@@ -913,10 +1089,22 @@ export class DataManagerService {
   async getOrderByIdOrRef(idOrRef: string): Promise<Order | undefined> {
     if (!idOrRef) return undefined;
 
+    // Try in-memory cached orders first
+    const inMemory =
+      this.orders.get(idOrRef) ||
+      this.orders.entries().find(
+        (o) =>
+          o.docId === idOrRef ||
+          ('id' in o && o.id === idOrRef) ||
+          ('orderNumber' in o && o.orderNumber === idOrRef) ||
+          ('referenceNumber' in o && o.referenceNumber === idOrRef),
+      );
+    if (inMemory) return inMemory;
+
     // Try direct doc lookup
     const directDoc = await getDoc(doc(this.db, 'orders', idOrRef));
     if (directDoc.exists()) {
-      return firestoreDocToOrder(directDoc as any);
+      return firestoreDocToOrder(directDoc as unknown as GenericFsDoc);
     }
 
     // Try query by id (Squarespace ID) or orderNumber or referenceNumber
@@ -927,7 +1115,7 @@ export class DataManagerService {
     for (const q of [q1, q2, q3]) {
       const snap = await getDocs(q);
       if (!snap.empty) {
-        return firestoreDocToOrder(snap.docs[0] as any);
+        return firestoreDocToOrder(snap.docs[0] as unknown as GenericFsDoc);
       }
     }
 
@@ -936,11 +1124,13 @@ export class DataManagerService {
 
   async getEventById(id: string): Promise<IlcEvent | undefined> {
     if (!id) return undefined;
+    const cached = this.events.get(id);
+    if (cached) return cached;
     try {
       const docRef = doc(this.db, 'events', id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return { ...initEvent(), ...docSnap.data(), docId: docSnap.id } as IlcEvent;
+        return firestoreDocToIlcEvent(docSnap as unknown as GenericFsDoc);
       }
       return undefined;
     } catch (error) {
@@ -959,6 +1149,19 @@ export class DataManagerService {
     instructorDocId: string,
   ): Promise<IlcEvent[]> {
     if (!instructorId && !instructorDocId) return [];
+
+    if (this.events.entries().length > 0) {
+      const now = new Date().toISOString();
+      return this.events.entries()
+        .filter((ev) => {
+          const matches =
+            (instructorId && ev.leadingInstructorId === instructorId) ||
+            (instructorDocId && (ev.ownerDocId === instructorDocId || (ev.managerDocIds && ev.managerDocIds.includes(instructorDocId))));
+          return matches && ev.status === EventStatus.Listed && (ev.end || ev.start) >= now;
+        })
+        .sort((a, b) => a.start.localeCompare(b.start));
+    }
+
     const queries = [];
     if (instructorId) {
       queries.push(query(this.eventsCollection, where('leadingInstructorId', '==', instructorId)));
@@ -995,6 +1198,21 @@ export class DataManagerService {
     pastLimit = 5,
   ): Promise<{ upcoming: IlcEvent[]; past: IlcEvent[]; pastTotal: number }> {
     if (!schoolId) return { upcoming: [], past: [], pastTotal: 0 };
+
+    if (this.events.entries().length > 0) {
+      const events = this.events
+        .entries()
+        .filter((ev) => ev.schoolId === schoolId && ev.status === EventStatus.Listed);
+      const now = new Date().toISOString();
+      const upcoming = events
+        .filter((ev) => (ev.end || ev.start) >= now)
+        .sort((a, b) => a.start.localeCompare(b.start));
+      const pastAll = events
+        .filter((ev) => (ev.end || ev.start) < now)
+        .sort((a, b) => b.start.localeCompare(a.start));
+      const past = pastAll.slice(0, pastLimit);
+      return { upcoming, past, pastTotal: pastAll.length };
+    }
     try {
       const q = query(this.eventsCollection, where('schoolId', '==', schoolId));
       const snap = await getDocs(q);
@@ -1247,6 +1465,36 @@ export class DataManagerService {
       });
     } else {
       this.emailTemplates.set(null);
+    }
+  }
+
+  private mailSettingsUnsubscribe: (() => void) | null = null;
+
+  updateMailSettingsSync(user: UserDetails | null) {
+    if (this.mailSettingsUnsubscribe) {
+      this.mailSettingsUnsubscribe();
+      this.mailSettingsUnsubscribe = null;
+    }
+    if (user?.isAdmin) {
+      const mailSettingsRef = doc(this.db, 'system', 'mail-settings');
+      this.mailSettingsUnsubscribe = onSnapshot(
+        mailSettingsRef,
+        (snap) => {
+          if (snap.exists()) {
+            this.mailSettings.set({
+              ...initMailSettings(),
+              ...(snap.data() as Partial<MailSettings>),
+            });
+          } else {
+            this.mailSettings.set(initMailSettings());
+          }
+        },
+        (error) => {
+          console.error('Error fetching mail settings:', error);
+        },
+      );
+    } else {
+      this.mailSettings.set(initMailSettings());
     }
   }
 
@@ -1511,6 +1759,16 @@ export class DataManagerService {
     this.schools.delete(schoolId);
     this.mySchools.delete(schoolId);
     await this.syncService.deleteCachedEntry('schools', 'schoolId', schoolId);
+  }
+
+  async persistEventLocally(event: IlcEvent): Promise<void> {
+    this.events.upsert(event);
+    await this.syncService.upsertCachedEntry('public_events', 'docId', event);
+  }
+
+  async removeEventLocally(eventId: string): Promise<void> {
+    this.events.delete(eventId);
+    await this.syncService.deleteCachedEntry('public_events', 'docId', eventId);
   }
 
   async addMember(member: Member): Promise<DocumentReference> {
@@ -1837,6 +2095,7 @@ export class DataManagerService {
       lastUpdated: new Date().toISOString(),
     };
     this.orders.upsert(addedOrder);
+    await this.syncService.upsertCachedEntry('admin_orders', 'docId', addedOrder);
     return newDocRef;
   }
 
@@ -1853,6 +2112,7 @@ export class DataManagerService {
       lastUpdated: new Date().toISOString(),
     };
     this.orders.upsert(updatedOrder);
+    await this.syncService.upsertCachedEntry('admin_orders', 'docId', updatedOrder);
   }
 
   /**
@@ -1879,7 +2139,9 @@ export class DataManagerService {
     });
     const existing = this.orders.get(orderId);
     if (existing && 'lineItems' in existing) {
-      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+      const updated = { ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order;
+      this.orders.upsert(updated);
+      await this.syncService.upsertCachedEntry('admin_orders', 'docId', updated);
     }
   }
 
@@ -1907,7 +2169,9 @@ export class DataManagerService {
     });
     const existing = this.orders.get(orderId);
     if (existing && 'lineItems' in existing) {
-      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+      const updated = { ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order;
+      this.orders.upsert(updated);
+      await this.syncService.upsertCachedEntry('admin_orders', 'docId', updated);
     }
   }
 
@@ -1935,7 +2199,9 @@ export class DataManagerService {
     });
     const existing = this.orders.get(orderId);
     if (existing && 'lineItems' in existing) {
-      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+      const updated = { ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order;
+      this.orders.upsert(updated);
+      await this.syncService.upsertCachedEntry('admin_orders', 'docId', updated);
     }
   }
 
@@ -1960,7 +2226,9 @@ export class DataManagerService {
     });
     const existing = this.orders.get(orderId);
     if (existing) {
-      this.orders.upsert({ ...existing, ilcAppNotes: notes, lastUpdated: new Date().toISOString() });
+      const updated = { ...existing, ilcAppNotes: notes, lastUpdated: new Date().toISOString() } as Order;
+      this.orders.upsert(updated);
+      await this.syncService.upsertCachedEntry('admin_orders', 'docId', updated);
     }
   }
 
@@ -2203,6 +2471,188 @@ export class DataManagerService {
     return setDoc(doc(this.db, 'system', 'email-templates'), data);
   }
 
+  async sendAdminTestEmail(options: {
+    to: string;
+    subject: string;
+    bodyMarkdown: string;
+    fromName?: string;
+    replyTo?: string;
+    name?: string;
+    replacements?: Record<string, string>;
+  }): Promise<{
+    success: boolean;
+    messageId?: string;
+    simulated?: boolean;
+    error?: string;
+    docId?: string;
+  }> {
+    const fn = httpsCallable<
+      {
+        to: string;
+        subject: string;
+        bodyMarkdown: string;
+        fromName?: string;
+        replyTo?: string;
+        name?: string;
+        replacements?: Record<string, string>;
+      },
+      {
+        success: boolean;
+        messageId?: string;
+        simulated?: boolean;
+        error?: string;
+        docId?: string;
+      }
+    >(this.functions, 'sendAdminTestEmail');
+    const result = await fn(options);
+    return result.data;
+  }
+
+  /**
+   * Deletes a single mail queue document directly using client SDK (permitted for admins by Firestore security rules).
+   */
+  async deleteMailItemDirect(mailId: string): Promise<void> {
+    const mailRef = doc(this.db, FirestoreCollection.Mail, mailId);
+    await deleteDoc(mailRef);
+  }
+
+  /**
+   * Fetches recent mail queue documents from /mail for admin inspection.
+   */
+  async getRecentMailDocs(maxCount = 50): Promise<MailQueueDoc[]> {
+    const mailCol = collection(this.db, FirestoreCollection.Mail);
+    const q = query(mailCol, limit(maxCount));
+    const snap = await getDocs(q);
+    const docs: MailQueueDoc[] = [];
+
+    for (const d of snap.docs) {
+      const data = d.data() as MailQueueDoc;
+      docs.push({
+        ...data,
+        docId: d.id,
+      });
+    }
+
+    // Sort descending by timestamp
+    docs.sort((a, b) => {
+      const timeA = this.resolveMailTimestamp(a);
+      const timeB = this.resolveMailTimestamp(b);
+      return timeB - timeA;
+    });
+
+    return docs;
+  }
+
+  /**
+   * Fetches a single mail document by ID from /mail.
+   */
+  async getMailDoc(mailId: string): Promise<MailQueueDoc | null> {
+    if (!mailId) return null;
+    try {
+      const docRef = doc(this.db, FirestoreCollection.Mail, mailId);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return null;
+      return {
+        ...(snap.data() as MailQueueDoc),
+        docId: snap.id,
+      };
+    } catch (e) {
+      console.error('Error fetching mail doc', mailId, e);
+      return null;
+    }
+  }
+
+  private resolveMailTimestamp(doc: MailQueueDoc): number {
+    if (doc.createdAt) {
+      if (typeof (doc.createdAt as { toMillis?: () => number }).toMillis === 'function') {
+        return (doc.createdAt as { toMillis: () => number }).toMillis();
+      }
+      if (typeof doc.createdAt === 'string') {
+        return new Date(doc.createdAt).getTime();
+      }
+    }
+    if (doc.delivery?.startTime) {
+      if (typeof (doc.delivery.startTime as { toMillis?: () => number }).toMillis === 'function') {
+        return (doc.delivery.startTime as { toMillis: () => number }).toMillis();
+      }
+      if (typeof doc.delivery.startTime === 'string') {
+        return new Date(doc.delivery.startTime).getTime();
+      }
+    }
+    const sentAt = doc.metadata?.['sentAt'];
+    if (typeof sentAt === 'string') {
+      return new Date(sentAt).getTime();
+    }
+    return 0;
+  }
+
+  /**
+   * Admin-only callable to safely reset an email document to PENDING for retry.
+   */
+  async retryMailItem(mailId: string): Promise<{ success: boolean; docId: string; error?: string }> {
+    const fn = httpsCallable<{ mailId: string }, { success: boolean; docId: string; error?: string }>(
+      this.functions,
+      'retryMailItem',
+    );
+    const res = await fn({ mailId });
+    return res.data;
+  }
+
+  /**
+   * Admin-only callable to set global outbound mail sending state ('active' | 'paused' | 'off').
+   * When transitioning to 'active', transitions all documents in /mail with status: 'PAUSED' to 'PENDING'.
+   */
+  async setMailSendingState(
+    status: MailSendingStatus,
+  ): Promise<{ success: boolean; status: MailSendingStatus; resumedCount: number }> {
+    const fn = httpsCallable<
+      { status: MailSendingStatus },
+      { success: boolean; status: MailSendingStatus; resumedCount: number }
+    >(this.functions, 'setMailSendingState');
+    const res = await fn({ status });
+    return res.data;
+  }
+
+  /**
+   * Admin-only callable to toggle pause on global outbound mail sending.
+   * When unpausing, transitions all documents in /mail with status: 'PAUSED' to 'PENDING'.
+   */
+  async setMailSendingPaused(
+    paused: boolean,
+  ): Promise<{ success: boolean; paused: boolean; resumedCount: number }> {
+    const fn = httpsCallable<
+      { paused: boolean },
+      { success: boolean; paused: boolean; resumedCount: number }
+    >(this.functions, 'setMailSendingPaused');
+    const res = await fn({ paused });
+    return res.data;
+  }
+
+  /**
+   * Admin-only callable to delete multiple mail items from the queue in batch.
+   */
+  async deleteMailItems(mailIds: string[]): Promise<DeleteMailItemsResponse> {
+    const fn = httpsCallable<DeleteMailItemsRequest, DeleteMailItemsResponse>(
+      this.functions,
+      'deleteMailItems',
+    );
+    const res = await fn({ mailIds });
+    return res.data;
+  }
+
+  /**
+   * Admin-only callable to update a queued mail item (recipient, subject, text, templateData, status).
+   */
+  async updateMailItem(request: UpdateMailItemRequest): Promise<UpdateMailItemResponse> {
+    const fn = httpsCallable<UpdateMailItemRequest, UpdateMailItemResponse>(
+      this.functions,
+      'updateMailItem',
+    );
+    const res = await fn(request);
+    return res.data;
+  }
+
+
   downloadSchoolsAsJsonL() {
     const schoolFields = Object.keys(initSchool()) as Array<keyof School>;
     const schools = this.schools.entries().map((s) => {
@@ -2407,32 +2857,31 @@ export class DataManagerService {
   private videosUnsubscribe: (() => void) | null = null;
 
   /**
-   * Subscribes to the /videos collection.
-   * If the current user is an admin, queries all videos (published and draft/processing).
-   * Otherwise (public or non-admin member), queries only published videos (isPublished == true)
-   * to comply with Firestore security rules.
+   * Syncs the /videos collection with local IndexedDB cache and Firestore delta queries.
+   * If the current user is an admin, queries all videos (published and draft/processing) into 'admin_videos'.
+   * Otherwise (public or non-admin member), queries only published videos into 'public_videos'.
    */
-  updateVideosSync(user: UserDetails | null) {
-    if (this.videosUnsubscribe) {
-      this.videosUnsubscribe();
-      this.videosUnsubscribe = null;
-    }
-    const videosRef = collection(this.db, 'videos');
-    const q = user?.isAdmin
-      ? query(videosRef)
-      : query(videosRef, where('isPublished', '==', true));
+  async updateVideosSync(user: UserDetails | null, forceFullRefresh = false) {
+    const isAdmin = Boolean(user?.isAdmin);
+    const cacheKey = isAdmin ? 'admin_videos' : 'public_videos';
 
-    this.videosUnsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const items = snapshot.docs.map(firestoreDocToVideoItem);
-        this.videos.setEntries(items);
-      },
-      (error) => {
-        console.error('Error fetching videos:', error);
-        this.videos.setError(error.message);
-      },
+    this.syncService.loadCachedData(cacheKey, this.videos, (a, b) =>
+      (b.createdAt || '').localeCompare(a.createdAt || ''),
     );
+
+    const queryConstraints = isAdmin ? undefined : [where('isPublished', '==', true)];
+
+    await this.syncService.syncCollection({
+      cacheKey,
+      collectionPath: 'videos',
+      idField: 'docId',
+      targetSet: this.videos,
+      docConverter: firestoreDocToVideoItem,
+      sortFn: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''),
+      queryConstraints,
+      forceFullRefresh,
+    });
+    return this.videos;
   }
 
   /**
@@ -2454,9 +2903,21 @@ export class DataManagerService {
     const videoRef = doc(this.db, 'videos', video.docId);
     const payload = {
       ...video,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: serverTimestamp(),
     };
     await setDoc(videoRef, payload, { merge: true });
+
+    const updatedVideo: VideoItem = {
+      ...video,
+      lastUpdated: new Date().toISOString(),
+    };
+    this.videos.upsert(updatedVideo);
+    await Promise.all([
+      this.syncService.upsertCachedEntry('admin_videos', 'docId', updatedVideo),
+      ...(updatedVideo.isPublished
+        ? [this.syncService.upsertCachedEntry('public_videos', 'docId', updatedVideo)]
+        : [this.syncService.deleteCachedEntry('public_videos', 'docId', updatedVideo.docId)]),
+    ]);
   }
 
   /**
@@ -2470,6 +2931,12 @@ export class DataManagerService {
     await fn({ videoId });
     const videoRef = doc(this.db, 'videos', videoId);
     await deleteDoc(videoRef).catch(() => {});
+
+    this.videos.delete(videoId);
+    await Promise.all([
+      this.syncService.deleteCachedEntry('admin_videos', 'docId', videoId),
+      this.syncService.deleteCachedEntry('public_videos', 'docId', videoId),
+    ]);
   }
 
   /**
@@ -2572,7 +3039,7 @@ export class DataManagerService {
       const vId = videoIdsToProcess[i];
       const videoRef = doc(this.db, 'videos', vId);
       const updates: Record<string, any> = {
-        lastUpdated: nowIso,
+        lastUpdated: serverTimestamp(),
       };
 
       if (patch.title !== undefined) updates['seriesTitle'] = patch.title;
@@ -2618,7 +3085,6 @@ export class DataManagerService {
     const startIndex = existingSeries ? existingSeries.videos.length : 0;
 
     const batch = writeBatch(this.db);
-    const nowIso = new Date().toISOString();
 
     for (let i = 0; i < videoIds.length; i++) {
       const vId = videoIds[i];
@@ -2626,7 +3092,7 @@ export class DataManagerService {
       const updates: Record<string, any> = {
         seriesId,
         seriesPartIndex: startIndex + i + 1,
-        lastUpdated: nowIso,
+        lastUpdated: serverTimestamp(),
       };
 
       if (seriesData?.title || existingSeries?.title) {
@@ -2690,7 +3156,7 @@ export class DataManagerService {
       const videoRef = doc(this.db, 'videos', v.docId);
       await updateDoc(videoRef, {
         tags: Array.from(new Set(updatedTags)),
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: serverTimestamp(),
       }).catch((err) => {
         console.warn(`Failed to update tags on video ${v.docId}:`, err);
       });
@@ -2912,11 +3378,17 @@ export class DataManagerService {
   }
 
   async forceRefreshAllData(user: UserDetails): Promise<void> {
-    await Promise.all([
+    const promises: Promise<unknown>[] = [
       this.updateMembersSync(user, true),
       this.updateSchoolsSync(true),
+      this.updateEventsSync(true),
+      this.updateVideosSync(user, true),
       this.updateMyStudentsSync(user, true),
       this.findInstructorsService.updateInstructorsSync(true),
-    ]);
+    ];
+    if (user.isAdmin) {
+      promises.push(this.updateOrdersSync(true));
+    }
+    await Promise.all(promises);
   }
 }

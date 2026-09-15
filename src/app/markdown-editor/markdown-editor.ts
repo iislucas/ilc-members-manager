@@ -43,11 +43,19 @@ import { $prose, $remark, $nodeSchema, $inputRule, $view } from '@milkdown/utils
 import { wrappingInputRule } from '@milkdown/prose/inputrules';
 import { NodeSelection, Plugin, PluginKey, TextSelection } from '@milkdown/prose/state';
 import { Decoration, DecorationSet, EditorView, NodeView } from '@milkdown/prose/view';
-import { Node as ProseNode, Fragment } from '@milkdown/prose/model';
+import { Node as ProseNode, Fragment, Mark } from '@milkdown/prose/model';
 import { lift, wrapIn, splitBlock } from '@milkdown/prose/commands';
 import { wrapInList, liftListItem, sinkListItem, splitListItem } from '@milkdown/prose/schema-list';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { IconComponent } from '../icons/icon.component';
+
+interface MdastNode {
+  type: string;
+  value?: string;
+  children?: MdastNode[];
+  ordered?: boolean;
+  [key: string]: unknown;
+}
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 
 // Content-producing toolbar actions that can be individually enabled. Used to
@@ -68,6 +76,8 @@ export interface EditorChip {
   token: string;
   // Optional label for the insertion button; defaults to `token`.
   label?: string;
+  // Optional short description of what the placeholder token represents.
+  description?: string;
 }
 
 export class ImageNodeView implements NodeView {
@@ -279,10 +289,6 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   linkPopupPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
   linkUrl = signal<string>('');
   currentLinkRange = signal<{ from: number; to: number } | null>(null);
-  
-  linkPreviewOpen = signal<boolean>(false);
-  linkPreviewPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
-  linkPreviewUrl = signal<string>('');
 
   imageModalOpen = signal<boolean>(false);
   imageSourceType = signal<'upload' | 'url'>('upload');
@@ -297,6 +303,12 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   readonly showBreaks = signal<boolean>(false);
   readonly isRawMode = signal<boolean>(false);
   readonly rawContent = signal<string>('');
+  readonly placeholdersUnfolded = signal<boolean>(true);
+
+  togglePlaceholdersFold() {
+    this.placeholdersUnfolded.set(!this.placeholdersUnfolded());
+    setTimeout(() => this.updateScrollState(), 0);
+  }
 
   imageDimensions = computed(() => {
     const size = this.imageSizeChoice();
@@ -305,13 +317,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     const height = Math.round(width / ratio);
     return { width, height };
   });
-  
-  truncatedUrl = computed(() => {
-    const url = this.linkPreviewUrl();
-    if (!url) return '';
-    if (url.length <= 40) return url;
-    return url.substring(0, 20) + '...' + url.substring(url.length - 15);
-  });
+
 
   private featureSet = computed(() => {
     const list = this.enabledFeatures();
@@ -393,6 +399,10 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   }
 
   onEscape() {
+    if (this.linkPopupOpen()) {
+      this.linkPopupOpen.set(false);
+      return;
+    }
     if (this.imageModalOpen()) {
       this.closeImageDialog();
       return;
@@ -507,7 +517,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   ngAfterViewInit() {
     this.initEditor();
     this.setupTapHandlers();
-    this.setupLinkPreview();
+    this.setupLinkHandling();
     this.setupClickBelowContent();
     if (this.menuOpen()) {
       setTimeout(() => {
@@ -698,7 +708,35 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     return $remark('markdown-editor-preserve-empty-line-block', () => () => (ast: any, file: any) => {
       const source = file?.value ? String(file.value) : this.lastInputMarkdown;
       this.transformEmptyLineBlocks(ast, source);
+      this.transformTextBreaks(ast);
     });
+  }
+
+  private transformTextBreaks(parent: MdastNode) {
+    if (!parent || !parent.children) return;
+
+    const newChildren: MdastNode[] = [];
+    for (let i = 0; i < parent.children.length; i++) {
+      const child = parent.children[i];
+
+      if (child.type === 'text' && (child.value?.includes('\n') || child.value?.includes('\r'))) {
+        const lines = (child.value || '').split(/\r?\n/);
+        for (let j = 0; j < lines.length; j++) {
+          if (lines[j]) {
+            newChildren.push({ type: 'text', value: lines[j] });
+          }
+          if (j < lines.length - 1) {
+            newChildren.push({ type: 'break' });
+          }
+        }
+      } else {
+        if (child.children) {
+          this.transformTextBreaks(child);
+        }
+        newChildren.push(child);
+      }
+    }
+    parent.children = newChildren;
   }
 
   private transformEmptyLineBlocks(ast: any, source = '') {
@@ -783,6 +821,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       .use(indentPlugin)
       .use(this.chipDecorationPlugin())
       .use(this.breakMarksPlugin())
+      .use(this.linkClickPlugin())
       .create();
     
     this.editor = editor;
@@ -1939,38 +1978,31 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       const { $from, $to } = state.selection;
       
       // Find if there is a link at the cursor
-      const mark = $from.marks().find(m => m.type.name === 'link');
+      const mark = $from.marks().find((m) => m.type.name === 'link') ||
+        ($from.pos > 0 ? state.doc.resolve($from.pos - 1).marks().find((m) => m.type.name === 'link') : undefined);
       
       if (mark) {
-        const url = mark.attrs['href'];
-        this.linkUrl.set(url);
-        
-        // Find range
-        let $pos = $from;
-        let from = $pos.pos;
-        let to = $pos.pos;
-        while (from > 0 && mark.isInSet(state.doc.resolve(from - 1).marks())) from--;
-        while (to < state.doc.content.size && mark.isInSet(state.doc.resolve(to).marks())) to++;
-        
-        this.currentLinkRange.set({ from, to });
-        
-        // Get coordinates relative to the editor container so the
-        // popup scrolls with the content instead of staying fixed.
-        const coords = view.coordsAtPos($from.pos);
-        this.linkPopupPos.set(this.toContainerCoords(coords, 320));
-        
-        this.linkPreviewOpen.set(false);
-        this.linkPopupOpen.set(true);
+        this.openLinkPopupForPosition(view, $from.pos, mark);
       } else {
         // No link at cursor, use popup for new link (with or without selection)
         this.linkUrl.set('');
         this.currentLinkRange.set({ from: $from.pos, to: $to.pos });
         
-        const coords = view.coordsAtPos($from.pos);
-        this.linkPopupPos.set(this.toContainerCoords(coords, 320));
+        try {
+          const coords = view.coordsAtPos($from.pos);
+          this.linkPopupPos.set(this.toContainerCoords(coords, 320));
+        } catch {
+          this.linkPopupPos.set({ top: 0, left: 0 });
+        }
         
-        this.linkPreviewOpen.set(false);
         this.linkPopupOpen.set(true);
+
+        setTimeout(() => {
+          const input = this.containerRef?.nativeElement?.querySelector('.link-popup input') as HTMLInputElement;
+          if (input) {
+            input.focus();
+          }
+        }, 0);
       }
       view.focus();
     });
@@ -2018,10 +2050,121 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     });
   }
 
+  openLinkPopupForPosition(
+    view: EditorView,
+    pos: number,
+    mark?: Mark | null,
+    anchor?: HTMLElement | null,
+  ) {
+    const { state } = view;
+    const { link } = state.schema.marks;
+    if (!link) return;
+
+    let targetMark = mark;
+    let targetPos = pos;
+
+    if (!targetMark) {
+      const $pos = state.doc.resolve(pos);
+      targetMark = $pos.marks().find((m) => m.type.name === 'link');
+      if (!targetMark && pos > 0) {
+        targetMark = state.doc.resolve(pos - 1).marks().find((m) => m.type.name === 'link');
+      }
+    }
+
+    if (!targetMark && anchor) {
+      try {
+        const domPos = view.posAtDOM(anchor.firstChild || anchor, 0);
+        targetPos = domPos;
+        const $domPos = state.doc.resolve(domPos);
+        targetMark = $domPos.marks().find((m) => m.type.name === 'link');
+      } catch {}
+    }
+
+    if (!targetMark && anchor) {
+      const href = anchor.getAttribute('href');
+      if (href) {
+        state.doc.descendants((node, p) => {
+          if (targetMark) return false;
+          if (node.isText) {
+            const found = node.marks.find((m) => m.type.name === 'link' && m.attrs['href'] === href);
+            if (found) {
+              targetMark = found;
+              targetPos = p;
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+    }
+
+    if (!targetMark) return;
+
+    const url = targetMark.attrs['href'] || '';
+    this.linkUrl.set(url);
+
+    // Find the contiguous range of this link mark within the block
+    const $pos = state.doc.resolve(targetPos);
+    let from = targetPos;
+    let to = targetPos;
+    let foundRange = false;
+
+    let start = $pos.start();
+    $pos.parent.forEach((child) => {
+      const end = start + child.nodeSize;
+      if (child.marks.some((m) => m.type.name === 'link' && m.attrs['href'] === url)) {
+        if (!foundRange) {
+          from = start;
+          to = end;
+          foundRange = true;
+        } else {
+          to = end;
+        }
+      }
+      start = end;
+    });
+
+    if (!foundRange) {
+      // Fallback: search entire document
+      start = 0;
+      state.doc.descendants((child, p) => {
+        if (child.isText && child.marks.some((m) => m.type.name === 'link' && m.attrs['href'] === url)) {
+          if (!foundRange) {
+            from = p;
+            to = p + child.nodeSize;
+            foundRange = true;
+          } else if (p <= to) {
+            to = p + child.nodeSize;
+          }
+        }
+      });
+    }
+
+    this.currentLinkRange.set({ from, to });
+
+    try {
+      const coords = view.coordsAtPos(targetPos);
+      this.linkPopupPos.set(this.toContainerCoords(coords, 320));
+    } catch {
+      this.linkPopupPos.set({ top: 0, left: 0 });
+    }
+
+    this.linkPopupOpen.set(true);
+
+    setTimeout(() => {
+      const input = this.containerRef?.nativeElement?.querySelector('.link-popup input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  }
+
   updateLink(newUrl: string) {
-    if (!newUrl) {
-      this.linkPopupOpen.set(false);
-      return; // Do nothing if empty!
+    const trimmed = newUrl?.trim();
+    if (!trimmed) {
+      this.removeLink();
+      return;
     }
 
     this.editor?.action((ctx) => {
@@ -2034,13 +2177,13 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       if (range && link) {
         if (range.from === range.to) {
           // Empty range! Insert text node with mark!
-          const node = schema.text(newUrl, [link.create({ href: newUrl })]);
+          const node = schema.text(trimmed, [link.create({ href: trimmed })]);
           view.dispatch(state.tr.insert(range.from, node));
         } else {
-          // Non-empty range! Add mark!
+          // Non-empty range! Replace mark with new href!
           const tr = state.tr
             .removeMark(range.from, range.to, link)
-            .addMark(range.from, range.to, link.create({ href: newUrl }));
+            .addMark(range.from, range.to, link.create({ href: trimmed }));
           view.dispatch(tr);
         }
       }
@@ -2061,55 +2204,106 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         view.dispatch(state.tr.removeMark(range.from, range.to, link));
       }
       this.linkPopupOpen.set(false);
-      this.linkPreviewOpen.set(false);
       view.focus();
     });
   }
 
-  private setupLinkPreview() {
-    const el = this.editorRef.nativeElement;
-    const checkLink = () => {
-      // Wait for ProseMirror to update selection after click/keyup!
-      setTimeout(() => {
-        this.editor?.action((ctx) => {
-          const view = ctx.get(editorViewCtx);
-          const { state } = view;
-          const { $from } = state.selection;
-          const mark = $from.marks().find(m => m.type.name === 'link');
-          
-          if (mark) {
-            const url = mark.attrs['href'];
-            this.linkPreviewUrl.set(url);
-            
-            // Find range for remove/edit actions!
-            let $pos = $from;
-            let from = $pos.pos;
-            let to = $pos.pos;
-            while (from > 0 && mark.isInSet(state.doc.resolve(from - 1).marks())) from--;
-            while (to < state.doc.content.size && mark.isInSet(state.doc.resolve(to).marks())) to++;
-            
-            this.currentLinkRange.set({ from, to });
-            
-            const coords = view.coordsAtPos($from.pos);
-            this.linkPreviewPos.set(this.toContainerCoords(coords, 200));
-            this.linkPreviewOpen.set(true);
-          } else {
-            this.linkPreviewOpen.set(false);
+  private linkClickPlugin() {
+    return $prose(() => new Plugin({
+      key: new PluginKey('markdown-editor-link-click'),
+      props: {
+        handleClick: (view, pos, event) => {
+          const target = event.target as HTMLElement | null;
+          const anchor = target?.closest('a');
+          const $pos = view.state.doc.resolve(pos);
+          let mark = $pos.marks().find((m) => m.type.name === 'link');
+          if (!mark && pos > 0) {
+            mark = view.state.doc.resolve(pos - 1).marks().find((m) => m.type.name === 'link');
           }
-        });
-      }, 0);
-    };
-    
-    el.addEventListener('click', checkLink);
-    el.addEventListener('keyup', checkLink);
-    el.addEventListener('touchstart', checkLink);
+
+          if (anchor || mark) {
+            event.preventDefault();
+            if (!this.linkPopupOpen()) {
+              this.openLinkPopupForPosition(view, pos, mark, anchor);
+            }
+            return true;
+          }
+          return false;
+        },
+      },
+    }));
   }
 
-  openLink() {
-    const url = this.linkPreviewUrl();
-    if (url) {
-      window.open(url, '_blank');
-    }
-    this.linkPreviewOpen.set(false);
+  private setupLinkHandling() {
+    const el = this.editorRef.nativeElement;
+
+    // Intercept clicks on links in capture phase to prevent browser navigation and open popup
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest('a');
+      if (!anchor) return;
+
+      // Always prevent default navigation for links inside the editor
+      e.preventDefault();
+
+      this.editor?.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const { state } = view;
+        let mark: any = null;
+        let targetPos = state.selection.$from.pos;
+
+        // Try cursor selection marks
+        mark = state.selection.$from.marks().find((m) => m.type.name === 'link');
+
+        // Try coords if available
+        if (!mark) {
+          try {
+            const coordsPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
+            if (coordsPos) {
+              targetPos = coordsPos.pos;
+              const $pos = state.doc.resolve(targetPos);
+              mark = $pos.marks().find((m) => m.type.name === 'link') ||
+                (targetPos > 0 ? state.doc.resolve(targetPos - 1).marks().find((m) => m.type.name === 'link') : null);
+            }
+          } catch {}
+        }
+
+        // Try posAtDOM on anchor
+        if (!mark) {
+          try {
+            const domPos = view.posAtDOM(anchor.firstChild || anchor, 0);
+            targetPos = domPos;
+            const $domPos = state.doc.resolve(domPos);
+            mark = $domPos.marks().find((m) => m.type.name === 'link');
+          } catch {}
+        }
+
+        // Fallback: search doc for link mark with matching href
+        if (!mark) {
+          const href = anchor.getAttribute('href');
+          if (href) {
+            state.doc.descendants((node, pos) => {
+              if (mark) return false;
+              if (node.isText) {
+                const found = node.marks.find((m) => m.type.name === 'link' && m.attrs['href'] === href);
+                if (found) {
+                  mark = found;
+                  targetPos = pos;
+                  return false;
+                }
+              }
+              return true;
+            });
+          }
+        }
+
+        if (mark) {
+          this.openLinkPopupForPosition(view, targetPos, mark, anchor);
+        }
+      });
+    };
+
+    el.addEventListener('click', handleLinkClick, true);
+    el.addEventListener('auxclick', handleLinkClick, true);
   }
 }

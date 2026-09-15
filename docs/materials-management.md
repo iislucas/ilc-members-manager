@@ -283,27 +283,3 @@ This security rule supports both standard direct reads `/members/{memberDocId}/u
    └── pnpm build
 ```
 
----
-
-## 8. Data Migration & Backfill
-
-For existing events that already have files uploaded to Cloud Storage (`events/{eventId}/materials/originals/{itemId}/original`), the migration script [`scripts/backfill-event-materials.ts`](../scripts/backfill-event-materials.ts) scans Storage and creates the corresponding Firestore `UploadItem` records in `/members/{ownerDocId}/uploads/{uploadDocId}`.
-
-### Features
-- **Discovery**: Scans Cloud Storage for all event materials and checks corresponding previews.
-- **Event & Member Linking**: Resolves event title, date, location, and owner member details.
-- **Idempotence**: Skips items that have already been indexed in Firestore.
-- **Dry-run mode**: Runs safely by default without making any database writes.
-
-### Usage
-```bash
-# Dry run: preview discovered files and planned Firestore writes:
-pnpm run backfill:event-materials
-
-# Commit: execute the backfill writes:
-pnpm run backfill:event-materials --commit
-
-# Target specific project:
-pnpm run backfill:event-materials --project=ilc-paris-class-tracker --commit
-```
-

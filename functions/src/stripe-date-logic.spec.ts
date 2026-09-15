@@ -76,6 +76,11 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
             }),
           };
         }
+        if (colName === 'mail') {
+          return {
+            add: vi.fn().mockResolvedValue({ id: 'mail_mock_id' }),
+          };
+        }
         return {
           doc: vi.fn().mockReturnValue({
             get: vi.fn().mockResolvedValue({ exists: false }),
@@ -88,6 +93,9 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
             }),
           }),
         };
+      }),
+      doc: vi.fn().mockReturnValue({
+        get: vi.fn().mockResolvedValue({ exists: false }),
       }),
     };
   });

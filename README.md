@@ -110,6 +110,19 @@ pnpm sync:video-products -- --dry-run
 pnpm sync:video-products
 ```
 
+### Transactional Emails & Event Digest
+
+The portal provides an end-to-end automated email notification system:
+- **Purchase & Registration Confirmations**: Real-time markdown emails dispatched immediately upon Stripe or Squarespace purchases (orders, event registrations, video on demand, grading examinations, and recurring subscription renewals).
+- **Upcoming Event Digests**: Opt-in periodic emails (weekly on Monday 09:00 UTC or monthly on the 1st at 09:00 UTC) summarizing upcoming listed events using a two-tier template engine (per-event item card nested within an overall digest email).
+- **Email Templates Manager**: Administrators can view, customize, and test all templates in the dedicated Email Notifications space at `/email-notifications`, featuring live previews and a foldable placeholder token toolbar with short descriptions.
+- **Member Preferences**: Members can select their preferred digest frequency (`weekly`, `monthly`, or `none`) at `/settings/notifications`.
+- **Mail Logs & Queue Viewer**: Administrators can inspect all recent outbound emails, check delivery status (`SUCCESS`, `PENDING`, `ERROR`), view delivery headers and timestamps, and retry failed emails directly from `/email-notifications?tab=logs`.
+- **Google Group Reply-To**: Outbound emails send via `notifications@iliqchuan.com` while replies route to `web-helper-team@iliqchuan.com` (Google Group).
+- **Anti-Circular Protection**: Email documents in Firestore `/mail` follow a strict state machine (`PENDING` -> `PROCESSING` -> `SUCCESS` | `ERROR`) locked via atomic transactions to eliminate circular triggers or duplicate dispatches.
+
+Outbound emails are delivered via the built-in `processMailQueue` Cloud Function (`functions/src/mail-processor.ts`), which authenticates using the `SMTP_PASSWORD` secret in Secret Manager. See [SETUP.md](./SETUP.md#5-setting-up-email-notifications--event-digests) for Google Workspace setup, Google Group access permissions, secret setup, and DNS deliverability records.
+
 ### Firestore indexes
 
 To download the firebase/firestore indexes locally (useful when you used the

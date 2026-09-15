@@ -31,22 +31,23 @@ export class MemberSelectorComponent {
   selectedMember = computed(() => {
     const val = this.value();
     if (!val) return null;
-    return this.dataService.getMemberByMemberId(val) ?? null;
+    return this.dataService.getMember(val) ?? null;
   });
 
   updateValue(newValue: string) {
     const match = newValue.match(/^\(([^)]+)\)/);
     const rawId = match ? match[1] : newValue.trim();
-    const member = this.dataService.getMemberByMemberId(rawId);
+    const member = this.dataService.getMember(rawId);
 
     if (member) {
       const formattedName = `(${member.memberId || 'No ID'}) ${member.name}`.trim();
       const exactMatch = rawId === member.memberId || 
+                         rawId === member.docId ||
                          formattedName === newValue.trim() ||
                          member.memberId === newValue.trim();
 
       if (exactMatch) {
-        this.valueChange.emit(member.memberId);
+        this.valueChange.emit(member.memberId || member.docId);
         this.memberSelected.emit(member);
         return;
       }

@@ -296,6 +296,7 @@ export class NavigationTreeService {
       view === Views.ManageVideoTags ||
       view === Views.Statistics ||
       view === Views.ImportExport ||
+      view === Views.EmailNotifications ||
       view === Views.Settings ||
       view === Views.NotificationSettings
     ) {
@@ -705,6 +706,8 @@ export class NavigationTreeService {
         return this.loadedGradingTitle() || 'Grading Details';
       case Views.Settings:
         return 'Settings';
+      case Views.EmailNotifications:
+        return 'Email Notifications';
       case Views.NotificationSettings:
         return 'Notification Settings';
       case Views.Notifications:

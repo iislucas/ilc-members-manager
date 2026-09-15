@@ -1,41 +1,20 @@
-/* backfill-event-materials.ts
+//**
+ * @file scripts/archive/backfill-event-materials.ts
+ * @status ARCHIVED / MIGRATION COMPLETED
+ * @pr PR #67 (feat: Video-on-Demand streaming, materials management module)
+ * @commit 17b9768
+ * @date 2026-08-09
  *
- * One-off migration script to scan past event materials stored in Cloud Storage
- * (`events/{eventId}/materials/originals/{folder}/original`) and backfill their
- * indexed metadata records into Firestore under the event creator/owner's subcollection:
- * `/members/{ownerDocId}/uploads/{uploadDocId}`.
- *
- * Association logic:
- *   - Each material file lives in Storage under prefix: `events/{eventId}/materials/...`
- *   - The script loads the canonical event from Firestore: `events/{eventId}` to resolve:
- *       - title, start (date), location
- *       - ownerDocId (creator / owner of the event; falls back to first managerDocIds entry)
- *   - The script loads the member document: `members/{ownerDocId}` to resolve:
- *       - name, memberId, instructorId, contactEmail
- *   - The material is associated with and stored under `/members/{ownerDocId}/uploads/{uploadDocId}`
- *
- * URLs & Previews:
- *   - Retrieves `firebaseStorageDownloadTokens` from Cloud Storage object metadata.
- *   - Generates and persists valid tokenized download URLs for both `url` (original) and
- *     `previewUrl` (320px thumbnail preview) so that browsers can display them seamlessly.
- *
- * Idempotent: safe to run multiple times. If an upload document with the same
- * `storagePath` already exists, it verifies and refreshes missing download tokens.
- *
- * Usage:
- *   # Dry run (default): scan and report without writing:
- *   pnpm run backfill:event-materials
- *
- *   # Commit: write missing upload documents and update tokenized URLs in Firestore:
- *   pnpm run backfill:event-materials --commit
- *
- *   # Specify project:
- *   pnpm run backfill:event-materials --project=<project-id> --commit
+ * Description:
+ * Scanned past event materials stored in Cloud Storage (`events/{eventId}/materials/`)
+ * and backfilled their indexed metadata records into Firestore under the event
+ * creator/owner's subcollection: `/members/{ownerDocId}/uploads/{uploadDocId}`,
+ * along with tokenized download and thumbnail preview URLs.
  */
 
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
-import { UploadItem } from '../functions/src/data-model/materials';
+import { UploadItem } from '../../functions/src/data-model/materials';
 
 const COMMIT = process.argv.includes('--commit');
 const DEFAULT_PROJECT = 'ilc-paris-class-tracker';

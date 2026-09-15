@@ -40,8 +40,12 @@ export const environment: FunctionsEnvironment = {
   // src/environments: the browser app shows the same address, and the two
   // bundles cannot share config.
   email: {
-    from: '', // e.g. 'web-helper-team@iliqchuan.com'
+    from: 'notifications@iliqchuan.com', // Outbound sender address (e.g. 'notifications@iliqchuan.com')
+    fromName: 'I Liq Chuan Association',
     contact: 'web-helper-team@iliqchuan.com',
+    smtpHost: 'smtp.gmail.com', // 'smtp.gmail.com' for Google Workspace App Passwords, or 'smtp-relay.gmail.com'
+    smtpPort: 465, // 465 for SSL/TLS, 587 for STARTTLS
+    smtpUser: 'notifications@iliqchuan.com', // Google Workspace authenticating account
   },
   // Stripe integration. The secret key is provided via the STRIPE_SECRET_KEY
   // secret (defineSecret), not stored here. Only non-secret config lives here.

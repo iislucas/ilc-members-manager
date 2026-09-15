@@ -1,0 +1,1588 @@
+<div class="page-layout email-notifications-page">
+  <!-- Top Level Pill Tabs Navigation connected to nav-header -->
+  <div class="header-extension-tabs">
+    <div class="pill-tabs">
+      <button
+        type="button"
+        class="pill-tab"
+        data-label="Settings"
+        [class.active]="activeCategory() === 'settings'"
+        (click)="setCategory('settings')">
+        Settings
+      </button>
+      <button
+        type="button"
+        class="pill-tab"
+        data-label="Test"
+        [class.active]="activeCategory() === 'test'"
+        (click)="setCategory('test')">
+        Test
+      </button>
+      <button
+        type="button"
+        class="pill-tab"
+        data-label="Onboarding"
+        [class.active]="activeCategory() === 'onboarding'"
+        (click)="setCategory('onboarding')">
+        Onboarding
+      </button>
+      <button
+        type="button"
+        class="pill-tab"
+        data-label="Purchases"
+        [class.active]="activeCategory() === 'purchases'"
+        (click)="setCategory('purchases')">
+        Purchases
+      </button>
+      <button
+        type="button"
+        class="pill-tab"
+        data-label="Event Digests"
+        [class.active]="activeCategory() === 'digest'"
+        (click)="setCategory('digest')">
+        Event Digests
+      </button>
+      <button
+        type="button"
+        class="pill-tab"
+        data-label="Logs & Queue"
+        [class.active]="activeCategory() === 'logs'"
+        (click)="setCategory('logs')">
+        Logs &amp; Queue
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body-content">
+    @if (statusActionFeedback(); as feedback) {
+      <div class="feedback-toast" [class.success]="feedback.success" [class.error]="!feedback.success">
+        {{ feedback.message }}
+      </div>
+    }
+
+    <!-- Compact status notice on non-settings tabs when sending is paused or off -->
+    @if (activeCategory() !== 'settings') {
+      @if (mailStatus() === MailSendingStatus.Off) {
+        <div class="mail-status-banner banner-off compact-banner">
+          <div class="banner-content">
+            <span class="status-indicator indicator-off"></span>
+            <span>Email Sending is <strong>OFF</strong>. Automated notifications are disabled.</span>
+          </div>
+          <button type="button" class="subtle-button banner-settings-link" (click)="setCategory('settings')">
+            Manage Settings
+          </button>
+        </div>
+      } @else if (mailStatus() === MailSendingStatus.Paused) {
+        <div class="mail-status-banner banner-paused compact-banner">
+          <div class="banner-content">
+            <span class="status-indicator indicator-paused"></span>
+            <span>Email Sending is <strong>PAUSED</strong>. Notifications are held in queue.</span>
+            @if (logCounts().paused > 0) {
+              <span class="paused-chip">{{ logCounts().paused }} paused</span>
+            }
+          </div>
+          <button type="button" class="subtle-button banner-settings-link" (click)="setCategory('settings')">
+            Manage Settings
+          </button>
+        </div>
+      }
+    }
+
+    <!-- SETTINGS CATEGORY -->
+    @if (activeCategory() === 'settings') {
+      <div class="template-section">
+        <div class="settings-header">
+          <h4>Email Dispatch Settings &amp; Status</h4>
+          <p class="section-subtext">
+            Configure system-wide automated email dispatch. The default system state is <strong>OFF</strong> so you can safely test and configure templates before turning notifications on.
+          </p>
+        </div>
+
+        @if (mailStatus() === MailSendingStatus.Off) {
+          <div class="mail-status-banner banner-off settings-banner">
+            <div class="banner-content">
+              <div class="banner-title">
+                <span class="status-indicator indicator-off"></span>
+                <span>Current Status: <strong>OFF</strong></span>
+              </div>
+              <p class="banner-desc">
+                Automated transactional notifications (purchases, registrations, event digests) are disabled and <strong>will not be written to the mail queue</strong>.
+                Admins can safely use the <strong><a href="javascript:void(0)" (click)="setCategory('test')">Test</a></strong> tab to verify SMTP delivery and iterate on templates before turning notifications on.
+              </p>
+            </div>
+            <div class="banner-actions">
+              <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
+                <button
+                  type="button"
+                  class="status-btn status-btn-off active"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Off)">
+                  Off
+                </button>
+                <button
+                  type="button"
+                  class="status-btn status-btn-paused"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Paused)">
+                  Pause
+                </button>
+                <button
+                  type="button"
+                  class="status-btn status-btn-active"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Active)">
+                  Turn On
+                </button>
+              </div>
+            </div>
+          </div>
+        } @else if (mailStatus() === MailSendingStatus.Paused) {
+          <div class="mail-status-banner banner-paused settings-banner">
+            <div class="banner-content">
+              <div class="banner-title">
+                <span class="status-indicator indicator-paused"></span>
+                <strong>Current Status: PAUSED</strong>
+                @if (logCounts().paused > 0) {
+                  <span class="paused-chip">{{ logCounts().paused }} placeholder email{{ logCounts().paused === 1 ? '' : 's' }} queued</span>
+                }
+              </div>
+              <p class="banner-desc">
+                Automated transactional notifications (purchases, registrations, event digests) are held as placeholders in <code>/mail</code>.
+                Templates will be interpreted dynamically using the latest saved definitions when sending is resumed.
+              </p>
+            </div>
+            <div class="banner-actions">
+              <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
+                <button
+                  type="button"
+                  class="status-btn status-btn-off"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Off)">
+                  Turn Off
+                </button>
+                <button
+                  type="button"
+                  class="status-btn status-btn-paused active"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Paused)">
+                  Paused
+                </button>
+                <button
+                  type="button"
+                  class="status-btn status-btn-active"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Active)">
+                  Resume ▶
+                </button>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <div class="mail-status-banner banner-active settings-banner">
+            <div class="banner-content">
+              <div class="banner-title">
+                <span class="status-indicator indicator-active"></span>
+                <span>Current Status: <strong>ACTIVE (ON)</strong></span>
+              </div>
+              <p class="banner-desc">
+                Automated notifications and purchase confirmations are sent immediately to real recipients via Google Workspace SMTP.
+              </p>
+            </div>
+            <div class="banner-actions">
+              <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
+                <button
+                  type="button"
+                  class="status-btn status-btn-off"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Off)">
+                  Turn Off
+                </button>
+                <button
+                  type="button"
+                  class="status-btn status-btn-paused"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Paused)">
+                  Pause ⏸
+                </button>
+                <button
+                  type="button"
+                  class="status-btn status-btn-active active"
+                  [disabled]="isUpdatingStatus()"
+                  (click)="setMailStatus(MailSendingStatus.Active)">
+                  Active
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <div class="settings-cards-grid">
+          <div class="settings-card">
+            <h5>Admin Testing</h5>
+            <p>Admin test emails can be dispatched at any time from the <a href="javascript:void(0)" (click)="setCategory('test')">Test</a> tab, even when sending is OFF or PAUSED. You can select any member or instructor to test live token replacements.</p>
+          </div>
+          <div class="settings-card">
+            <h5>Template Configuration</h5>
+            <p>Customize email templates for <a href="javascript:void(0)" (click)="setCategory('onboarding')">Onboarding</a>, <a href="javascript:void(0)" (click)="setCategory('purchases')">Purchases</a>, and <a href="javascript:void(0)" (click)="setCategory('digest')">Event Digests</a>. Changes take effect on next send or when resumed.</p>
+          </div>
+          <div class="settings-card">
+            <h5>Mail Logs &amp; Queue</h5>
+            <p>Monitor sent messages, inspect error details, retry failed deliveries, or delete queued emails in the <a href="javascript:void(0)" (click)="setCategory('logs')">Logs &amp; Queue</a> tab.</p>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ONBOARDING CATEGORY -->
+    @if (activeCategory() === 'onboarding') {
+      <div class="template-section">
+        <h4>New Member Welcome Email</h4>
+        <div class="form-group">
+          <label for="member-subject">Email Subject</label>
+          <input
+            id="member-subject"
+            type="text"
+            [(ngModel)]="templates().membershipActivatedSubject"
+            placeholder="Welcome Subject..."
+            class="input-style"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Email Body (Markdown)</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="templates().membershipActivatedBody"
+              [chips]="memberChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="setMemberBody($event)"
+            ></app-markdown-editor>
+          </div>
+          @if (memberBodyWarnings().length > 0) {
+            <div class="format-warning">
+              ⚠️ Unsupported formatting will appear as literal text in the email:
+              {{ memberBodyWarnings().join(', ') }}.
+            </div>
+          }
+        </div>
+
+        <div class="preview-section inline-preview">
+          <h5>Rendered HTML Preview (Sample Member)</h5>
+          <div class="preview-box">
+            <div class="preview-subject">
+              <strong>Subject:</strong> {{ memberWelcomePreviewSubject() }}
+            </div>
+            <div class="preview-body" [innerHTML]="memberWelcomePreviewHtml()"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="template-section">
+        <h4>New Instructor Welcome Email</h4>
+        <div class="form-group">
+          <label for="instructor-subject">Email Subject</label>
+          <input
+            id="instructor-subject"
+            type="text"
+            [(ngModel)]="templates().instructorLicenseActivatedSubject"
+            placeholder="Instructor Subject..."
+            class="input-style"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Email Body (Markdown)</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="templates().instructorLicenseActivatedBody"
+              [chips]="instructorChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="setInstructorBody($event)"
+            ></app-markdown-editor>
+          </div>
+          @if (instructorBodyWarnings().length > 0) {
+            <div class="format-warning">
+              ⚠️ Unsupported formatting will appear as literal text in the email:
+              {{ instructorBodyWarnings().join(', ') }}.
+            </div>
+          }
+        </div>
+
+        <div class="preview-section inline-preview">
+          <h5>Rendered HTML Preview (Sample Instructor)</h5>
+          <div class="preview-box">
+            <div class="preview-subject">
+              <strong>Subject:</strong> {{ instructorWelcomePreviewSubject() }}
+            </div>
+            <div class="preview-body" [innerHTML]="instructorWelcomePreviewHtml()"></div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- PURCHASES CATEGORY -->
+    @if (activeCategory() === 'purchases') {
+      <div class="purchase-nav-container">
+        <div class="pill-tabs purchase-sub-tabs">
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Store Orders"
+            [class.active]="activePurchaseSubtype() === 'order'"
+            (click)="setPurchaseSubtype('order')">
+            Store Orders
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Event Registration"
+            [class.active]="activePurchaseSubtype() === 'event'"
+            (click)="setPurchaseSubtype('event')">
+            Event Registration
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Video on Demand (VOD)"
+            [class.active]="activePurchaseSubtype() === 'vod'"
+            (click)="setPurchaseSubtype('vod')">
+            Video on Demand (VOD)
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Grading Assessment"
+            [class.active]="activePurchaseSubtype() === 'grading'"
+            (click)="setPurchaseSubtype('grading')">
+            Grading Assessment
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Subscription Renewal"
+            [class.active]="activePurchaseSubtype() === 'subscription'"
+            (click)="setPurchaseSubtype('subscription')">
+            Subscription Renewal
+          </button>
+        </div>
+        <div class="purchase-sub-menu-wrapper">
+          <label for="purchase-sub-select" class="visually-hidden">Select Purchase Email Template</label>
+          <select
+            id="purchase-sub-select"
+            class="input-style purchase-sub-select"
+            [ngModel]="activePurchaseSubtype()"
+            (ngModelChange)="setPurchaseSubtype($event)">
+            <option value="order">Store Orders</option>
+            <option value="event">Event Registration</option>
+            <option value="vod">Video on Demand (VOD)</option>
+            <option value="grading">Grading Assessment</option>
+            <option value="subscription">Subscription Renewal</option>
+          </select>
+        </div>
+      </div>
+
+      @if (activePurchaseSubtype() === 'order') {
+        <div class="template-section">
+          <h4>Store / General Order Confirmation</h4>
+          <div class="form-group">
+            <label for="order-subject">Email Subject</label>
+            <input
+              id="order-subject"
+              type="text"
+              [(ngModel)]="templates().orderConfirmationSubject"
+              placeholder="Order Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().orderConfirmationBody"
+                [chips]="orderChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('orderConfirmationBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (orderBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ orderBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Order)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ orderPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="orderPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'event') {
+        <div class="template-section">
+          <h4>Event Registration Confirmation</h4>
+          <div class="form-group">
+            <label for="event-subject">Email Subject</label>
+            <input
+              id="event-subject"
+              type="text"
+              [(ngModel)]="templates().eventRegistrationConfirmationSubject"
+              placeholder="Event Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().eventRegistrationConfirmationBody"
+                [chips]="eventRegChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('eventRegistrationConfirmationBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (eventRegBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ eventRegBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Event Registration)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ eventRegPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="eventRegPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'vod') {
+        <div class="template-section">
+          <h4>Video on Demand (VOD) Purchase Confirmation</h4>
+          <div class="form-group">
+            <label for="vod-subject">Email Subject</label>
+            <input
+              id="vod-subject"
+              type="text"
+              [(ngModel)]="templates().vodPurchaseConfirmationSubject"
+              placeholder="VOD Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().vodPurchaseConfirmationBody"
+                [chips]="vodChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('vodPurchaseConfirmationBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (vodBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ vodBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample VOD Purchase)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ vodPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="vodPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'grading') {
+        <div class="template-section">
+          <h4>Grading Assessment Fee Confirmation</h4>
+          <div class="form-group">
+            <label for="grading-subject">Email Subject</label>
+            <input
+              id="grading-subject"
+              type="text"
+              [(ngModel)]="templates().gradingPaymentConfirmationSubject"
+              placeholder="Grading Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().gradingPaymentConfirmationBody"
+                [chips]="gradingChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('gradingPaymentConfirmationBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (gradingBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ gradingBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Grading Assessment)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ gradingPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="gradingPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activePurchaseSubtype() === 'subscription') {
+        <div class="template-section">
+          <h4>Subscription Renewal Receipt</h4>
+          <div class="form-group">
+            <label for="sub-subject">Email Subject</label>
+            <input
+              id="sub-subject"
+              type="text"
+              [(ngModel)]="templates().subscriptionRenewalSubject"
+              placeholder="Subscription Renewal Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().subscriptionRenewalBody"
+                [chips]="subscriptionChips"
+                [enabledFeatures]="bodyFeatures"
+                (changed)="updateBody('subscriptionRenewalBody', $event)"
+              ></app-markdown-editor>
+            </div>
+            @if (subscriptionBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ subscriptionBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Subscription Renewal)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ subscriptionPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="subscriptionPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- EVENT DIGEST (TWO-TIER) CATEGORY -->
+    @if (activeCategory() === 'digest') {
+      <div class="digest-explainer">
+        <p>
+          The <strong>Upcoming Event Digest</strong> automatically emails forthcoming workshops in the next 3 months to opted-in members (dispatched weekly or monthly).
+          It uses a <strong>two-tier template</strong>:
+        </p>
+        <ol>
+          <li><strong>Per-Event Card Template:</strong> Formats how each individual workshop or event is rendered.</li>
+          <li><strong>Overall Email Template:</strong> Formats the full email wrapper, substituting the <code>&#123;eventsList&#125;</code> placeholder with the compiled event cards.</li>
+        </ol>
+      </div>
+
+      <!-- Tier 1: Per-Event Card Template -->
+      <div class="template-section">
+        <h4>1. Per-Event Card Template</h4>
+        <p class="section-subtext">
+          Template for an individual event item. This template is rendered for every upcoming event, and the results are joined together to populate <code>&#123;eventsList&#125;</code>.
+        </p>
+        <div class="form-group">
+          <label>Event Card Markdown</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="templates().eventDigestItemTemplate"
+              [chips]="digestItemChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="updateBody('eventDigestItemTemplate', $event)"
+            ></app-markdown-editor>
+          </div>
+          @if (digestItemTemplateWarnings().length > 0) {
+            <div class="format-warning">
+              ⚠️ Unsupported formatting: {{ digestItemTemplateWarnings().join(', ') }}.
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Tier 2: Overall Email Digest Template -->
+      <div class="template-section">
+        <h4>2. Overall Email Digest Template</h4>
+        <p class="section-subtext">
+          The container email sent to members. Make sure to include <code>&#123;eventsList&#125;</code> where the compiled event items should appear.
+        </p>
+        <div class="form-group">
+          <label for="digest-overall-subject">Email Subject</label>
+          <input
+            id="digest-overall-subject"
+            type="text"
+            [(ngModel)]="templates().eventDigestOverallSubject"
+            placeholder="Digest Subject..."
+            class="input-style"
+          />
+        </div>
+        <div class="form-group">
+          <label>Email Body (Markdown)</label>
+          <div class="editor-wrapper">
+            <app-markdown-editor
+              [initialValue]="templates().eventDigestOverallBody"
+              [chips]="digestOverallChips"
+              [enabledFeatures]="bodyFeatures"
+              (changed)="updateBody('eventDigestOverallBody', $event)"
+            ></app-markdown-editor>
+          </div>
+          @if (digestOverallBodyWarnings().length > 0) {
+            <div class="format-warning">
+              ⚠️ Unsupported formatting: {{ digestOverallBodyWarnings().join(', ') }}.
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Combined Live Preview -->
+      <div class="template-section preview-section">
+        <h4>3. Live Combined Preview</h4>
+        <p class="section-subtext">
+          Live simulated preview combining sample events formatted by the Per-Event template into the Overall Email template:
+        </p>
+        <div class="preview-box">
+          <div class="preview-subject">
+            <strong>Subject:</strong> {{ digestPreviewSubject() }}
+          </div>
+          <div class="preview-body" [innerHTML]="digestPreviewHtml()"></div>
+        </div>
+      </div>
+    }
+
+    <!-- TEST EMAIL SENDER CATEGORY -->
+    @if (activeCategory() === 'test') {
+      <div class="template-section">
+        <div class="test-email-header">
+          <h4>Admin Test Email Sender</h4>
+          <p class="section-subtext">
+            Safely test and verify core email delivery. Outbound test emails use the exact same code pathway as production messages (enqueuing to <code>/mail</code> with PENDING status for trigger processing).
+          </p>
+          <div class="test-notice-pill">
+            <span class="notice-icon">ℹ️</span>
+            <span>Admin test emails create a <strong>PENDING</strong> entry and attempt delivery via SMTP even if mail sending is <strong>OFF</strong> or <strong>PAUSED</strong>, allowing you to test and iterate safely before enabling automated notifications.</span>
+          </div>
+        </div>
+
+        <div class="form-group email-to-send-group">
+          <label>Email to Send</label>
+          <div class="pill-tabs email-to-send-pills">
+            <button
+              type="button"
+              class="pill-tab"
+              data-label="Quick Ping"
+              [class.active]="testEmailType() === 'ping'"
+              (click)="setTestEmailType('ping')">
+              Quick Ping
+            </button>
+            <button
+              type="button"
+              class="pill-tab"
+              data-label="Welcome Notice"
+              [class.active]="testEmailType() === 'welcome'"
+              (click)="setTestEmailType('welcome')">
+              Welcome Notice
+            </button>
+            <button
+              type="button"
+              class="pill-tab"
+              data-label="Order Confirmation"
+              [class.active]="testEmailType() === 'order'"
+              (click)="setTestEmailType('order')">
+              Order Confirmation
+            </button>
+            <button
+              type="button"
+              class="pill-tab"
+              data-label="Event Digest"
+              [class.active]="testEmailType() === 'digest'"
+              (click)="setTestEmailType('digest')">
+              Event Digest
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Select Member / Instructor (Optional)</label>
+          <div class="member-selector-row">
+            <app-member-selector
+              [name]="'testMember'"
+              [value]="selectedTestMemberId()"
+              (valueChange)="onTestMemberIdChange($event)"
+              (memberSelected)="onTestMemberSelected($event)"
+              [showNoneSelected]="false"
+              placeholder="Search member or instructor by name or ID..."
+            ></app-member-selector>
+            @if (selectedTestMemberId()) {
+              <button
+                type="button"
+                class="subtle-button clear-member-btn"
+                (click)="clearSelectedTestMember()"
+                title="Clear selected member"
+              >
+                <app-icon name="close"></app-icon> Clear
+              </button>
+            }
+          </div>
+          <span class="field-hint">
+            Search and select any member or instructor to populate their email and substitute their real details into template preview tokens (&#123;name&#125;, &#123;memberId&#125;, &#123;instructorId&#125;).
+          </span>
+          @if (selectedTestMember(); as m) {
+            <div class="selected-member-card">
+              <div class="selected-member-info">
+                <span class="selected-member-name"><strong>{{ m.name }}</strong></span>
+                @if (m.memberId) {
+                  <span class="identifier-chip">{{ m.memberId }}</span>
+                }
+                @if (m.instructorId) {
+                  <span class="identifier-chip">Instructor #{{ m.instructorId }}</span>
+                }
+                @if (m.emails && m.emails.length > 0) {
+                  <span class="small-email">{{ m.emails[0] }}</span>
+                }
+              </div>
+              <a
+                class="subtle-button view-profile-btn"
+                [href]="'/members/' + (m.memberId || m.docId)"
+                target="_blank"
+                title="Open member profile in new tab"
+              >
+                <app-icon name="visibility"></app-icon>
+                <span>View Member Profile</span>
+              </a>
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="test-recipient">Recipient Email Address</label>
+          <input
+            id="test-recipient"
+            type="email"
+            [ngModel]="testRecipient()"
+            (ngModelChange)="testRecipient.set($event)"
+            placeholder="e.g. admin@iliqchuan.com"
+            class="input-style"
+          />
+        </div>
+
+        @if (testEmailType() === 'ping') {
+          <div class="ping-template-section">
+            <div class="form-group">
+              <div class="label-with-action">
+                <label for="test-subject">Email Subject</label>
+                <button
+                  type="button"
+                  class="subtle-button reset-ping-btn"
+                  (click)="resetPingTemplate()"
+                  title="Reset Quick Ping template back to default">
+                  <app-icon name="refresh"></app-icon> Reset Template
+                </button>
+              </div>
+              <input
+                id="test-subject"
+                type="text"
+                [ngModel]="testSubject()"
+                (ngModelChange)="testSubject.set($event)"
+                placeholder="Subject..."
+                class="input-style"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Email Body (Markdown)</label>
+              <div class="editor-wrapper">
+                <app-markdown-editor
+                  [initialValue]="testBodyMarkdown()"
+                  [chips]="memberChips"
+                  [enabledFeatures]="bodyFeatures"
+                  (changed)="setTestBody($event)"
+                ></app-markdown-editor>
+              </div>
+              @if (testBodyWarnings().length > 0) {
+                <div class="format-warning">
+                  <strong>Unsupported Formatting:</strong>
+                  <ul>
+                    @for (warn of testBodyWarnings(); track warn) {
+                      <li>{{ warn }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="preview-section">
+          <h4>Rendered HTML Preview</h4>
+          <div class="preview-box">
+            <div class="preview-header-meta">
+              <div class="preview-meta-row">
+                <span class="preview-meta-label">To:</span>
+                <span class="preview-meta-value">{{ testPreviewTo() }}</span>
+              </div>
+              <div class="preview-meta-row">
+                <span class="preview-meta-label">Subject:</span>
+                <span class="preview-meta-value">{{ testPreviewSubject() }}</span>
+              </div>
+            </div>
+            <div class="preview-body" [innerHTML]="testPreviewHtml()"></div>
+          </div>
+        </div>
+
+        @if (testResult()) {
+          @if (testResult()?.success) {
+            <div class="status-msg success-box">
+              <strong>Email Dispatched Successfully!</strong>
+              @if (testResult()?.simulated) {
+                <p class="simulated-note">
+                  Delivery was simulated (local emulator or <code>SMTP_PASSWORD</code> secret not configured). Recorded in <code>/mail/{{ testResult()?.docId }}</code>.
+                </p>
+              } @else {
+                <p>Delivered via SMTP. Message ID: <code>{{ testResult()?.messageId }}</code> (logged in <code>/mail/{{ testResult()?.docId }}</code>).</p>
+              }
+            </div>
+          } @else {
+            <div class="status-msg error">
+              <strong>Failed to send test email:</strong> {{ testResult()?.error }}
+            </div>
+          }
+        }
+
+        @if (isMailPaused()) {
+          <div class="test-pause-notice">
+            <span class="badge-paused-inline">PAUSED</span>
+            <span>Global email sending is currently paused. This test email will bypass the pause and dispatch directly to verify your Google Workspace SMTP configuration.</span>
+          </div>
+        }
+
+        <div class="actions">
+          @if (isSendingTest()) {
+            <app-spinner>Sending test email...</app-spinner>
+          } @else {
+            <button type="button" class="primary-button" (click)="sendTestEmail()">
+              Send Test Email
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- MAIL QUEUE & SENT LOGS CATEGORY -->
+    @if (activeCategory() === 'logs') {
+      <div class="template-section mail-logs-section">
+        @if (selectedLog(); as item) {
+          @let state = item.status || item.delivery?.state || MailDeliveryState.Pending;
+          <div class="log-detail-view">
+            <div class="detail-top-nav">
+              <button type="button" class="subtle-button" (click)="clearSelectedLog()">
+                <app-icon name="arrow_back"></app-icon> Back to Logs
+              </button>
+              <div class="detail-top-actions">
+                <button
+                  type="button"
+                  class="subtle-button copy-link-btn"
+                  [class.copied]="copiedLogUrl()"
+                  (click)="copyLogUrl(item.docId)"
+                  title="Copy direct URL to this email log">
+                  <app-icon [name]="copiedLogUrl() ? 'check' : 'link'"></app-icon>
+                  {{ copiedLogUrl() ? 'Link Copied!' : 'Copy Link' }}
+                </button>
+                <button
+                  type="button"
+                  class="subtle-button"
+                  [disabled]="state === MailDeliveryState.Processing"
+                  (click)="openEditMail(item)">
+                  <app-icon name="edit"></app-icon> Edit Email
+                </button>
+                @if (isDeleting()) {
+                  <app-spinner>Deleting...</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="delete-button"
+                    [disabled]="state === MailDeliveryState.Processing"
+                    (click)="deleteSingleMail(item.docId)">
+                    <app-icon name="delete"></app-icon> Delete Email
+                  </button>
+                }
+                @if (state === MailDeliveryState.Error) {
+                  @if (isRetryingId() === item.docId) {
+                    <app-spinner>Retrying...</app-spinner>
+                  } @else {
+                    <button
+                      type="button"
+                      class="primary-button"
+                      (click)="retryMail(item.docId!)">
+                      <app-icon name="refresh"></app-icon> Retry Delivery
+                    </button>
+                  }
+                }
+              </div>
+            </div>
+
+            @if (retryFeedback()) {
+              <div class="alert-box" [class.alert-success]="retryFeedback()?.success" [class.alert-error]="!retryFeedback()?.success">
+                {{ retryFeedback()?.message }}
+              </div>
+            }
+
+            @if (deleteActionFeedback()) {
+              <div class="alert-box" [class.alert-success]="deleteActionFeedback()?.success" [class.alert-error]="!deleteActionFeedback()?.success">
+                {{ deleteActionFeedback()?.message }}
+              </div>
+            }
+
+            <!-- RENDERED EMAIL DISPLAY -->
+            <div class="email-display-wrapper">
+              <div class="email-display-header">
+                <div class="email-display-title">
+                  <h5>Rendered Email Display</h5>
+                  <span class="status-badge" [class]="state.toLowerCase()">{{ state }}</span>
+                </div>
+              </div>
+              <div class="preview-box log-email-preview">
+                <div class="preview-header-meta">
+                  <div class="preview-meta-row">
+                    <span class="preview-meta-label">To:</span>
+                    <span class="preview-meta-value recipient-value">
+                      <strong>{{ formatLogTo(item.to) }}</strong>
+                    </span>
+                  </div>
+                  <div class="preview-meta-row">
+                    <span class="preview-meta-label">Subject:</span>
+                    <span class="preview-meta-value subject-value">
+                      {{ item.message?.subject || item.subject || '(No Subject)' }}
+                    </span>
+                  </div>
+                  <div class="preview-meta-row">
+                    <span class="preview-meta-label">From:</span>
+                    <span class="preview-meta-value">{{ item.from || 'Default Notifications' }}</span>
+                  </div>
+                  @if (item.replyTo) {
+                    <div class="preview-meta-row">
+                      <span class="preview-meta-label">Reply-To:</span>
+                      <span class="preview-meta-value">{{ item.replyTo }}</span>
+                    </div>
+                  }
+                  <div class="preview-meta-row">
+                    <span class="preview-meta-label">Date:</span>
+                    <span class="preview-meta-value">{{ formatLogTimestamp(item.createdAt) }}</span>
+                  </div>
+                </div>
+
+                <div class="message-content-area">
+                  @if (state === MailDeliveryState.Paused && !item.message?.html && !item.html) {
+                    <div class="paused-placeholder-box">
+                      <p><em>Template has not yet been rendered. Content will be compiled dynamically from template <code>{{ item.templateKey }}</code> upon unpausing.</em></p>
+                    </div>
+                  } @else if (item.message?.html || item.html) {
+                    <div class="preview-body" [innerHTML]="item.message?.html || item.html"></div>
+                  } @else if (item.message?.text || item.text) {
+                    <pre class="plain-preview">{{ item.message?.text || item.text }}</pre>
+                  } @else {
+                    <div class="empty-body-placeholder"><em>(No message content)</em></div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- DELIVERY INSPECTION & QUEUE DETAILS -->
+            <div class="log-detail-card">
+              <div class="detail-header">
+                <div>
+                  <h5>Delivery Inspection & Queue Details</h5>
+                  <span class="doc-id">
+                    Document ID: <code>{{ item.docId }}</code>
+                    <button type="button" class="copy-id-button" (click)="copyDocId(item.docId)" title="Copy Document ID">
+                      <app-icon [name]="copiedDocId() ? 'check' : 'content_copy'"></app-icon>
+                      {{ copiedDocId() ? 'Copied' : 'Copy ID' }}
+                    </button>
+                  </span>
+                </div>
+                <button type="button" class="icon-only-button" (click)="clearSelectedLog()" title="Close details">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <label>Status</label>
+                  <span class="status-badge" [class]="state.toLowerCase()">{{ state }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Recipient (To)</label>
+                  <span>{{ formatLogTo(item.to) }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Sender (From)</label>
+                  <span>{{ item.from || 'Default Notifications' }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Reply-To</label>
+                  <span>{{ item.replyTo || 'Default' }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Enqueued At</label>
+                  <span>{{ formatLogTimestamp(item.createdAt) }}</span>
+                </div>
+                @if (item.delivery?.startTime) {
+                  <div class="detail-item">
+                    <label>Delivery Start Time</label>
+                    <span>{{ formatLogTimestamp(item.delivery?.startTime) }}</span>
+                  </div>
+                }
+                <div class="detail-item">
+                  <label>Delivery End Time</label>
+                  <span>{{ formatLogTimestamp(item.delivery?.endTime) }}</span>
+                </div>
+                <div class="detail-item">
+                  <label>Delivery Attempts</label>
+                  <span>{{ item.delivery?.attempts ?? 0 }}</span>
+                </div>
+                @if (item.delivery?.info?.messageId) {
+                  <div class="detail-item full-width">
+                    <label>SMTP Message ID</label>
+                    <code>{{ item.delivery?.info?.messageId }}</code>
+                  </div>
+                }
+                @if (item.delivery?.info?.response) {
+                  <div class="detail-item full-width">
+                    <label>SMTP Server Response</label>
+                    <code>{{ item.delivery?.info?.response }}</code>
+                  </div>
+                }
+                @if (item.delivery?.info?.simulated) {
+                  <div class="detail-item full-width">
+                    <label>Mode</label>
+                    <span class="simulated-badge">Simulated Dispatch (Local Emulator / Unconfigured Secret)</span>
+                  </div>
+                }
+                @if (item.delivery?.info?.reason) {
+                  <div class="detail-item full-width">
+                    <label>Simulation Reason</label>
+                    <span>{{ item.delivery?.info?.reason }}</span>
+                  </div>
+                }
+                @if (item.delivery?.retryRequestedAt) {
+                  <div class="detail-item">
+                    <label>Retry Requested At</label>
+                    <span>{{ formatLogTimestamp(item.delivery?.retryRequestedAt) }}</span>
+                  </div>
+                }
+                @if (item.delivery?.retryRequestedBy) {
+                  <div class="detail-item">
+                    <label>Retry Requested By</label>
+                    <span>{{ item.delivery?.retryRequestedBy }}</span>
+                  </div>
+                }
+                @if (item.delivery?.error) {
+                  <div class="detail-item full-width error-detail">
+                    <label>Error Details</label>
+                    <pre>{{ item.delivery?.error }}</pre>
+                  </div>
+                }
+                @if (item.metadata) {
+                  <div class="detail-item full-width">
+                    <label>Metadata</label>
+                    <code>{{ item.metadata | json }}</code>
+                  </div>
+                }
+                @if (item.templateKey) {
+                  <div class="detail-item full-width template-placeholder-detail">
+                    <label>Template Placeholder</label>
+                    <div class="template-key-badge">
+                      Template: <code>{{ item.templateKey }}</code>
+                    </div>
+                    @if (item.templateData) {
+                      <div class="template-data-table-wrapper">
+                        <table class="template-data-table">
+                          <thead>
+                            <tr>
+                              <th>Parameter Token</th>
+                              <th>Value</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (entry of getTemplateDataEntries(item.templateData); track entry.key) {
+                              <tr>
+                                <td><code>{{ '{' + entry.key + '}' }}</code></td>
+                                <td>{{ entry.value }}</td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    }
+                    @if (state === MailDeliveryState.Paused) {
+                      <p class="placeholder-note">
+                        ⏸ This email was queued while mail sending was paused. When sending resumes,
+                        the latest template definition for <code>{{ item.templateKey }}</code> will be rendered dynamically with these parameters.
+                      </p>
+                    }
+                  </div>
+                }
+              </div>
+
+              <div class="detail-footer">
+                <div class="detail-footer-left">
+                  <button
+                    type="button"
+                    class="subtle-button"
+                    [disabled]="state === MailDeliveryState.Processing"
+                    (click)="openEditMail(item)">
+                    <app-icon name="edit"></app-icon> Edit Email
+                  </button>
+                  @if (isDeleting()) {
+                    <app-spinner>Deleting...</app-spinner>
+                  } @else {
+                    <button
+                      type="button"
+                      class="delete-button"
+                      [disabled]="state === MailDeliveryState.Processing"
+                      (click)="deleteSingleMail(item.docId)">
+                      <app-icon name="delete"></app-icon> Delete Email
+                    </button>
+                  }
+                </div>
+                <div class="detail-footer-right">
+                  @if (state === MailDeliveryState.Error) {
+                    @if (isRetryingId() === item.docId) {
+                      <app-spinner>Retrying...</app-spinner>
+                    } @else {
+                      <button
+                        type="button"
+                        class="primary-button"
+                        (click)="retryMail(item.docId!)">
+                        <app-icon name="refresh"></app-icon> Retry Sending Email
+                      </button>
+                    }
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <!-- LIST VIEW -->
+          <div class="logs-header-bar">
+            <div>
+              <h4>Mail Queue &amp; Delivery Status</h4>
+              <p class="description">
+                Live status of outbound transactional emails, event digests, and admin test emails.
+                Protected by atomic status guards preventing circular sending loops.
+              </p>
+            </div>
+            @if (isLoadingLogs()) {
+              <app-spinner>Refreshing logs...</app-spinner>
+            } @else {
+              <button type="button" class="subtle-button" (click)="loadMailLogs()">
+                <app-icon name="refresh"></app-icon> Refresh Logs
+              </button>
+            }
+          </div>
+
+          <!-- Metric Summary Cards -->
+          <div class="stats-grid">
+            <div class="stat-card" [class.selected]="logsFilter() === 'ALL'" (click)="logsFilter.set('ALL')">
+              <span class="stat-label">Total Tracked</span>
+              <span class="stat-value">{{ logCounts().total }}</span>
+            </div>
+            <div class="stat-card success" [class.selected]="logsFilter() === MailDeliveryState.Success" (click)="logsFilter.set(MailDeliveryState.Success)">
+              <span class="stat-label">Delivered</span>
+              <span class="stat-value">{{ logCounts().success }}</span>
+            </div>
+            <div class="stat-card pending" [class.selected]="logsFilter() === MailDeliveryState.Pending" (click)="logsFilter.set(MailDeliveryState.Pending)">
+              <span class="stat-label">In-Flight / Pending</span>
+              <span class="stat-value">{{ logCounts().pending }}</span>
+            </div>
+            <div class="stat-card paused" [class.selected]="logsFilter() === MailDeliveryState.Paused" (click)="logsFilter.set(MailDeliveryState.Paused)">
+              <span class="stat-label">Queued / Paused</span>
+              <span class="stat-value">{{ logCounts().paused }}</span>
+            </div>
+            <div class="stat-card error" [class.selected]="logsFilter() === MailDeliveryState.Error" (click)="logsFilter.set(MailDeliveryState.Error)">
+              <span class="stat-label">Delivery Errors</span>
+              <span class="stat-value">{{ logCounts().error }}</span>
+            </div>
+          </div>
+
+          <!-- Filter & Search Bar -->
+          <div class="logs-controls">
+            <div class="search-box">
+              <input
+                type="text"
+                class="input-style"
+                placeholder="Search by recipient, subject, or Doc ID..."
+                [(ngModel)]="logsSearch"
+              />
+            </div>
+            <div class="filter-pills">
+              <button
+                type="button"
+                class="pill-btn"
+                [class.active]="logsFilter() === 'ALL'"
+                (click)="logsFilter.set('ALL')">
+                All
+              </button>
+              <button
+                type="button"
+                class="pill-btn success"
+                [class.active]="logsFilter() === MailDeliveryState.Success"
+                (click)="logsFilter.set(MailDeliveryState.Success)">
+                Delivered ({{ logCounts().success }})
+              </button>
+              <button
+                type="button"
+                class="pill-btn pending"
+                [class.active]="logsFilter() === MailDeliveryState.Pending"
+                (click)="logsFilter.set(MailDeliveryState.Pending)">
+                In-Flight ({{ logCounts().pending }})
+              </button>
+              <button
+                type="button"
+                class="pill-btn paused"
+                [class.active]="logsFilter() === MailDeliveryState.Paused"
+                (click)="logsFilter.set(MailDeliveryState.Paused)">
+                Queued / Paused ({{ logCounts().paused }})
+              </button>
+              <button
+                type="button"
+                class="pill-btn error"
+                [class.active]="logsFilter() === MailDeliveryState.Error"
+                (click)="logsFilter.set(MailDeliveryState.Error)">
+                Errors ({{ logCounts().error }})
+              </button>
+            </div>
+          </div>
+
+          @if (retryFeedback()) {
+            <div class="alert-box" [class.alert-success]="retryFeedback()?.success" [class.alert-error]="!retryFeedback()?.success">
+              {{ retryFeedback()?.message }}
+            </div>
+          }
+
+          @if (deleteActionFeedback()) {
+            <div class="alert-box" [class.alert-success]="deleteActionFeedback()?.success" [class.alert-error]="!deleteActionFeedback()?.success">
+              {{ deleteActionFeedback()?.message }}
+            </div>
+          }
+
+          <!-- Batch Actions Toolbar -->
+          @if (selectedMailIds().size > 0) {
+            <div class="batch-action-bar">
+              <div class="batch-info">
+                <span class="selected-badge">{{ selectedMailIds().size }}</span>
+                <span>item(s) selected</span>
+                <button type="button" class="subtle-button btn-clear-selection" (click)="clearSelection()">Clear Selection</button>
+              </div>
+              <div class="batch-buttons">
+                @if (isDeleting()) {
+                  <app-spinner>Deleting...</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="delete-button"
+                    (click)="deleteSelectedMail()">
+                    <app-icon name="delete"></app-icon> Delete Selected ({{ selectedMailIds().size }})
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Logs List Table -->
+          <div class="logs-list-wrapper">
+            @if (isLoadingLogs() && mailLogs().length === 0) {
+              <div class="loading-placeholder">
+                <app-spinner>Loading mail queue logs...</app-spinner>
+              </div>
+            } @else if (filteredMailLogs().length === 0) {
+              <div class="empty-placeholder">
+                <p>No email records found matching the current filter.</p>
+              </div>
+            } @else {
+              <div class="logs-table">
+                <div class="table-header">
+                  <span class="col-select">
+                    <input
+                      type="checkbox"
+                      [checked]="isAllSelected()"
+                      (change)="toggleSelectAll()"
+                      title="Select or deselect all visible emails"
+                    />
+                  </span>
+                  <span class="col-status">Status</span>
+                  <span class="col-to">Recipient</span>
+                  <span class="col-subject">Subject</span>
+                  <span class="col-time">Time</span>
+                  <span class="col-actions">Actions</span>
+                </div>
+                <div class="table-body">
+                  @for (log of filteredMailLogs(); track log.docId) {
+                    <div
+                      class="table-row"
+                      [class.selected]="isSelected(log.docId)"
+                      (click)="selectLog(log)">
+                      <div class="col-select" (click)="$event.stopPropagation()">
+                        <input
+                          type="checkbox"
+                          [checked]="isSelected(log.docId)"
+                          (change)="toggleSelect(log.docId, $event)"
+                          title="Select email"
+                        />
+                      </div>
+                      <div class="col-status">
+                        @let curState = log.status || log.delivery?.state || MailDeliveryState.Pending;
+                        <span class="status-badge" [class]="curState.toLowerCase()">
+                          {{ curState }}
+                        </span>
+                      </div>
+                      <div class="col-to" [title]="log.to">
+                        {{ log.to }}
+                      </div>
+                      <div class="col-subject" [title]="log.message?.subject || log.subject">
+                        {{ log.message?.subject || log.subject || '(No Subject)' }}
+                      </div>
+                      <div class="col-time">
+                        {{ formatLogTimestamp(log.createdAt || log.delivery?.startTime) }}
+                      </div>
+                      <div class="col-actions" (click)="$event.stopPropagation()">
+                        <button
+                          type="button"
+                          class="subtle-button row-action-btn"
+                          (click)="selectLog(log)">
+                          Details
+                        </button>
+                        <button
+                          type="button"
+                          class="subtle-button row-action-btn"
+                          [disabled]="(log.status || log.delivery?.state) === MailDeliveryState.Processing"
+                          (click)="openEditMail(log, $event)"
+                          title="Edit email">
+                          Edit
+                        </button>
+                        @if ((log.status || log.delivery?.state) === MailDeliveryState.Error) {
+                          @if (isRetryingId() === log.docId) {
+                            <app-spinner></app-spinner>
+                          } @else {
+                            <button
+                              type="button"
+                              class="subtle-button row-action-btn btn-retry"
+                              (click)="retryMail(log.docId!, $event)">
+                              Retry
+                            </button>
+                          }
+                        }
+                        <button
+                          type="button"
+                          class="icon-only-button delete-button"
+                          [disabled]="(log.status || log.delivery?.state) === MailDeliveryState.Processing || isDeleting()"
+                          (click)="deleteSingleMail(log.docId, $event)"
+                          title="Delete email">
+                          <app-icon name="delete"></app-icon>
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Edit Mail Modal -->
+        @if (editingMail()) {
+          @let editItem = editingMail()!;
+          @let isProcessing = (editItem.status || editItem.delivery?.state) === MailDeliveryState.Processing;
+          <div class="modal-backdrop" (click)="closeEditMail()">
+            <div class="edit-mail-modal" (click)="$event.stopPropagation()">
+              <div class="modal-header">
+                <div>
+                  <h5>Edit Queued Email</h5>
+                  <span class="doc-id">Document ID: <code>{{ editItem.docId }}</code></span>
+                </div>
+                <button type="button" class="icon-only-button" (click)="closeEditMail()" title="Close modal">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+
+              <div class="modal-body">
+                @if (editFeedback()) {
+                  <div class="alert-box" [class.alert-success]="editFeedback()?.success" [class.alert-error]="!editFeedback()?.success">
+                    {{ editFeedback()?.message }}
+                  </div>
+                }
+
+                @if ((editItem.status || editItem.delivery?.state) === MailDeliveryState.Success) {
+                  <div class="alert-box alert-warning">
+                    ⚠️ <strong>Note:</strong> This email was already dispatched and marked as delivered. Saving with status <strong>PENDING</strong> will re-dispatch it.
+                  </div>
+                }
+
+                <div class="form-group">
+                  <label for="edit-recipient">Recipient(s) (To) <span class="required">*</span></label>
+                  <input
+                    id="edit-recipient"
+                    type="text"
+                    class="input-style"
+                    placeholder="e.g. member@example.com"
+                    [(ngModel)]="editTo"
+                    [disabled]="isSavingEdit()"
+                  />
+                  <span class="hint-text">Separate multiple recipients with commas.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="edit-subject">Subject</label>
+                  <input
+                    id="edit-subject"
+                    type="text"
+                    class="input-style"
+                    placeholder="Email subject..."
+                    [(ngModel)]="editSubject"
+                    [disabled]="isSavingEdit()"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label for="edit-status">Dispatch Status</label>
+                  <select
+                    id="edit-status"
+                    class="select-style"
+                    [(ngModel)]="editStatus"
+                    [disabled]="isSavingEdit()">
+                    <option [value]="MailDeliveryState.Pending">PENDING (Ready to deliver)</option>
+                    <option [value]="MailDeliveryState.Paused">PAUSED (Hold in queue)</option>
+                    <option [value]="MailDeliveryState.Error">ERROR (Mark as delivery failure)</option>
+                  </select>
+                </div>
+
+                @if (editTemplateDataEntries().length > 0) {
+                  <div class="form-group template-vars-group">
+                    <label>Template Parameters (Variables)</label>
+                    <div class="template-vars-list">
+                      @for (entry of editTemplateDataEntries(); track $index) {
+                        <div class="template-var-row">
+                          <input
+                            type="text"
+                            class="input-style var-key"
+                            placeholder="Variable key (e.g. name)"
+                            [(ngModel)]="entry.key"
+                            [disabled]="isSavingEdit()"
+                          />
+                          <input
+                            type="text"
+                            class="input-style var-value"
+                            placeholder="Value"
+                            [(ngModel)]="entry.value"
+                            [disabled]="isSavingEdit()"
+                          />
+                          <button
+                            type="button"
+                            class="icon-only-button delete-button"
+                            (click)="removeTemplateDataEntry($index)"
+                            [disabled]="isSavingEdit()"
+                            title="Remove variable">
+                            <app-icon name="close"></app-icon>
+                          </button>
+                        </div>
+                      }
+                      <button
+                        type="button"
+                        class="subtle-button"
+                        (click)="addTemplateDataEntry()"
+                        [disabled]="isSavingEdit()">
+                        + Add Parameter
+                      </button>
+                    </div>
+                  </div>
+                }
+
+                <div class="form-group">
+                  <label for="edit-body">Email Body (Markdown)</label>
+                  <textarea
+                    id="edit-body"
+                    class="textarea-style"
+                    rows="6"
+                    placeholder="Email markdown content..."
+                    [(ngModel)]="editText"
+                    [disabled]="isSavingEdit()">
+                  </textarea>
+                </div>
+
+                @if (editText().trim()) {
+                  <div class="preview-group">
+                    <label>Rendered Preview</label>
+                    <div class="preview-box" [innerHTML]="editPreviewHtml()"></div>
+                  </div>
+                }
+              </div>
+
+              <div class="modal-footer">
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="closeEditMail()"
+                  [disabled]="isSavingEdit()">
+                  Cancel
+                </button>
+                @if (isSavingEdit()) {
+                  <app-spinner>Saving...</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="primary-button"
+                    (click)="saveEditedMail()"
+                    [disabled]="isProcessing">
+                    Save Changes
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Save Bar for Template Categories -->
+    @if (activeCategory() !== 'test' && activeCategory() !== 'logs') {
+      @if (statusMessage()) {
+        <div class="status-msg" [class.error]="statusMessage().startsWith('Error')">
+          {{ statusMessage() }}
+        </div>
+      }
+
+      <div class="actions">
+        @if (isSaving()) {
+          <app-spinner>Saving templates...</app-spinner>
+        } @else {
+          <button type="button" class="primary-button" (click)="saveTemplates()">
+            Save Templates
+          </button>
+        }
+      </div>
+    }
+  </div>
+</div>

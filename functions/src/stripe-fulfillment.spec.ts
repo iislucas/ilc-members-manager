@@ -13,6 +13,7 @@ import {
   extendDateByYears,
   extendDateByMonths,
   syncSubscriptionStatusToMember,
+  fulfillEventRegistration,
 } from './stripe-fulfillment';
 
 // The address members are pointed at when a purchase needs a human is
@@ -1563,6 +1564,129 @@ describe('stripe-fulfillment', () => {
           }),
         );
       });
+    });
+  });
+
+  describe('fulfillEventRegistration', () => {
+    it('applies upgrade and is idempotent when duplicate webhooks arrive with same checkoutSessionId', async () => {
+      let savedRegistration: any = null;
+      const batchSetMock = vi.fn().mockImplementation((ref: any, data: any) => {
+        savedRegistration = data;
+      });
+      const batchCommitMock = vi.fn().mockResolvedValue({});
+
+      const existingReg = {
+        docId: 'reg_existing',
+        eventDocId: 'event_123',
+        amountPaidCents: 4500,
+        attendance: 'video_only',
+        hasVideoAccess: true,
+        stripeSessionId: 'cs_initial_session',
+        upgradeHistory: [],
+      };
+
+      const eventRegistrationDoc = {
+        id: 'reg_existing',
+        exists: true,
+        data: () => existingReg,
+      };
+
+      const mockRegistrationsCol = {
+        doc: vi.fn().mockReturnValue({
+          get: vi.fn().mockImplementation(async () => {
+            if (savedRegistration) {
+              return {
+                id: 'reg_existing',
+                exists: true,
+                data: () => savedRegistration,
+              };
+            }
+            return eventRegistrationDoc;
+          }),
+        }),
+      };
+
+      const mockEventDoc = {
+        exists: true,
+        data: () => ({ title: 'Test Event', onlineJoiningLink: 'https://zoom.test' }),
+        collection: vi.fn().mockReturnValue(mockRegistrationsCol),
+      };
+
+      const mockEventsCol = {
+        doc: vi.fn().mockReturnValue(mockEventDoc),
+      };
+
+      const mockDbForReg: any = {
+        batch: vi.fn().mockReturnValue({
+          set: batchSetMock,
+          commit: batchCommitMock,
+        }),
+        collection: vi.fn((name: string) => {
+          if (name === 'events') return mockEventsCol;
+          if (name === 'products') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ exists: false }),
+              }),
+            };
+          }
+          if (name === 'members') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                collection: vi.fn().mockReturnValue({
+                  doc: vi.fn().mockReturnValue({
+                    set: vi.fn().mockResolvedValue({}),
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+
+      const upgradeOrder: StripeOrder = {
+        docId: 'order_upgrade_1',
+        lastUpdated: '2026-09-12T14:54:40Z',
+        ilcAppOrderKind: OrderKind.Stripe,
+        stripeOrderType: StripeOrderType.Checkout,
+        stripeObjectId: 'cs_upgrade_session',
+        checkoutSessionId: 'cs_upgrade_session',
+        created: '2026-09-12T14:54:40Z',
+        amountTotal: 1000,
+        currency: 'usd',
+        metadata: {
+          orderType: 'event_registration',
+          isUpgrade: 'true',
+          existingRegistrationDocId: 'reg_existing',
+          eventDocId: 'event_123',
+          attendance: 'online',
+          includeVideo: 'true',
+          upgradeAmountCents: '1000',
+          previouslyPaidCents: '4500',
+          totalAmountPaidCents: '5500',
+        },
+        lineItems: [],
+      };
+
+      // 1. First webhook delivery: applies upgrade
+      await fulfillEventRegistration(mockDbForReg, upgradeOrder, 'order_upgrade_1', null);
+
+      expect(batchCommitMock).toHaveBeenCalledTimes(1);
+      expect(savedRegistration).toBeDefined();
+      expect(savedRegistration.amountPaidCents).toBe(5500);
+      expect(savedRegistration.attendance).toBe('online');
+      expect(savedRegistration.upgradeHistory).toHaveLength(1);
+      expect(savedRegistration.upgradeHistory[0].stripeSessionId).toBe('cs_upgrade_session');
+      expect(savedRegistration.upgradeHistory[0].upgradeAmountCents).toBe(1000);
+
+      // 2. Second webhook delivery (duplicate with same checkoutSessionId)
+      await fulfillEventRegistration(mockDbForReg, upgradeOrder, 'order_upgrade_1', null);
+
+      // Batch commit should NOT have been called again, and amountPaidCents should NOT have increased
+      expect(batchCommitMock).toHaveBeenCalledTimes(1);
+      expect(savedRegistration.amountPaidCents).toBe(5500);
+      expect(savedRegistration.upgradeHistory).toHaveLength(1);
     });
   });
 });

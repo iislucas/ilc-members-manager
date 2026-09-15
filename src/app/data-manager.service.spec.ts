@@ -277,7 +277,7 @@ describe('DataManagerService - searchEvents', () => {
   });
 
   describe('updateVideosSync', () => {
-    it('subscribes to all videos when user is admin', () => {
+    it('syncs all videos to admin_videos when user is admin', async () => {
       const adminUser = {
         isAdmin: true,
         member: { docId: 'admin1' },
@@ -286,19 +286,23 @@ describe('DataManagerService - searchEvents', () => {
         firebaseUser: {} as any,
       } as UserDetails;
 
-      const queryMock = vi.mocked(query);
-      const whereMock = vi.mocked(where);
-      queryMock.mockClear();
-      whereMock.mockClear();
+      const syncService = TestBed.inject(IncrementalSyncService);
+      vi.mocked(syncService.syncCollection).mockClear();
+      vi.mocked(syncService.loadCachedData).mockClear();
 
-      service.updateVideosSync(adminUser);
+      await service.updateVideosSync(adminUser);
 
-      // Should query videos collection without where('isPublished', '==', true)
-      expect(whereMock).not.toHaveBeenCalledWith('isPublished', '==', true);
-      expect(queryMock).toHaveBeenCalled();
+      expect(syncService.loadCachedData).toHaveBeenCalledWith('admin_videos', service.videos, expect.any(Function));
+      expect(syncService.syncCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cacheKey: 'admin_videos',
+          collectionPath: 'videos',
+          queryConstraints: undefined,
+        }),
+      );
     });
 
-    it('subscribes only to published videos when user is not admin', () => {
+    it('syncs only published videos to public_videos when user is not admin', async () => {
       const regularUser = {
         isAdmin: false,
         member: { docId: 'mem1' },
@@ -307,34 +311,75 @@ describe('DataManagerService - searchEvents', () => {
         firebaseUser: {} as any,
       } as UserDetails;
 
-      const queryMock = vi.mocked(query);
-      const whereMock = vi.mocked(where);
-      queryMock.mockClear();
-      whereMock.mockClear();
+      const syncService = TestBed.inject(IncrementalSyncService);
+      vi.mocked(syncService.syncCollection).mockClear();
+      vi.mocked(syncService.loadCachedData).mockClear();
 
-      service.updateVideosSync(regularUser);
+      await service.updateVideosSync(regularUser);
 
-      expect(whereMock).toHaveBeenCalledWith('isPublished', '==', true);
+      expect(syncService.loadCachedData).toHaveBeenCalledWith('public_videos', service.videos, expect.any(Function));
+      expect(syncService.syncCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cacheKey: 'public_videos',
+          collectionPath: 'videos',
+          queryConstraints: expect.any(Array),
+        }),
+      );
     });
 
-    it('subscribes only to published videos when user is null (unauthenticated)', () => {
-      const whereMock = vi.mocked(where);
-      whereMock.mockClear();
+    it('syncs only published videos when user is null (unauthenticated)', async () => {
+      const syncService = TestBed.inject(IncrementalSyncService);
+      vi.mocked(syncService.syncCollection).mockClear();
+      vi.mocked(syncService.loadCachedData).mockClear();
 
-      service.updateVideosSync(null);
+      await service.updateVideosSync(null);
 
-      expect(whereMock).toHaveBeenCalledWith('isPublished', '==', true);
+      expect(syncService.loadCachedData).toHaveBeenCalledWith('public_videos', service.videos, expect.any(Function));
+      expect(syncService.syncCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cacheKey: 'public_videos',
+          collectionPath: 'videos',
+          queryConstraints: expect.any(Array),
+        }),
+      );
     });
+  });
 
-    it('cleans up previous listener when re-subscribed and on unsubscribeSnapshots', () => {
-      const unsubSpy = vi.fn();
-      vi.mocked(onSnapshot).mockReturnValueOnce(unsubSpy as any);
+  describe('updateOrdersSync', () => {
+    it('loads cached orders and syncs orders collection', async () => {
+      const syncService = TestBed.inject(IncrementalSyncService);
+      vi.mocked(syncService.syncCollection).mockClear();
+      vi.mocked(syncService.loadCachedData).mockClear();
 
-      service.updateVideosSync(null);
+      await service.updateOrdersSync();
 
-      // Calling updateVideosSync again should call the previous unsubscribe function
-      service.updateVideosSync(null);
-      expect(unsubSpy).toHaveBeenCalled();
+      expect(syncService.loadCachedData).toHaveBeenCalledWith('admin_orders', service.orders, expect.any(Function));
+      expect(syncService.syncCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cacheKey: 'admin_orders',
+          collectionPath: 'orders',
+          idField: 'docId',
+        }),
+      );
+    });
+  });
+
+  describe('updateEventsSync', () => {
+    it('loads cached events and syncs events collection', async () => {
+      const syncService = TestBed.inject(IncrementalSyncService);
+      vi.mocked(syncService.syncCollection).mockClear();
+      vi.mocked(syncService.loadCachedData).mockClear();
+
+      await service.updateEventsSync();
+
+      expect(syncService.loadCachedData).toHaveBeenCalledWith('public_events', service.events, expect.any(Function));
+      expect(syncService.syncCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cacheKey: 'public_events',
+          collectionPath: 'events',
+          idField: 'docId',
+        }),
+      );
     });
   });
 });

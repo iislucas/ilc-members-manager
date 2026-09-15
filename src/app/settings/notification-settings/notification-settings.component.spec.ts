@@ -5,7 +5,8 @@ import { NotificationSettingsComponent } from './notification-settings.component
 import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
-import { NotificationKind } from '../../../../functions/src/data-model/notifications';
+import { NotificationKind, EventDigestFrequency } from '../../../../functions/src/data-model/notifications';
+import { TransactionalEmailKey } from '../../../../functions/src/data-model/mail';
 import { provideNavigationTreeStub } from '../../navigation-tree.testing';
 
 describe('NotificationSettingsComponent', () => {
@@ -99,5 +100,46 @@ describe('NotificationSettingsComponent', () => {
     expect(mockNotificationService.updateLocalSettings).toHaveBeenCalledWith({
       homeEnabled: { [NotificationKind.NewEventPosted]: false },
     });
+  });
+
+  it('should display and update upcoming event digest frequency', async () => {
+    fixture.detectChanges();
+    const dataManager = TestBed.inject(DataManagerService);
+    expect(component['eventDigestFrequency']()).toBe(EventDigestFrequency.None);
+
+    const select = fixture.nativeElement.querySelector('#event-digest-frequency') as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    expect(select.value).toBe(EventDigestFrequency.None);
+
+    await component.setEventDigestFrequency(EventDigestFrequency.Weekly);
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          eventDigestFrequency: EventDigestFrequency.Weekly,
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('should toggle transactional email preferences', async () => {
+    fixture.detectChanges();
+    const dataManager = TestBed.inject(DataManagerService);
+
+    expect(component.isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation)).toBe(true);
+
+    await component.toggleEmailKind(TransactionalEmailKey.OrderConfirmation, false);
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          emailEnabled: expect.objectContaining({
+            [TransactionalEmailKey.OrderConfirmation]: false,
+          }),
+        }),
+      }),
+      expect.any(Object),
+    );
   });
 });

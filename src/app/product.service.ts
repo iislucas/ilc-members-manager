@@ -13,6 +13,7 @@ import {
   getDocs,
   getFirestore,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
@@ -87,7 +88,7 @@ export class ProductService {
       try {
         const updates: Record<string, unknown> = {
           productId: docId,
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: serverTimestamp(),
         };
         if (product.onlineJoiningLink !== undefined) {
           updates['onlineJoiningLink'] = product.onlineJoiningLink;

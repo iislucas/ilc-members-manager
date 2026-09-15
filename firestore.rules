@@ -249,7 +249,7 @@ service cloud.firestore {
     }
 
     match /system/deletions/{collectionName}/{document=**} {
-      allow read: if (collectionName in ['instructors', 'schools', 'events']) || isAdmin();
+      allow read: if (collectionName in ['instructors', 'schools', 'events', 'videos']) || isAdmin();
       allow write: if isAdmin();
     }
 
@@ -265,6 +265,17 @@ service cloud.firestore {
     match /statistics/{statId} {
       allow read: if isAdmin();
       allow write: if isAdmin();
+    }
+
+    // Outbound email task queue.
+    // Client creation is blocked (all outbound mail must be created via Cloud Functions).
+    // Admins can read, update, and delete queue items (except items actively in PROCESSING).
+    match /mail/{mailId} {
+      allow read: if isAdmin();
+      allow create: if false;
+      allow update, delete: if isAdmin() &&
+        resource.data.status != 'PROCESSING' &&
+        (!('delivery' in resource.data) || resource.data.delivery.state != 'PROCESSING');
     }
 
     // Products for classes, workshops, and events.

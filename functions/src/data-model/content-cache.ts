@@ -3,6 +3,19 @@ import {
   membershipActivatedBody,
   instructorLicenseActivatedSubject,
   instructorLicenseActivatedBody,
+  orderConfirmationSubject,
+  orderConfirmationBody,
+  eventRegistrationConfirmationSubject,
+  eventRegistrationConfirmationBody,
+  vodPurchaseConfirmationSubject,
+  vodPurchaseConfirmationBody,
+  gradingPaymentConfirmationSubject,
+  gradingPaymentConfirmationBody,
+  subscriptionRenewalSubject,
+  subscriptionRenewalBody,
+  eventDigestOverallSubject,
+  eventDigestOverallBody,
+  eventDigestItemTemplate,
 } from '../email-templates';
 
 // A single cached blog post with only the fields the UI needs.
@@ -115,23 +128,130 @@ export function initCacheMetadata(): CacheMetadata {
   };
 }
 
-// System configuration for welcome/activation email templates,
-// stored at /system/email-templates.
+// System configuration for email templates, stored at /system/email-templates.
 export interface EmailTemplates {
+  // --- Account & Activation Emails ---
   membershipActivatedSubject: string;
   membershipActivatedBody: string; // Markdown template
   instructorLicenseActivatedSubject: string;
   instructorLicenseActivatedBody: string; // Markdown template
+
+  // --- Purchase & Order Confirmations ---
+  orderConfirmationSubject: string;
+  orderConfirmationBody: string;
+
+  eventRegistrationConfirmationSubject: string;
+  eventRegistrationConfirmationBody: string;
+
+  vodPurchaseConfirmationSubject: string;
+  vodPurchaseConfirmationBody: string;
+
+  gradingPaymentConfirmationSubject: string;
+  gradingPaymentConfirmationBody: string;
+
+  subscriptionRenewalSubject: string;
+  subscriptionRenewalBody: string;
+
+  // --- Upcoming Event Digest (Two-Tier Template) ---
+  // 1. Overall Email Template (contains subject and body with {eventsList} placeholder)
+  eventDigestOverallSubject: string;
+  eventDigestOverallBody: string;
+
+  // 2. Per-Event Item Template (renders an individual event card within the list)
+  eventDigestItemTemplate: string;
 }
 
 export function initEmailTemplates(): EmailTemplates {
   return {
     membershipActivatedSubject: membershipActivatedSubject(),
-    membershipActivatedBody: membershipActivatedBody({ appBase: '{appBase}' }),
+    membershipActivatedBody: membershipActivatedBody({ name: '{name}', appBase: '{appBase}' }),
     instructorLicenseActivatedSubject: instructorLicenseActivatedSubject(),
     instructorLicenseActivatedBody: instructorLicenseActivatedBody({
+      name: '{name}',
       instructorId: '{instructorId}',
       appBase: '{appBase}',
+      instructorSopUrl: '{instructorSopUrl}',
+    }),
+
+    orderConfirmationSubject: orderConfirmationSubject(),
+    orderConfirmationBody: orderConfirmationBody({
+      name: '{name}',
+      orderNumber: '{orderNumber}',
+      orderDate: '{orderDate}',
+      amount: '{amount}',
+      currency: '{currency}',
+      itemsSummary: '{itemsSummary}',
+      receiptUrl: '{receiptUrl}',
+      appBase: '{appBase}',
+    }),
+
+    eventRegistrationConfirmationSubject: eventRegistrationConfirmationSubject(),
+    eventRegistrationConfirmationBody: eventRegistrationConfirmationBody({
+      name: '{name}',
+      eventTitle: '{eventTitle}',
+      eventDates: '{eventDates}',
+      eventLocation: '{eventLocation}',
+      attendanceType: '{attendanceType}',
+      onlineJoiningLink: '{onlineJoiningLink}',
+      specialInstructions: '{specialInstructions}',
+      amount: '{amount}',
+      receiptUrl: '{receiptUrl}',
+      appBase: '{appBase}',
+    }),
+
+    vodPurchaseConfirmationSubject: vodPurchaseConfirmationSubject(),
+    vodPurchaseConfirmationBody: vodPurchaseConfirmationBody({
+      name: '{name}',
+      videoTitle: '{videoTitle}',
+      videoUrl: '{videoUrl}',
+      amount: '{amount}',
+      receiptUrl: '{receiptUrl}',
+      appBase: '{appBase}',
+    }),
+
+    gradingPaymentConfirmationSubject: gradingPaymentConfirmationSubject(),
+    gradingPaymentConfirmationBody: gradingPaymentConfirmationBody({
+      name: '{name}',
+      memberId: '{memberId}',
+      gradingLevel: '{gradingLevel}',
+      gradingEventName: '{gradingEventName}',
+      gradingDate: '{gradingDate}',
+      amount: '{amount}',
+      gradingUrl: '{gradingUrl}',
+      appBase: '{appBase}',
+    }),
+
+    subscriptionRenewalSubject: subscriptionRenewalSubject(),
+    subscriptionRenewalBody: subscriptionRenewalBody({
+      name: '{name}',
+      planName: '{planName}',
+      amount: '{amount}',
+      renewalDate: '{renewalDate}',
+      nextRenewalDate: '{nextRenewalDate}',
+      receiptUrl: '{receiptUrl}',
+      appBase: '{appBase}',
+    }),
+
+    eventDigestOverallSubject: eventDigestOverallSubject(),
+    eventDigestOverallBody: eventDigestOverallBody({
+      name: '{name}',
+      period: '{period}',
+      eventsCount: '{eventsCount}',
+      eventsList: '{eventsList}',
+      calendarUrl: '{calendarUrl}',
+      preferencesUrl: '{preferencesUrl}',
+      appBase: '{appBase}',
+    }),
+
+    eventDigestItemTemplate: eventDigestItemTemplate({
+      eventTitle: '{eventTitle}',
+      eventDates: '{eventDates}',
+      eventLocation: '{eventLocation}',
+      eventInstructors: '{eventInstructors}',
+      eventDetailsUrl: '{eventDetailsUrl}',
+      eventPrice: '{eventPrice}',
+      attendanceType: '{attendanceType}',
+      eventSummary: '{eventSummary}',
     }),
   };
 }

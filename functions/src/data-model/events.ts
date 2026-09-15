@@ -1,3 +1,5 @@
+import { GenericFsDoc, normalizeLastUpdated } from './base';
+
 // Event status values for the unified /events collection.
 export enum EventStatus {
   Draft = 'draft',
@@ -186,6 +188,21 @@ export function initEvent(): IlcEvent {
     maxInPersonAttendees: 0,
     inPersonRegistrationsCount: 0,
     updatedByEmail: '',
+  };
+}
+
+export function firestoreDocToIlcEvent(doc: GenericFsDoc): IlcEvent {
+  const data = (doc.data() || {}) as Partial<IlcEvent> & { startDate?: string; endDate?: string };
+  const lastUpdated = normalizeLastUpdated(data.lastUpdated);
+  const start = data.start || data.startDate || '';
+  const end = data.end || data.endDate || start;
+  return {
+    ...initEvent(),
+    ...data,
+    start,
+    end,
+    docId: doc.id,
+    lastUpdated,
   };
 }
 
@@ -668,3 +685,104 @@ export function firestoreDocToEventRegistration(doc: {
     docId: doc.id,
   };
 }
+
+/**
+ * Helper to resolve start and end date strings (YYYY-MM-DD) from an IlcEvent.
+ */
+export function resolveEventDates(evt: IlcEvent): { start: string; end: string } {
+  const start = evt.start ? evt.start.split('T')[0] : '';
+  const end = evt.end ? evt.end.split('T')[0] : '';
+  return { start, end: end || start };
+}
+
+export enum EventDigestAttendanceLabel {
+  InPersonAndOnline = 'In-Person & Online',
+  Online = 'Online',
+  InPerson = 'In-Person',
+}
+
+export enum EventDigestPriceLabel {
+  Paid = 'Paid',
+  FreeOrIncluded = 'Free / Included',
+}
+
+export type EventDigestItemContext = {
+  eventTitle: string;
+  eventDates: string;
+  eventLocation: string;
+  attendanceType: EventDigestAttendanceLabel;
+  eventInstructors: string;
+  eventPrice: EventDigestPriceLabel;
+  eventSummary: string;
+  eventDetailsUrl: string;
+  appBase: string;
+};
+
+export type EventDigestOverallContext = {
+  name: string;
+  period: string;
+  eventsCount: string;
+  eventsList: string;
+  calendarUrl: string;
+  preferencesUrl: string;
+  unsubscribeUrl?: string;
+  appBase: string;
+};
+
+/**
+ * Builds template replacement parameters for an individual event item card in event digests.
+ */
+export function formatEventDigestItemContext(
+  evt: IlcEvent,
+  appBase = 'https://app.iliqchuan.com',
+): EventDigestItemContext {
+  const eventDocId = evt.docId;
+  const { start: startDate, end: endDate } = resolveEventDates(evt);
+  const dates =
+    startDate === endDate || !endDate
+      ? startDate || ''
+      : `${startDate} - ${endDate}`;
+  const hasOnline = Boolean(evt.onlineJoiningLink && evt.onlineJoiningLink.trim());
+  const hasInPerson = Boolean(
+    (evt.location && evt.location.trim()) ||
+    (evt.inPersonDetailsMarkdown && evt.inPersonDetailsMarkdown.trim())
+  );
+  const attendanceType =
+    hasInPerson && hasOnline
+      ? EventDigestAttendanceLabel.InPersonAndOnline
+      : hasOnline
+      ? EventDigestAttendanceLabel.Online
+      : EventDigestAttendanceLabel.InPerson;
+
+  const contactsList = (evt.contacts || []).map((c) => c.name).filter(Boolean);
+  if (contactsList.length === 0 && evt.ownerName) {
+    contactsList.push(evt.ownerName);
+  }
+  const instructors = contactsList.join(', ') || 'ILC Instructors';
+
+  const rawDesc = evt.descriptionMarkdown || evt.description || '';
+  const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '').trim();
+  const summary = cleanDesc
+    ? cleanDesc.length > 200
+      ? cleanDesc.slice(0, 197) + '...'
+      : cleanDesc
+    : '';
+  const detailsUrl = `${appBase}/events/${eventDocId}`;
+
+  const price = evt.productId
+    ? EventDigestPriceLabel.Paid
+    : EventDigestPriceLabel.FreeOrIncluded;
+
+  return {
+    eventTitle: evt.title || 'Untitled Event',
+    eventDates: dates,
+    eventLocation: evt.location || (hasOnline ? 'Online via Zoom' : 'TBD'),
+    attendanceType,
+    eventInstructors: instructors,
+    eventPrice: price,
+    eventSummary: summary,
+    eventDetailsUrl: detailsUrl,
+    appBase,
+  };
+}
+

@@ -261,5 +261,58 @@ describe('IncrementalSyncService', () => {
     expect(bundle?.entries.length).toBe(1);
     expect(bundle?.entries[0].docId).toBe('2');
   });
+
+  it('syncCollection passes queryConstraints to delta query', async () => {
+    await mockIdb.set('test_constraints', {
+      lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
+      entries: [],
+    });
+
+    vi.mocked(firestore.getDocs).mockResolvedValue({
+      empty: true,
+      docs: [],
+    } as any);
+
+    const dummyConstraint = { type: 'where' } as any;
+
+    await service.syncCollection({
+      cacheKey: 'test_constraints',
+      collectionPath: 'videos',
+      idField: 'docId',
+      targetSet,
+      docConverter: firestoreDocToTestItem,
+      queryConstraints: [dummyConstraint],
+    });
+
+    expect(firestore.query).toHaveBeenCalledWith(
+      undefined, // collection mock result
+      dummyConstraint,
+      undefined, // where('lastUpdated', '>', ...) mock returns undefined
+      undefined, // orderBy('lastUpdated', 'asc') mock returns undefined
+    );
+  });
+
+  it('performFullSync passes queryConstraints to full fetch query', async () => {
+    vi.mocked(firestore.getDocs).mockResolvedValue({
+      empty: true,
+      docs: [],
+    } as any);
+
+    const dummyConstraint = { type: 'where' } as any;
+
+    await service.performFullSync({
+      cacheKey: 'test_full_constraints',
+      collectionPath: 'videos',
+      idField: 'docId',
+      targetSet,
+      docConverter: firestoreDocToTestItem,
+      queryConstraints: [dummyConstraint],
+    });
+
+    expect(firestore.query).toHaveBeenCalledWith(
+      undefined,
+      dummyConstraint,
+    );
+  });
 });
 

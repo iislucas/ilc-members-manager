@@ -129,6 +129,14 @@ export type SquareSpaceOrder = BaseOrder & {
   // This is the squarespace fulfillment status.
   fulfillmentStatus: SquarespaceFulfillmentStatus;
   lineItems?: SquareSpaceLineItem[];
+  grandTotal?: {
+    value?: string;
+    currency?: string;
+  };
+  subtotal?: {
+    value?: string;
+    currency?: string;
+  };
 };
 
 // What kind of Stripe event produced an order record. A subscription's initial

@@ -16,6 +16,7 @@ import {
   getFirestore,
   orderBy,
   query,
+  QueryConstraint,
   Timestamp,
   where,
 } from 'firebase/firestore';
@@ -47,6 +48,7 @@ export interface SyncCollectionConfig<
   docConverter: (doc: GenericFsDoc) => T;
   sortFn?: (a: T, b: T) => number;
   additionalFilter?: (item: T) => boolean;
+  queryConstraints?: QueryConstraint[];
   forceFullRefresh?: boolean;
 }
 
@@ -128,8 +130,10 @@ export class IncrementalSyncService {
 
       // Query modified records using Firestore Timestamp: lastUpdated > lastSyncTimestamp
       const colRef = collection(this.db, collectionPath);
+      const constraints: QueryConstraint[] = config.queryConstraints ? [...config.queryConstraints] : [];
       const deltaQuery = query(
         colRef,
+        ...constraints,
         where('lastUpdated', '>', lastSyncTimestamp),
         orderBy('lastUpdated', 'asc'),
       );
@@ -225,7 +229,9 @@ export class IncrementalSyncService {
     } = config;
 
     const colRef = collection(this.db, collectionPath);
-    const snap = await getDocs(colRef);
+    const constraints: QueryConstraint[] = config.queryConstraints ? [...config.queryConstraints] : [];
+    const baseQuery = constraints.length > 0 ? query(colRef, ...constraints) : colRef;
+    const snap = await getDocs(baseQuery);
 
     let maxLastUpdated = new Date(0).toISOString();
     const entries: T[] = [];

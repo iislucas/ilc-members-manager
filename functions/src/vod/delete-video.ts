@@ -5,7 +5,7 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import { assertAdmin, allowedOrigins } from '../common';
+import { assertAdmin, allowedOrigins, recordTombstone } from '../common';
 import { firestoreDocToVideoItem, VodStatus } from '../data-model/vod';
 
 export interface DeleteVideoRequest {
@@ -47,6 +47,7 @@ export const deleteVideoFromCatalog = onCall(
     }
 
     await videoRef.delete();
+    await recordTombstone(db, 'videos', data.videoId);
 
     return { success: true, videoId: data.videoId };
   },

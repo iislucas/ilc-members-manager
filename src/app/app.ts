@@ -28,6 +28,7 @@ import { SquarespaceArticleEditComponent } from './squarespace/squarespace-artic
 import { GradingListComponent } from './grading-list/grading-list';
 import { GradingViewComponent } from './grading-view/grading-view';
 import { SettingsComponent } from './settings/settings.component';
+import { EmailNotificationsComponent } from './email-notifications/email-notifications.component';
 import { LoginComponent } from './login/login';
 import { NavigationMenuComponent } from './navigation-menu/navigation-menu.component';
 import { MemberGradingsComponent } from './member-gradings/member-gradings';
@@ -100,6 +101,7 @@ import { UpdateNotificationComponent } from './update-notification/update-notifi
     GradingListComponent,
     GradingViewComponent,
     SettingsComponent,
+    EmailNotificationsComponent,
     LoginComponent,
     ClassVideoLibraryComponent,
     MemberGradingsComponent,
