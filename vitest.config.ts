@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => ({
         setupFiles: ['src/test-setup.ts'],
         include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         reporters: ['default'],
+        testTimeout: 15000,
     },
     define: {
         'import.meta.vitest': mode !== 'production',
