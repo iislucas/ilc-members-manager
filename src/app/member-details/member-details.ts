@@ -12,9 +12,24 @@ import {
   effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MasterLevel, InstructorLicenseType, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
-import { Member, MembershipType, InstructorPublicData, AgeCategory, initMember } from '../../../functions/src/data-model/members';
-import { VideoGrant } from '../../../functions/src/data-model/vod';
+import {
+  MasterLevel,
+  InstructorLicenseType,
+  StudentLevel,
+  ApplicationLevel,
+} from '../../../functions/src/data-model/curriculum';
+import {
+  Member,
+  MembershipType,
+  InstructorPublicData,
+  AgeCategory,
+  initMember,
+} from '../../../functions/src/data-model/members';
+import {
+  VideoGrant,
+  VideoItem,
+  VideoSeries,
+} from '../../../functions/src/data-model/vod';
 import { NotificationKind } from '../../../functions/src/data-model/notifications';
 import { School } from '../../../functions/src/data-model/schools';
 import {
@@ -38,7 +53,12 @@ import {
 } from '../id-assignment/id-assignment';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { CountryCode } from '../country-codes';
-import { Timestamp, collection, addDoc, getFirestore } from 'firebase/firestore';
+import {
+  Timestamp,
+  collection,
+  addDoc,
+  getFirestore,
+} from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views, FIREBASE_APP } from '../app.config';
@@ -47,6 +67,35 @@ import { ImageUploadPreviewComponent } from '../image-upload-preview/image-uploa
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { environment } from '../../environments/environment';
 import { NotificationService } from '../notification.service';
+
+export interface GroupedGrantItem {
+  videoId: string;
+  title: string;
+  partIndex?: number;
+  durationSeconds?: number;
+  isGranted: boolean;
+  grant?: VideoGrant;
+  grantKind?: string;
+  grantedAt?: string;
+  notes?: string;
+  videoItem?: VideoItem;
+}
+
+export interface GroupedSeriesGrant {
+  id: string;
+  isSeries: boolean;
+  seriesId?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  totalVideosCount: number;
+  grantedVideosCount: number;
+  isFullSeriesGranted: boolean;
+  grantKind: string;
+  latestGrantedAt?: string;
+  notes?: string;
+  items: GroupedGrantItem[];
+}
 
 @Component({
   selector: 'app-member-details',
@@ -67,7 +116,8 @@ import { NotificationService } from '../notification.service';
 export class MemberDetailsComponent {
   private firebaseState = inject(FirebaseStateService);
   public membersService = inject(DataManagerService);
-  public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  public routingService: RoutingService<AppPathPatterns> =
+    inject(RoutingService);
   private firebaseApp = inject(FIREBASE_APP);
   // all values from the member service, used for dup-checking...
   // Maybe we can use membersService.members? and not need this...?
@@ -85,7 +135,9 @@ export class MemberDetailsComponent {
   applicationLevels = Object.values(ApplicationLevel);
   masterLevels = Object.values(MasterLevel).sort();
   Views = Views;
-  membershipLink = computed(() => this.routingService.hrefForView(Views.BecomeAMember));
+  membershipLink = computed(() =>
+    this.routingService.hrefForView(Views.BecomeAMember),
+  );
   notificationService = inject(NotificationService);
   NotificationKind = NotificationKind;
   notificationKinds = Object.values(NotificationKind);
@@ -136,8 +188,6 @@ export class MemberDetailsComponent {
         return kind;
     }
   }
-
-
 
   // The core object of interest.
   member = input.required<Member>();
@@ -240,7 +290,10 @@ export class MemberDetailsComponent {
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );
     disabled(schema.classVideoLibrarySubscription, () => !this.userIsAdmin());
-    disabled(schema.classVideoLibraryLastRenewalDate, () => !this.userIsAdmin());
+    disabled(
+      schema.classVideoLibraryLastRenewalDate,
+      () => !this.userIsAdmin(),
+    );
     disabled(schema.classVideoLibraryExpirationDate, () => !this.userIsAdmin());
     disabled(schema.isAdmin, () => !this.userIsAdmin());
     disabled(schema.notes, () => !this.userIsSchoolManagerOrAdmin());
@@ -263,7 +316,8 @@ export class MemberDetailsComponent {
   missingExpiryWarning = computed(() => {
     const m = this.editableMember();
     if (m.membershipType !== MembershipType.Annual) return null;
-    if (m.currentMembershipExpires && m.currentMembershipExpires.trim() !== '') return null;
+    if (m.currentMembershipExpires && m.currentMembershipExpires.trim() !== '')
+      return null;
     return 'Annual membership has no expiry date set.';
   });
 
@@ -281,7 +335,8 @@ export class MemberDetailsComponent {
   instructorLicenseDateMismatch = computed(() => {
     const m = this.editableMember();
     if (m.instructorLicenseType !== InstructorLicenseType.Annual) return null;
-    if (!m.instructorLicenseRenewalDate || !m.instructorLicenseExpires) return null;
+    if (!m.instructorLicenseRenewalDate || !m.instructorLicenseExpires)
+      return null;
     const expected = this.addYears(m.instructorLicenseRenewalDate, 1);
     if (m.instructorLicenseExpires === expected) return null;
     return `Expected expiration ${expected} (1 year after renewal ${m.instructorLicenseRenewalDate}), but got ${m.instructorLicenseExpires}.`;
@@ -306,7 +361,10 @@ export class MemberDetailsComponent {
     const today = new Date();
     let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
     const monthDiff = today.getUTCMonth() - birthDate.getUTCMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getUTCDate() < birthDate.getUTCDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getUTCDate() < birthDate.getUTCDate())
+    ) {
       age--;
     }
     if (age < 21) return AgeCategory.Under21;
@@ -400,7 +458,8 @@ export class MemberDetailsComponent {
   };
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
+    toName: (i: InstructorPublicData) =>
+      i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
 
   updateStudentsCheckbox = signal<boolean>(true);
@@ -434,8 +493,10 @@ export class MemberDetailsComponent {
     if (user.isAdmin) return true;
     const member = this.member();
     return (
-      (!!member.primarySchoolId && user.schoolsManaged.includes(member.primarySchoolId)) ||
-      (!!member.primarySchoolDocId && user.schoolsManaged.includes(member.primarySchoolDocId))
+      (!!member.primarySchoolId &&
+        user.schoolsManaged.includes(member.primarySchoolId)) ||
+      (!!member.primarySchoolDocId &&
+        user.schoolsManaged.includes(member.primarySchoolDocId))
     );
   });
   userIsAdmin = computed(() => {
@@ -457,14 +518,16 @@ export class MemberDetailsComponent {
     const emails = member.emails || [];
     return (
       emails.includes(user.firebaseUser.email || '') ||
-      (!!member.primarySchoolId && user.schoolsManaged.includes(member.primarySchoolId)) ||
-      (!!member.primarySchoolDocId && user.schoolsManaged.includes(member.primarySchoolDocId))
+      (!!member.primarySchoolId &&
+        user.schoolsManaged.includes(member.primarySchoolId)) ||
+      (!!member.primarySchoolDocId &&
+        user.schoolsManaged.includes(member.primarySchoolDocId))
     );
   });
 
   /** True when the member is viewing their own profile (MyProfile route). */
-  isOwnProfile = computed(() =>
-    this.routingService.matchedPatternId() === Views.MyProfile,
+  isOwnProfile = computed(
+    () => this.routingService.matchedPatternId() === Views.MyProfile,
   );
 
   /** Primary email for filtering orders / events. */
@@ -584,13 +647,281 @@ export class MemberDetailsComponent {
   // VOD Video & Series Grants state (for admin inspection)
   memberVideoGrants = signal<VideoGrant[]>([]);
   isLoadingVideoGrants = signal<boolean>(false);
-  showVideoGrantsFold = signal<boolean>(false);
+  showVideoGrantsFold = signal<boolean>(true);
+  expandedSeriesIds = signal<Set<string>>(new Set());
 
-  getGrantDisplayTitle(grant: VideoGrant): { title: string; subtitle?: string; isSeries: boolean } {
+  toggleSeriesFold(seriesId: string, event?: Event) {
+    event?.stopPropagation();
+    this.expandedSeriesIds.update((current) => {
+      const next = new Set(current);
+      if (next.has(seriesId)) {
+        next.delete(seriesId);
+      } else {
+        next.add(seriesId);
+      }
+      return next;
+    });
+  }
+
+  isSeriesExpanded(seriesId: string): boolean {
+    return this.expandedSeriesIds().has(seriesId);
+  }
+
+  expandAllSeries() {
+    const allIds = this.groupedVideoGrants().map((g) => g.id);
+    this.expandedSeriesIds.set(new Set(allIds));
+  }
+
+  collapseAllSeries() {
+    this.expandedSeriesIds.set(new Set());
+  }
+
+  groupedVideoGrants = computed<GroupedSeriesGrant[]>(() => {
+    const grants = this.memberVideoGrants();
+    if (!grants || grants.length === 0) return [];
+
+    const seriesList =
+      typeof this.membersService.getVideoSeriesList === 'function'
+        ? this.membersService.getVideoSeriesList()
+        : [];
+    const allVideos = this.membersService.videos?.entries?.() || [];
+
+    const videoMap = new Map<string, VideoItem>();
+    for (const v of allVideos) {
+      if (v.docId) videoMap.set(v.docId, v);
+    }
+
+    const seriesMap = new Map<string, VideoSeries>();
+    for (const s of seriesList) {
+      if (s.seriesId) seriesMap.set(s.seriesId, s);
+    }
+
+    // Map each video to its enclosing series (if any)
+    const videoIdToSeriesMap = new Map<string, VideoSeries>();
+    for (const s of seriesList) {
+      for (const v of s.videos || []) {
+        if (v.docId) videoIdToSeriesMap.set(v.docId, s);
+      }
+    }
+    for (const v of allVideos) {
+      if (v.seriesId && seriesMap.has(v.seriesId) && v.docId) {
+        videoIdToSeriesMap.set(v.docId, seriesMap.get(v.seriesId)!);
+      }
+    }
+
+    const seriesGrantBuckets = new Map<
+      string,
+      {
+        series: VideoSeries;
+        directSeriesGrant?: VideoGrant;
+        videoGrants: Map<string, VideoGrant>;
+      }
+    >();
+
+    const standaloneGrants: VideoGrant[] = [];
+
+    for (const grant of grants) {
+      const targetId = grant.videoId || grant.docId;
+      if (!targetId) continue;
+
+      if (seriesMap.has(targetId)) {
+        const series = seriesMap.get(targetId)!;
+        let bucket = seriesGrantBuckets.get(series.seriesId);
+        if (!bucket) {
+          bucket = { series, videoGrants: new Map() };
+          seriesGrantBuckets.set(series.seriesId, bucket);
+        }
+        bucket.directSeriesGrant = grant;
+      } else if (videoIdToSeriesMap.has(targetId)) {
+        const series = videoIdToSeriesMap.get(targetId)!;
+        let bucket = seriesGrantBuckets.get(series.seriesId);
+        if (!bucket) {
+          bucket = { series, videoGrants: new Map() };
+          seriesGrantBuckets.set(series.seriesId, bucket);
+        }
+        bucket.videoGrants.set(targetId, grant);
+      } else {
+        standaloneGrants.push(grant);
+      }
+    }
+
+    const result: GroupedSeriesGrant[] = [];
+
+    // Process series buckets
+    for (const [, bucket] of seriesGrantBuckets) {
+      const { series, directSeriesGrant, videoGrants } = bucket;
+      const isDirectSeriesGrant = !!directSeriesGrant;
+
+      const constituentVideos = series.videos || [];
+      const itemMap = new Map<string, GroupedGrantItem>();
+
+      for (let i = 0; i < constituentVideos.length; i++) {
+        const v = constituentVideos[i];
+        const vGrant = videoGrants.get(v.docId);
+        const isGranted = isDirectSeriesGrant || !!vGrant;
+        const grantObj = vGrant || directSeriesGrant;
+
+        itemMap.set(v.docId, {
+          videoId: v.docId,
+          title: v.title,
+          partIndex: v.seriesPartIndex ?? i + 1,
+          durationSeconds: v.durationSeconds,
+          isGranted,
+          grant: grantObj,
+          grantKind: grantObj?.grantKind || 'admin_grant',
+          grantedAt: grantObj?.grantedAt,
+          notes: grantObj?.notes,
+          videoItem: v,
+        });
+      }
+
+      // Extra video grants not in series.videos:
+      for (const [vId, vGrant] of videoGrants) {
+        if (!itemMap.has(vId)) {
+          const v = videoMap.get(vId);
+          itemMap.set(vId, {
+            videoId: vId,
+            title: v?.title || vId,
+            partIndex: v?.seriesPartIndex,
+            durationSeconds: v?.durationSeconds,
+            isGranted: true,
+            grant: vGrant,
+            grantKind: vGrant.grantKind || 'admin_grant',
+            grantedAt: vGrant.grantedAt,
+            notes: vGrant.notes,
+            videoItem: v,
+          });
+        }
+      }
+
+      const items = Array.from(itemMap.values()).sort((a, b) => {
+        const pA = a.partIndex ?? 9999;
+        const pB = b.partIndex ?? 9999;
+        if (pA !== pB) return pA - pB;
+        return a.title.localeCompare(b.title);
+      });
+
+      const totalVideosCount = Math.max(
+        series.videoCount || 0,
+        items.length,
+        1,
+      );
+      const grantedVideosCount = isDirectSeriesGrant
+        ? totalVideosCount
+        : items.filter((it) => it.isGranted).length;
+      const isFullSeriesGranted =
+        isDirectSeriesGrant ||
+        (grantedVideosCount >= totalVideosCount && totalVideosCount > 0);
+
+      const allDates = [
+        directSeriesGrant?.grantedAt,
+        ...Array.from(videoGrants.values()).map((g) => g.grantedAt),
+      ].filter(Boolean) as string[];
+      allDates.sort();
+      const latestGrantedAt = allDates[allDates.length - 1];
+
+      const grantKind =
+        directSeriesGrant?.grantKind ||
+        Array.from(videoGrants.values())[0]?.grantKind ||
+        'admin_grant';
+
+      const notes =
+        directSeriesGrant?.notes ||
+        Array.from(videoGrants.values()).find((g) => g.notes)?.notes;
+
+      result.push({
+        id: series.seriesId,
+        isSeries: true,
+        seriesId: series.seriesId,
+        title: series.title,
+        subtitle: isFullSeriesGranted
+          ? `All ${totalVideosCount} videos granted`
+          : `${grantedVideosCount} of ${totalVideosCount} videos granted`,
+        description: series.description,
+        totalVideosCount,
+        grantedVideosCount,
+        isFullSeriesGranted,
+        grantKind,
+        latestGrantedAt,
+        notes,
+        items,
+      });
+    }
+
+    // Process standalone / uncataloged grants
+    for (const grant of standaloneGrants) {
+      const targetId = grant.videoId || grant.docId;
+      const v = videoMap.get(targetId);
+
+      result.push({
+        id: targetId,
+        isSeries: false,
+        seriesId: undefined,
+        title: v?.title || targetId,
+        subtitle: v ? 'Single Video' : 'Target ID Grant',
+        description: v?.description,
+        totalVideosCount: 1,
+        grantedVideosCount: 1,
+        isFullSeriesGranted: true,
+        grantKind: grant.grantKind || 'admin_grant',
+        latestGrantedAt: grant.grantedAt,
+        notes: grant.notes,
+        items: [
+          {
+            videoId: targetId,
+            title: v?.title || targetId,
+            partIndex: v?.seriesPartIndex,
+            durationSeconds: v?.durationSeconds,
+            isGranted: true,
+            grant,
+            grantKind: grant.grantKind || 'admin_grant',
+            grantedAt: grant.grantedAt,
+            notes: grant.notes,
+            videoItem: v,
+          },
+        ],
+      });
+    }
+
+    return result.sort((a, b) => {
+      const dateA = a.latestGrantedAt || '';
+      const dateB = b.latestGrantedAt || '';
+      if (dateA !== dateB) return dateB.localeCompare(dateA);
+      return a.title.localeCompare(b.title);
+    });
+  });
+
+  totalGrantedVideosCount = computed<number>(() => {
+    return this.groupedVideoGrants().reduce(
+      (sum, g) => sum + g.grantedVideosCount,
+      0,
+    );
+  });
+
+  formatDuration(seconds?: number): string {
+    if (!seconds || seconds <= 0) return '0 min';
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hours > 0) {
+      return `${hours}h ${mins > 0 ? mins + 'm' : ''}`.trim();
+    }
+    if (mins > 0) {
+      return `${mins}m${secs > 0 && mins < 5 ? ` ${secs}s` : ''}`;
+    }
+    return `${secs}s`;
+  }
+
+  getGrantDisplayTitle(grant: VideoGrant): {
+    title: string;
+    subtitle?: string;
+    isSeries: boolean;
+  } {
     const targetId = grant.videoId || grant.docId;
-    const seriesList = typeof this.membersService.getVideoSeriesList === 'function'
-      ? this.membersService.getVideoSeriesList()
-      : [];
+    const seriesList =
+      typeof this.membersService.getVideoSeriesList === 'function'
+        ? this.membersService.getVideoSeriesList()
+        : [];
     const matchedSeries = seriesList.find((s) => s.seriesId === targetId);
     if (matchedSeries) {
       return {
@@ -603,8 +934,12 @@ export class MemberDetailsComponent {
     const allVideos = this.membersService.videos?.entries?.() || [];
     const matchedVideo = allVideos.find((v) => v.docId === targetId);
     if (matchedVideo) {
-      const part = matchedVideo.seriesPartIndex ? `Part ${matchedVideo.seriesPartIndex}: ` : '';
-      const seriesInfo = matchedVideo.seriesTitle ? `Series: ${matchedVideo.seriesTitle}` : '';
+      const part = matchedVideo.seriesPartIndex
+        ? `Part ${matchedVideo.seriesPartIndex}: `
+        : '';
+      const seriesInfo = matchedVideo.seriesTitle
+        ? `Series: ${matchedVideo.seriesTitle}`
+        : '';
       return {
         title: `${part}${matchedVideo.title}`,
         subtitle: seriesInfo || 'Individual Video',
@@ -623,8 +958,6 @@ export class MemberDetailsComponent {
     if (!isoDate) return '';
     return isoDate.split('T')[0] || isoDate;
   }
-
-
 
   openEmailMenuIndex = signal<number | null>(null);
 
@@ -752,19 +1085,31 @@ export class MemberDetailsComponent {
   async onProfileImageCropped(event: { thumbBlob: Blob; largeBlob: Blob }) {
     const docId = this.member().docId;
     if (!docId) {
-      this.profileImageError.set('Cannot upload image: member has no document ID.');
+      this.profileImageError.set(
+        'Cannot upload image: member has no document ID.',
+      );
       return;
     }
     this.isUploadingProfileImage.set(true);
     this.profileImageError.set(null);
     try {
       const storage = getStorage(this.firebaseApp);
-      const largeRef = ref(storage, `instructors/${docId}/images/profile_large`);
-      await uploadBytes(largeRef, event.largeBlob, { contentType: event.largeBlob.type || 'image/png' });
+      const largeRef = ref(
+        storage,
+        `instructors/${docId}/images/profile_large`,
+      );
+      await uploadBytes(largeRef, event.largeBlob, {
+        contentType: event.largeBlob.type || 'image/png',
+      });
       const largeUrl = await getDownloadURL(largeRef);
 
-      const thumbRef = ref(storage, `instructors/${docId}/images/profile_thumb`);
-      await uploadBytes(thumbRef, event.thumbBlob, { contentType: event.thumbBlob.type || 'image/png' });
+      const thumbRef = ref(
+        storage,
+        `instructors/${docId}/images/profile_thumb`,
+      );
+      await uploadBytes(thumbRef, event.thumbBlob, {
+        contentType: event.thumbBlob.type || 'image/png',
+      });
       const thumbUrl = await getDownloadURL(thumbRef);
 
       this.form.publicProfileImageUrl().value.set(largeUrl);
@@ -784,7 +1129,9 @@ export class MemberDetailsComponent {
   async onCoverImageCropped(event: { largeBlob: Blob }) {
     const docId = this.member().docId;
     if (!docId) {
-      this.coverImageError.set('Cannot upload image: member has no document ID.');
+      this.coverImageError.set(
+        'Cannot upload image: member has no document ID.',
+      );
       return;
     }
     this.isUploadingCoverImage.set(true);
@@ -792,7 +1139,9 @@ export class MemberDetailsComponent {
     try {
       const storage = getStorage(this.firebaseApp);
       const coverRef = ref(storage, `instructors/${docId}/images/cover_large`);
-      await uploadBytes(coverRef, event.largeBlob, { contentType: event.largeBlob.type || 'image/png' });
+      await uploadBytes(coverRef, event.largeBlob, {
+        contentType: event.largeBlob.type || 'image/png',
+      });
       const coverUrl = await getDownloadURL(coverRef);
 
       this.form.publicCoverImageUrl().value.set(coverUrl);
@@ -829,7 +1178,8 @@ export class MemberDetailsComponent {
       const orig = this.member()?.instructorId;
       const current = this.editableMember()?.instructorId;
       if (orig && current && orig !== current) {
-        const count = await this.membersService.countMembersWithInstructorId(orig);
+        const count =
+          await this.membersService.countMembersWithInstructorId(orig);
         this.studentsToUpdateCount.set(count);
       } else {
         this.studentsToUpdateCount.set(0);
@@ -892,8 +1242,8 @@ export class MemberDetailsComponent {
     $event.stopPropagation();
     // If dirty, we show "undo changes"
     if (this.isDirty()) {
-    // Reset the form model to a fresh clone of the original member
-    // This will trigger the effect to sync all fields including emails and autocomplete values
+      // Reset the form model to a fresh clone of the original member
+      // This will trigger the effect to sync all fields including emails and autocomplete values
       this.form().reset();
       this.memberFormModel.set(structuredClone(this.member()));
       this.instructorIdAssignment.set(this.initInstructorIdAssignment());
@@ -922,7 +1272,12 @@ export class MemberDetailsComponent {
 
   duplicateMembersForMemberId = computed(() => {
     const member = this.editableMember();
-    if (!this.allMembers || !member || !member.memberId || member.memberId.trim() === '') {
+    if (
+      !this.allMembers ||
+      !member ||
+      !member.memberId ||
+      member.memberId.trim() === ''
+    ) {
       return [];
     }
     return this.allMembers().filter(
@@ -934,7 +1289,12 @@ export class MemberDetailsComponent {
 
   duplicateMembersForInstructorId = computed(() => {
     const member = this.editableMember();
-    if (!this.allMembers || !member || !member.instructorId || member.instructorId.trim() === '') {
+    if (
+      !this.allMembers ||
+      !member ||
+      !member.instructorId ||
+      member.instructorId.trim() === ''
+    ) {
       return [];
     }
     return this.allMembers().filter(
@@ -950,7 +1310,9 @@ export class MemberDetailsComponent {
     if (!memberId) return;
     const match = this.routingService.matchedPatternId();
     if (match) {
-      const signals = this.routingService.signals[match as keyof AppPathPatterns] as any;
+      const signals = this.routingService.signals[
+        match as keyof AppPathPatterns
+      ] as any;
       if (signals?.pathVars?.memberId) {
         signals.pathVars.memberId.set(memberId);
         return;
@@ -965,12 +1327,18 @@ export class MemberDetailsComponent {
     this.isSaving.set(true);
     this.asyncError.set(null);
     try {
-      // Ensure we have a separate copy, and explicitly sync the array 
+      // Ensure we have a separate copy, and explicitly sync the array
       // fields which don't use conventional two-way bindings.
       const member = {
         ...this.editableMember(),
-        emails: this.form.emails().value().filter((e) => e.trim() !== ''),
-        tags: this.form.tags().value().filter((t) => t.trim() !== ''),
+        emails: this.form
+          .emails()
+          .value()
+          .filter((e) => e.trim() !== ''),
+        tags: this.form
+          .tags()
+          .value()
+          .filter((t) => t.trim() !== ''),
         mastersLevels: this.form.mastersLevels().value(),
       };
 
@@ -1006,7 +1374,9 @@ export class MemberDetailsComponent {
       }
 
       if (member.primaryInstructorId) {
-        member.primaryInstructorId = member.primaryInstructorId.trim().toUpperCase();
+        member.primaryInstructorId = member.primaryInstructorId
+          .trim()
+          .toUpperCase();
       }
       if (member.instructorId) {
         member.instructorId = member.instructorId.trim().toUpperCase();
@@ -1014,20 +1384,45 @@ export class MemberDetailsComponent {
 
       if (member.docId) {
         const origId = this.member().instructorId;
-        if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0 && origId && member.instructorId && origId !== member.instructorId) {
+        if (
+          this.updateStudentsCheckbox() &&
+          this.studentsToUpdateCount() > 0 &&
+          origId &&
+          member.instructorId &&
+          origId !== member.instructorId
+        ) {
           try {
-            await this.membersService.updateMemberAndStudentInstructorIds(member.docId, member, origId);
+            await this.membersService.updateMemberAndStudentInstructorIds(
+              member.docId,
+              member,
+              origId,
+            );
           } catch (e) {
-            console.error('Error updating member and student instructor IDs:', e);
-            throw new Error(`Failed to update member and move students to the new instructor: ${(e as Error).message}`);
+            console.error(
+              'Error updating member and student instructor IDs:',
+              e,
+            );
+            throw new Error(
+              `Failed to update member and move students to the new instructor: ${(e as Error).message}`,
+            );
           }
         } else {
-          if (origId && member.instructorId && origId !== member.instructorId && member.docId) {
+          if (
+            origId &&
+            member.instructorId &&
+            origId !== member.instructorId &&
+            member.docId
+          ) {
             try {
               await this.membersService.clearInstructorMembers(member.docId);
             } catch (e) {
-              console.error('Error clearing old instructor members subcollection:', e);
-              throw new Error(`Failed to clean up the member's old instructor subcollection: ${(e as Error).message}`);
+              console.error(
+                'Error clearing old instructor members subcollection:',
+                e,
+              );
+              throw new Error(
+                `Failed to clean up the member's old instructor subcollection: ${(e as Error).message}`,
+              );
             }
           }
           try {
@@ -1035,11 +1430,19 @@ export class MemberDetailsComponent {
             // all initMember() defaults get written to Firestore, backfilling any
             // missing fields. Non-admins need the diff to stay within the Firestore
             // rules' affectedKeys().hasOnly(...) constraint.
-            const oldMemberForDiff = this.userIsAdmin() ? undefined : this.member();
-            await this.membersService.updateMember(member.docId, member, oldMemberForDiff);
+            const oldMemberForDiff = this.userIsAdmin()
+              ? undefined
+              : this.member();
+            await this.membersService.updateMember(
+              member.docId,
+              member,
+              oldMemberForDiff,
+            );
           } catch (e) {
             console.error('Error updating member document:', e);
-            throw new Error(`Failed to save updated member details: ${(e as Error).message}`);
+            throw new Error(
+              `Failed to save updated member details: ${(e as Error).message}`,
+            );
           }
         }
       } else {
@@ -1047,7 +1450,9 @@ export class MemberDetailsComponent {
           await this.membersService.addMember(member);
         } catch (e) {
           console.error('Error creating new member:', e);
-          throw new Error(`Failed to create new member: ${(e as Error).message}`);
+          throw new Error(
+            `Failed to create new member: ${(e as Error).message}`,
+          );
         }
       }
 
@@ -1072,9 +1477,13 @@ export class MemberDetailsComponent {
     $event.preventDefault();
     $event.stopPropagation();
     const member = this.editableMember();
-    
+
     if (this.userIsAdmin()) {
-      if (confirm(`Are you sure you want to IMMEDIATELY delete ${member.name}? (This is an admin action)`)) {
+      if (
+        confirm(
+          `Are you sure you want to IMMEDIATELY delete ${member.name}? (This is an admin action)`,
+        )
+      ) {
         this.asyncError.set(null);
         if (member.docId) {
           try {
@@ -1087,13 +1496,22 @@ export class MemberDetailsComponent {
         }
       }
     } else {
-      if (confirm(`Are you sure you want to schedule your account for deletion in 30 days?`)) {
+      if (
+        confirm(
+          `Are you sure you want to schedule your account for deletion in 30 days?`,
+        )
+      ) {
         this.asyncError.set(null);
         if (member.docId) {
           try {
-            const res = await this.membersService.scheduleAccountDeletion(member.docId);
+            const res = await this.membersService.scheduleAccountDeletion(
+              member.docId,
+            );
             if (res.success) {
-              this.memberFormModel.update(m => ({ ...m, scheduledDeletionDate: res.scheduledDeletionDate }));
+              this.memberFormModel.update((m) => ({
+                ...m,
+                scheduledDeletionDate: res.scheduledDeletionDate,
+              }));
             }
           } catch (e: unknown) {
             console.error(e);
@@ -1111,9 +1529,14 @@ export class MemberDetailsComponent {
     this.asyncError.set(null);
     if (member.docId) {
       try {
-        const res = await this.membersService.cancelAccountDeletion(member.docId);
+        const res = await this.membersService.cancelAccountDeletion(
+          member.docId,
+        );
         if (res.success) {
-          this.memberFormModel.update(m => ({ ...m, scheduledDeletionDate: '' }));
+          this.memberFormModel.update((m) => ({
+            ...m,
+            scheduledDeletionDate: '',
+          }));
         }
       } catch (e: unknown) {
         console.error(e);

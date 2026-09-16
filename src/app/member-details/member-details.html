@@ -55,7 +55,9 @@
         </a>
       }
     </div>
-  } @else if (isOwnProfile() && e.instructorId && e.instructorId.trim() !== "") {
+  } @else if (
+    isOwnProfile() && e.instructorId && e.instructorId.trim() !== ""
+  ) {
     <div class="nav-buttons">
       <a class="subtle-button" [href]="memberStudentsLink()">
         <app-icon name="salut" /> Students
@@ -112,7 +114,9 @@
               @if (openEmailMenuIndex() === $index) {
                 <div
                   class="menu-overlay transparent"
-                  (click)="openEmailMenuIndex.set(null); $event.stopPropagation()"
+                  (click)="
+                    openEmailMenuIndex.set(null); $event.stopPropagation()
+                  "
                 ></div>
                 <div class="email-menu">
                   @if ($index > 0) {
@@ -226,8 +230,12 @@
           <div class="identifier-chip">{{ cc.id }}</div>
         } @else if (form.country().value().trim()) {
           <div class="error-message">
-            Invalid country "{{ form.country().value() }}". Please select a valid country from the list, or contact
-            <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
+            Invalid country "{{ form.country().value() }}". Please select a
+            valid country from the list, or contact
+            <a [href]="'mailto:' + environment.adminEmail">{{
+              environment.adminEmail
+            }}</a
+            >.
           </div>
         }
       </div>
@@ -470,7 +478,10 @@
         @if (isOwnProfile()) {
           <label></label>
           <div class="rhs">
-            <a class="subtle-button" [href]="routingService.hrefForView(Views.NextGrading)">
+            <a
+              class="subtle-button"
+              [href]="routingService.hrefForView(Views.NextGrading)"
+            >
               <app-icon name="mountain" /> Purchase Next Grading
             </a>
           </div>
@@ -558,9 +569,9 @@
         <label>Status</label>
         <div class="rhs">
           <span class="note"
-            >You are not (yet) a member, becoming one will give you
-            access to the members area blog, select videos, and enable you to grade
-            and join the weekly online zoom classes.</span
+            >You are not (yet) a member, becoming one will give you access to
+            the members area blog, select videos, and enable you to grade and
+            join the weekly online zoom classes.</span
           >
         </div>
         <label></label>
@@ -692,8 +703,14 @@
           @if (isOwnProfile()) {
             <label></label>
             <div class="rhs">
-              <a class="subtle-button" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
-                <app-icon name="meditation" /> Get / Renew Instructor &amp; Group Leader License
+              <a
+                class="subtle-button"
+                [href]="
+                  routingService.hrefForView(Views.InstructorLicensePurchase)
+                "
+              >
+                <app-icon name="meditation" /> Get / Renew Instructor &amp;
+                Group Leader License
               </a>
             </div>
           }
@@ -794,10 +811,18 @@
                   class="profile-image-preview"
                 />
                 <div class="image-actions">
-                  <button type="button" class="subtle-button" (click)="editProfileCrop()">
+                  <button
+                    type="button"
+                    class="subtle-button"
+                    (click)="editProfileCrop()"
+                  >
                     <app-icon name="edit" /> Edit Crop
                   </button>
-                  <button type="button" class="subtle-button" (click)="removeProfileImage()">
+                  <button
+                    type="button"
+                    class="subtle-button"
+                    (click)="removeProfileImage()"
+                  >
                     <app-icon name="close" /> Remove
                   </button>
                 </div>
@@ -832,10 +857,18 @@
                   class="cover-image-preview"
                 />
                 <div class="image-actions">
-                  <button type="button" class="subtle-button" (click)="editCoverCrop()">
+                  <button
+                    type="button"
+                    class="subtle-button"
+                    (click)="editCoverCrop()"
+                  >
                     <app-icon name="edit" /> Edit Crop
                   </button>
-                  <button type="button" class="subtle-button" (click)="removeCoverImage()">
+                  <button
+                    type="button"
+                    class="subtle-button"
+                    (click)="removeCoverImage()"
+                  >
                     <app-icon name="close" /> Remove
                   </button>
                 </div>
@@ -911,7 +944,12 @@
         @if (isOwnProfile()) {
           <label></label>
           <div class="rhs">
-            <a class="subtle-button" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
+            <a
+              class="subtle-button"
+              [href]="
+                routingService.hrefForView(Views.ClassVideoLibraryPurchase)
+              "
+            >
               <app-icon name="video_library" /> Manage Video Subscription
             </a>
           </div>
@@ -923,21 +961,59 @@
         <label>Granted Items</label>
         <div class="rhs">
           @if (isLoadingVideoGrants()) {
-            <span class="muted-text"><app-spinner /> Loading video grants...</span>
+            <span class="muted-text"
+              ><app-spinner /> Loading video grants...</span
+            >
           } @else if (memberVideoGrants().length === 0) {
-            <span class="muted-text">No VOD video or series grants for this member.</span>
+            <span class="muted-text"
+              >No VOD video or series grants for this member.</span
+            >
           } @else {
             <div class="vod-grants-summary-box">
               <div class="vod-grants-header">
-                <span class="grants-count"><strong>{{ memberVideoGrants().length }}</strong> Granted Targets</span>
-                <button
-                  type="button"
-                  class="subtle-button toggle-grants-btn"
-                  (click)="showVideoGrantsFold.set(!showVideoGrantsFold())"
-                >
-                  <app-icon [name]="showVideoGrantsFold() ? 'expand_less' : 'expand_more'" />
-                  <span>{{ showVideoGrantsFold() ? 'Hide Details' : 'View Details' }}</span>
-                </button>
+                <div class="header-left">
+                  <span class="grants-count">
+                    <strong>{{ groupedVideoGrants().length }}</strong> Series /
+                    Collections
+                    <span class="grants-subcount"
+                      >({{ totalGrantedVideosCount() }} granted videos)</span
+                    >
+                  </span>
+                </div>
+                <div class="header-actions">
+                  @if (showVideoGrantsFold()) {
+                    <button
+                      type="button"
+                      class="subtle-btn-small"
+                      (click)="expandAllSeries()"
+                      title="Expand all series"
+                    >
+                      Expand All
+                    </button>
+                    <button
+                      type="button"
+                      class="subtle-btn-small"
+                      (click)="collapseAllSeries()"
+                      title="Collapse all series"
+                    >
+                      Collapse All
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="subtle-button toggle-grants-btn"
+                    (click)="showVideoGrantsFold.set(!showVideoGrantsFold())"
+                  >
+                    <app-icon
+                      [name]="
+                        showVideoGrantsFold() ? 'expand_less' : 'expand_more'
+                      "
+                    />
+                    <span>{{
+                      showVideoGrantsFold() ? "Hide Grants" : "View Grants"
+                    }}</span>
+                  </button>
+                </div>
               </div>
 
               @if (showVideoGrantsFold()) {
@@ -945,36 +1021,226 @@
                   <table class="vod-grants-table">
                     <thead>
                       <tr>
-                        <th>Type</th>
-                        <th>Title / Target</th>
-                        <th>Target ID</th>
-                        <th>Kind</th>
-                        <th>Date</th>
+                        <th class="col-expand"></th>
+                        <th class="col-type">Type</th>
+                        <th class="col-title">Title / Series</th>
+                        <th class="col-coverage">Coverage</th>
+                        <th class="col-target-id">Target ID</th>
+                        <th class="col-kind">Kind</th>
+                        <th class="col-date">Date</th>
                       </tr>
                     </thead>
                     <tbody>
-                      @for (g of memberVideoGrants(); track (g.docId || g.videoId)) {
-                        @let info = getGrantDisplayTitle(g);
-                        <tr>
-                          <td class="type-cell">
-                            <span class="type-badge" [class.is-series]="info.isSeries">
-                              <app-icon [name]="info.isSeries ? 'collections' : 'play_circle'" />
-                              {{ info.isSeries ? 'Series' : 'Video' }}
+                      @for (row of groupedVideoGrants(); track row.id) {
+                        @let isExpanded = isSeriesExpanded(row.id);
+                        <tr
+                          class="series-row"
+                          [class.expanded]="isExpanded"
+                          (click)="toggleSeriesFold(row.id)"
+                          title="Click to toggle details"
+                        >
+                          <td class="col-expand">
+                            <button
+                              type="button"
+                              class="chevron-toggle-btn"
+                              (click)="toggleSeriesFold(row.id, $event)"
+                              [attr.aria-expanded]="isExpanded"
+                              [title]="
+                                isExpanded ? 'Collapse series' : 'Expand series'
+                              "
+                            >
+                              <app-icon
+                                [name]="
+                                  isExpanded ? 'expand_less' : 'expand_more'
+                                "
+                              />
+                            </button>
+                          </td>
+                          <td class="col-type">
+                            <span
+                              class="type-badge"
+                              [class.is-series]="row.isSeries"
+                            >
+                              <app-icon
+                                [name]="
+                                  row.isSeries ? 'collections' : 'play_circle'
+                                "
+                              />
+                              {{ row.isSeries ? "Series" : "Video" }}
                             </span>
                           </td>
-                          <td class="title-cell">
-                            <strong>{{ info.title }}</strong>
-                            @if (info.subtitle) {
-                              <span class="series-meta">{{ info.subtitle }}</span>
-                            }
-                            @if (g.notes) {
-                              <span class="grant-notes">{{ g.notes }}</span>
+                          <td class="col-title">
+                            <strong>{{ row.title }}</strong>
+                            @if (row.notes && !isExpanded) {
+                              <span class="grant-notes-preview">{{
+                                row.notes
+                              }}</span>
                             }
                           </td>
-                          <td class="target-id-cell"><code>{{ g.videoId || g.docId }}</code></td>
-                          <td class="kind-cell">{{ g.grantKind || 'admin_grant' }}</td>
-                          <td class="date-cell">{{ formatGrantDate(g.grantedAt) }}</td>
+                          <td class="col-coverage">
+                            <span
+                              class="coverage-badge"
+                              [class.is-full]="row.isFullSeriesGranted"
+                              [class.is-partial]="!row.isFullSeriesGranted"
+                            >
+                              <app-icon
+                                [name]="
+                                  row.isFullSeriesGranted
+                                    ? 'check_circle'
+                                    : 'info'
+                                "
+                              />
+                              {{ row.subtitle }}
+                            </span>
+                          </td>
+                          <td class="col-target-id">
+                            <code>{{ row.seriesId || row.id }}</code>
+                          </td>
+                          <td class="col-kind">{{ row.grantKind }}</td>
+                          <td class="col-date">
+                            {{ formatGrantDate(row.latestGrantedAt) }}
+                          </td>
                         </tr>
+
+                        @if (isExpanded) {
+                          <tr class="details-row">
+                            <td colspan="7" class="details-cell">
+                              <div class="series-details-container">
+                                @if (row.description) {
+                                  <p class="series-description">
+                                    {{ row.description }}
+                                  </p>
+                                }
+                                @if (row.notes) {
+                                  <div class="series-notes-callout">
+                                    <app-icon name="info" />
+                                    <span
+                                      ><strong>Notes:</strong>
+                                      {{ row.notes }}</span
+                                    >
+                                  </div>
+                                }
+
+                                <div class="nested-table-wrapper">
+                                  <table class="nested-videos-table">
+                                    <thead>
+                                      <tr>
+                                        <th class="nested-col-part">Part</th>
+                                        <th class="nested-col-title">
+                                          Video Title
+                                        </th>
+                                        <th class="nested-col-id">Video ID</th>
+                                        <th class="nested-col-duration">
+                                          Duration
+                                        </th>
+                                        <th class="nested-col-status">
+                                          Status
+                                        </th>
+                                        <th class="nested-col-kind">
+                                          Grant Kind
+                                        </th>
+                                        <th class="nested-col-date">Date</th>
+                                        <th class="nested-col-actions">
+                                          Action
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      @for (
+                                        item of row.items;
+                                        track item.videoId
+                                      ) {
+                                        <tr
+                                          class="nested-video-row"
+                                          [class.unassigned]="!item.isGranted"
+                                        >
+                                          <td class="nested-col-part">
+                                            <span class="part-index-pill">
+                                              {{
+                                                item.partIndex
+                                                  ? "Part " + item.partIndex
+                                                  : "—"
+                                              }}
+                                            </span>
+                                          </td>
+                                          <td class="nested-col-title">
+                                            <div class="nested-title-block">
+                                              <strong>{{ item.title }}</strong>
+                                              @if (
+                                                item.notes &&
+                                                item.notes !== row.notes
+                                              ) {
+                                                <span
+                                                  class="nested-item-notes"
+                                                  >{{ item.notes }}</span
+                                                >
+                                              }
+                                            </div>
+                                          </td>
+                                          <td class="nested-col-id">
+                                            <code>{{ item.videoId }}</code>
+                                          </td>
+                                          <td class="nested-col-duration">
+                                            {{
+                                              formatDuration(
+                                                item.durationSeconds
+                                              )
+                                            }}
+                                          </td>
+                                          <td class="nested-col-status">
+                                            @if (item.isGranted) {
+                                              <span class="status-pill granted">
+                                                <app-icon name="check_circle" />
+                                                Granted
+                                              </span>
+                                            } @else {
+                                              <span
+                                                class="status-pill not-granted"
+                                              >
+                                                Not Granted
+                                              </span>
+                                            }
+                                          </td>
+                                          <td class="nested-col-kind">
+                                            {{
+                                              item.grantKind || row.grantKind
+                                            }}
+                                          </td>
+                                          <td class="nested-col-date">
+                                            {{
+                                              formatGrantDate(
+                                                item.grantedAt ||
+                                                  row.latestGrantedAt
+                                              )
+                                            }}
+                                          </td>
+                                          <td class="nested-col-actions">
+                                            @if (item.videoItem) {
+                                              <a
+                                                class="watch-btn"
+                                                [href]="
+                                                  routingService.hrefForView(
+                                                    Views.VideoView,
+                                                    { videoId: item.videoId }
+                                                  )
+                                                "
+                                                target="_blank"
+                                                title="Watch video"
+                                              >
+                                                <app-icon name="play_arrow" />
+                                                <span>Watch</span>
+                                              </a>
+                                            }
+                                          </td>
+                                        </tr>
+                                      }
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        }
                       }
                     </tbody>
                   </table>
