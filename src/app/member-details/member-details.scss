@@ -505,10 +505,11 @@ app-member-row-header {
         }
 
         &.col-coverage {
-          .status-badge {
+          .coverage-chip {
             display: inline-flex;
             align-items: center;
             gap: 4px;
+            font-size: 0.75rem;
 
             app-icon {
               font-size: 0.95rem;
@@ -650,16 +651,14 @@ app-member-row-header {
           }
 
           .nested-col-status {
-            .status-badge {
+            .identifier-chip {
               display: inline-flex;
               align-items: center;
               gap: 3px;
               font-size: 0.72rem;
-              padding: 1px 6px;
-              border-radius: 8px;
 
               app-icon {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
               }
             }
           }

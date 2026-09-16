@@ -1075,11 +1075,7 @@
                             }
                           </td>
                           <td class="col-coverage">
-                            <span
-                              class="status-badge"
-                              [class.status-active]="row.isFullSeriesGranted"
-                              [class.status-pending]="!row.isFullSeriesGranted"
-                            >
+                            <span class="identifier-chip coverage-chip">
                               <app-icon
                                 [name]="
                                   row.isFullSeriesGranted
@@ -1187,13 +1183,15 @@
                                           <td class="nested-col-status">
                                             @if (item.isGranted) {
                                               <span
-                                                class="status-badge status-active"
+                                                class="identifier-chip status-chip"
                                               >
                                                 <app-icon name="check_circle" />
                                                 Granted
                                               </span>
                                             } @else {
-                                              <span class="status-badge unpaid">
+                                              <span
+                                                class="identifier-chip status-inactive"
+                                              >
                                                 Not Granted
                                               </span>
                                             }
