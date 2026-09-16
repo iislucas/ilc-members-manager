@@ -356,18 +356,18 @@ app-member-row-header {
       gap: 8px;
 
       .subtle-btn-small {
-        background: transparent;
+        @extend .subtle-button;
         border: 1px solid v.$border-color-light;
         border-radius: 4px;
         padding: 3px 8px;
         font-size: 0.8rem;
         color: v.$text-secondary;
-        cursor: pointer;
-        transition: all 0.15s ease;
+        box-shadow: none;
 
         &:hover {
-          background: v.$theme-bg-color;
+          background: v.$menu-item-hover-color;
           color: v.$text-primary;
+          box-shadow: none;
         }
       }
 
@@ -378,6 +378,7 @@ app-member-row-header {
         font-size: 0.85rem;
         padding: 4px 10px;
         cursor: pointer;
+        box-shadow: none;
       }
     }
   }
@@ -452,41 +453,38 @@ app-member-row-header {
           padding-right: 0;
 
           .chevron-toggle-btn {
-            background: none;
+            box-shadow: none;
             border: none;
-            padding: 4px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
+            background: transparent;
             color: v.$text-secondary;
+            padding: 4px;
+            cursor: pointer;
             transition:
-              color 0.15s,
-              background-color 0.15s;
+              color 0.15s ease,
+              background-color 0.15s ease;
 
             &:hover {
               color: v.$text-primary;
               background-color: rgba(v.$text-secondary, 0.1);
+              box-shadow: none;
+            }
+
+            &:active {
+              box-shadow: none;
+              transform: none;
             }
           }
         }
 
         &.col-type {
-          .type-badge {
+          .type-chip {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 8px;
-            border-radius: 12px;
             font-size: 0.75rem;
-            font-weight: 600;
-            background: rgba(v.$brand-red, 0.1);
-            color: v.$brand-red;
 
-            &.is-series {
-              background: rgba(16, 185, 129, 0.15);
-              color: #059669;
+            app-icon {
+              font-size: 1rem;
             }
           }
         }
@@ -507,23 +505,13 @@ app-member-row-header {
         }
 
         &.col-coverage {
-          .coverage-badge {
+          .status-badge {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            font-weight: 500;
 
-            &.is-full {
-              background: rgba(16, 185, 129, 0.12);
-              color: #059669;
-            }
-
-            &.is-partial {
-              background: rgba(245, 158, 11, 0.12);
-              color: #d97706;
+            app-icon {
+              font-size: 0.95rem;
             }
           }
         }
@@ -568,8 +556,9 @@ app-member-row-header {
           font-size: 0.78rem;
           padding: 6px 10px;
           border-radius: 6px;
-          background: rgba(59, 130, 246, 0.08);
-          color: #1d4ed8;
+          background: v.$separator-color;
+          color: v.$text-secondary;
+          border-left: 3px solid v.$theme-border-color;
           margin-bottom: 10px;
         }
 
@@ -661,23 +650,16 @@ app-member-row-header {
           }
 
           .nested-col-status {
-            .status-pill {
+            .status-badge {
               display: inline-flex;
               align-items: center;
               gap: 3px;
               font-size: 0.72rem;
-              font-weight: 600;
               padding: 1px 6px;
               border-radius: 8px;
 
-              &.granted {
-                background: rgba(16, 185, 129, 0.15);
-                color: #059669;
-              }
-
-              &.not-granted {
-                background: rgba(156, 163, 175, 0.15);
-                color: #6b7280;
+              app-icon {
+                font-size: 0.9rem;
               }
             }
           }
@@ -698,17 +680,7 @@ app-member-row-header {
               gap: 3px;
               font-size: 0.75rem;
               font-weight: 500;
-              padding: 2px 8px;
-              border-radius: 4px;
-              background: rgba(v.$brand-red, 0.1);
-              color: v.$brand-red;
-              text-decoration: none;
               cursor: pointer;
-              transition: background 0.15s ease;
-
-              &:hover {
-                background: rgba(v.$brand-red, 0.2);
-              }
             }
           }
         }

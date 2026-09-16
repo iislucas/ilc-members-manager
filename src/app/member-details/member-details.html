@@ -1042,7 +1042,7 @@
                           <td class="col-expand">
                             <button
                               type="button"
-                              class="chevron-toggle-btn"
+                              class="icon-only-button chevron-toggle-btn"
                               (click)="toggleSeriesFold(row.id, $event)"
                               [attr.aria-expanded]="isExpanded"
                               [title]="
@@ -1057,10 +1057,7 @@
                             </button>
                           </td>
                           <td class="col-type">
-                            <span
-                              class="type-badge"
-                              [class.is-series]="row.isSeries"
-                            >
+                            <span class="identifier-chip type-chip">
                               <app-icon
                                 [name]="
                                   row.isSeries ? 'collections' : 'play_circle'
@@ -1079,9 +1076,9 @@
                           </td>
                           <td class="col-coverage">
                             <span
-                              class="coverage-badge"
-                              [class.is-full]="row.isFullSeriesGranted"
-                              [class.is-partial]="!row.isFullSeriesGranted"
+                              class="status-badge"
+                              [class.status-active]="row.isFullSeriesGranted"
+                              [class.status-pending]="!row.isFullSeriesGranted"
                             >
                               <app-icon
                                 [name]="
@@ -1189,14 +1186,14 @@
                                           </td>
                                           <td class="nested-col-status">
                                             @if (item.isGranted) {
-                                              <span class="status-pill granted">
+                                              <span
+                                                class="status-badge status-active"
+                                              >
                                                 <app-icon name="check_circle" />
                                                 Granted
                                               </span>
                                             } @else {
-                                              <span
-                                                class="status-pill not-granted"
-                                              >
+                                              <span class="status-badge unpaid">
                                                 Not Granted
                                               </span>
                                             }
@@ -1217,7 +1214,7 @@
                                           <td class="nested-col-actions">
                                             @if (item.videoItem) {
                                               <a
-                                                class="watch-btn"
+                                                class="inline-link-button watch-btn"
                                                 [href]="
                                                   routingService.hrefForView(
                                                     Views.VideoView,
