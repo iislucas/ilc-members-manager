@@ -162,8 +162,9 @@ describe('story: grading captures the level snapshot at acceptance', () => {
 
 describe('story: sifu notified when their student requests a grading', () => {
   const suffix = Date.now().toString(36);
+  const upperSuffix = suffix.toUpperCase();
   const sifuDocId = `rq-sifu-${suffix}`;
-  const sifuInstructorId = `SIFU-${suffix}`;
+  const sifuInstructorId = `SIFU-${upperSuffix}`;
   const studentDocId = `rq-student-${suffix}`;
   let gradingDocId = '';
 
@@ -174,7 +175,7 @@ describe('story: sifu notified when their student requests a grading', () => {
     });
     await seedMember(studentDocId, {
       name: 'Requesting Student',
-      memberId: `RQ-${suffix}`,
+      memberId: `RQ-${upperSuffix}`,
       primaryInstructorId: sifuInstructorId,
       gradingDocIds: [],
     });

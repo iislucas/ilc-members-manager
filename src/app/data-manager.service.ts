@@ -335,7 +335,7 @@ export class DataManagerService {
     const map = new Map<string, string>();
     for (const m of this.members.entries()) {
       if (m.memberId) {
-        map.set(m.memberId, m.docId);
+        map.set(m.memberId.trim().toUpperCase(), m.docId);
       }
     }
     return map;
@@ -349,7 +349,8 @@ export class DataManagerService {
   // Look up a member by their human-readable memberId. Resolves
   // memberId → docId via memberIdToDocIdMap, then delegates to members.get().
   getMemberByMemberId(memberId: string): Member | undefined {
-    const docId = this.memberIdToDocIdMap().get(memberId);
+    const cleanId = String(memberId || '').trim().toUpperCase();
+    const docId = this.memberIdToDocIdMap().get(cleanId);
     if (!docId) return undefined;
     return this.members.get(docId);
   }
@@ -394,7 +395,7 @@ export class DataManagerService {
     const map = new Map<string, string>();
     for (const m of this.myStudents.entries()) {
       if (m.memberId) {
-        map.set(m.memberId, m.docId);
+        map.set(m.memberId.trim().toUpperCase(), m.docId);
       }
     }
     return map;
@@ -404,7 +405,8 @@ export class DataManagerService {
   getMyStudent(idOrDocId: string): Member | undefined {
     const byDocId = this.myStudents.get(idOrDocId);
     if (byDocId) return byDocId;
-    const docId = this.myStudentIdToDocIdMap().get(idOrDocId);
+    const cleanId = String(idOrDocId || '').trim().toUpperCase();
+    const docId = this.myStudentIdToDocIdMap().get(cleanId);
     if (!docId) return undefined;
     return this.myStudents.get(docId);
   }
@@ -1793,13 +1795,19 @@ export class DataManagerService {
   async addMember(member: Member): Promise<DocumentReference> {
     const collectionRef = collection(this.db, 'members');
     const newDocRef = doc(collectionRef);
-    const memberWithNewTimestamp: MemberFsDoc = {
+    const cleanMember: Member = {
       ...member,
+      memberId: member.memberId ? member.memberId.trim().toUpperCase() : member.memberId,
+      instructorId: member.instructorId ? member.instructorId.trim().toUpperCase() : member.instructorId,
+      primaryInstructorId: member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : member.primaryInstructorId,
+    };
+    const memberWithNewTimestamp: MemberFsDoc = {
+      ...cleanMember,
       lastUpdated: serverTimestamp() as Timestamp,
     };
     await setDoc(newDocRef, memberWithNewTimestamp);
     const addedMember: Member = {
-      ...member,
+      ...cleanMember,
       docId: newDocRef.id,
       lastUpdated: new Date().toISOString(),
     };
@@ -1809,9 +1817,15 @@ export class DataManagerService {
 
   async updateMember(id: string, newMember: Member, oldMember?: Member): Promise<void> {
     const docRef = doc(this.db, 'members', id);
+    const cleanMember: Member = {
+      ...newMember,
+      memberId: newMember.memberId ? newMember.memberId.trim().toUpperCase() : newMember.memberId,
+      instructorId: newMember.instructorId ? newMember.instructorId.trim().toUpperCase() : newMember.instructorId,
+      primaryInstructorId: newMember.primaryInstructorId ? newMember.primaryInstructorId.trim().toUpperCase() : newMember.primaryInstructorId,
+    };
     let originalMember = oldMember;
     if (!originalMember) {
-      originalMember = this.members.get(newMember.docId);
+      originalMember = this.members.get(cleanMember.docId);
     }
 
     // If the member is found in the current list of members, only update the 
@@ -1823,11 +1837,11 @@ export class DataManagerService {
     // fields that are not allowed.
     if (originalMember) {
       const changes: Partial<MemberFsDoc> = {};
-      for (const key of Object.keys(newMember) as Array<keyof Member>) {
+      for (const key of Object.keys(cleanMember) as Array<keyof Member>) {
         if (key === 'docId' || key === 'lastUpdated') continue;
-        if (!deepObjEq(newMember[key], originalMember[key])) {
+        if (!deepObjEq(cleanMember[key], originalMember[key])) {
           // @ts-ignore
-          changes[key] = newMember[key];
+          changes[key] = cleanMember[key];
         }
       }
       changes.lastUpdated = serverTimestamp() as Timestamp;
@@ -1835,7 +1849,7 @@ export class DataManagerService {
     } else {
       // Fallback if no old member is found
       const memberWithNewTimestamp: MemberFsDoc = {
-        ...newMember,
+        ...cleanMember,
         lastUpdated: serverTimestamp() as Timestamp,
       };
       delete (memberWithNewTimestamp as { docId?: string }).docId;
@@ -1844,7 +1858,7 @@ export class DataManagerService {
 
     // Optimistically update in-memory SearchableSet and IndexedDB cache immediately!
     const updatedMember: Member = {
-      ...newMember,
+      ...cleanMember,
       docId: id,
       lastUpdated: new Date().toISOString(),
     };
@@ -1853,27 +1867,35 @@ export class DataManagerService {
 
   async updateMemberAndStudentInstructorIds(id: string, member: Member, oldInstructorId: string): Promise<void> {
     const docRef = doc(this.db, 'members', id);
-    const memberWithNewTimestamp: MemberFsDoc = {
+    const cleanOldInstructorId = (oldInstructorId || '').trim().toUpperCase();
+    const cleanNewInstructorId = (member.instructorId || '').trim().toUpperCase();
+    const cleanMember: Member = {
       ...member,
+      memberId: member.memberId ? member.memberId.trim().toUpperCase() : member.memberId,
+      instructorId: cleanNewInstructorId,
+      primaryInstructorId: member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : member.primaryInstructorId,
+    };
+    const memberWithNewTimestamp: MemberFsDoc = {
+      ...cleanMember,
       lastUpdated: serverTimestamp() as Timestamp,
     };
 
-    const qOld = query(this.membersCollection, where('primaryInstructorId', '==', oldInstructorId));
+    const qOld = query(this.membersCollection, where('primaryInstructorId', '==', cleanOldInstructorId));
     const snapOld = await getDocs(qOld);
 
-    const qNew = query(this.membersCollection, where('primaryInstructorId', '==', member.instructorId));
+    const qNew = query(this.membersCollection, where('primaryInstructorId', '==', cleanNewInstructorId));
     const snapNew = await getDocs(qNew);
 
     const batch = writeBatch(this.db);
     batch.set(docRef, memberWithNewTimestamp, { merge: true });
 
     snapOld.docs.forEach((d) => {
-      batch.update(d.ref, { primaryInstructorId: member.instructorId, lastUpdated: serverTimestamp() });
+      batch.update(d.ref, { primaryInstructorId: cleanNewInstructorId, lastUpdated: serverTimestamp() });
     });
 
     snapNew.docs.forEach((d) => {
       const subDocRef = doc(this.db, 'instructors', id, 'members', d.id);
-      batch.set(subDocRef, { ...d.data(), primaryInstructorId: member.instructorId, lastUpdated: serverTimestamp() }, { merge: true });
+      batch.set(subDocRef, { ...d.data(), primaryInstructorId: cleanNewInstructorId, lastUpdated: serverTimestamp() }, { merge: true });
     });
 
     await batch.commit();
@@ -2278,7 +2300,8 @@ export class DataManagerService {
   }
 
   async countMembersWithInstructorId(instructorId: string): Promise<number> {
-    const q = query(this.membersCollection, where('primaryInstructorId', '==', instructorId));
+    const cleanId = (instructorId || '').trim().toUpperCase();
+    const q = query(this.membersCollection, where('primaryInstructorId', '==', cleanId));
     const snap = await getDocs(q);
     return snap.size;
   }

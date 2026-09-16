@@ -144,16 +144,17 @@ export async function processGradingOrder(
 
   // Try finding by Member ID
   if (effectiveMemberId) {
-    logger.info(`[Grading] Looking for member with ID: ${effectiveMemberId} for order ${orderId}`);
+    const cleanMemberId = effectiveMemberId.trim().toUpperCase();
+    logger.info(`[Grading] Looking for member with ID: ${cleanMemberId} for order ${orderId}`);
     const memberIdQuery = await db.collection('members')
-      .where('memberId', '==', effectiveMemberId)
+      .where('memberId', '==', cleanMemberId)
       .limit(1)
       .get();
     if (!memberIdQuery.empty) {
       memberDocRef = memberIdQuery.docs[0].ref;
       memberData = memberIdQuery.docs[0].data() as Partial<Member>;
     } else {
-      linkIssue = `[Grading] Member ID ${effectiveMemberId} not found in database.`;
+      linkIssue = `[Grading] Member ID ${cleanMemberId} not found in database.`;
       logger.warn(linkIssue);
     }
   }
@@ -219,7 +220,7 @@ export async function processGradingOrder(
   }
 
   let hasValidInstructor = false;
-  const cleanInstructorId = gradingInfo.gradingInstructorId || '';
+  const cleanInstructorId = (gradingInfo.gradingInstructorId || '').trim().toUpperCase();
   if (cleanInstructorId) {
     const instructorSnap = await db.collection('members')
       .where('instructorId', '==', cleanInstructorId)

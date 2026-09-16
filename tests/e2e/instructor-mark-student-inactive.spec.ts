@@ -32,14 +32,15 @@ import { NotificationKind, type MemberNotification } from '../../functions/src/d
 
 describe('story: instructor-mark-student-inactive', () => {
   const suffix = Date.now().toString(36);
+  const upperSuffix = suffix.toUpperCase();
   const sifuDocId = `mi-sifu-${suffix}`;
   const otherSifuDocId = `mi-other-sifu-${suffix}`;
   const lapsedDocId = `mi-lapsed-${suffix}`;
   const currentDocId = `mi-current-${suffix}`;
   const sifuEmail = `mi-sifu-${suffix}@example.com`;
   const otherSifuEmail = `mi-other-sifu-${suffix}@example.com`;
-  const sifuInstructorId = `MI-INST-${suffix}`;
-  const otherInstructorId = `MI-INST-OTHER-${suffix}`;
+  const sifuInstructorId = `MI-INST-${upperSuffix}`;
+  const otherInstructorId = `MI-INST-OTHER-${upperSuffix}`;
 
   const readMember = async (docId: string) =>
     (await db.collection('members').doc(docId).get()).data() as Member;
@@ -47,20 +48,20 @@ describe('story: instructor-mark-student-inactive', () => {
   beforeAll(async () => {
     await seedMember(sifuDocId, {
       name: 'Sifu Sam',
-      memberId: `FR${suffix}`,
+      memberId: `FR${upperSuffix}`,
       instructorId: sifuInstructorId,
       emails: [sifuEmail],
     });
     await seedMember(otherSifuDocId, {
       name: 'Sifu Other',
-      memberId: `FR9${suffix}`,
+      memberId: `FR9${upperSuffix}`,
       instructorId: otherInstructorId,
       emails: [otherSifuEmail],
     });
     // A student whose annual membership ran out a long time ago.
     await seedMember(lapsedDocId, {
       name: 'Lapsed Lee',
-      memberId: `FR23${suffix}`,
+      memberId: `FR23${upperSuffix}`,
       emails: [`mi-lapsed-${suffix}@example.com`],
       primaryInstructorId: sifuInstructorId,
       membershipType: MembershipType.Annual,
@@ -69,7 +70,7 @@ describe('story: instructor-mark-student-inactive', () => {
     // A student of the same instructor whose membership is still current.
     await seedMember(currentDocId, {
       name: 'Current Chris',
-      memberId: `FR24${suffix}`,
+      memberId: `FR24${upperSuffix}`,
       emails: [`mi-current-${suffix}@example.com`],
       primaryInstructorId: sifuInstructorId,
       membershipType: MembershipType.Annual,

@@ -199,6 +199,8 @@ export async function createMember(
   const nowIso = new Date().toISOString();
   const baseDefaults = initMember();
   const emails = input.emails && input.emails.length > 0 ? input.emails : [cleanEmail];
+  const cleanMemberId = memberId ? memberId.trim().toUpperCase() : '';
+  const cleanPrimaryInstructorId = input.primaryInstructorId ? input.primaryInstructorId.trim().toUpperCase() : '';
 
   const newMember: Member = {
     ...baseDefaults,
@@ -206,10 +208,10 @@ export async function createMember(
     phone: input.phone || '',
     city: input.city || '',
     country: input.country || input.countryCode.toUpperCase(),
-    primaryInstructorId: input.primaryInstructorId || '',
+    primaryInstructorId: cleanPrimaryInstructorId,
     primarySchoolId: input.primarySchoolId || '',
     primarySchoolDocId: '',
-    memberId,
+    memberId: cleanMemberId,
     emails,
     studentLevel: input.studentLevel || baseDefaults.studentLevel,
     applicationLevel: input.applicationLevel || baseDefaults.applicationLevel,
@@ -260,6 +262,15 @@ export async function updateMember(
 
   const patchCopy: Partial<Member> = { ...patch };
   delete (patchCopy as { email?: string }).email;
+  if (patchCopy.memberId) {
+    patchCopy.memberId = patchCopy.memberId.trim().toUpperCase();
+  }
+  if (patchCopy.instructorId) {
+    patchCopy.instructorId = patchCopy.instructorId.trim().toUpperCase();
+  }
+  if (patchCopy.primaryInstructorId) {
+    patchCopy.primaryInstructorId = patchCopy.primaryInstructorId.trim().toUpperCase();
+  }
 
   const updated: Member = {
     ...existing,
@@ -340,7 +351,9 @@ export async function assignMemberInstructor(
   studentMemberDocId: string,
   instructorId: string,
 ): Promise<ActionResult<Member>> {
-  return updateMember(ctx, studentMemberDocId, { primaryInstructorId: instructorId });
+  return updateMember(ctx, studentMemberDocId, {
+    primaryInstructorId: (instructorId || '').trim().toUpperCase(),
+  });
 }
 
 /**

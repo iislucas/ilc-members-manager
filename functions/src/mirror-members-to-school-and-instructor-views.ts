@@ -44,11 +44,15 @@ export async function updateMemberViewForSchoolAndInstrucor(
   }
 
   // Remove from previous instructor if it changed.
-  const primaryInstructorId = member?.primaryInstructorId?.trim() || '';
-  const previousPrimaryInstructorId = previousMember?.primaryInstructorId?.trim() || '';
+  const primaryInstructorId = member?.primaryInstructorId
+    ? member.primaryInstructorId.trim().toUpperCase()
+    : '';
+  const previousPrimaryInstructorId = previousMember?.primaryInstructorId
+    ? previousMember.primaryInstructorId.trim().toUpperCase()
+    : '';
   if (
     previousPrimaryInstructorId &&
-    previousPrimaryInstructorId.toUpperCase() !== primaryInstructorId.toUpperCase()
+    previousPrimaryInstructorId !== primaryInstructorId
   ) {
     const previousInstructorDocId = await findInstructorMemberDocId(previousPrimaryInstructorId);
     if (previousInstructorDocId) {
@@ -93,44 +97,22 @@ export async function updateMemberViewForSchoolAndInstrucor(
 /**
  * Given an instructorId (e.g. "INST-001"), find the member document that has
  * that instructorId and return its Firestore doc ID.
- * Searches with exact casing first, then falls back to uppercase or lowercase.
+ * Always searches by uppercase trimmed instructorId.
  */
 async function findInstructorMemberDocId(instructorId: string): Promise<string | undefined> {
-  const rawId = String(instructorId || '').trim();
-  if (!rawId) {
+  const cleanId = String(instructorId || '').trim().toUpperCase();
+  if (!cleanId) {
     return undefined;
   }
   const snap = await db
     .collection('members')
-    .where('instructorId', '==', rawId)
+    .where('instructorId', '==', cleanId)
     .limit(1)
     .get();
-  if (!snap.empty) {
-    return snap.docs[0].id;
+  if (snap.empty) {
+    return undefined;
   }
-  const upperId = rawId.toUpperCase();
-  if (upperId !== rawId) {
-    const upperSnap = await db
-      .collection('members')
-      .where('instructorId', '==', upperId)
-      .limit(1)
-      .get();
-    if (!upperSnap.empty) {
-      return upperSnap.docs[0].id;
-    }
-  }
-  const lowerId = rawId.toLowerCase();
-  if (lowerId !== rawId && lowerId !== upperId) {
-    const lowerSnap = await db
-      .collection('members')
-      .where('instructorId', '==', lowerId)
-      .limit(1)
-      .get();
-    if (!lowerSnap.empty) {
-      return lowerSnap.docs[0].id;
-    }
-  }
-  return undefined;
+  return snap.docs[0].id;
 }
 
 /**

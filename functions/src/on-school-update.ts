@@ -18,7 +18,9 @@ const db = admin.firestore();
  */
 async function resolveInstructorEmails(instructorIds: string[]): Promise<string[]> {
   const emails: string[] = [];
-  const validIds = instructorIds.filter(id => !!id);
+  const validIds = instructorIds
+    .map((id) => String(id || '').trim().toUpperCase())
+    .filter((id) => !!id);
   
   if (validIds.length === 0) return [];
 

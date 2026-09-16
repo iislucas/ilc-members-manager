@@ -29,30 +29,31 @@ import { NotificationKind, type MemberNotification } from '../../functions/src/d
 
 describe('story: instructor-remove-student', () => {
   const suffix = Date.now().toString(36);
+  const upperSuffix = suffix.toUpperCase();
   const sifuDocId = `sifu-${suffix}`;
   const otherSifuDocId = `other-sifu-${suffix}`;
   const studentDocId = `student-${suffix}`;
   const sifuEmail = `sifu-${suffix}@example.com`;
   const otherSifuEmail = `other-sifu-${suffix}@example.com`;
-  const sifuInstructorId = `INST-${suffix}`;
-  const otherInstructorId = `INST-OTHER-${suffix}`;
+  const sifuInstructorId = `INST-${upperSuffix}`;
+  const otherInstructorId = `INST-OTHER-${upperSuffix}`;
 
   beforeAll(async () => {
     await seedMember(sifuDocId, {
       name: 'Sifu Sam',
-      memberId: `FR${suffix}`,
+      memberId: `FR${upperSuffix}`,
       instructorId: sifuInstructorId,
       emails: [sifuEmail],
     });
     await seedMember(otherSifuDocId, {
       name: 'Sifu Other',
-      memberId: `FR9${suffix}`,
+      memberId: `FR9${upperSuffix}`,
       instructorId: otherInstructorId,
       emails: [otherSifuEmail],
     });
     await seedMember(studentDocId, {
       name: 'Student Stan',
-      memberId: `FR23${suffix}`,
+      memberId: `FR23${upperSuffix}`,
       emails: [`student-${suffix}@example.com`],
       primaryInstructorId: sifuInstructorId,
     });

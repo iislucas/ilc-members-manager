@@ -140,14 +140,15 @@ export async function processLifeUpgradeForExistingMember(
   label: 'Member' | 'Spouse',
   db: admin.firestore.Firestore
 ): Promise<SubscriptionResult> {
-  logger.info(`[Life Membership] Looking for ${label.toLowerCase()} with ID: ${pInfo.memberId} for order ${orderId}`);
+  const cleanMemberId = String(pInfo.memberId || '').trim().toUpperCase();
+  logger.info(`[Life Membership] Looking for ${label.toLowerCase()} with ID: ${cleanMemberId} for order ${orderId}`);
   const memberQuery = await db.collection('members')
-    .where('memberId', '==', pInfo.memberId)
+    .where('memberId', '==', cleanMemberId)
     .limit(1)
     .get();
 
   if (memberQuery.empty) {
-    const issue = `[Life Membership] ${label} ID ${pInfo.memberId} not found in database for order ${orderId}.`;
+    const issue = `[Life Membership] ${label} ID ${cleanMemberId} not found in database for order ${orderId}.`;
     logger.warn(issue);
     return { kind: 'error', message: issue };
   }

@@ -146,7 +146,9 @@ async function getSchoolInfo(
   instructorIds: string[],
   memberDocIds: string[] = [],
 ): Promise<{ docIds: string[]; expiry: string }> {
-  const validInstructorIds = instructorIds.filter((id) => !!id);
+  const validInstructorIds = instructorIds
+    .map((id) => String(id || '').trim().toUpperCase())
+    .filter((id) => !!id);
   const validMemberDocIds = memberDocIds.filter((id) => !!id);
   if (validInstructorIds.length === 0 && validMemberDocIds.length === 0) {
     return { docIds: [], expiry: '' };
@@ -262,8 +264,10 @@ async function mirrorGradingsForSifuChange(
   previousSifu: string | undefined,
   currentSifu: string | undefined,
 ) {
-  if (previousSifu === currentSifu) return;
-  if (!previousSifu && !currentSifu) return;
+  const cleanPrevSifu = previousSifu ? previousSifu.trim().toUpperCase() : undefined;
+  const cleanCurrSifu = currentSifu ? currentSifu.trim().toUpperCase() : undefined;
+  if (cleanPrevSifu === cleanCurrSifu) return;
+  if (!cleanPrevSifu && !cleanCurrSifu) return;
 
   const gradingsSnap = await getDb().collection('gradings')
     .where('studentMemberDocId', '==', memberDocId)
@@ -278,21 +282,22 @@ async function mirrorGradingsForSifuChange(
   });
 
   for (const grading of gradings) {
-    if (previousSifu) {
+    if (cleanPrevSifu) {
       const assessors = [grading.gradingInstructorId, ...gradingManagerIdsOf(grading)];
-      if (!assessors.includes(previousSifu)) {
-        await removeGradingFromInstructor(grading.docId, previousSifu);
+      if (!assessors.includes(cleanPrevSifu)) {
+        await removeGradingFromInstructor(grading.docId, cleanPrevSifu);
       }
     }
-    if (currentSifu) {
-      await mirrorGradingToInstructor(grading.docId, grading, currentSifu);
+    if (cleanCurrSifu) {
+      await mirrorGradingToInstructor(grading.docId, grading, cleanCurrSifu);
     }
   }
 }
 
 async function populateInstructorMembers(instructorDocId: string, instructorId: string) {
-  if (!instructorId) return;
-  const snapshot = await getDb().collection('members').where('primaryInstructorId', '==', instructorId).get();
+  const cleanId = String(instructorId || '').trim().toUpperCase();
+  if (!cleanId) return;
+  const snapshot = await getDb().collection('members').where('primaryInstructorId', '==', cleanId).get();
 
   const chunks: admin.firestore.WriteBatch[] = [];
   let i = 0;
@@ -424,6 +429,27 @@ export const onMemberCreated = onDocumentCreated(
     const member = snap.data() as Member;
     member.docId = snap.id; // Ensure ID is present
 
+    // Normalize IDs to uppercase in the document if they contain lowercase letters or surrounding whitespace
+    const cleanMemberId = member.memberId ? member.memberId.trim().toUpperCase() : undefined;
+    const cleanInstructorId = member.instructorId ? member.instructorId.trim().toUpperCase() : undefined;
+    const cleanPrimaryInstructorId = member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : undefined;
+
+    const needsNormalization =
+      (member.memberId && member.memberId !== cleanMemberId) ||
+      (member.instructorId && member.instructorId !== cleanInstructorId) ||
+      (member.primaryInstructorId && member.primaryInstructorId !== cleanPrimaryInstructorId);
+
+    if (needsNormalization) {
+      const normalizationPatch: Partial<Member> = {};
+      if (cleanMemberId !== undefined && member.memberId !== cleanMemberId) normalizationPatch.memberId = cleanMemberId;
+      if (cleanInstructorId !== undefined && member.instructorId !== cleanInstructorId) normalizationPatch.instructorId = cleanInstructorId;
+      if (cleanPrimaryInstructorId !== undefined && member.primaryInstructorId !== cleanPrimaryInstructorId) normalizationPatch.primaryInstructorId = cleanPrimaryInstructorId;
+      await getDb().collection('members').doc(snap.id).update(normalizationPatch);
+      if (cleanMemberId !== undefined) member.memberId = cleanMemberId;
+      if (cleanInstructorId !== undefined) member.instructorId = cleanInstructorId;
+      if (cleanPrimaryInstructorId !== undefined) member.primaryInstructorId = cleanPrimaryInstructorId;
+    }
+
     await updateMemberViewForSchoolAndInstrucor(snap.id, member);
     await updateInstructorPublicProfile({ previous: undefined, member });
     await ensureCountersAreAtLeast(member);
@@ -450,6 +476,27 @@ export const onMemberUpdated = onDocumentUpdated(
 
     const previous = snap.before.data() as Member;
     previous.docId = snap.before.id;
+
+    // Normalize IDs to uppercase in the document if they contain lowercase letters or surrounding whitespace
+    const cleanMemberId = member.memberId ? member.memberId.trim().toUpperCase() : undefined;
+    const cleanInstructorId = member.instructorId ? member.instructorId.trim().toUpperCase() : undefined;
+    const cleanPrimaryInstructorId = member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : undefined;
+
+    const needsNormalization =
+      (member.memberId && member.memberId !== cleanMemberId) ||
+      (member.instructorId && member.instructorId !== cleanInstructorId) ||
+      (member.primaryInstructorId && member.primaryInstructorId !== cleanPrimaryInstructorId);
+
+    if (needsNormalization) {
+      const normalizationPatch: Partial<Member> = {};
+      if (cleanMemberId !== undefined && member.memberId !== cleanMemberId) normalizationPatch.memberId = cleanMemberId;
+      if (cleanInstructorId !== undefined && member.instructorId !== cleanInstructorId) normalizationPatch.instructorId = cleanInstructorId;
+      if (cleanPrimaryInstructorId !== undefined && member.primaryInstructorId !== cleanPrimaryInstructorId) normalizationPatch.primaryInstructorId = cleanPrimaryInstructorId;
+      await getDb().collection('members').doc(snap.after.id).update(normalizationPatch);
+      if (cleanMemberId !== undefined) member.memberId = cleanMemberId;
+      if (cleanInstructorId !== undefined) member.instructorId = cleanInstructorId;
+      if (cleanPrimaryInstructorId !== undefined) member.primaryInstructorId = cleanPrimaryInstructorId;
+    }
 
     await updateMemberViewForSchoolAndInstrucor(snap.after.id, member, previous);
     await updateInstructorPublicProfile({ previous, member });

@@ -66,16 +66,17 @@ export async function processVideoLibraryAccess(
 
   // Try finding by Member ID first
   if (providedMemberId) {
-    logger.info(`[Video Library] Looking for member with ID: ${providedMemberId} for order ${orderId}`);
+    const cleanMemberId = providedMemberId.trim().toUpperCase();
+    logger.info(`[Video Library] Looking for member with ID: ${cleanMemberId} for order ${orderId}`);
     const memberIdQuery = await db.collection('members')
-      .where('memberId', '==', providedMemberId)
+      .where('memberId', '==', cleanMemberId)
       .limit(1)
       .get();
     if (!memberIdQuery.empty) {
       memberDocRef = memberIdQuery.docs[0].ref;
       memberData = memberIdQuery.docs[0].data() as Partial<Member>;
     } else {
-      logger.warn(`[Video Library] Member ID ${providedMemberId} not found in database. Falling back to email.`);
+      logger.warn(`[Video Library] Member ID ${cleanMemberId} not found in database. Falling back to email.`);
     }
   }
 
