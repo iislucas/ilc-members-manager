@@ -69,9 +69,11 @@ async function cancelAndDismissGradingNotifications(
 async function findInstructorMemberDocId(
   instructorId: string,
 ): Promise<string | undefined> {
+  const cleanId = String(instructorId || '').trim().toUpperCase();
+  if (!cleanId) return undefined;
   const snap = await db
     .collection('members')
-    .where('instructorId', '==', instructorId)
+    .where('instructorId', '==', cleanId)
     .limit(1)
     .get();
   if (snap.empty) {
@@ -280,12 +282,15 @@ async function getMemberNameByDocIdOrMemberId(
     if (snap.exists && snap.data()?.name) return snap.data()!.name;
   }
   if (memberId) {
-    const q = await db
-      .collection('members')
-      .where('memberId', '==', memberId)
-      .limit(1)
-      .get();
-    if (!q.empty && q.docs[0].data()?.name) return q.docs[0].data().name;
+    const cleanMemberId = String(memberId || '').trim().toUpperCase();
+    if (cleanMemberId) {
+      const q = await db
+        .collection('members')
+        .where('memberId', '==', cleanMemberId)
+        .limit(1)
+        .get();
+      if (!q.empty && q.docs[0].data()?.name) return q.docs[0].data().name;
+    }
   }
   return '';
 }
@@ -855,12 +860,15 @@ export const onGradingUpdated = onDocumentUpdated(
       }
 
       // Look up the student by their human-readable memberId
-      const studentQuery = await db
-        .collection('members')
-        .where('memberId', '==', grading.studentMemberId)
-        .limit(1)
-        .get();
-      if (!studentQuery.empty) {
+      const cleanMemberId = String(grading.studentMemberId || '').trim().toUpperCase();
+      const studentQuery = cleanMemberId
+        ? await db
+            .collection('members')
+            .where('memberId', '==', cleanMemberId)
+            .limit(1)
+            .get()
+        : null;
+      if (studentQuery && !studentQuery.empty) {
         const studentDoc = studentQuery.docs[0];
         const { type, value } = extractLevelValue(grading.level);
         const update: any = {

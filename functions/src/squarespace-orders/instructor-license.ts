@@ -93,14 +93,15 @@ export async function processInstructorLicense(
   }
 
   // Look up the member by memberId
-  logger.info(`[License] Looking for member with ID: ${info.memberId} for order ${orderId}`);
+  const cleanMemberId = String(info.memberId || '').trim().toUpperCase();
+  logger.info(`[License] Looking for member with ID: ${cleanMemberId} for order ${orderId}`);
   const memberQuery = await db.collection('members')
-    .where('memberId', '==', info.memberId)
+    .where('memberId', '==', cleanMemberId)
     .limit(1)
     .get();
 
   if (memberQuery.empty) {
-    const issue = `[License] Member ID ${info.memberId} not found in database for order ${orderId}.`;
+    const issue = `[License] Member ID ${cleanMemberId} not found in database for order ${orderId}.`;
     logger.warn(issue);
     return { kind: 'error', message: issue };
   }

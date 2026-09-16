@@ -91,16 +91,17 @@ export async function processMembershipRenewal(
   }
 
   // Look up the member by memberId
-  logger.info(`[Membership] Looking for member with ID: ${info.member.memberId} for order ${orderId}`);
+  const cleanMemberId = String(info.member.memberId || '').trim().toUpperCase();
+  logger.info(`[Membership] Looking for member with ID: ${cleanMemberId} for order ${orderId}`);
   const memberQuery = await db.collection('members')
-    .where('memberId', '==', info.member.memberId)
+    .where('memberId', '==', cleanMemberId)
     .limit(1)
     .get();
 
   // TODO: set limit to 2 and add a check for multiple members, fail is we find multiple members.
 
   if (memberQuery.empty) {
-    const issue = `[Membership] Member ID ${info.member.memberId} not found in database for order ${orderId}.`;
+    const issue = `[Membership] Member ID ${cleanMemberId} not found in database for order ${orderId}.`;
     logger.warn(issue);
     return { kind: 'error', message: issue };
   }
@@ -220,7 +221,7 @@ async function processNewMemberRegistration(
 
   const newMember: Member = {
     ...initMember(),
-    memberId: newMemberId,
+    memberId: newMemberId.trim().toUpperCase(),
     name: pInfo.name,
     country: pInfo.country,
     emails: pInfo.email ? [pInfo.email] : [],

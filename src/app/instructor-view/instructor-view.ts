@@ -111,10 +111,13 @@ export class InstructorViewComponent implements OnInit {
   private async loadInstructor() {
     this.isLoading.set(true);
     this.errorMessage.set(null);
-    const id = this.instructorId();
+    const rawId = this.instructorId();
+    const id = rawId ? rawId.trim().toUpperCase() : '';
     try {
-      let instructor = this.findInstructorsService.instructors.get(id) ?? null;
-      if (!instructor) {
+      let instructor = (id ? this.findInstructorsService.instructors.get(id) : null) ??
+        (rawId ? this.findInstructorsService.instructors.get(rawId) : null) ??
+        null;
+      if (!instructor && id) {
         // Fallback: direct query for deep links before the public set loads.
         const q = query(
           collection(this.db, 'instructors'),

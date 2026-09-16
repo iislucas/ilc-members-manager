@@ -80,10 +80,11 @@ async function findInstructorMemberDocId(
   db: admin.firestore.Firestore,
   instructorId: string,
 ): Promise<string | undefined> {
-  if (!instructorId) return undefined;
+  const cleanId = String(instructorId || '').trim().toUpperCase();
+  if (!cleanId) return undefined;
   const snap = await db
     .collection(FirestoreCollection.Members)
-    .where('instructorId', '==', instructorId)
+    .where('instructorId', '==', cleanId)
     .limit(1)
     .get();
   return snap.empty ? undefined : snap.docs[0].id;
