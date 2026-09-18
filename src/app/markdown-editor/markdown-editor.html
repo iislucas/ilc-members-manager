@@ -4,7 +4,23 @@
     <!-- Formatting Toolbar at the Top of the Editor -->
     @if (menuOpen() && !isRawMode()) {
       <div class="toolbar-wrapper">
-        <div class="toolbar-main">
+        <div class="toolbar-main" [class.collapsed]="!showDescriptions()">
+          <!-- Menu Header with Fullscreen and Info Buttons at the far left (always to the left of scroll arrows) -->
+          <div class="menu-header">
+            <button type="button" 
+                    (click)="toggleFullscreen(); $event.stopPropagation()" 
+                    class="fullscreen-btn fullscreen-menu-item menu-item" 
+                    [title]="isFullscreen() ? 'Exit Fullscreen' : 'Fullscreen'">
+              <app-icon [name]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
+            </button>
+            <button type="button" (click)="toggleDescriptions(); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
+              <app-icon name="info" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
+            </button>
+            @if (showDescriptions()) {
+              <span class="menu-title">Actions</span>
+            }
+          </div>
+
           @if (canScrollLeft()) {
             <button type="button" 
                     class="icon-only-button scroll-arrow-btn left" 
@@ -15,22 +31,6 @@
           }
 
           <div class="menu" #menuRef (scroll)="updateScrollState()" [class.collapsed]="!showDescriptions()">
-            <!-- Menu Header with Fullscreen and Info Buttons at the far left -->
-            <div class="menu-header">
-              <button type="button" 
-                      (click)="toggleFullscreen(); $event.stopPropagation()" 
-                      class="fullscreen-btn fullscreen-menu-item menu-item" 
-                      [title]="isFullscreen() ? 'Exit Fullscreen' : 'Fullscreen'">
-                <app-icon [name]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
-              </button>
-              <button type="button" (click)="toggleDescriptions(); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
-                <app-icon name="info" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
-              </button>
-              @if (showDescriptions()) {
-                <span class="menu-title">Actions</span>
-              }
-            </div>
-            
             <div class="menu-item" (click)="undo()" title="Undo">
               <span class="menu-icon undo-icon">⎌</span>
               @if (showDescriptions()) { <span>Undo</span> }

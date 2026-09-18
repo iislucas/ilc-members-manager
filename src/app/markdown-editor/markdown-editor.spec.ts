@@ -469,6 +469,12 @@ describe('MarkdownEditor', () => {
     const leftArrow = fixture.nativeElement.querySelector('.scroll-arrow-btn.left');
     expect(leftArrow).toBeTruthy();
 
+    // Verify fullscreen and info buttons in .menu-header appear to the left of both scroll arrows
+    const menuHeader = fixture.nativeElement.querySelector('.menu-header');
+    expect(menuHeader).toBeTruthy();
+    expect(menuHeader.compareDocumentPosition(leftArrow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(menuHeader.compareDocumentPosition(rightArrow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
     leftArrow.click();
     expect(scrollBySpy).toHaveBeenCalledWith({ left: -120, behavior: 'smooth' });
   });
