@@ -1735,5 +1735,47 @@ describe('MarkdownEditor', () => {
 
     expect(component.getMarkdown().trim()).toBe(templateText.trim());
   });
+
+  it('preserves tapped cursor position when opening link popup and restores cursor on Escape', async () => {
+    fixture.componentRef.setInput('initialValue', 'Before [My Special Link](https://example.com) After');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    let viewRef: EditorView | null = null;
+    component['editor']?.action((ctx) => {
+      viewRef = ctx.get(editorViewCtx);
+      viewRef.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+      viewRef.posAtCoords = () => ({ pos: 12, inside: 10 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    // Click link
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 75, clientY: 110 }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.savedLinkCursorPos).toBe(12);
+
+    // Escape closes link popup and restores cursor to position 12
+    component.onEscape();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    expect(viewRef!.state.selection.from).toBe(12);
+  });
+
+  it('supports autoHeight input and applies auto-height classes', () => {
+    fixture.componentRef.setInput('autoHeight', true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.classList.contains('auto-height')).toBe(true);
+    const container = fixture.nativeElement.querySelector('.markdown-editor-container.auto-height');
+    expect(container).toBeTruthy();
+  });
 });
 

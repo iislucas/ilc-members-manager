@@ -1,4 +1,4 @@
-<div class="markdown-editor-container" [class.fullscreen]="isFullscreen()" [class.bordered]="bordered()" [class.show-break-marks]="showBreaks()" [class.raw-mode]="isRawMode()" #editorContainer>
+<div class="markdown-editor-container" [class.fullscreen]="isFullscreen()" [class.bordered]="bordered()" [class.auto-height]="autoHeight()" [class.show-break-marks]="showBreaks()" [class.raw-mode]="isRawMode()" #editorContainer>
   <!-- Floating/Sticky Editor Header with Toolbar and Controls -->
   <div class="editor-header-sticky" [class.toolbar-open]="menuOpen() && !isRawMode()" [class.raw-mode-header]="isRawMode()">
     <!-- Formatting Toolbar at the Top of the Editor -->
@@ -200,7 +200,7 @@
              placeholder="https://..."
              autofocus
              (keyup.enter)="updateLink(linkInput.value)"
-             (keyup.escape)="linkPopupOpen.set(false)"/>
+             (keyup.escape)="closeLinkPopup(true)"/>
       <button type="button" (click)="updateLink(linkInput.value)" class="icon-only-button" title="Save Link">
         <app-icon name="check" width="1em" height="1em"></app-icon>
       </button>
@@ -213,7 +213,7 @@
         <app-icon name="trash" width="1em" height="1em"></app-icon>
       </button>
     </div>
-    <div class="menu-overlay transparent" (click)="linkPopupOpen.set(false)"></div>
+    <div class="menu-overlay transparent" (click)="closeLinkPopup(false)"></div>
   }
 
   @if (placeholdersUnfolded()) {

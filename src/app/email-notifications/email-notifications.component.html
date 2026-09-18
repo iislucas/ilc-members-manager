@@ -235,89 +235,158 @@
 
     <!-- ONBOARDING CATEGORY -->
     @if (activeCategory() === 'onboarding') {
-      <div class="template-section">
-        <h4>New Member Welcome Email</h4>
-        <div class="form-group">
-          <label for="member-subject">Email Subject</label>
-          <input
-            id="member-subject"
-            type="text"
-            [(ngModel)]="templates().membershipActivatedSubject"
-            placeholder="Welcome Subject..."
-            class="input-style"
-          />
-        </div>
-
-        <div class="form-group">
-          <label>Email Body (Markdown)</label>
-          <div class="editor-wrapper">
-            <app-markdown-editor
-              [initialValue]="templates().membershipActivatedBody"
-              [chips]="memberChips"
-              [enabledFeatures]="bodyFeatures"
-              (changed)="setMemberBody($event)"
-            ></app-markdown-editor>
-          </div>
-          @if (memberBodyWarnings().length > 0) {
-            <div class="format-warning">
-              ⚠️ Unsupported formatting will appear as literal text in the email:
-              {{ memberBodyWarnings().join(', ') }}.
-            </div>
-          }
-        </div>
-
-        <div class="preview-section inline-preview">
-          <h5>Rendered HTML Preview (Sample Member)</h5>
-          <div class="preview-box">
-            <div class="preview-subject">
-              <strong>Subject:</strong> {{ memberWelcomePreviewSubject() }}
-            </div>
-            <div class="preview-body" [innerHTML]="memberWelcomePreviewHtml()"></div>
-          </div>
+      <div class="onboarding-nav-container">
+        <div class="pill-tabs onboarding-sub-tabs">
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="New Members"
+            [class.active]="activeOnboardingSubtype() === 'member'"
+            (click)="setOnboardingSubtype('member')">
+            New Members
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="New Instructors"
+            [class.active]="activeOnboardingSubtype() === 'instructor'"
+            (click)="setOnboardingSubtype('instructor')">
+            New Instructors
+          </button>
         </div>
       </div>
 
-      <div class="template-section">
-        <h4>New Instructor Welcome Email</h4>
-        <div class="form-group">
-          <label for="instructor-subject">Email Subject</label>
-          <input
-            id="instructor-subject"
-            type="text"
-            [(ngModel)]="templates().instructorLicenseActivatedSubject"
-            placeholder="Instructor Subject..."
-            class="input-style"
-          />
-        </div>
-
-        <div class="form-group">
-          <label>Email Body (Markdown)</label>
-          <div class="editor-wrapper">
-            <app-markdown-editor
-              [initialValue]="templates().instructorLicenseActivatedBody"
-              [chips]="instructorChips"
-              [enabledFeatures]="bodyFeatures"
-              (changed)="setInstructorBody($event)"
-            ></app-markdown-editor>
-          </div>
-          @if (instructorBodyWarnings().length > 0) {
-            <div class="format-warning">
-              ⚠️ Unsupported formatting will appear as literal text in the email:
-              {{ instructorBodyWarnings().join(', ') }}.
+      @if (activeOnboardingSubtype() === 'member') {
+        <div class="template-section">
+          <div class="template-header">
+            <h4>New Member Welcome Email</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('member'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'member') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('member')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
             </div>
-          }
-        </div>
+          </div>
+          <div class="form-group">
+            <label for="member-subject">Email Subject</label>
+            <input
+              id="member-subject"
+              type="text"
+              [(ngModel)]="templates().membershipActivatedSubject"
+              placeholder="Welcome Subject..."
+              class="input-style"
+            />
+          </div>
 
-        <div class="preview-section inline-preview">
-          <h5>Rendered HTML Preview (Sample Instructor)</h5>
-          <div class="preview-box">
-            <div class="preview-subject">
-              <strong>Subject:</strong> {{ instructorWelcomePreviewSubject() }}
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().membershipActivatedBody"
+                [chips]="memberChips"
+                [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
+                (changed)="setMemberBody($event)"
+              ></app-markdown-editor>
             </div>
-            <div class="preview-body" [innerHTML]="instructorWelcomePreviewHtml()"></div>
+            @if (memberBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting will appear as literal text in the email:
+                {{ memberBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Member)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ memberWelcomePreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="memberWelcomePreviewHtml()"></div>
+            </div>
           </div>
         </div>
-      </div>
+      }
+
+      @if (activeOnboardingSubtype() === 'instructor') {
+        <div class="template-section">
+          <div class="template-header">
+            <h4>New Instructor Welcome Email</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('instructor'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'instructor') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('instructor')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="instructor-subject">Email Subject</label>
+            <input
+              id="instructor-subject"
+              type="text"
+              [(ngModel)]="templates().instructorLicenseActivatedSubject"
+              placeholder="Instructor Subject..."
+              class="input-style"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().instructorLicenseActivatedBody"
+                [chips]="instructorChips"
+                [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
+                (changed)="setInstructorBody($event)"
+              ></app-markdown-editor>
+            </div>
+            @if (instructorBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting will appear as literal text in the email:
+                {{ instructorBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Instructor)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ instructorWelcomePreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="instructorWelcomePreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
     }
 
     <!-- PURCHASES CATEGORY -->
@@ -392,7 +461,28 @@
 
       @if (activePurchaseSubtype() === 'order') {
         <div class="template-section">
-          <h4>Store / General Order Confirmation</h4>
+          <div class="template-header">
+            <h4>Store / General Order Confirmation</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('order'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'order') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('order')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
           <div class="form-group">
             <label for="order-subject">Email Subject</label>
             <input
@@ -410,6 +500,7 @@
                 [initialValue]="templates().orderConfirmationBody"
                 [chips]="orderChips"
                 [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
                 (changed)="updateBody('orderConfirmationBody', $event)"
               ></app-markdown-editor>
             </div>
@@ -433,7 +524,28 @@
 
       @if (activePurchaseSubtype() === 'event') {
         <div class="template-section">
-          <h4>Event Registration Confirmation</h4>
+          <div class="template-header">
+            <h4>Event Registration Confirmation</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('event'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'event') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('event')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
           <div class="form-group">
             <label for="event-subject">Email Subject</label>
             <input
@@ -451,6 +563,7 @@
                 [initialValue]="templates().eventRegistrationConfirmationBody"
                 [chips]="eventRegChips"
                 [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
                 (changed)="updateBody('eventRegistrationConfirmationBody', $event)"
               ></app-markdown-editor>
             </div>
@@ -474,7 +587,28 @@
 
       @if (activePurchaseSubtype() === 'vod') {
         <div class="template-section">
-          <h4>Video on Demand (VOD) Purchase Confirmation</h4>
+          <div class="template-header">
+            <h4>Video on Demand (VOD) Purchase Confirmation</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('vod'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'vod') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('vod')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
           <div class="form-group">
             <label for="vod-subject">Email Subject</label>
             <input
@@ -492,6 +626,7 @@
                 [initialValue]="templates().vodPurchaseConfirmationBody"
                 [chips]="vodChips"
                 [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
                 (changed)="updateBody('vodPurchaseConfirmationBody', $event)"
               ></app-markdown-editor>
             </div>
@@ -515,7 +650,28 @@
 
       @if (activePurchaseSubtype() === 'vod-gift') {
         <div class="template-section">
-          <h4>VOD Gift Received Notification</h4>
+          <div class="template-header">
+            <h4>VOD Gift Received Notification</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('vod-gift'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'vod-gift') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('vod-gift')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
           <p class="section-subtext">
             Sent to the recipient when a member or admin gifts them on-demand video or series access.
           </p>
@@ -536,6 +692,7 @@
                 [initialValue]="templates().vodGiftReceivedBody"
                 [chips]="vodGiftChips"
                 [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
                 (changed)="updateBody('vodGiftReceivedBody', $event)"
               ></app-markdown-editor>
             </div>
@@ -550,7 +707,28 @@
 
       @if (activePurchaseSubtype() === 'grading') {
         <div class="template-section">
-          <h4>Grading Assessment Fee Confirmation</h4>
+          <div class="template-header">
+            <h4>Grading Assessment Fee Confirmation</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('grading'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'grading') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('grading')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
           <div class="form-group">
             <label for="grading-subject">Email Subject</label>
             <input
@@ -568,6 +746,7 @@
                 [initialValue]="templates().gradingPaymentConfirmationBody"
                 [chips]="gradingChips"
                 [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
                 (changed)="updateBody('gradingPaymentConfirmationBody', $event)"
               ></app-markdown-editor>
             </div>
@@ -591,7 +770,28 @@
 
       @if (activePurchaseSubtype() === 'subscription') {
         <div class="template-section">
-          <h4>Subscription Renewal Receipt</h4>
+          <div class="template-header">
+            <h4>Subscription Renewal Receipt</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('subscription'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'subscription') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('subscription')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
           <div class="form-group">
             <label for="sub-subject">Email Subject</label>
             <input
@@ -609,6 +809,7 @@
                 [initialValue]="templates().subscriptionRenewalBody"
                 [chips]="subscriptionChips"
                 [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
                 (changed)="updateBody('subscriptionRenewalBody', $event)"
               ></app-markdown-editor>
             </div>
@@ -646,7 +847,28 @@
 
       <!-- Tier 1: Per-Event Card Template -->
       <div class="template-section">
-        <h4>1. Per-Event Card Template</h4>
+        <div class="template-header">
+          <h4>1. Per-Event Card Template</h4>
+          <div class="template-actions-menu">
+            <button
+              type="button"
+              class="icon-only-button template-menu-trigger"
+              (click)="toggleTemplateMenu('digest-item'); $event.stopPropagation()"
+              title="Template actions"
+              aria-label="Template actions">
+              <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+            </button>
+            @if (openTemplateMenu() === 'digest-item') {
+              <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+              <div class="menu-style template-dropdown-menu">
+                <button type="button" class="menu-item" (click)="resetTemplateToDefault('digest-item')">
+                  <app-icon name="undo" width="1em" height="1em"></app-icon>
+                  <span>Reset to default</span>
+                </button>
+              </div>
+            }
+          </div>
+        </div>
         <p class="section-subtext">
           Template for an individual event item. This template is rendered for every upcoming event, and the results are joined together to populate <code>&#123;eventsList&#125;</code>.
         </p>
@@ -657,6 +879,7 @@
               [initialValue]="templates().eventDigestItemTemplate"
               [chips]="digestItemChips"
               [enabledFeatures]="bodyFeatures"
+              [autoHeight]="true"
               (changed)="updateBody('eventDigestItemTemplate', $event)"
             ></app-markdown-editor>
           </div>
@@ -670,7 +893,28 @@
 
       <!-- Tier 2: Overall Email Digest Template -->
       <div class="template-section">
-        <h4>2. Overall Email Digest Template</h4>
+        <div class="template-header">
+          <h4>2. Overall Email Digest Template</h4>
+          <div class="template-actions-menu">
+            <button
+              type="button"
+              class="icon-only-button template-menu-trigger"
+              (click)="toggleTemplateMenu('digest-overall'); $event.stopPropagation()"
+              title="Template actions"
+              aria-label="Template actions">
+              <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+            </button>
+            @if (openTemplateMenu() === 'digest-overall') {
+              <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+              <div class="menu-style template-dropdown-menu">
+                <button type="button" class="menu-item" (click)="resetTemplateToDefault('digest-overall')">
+                  <app-icon name="undo" width="1em" height="1em"></app-icon>
+                  <span>Reset to default</span>
+                </button>
+              </div>
+            }
+          </div>
+        </div>
         <p class="section-subtext">
           The container email sent to members. Make sure to include <code>&#123;eventsList&#125;</code> where the compiled event items should appear.
         </p>
@@ -691,6 +935,7 @@
               [initialValue]="templates().eventDigestOverallBody"
               [chips]="digestOverallChips"
               [enabledFeatures]="bodyFeatures"
+              [autoHeight]="true"
               (changed)="updateBody('eventDigestOverallBody', $event)"
             ></app-markdown-editor>
           </div>
@@ -836,15 +1081,27 @@
         @if (testEmailType() === 'ping') {
           <div class="ping-template-section">
             <div class="form-group">
-              <div class="label-with-action">
+              <div class="template-header">
                 <label for="test-subject">Email Subject</label>
-                <button
-                  type="button"
-                  class="subtle-button reset-ping-btn"
-                  (click)="resetPingTemplate()"
-                  title="Reset Quick Ping template back to default">
-                  <app-icon name="refresh"></app-icon> Reset Template
-                </button>
+                <div class="template-actions-menu">
+                  <button
+                    type="button"
+                    class="icon-only-button template-menu-trigger"
+                    (click)="toggleTemplateMenu('test-ping'); $event.stopPropagation()"
+                    title="Template actions"
+                    aria-label="Template actions">
+                    <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+                  </button>
+                  @if (openTemplateMenu() === 'test-ping') {
+                    <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                    <div class="menu-style template-dropdown-menu">
+                      <button type="button" class="menu-item" (click)="resetTemplateToDefault('test-ping')">
+                        <app-icon name="undo" width="1em" height="1em"></app-icon>
+                        <span>Reset to default</span>
+                      </button>
+                    </div>
+                  }
+                </div>
               </div>
               <input
                 id="test-subject"
@@ -863,6 +1120,7 @@
                   [initialValue]="testBodyMarkdown()"
                   [chips]="memberChips"
                   [enabledFeatures]="bodyFeatures"
+                  [autoHeight]="true"
                   (changed)="setTestBody($event)"
                 ></app-markdown-editor>
               </div>

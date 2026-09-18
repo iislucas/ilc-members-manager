@@ -245,6 +245,7 @@ export class ImageNodeView implements NodeView {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(document:keydown.escape)': 'onEscape()',
+    '[class.auto-height]': 'autoHeight()',
   },
 })
 export class MarkdownEditor implements AfterViewInit, OnDestroy {
@@ -262,6 +263,8 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   enabledFeatures = input<MarkdownFeature[] | null>(null);
   // Whether the editor renders its own border, rounded corners, and focus ring.
   bordered = input<boolean, unknown>(false, { transform: booleanAttribute });
+  // Whether the editor expands vertically to fit its content rather than scrolling.
+  autoHeight = input<boolean, unknown>(false, { transform: booleanAttribute });
   // Optional padding for the textual content of the editor. Defaults to '8px 12px'.
   // Set to false or '0' for no padding, or pass a custom CSS string.
   // The header/toolbar is not padded by this setting.
@@ -289,6 +292,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   linkPopupPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
   linkUrl = signal<string>('');
   currentLinkRange = signal<{ from: number; to: number } | null>(null);
+  savedLinkCursorPos: number | null = null;
 
   protected resolvedLinkHref = computed(() => {
     const raw = this.linkUrl().trim();
@@ -480,13 +484,28 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     }, 50);
   }
 
+  closeLinkPopup(restoreCursor: boolean = true) {
+    this.linkPopupOpen.set(false);
+    if (restoreCursor && this.savedLinkCursorPos !== null) {
+      this.editor?.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        view.focus();
+        try {
+          const safePos = Math.min(Math.max(0, this.savedLinkCursorPos!), view.state.doc.content.size);
+          const sel = TextSelection.near(view.state.doc.resolve(safePos));
+          view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
+        } catch {}
+      });
+    }
+  }
+
   onEscape() {
     if (this.placeholdersUnfolded()) {
       this.placeholdersUnfolded.set(false);
       return;
     }
     if (this.linkPopupOpen()) {
-      this.linkPopupOpen.set(false);
+      this.closeLinkPopup(true);
       return;
     }
     if (this.imageModalOpen()) {
@@ -2173,10 +2192,20 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     pos: number,
     mark?: Mark | null,
     anchor?: HTMLElement | null,
+    exactCursorPos?: number | null,
   ) {
     const { state } = view;
     const { link } = state.schema.marks;
     if (!link) return;
+
+    this.savedLinkCursorPos = exactCursorPos ?? pos;
+    if (this.savedLinkCursorPos !== null) {
+      try {
+        const safePos = Math.min(Math.max(0, this.savedLinkCursorPos), state.doc.content.size);
+        const sel = TextSelection.near(state.doc.resolve(safePos));
+        view.dispatch(state.tr.setSelection(sel));
+      } catch {}
+    }
 
     let targetMark = mark;
     let targetPos = pos;
@@ -2422,7 +2451,14 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
           if (anchor || mark) {
             event.preventDefault();
             event.stopPropagation();
-            this.openLinkPopupForPosition(view, pos, mark, anchor);
+            let exactCursorPos: number | null = pos;
+            try {
+              const coordsPos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+              if (coordsPos && typeof coordsPos.pos === 'number') {
+                exactCursorPos = coordsPos.pos;
+              }
+            } catch {}
+            this.openLinkPopupForPosition(view, pos, mark, anchor, exactCursorPos);
             return true;
           }
           return false;
@@ -2539,7 +2575,15 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         mark = state.selection.$from.marks().find((m) => m.type.name === 'link') || null;
       }
 
-      this.openLinkPopupForPosition(view, targetPos, mark, anchor);
+      let exactCursorPos: number | null = null;
+      try {
+        const coordsPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
+        if (coordsPos && typeof coordsPos.pos === 'number') {
+          exactCursorPos = coordsPos.pos;
+        }
+      } catch {}
+
+      this.openLinkPopupForPosition(view, targetPos, mark, anchor, exactCursorPos ?? targetPos);
     });
   };
 

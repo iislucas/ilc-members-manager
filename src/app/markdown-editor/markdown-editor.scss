@@ -11,6 +11,11 @@
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+
+  &.auto-height {
+    height: auto;
+    min-height: 200px;
+  }
 }
 
 /* Main container for the editor */
@@ -24,6 +29,33 @@
   position: relative;
   box-sizing: border-box;
   border-radius: inherit;
+
+  &.auto-height:not(.fullscreen) {
+    height: auto;
+    min-height: 100%;
+
+    .editor-content-wrapper {
+      overflow: visible;
+      height: auto;
+    }
+
+    .editor-content {
+      overflow-y: visible;
+      height: auto;
+      min-height: 200px;
+    }
+
+    .raw-editor-wrapper {
+      overflow: visible;
+      height: auto;
+    }
+
+    .raw-markdown-textarea {
+      overflow-y: hidden;
+      height: auto;
+      min-height: 200px;
+    }
+  }
 
   &.bordered {
     border: 1px solid $border-color-light;
