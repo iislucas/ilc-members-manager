@@ -205,8 +205,8 @@
         <app-icon name="check" width="1em" height="1em"></app-icon>
       </button>
       @if (linkUrl()) {
-        <a [href]="linkUrl()" target="_blank" rel="noopener noreferrer" class="icon-only-button" title="Open Link in New Tab">
-          <app-icon name="link" width="1em" height="1em"></app-icon>
+        <a [href]="resolvedLinkHref()" target="_blank" rel="noopener noreferrer" class="icon-only-button" title="Open Link in New Tab">
+          <app-icon name="launch" width="1em" height="1em"></app-icon>
         </a>
       }
       <button type="button" (click)="removeLink()" class="icon-only-button" title="Remove Link">

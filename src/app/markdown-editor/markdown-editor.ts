@@ -290,6 +290,15 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   linkUrl = signal<string>('');
   currentLinkRange = signal<{ from: number; to: number } | null>(null);
 
+  protected resolvedLinkHref = computed(() => {
+    const raw = this.linkUrl().trim();
+    if (!raw) return '';
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) || raw.startsWith('#') || raw.startsWith('/')) {
+      return raw;
+    }
+    return `https://${raw}`;
+  });
+
   imageModalOpen = signal<boolean>(false);
   imageSourceType = signal<'upload' | 'url'>('upload');
   imageAspectRatio = signal<number | null>(null);
@@ -684,6 +693,16 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.menuResizeObserver?.disconnect();
+    const container = this.containerRef?.nativeElement;
+    const editorEl = this.editorRef?.nativeElement;
+    if (container) {
+      container.removeEventListener('click', this.linkClickHandler, true);
+      container.removeEventListener('auxclick', this.linkClickHandler, true);
+    }
+    if (editorEl && editorEl !== container) {
+      editorEl.removeEventListener('click', this.linkClickHandler, true);
+      editorEl.removeEventListener('auxclick', this.linkClickHandler, true);
+    }
     this.editor?.destroy();
   }
 
@@ -2131,6 +2150,24 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     });
   }
 
+  private getAnchorFromEvent(e: MouseEvent): HTMLAnchorElement | null {
+    if (typeof e.composedPath === 'function') {
+      for (const el of e.composedPath()) {
+        if (el instanceof HTMLAnchorElement) {
+          return el;
+        }
+      }
+    }
+    let node: Node | null = e.target as Node | null;
+    if (node && node.nodeType === Node.TEXT_NODE) {
+      node = node.parentElement;
+    }
+    if (node instanceof Element) {
+      return node.closest('a');
+    }
+    return null;
+  }
+
   openLinkPopupForPosition(
     view: EditorView,
     pos: number,
@@ -2145,32 +2182,57 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     let targetPos = pos;
 
     if (!targetMark) {
-      const $pos = state.doc.resolve(pos);
-      targetMark = $pos.marks().find((m) => m.type.name === 'link');
-      if (!targetMark && pos > 0) {
-        targetMark = state.doc.resolve(pos - 1).marks().find((m) => m.type.name === 'link');
+      for (const testPos of [pos, pos > 0 ? pos - 1 : pos, pos + 1]) {
+        if (testPos >= 0 && testPos <= state.doc.content.size) {
+          const m = state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+          if (m) {
+            targetMark = m;
+            targetPos = testPos;
+            break;
+          }
+        }
       }
     }
 
     if (!targetMark && anchor) {
       try {
         const domPos = view.posAtDOM(anchor.firstChild || anchor, 0);
-        targetPos = domPos;
-        const $domPos = state.doc.resolve(domPos);
-        targetMark = $domPos.marks().find((m) => m.type.name === 'link');
+        for (const testPos of [domPos + 1, domPos, domPos > 0 ? domPos - 1 : domPos]) {
+          if (testPos >= 0 && testPos <= state.doc.content.size) {
+            const m = state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+            if (m) {
+              targetMark = m;
+              targetPos = testPos;
+              break;
+            }
+          }
+        }
       } catch {}
     }
 
     if (!targetMark && anchor) {
       const href = anchor.getAttribute('href');
       if (href) {
+        let decodedHref = href;
+        try {
+          decodedHref = decodeURIComponent(href);
+        } catch {}
         state.doc.descendants((node, p) => {
           if (targetMark) return false;
           if (node.isText) {
-            const found = node.marks.find((m) => m.type.name === 'link' && m.attrs['href'] === href);
+            const found = node.marks.find((m) => {
+              if (m.type.name !== 'link') return false;
+              const markHref = m.attrs['href'] || '';
+              return (
+                markHref === href ||
+                markHref === decodedHref ||
+                decodeURIComponent(markHref) === decodedHref ||
+                (anchor as HTMLAnchorElement).href === markHref
+              );
+            });
             if (found) {
               targetMark = found;
-              targetPos = p;
+              targetPos = p + 1;
               return false;
             }
           }
@@ -2179,53 +2241,98 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       }
     }
 
-    if (!targetMark) return;
-
-    const url = targetMark.attrs['href'] || '';
-    this.linkUrl.set(url);
-
-    // Find the contiguous range of this link mark within the block
-    const $pos = state.doc.resolve(targetPos);
-    let from = targetPos;
-    let to = targetPos;
-    let foundRange = false;
-
-    let start = $pos.start();
-    $pos.parent.forEach((child) => {
-      const end = start + child.nodeSize;
-      if (child.marks.some((m) => m.type.name === 'link' && m.attrs['href'] === url)) {
-        if (!foundRange) {
-          from = start;
-          to = end;
-          foundRange = true;
-        } else {
-          to = end;
-        }
-      }
-      start = end;
-    });
-
-    if (!foundRange) {
-      // Fallback: search entire document
-      start = 0;
-      state.doc.descendants((child, p) => {
-        if (child.isText && child.marks.some((m) => m.type.name === 'link' && m.attrs['href'] === url)) {
-          if (!foundRange) {
-            from = p;
-            to = p + child.nodeSize;
-            foundRange = true;
-          } else if (p <= to) {
-            to = p + child.nodeSize;
+    if (!targetMark && anchor && anchor.textContent) {
+      const text = anchor.textContent;
+      state.doc.descendants((node, p) => {
+        if (targetMark) return false;
+        if (node.isText && node.text === text) {
+          const found = node.marks.find((m) => m.type.name === 'link');
+          if (found) {
+            targetMark = found;
+            targetPos = p + 1;
+            return false;
           }
         }
+        return true;
       });
+    }
+
+    const url =
+      targetMark?.attrs['href'] ??
+      anchor?.getAttribute('href') ??
+      (anchor as HTMLAnchorElement)?.href ??
+      '';
+    this.linkUrl.set(url);
+
+    let from = targetPos;
+    let to = targetPos;
+
+    if (targetMark) {
+      // Find the contiguous range of this link mark within the block
+      const $pos = state.doc.resolve(targetPos);
+      let foundRange = false;
+
+      let start = $pos.start();
+      $pos.parent.forEach((child) => {
+        const end = start + child.nodeSize;
+        if (
+          child.marks.some(
+            (m) => m.type.name === 'link' && m.attrs['href'] === url,
+          )
+        ) {
+          if (!foundRange) {
+            from = start;
+            to = end;
+            foundRange = true;
+          } else {
+            to = end;
+          }
+        }
+        start = end;
+      });
+
+      if (!foundRange) {
+        // Fallback: search entire document
+        state.doc.descendants((child, p) => {
+          if (
+            child.isText &&
+            child.marks.some(
+              (m) => m.type.name === 'link' && m.attrs['href'] === url,
+            )
+          ) {
+            if (!foundRange) {
+              from = p;
+              to = p + child.nodeSize;
+              foundRange = true;
+            } else if (p <= to) {
+              to = p + child.nodeSize;
+            }
+          }
+        });
+      }
+    } else if (anchor) {
+      try {
+        const domPos = view.posAtDOM(anchor, 0);
+        from = domPos;
+        to = domPos + (anchor.textContent?.length || 0);
+      } catch {}
     }
 
     this.currentLinkRange.set({ from, to });
 
     try {
-      const coords = view.coordsAtPos(targetPos);
-      this.linkPopupPos.set(this.toContainerCoords(coords, 320));
+      if (anchor) {
+        const rect = anchor.getBoundingClientRect();
+        this.linkPopupPos.set(
+          this.toContainerCoords(
+            { left: rect.left, bottom: rect.bottom },
+            320,
+          ),
+        );
+      } else {
+        const coords = view.coordsAtPos(targetPos);
+        this.linkPopupPos.set(this.toContainerCoords(coords, 320));
+      }
     } catch {
       this.linkPopupPos.set({ top: 0, left: 0 });
     }
@@ -2233,7 +2340,9 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     this.linkPopupOpen.set(true);
 
     setTimeout(() => {
-      const input = this.containerRef?.nativeElement?.querySelector('.link-popup input') as HTMLInputElement;
+      const input = this.containerRef?.nativeElement?.querySelector(
+        '.link-popup input',
+      ) as HTMLInputElement;
       if (input) {
         input.focus();
         input.select();
@@ -2294,19 +2403,26 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       key: new PluginKey('markdown-editor-link-click'),
       props: {
         handleClick: (view, pos, event) => {
-          const target = event.target as HTMLElement | null;
-          const anchor = target?.closest('a');
-          const $pos = view.state.doc.resolve(pos);
-          let mark = $pos.marks().find((m) => m.type.name === 'link');
-          if (!mark && pos > 0) {
-            mark = view.state.doc.resolve(pos - 1).marks().find((m) => m.type.name === 'link');
+          const anchor = this.getAnchorFromEvent(event);
+          if (anchor && anchor.closest('.link-popup')) {
+            return false;
+          }
+
+          let mark: Mark | null = null;
+          for (const testPos of [pos, pos > 0 ? pos - 1 : pos, pos + 1]) {
+            if (testPos >= 0 && testPos <= view.state.doc.content.size) {
+              const m = view.state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+              if (m) {
+                mark = m;
+                break;
+              }
+            }
           }
 
           if (anchor || mark) {
             event.preventDefault();
-            if (!this.linkPopupOpen()) {
-              this.openLinkPopupForPosition(view, pos, mark, anchor);
-            }
+            event.stopPropagation();
+            this.openLinkPopupForPosition(view, pos, mark, anchor);
             return true;
           }
           return false;
@@ -2315,76 +2431,129 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     }));
   }
 
-  private setupLinkHandling() {
-    const el = this.editorRef.nativeElement;
+  private linkClickHandler = (e: MouseEvent) => {
+    const anchor = this.getAnchorFromEvent(e);
+    if (!anchor) return;
 
-    // Intercept clicks on links in capture phase to prevent browser navigation and open popup
-    const handleLinkClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      const anchor = target?.closest('a');
-      if (!anchor) return;
+    // Do not intercept clicks on the "Open Link in New Tab" button inside the link popup itself
+    if (anchor.closest('.link-popup')) return;
 
-      // Always prevent default navigation for links inside the editor
-      e.preventDefault();
+    // Always prevent default navigation for links inside the editor
+    e.preventDefault();
+    e.stopPropagation();
 
-      this.editor?.action((ctx) => {
-        const view = ctx.get(editorViewCtx);
-        const { state } = view;
-        let mark: any = null;
-        let targetPos = state.selection.$from.pos;
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      let mark: Mark | null = null;
+      let targetPos = 0;
 
-        // Try cursor selection marks
-        mark = state.selection.$from.marks().find((m) => m.type.name === 'link');
-
-        // Try coords if available
-        if (!mark) {
-          try {
-            const coordsPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
-            if (coordsPos) {
-              targetPos = coordsPos.pos;
-              const $pos = state.doc.resolve(targetPos);
-              mark = $pos.marks().find((m) => m.type.name === 'link') ||
-                (targetPos > 0 ? state.doc.resolve(targetPos - 1).marks().find((m) => m.type.name === 'link') : null);
+      // 1. Resolve mark from anchor DOM position first
+      try {
+        const domPos = view.posAtDOM(anchor.firstChild || anchor, 0);
+        targetPos = domPos;
+        for (const testPos of [domPos + 1, domPos, domPos > 0 ? domPos - 1 : domPos]) {
+          if (testPos >= 0 && testPos <= state.doc.content.size) {
+            const m = state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+            if (m) {
+              mark = m;
+              targetPos = testPos;
+              break;
             }
-          } catch {}
-        }
-
-        // Try posAtDOM on anchor
-        if (!mark) {
-          try {
-            const domPos = view.posAtDOM(anchor.firstChild || anchor, 0);
-            targetPos = domPos;
-            const $domPos = state.doc.resolve(domPos);
-            mark = $domPos.marks().find((m) => m.type.name === 'link');
-          } catch {}
-        }
-
-        // Fallback: search doc for link mark with matching href
-        if (!mark) {
-          const href = anchor.getAttribute('href');
-          if (href) {
-            state.doc.descendants((node, pos) => {
-              if (mark) return false;
-              if (node.isText) {
-                const found = node.marks.find((m) => m.type.name === 'link' && m.attrs['href'] === href);
-                if (found) {
-                  mark = found;
-                  targetPos = pos;
-                  return false;
-                }
-              }
-              return true;
-            });
           }
         }
+      } catch {}
 
-        if (mark) {
-          this.openLinkPopupForPosition(view, targetPos, mark, anchor);
+      // 2. Resolve mark from anchor href attribute in document
+      if (!mark) {
+        const href = anchor.getAttribute('href');
+        if (href) {
+          let decodedHref = href;
+          try {
+            decodedHref = decodeURIComponent(href);
+          } catch {}
+          state.doc.descendants((node, pos) => {
+            if (mark) return false;
+            if (node.isText) {
+              const found = node.marks.find((m) => {
+                if (m.type.name !== 'link') return false;
+                const markHref = m.attrs['href'] || '';
+                return (
+                  markHref === href ||
+                  markHref === decodedHref ||
+                  decodeURIComponent(markHref) === decodedHref ||
+                  anchor.href === markHref
+                );
+              });
+              if (found) {
+                mark = found;
+                targetPos = pos + 1;
+                return false;
+              }
+            }
+            return true;
+          });
         }
-      });
-    };
+      }
 
-    el.addEventListener('click', handleLinkClick, true);
-    el.addEventListener('auxclick', handleLinkClick, true);
+      // 3. Resolve mark by matching anchor text content in document
+      if (!mark && anchor.textContent) {
+        const text = anchor.textContent;
+        state.doc.descendants((node, pos) => {
+          if (mark) return false;
+          if (node.isText && node.text === text) {
+            const found = node.marks.find((m) => m.type.name === 'link');
+            if (found) {
+              mark = found;
+              targetPos = pos + 1;
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      // 4. Try coords from event
+      if (!mark) {
+        try {
+          const coordsPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
+          if (coordsPos) {
+            targetPos = coordsPos.pos;
+            for (const testPos of [targetPos, targetPos > 0 ? targetPos - 1 : targetPos, targetPos + 1]) {
+              if (testPos >= 0 && testPos <= state.doc.content.size) {
+                const m = state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+                if (m) {
+                  mark = m;
+                  targetPos = testPos;
+                  break;
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // 5. Fallback to cursor selection only if no anchor mark was found
+      if (!mark) {
+        targetPos = state.selection.$from.pos;
+        mark = state.selection.$from.marks().find((m) => m.type.name === 'link') || null;
+      }
+
+      this.openLinkPopupForPosition(view, targetPos, mark, anchor);
+    });
+  };
+
+  private setupLinkHandling() {
+    const container = this.containerRef?.nativeElement;
+    const editorEl = this.editorRef?.nativeElement;
+
+    if (container) {
+      container.addEventListener('click', this.linkClickHandler, true);
+      container.addEventListener('auxclick', this.linkClickHandler, true);
+    }
+    if (editorEl && editorEl !== container) {
+      editorEl.addEventListener('click', this.linkClickHandler, true);
+      editorEl.addEventListener('auxclick', this.linkClickHandler, true);
+    }
   }
 }

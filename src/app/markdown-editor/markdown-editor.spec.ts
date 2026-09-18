@@ -1607,6 +1607,98 @@ describe('MarkdownEditor', () => {
     expect(component.linkPopupOpen()).toBe(false);
   });
 
+  it('handles clicks on text node targets inside link anchors without throwing and opens popup', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [ILC](https://ilc-kungfu.org) text.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+    const textNode = anchor.firstChild;
+    expect(textNode).toBeTruthy();
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+
+    // Simulate clicking on the Text node inside the anchor (Safari/WebKit event behavior)
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    textNode?.dispatchEvent(clickEvent);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://ilc-kungfu.org');
+  });
+
+  it('switches to clicked link even when link popup is already open for another link', async () => {
+    fixture.componentRef.setInput('initialValue', 'Link [One](https://one.com) and Link [Two](https://two.com)');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchors = fixture.nativeElement.querySelectorAll('.editor-content a') as NodeListOf<HTMLAnchorElement>;
+    expect(anchors.length).toBe(2);
+
+    // Click link One
+    const click1 = new MouseEvent('click', { bubbles: true, cancelable: true });
+    anchors[0].dispatchEvent(click1);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://one.com');
+
+    // Click link Two while popup is already open
+    const click2 = new MouseEvent('click', { bubbles: true, cancelable: true });
+    anchors[1].dispatchEvent(click2);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(click2.defaultPrevented).toBe(true);
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://two.com');
+  });
+
+  it('allows clicking the external open link button inside the popup without prevention', async () => {
+    fixture.componentRef.setInput('initialValue', 'Visit [Site](https://example.com)');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+
+    const openLinkBtn = fixture.nativeElement.querySelector('.link-popup a') as HTMLAnchorElement;
+    expect(openLinkBtn).toBeTruthy();
+    expect(openLinkBtn.getAttribute('target')).toBe('_blank');
+
+    const clickExternal = new MouseEvent('click', { bubbles: true, cancelable: true });
+    openLinkBtn.dispatchEvent(clickExternal);
+
+    // Should NOT be prevented by linkClickHandler because it's inside .link-popup
+    expect(clickExternal.defaultPrevented).toBe(false);
+  });
+
   it('renders single newlines between consecutive lines as hard breaks on separate lines and preserves them across round-trips', async () => {
     const templateText =
       'Your subscription for **{planName}** renewed successfully on {renewalDate}.\n\n' +
