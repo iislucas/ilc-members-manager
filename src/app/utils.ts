@@ -124,6 +124,7 @@ export function looksLikeHtml(text: string): boolean {
 }
 
 export { deepObjEq };
+export * from './object-diff';
 
 /**
  * Computes target canvas dimensions that fit within `maxDim` on the longest
