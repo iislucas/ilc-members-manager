@@ -1,3 +1,5 @@
+import { By } from '@angular/platform-browser';
+import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EmailNotificationsComponent } from './email-notifications.component';
 import { DataManagerService } from '../data-manager.service';
@@ -276,16 +278,23 @@ describe('EmailNotificationsComponent', () => {
       membershipActivatedBody: 'Custom Body Modified',
     });
     expect(component.templates().membershipActivatedSubject).toBe('Custom Subject Modified');
+    fixture.detectChanges();
 
     component.toggleTemplateMenu('member');
     expect(component.openTemplateMenu()).toBe('member');
     fixture.detectChanges();
 
     component.resetTemplateToDefault('member');
+    fixture.detectChanges();
+
     expect(component.openTemplateMenu()).toBeNull();
     expect(component.templates().membershipActivatedSubject).toBe('Welcome to the I Liq Chuan Family!');
     expect(component.templates().membershipActivatedBody).toContain('Welcome to Zhong Xin Dao / I Liq Chuan');
     expect(component.statusActionFeedback()?.message).toContain('reset to default');
+
+    const editorDebugEl = fixture.debugElement.query(By.directive(MarkdownEditor));
+    expect(editorDebugEl).toBeTruthy();
+    expect(editorDebugEl.componentInstance.initialValue()).toContain('Welcome to Zhong Xin Dao / I Liq Chuan');
   });
 
   it('should update activePurchaseSubtype when setPurchaseSubtype is called', () => {

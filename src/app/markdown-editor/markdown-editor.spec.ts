@@ -1670,6 +1670,33 @@ describe('MarkdownEditor', () => {
     expect(component.linkUrl()).toBe('https://two.com');
   });
 
+  it('opens the link popup when clicking on a link while no popup is open', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [Sample](https://example.com) link.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+    expect(component.linkPopupOpen()).toBe(false);
+
+    // Clicking on link when popup is closed opens the link popup
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://example.com');
+    const popupInput = fixture.nativeElement.querySelector('.link-popup input') as HTMLInputElement;
+    expect(popupInput).toBeTruthy();
+    expect(popupInput.value).toBe('https://example.com');
+  });
+
   it('closes the link popup when clicking on the same link again', async () => {
     fixture.componentRef.setInput('initialValue', 'Check [This Link](https://example.com) for details.');
     fixture.detectChanges();
@@ -1692,19 +1719,38 @@ describe('MarkdownEditor', () => {
     expect(component.linkPopupOpen()).toBe(true);
     expect(component.linkUrl()).toBe('https://example.com');
 
-    // Second click on the SAME link: closes popup
+    // Second click on the SAME link after debounce delay: closes popup
+    await new Promise((resolve) => setTimeout(resolve, 300));
     anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 50));
     fixture.detectChanges();
 
     expect(component.linkPopupOpen()).toBe(false);
 
-    // Third click on the SAME link: re-opens popup
+    // Third click on the SAME link after debounce delay: re-opens popup
+    await new Promise((resolve) => setTimeout(resolve, 300));
     anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 50));
     fixture.detectChanges();
 
     expect(component.linkPopupOpen()).toBe(true);
+  });
+
+  it('updates markdown content when initialValue changes externally after initial load', async () => {
+    fixture.componentRef.setInput('initialValue', 'Original Content');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    expect(component.getMarkdown()).toContain('Original Content');
+
+    // Simulate external change such as "Reset to default"
+    fixture.componentRef.setInput('initialValue', 'Reset Default Content');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.getMarkdown()).toContain('Reset Default Content');
   });
 
   it('allows clicking the external open link button inside the popup without prevention', async () => {

@@ -294,6 +294,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   currentLinkRange = signal<{ from: number; to: number } | null>(null);
   activeLinkAnchor: HTMLElement | null = null;
   savedLinkCursorPos: number | null = null;
+  lastLinkPopupOpenedAt: number = 0;
 
   protected resolvedLinkHref = computed(() => {
     const raw = this.linkUrl().trim();
@@ -488,6 +489,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   closeLinkPopup(restoreCursor: boolean = true) {
     this.linkPopupOpen.set(false);
     this.activeLinkAnchor = null;
+    this.lastLinkPopupOpenedAt = 0;
     if (restoreCursor && this.savedLinkCursorPos !== null) {
       this.editor?.action((ctx) => {
         const view = ctx.get(editorViewCtx);
@@ -587,14 +589,27 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const value = this.initialValue();
-      if (value && this.isFirstLoad) {
-        if (untracked(() => this.isRawMode())) {
-          this.rawContent.set(value);
-          setTimeout(() => this.adjustRawTextareaHeight(), 0);
-        }
-        if (this.editor) {
-          this.setMarkdown(value);
-          this.isFirstLoad = false; // Only set initially
+      if (value !== undefined && value !== null) {
+        if (this.isFirstLoad) {
+          if (untracked(() => this.isRawMode())) {
+            this.rawContent.set(value);
+            setTimeout(() => this.adjustRawTextareaHeight(), 0);
+          }
+          if (this.editor) {
+            this.setMarkdown(value);
+            this.isFirstLoad = false; // Only set initially
+          }
+        } else {
+          // If value was changed externally (e.g. Reset to default or programmatic change)
+          if (value !== this.lastInputMarkdown) {
+            this.lastInputMarkdown = value;
+            if (untracked(() => this.isRawMode())) {
+              this.rawContent.set(value);
+              setTimeout(() => this.adjustRawTextareaHeight(), 0);
+            } else if (this.editor) {
+              this.setMarkdown(value);
+            }
+          }
         }
       }
     });
@@ -644,6 +659,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   }
 
   onRawInput(value: string) {
+    this.lastInputMarkdown = value;
     this.rawContent.set(value);
     this.changed.emit(value);
     this.adjustRawTextareaHeight();
@@ -954,7 +970,9 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
           },
         }));
         ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
-          this.changed.emit(this.cleanSerializedMarkdown(markdown));
+          const cleaned = this.cleanSerializedMarkdown(markdown);
+          this.lastInputMarkdown = cleaned;
+          this.changed.emit(cleaned);
         });
       })
       .use(bulletSchema)
@@ -977,7 +995,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     
     // If initialValue was already set before editor was ready
     const value = this.initialValue();
-    if (value && this.isFirstLoad) {
+    if (value !== undefined && value !== null && this.isFirstLoad) {
       this.setMarkdown(value);
       this.isFirstLoad = false;
     }
@@ -991,7 +1009,8 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       const parser = ctx.get(parserCtx);
       const doc = parser(normalized);
       if (!doc) return;
-      const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, doc);
+      const content = (doc.type.name === 'doc' && doc.content) ? doc.content : doc;
+      const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, content);
       view.dispatch(tr);
     });
   }
@@ -2239,15 +2258,21 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       const isPosWithinRange = !!(currentRange && pos >= currentRange.from && pos <= currentRange.to);
 
       if (isSameAnchor || (isSameHref && (isWithinRange || isPosWithinRange))) {
-        // User clicked the same link again while popup is open -> simply close the popup
-        this.closeLinkPopup(false);
-        try {
-          const safePos = Math.min(Math.max(0, targetCursorPos), state.doc.content.size);
-          const sel = TextSelection.near(state.doc.resolve(safePos));
-          view.dispatch(state.tr.setSelection(sel));
-        } catch {}
-        view.focus();
-        return;
+        const timeSinceOpen = Date.now() - this.lastLinkPopupOpenedAt;
+        if (timeSinceOpen > 250) {
+          // User clicked the same link again while popup is open -> simply close the popup
+          this.closeLinkPopup(false);
+          try {
+            const safePos = Math.min(Math.max(0, targetCursorPos), state.doc.content.size);
+            const sel = TextSelection.near(state.doc.resolve(safePos));
+            view.dispatch(state.tr.setSelection(sel));
+          } catch {}
+          view.focus();
+          return;
+        } else {
+          // Rapid duplicate invocation from same event or bubble phase -> keep open
+          return;
+        }
       }
     }
 
@@ -2420,6 +2445,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       this.linkPopupPos.set({ top: 0, left: 0 });
     }
 
+    this.lastLinkPopupOpenedAt = Date.now();
     this.linkPopupOpen.set(true);
 
     setTimeout(() => {
@@ -2505,6 +2531,11 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
           }
 
           if (anchor || mark) {
+            if (this.linkPopupOpen() && Date.now() - this.lastLinkPopupOpenedAt < 250) {
+              event.preventDefault();
+              event.stopPropagation();
+              return true;
+            }
             event.preventDefault();
             event.stopPropagation();
             let exactCursorPos: number | null = pos;
@@ -2578,6 +2609,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     // Always prevent default navigation for links inside the editor
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
 
     this.editor?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
@@ -2695,8 +2727,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     if (container) {
       container.addEventListener('click', this.linkClickHandler, true);
       container.addEventListener('auxclick', this.linkClickHandler, true);
-    }
-    if (editorEl && editorEl !== container) {
+    } else if (editorEl) {
       editorEl.addEventListener('click', this.linkClickHandler, true);
       editorEl.addEventListener('auxclick', this.linkClickHandler, true);
     }
