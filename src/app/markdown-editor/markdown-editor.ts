@@ -292,6 +292,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   linkPopupPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
   linkUrl = signal<string>('');
   currentLinkRange = signal<{ from: number; to: number } | null>(null);
+  activeLinkAnchor: HTMLElement | null = null;
   savedLinkCursorPos: number | null = null;
 
   protected resolvedLinkHref = computed(() => {
@@ -486,6 +487,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
 
   closeLinkPopup(restoreCursor: boolean = true) {
     this.linkPopupOpen.set(false);
+    this.activeLinkAnchor = null;
     if (restoreCursor && this.savedLinkCursorPos !== null) {
       this.editor?.action((ctx) => {
         const view = ctx.get(editorViewCtx);
@@ -2227,6 +2229,29 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     const { link } = state.schema.marks;
     if (!link) return;
 
+    if (this.linkPopupOpen()) {
+      const currentRange = this.currentLinkRange();
+      const isSameAnchor = !!(this.activeLinkAnchor && anchor && this.activeLinkAnchor === anchor);
+      const targetCursorPos = exactCursorPos ?? pos;
+      const clickedHref = anchor?.getAttribute('href') ?? (anchor as HTMLAnchorElement)?.href ?? mark?.attrs['href'] ?? null;
+      const isSameHref = clickedHref !== null ? (clickedHref === this.linkUrl() || decodeURIComponent(clickedHref) === decodeURIComponent(this.linkUrl())) : true;
+      const isWithinRange = !!(currentRange && targetCursorPos >= currentRange.from && targetCursorPos <= currentRange.to);
+      const isPosWithinRange = !!(currentRange && pos >= currentRange.from && pos <= currentRange.to);
+
+      if (isSameAnchor || (isSameHref && (isWithinRange || isPosWithinRange))) {
+        // User clicked the same link again while popup is open -> simply close the popup
+        this.closeLinkPopup(false);
+        try {
+          const safePos = Math.min(Math.max(0, targetCursorPos), state.doc.content.size);
+          const sel = TextSelection.near(state.doc.resolve(safePos));
+          view.dispatch(state.tr.setSelection(sel));
+        } catch {}
+        view.focus();
+        return;
+      }
+    }
+
+    this.activeLinkAnchor = (anchor as HTMLElement) ?? null;
     this.savedLinkCursorPos = exactCursorPos ?? pos;
     if (this.savedLinkCursorPos !== null) {
       try {
@@ -2436,6 +2461,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         }
       }
       this.linkPopupOpen.set(false);
+      this.activeLinkAnchor = null;
       view.focus();
     });
   }
@@ -2452,6 +2478,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         view.dispatch(state.tr.removeMark(range.from, range.to, link));
       }
       this.linkPopupOpen.set(false);
+      this.activeLinkAnchor = null;
       view.focus();
     });
   }

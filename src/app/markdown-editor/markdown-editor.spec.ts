@@ -1670,6 +1670,43 @@ describe('MarkdownEditor', () => {
     expect(component.linkUrl()).toBe('https://two.com');
   });
 
+  it('closes the link popup when clicking on the same link again', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [This Link](https://example.com) for details.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    // First click: opens popup
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://example.com');
+
+    // Second click on the SAME link: closes popup
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+
+    // Third click on the SAME link: re-opens popup
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+  });
+
   it('allows clicking the external open link button inside the popup without prevention', async () => {
     fixture.componentRef.setInput('initialValue', 'Visit [Site](https://example.com)');
     fixture.detectChanges();
