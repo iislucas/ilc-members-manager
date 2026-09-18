@@ -208,7 +208,7 @@ export class ActionQueueService {
   /**
    * Enqueues an offline mutation.
    */
-  public async enqueueAction<T extends Record<string, unknown>>(
+  public async enqueueAction<T extends object = Record<string, unknown>>(
     opts: EnqueueActionOptions<T>,
   ): Promise<QueuedAction<T>> {
     const current = this.actions();

@@ -20,6 +20,7 @@ import {
 } from '../action-queue.service';
 import { NetworkStateService } from '../network-state.service';
 import { IconComponent } from '../icons/icon.component';
+import { formatFieldLabel } from '../utils';
 
 @Component({
   selector: 'app-action-queue-dialog',
@@ -94,53 +95,7 @@ export class ActionQueueDialogComponent {
   }
 
   formatFieldLabel(key: string): string {
-    const customNames: Record<string, string> = {
-      notes: 'Notes',
-      publicBioMarkdown: 'Public Bio',
-      name: 'Full Name',
-      email: 'Email Address',
-      emails: 'Email Addresses',
-      phone: 'Phone Number',
-      address: 'Address',
-      city: 'City',
-      postcode: 'Postcode',
-      country: 'Country',
-      dateOfBirth: 'Date of Birth',
-      roles: 'Roles',
-      tags: 'Tags',
-      schools: 'Schools',
-      primarySchoolId: 'Primary School',
-      isInstructor: 'Instructor Status',
-      instructorId: 'Instructor ID',
-      primaryInstructorId: 'Primary Instructor ID',
-      status: 'Status',
-      schoolName: 'School Name',
-      schoolId: 'School ID',
-      headInstructorName: 'Head Instructor',
-      studentName: 'Student Name',
-      studentDocId: 'Student',
-      assessedLevel: 'Assessed Level',
-      feedback: 'Feedback',
-      dateOfGrading: 'Date of Grading',
-      gradingInstructorId: 'Grading Instructor',
-      title: 'Title',
-      description: 'Description',
-      startDate: 'Start Date',
-      endDate: 'End Date',
-      location: 'Location',
-      purchaseDetailsMarkdown: 'Purchase Details',
-      inPersonDetailsMarkdown: 'In-Person Details',
-      onlineJoiningLink: 'Online Joining Link',
-      recordedVideoId: 'Recorded Video ID',
-      recordedVideoUrl: 'Recorded Video URL',
-      managerDocIds: 'Managers',
-      contacts: 'Contacts',
-      documents: 'Documents',
-      productId: 'Product ID',
-    };
-    if (customNames[key]) return customNames[key];
-    const spaced = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toLowerCase().trim();
-    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+    return formatFieldLabel(key);
   }
 
   isEmpty(val: unknown): boolean {

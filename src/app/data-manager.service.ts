@@ -58,7 +58,7 @@ import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { deepObjEq } from './utils';
+import { deepObjEq, computeObjectDiff, formatFieldLabel, formatFieldSummary } from './utils';
 import { FindInstructorsService } from './find-instructors.service';
 import { IncrementalSyncService } from './incremental-sync.service';
 import {
@@ -389,30 +389,7 @@ export class DataManagerService {
   }
 
   formatFieldSummary(key: string): string {
-    const customNames: Record<string, string> = {
-      notes: 'Notes',
-      publicBioMarkdown: 'Public Bio',
-      name: 'Name',
-      email: 'Email',
-      phone: 'Phone',
-      address: 'Address',
-      city: 'City',
-      postcode: 'Postcode',
-      country: 'Country',
-      dateOfBirth: 'Date of Birth',
-      roles: 'Roles',
-      tags: 'Tags',
-      schools: 'Schools',
-      isInstructor: 'Instructor Status',
-      instructorId: 'Instructor',
-      status: 'Status',
-      title: 'Title',
-      description: 'Description',
-      schoolName: 'School Name',
-    };
-    if (customNames[key]) return customNames[key];
-    const spaced = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toLowerCase().trim();
-    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+    return formatFieldLabel(key);
   }
 
   // Standard "Name [instructorId]" display form for an instructor referenced by
@@ -1982,39 +1959,19 @@ export class DataManagerService {
     }
 
     if (this.networkState.isOffline()) {
-      const changedNewState: Record<string, unknown> = {};
-      const changedOldState: Record<string, unknown> = {};
-      const changedKeys: string[] = [];
+      const diff = computeObjectDiff<Member>(originalMember, cleanMember, {
+        ignoreKeys: ['docId', 'lastUpdated'],
+      });
+      const summary = formatFieldSummary(diff.changedKeys, `profile for ${cleanMember.name || id}`);
 
-      if (originalMember) {
-        for (const key of Object.keys(cleanMember) as Array<keyof Member>) {
-          if (key === 'docId' || key === 'lastUpdated') continue;
-          if (!deepObjEq(cleanMember[key], originalMember[key])) {
-            changedNewState[key] = cleanMember[key];
-            changedOldState[key] = originalMember[key];
-            changedKeys.push(key);
-          }
-        }
-      } else {
-        for (const key of Object.keys(cleanMember) as Array<keyof Member>) {
-          if (key === 'docId' || key === 'lastUpdated') continue;
-          changedNewState[key] = cleanMember[key];
-          changedKeys.push(key);
-        }
-      }
-
-      const summary = changedKeys.length > 0
-        ? `Updated ${changedKeys.map((k) => this.formatFieldSummary(k)).join(', ')}`
-        : `Updated profile for ${cleanMember.name || id}`;
-
-      await this.actionQueue.enqueueAction({
+      await this.actionQueue.enqueueAction<Partial<Member>>({
         kind: QueuedActionKind.UpdateMember,
         entityDocId: id,
         entityTitle: this.memberDisplayName(id, cleanMember.memberId, cleanMember.name),
         description: summary,
         collectionPath: FirestoreCollection.Members,
-        oldState: changedOldState,
-        newState: changedNewState,
+        oldState: diff.changedOldState,
+        newState: diff.changedNewState,
         baselineSnapshot: originalMember ? structuredClone(originalMember) : undefined,
       });
       const updatedMember: Member = {
@@ -2034,15 +1991,13 @@ export class DataManagerService {
     // we avoid firestore rules from rejecting the update due to the presence of 
     // fields that are not allowed.
     if (originalMember) {
-      const changes: Partial<MemberFsDoc> = {};
-      for (const key of Object.keys(cleanMember) as Array<keyof Member>) {
-        if (key === 'docId' || key === 'lastUpdated') continue;
-        if (!deepObjEq(cleanMember[key], originalMember[key])) {
-          // @ts-ignore
-          changes[key] = cleanMember[key];
-        }
-      }
-      changes.lastUpdated = serverTimestamp() as Timestamp;
+      const diff = computeObjectDiff<Member>(originalMember, cleanMember, {
+        ignoreKeys: ['docId', 'lastUpdated'],
+      });
+      const changes: Partial<MemberFsDoc> = {
+        ...diff.changedNewState,
+        lastUpdated: serverTimestamp() as Timestamp,
+      };
       await setDoc(docRef, changes, { merge: true });
     } else {
       // Fallback if no old member is found
@@ -2136,39 +2091,19 @@ export class DataManagerService {
 
     if (this.networkState.isOffline()) {
       const docId = school.docId || school.schoolId;
-      const changedNewState: Record<string, unknown> = {};
-      const changedOldState: Record<string, unknown> = {};
-      const changedKeys: string[] = [];
+      const diff = computeObjectDiff<School>(oldSchool, school, {
+        ignoreKeys: ['docId', 'lastUpdated'],
+      });
+      const summary = formatFieldSummary(diff.changedKeys, `school ${school.schoolName || docId}`);
 
-      if (oldSchool) {
-        for (const key of Object.keys(school) as Array<keyof School>) {
-          if (key === 'docId' || key === 'lastUpdated') continue;
-          if (!deepObjEq(school[key], oldSchool[key])) {
-            changedNewState[key] = school[key];
-            changedOldState[key] = oldSchool[key];
-            changedKeys.push(key);
-          }
-        }
-      } else {
-        for (const key of Object.keys(school) as Array<keyof School>) {
-          if (key === 'docId' || key === 'lastUpdated') continue;
-          changedNewState[key] = school[key];
-          changedKeys.push(key);
-        }
-      }
-
-      const summary = changedKeys.length > 0
-        ? `Updated ${changedKeys.map((k) => this.formatFieldSummary(k)).join(', ')}`
-        : `Updated school ${school.schoolName || docId}`;
-
-      await this.actionQueue.enqueueAction({
+      await this.actionQueue.enqueueAction<Partial<School>>({
         kind: QueuedActionKind.UpdateSchool,
         entityDocId: docId,
         entityTitle: school.schoolName || docId,
         description: summary,
         collectionPath: FirestoreCollection.Schools,
-        oldState: changedOldState,
-        newState: changedNewState,
+        oldState: diff.changedOldState,
+        newState: diff.changedNewState,
         baselineSnapshot: oldSchool ? structuredClone(oldSchool) : undefined,
       });
       const updatedSchool: School = {
@@ -2184,15 +2119,13 @@ export class DataManagerService {
     // This is necessary for school managers who are restricted by
     // firestore rules to only update specific fields via affectedKeys().hasOnly(...).
     if (oldSchool) {
-      const changes: Partial<SchoolFsDoc> = {};
-      for (const key of Object.keys(school) as Array<keyof School>) {
-        if (key === 'docId' || key === 'lastUpdated') continue;
-        if (!deepObjEq(school[key], oldSchool[key])) {
-          // @ts-ignore
-          changes[key] = school[key];
-        }
-      }
-      changes.lastUpdated = serverTimestamp() as Timestamp;
+      const diff = computeObjectDiff<School>(oldSchool, school, {
+        ignoreKeys: ['docId', 'lastUpdated'],
+      });
+      const changes: Partial<SchoolFsDoc> = {
+        ...diff.changedNewState,
+        lastUpdated: serverTimestamp() as Timestamp,
+      };
       await setDoc(docRef, changes, { merge: true });
     } else {
       // Fallback: send everything (for new schools or when no original is available)
@@ -2308,39 +2241,19 @@ export class DataManagerService {
     }
 
     if (this.networkState.isOffline()) {
-      const changedNewState: Record<string, unknown> = {};
-      const changedOldState: Record<string, unknown> = {};
-      const changedKeys: string[] = [];
+      const diff = computeObjectDiff<Grading>(originalGrading, newGrading, {
+        ignoreKeys: ['docId', 'lastUpdated'],
+      });
+      const summary = formatFieldSummary(diff.changedKeys, `grading for ${newGrading.studentName || id}`);
 
-      if (originalGrading) {
-        for (const key of Object.keys(newGrading) as Array<keyof Grading>) {
-          if (key === 'docId' || key === 'lastUpdated') continue;
-          if (!deepObjEq(newGrading[key], originalGrading[key])) {
-            changedNewState[key] = newGrading[key];
-            changedOldState[key] = originalGrading[key];
-            changedKeys.push(key);
-          }
-        }
-      } else {
-        for (const key of Object.keys(newGrading) as Array<keyof Grading>) {
-          if (key === 'docId' || key === 'lastUpdated') continue;
-          changedNewState[key] = newGrading[key];
-          changedKeys.push(key);
-        }
-      }
-
-      const summary = changedKeys.length > 0
-        ? `Updated ${changedKeys.map((k) => this.formatFieldSummary(k)).join(', ')}`
-        : `Updated grading for ${newGrading.studentName || id}`;
-
-      await this.actionQueue.enqueueAction({
+      await this.actionQueue.enqueueAction<Partial<Grading>>({
         kind: QueuedActionKind.UpdateGrading,
         entityDocId: id,
         entityTitle: `Grading for ${newGrading.studentName || id}`,
         description: summary,
         collectionPath: FirestoreCollection.Gradings,
-        oldState: changedOldState,
-        newState: changedNewState,
+        oldState: diff.changedOldState,
+        newState: diff.changedNewState,
         baselineSnapshot: originalGrading ? structuredClone(originalGrading) : undefined,
       });
       const updatedGrading: Grading = {
@@ -2356,17 +2269,17 @@ export class DataManagerService {
     // instructors) whose Firestore rules restrict updates to a subset of
     // fields. Sending unchanged fields would cause rule violations.
     if (originalGrading) {
-      const changes: Partial<GradingFsDoc> = {};
-      for (const key of Object.keys(newGrading) as Array<keyof Grading>) {
-        if (key === 'docId' || key === 'lastUpdated') continue;
-        if (!deepObjEq(newGrading[key], originalGrading[key])) {
-          console.log(`updateGrading diff: field "${key}" changed:`,
-            JSON.stringify(originalGrading[key]), '→', JSON.stringify(newGrading[key]));
-          // @ts-ignore
-          changes[key] = newGrading[key];
-        }
+      const diff = computeObjectDiff<Grading>(originalGrading, newGrading, {
+        ignoreKeys: ['docId', 'lastUpdated'],
+      });
+      for (const key of diff.changedKeys) {
+        console.log(`updateGrading diff: field "${key}" changed:`,
+          JSON.stringify(originalGrading[key]), '→', JSON.stringify(newGrading[key]));
       }
-      changes.lastUpdated = serverTimestamp() as Timestamp;
+      const changes: Partial<GradingFsDoc> = {
+        ...diff.changedNewState,
+        lastUpdated: serverTimestamp() as Timestamp,
+      };
       console.log('updateGrading: sending changes:', Object.keys(changes));
       await setDoc(docRef, changes, { merge: true });
     } else {

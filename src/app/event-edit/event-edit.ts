@@ -34,7 +34,7 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { deepObjEq, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../utils';
+import { deepObjEq, computeObjectDiff, formatFieldSummary, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../utils';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
@@ -1376,13 +1376,13 @@ export class EventEditComponent implements OnInit {
       const managerDocIds = formData.managerDocIds.filter((id) => Boolean(id) && id !== formData.ownerDocId);
       const contacts = contactsToSave({ ...formData, managerDocIds });
 
-      const updatePayload = {
+      const updatePayload: Partial<IlcEvent> = {
         title: formData.title,
         start: formData.start,
         end: formData.end,
         descriptionMarkdown: formData.description,
         location: formData.location,
-        status: formData.status,
+        status: formData.status as EventStatus,
         heroImageUrl: formData.heroImageUrl,
         heroImageLargeUrl: formData.heroImageLargeUrl,
         heroImageThumbUrl: formData.heroImageThumbUrl,
@@ -1408,37 +1408,23 @@ export class EventEditComponent implements OnInit {
       };
 
       if (this.networkState?.isOffline?.()) {
-        const changedNewState: Record<string, unknown> = {};
-        const changedOldState: Record<string, unknown> = {};
-        const changedKeys: string[] = [];
+        const diff = computeObjectDiff<IlcEvent>(eventData, updatePayload, {
+          ignoreKeys: ['docId', 'lastUpdated'],
+        });
 
-        const eventMap = eventData as Record<string, unknown>;
-        const updateMap = updatePayload as Record<string, unknown>;
-        for (const key of Object.keys(updatePayload)) {
-          if (!deepObjEq(updateMap[key], eventMap[key])) {
-            changedNewState[key] = updateMap[key];
-            changedOldState[key] = eventMap[key];
-            changedKeys.push(key);
-          }
-        }
+        const summary = formatFieldSummary(
+          diff.changedKeys,
+          `event "${formData.title || eventData.docId}"`,
+        );
 
-        const formatKey = (k: string) => {
-          const spaced = k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toLowerCase().trim();
-          return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-        };
-
-        const summary = changedKeys.length > 0
-          ? `Updated ${changedKeys.map(formatKey).join(', ')}`
-          : `Updated event "${formData.title || eventData.docId}"`;
-
-        await this.actionQueue.enqueueAction({
+        await this.actionQueue.enqueueAction<Partial<IlcEvent>>({
           kind: QueuedActionKind.UpdateEvent,
           entityDocId: eventData.docId,
           entityTitle: formData.title || eventData.docId,
           description: summary,
           collectionPath: FirestoreCollection.Events,
-          oldState: changedOldState,
-          newState: changedNewState,
+          oldState: diff.changedOldState,
+          newState: diff.changedNewState,
           baselineSnapshot: structuredClone(eventData) as unknown as Record<string, unknown>,
         });
         await this.dataService.persistEventLocally({
