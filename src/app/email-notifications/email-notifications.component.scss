@@ -1414,27 +1414,28 @@
   /* Modal Backdrop & Edit Modal */
   .modal-backdrop {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.45);
+    background: $modal-backdrop-bg;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(2px);
+    z-index: $modal-z-index;
+    backdrop-filter: $modal-backdrop-filter;
+    -webkit-backdrop-filter: $modal-backdrop-filter;
   }
 
   .edit-mail-modal {
     background: #fff;
-    border-radius: 8px;
+    border-radius: $modal-border-radius;
+    border: 1px solid $border-color-light;
     width: 90%;
     max-width: 680px;
-    max-height: 90vh;
+    max-height: $modal-max-height;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
     overflow: hidden;
 
     .modal-header {

@@ -20,6 +20,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { StripeService } from '../stripe.service';
+import { NetworkStateService } from '../network-state.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
@@ -63,8 +64,11 @@ export class NextGradingComponent {
   protected dataService = inject(DataManagerService);
   protected stripeProductsService = inject(StripeProductsService);
   protected stripeService = inject(StripeService);
+  protected networkState = inject(NetworkStateService);
   protected routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
+
+  isOffline = this.networkState.isOffline;
 
   Views = Views;
   environment = environment;

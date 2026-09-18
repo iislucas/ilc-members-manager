@@ -72,6 +72,8 @@ import { APP_VERSION } from './version';
 import { NavigationTreeService } from './navigation-tree';
 import { AppUpdateService } from './app-update.service';
 import { UpdateNotificationComponent } from './update-notification/update-notification.component';
+import { ActionQueueDialogComponent } from './action-queue-dialog/action-queue-dialog.component';
+import { ActionQueueService } from './action-queue.service';
 
 @Component({
   selector: 'app-root',
@@ -140,6 +142,7 @@ import { UpdateNotificationComponent } from './update-notification/update-notifi
     ManageProductsComponent,
     EventRegistrationsComponent,
     UpdateNotificationComponent,
+    ActionQueueDialogComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -151,6 +154,7 @@ export class App {
   public firebaseService = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   public findInstructorsService = inject(FindInstructorsService);
+  public actionQueue = inject(ActionQueueService);
   public routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
   public navTree = inject(NavigationTreeService);
@@ -166,6 +170,10 @@ export class App {
   public isLoginPage = computed(() => {
     const view = this.currentView();
     return view === Views.Login || view === Views.Home;
+  });
+
+  public isOfflineQueueOpen = computed(() => {
+    return this.actionQueue.isDialogOpen() || this.currentView() === Views.OfflineActionQueue;
   });
 
   onEventTitleLoaded(title: string) {

@@ -34,7 +34,7 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { deepObjEq, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../utils';
+import { deepObjEq, computeObjectDiff, formatFieldSummary, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../utils';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
@@ -57,6 +57,9 @@ import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
+import { NetworkStateService } from '../network-state.service';
+import { ActionQueueService, QueuedActionKind } from '../action-queue.service';
+import { FirestoreCollection } from '../../../functions/src/data-model/collections';
 
 // Fields used in the event form model.
 type EventFormModel = {
@@ -200,6 +203,8 @@ export class EventEditComponent implements OnInit {
   firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   protected productService = inject(ProductService);
+  public networkState = inject(NetworkStateService);
+  public actionQueue = inject(ActionQueueService);
 
   products = signal<Product[]>([]);
   protected readonly Views = Views;
@@ -1370,13 +1375,14 @@ export class EventEditComponent implements OnInit {
 
       const managerDocIds = formData.managerDocIds.filter((id) => Boolean(id) && id !== formData.ownerDocId);
       const contacts = contactsToSave({ ...formData, managerDocIds });
-      await updateDoc(docRef, {
+
+      const updatePayload: Partial<IlcEvent> = {
         title: formData.title,
         start: formData.start,
         end: formData.end,
         descriptionMarkdown: formData.description,
         location: formData.location,
-        status: formData.status,
+        status: formData.status as EventStatus,
         heroImageUrl: formData.heroImageUrl,
         heroImageLargeUrl: formData.heroImageLargeUrl,
         heroImageThumbUrl: formData.heroImageThumbUrl,
@@ -1399,10 +1405,43 @@ export class EventEditComponent implements OnInit {
         inPersonDetailsMarkdown: formData.inPersonDetailsMarkdown || '',
         recordedVideoId: formData.recordedVideoId || '',
         recordedVideoUrl: formData.recordedVideoUrl || '',
-        lastUpdated: serverTimestamp(),
-        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
-      });
-      this.successMessage.set('Event saved successfully.');
+      };
+
+      if (this.networkState?.isOffline?.()) {
+        const diff = computeObjectDiff<IlcEvent>(eventData, updatePayload, {
+          ignoreKeys: ['docId', 'lastUpdated'],
+        });
+
+        const summary = formatFieldSummary(
+          diff.changedKeys,
+          `event "${formData.title || eventData.docId}"`,
+        );
+
+        await this.actionQueue.enqueueAction<Partial<IlcEvent>>({
+          kind: QueuedActionKind.UpdateEvent,
+          entityDocId: eventData.docId,
+          entityTitle: formData.title || eventData.docId,
+          description: summary,
+          collectionPath: FirestoreCollection.Events,
+          oldState: diff.changedOldState,
+          newState: diff.changedNewState,
+          baselineSnapshot: structuredClone(eventData) as unknown as Record<string, unknown>,
+        });
+        await this.dataService.persistEventLocally({
+          ...eventData,
+          ...updatePayload,
+          status: updatePayload.status as EventStatus,
+          lastUpdated: new Date().toISOString(),
+        });
+        this.successMessage.set('Event saved locally (offline). It will sync automatically when back online.');
+      } else {
+        await updateDoc(docRef, {
+          ...updatePayload,
+          lastUpdated: serverTimestamp(),
+          updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+        });
+        this.successMessage.set('Event saved successfully.');
+      }
       // Mirror the persisted manager/contact lists and product fields back into the form model so
       // isDirty resets (both are normalised on the way out).
       this.eventFormModel.update((m) => ({

@@ -1,0 +1,292 @@
+<div class="modal-backdrop" (click)="close()">
+  <div class="modal-dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="queue-dialog-title">
+    <div class="modal-header">
+      <div class="header-title-group">
+        <app-icon name="pending_actions" class="header-icon"></app-icon>
+        <h3 id="queue-dialog-title">Offline Action Queue</h3>
+        @if (pendingCount() > 0) {
+          <span class="count-badge" [class.has-conflict]="conflictCount() > 0">
+            {{ pendingCount() }} pending @if (conflictCount() > 0) { ({{ conflictCount() }} conflict{{ conflictCount() === 1 ? '' : 's' }}) }
+          </span>
+        }
+      </div>
+      <button type="button" class="btn-icon close-btn" (click)="close()" aria-label="Close dialog">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      @if (isOffline()) {
+        <div class="status-callout offline-callout">
+          <app-icon name="wifi_off"></app-icon>
+          <div class="callout-text">
+            <strong>Currently Offline</strong>
+            <span>Edits are saved securely in your browser and will automatically synchronize once your connection is restored.</span>
+          </div>
+        </div>
+      }
+
+      @if (isSyncing()) {
+        <div class="status-callout syncing-callout">
+          <app-icon name="sync" class="spin-icon"></app-icon>
+          <div class="callout-text">
+            <strong>Synchronizing Changes...</strong>
+            <span>Checking records and writing updates to the server.</span>
+          </div>
+        </div>
+      }
+
+      @if (actions().length === 0) {
+        <div class="empty-state">
+          <app-icon name="check_circle" class="empty-icon"></app-icon>
+          <h4>Queue is empty</h4>
+          <p>All your local edits are in sync with the database. You have no pending offline actions.</p>
+        </div>
+      } @else {
+        <div class="actions-list">
+          @for (action of actions(); track action.id) {
+            <div class="action-card" [class.is-conflict]="action.status === ActionStatus.Conflict" [class.is-failed]="action.status === ActionStatus.Failed">
+              <div class="card-header">
+                <div class="card-title-group">
+                  <span class="entity-kind-chip">{{ action.collectionPath }}</span>
+                  <strong class="entity-title">{{ action.entityTitle }}</strong>
+                </div>
+                <div class="card-badges">
+                  <span class="status-chip" [class]="'status-' + action.status">
+                    @switch (action.status) {
+                      @case (ActionStatus.Conflict) {
+                        <app-icon name="warning"></app-icon>
+                        <span>Conflict</span>
+                      }
+                      @case (ActionStatus.Syncing) {
+                        <app-icon name="sync" class="spin-icon"></app-icon>
+                        <span>Syncing</span>
+                      }
+                      @case (ActionStatus.Failed) {
+                        <app-icon name="warning"></app-icon>
+                        <span>Failed</span>
+                      }
+                      @default {
+                        <span>Pending</span>
+                      }
+                    }
+                  </span>
+                </div>
+              </div>
+
+              <div class="card-body">
+                <div class="action-desc-row">
+                  <span class="action-desc">{{ action.description }}</span>
+                  <span class="action-time">{{ formatTimestamp(action.timestamp) }}</span>
+                </div>
+
+                @if (action.status === ActionStatus.Conflict && action.conflictDetails; as conflict) {
+                  <div class="conflict-resolution-box">
+                    <div class="conflict-alert-title">
+                      <app-icon name="warning"></app-icon>
+                      <span>This record was modified on the server while you were offline.</span>
+                    </div>
+
+                    <div class="conflict-table-container">
+                      <table class="conflict-table">
+                        <thead>
+                          <tr>
+                            <th>Field</th>
+                            <th>Your Offline Value</th>
+                            <th>Server Current Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (key of conflict.conflictingKeys; track key) {
+                            <tr>
+                              <td class="field-name">
+                                <div class="field-label-box">
+                                  <span class="field-human-label">{{ formatFieldLabel(key) }}</span>
+                                  <code class="field-code-key">{{ key }}</code>
+                                </div>
+                              </td>
+                              <td class="local-val">
+                                <ng-container *ngTemplateOutlet="renderVal; context: { $implicit: action.newState[key], key: key, isDiff: true }"></ng-container>
+                              </td>
+                              <td class="remote-val">
+                                <ng-container *ngTemplateOutlet="renderVal; context: { $implicit: conflict.remoteState[key], key: key, isDiff: false }"></ng-container>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div class="conflict-actions">
+                      <button
+                        type="button"
+                        class="btn-action btn-keep-local"
+                        (click)="resolveConflict(action.id, ConflictResolution.ForceLocal)"
+                        title="Overwrite server with your local offline version"
+                      >
+                        <app-icon name="check"></app-icon>
+                        <span>Keep My Edits (Overwrite Server)</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-action btn-accept-remote"
+                        (click)="resolveConflict(action.id, ConflictResolution.AcceptRemote)"
+                        title="Discard offline edits and use server version"
+                      >
+                        <app-icon name="undo"></app-icon>
+                        <span>Discard My Edits (Keep Server)</span>
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  @let changedKeys = getChangedKeys(action);
+                  @if (changedKeys.length > 0) {
+                    <div class="diff-section">
+                      <button
+                        type="button"
+                        class="btn-toggle-diff"
+                        (click)="toggleExpanded(action.id)"
+                      >
+                        <app-icon [name]="isExpanded(action.id) ? 'expand_less' : 'expand_more'"></app-icon>
+                        <span>{{ isExpanded(action.id) ? 'Hide changes' : 'View ' + changedKeys.length + ' changed field' + (changedKeys.length === 1 ? '' : 's') }}</span>
+                      </button>
+
+                      @if (isExpanded(action.id)) {
+                        <div class="diff-table-container">
+                          <table class="diff-table">
+                            <thead>
+                              <tr>
+                                <th>Field</th>
+                                <th>Original</th>
+                                <th>New (Offline)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (key of changedKeys; track key) {
+                                <tr>
+                                  <td class="field-name">
+                                    <div class="field-label-box">
+                                      <span class="field-human-label">{{ formatFieldLabel(key) }}</span>
+                                      <code class="field-code-key">{{ key }}</code>
+                                    </div>
+                                  </td>
+                                  <td class="old-val">
+                                    <ng-container *ngTemplateOutlet="renderVal; context: { $implicit: action.oldState[key], key: key, isDiff: false }"></ng-container>
+                                  </td>
+                                  <td class="new-val">
+                                    <ng-container *ngTemplateOutlet="renderVal; context: { $implicit: action.newState[key], key: key, isDiff: true }"></ng-container>
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      }
+                    </div>
+                  }
+
+                  @if (action.status === ActionStatus.Failed && action.errorMessage) {
+                    <div class="error-msg-box">
+                      <app-icon name="warning"></app-icon>
+                      <span>{{ action.errorMessage }}</span>
+                    </div>
+                  }
+
+                  <div class="card-actions">
+                    <button
+                      type="button"
+                      class="btn-discard"
+                      (click)="discard(action)"
+                      title="Remove this edit from the sync queue"
+                    >
+                      <app-icon name="delete"></app-icon>
+                      <span>Discard Edit</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <div class="footer-left">
+        @if (actions().length > 0) {
+          <button
+            type="button"
+            class="btn-secondary btn-clear-all"
+            (click)="clearAll()"
+            [disabled]="isSyncing()"
+          >
+            <app-icon name="delete"></app-icon>
+            <span>Discard All</span>
+          </button>
+        }
+      </div>
+
+      <div class="footer-right">
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="close()"
+        >
+          Close
+        </button>
+
+        @if (actions().length > 0) {
+          <button
+            type="button"
+            class="btn-primary"
+            (click)="syncNow()"
+            [disabled]="isOffline() || isSyncing()"
+          >
+            <app-icon name="sync" [class.spin-icon]="isSyncing()"></app-icon>
+            <span>{{ isSyncing() ? 'Syncing...' : 'Sync Now' }}</span>
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<ng-template #renderVal let-val let-key="key" let-isDiff="isDiff">
+  @if (isEmpty(val)) {
+    <span class="data-val-empty">—</span>
+  } @else if (isBoolean(val)) {
+    <span class="data-val-badge" [class.is-true]="val" [class.is-false]="!val">{{ val ? 'Yes' : 'No' }}</span>
+  } @else if (isTagList(val)) {
+    <div class="data-val-tags">
+      @for (tag of asTagList(val); track tag) {
+        <span class="data-tag-chip">{{ tag }}</span>
+      }
+    </div>
+  } @else if (isMultiline(key, val)) {
+    <div class="data-val-multiline">{{ val }}</div>
+  } @else if (isDate(key, val)) {
+    <span class="data-val-date">{{ formatDate(val) }}</span>
+  } @else if (isContactsList(val)) {
+    <div class="data-val-contacts">
+      @for (c of asContacts(val); track $index) {
+        <div class="contact-item">
+          <span class="contact-name">{{ c.name }}</span>
+          @if (c.details) {
+            <span class="contact-details">{{ c.details }}</span>
+          }
+        </div>
+      }
+    </div>
+  } @else if (isObject(val)) {
+    <div class="data-val-keyvals">
+      @for (item of asObjectEntries(val); track item.key) {
+        <div class="kv-row">
+          <span class="kv-key">{{ formatFieldLabel(item.key) }}:</span>
+          <span class="kv-val">{{ item.value }}</span>
+        </div>
+      }
+    </div>
+  } @else {
+    <span class="data-val-text">{{ formatPrimitive(val) }}</span>
+  }
+</ng-template>

@@ -11,6 +11,8 @@ import { IlcEvent, EventStatus, initProduct } from '../../../functions/src/data-
 import { updateDoc } from 'firebase/firestore';
 import { SearchableSet } from '../searchable-set';
 import { provideNavigationTreeStub } from '../navigation-tree.testing';
+import { NetworkStateService } from '../network-state.service';
+import { ActionQueueService, QueuedActionKind } from '../action-queue.service';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
@@ -761,5 +763,35 @@ describe('EventEditComponent', () => {
 
     expect(component.userIsAdmin()).toBe(true);
     expect(fixture.nativeElement.textContent).toContain('Online Registration & Payment (HQ) (optional, Admin only)');
+  });
+
+  it('saves offline event edit to action queue with baselineSnapshot and calls persistEventLocally', async () => {
+    const netState = TestBed.inject(NetworkStateService);
+    vi.spyOn(netState, 'isOffline').mockReturnValue(true);
+
+    const actionQueue = TestBed.inject(ActionQueueService);
+    const enqueueSpy = vi.spyOn(actionQueue, 'enqueueAction');
+
+    await renderEvent({
+      docId: 'test-event-offline',
+      title: 'Original Title',
+    });
+
+    component.eventFormModel.update((m) => ({ ...m, title: 'Updated Title Offline' }));
+    await component.saveEvent(new Event('submit'));
+
+    expect(enqueueSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: QueuedActionKind.UpdateEvent,
+        entityDocId: 'test-event-offline',
+        baselineSnapshot: expect.objectContaining({ title: 'Original Title' }),
+      }),
+    );
+    expect(mockDataManagerService.persistEventLocally).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Updated Title Offline',
+      }),
+    );
+    expect(component.successMessage()).toContain('Event saved locally (offline)');
   });
 });

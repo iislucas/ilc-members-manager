@@ -24,6 +24,7 @@ import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';
 import { StripeService } from '../stripe.service';
+import { NetworkStateService } from '../network-state.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
@@ -65,7 +66,10 @@ export class ProductViewComponent implements OnInit {
   protected dataService = inject(DataManagerService);
   protected productService = inject(ProductService);
   protected stripeService = inject(StripeService);
+  protected networkState = inject(NetworkStateService);
   protected readonly Views = Views;
+
+  isOffline = this.networkState.isOffline;
 
   eventId = input<string>('');
   productId = input<string>('');

@@ -577,7 +577,8 @@
           <button
             type="button"
             class="primary-btn submit-btn"
-            [disabled]="fileEntries().length === 0 || isProcessing() || allDone()"
+            [disabled]="fileEntries().length === 0 || isProcessing() || allDone() || isOffline()"
+            [title]="isOffline() ? 'Uploading requires an active internet connection' : ''"
             (click)="startUploadAndTranscode()"
           >
             @if (isProcessing()) {

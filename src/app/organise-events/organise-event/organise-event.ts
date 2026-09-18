@@ -20,6 +20,8 @@ import { ProductEditComponent } from '../../product-edit/product-edit';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
+import { NetworkStateService } from '../../network-state.service';
+
 @Component({
   selector: 'app-organise-event',
   standalone: true,
@@ -33,8 +35,10 @@ export class ProposeEventComponent {
   protected membersService = inject(DataManagerService);
   protected productService = inject(ProductService);
   private firebaseApp = inject(FIREBASE_APP);
+  private networkState = inject(NetworkStateService);
   protected readonly Views = Views;
 
+  isOffline = this.networkState.isOffline;
   userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin ?? false);
   EventStatus = EventStatus;
   eventStatusLabel = eventStatusLabel;

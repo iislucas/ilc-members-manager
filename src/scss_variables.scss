@@ -56,9 +56,18 @@ $button-border-color: #27272a;
 $button-text-color: #18181b;
 $button-hover-bg-color: #e4e4e7;
 $button-active-bg-color: #d4d4d8;
-$shadow-color: rgba(0, 0, 0, 0.08);
-$shadow-color-hover: rgba(0, 0, 0, 0.14);
-$shadow-color-active: rgba(0, 0, 0, 0.2);
+$shadow-color: transparent;
+$shadow-color-hover: transparent;
+$shadow-color-active: transparent;
+
+// ============================================================================
+//  Modal & Backdrop System
+// ============================================================================
+$modal-backdrop-bg: rgba(0, 0, 0, 0.55);
+$modal-backdrop-filter: blur(2px);
+$modal-z-index: 1050;
+$modal-border-radius: 12px;
+$modal-max-height: 90vh;
 
 // ============================================================================
 //  Chip Colors

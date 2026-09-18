@@ -1,12 +1,27 @@
 @use "../../scss_variables" as *;
 @use "../../styles" as *;
 
+:host {
+  display: block;
+}
+
+.header-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5em;
+
+  &.has-top-tabs,
+  &.is-home {
+    margin-bottom: 0;
+  }
+}
+
 .nav-bar {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5em;
+  margin-bottom: 0;
   flex-grow: 0;
   position: relative;
   z-index: 100;
@@ -17,11 +32,6 @@
   color: $header-text-color;
   border-bottom: 3px solid $header-border-color;
   padding: 0.5em 0.5em;
-
-  &.has-top-tabs,
-  &.is-home {
-    margin-bottom: 0;
-  }
 
   .title {
     font-size: large;
@@ -269,4 +279,87 @@
   border-radius: 50%;
   object-fit: contain;
   display: block;
+}
+
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.nav-network-badge {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 16px;
+  color: #ffffff;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: none !important;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  white-space: nowrap;
+
+  @media (max-width: 600px) {
+    padding: 3px 6px;
+    font-size: 0.72rem;
+    gap: 4px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: #ffffff;
+  }
+
+  &.is-offline {
+    background: rgba(214, 158, 46, 0.28);
+    border-color: #d69e2e;
+    color: #fefcbf;
+
+    &:hover {
+      background: rgba(214, 158, 46, 0.45);
+    }
+  }
+
+  &.is-conflict {
+    background: rgba(229, 62, 62, 0.35);
+    border-color: #feb2b2;
+    color: #fff5f5;
+
+    &:hover {
+      background: rgba(229, 62, 62, 0.5);
+    }
+  }
+
+  &.is-reconnecting {
+    background: rgba(66, 153, 225, 0.3);
+    border-color: #bee3f8;
+    color: #ebf8ff;
+
+    &:hover {
+      background: rgba(66, 153, 225, 0.45);
+    }
+  }
+
+  .badge-text {
+    line-height: 1;
+  }
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

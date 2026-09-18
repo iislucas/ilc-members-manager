@@ -267,6 +267,8 @@
                       <button
                         type="button"
                         class="button pay-btn"
+                        [disabled]="isOffline()"
+                        [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                         (click)="onSubscribeVideoLibrary()"
                       >
                         <span>Subscribe via Members Portal</span>
@@ -385,6 +387,8 @@
                 <button
                   type="button"
                   class="button pay-btn"
+                  [disabled]="isOffline()"
+                  [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="onSubscribeVideoLibrary()"
                 >
                   <span>{{ hasVideoAccess() ? 'Extend / Renew Subscription' : 'Subscribe Now' }}</span>

@@ -8,6 +8,9 @@ import { AppPathPatterns } from '../app.config';
 
 import { NavigationTreeService } from '../navigation-tree';
 import { FirebaseStateService } from '../firebase-state.service';
+import { NetworkStateService } from '../network-state.service';
+import { ActionQueueService } from '../action-queue.service';
+import { OfflineBannerComponent } from '../offline-banner/offline-banner.component';
 import { Views } from '../app.config';
 
 export interface Breadcrumb {
@@ -26,6 +29,7 @@ export interface Breadcrumb {
     IconComponent,
     NavigationMenuComponent,
     ProfileMenuComponent,
+    OfflineBannerComponent,
   ],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
@@ -34,6 +38,8 @@ export class HeaderComponent {
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   navTree = inject(NavigationTreeService);
   firebaseService = inject(FirebaseStateService);
+  networkState = inject(NetworkStateService);
+  actionQueue = inject(ActionQueueService);
 
   breadcrumbs = input<Breadcrumb[]>([]);
   abbreviateParents = input<boolean>(true);
@@ -47,8 +53,10 @@ export class HeaderComponent {
   hasParentCrumbs = computed(() => this.breadcrumbs().length > 1);
   displayParentCrumbs = signal<Breadcrumb[]>([]);
 
+  queueHref = computed(() => this.routingService.hrefForView(Views.OfflineActionQueue));
+
   constructor() {
-    let timeoutId: any = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     effect(() => {
       const crumbs = this.breadcrumbs();
       if (crumbs.length > 1) {
@@ -82,6 +90,24 @@ export class HeaderComponent {
     if (view === Views.EmailNotifications) return true;
     return false;
   });
+
+  badgeTooltip = computed(() => {
+    if (this.actionQueue.conflictCount() > 0) {
+      return 'Conflicts detected with server changes. Click to review.';
+    }
+    if (this.networkState.isReconnecting() || this.actionQueue.isSyncing()) {
+      return 'Reconnecting to network and synchronizing edits...';
+    }
+    if (this.networkState.isOffline()) {
+      const count = this.actionQueue.pendingCount();
+      return `You are currently offline.${count > 0 ? ` ${count} edit(s) queued.` : ''} Click to view action queue.`;
+    }
+    return `${this.actionQueue.pendingCount()} edit(s) queued for sync. Click to view.`;
+  });
+
+  openActionQueue(): void {
+    this.actionQueue.openDialog();
+  }
 
   // Encodes the current URL (path + query params, without the leading slash)
   // for use as a returnUrl parameter on the login page.

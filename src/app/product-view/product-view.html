@@ -604,8 +604,9 @@
                   type="button"
                   class="checkout-btn primary-button"
                   [disabled]="
-                    !isTierAvailable() || !attendeeName() || !attendeeEmail()
+                    !isTierAvailable() || !attendeeName() || !attendeeEmail() || isOffline()
                   "
+                  [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="proceedToCheckout()"
                 >
                   <app-icon name="lock"></app-icon>
@@ -644,8 +645,9 @@
                   type="button"
                   class="checkout-btn primary-button"
                   [disabled]="
-                    !isTierAvailable() || !attendeeName() || !attendeeEmail()
+                    !isTierAvailable() || !attendeeName() || !attendeeEmail() || isOffline()
                   "
+                  [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="proceedToCheckout()"
                 >
                   <app-icon name="lock"></app-icon>

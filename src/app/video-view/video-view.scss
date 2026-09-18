@@ -1701,9 +1701,10 @@
 .gift-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
+  z-index: v.$modal-z-index;
+  background: v.$modal-backdrop-bg;
+  backdrop-filter: v.$modal-backdrop-filter;
+  -webkit-backdrop-filter: v.$modal-backdrop-filter;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1712,10 +1713,11 @@
 
   .gift-modal-card {
     background: white;
-    border-radius: 12px;
+    border-radius: v.$modal-border-radius;
+    border: 1px solid v.$border-color-light;
     max-width: 520px;
     width: 100%;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    box-shadow: none;
     display: flex;
     flex-direction: column;
     overflow: hidden;

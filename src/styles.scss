@@ -86,8 +86,8 @@ a.button,
 
   // Interaction
   cursor: pointer;
-  // A subtle shadow for a "raised" Material Design effect.
-  box-shadow: 0 2px 4px $shadow-color;
+  // Clean flat design: no drop-shadows on buttons
+  box-shadow: none;
   // Smooth transitions for hover and active states.
   transition: all 0.2s ease-in-out;
 
@@ -138,9 +138,9 @@ a.button,
 button:hover,
 a.button:hover,
 .button:hover {
-  // On hover, slightly darken the background and increase the shadow for a "lift" effect.
+  // On hover, slightly darken the background for a flat interactive effect.
   background-color: $button-hover-bg-color;
-  box-shadow: 0 4px 8px $shadow-color-hover;
+  box-shadow: none;
   color: $button-text-color;
   text-decoration: none;
 }
@@ -149,9 +149,9 @@ button:active,
 a.button:active,
 .button:active {
   // When pressed, simulate a "push" effect by moving the button down slightly.
-  transform: translateY(2px);
+  transform: translateY(1px);
   background-color: $button-active-bg-color;
-  box-shadow: 0 1px 2px $shadow-color-active;
+  box-shadow: none;
 }
 
 button:disabled,
@@ -314,18 +314,18 @@ button.primary-button {
   border: 1px solid $heading-accent-color;
   color: #ffffff;
   font-weight: bold;
-  box-shadow: 0 2px 4px $shadow-color;
+  box-shadow: none;
 
   &:hover {
     background-color: color.adjust($heading-accent-color, $lightness: -8%);
     border-color: color.adjust($heading-accent-color, $lightness: -8%);
-    box-shadow: 0 4px 8px $shadow-color-hover;
+    box-shadow: none;
     color: #ffffff;
   }
 
   &:active {
     background-color: color.adjust($heading-accent-color, $lightness: -12%);
-    box-shadow: 0 1px 2px $shadow-color-active;
+    box-shadow: none;
     color: #ffffff;
   }
 
@@ -1468,4 +1468,82 @@ button.menu-item {
   font-size: 0.88em;
   color: $text-muted;
   line-height: 1.4;
+}
+
+// ============================================================================
+//  Centralized Modal & Backdrop System
+// ============================================================================
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: $modal-backdrop-bg;
+  backdrop-filter: $modal-backdrop-filter;
+  -webkit-backdrop-filter: $modal-backdrop-filter;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: $modal-z-index;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.modal-dialog {
+  background: #ffffff;
+  border-radius: $modal-border-radius;
+  border: 1px solid $border-color-light;
+  width: 100%;
+  max-width: 680px;
+  max-height: $modal-max-height;
+  display: flex;
+  flex-direction: column;
+  box-shadow: none; // Strictly flat, clean design
+  overflow: hidden;
+  animation: modalFadeIn 0.2s ease-out;
+  box-sizing: border-box;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid $border-color-light;
+  background: #fdfdfd;
+  flex-shrink: 0;
+
+  h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.modal-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid $border-color-light;
+  background: #fdfdfd;
+  flex-shrink: 0;
 }

@@ -784,6 +784,8 @@ export class NavigationTreeService {
         return 'Video Tags';
       case Views.Login:
         return 'Welcome';
+      case Views.OfflineActionQueue:
+        return 'Offline Action Queue';
       case Views.NewMember:
         return 'New Member';
       case Views.MyStudentView: {

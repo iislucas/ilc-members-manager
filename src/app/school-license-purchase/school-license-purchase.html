@@ -461,7 +461,8 @@
                 <button
                   type="button"
                   class="button pay-btn"
-                  [disabled]="!schoolDetailsComplete()"
+                  [disabled]="!schoolDetailsComplete() || isOffline()"
+                  [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="onPurchaseSchoolLicense()"
                 >
                   <span>

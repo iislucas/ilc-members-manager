@@ -205,8 +205,8 @@ The shared `edit-form.scss` uses a two-column grid for label/input pairs:
 ### Buttons
 
 All `<button>` elements are globally styled in `styles.scss`. **Do not re-style buttons in component SCSS** — use the existing variant classes instead:
-- Base style: `$button-bg-color` background, `$shadow-color` shadow, hover lift + press push transitions
-- Disabled: reduced opacity, no shadow
+- Base style: `$button-bg-color` background, clean 1px border, flat design (`box-shadow: none`), smooth color transitions on hover/press
+- Disabled: reduced opacity, no interaction
 
 **Use these existing variant classes** (all defined in `styles.scss`):
 
@@ -223,10 +223,8 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 | `.admin-button` | Transparent button with dashed red border | Administrative operation triggers (e.g. Create Article, toggle admin actions) |
 
 > [!IMPORTANT]
-> If you find yourself writing `background-color`, `border`, `box-shadow`, or `border-radius` for a button in a component SCSS file, **stop** — you almost certainly should be using one of the above global classes instead.
->
-> **Avoid the Drop-Shadow Trap on `<button>` elements**:
-> The global `button` selector in `styles.scss` applies `box-shadow: 0 2px 4px $shadow-color;` by default. If you create a `<button>` without an existing variant class (or with a custom component class), it will inherit this raised drop-shadow.
+> **NO DROP-SHADOWS ON BUTTONS (FLAT DESIGN)**:
+> The app enforces a modern, flat aesthetic across all buttons (`box-shadow: none`). Never add `box-shadow` or faux 3D bevels to buttons in component SCSS. Buttons rely on crisp borders, high-contrast typography, and subtle background color transitions for hover/active states.
 > - For **primary positive action CTAs (e.g. Register, Checkout, Pay)**: Use `.primary-button` (`background: $heading-accent-color` `#950000`, white text, bold, with hover `color.adjust($heading-accent-color, $lightness: -8%)`).
 > - For **inline text triggers, expand/collapse toggles, "Show more" / "Show less" / "Fold" actions**: Always use `.inline-link-button` (plain text link style with no border, no background, and `box-shadow: none`).
 > - For **secondary toolbar or navigation actions**: Use `.subtle-button` (`box-shadow: none; border: 1px solid transparent;`).
@@ -279,7 +277,7 @@ External links include: `https://...`, `mailto:`, `tel:`, download URLs, and lin
 
 #### Internal links (navigate within the app)
 
-These use `#/...` hash-based routes. Always apply a button-style class, or use `.inline-link-button` (black underline) for inline text references:
+These use standard HTML5 path-based routes (e.g. `/members`, `/offline-queue`, `/events`). Always apply a button-style class, or use `.inline-link-button` (black underline) for inline text references:
 
 ```html
 <!-- Back / navigation link -->
@@ -288,12 +286,12 @@ These use `#/...` hash-based routes. Always apply a button-style class, or use `
 </a>
 
 <!-- Inline icon link (e.g. "view profile" button) -->
-<a class="icon-only-button" [href]="'#/members/' + docId" title="View profile">
+<a class="icon-only-button" [href]="'/members/' + docId" title="View profile">
   <app-icon name="visibility" />
 </a>
 
 <!-- Inline text reference in a sentence (black underline, NOT blue) -->
-<a class="inline-link-button" href="#/members/{{ docId }}">{{ name }}</a>
+<a class="inline-link-button" [href]="'/members/' + docId">{{ name }}</a>
 
 <!-- Card-as-link (list rows) -->
 <a class="member-card selectable-card" [href]="memberLink(member)">

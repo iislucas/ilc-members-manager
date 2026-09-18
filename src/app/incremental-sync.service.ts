@@ -219,8 +219,12 @@ export class IncrementalSyncService {
         lastSyncTimestamp: maxLastUpdated,
       });
     } catch (err: unknown) {
-      console.error(`[IncrementalSync] Failed syncing ${collectionPath}:`, err);
-      targetSet.setError(err instanceof Error ? err.message : String(err));
+      console.warn(`[IncrementalSync] Network error syncing ${collectionPath}:`, err);
+      if (targetSet.entries().length > 0) {
+        console.log(`[IncrementalSync] Retaining ${targetSet.entries().length} cached entries for ${collectionPath} during offline mode.`);
+      } else {
+        targetSet.setError(err instanceof Error ? err.message : String(err));
+      }
     }
   }
 

@@ -1320,28 +1320,28 @@
 // Modal Dialog
 .modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: v.$modal-backdrop-bg;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: v.$modal-z-index;
   padding: 16px;
+  backdrop-filter: v.$modal-backdrop-filter;
+  -webkit-backdrop-filter: v.$modal-backdrop-filter;
 }
 
 .modal-dialog {
   background: white;
-  border-radius: 8px;
+  border-radius: v.$modal-border-radius;
+  border: 1px solid v.$border-color-light;
   width: 100%;
   max-width: 580px;
-  max-height: 90vh;
+  max-height: v.$modal-max-height;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
 
   .modal-header {
     display: flex;

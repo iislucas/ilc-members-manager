@@ -27,6 +27,9 @@
            previously in both the logged-in and logged-out branches, eliminating
            the visible "re-load" flash when the user auto-logs in. -->
       @switch (currentView()) {
+        @case (Views.OfflineActionQueue) {
+          <div></div>
+        }
         @case (Views.FindAnInstructor) {
           @defer (prefetch on idle) {
             <app-find-an-instructor></app-find-an-instructor>
@@ -1057,4 +1060,8 @@
   </button>
 } @else {
   <span class="version-badge" [title]="'Build: ' + appVersion">v{{ appVersion }}</span>
+}
+
+@if (isOfflineQueueOpen()) {
+  <app-action-queue-dialog (closed)="actionQueue.closeDialog()"></app-action-queue-dialog>
 }
