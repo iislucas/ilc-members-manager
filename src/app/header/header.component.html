@@ -1,72 +1,104 @@
-<div class="nav-bar" [class.has-top-tabs]="hasTopTabs() && (isLoggedIn() || isPublicPage())" [class.is-home]="isHome() && isLoggedIn()" [class.logged-out]="!isLoggedIn() && !isPublicPage()">
-  <div class="title-and-menu">
-    @if (!isLoggedIn() && !isPublicPage()) {
-      <div class="header-logo-container">
-        <img src="/ilc.svg" alt="ILC Logo" class="header-logo" />
-      </div>
-    } @else if (isHome()) {
-      @if (isLoggedIn()) {
-        <div class="menu-anchor">
-          <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())" title="Navigation menu">
-            <app-icon name="menu" width="1.4em" height="1.4em" fill="white"></app-icon>
-          </button>
-          @if (menuOpen()) {
-            <app-navigation-menu
-              (closeMenu)="menuOpen.set(false)"
-            ></app-navigation-menu>
-          }
+<div class="header-container" [class.has-top-tabs]="hasTopTabs() && (isLoggedIn() || isPublicPage())" [class.is-home]="isHome() && isLoggedIn()">
+  <div class="nav-bar" [class.has-top-tabs]="hasTopTabs() && (isLoggedIn() || isPublicPage())" [class.is-home]="isHome() && isLoggedIn()" [class.logged-out]="!isLoggedIn() && !isPublicPage()">
+    <div class="title-and-menu">
+      @if (!isLoggedIn() && !isPublicPage()) {
+        <div class="header-logo-container">
+          <img src="/ilc.svg" alt="ILC Logo" class="header-logo" />
         </div>
+      } @else if (isHome()) {
+        @if (isLoggedIn()) {
+          <div class="menu-anchor">
+            <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())" title="Navigation menu">
+              <app-icon name="menu" width="1.4em" height="1.4em" fill="white"></app-icon>
+            </button>
+            @if (menuOpen()) {
+              <app-navigation-menu
+                (closeMenu)="menuOpen.set(false)"
+              ></app-navigation-menu>
+            }
+          </div>
+        }
+      } @else if (isLoggedIn() || isPublicPage()) {
+        @if (upNode(); as up) {
+          <a
+            class="icon-only-button header-back-btn"
+            [href]="up.url"
+            [title]="'Back to ' + up.label"
+          >
+            <app-icon name="arrow_back" width="1.4em" height="1.4em" fill="white"></app-icon>
+          </a>
+        }
       }
-    } @else if (isLoggedIn() || isPublicPage()) {
-      @if (upNode(); as up) {
+
+      <div class="title-container">
+        <div class="breadcrumbs-accordion" [class.open]="hasParentCrumbs()">
+          <div class="breadcrumbs-inner">
+            @if (displayParentCrumbs().length > 0) {
+              <div class="breadcrumb-parents">
+                @for (crumb of displayParentCrumbs(); track $index) {
+                  <span class="crumb">
+                    @let text =
+                      abbreviateParents()
+                        ? crumb.shortLabel || crumb.label
+                        : crumb.label;
+                    @if (crumb.url) {
+                      <a [href]="crumb.url" class="crumb-link" [title]="crumb.label">{{ text }}</a>
+                    } @else {
+                      <span class="crumb-label">{{ text }}</span>
+                    }
+                    <span class="crumb-separator">&gt;</span>
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+        @if (breadcrumbs().length > 0) {
+          @let lastCrumb = breadcrumbs()[breadcrumbs().length - 1];
+          <div class="title current-page-title" [class.doc-id]="lastCrumb.label.includes('doc:')">
+            @if (lastCrumb.isLoading) {
+              <div class="loading-slider"></div>
+            } @else {
+              {{ lastCrumb.label }}
+            }
+          </div>
+        }
+      </div>
+    </div>
+    <div class="header-right-actions">
+      @if (networkState.isOffline() || networkState.isReconnecting() || actionQueue.isSyncing() || actionQueue.conflictCount() > 0 || actionQueue.pendingCount() > 0) {
         <a
-          class="icon-only-button header-back-btn"
-          [href]="up.url"
-          [title]="'Back to ' + up.label"
+          class="nav-network-badge"
+          [href]="queueHref()"
+          [class.is-offline]="networkState.isOffline()"
+          [class.is-conflict]="actionQueue.conflictCount() > 0"
+          [class.is-reconnecting]="networkState.isReconnecting() || actionQueue.isSyncing()"
+          (click)="openActionQueue()"
+          [title]="badgeTooltip()"
+          aria-label="Network and offline action queue status"
         >
-          <app-icon name="arrow_back" width="1.4em" height="1.4em" fill="white"></app-icon>
+          @if (actionQueue.conflictCount() > 0) {
+            <app-icon name="warning" width="1.1em" height="1.1em"></app-icon>
+            <span class="badge-text">{{ actionQueue.conflictCount() }} conflict{{ actionQueue.conflictCount() === 1 ? '' : 's' }}</span>
+          } @else if (networkState.isReconnecting() || actionQueue.isSyncing()) {
+            <app-icon name="sync" class="spin-icon" width="1.1em" height="1.1em"></app-icon>
+            <span class="badge-text">{{ actionQueue.isSyncing() ? 'Syncing...' : 'Reconnecting...' }}</span>
+          } @else if (networkState.isOffline()) {
+            <app-icon name="wifi_off" width="1.1em" height="1.1em"></app-icon>
+            <span class="badge-text">Offline @if (actionQueue.pendingCount() > 0) { ({{ actionQueue.pendingCount() }}) }</span>
+          } @else {
+            <app-icon name="pending_actions" width="1.1em" height="1.1em"></app-icon>
+            <span class="badge-text">{{ actionQueue.pendingCount() }} queued</span>
+          }
         </a>
       }
-    }
 
-    <div class="title-container">
-      <div class="breadcrumbs-accordion" [class.open]="hasParentCrumbs()">
-        <div class="breadcrumbs-inner">
-          @if (displayParentCrumbs().length > 0) {
-            <div class="breadcrumb-parents">
-              @for (crumb of displayParentCrumbs(); track $index) {
-                <span class="crumb">
-                  @let text =
-                    abbreviateParents()
-                      ? crumb.shortLabel || crumb.label
-                      : crumb.label;
-                  @if (crumb.url) {
-                    <a [href]="crumb.url" class="crumb-link" [title]="crumb.label">{{ text }}</a>
-                  } @else {
-                    <span class="crumb-label">{{ text }}</span>
-                  }
-                  <span class="crumb-separator">&gt;</span>
-                </span>
-              }
-            </div>
-          }
-        </div>
-      </div>
-      @if (breadcrumbs().length > 0) {
-        @let lastCrumb = breadcrumbs()[breadcrumbs().length - 1];
-        <div class="title current-page-title" [class.doc-id]="lastCrumb.label.includes('doc:')">
-          @if (lastCrumb.isLoading) {
-            <div class="loading-slider"></div>
-          } @else {
-            {{ lastCrumb.label }}
-          }
-        </div>
+      @if (isLoggedIn()) {
+        <app-profile-menu></app-profile-menu>
+      } @else if (isPublicPage()) {
+        <a class="nav-sign-in-link" [href]="'/login?returnUrl=' + encodeCurrentUrl()">Sign In</a>
       }
     </div>
   </div>
-  @if (isLoggedIn()) {
-    <app-profile-menu></app-profile-menu>
-  } @else if (isPublicPage()) {
-    <a class="nav-sign-in-link" [href]="'/login?returnUrl=' + encodeCurrentUrl()">Sign In</a>
-  }
+  <app-offline-banner></app-offline-banner>
 </div>

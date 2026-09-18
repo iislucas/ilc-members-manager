@@ -832,21 +832,24 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: v.$modal-backdrop-bg;
+  backdrop-filter: v.$modal-backdrop-filter;
+  -webkit-backdrop-filter: v.$modal-backdrop-filter;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: v.$modal-z-index;
   padding: 16px;
 }
 
 .modal-dialog,
 .modal-card {
   background: white;
-  border-radius: 8px;
+  border-radius: v.$modal-border-radius;
+  border: 1px solid v.$border-color-light;
   width: 100%;
   max-width: 520px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;

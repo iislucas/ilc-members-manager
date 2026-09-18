@@ -1,0 +1,212 @@
+@use "sass:color";
+@use "../../scss_variables.scss" as v;
+@use "../../styles" as *;
+
+.offline-banner {
+  position: relative;
+  width: 100%;
+  background: #fff9db;
+  color: #744210;
+  border-bottom: 1px solid #f6e05e;
+  font-size: 0.88rem;
+  z-index: 99;
+  animation: bannerSlideDown 0.25s ease-out;
+
+  &.is-reconnecting {
+    background: #ebf8ff;
+    color: #2b6cb0;
+    border-bottom-color: #bee3f8;
+  }
+
+  &.is-conflict {
+    background: #fff5f5;
+    color: #c53030;
+    border-bottom-color: #feb2b2;
+  }
+}
+
+@keyframes bannerSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.banner-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: rgba(43, 108, 176, 0.2);
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -40%;
+    width: 40%;
+    height: 100%;
+    background-color: #3182ce;
+    animation: indeterminateSlider 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes indeterminateSlider {
+  0% {
+    left: -40%;
+  }
+  50% {
+    left: 40%;
+    width: 60%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
+  }
+}
+
+.banner-content {
+  max-width: v.$max-main-width;
+  margin: 0 auto;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  @media (max-width: 768px) {
+    padding: 8px 12px;
+  }
+}
+
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 300px;
+
+  .status-icon {
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+
+    &.offline-icon {
+      color: #d69e2e;
+    }
+
+    &.conflict-icon {
+      color: #e53e3e;
+    }
+  }
+
+  .banner-message {
+    font-weight: 500;
+    line-height: 1.35;
+  }
+}
+
+.banner-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.banner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: none !important;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &.btn-queue {
+    background: rgba(0, 0, 0, 0.06);
+    color: inherit;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: none !important;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    app-icon {
+      font-size: 1rem;
+    }
+  }
+
+  &.btn-retry {
+    background: #ffffff;
+    color: #4a5568;
+    border: 1px solid #cbd5e0;
+    box-shadow: none !important;
+
+    &:hover:not(:disabled) {
+      background: #f7fafc;
+      color: #1a202c;
+    }
+  }
+
+  &.btn-action-primary {
+    background: v.$heading-accent-color;
+    color: white;
+    border: 1px solid v.$heading-accent-color;
+    box-shadow: none !important;
+
+    &:hover:not(:disabled) {
+      background: color.adjust(v.$heading-accent-color, $lightness: -8%);
+    }
+  }
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .banner-content {
+    padding: 8px 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .banner-left {
+    flex: 1 1 auto;
+    width: 100%;
+    font-size: 0.82rem;
+  }
+
+  .banner-right {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}

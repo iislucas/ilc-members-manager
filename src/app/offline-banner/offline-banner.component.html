@@ -1,0 +1,68 @@
+@if (isVisible()) {
+  <div
+    class="offline-banner"
+    [class.is-conflict]="conflictCount() > 0"
+    [class.is-reconnecting]="isReconnecting() || isSyncing()"
+    role="status"
+    aria-live="polite"
+  >
+    @if (isReconnecting() || isSyncing()) {
+      <div class="banner-progress-bar"></div>
+    }
+
+    <div class="banner-content">
+      <div class="banner-left">
+        @if (conflictCount() > 0) {
+          <app-icon name="warning" class="status-icon conflict-icon"></app-icon>
+        } @else if (isReconnecting() || isSyncing()) {
+          <app-icon name="sync" class="status-icon spin-icon"></app-icon>
+        } @else {
+          <app-icon name="wifi_off" class="status-icon offline-icon"></app-icon>
+        }
+
+        <span class="banner-message">{{ statusMessage() }}</span>
+      </div>
+
+      <div class="banner-right">
+        @if (pendingCount() > 0) {
+          <a
+            class="banner-btn btn-queue"
+            [href]="queueHref()"
+            (click)="viewQueue()"
+            [title]="'View ' + pendingCount() + ' queued offline action(s)'"
+          >
+            <app-icon name="pending_actions"></app-icon>
+            <span>{{ pendingCount() }} queued</span>
+          </a>
+        }
+
+        @if (conflictCount() > 0) {
+          <a
+            class="banner-btn btn-action-primary"
+            [href]="queueHref()"
+            (click)="viewQueue()"
+          >
+            Resolve Conflicts
+          </a>
+        } @else if (isOffline()) {
+          <button
+            type="button"
+            class="banner-btn btn-retry"
+            (click)="checkConnection()"
+            [disabled]="isChecking()"
+          >
+            {{ isChecking() ? 'Checking...' : 'Check Connection' }}
+          </button>
+        } @else if (hasPending() && !isSyncing()) {
+          <button
+            type="button"
+            class="banner-btn btn-action-primary"
+            (click)="syncNow()"
+          >
+            Sync Now
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

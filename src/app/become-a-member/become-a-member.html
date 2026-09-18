@@ -486,7 +486,8 @@
               <button
                 type="button"
                 class="pay-btn"
-                [disabled]="!membershipSelectionComplete()"
+                [disabled]="!membershipSelectionComplete() || isOffline()"
+                [title]="isOffline() ? 'Payment requires an active internet connection' : ''"
                 (click)="onProceedToPayment()"
               >
                 <app-icon name="link"></app-icon>

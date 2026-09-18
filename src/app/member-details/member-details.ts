@@ -1174,9 +1174,14 @@ export class MemberDetailsComponent {
   }
 
   constructor() {
+    let lastInstructorCheck: { orig?: string; current?: string } | null = null;
     effect(async () => {
       const orig = this.member()?.instructorId;
-      const current = this.editableMember()?.instructorId;
+      const current = this.form.instructorId?.()?.value?.();
+      if (lastInstructorCheck?.orig === orig && lastInstructorCheck?.current === current) {
+        return;
+      }
+      lastInstructorCheck = { orig, current };
       if (orig && current && orig !== current) {
         const count =
           await this.membersService.countMembersWithInstructorId(orig);
@@ -1186,8 +1191,13 @@ export class MemberDetailsComponent {
       }
     });
 
+    let lastLoadedGrantsDocId: string | null = null;
     effect(async () => {
-      const docId = this.editableMember()?.docId;
+      const docId = this.member()?.docId;
+      if (docId === lastLoadedGrantsDocId) {
+        return;
+      }
+      lastLoadedGrantsDocId = docId || null;
       if (docId && this.userIsAdmin()) {
         this.isLoadingVideoGrants.set(true);
         try {

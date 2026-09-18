@@ -8,7 +8,13 @@ import {
 import { provideServiceWorker } from '@angular/service-worker';
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
-import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import {
+  connectFirestoreEmulator,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { environment } from '../environments/environment';
@@ -95,10 +101,12 @@ export enum Views {
   ManageEventRegistration = 'manageEventRegistration',
   EventRegistrations = 'eventRegistrations',
   EmailNotifications = 'emailNotifications',
+  OfflineActionQueue = 'offlineActionQueue',
 }
 
 // Views that are accessible without login.
 export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
+  Views.OfflineActionQueue,
   Views.FindAnInstructor,
   Views.InstructorView,
   Views.FindSchool,
@@ -307,6 +315,7 @@ export const initPathPatterns = {
   [Views.ManageEventRegistrations]: addUrlParams(pathPattern`manage-event-registrations`, ['q']),
   [Views.ManageEventRegistration]: pathPattern`manage-events/${pv('eventId')}/registration`,
   [Views.EventRegistrations]: addUrlParams(pathPattern`events/${pv('eventId')}/registrations`, ['q', 'filter']),
+  [Views.OfflineActionQueue]: pathPattern`offline-queue`,
 };
 
 // Santiy check for type correctness...
@@ -345,8 +354,19 @@ export const appConfig: ApplicationConfig = {
       // Emulator connections are also set up here, before any service accesses Firestore.
       useValue: (() => {
         const app = initializeApp(environment.firebase);
+        let firestore: ReturnType<typeof getFirestore>;
+        try {
+          firestore = initializeFirestore(app, {
+            localCache: persistentLocalCache({
+              tabManager: persistentMultipleTabManager(),
+            }),
+          });
+        } catch {
+          firestore = getFirestore(app);
+        }
+
         if (environment.useEmulator) {
-          connectFirestoreEmulator(getFirestore(app), 'localhost', 8080);
+          connectFirestoreEmulator(firestore, 'localhost', 8080);
           connectAuthEmulator(getAuth(app), 'http://127.0.0.1:9099', { disableWarnings: true });
           connectFunctionsEmulator(getFunctions(app), 'localhost', 5001);
           connectStorageEmulator(getStorage(app), 'localhost', 9199);

@@ -30,6 +30,8 @@ import {
 } from 'firebase/firestore';
 import { firestoreDocToMember, initMember, Member } from '../../functions/src/data-model/members';
 import { CheckEmailStatusResult, FetchUserDetailsResult } from '../../functions/src/data-model/system';
+import { IdbStorageService } from './idb-storage.service';
+import { NetworkStateService } from './network-state.service';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
@@ -80,6 +82,20 @@ export type UserDetails = {
   firebaseUser: User;
 };
 
+export interface CachedUserDetails {
+  uid: string;
+  email: string;
+  displayName: string | null;
+  photoURL: string | null;
+  isAdmin: boolean;
+  schoolsManaged: string[];
+  userMemberProfiles: Member[];
+  selectedMemberDocId: string;
+  cachedAt: string;
+}
+
+export const LAST_ACTIVE_USER_UID_KEY = 'ilc_last_active_user_uid';
+
 @Injectable({
   providedIn: 'root',
 })
@@ -88,6 +104,8 @@ export class FirebaseStateService {
   public analytics?: Analytics;
   public functions: Functions;
   private auth: Auth;
+  private idb = inject(IdbStorageService);
+  private networkState = inject(NetworkStateService);
 
   public loginStatus = signal<LoginStatus>(LoginStatus.FirebaseLoadingStatus);
   public loggedIn: WritableSignal<Promise<UserDetails>>;
@@ -121,6 +139,48 @@ export class FirebaseStateService {
       }),
     );
 
+    // When coming back online, refresh user details in background
+    this.networkState.registerOnlineHandler(async () => {
+      const currentUser = this.auth.currentUser;
+      if (currentUser && this.loginStatus() === LoginStatus.SignedIn) {
+        console.log('FirebaseStateService: Online event, refreshing user details in background...');
+        await this.fetchUserDetails(currentUser);
+      }
+    });
+
+    // Eagerly restore last active user from IndexedDB for instant offline readiness
+    this.idb.get<string>(LAST_ACTIVE_USER_UID_KEY).then(async (lastUid) => {
+      if (lastUid && !this.user() && this.loginStatus() === LoginStatus.FirebaseLoadingStatus) {
+        const cached = await this.idb.get<CachedUserDetails>(`cached_user_details_${lastUid}`);
+        if (cached && !this.user() && this.loginStatus() === LoginStatus.FirebaseLoadingStatus) {
+          console.log('FirebaseStateService: Eagerly restoring cached profile from IndexedDB:', cached.email);
+          const mockUser = {
+            uid: cached.uid,
+            email: cached.email,
+            displayName: cached.displayName,
+            photoURL: cached.photoURL,
+            emailVerified: true,
+          } as unknown as User;
+          const selected =
+            cached.userMemberProfiles.find((p) => p.docId === cached.selectedMemberDocId) ||
+            cached.userMemberProfiles[0];
+          const cachedDetails: UserDetails = {
+            firebaseUser: mockUser,
+            member: selected,
+            memberProfiles: cached.userMemberProfiles,
+            isAdmin: cached.isAdmin,
+            schoolsManaged: cached.schoolsManaged,
+          };
+          this.user.set(cachedDetails);
+          this.loggedInResolverFn(cachedDetails);
+          this.loginStatus.set(LoginStatus.SignedIn);
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            this.networkState.markOffline();
+          }
+        }
+      }
+    });
+
     onAuthStateChanged(this.auth, async (user) => {
       if (this.unsubscribeFromMember) {
         this.unsubscribeFromMember();
@@ -128,6 +188,12 @@ export class FirebaseStateService {
       }
 
       if (!user || !user.email) {
+        // If offline and we already have a cached user session, preserve it!
+        if (this.networkState.isOffline() && this.user()) {
+          console.log('FirebaseStateService: onAuthStateChanged received null user while offline; preserving local session.');
+          return;
+        }
+
         // SignedOut
         console.log('FirebaseStateService: User is null or has no email, setting SignedOut state.');
         this.user.set(null);
@@ -180,16 +246,41 @@ export class FirebaseStateService {
       userDetailsResult = (await getUserDetails()).data;
     } catch (error: unknown) {
       console.error('Error in getUserDetails:', error);
-      this.loginStatus.set(LoginStatus.SignedOut);
-      this.loginError.set((error as Error).message);
       
       const errorCode = (error as any)?.code;
       if (errorCode === 'unauthenticated' || errorCode === 'permission-denied') {
         console.warn('Logging out because getUserDetails failed with auth/permission error:', error);
+        this.loginStatus.set(LoginStatus.SignedOut);
+        this.loginError.set((error as Error).message);
         this.logout();
-      } else {
-        console.warn('Preserving session: getUserDetails failed with a transient/network error:', error);
+        return;
       }
+
+      // Transient or network error: attempt offline recovery from IndexedDB
+      console.warn('Preserving session: getUserDetails failed with a transient/network error:', error);
+      this.networkState.markOffline();
+
+      const cached = await this.idb.get<CachedUserDetails>(`cached_user_details_${user.uid}`);
+      if (cached && Array.isArray(cached.userMemberProfiles) && cached.userMemberProfiles.length > 0) {
+        console.log('FirebaseStateService: Recovered user profile from local IndexedDB cache for offline mode.');
+        const selected =
+          cached.userMemberProfiles.find((p) => p.docId === cached.selectedMemberDocId) ||
+          cached.userMemberProfiles[0];
+        const userDetails: UserDetails = {
+          firebaseUser: user,
+          member: selected,
+          memberProfiles: cached.userMemberProfiles,
+          isAdmin: cached.isAdmin,
+          schoolsManaged: cached.schoolsManaged,
+        };
+        this.user.set(userDetails);
+        this.loggedInResolverFn(userDetails);
+        this.loginStatus.set(LoginStatus.SignedIn);
+        return;
+      }
+
+      this.loginStatus.set(LoginStatus.SignedOut);
+      this.loginError.set((error as Error).message);
       return;
     }
 
@@ -223,12 +314,28 @@ export class FirebaseStateService {
     this.user.set(userDetails);
     this.loggedInResolverFn(userDetails);
     this.loginStatus.set(LoginStatus.SignedIn);
+    this.networkState.markOnline();
+
+    // Cache user details to IndexedDB for offline resilience
+    const cacheObj: CachedUserDetails = {
+      uid: user.uid,
+      email: user.email || '',
+      displayName: user.displayName || null,
+      photoURL: user.photoURL || null,
+      isAdmin: userDetailsResult.isAdmin,
+      schoolsManaged: userDetailsResult.schoolsManaged,
+      userMemberProfiles: profiles,
+      selectedMemberDocId: profiles[0].docId,
+      cachedAt: new Date().toISOString(),
+    };
+    await this.idb.set(`cached_user_details_${user.uid}`, cacheObj);
+    await this.idb.set(LAST_ACTIVE_USER_UID_KEY, user.uid);
 
     // From now on, listen to changes to the member document.
     this.setupMemberSnapshotListener();
   }
 
-  public selectProfile(memberDocId: string) {
+  public async selectProfile(memberDocId: string) {
     const currentUserDetails = this.user();
     if (!currentUserDetails) return;
 
@@ -241,9 +348,68 @@ export class FirebaseStateService {
         member: newProfile,
         isAdmin: newProfile.isAdmin,
       });
-      // We should also re-fetch schoolsManaged if we want to be fully correct,
-      // but for now let's assume the user re-logs or we handle it in setupMemberSnapshotListener
+      const cached = await this.idb.get<CachedUserDetails>(
+        `cached_user_details_${currentUserDetails.firebaseUser.uid}`,
+      );
+      if (cached) {
+        cached.selectedMemberDocId = memberDocId;
+        await this.idb.set(
+          `cached_user_details_${currentUserDetails.firebaseUser.uid}`,
+          cached,
+        );
+      }
       this.setupMemberSnapshotListener();
+    }
+  }
+
+  public async updateCachedMemberProfile(updatedMember: Member): Promise<void> {
+    const currentUserDetails = this.user();
+    if (!currentUserDetails) return;
+
+    const profileIdx = currentUserDetails.memberProfiles.findIndex(
+      (p) => p.docId === updatedMember.docId,
+    );
+    if (profileIdx === -1 && currentUserDetails.member.docId !== updatedMember.docId) {
+      return;
+    }
+
+    const updatedProfiles = [...currentUserDetails.memberProfiles];
+    if (profileIdx >= 0) {
+      updatedProfiles[profileIdx] = updatedMember;
+    }
+
+    const isCurrentActive = currentUserDetails.member.docId === updatedMember.docId;
+    const newActiveMember = isCurrentActive ? updatedMember : currentUserDetails.member;
+
+    const updatedDetails: UserDetails = {
+      ...currentUserDetails,
+      member: newActiveMember,
+      memberProfiles: updatedProfiles,
+      isAdmin: newActiveMember.isAdmin ?? currentUserDetails.isAdmin,
+    };
+    this.user.set(updatedDetails);
+
+    try {
+      const cached = await this.idb.get<CachedUserDetails>(
+        `cached_user_details_${currentUserDetails.firebaseUser.uid}`,
+      );
+      if (cached) {
+        const cachedIdx = cached.userMemberProfiles.findIndex(
+          (p) => p.docId === updatedMember.docId,
+        );
+        if (cachedIdx >= 0) {
+          cached.userMemberProfiles[cachedIdx] = updatedMember;
+        }
+        if (isCurrentActive) {
+          cached.isAdmin = updatedMember.isAdmin ?? cached.isAdmin;
+        }
+        await this.idb.set(
+          `cached_user_details_${currentUserDetails.firebaseUser.uid}`,
+          cached,
+        );
+      }
+    } catch (err) {
+      console.warn('FirebaseStateService: Failed updating cached user profile:', err);
     }
   }
 
@@ -426,6 +592,13 @@ export class FirebaseStateService {
 
   public async logout(): Promise<LogoutResult> {
     try {
+      const lastUid = await this.idb.get<string>(LAST_ACTIVE_USER_UID_KEY);
+      if (lastUid) {
+        await this.idb.delete(`cached_user_details_${lastUid}`);
+      }
+      await this.idb.delete(LAST_ACTIVE_USER_UID_KEY);
+      this.user.set(null);
+      this.loginStatus.set(LoginStatus.SignedOut);
       await signOut(this.auth);
       return { success: true };
     } catch (exception: unknown) {

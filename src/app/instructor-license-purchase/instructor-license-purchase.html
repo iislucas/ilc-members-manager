@@ -454,6 +454,8 @@
                   <button
                     type="button"
                     class="button pay-btn"
+                    [disabled]="isOffline()"
+                    [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                     (click)="onPurchaseInstructorLicense()"
                   >
                     <span>{{ checkoutButtonText() }}</span>

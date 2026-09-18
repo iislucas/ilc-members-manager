@@ -15,6 +15,7 @@
 import { inject, Injectable } from '@angular/core';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { FirebaseStateService } from './firebase-state.service';
+import { NetworkStateService } from './network-state.service';
 import {
   CancelSubscriptionRenewalRequest,
   CancelSubscriptionRenewalResult,
@@ -40,6 +41,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class StripeService {
   private firebaseService = inject(FirebaseStateService);
+  private networkState = inject(NetworkStateService);
   private functions = getFunctions(this.firebaseService.app);
 
   /**
@@ -61,6 +63,9 @@ export class StripeService {
       giftMessage?: string;
     },
   ): Promise<CreateCheckoutSessionResult> {
+    if (this.networkState.isOffline()) {
+      throw new Error('You are currently offline. Please connect to the internet to complete purchase.');
+    }
     const fn = httpsCallable<
       CreateCheckoutSessionRequest,
       CreateCheckoutSessionResult
@@ -86,6 +91,9 @@ export class StripeService {
   async createProductCheckoutSession(
     request: CreateProductCheckoutSessionRequest,
   ): Promise<CreateCheckoutSessionResult> {
+    if (this.networkState.isOffline()) {
+      throw new Error('You are currently offline. Please connect to the internet to complete purchase.');
+    }
     const fn = httpsCallable<
       CreateProductCheckoutSessionRequest,
       CreateCheckoutSessionResult

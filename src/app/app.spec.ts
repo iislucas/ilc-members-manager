@@ -623,6 +623,19 @@ describe('App', () => {
 
       expect(navSpy).toHaveBeenCalledWith(['articles', 'category', 'All']);
     });
+
+    it('opens action queue dialog when route is Views.OfflineActionQueue', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+
+      app.routingService.matchedPatternId.set(Views.OfflineActionQueue);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(app.isOfflineQueueOpen()).toBe(true);
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('app-action-queue-dialog')).toBeTruthy();
+    });
   });
 });
 

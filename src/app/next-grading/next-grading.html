@@ -343,6 +343,8 @@
                 <button
                   type="button"
                   class="button pay-btn"
+                  [disabled]="isOffline()"
+                  [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="onPurchaseNextGrading()"
                 >
                   <span>Purchase {{ targetLevel() }} Grading</span>

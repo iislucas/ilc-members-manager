@@ -32,6 +32,7 @@ import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete'
 import { TagInputComponent } from '../tag-input/tag-input';
 import { SearchableSet } from '../searchable-set';
 import { ResumableUploadService, UploadProgressUpdate } from './resumable-upload.service';
+import { NetworkStateService } from '../network-state.service';
 
 export interface UploadFileEntry {
   id: string;
@@ -76,6 +77,9 @@ export class ManageVodUploadComponent implements OnInit {
   public firebaseState = inject(FirebaseStateService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   public resumableService = inject(ResumableUploadService);
+  public networkState = inject(NetworkStateService);
+
+  public isOffline = this.networkState.isOffline;
 
   readonly Views = Views;
   readonly VodAccessTier = VodAccessTier;

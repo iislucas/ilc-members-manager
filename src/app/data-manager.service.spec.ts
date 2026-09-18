@@ -10,6 +10,9 @@ import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
 import { UserDetails } from './firebase-state.service';
+import { NetworkStateService } from './network-state.service';
+import { ActionQueueService, QueuedActionKind, RollbackTarget } from './action-queue.service';
+import { FirestoreCollection } from '../../functions/src/data-model/collections';
 
 vi.mock('firebase/firestore', () => {
   return {
@@ -52,6 +55,7 @@ describe('DataManagerService - searchEvents', () => {
       app,
       loggedIn: vi.fn().mockResolvedValue({ isAdmin: true, schoolsManaged: [] }),
       user: vi.fn().mockReturnValue(null),
+      updateCachedMemberProfile: vi.fn().mockResolvedValue(undefined),
     };
 
     const mockSyncService = {
@@ -219,6 +223,117 @@ describe('DataManagerService - searchEvents', () => {
       expect(inMemory).toBeDefined();
       expect(inMemory?.lastRenewalDate).toBe('2026-08-15');
       expect(inMemory?.currentMembershipExpires).toBe('2027-08-15');
+    });
+
+    it('enqueues only changed fields (delta) when updating a member while offline', async () => {
+      const netService = TestBed.inject(NetworkStateService);
+      vi.spyOn(netService, 'isOffline').mockReturnValue(true);
+
+      const actionQueue = TestBed.inject(ActionQueueService);
+      const enqueueSpy = vi.spyOn(actionQueue, 'enqueueAction');
+
+      const initialMember: Member = {
+        ...initMember(),
+        docId: 'mem_offline',
+        memberId: 'US402',
+        name: 'Lucas Dixon',
+        notes: 'Old notes',
+        phone: '123456',
+      };
+      service.members.setEntries([initialMember]);
+
+      const updatedMember: Member = {
+        ...initialMember,
+        notes: 'New notes edited offline',
+      };
+
+      await service.updateMember('mem_offline', updatedMember, initialMember);
+
+      expect(enqueueSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: QueuedActionKind.UpdateMember,
+          entityDocId: 'mem_offline',
+          description: 'Updated Notes',
+          oldState: { notes: 'Old notes' },
+          newState: { notes: 'New notes edited offline' },
+          baselineSnapshot: initialMember,
+        }),
+      );
+
+      // Verify immediate optimistic in-memory update
+      expect(service.members.get('mem_offline')?.notes).toBe('New notes edited offline');
+    });
+
+    it('rollbackQueuedAction restores in-memory entity to baseline snapshot', async () => {
+      const initialMember: Member = {
+        ...initMember(),
+        docId: 'mem_rollback',
+        name: 'Original Name',
+        notes: 'Original Notes',
+      };
+      service.members.setEntries([initialMember]);
+
+      // Optimistically modified state
+      service.members.upsert({
+        ...initialMember,
+        name: 'Modified Name',
+        notes: 'Modified Notes',
+      });
+      expect(service.members.get('mem_rollback')?.name).toBe('Modified Name');
+
+      // Now rollback using action queue's baselineSnapshot
+      await service.rollbackQueuedAction(
+        {
+          id: 'action_1',
+          timestamp: new Date().toISOString(),
+          kind: QueuedActionKind.UpdateMember,
+          entityDocId: 'mem_rollback',
+          entityTitle: 'Original Name',
+          description: 'Modified Name and Notes',
+          collectionPath: FirestoreCollection.Members,
+          oldState: { name: 'Original Name', notes: 'Original Notes' },
+          newState: { name: 'Modified Name', notes: 'Modified Notes' },
+          baselineSnapshot: initialMember as unknown as Record<string, unknown>,
+          status: 'pending',
+        },
+        RollbackTarget.Baseline,
+      );
+
+      const restored = service.members.get('mem_rollback');
+      expect(restored?.name).toBe('Original Name');
+      expect(restored?.notes).toBe('Original Notes');
+    });
+
+    it('rollbackQueuedAction restores in-memory entity to remote state on conflict accept_remote', async () => {
+      const initialMember: Member = {
+        ...initMember(),
+        docId: 'mem_conflict_test',
+        name: 'My Offline Name',
+      };
+      service.members.setEntries([initialMember]);
+
+      await service.rollbackQueuedAction(
+        {
+          id: 'action_conflict',
+          timestamp: new Date().toISOString(),
+          kind: QueuedActionKind.UpdateMember,
+          entityDocId: 'mem_conflict_test',
+          entityTitle: 'My Offline Name',
+          description: 'Offline edit',
+          collectionPath: FirestoreCollection.Members,
+          oldState: { name: 'Original' },
+          newState: { name: 'My Offline Name' },
+          status: 'conflict',
+          conflictDetails: {
+            remoteState: { ...initialMember, name: 'Server Authority Name' } as unknown as Record<string, unknown>,
+            conflictingKeys: ['name'],
+            detectedAt: new Date().toISOString(),
+          },
+        },
+        RollbackTarget.Remote,
+      );
+
+      expect(service.members.get('mem_conflict_test')?.name).toBe('Server Authority Name');
     });
 
     it('deleteMember removes the member from the in-memory SearchableSet', async () => {

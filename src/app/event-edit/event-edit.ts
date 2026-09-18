@@ -57,6 +57,9 @@ import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
+import { NetworkStateService } from '../network-state.service';
+import { ActionQueueService, QueuedActionKind } from '../action-queue.service';
+import { FirestoreCollection } from '../../../functions/src/data-model/collections';
 
 // Fields used in the event form model.
 type EventFormModel = {
@@ -200,6 +203,8 @@ export class EventEditComponent implements OnInit {
   firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   protected productService = inject(ProductService);
+  public networkState = inject(NetworkStateService);
+  public actionQueue = inject(ActionQueueService);
 
   products = signal<Product[]>([]);
   protected readonly Views = Views;
@@ -1370,7 +1375,8 @@ export class EventEditComponent implements OnInit {
 
       const managerDocIds = formData.managerDocIds.filter((id) => Boolean(id) && id !== formData.ownerDocId);
       const contacts = contactsToSave({ ...formData, managerDocIds });
-      await updateDoc(docRef, {
+
+      const updatePayload = {
         title: formData.title,
         start: formData.start,
         end: formData.end,
@@ -1399,10 +1405,57 @@ export class EventEditComponent implements OnInit {
         inPersonDetailsMarkdown: formData.inPersonDetailsMarkdown || '',
         recordedVideoId: formData.recordedVideoId || '',
         recordedVideoUrl: formData.recordedVideoUrl || '',
-        lastUpdated: serverTimestamp(),
-        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
-      });
-      this.successMessage.set('Event saved successfully.');
+      };
+
+      if (this.networkState?.isOffline?.()) {
+        const changedNewState: Record<string, unknown> = {};
+        const changedOldState: Record<string, unknown> = {};
+        const changedKeys: string[] = [];
+
+        const eventMap = eventData as Record<string, unknown>;
+        const updateMap = updatePayload as Record<string, unknown>;
+        for (const key of Object.keys(updatePayload)) {
+          if (!deepObjEq(updateMap[key], eventMap[key])) {
+            changedNewState[key] = updateMap[key];
+            changedOldState[key] = eventMap[key];
+            changedKeys.push(key);
+          }
+        }
+
+        const formatKey = (k: string) => {
+          const spaced = k.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toLowerCase().trim();
+          return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+        };
+
+        const summary = changedKeys.length > 0
+          ? `Updated ${changedKeys.map(formatKey).join(', ')}`
+          : `Updated event "${formData.title || eventData.docId}"`;
+
+        await this.actionQueue.enqueueAction({
+          kind: QueuedActionKind.UpdateEvent,
+          entityDocId: eventData.docId,
+          entityTitle: formData.title || eventData.docId,
+          description: summary,
+          collectionPath: FirestoreCollection.Events,
+          oldState: changedOldState,
+          newState: changedNewState,
+          baselineSnapshot: structuredClone(eventData) as unknown as Record<string, unknown>,
+        });
+        await this.dataService.persistEventLocally({
+          ...eventData,
+          ...updatePayload,
+          status: updatePayload.status as EventStatus,
+          lastUpdated: new Date().toISOString(),
+        });
+        this.successMessage.set('Event saved locally (offline). It will sync automatically when back online.');
+      } else {
+        await updateDoc(docRef, {
+          ...updatePayload,
+          lastUpdated: serverTimestamp(),
+          updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+        });
+        this.successMessage.set('Event saved successfully.');
+      }
       // Mirror the persisted manager/contact lists and product fields back into the form model so
       // isDirty resets (both are normalised on the way out).
       this.eventFormModel.update((m) => ({

@@ -61,6 +61,13 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { deepObjEq } from './utils';
 import { FindInstructorsService } from './find-instructors.service';
 import { IncrementalSyncService } from './incremental-sync.service';
+import {
+  ActionQueueService,
+  QueuedAction,
+  QueuedActionKind,
+  RollbackTarget,
+} from './action-queue.service';
+import { NetworkStateService } from './network-state.service';
 
 /** The state of the schools collection. */
 export interface SchoolsState {
@@ -187,6 +194,8 @@ export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
   private findInstructorsService = inject(FindInstructorsService);
   private syncService = inject(IncrementalSyncService);
+  public actionQueue = inject(ActionQueueService);
+  public networkState = inject(NetworkStateService);
   private db = getFirestore(this.firebaseService.app);
   private functions = getFunctions(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
@@ -379,6 +388,33 @@ export class DataManagerService {
     return memberId || memberDocId || '';
   }
 
+  formatFieldSummary(key: string): string {
+    const customNames: Record<string, string> = {
+      notes: 'Notes',
+      publicBioMarkdown: 'Public Bio',
+      name: 'Name',
+      email: 'Email',
+      phone: 'Phone',
+      address: 'Address',
+      city: 'City',
+      postcode: 'Postcode',
+      country: 'Country',
+      dateOfBirth: 'Date of Birth',
+      roles: 'Roles',
+      tags: 'Tags',
+      schools: 'Schools',
+      isInstructor: 'Instructor Status',
+      instructorId: 'Instructor',
+      status: 'Status',
+      title: 'Title',
+      description: 'Description',
+      schoolName: 'School Name',
+    };
+    if (customNames[key]) return customNames[key];
+    const spaced = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').toLowerCase().trim();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  }
+
   // Standard "Name [instructorId]" display form for an instructor referenced by
   // a grading. Resolves the instructor by their human-readable instructorId.
   // Falls back to the denormalized `cachedName` snapshot (Grading.gradingInstructorName)
@@ -531,6 +567,11 @@ export class DataManagerService {
       });
 
       this.tagsSet.setEntries(items);
+    });
+
+    // 4. Register rollback handler for offline action queue discards / undo
+    this.actionQueue.registerRollbackHandler(async (action, targetState) => {
+      await this.rollbackQueuedAction(action, targetState);
     });
   }
 
@@ -1748,6 +1789,9 @@ export class DataManagerService {
       const schoolCacheKey = `school_members_${member.primarySchoolId}`;
       await this.syncService.upsertCachedEntry(schoolCacheKey, 'docId', member);
     }
+    if (typeof this.firebaseService.updateCachedMemberProfile === 'function') {
+      await this.firebaseService.updateCachedMemberProfile(member);
+    }
   }
 
   private async removeMemberLocally(memberDocId: string, primarySchoolId?: string): Promise<void> {
@@ -1768,7 +1812,7 @@ export class DataManagerService {
     }
   }
 
-  private async persistSchoolLocally(school: School): Promise<void> {
+  async persistSchoolLocally(school: School): Promise<void> {
     this.schools.upsert(school);
     if (this.mySchools.get(school.schoolId)) {
       this.mySchools.upsert(school);
@@ -1785,6 +1829,115 @@ export class DataManagerService {
   async persistEventLocally(event: IlcEvent): Promise<void> {
     this.events.upsert(event);
     await this.syncService.upsertCachedEntry('public_events', 'docId', event);
+  }
+
+  async rollbackQueuedAction(
+    action: QueuedAction,
+    targetState: RollbackTarget = RollbackTarget.Baseline,
+  ): Promise<void> {
+    const docId = action.entityDocId;
+    const isRemote = targetState === RollbackTarget.Remote;
+    const targetSnapshot = isRemote && action.conflictDetails?.remoteState
+      ? action.conflictDetails.remoteState
+      : (action.baselineSnapshot ?? action.oldState);
+
+    if (!targetSnapshot) return;
+
+    switch (action.kind) {
+      case QueuedActionKind.UpdateMember:
+      case 'update_member': {
+        const existing = this.members.get(docId);
+        const restored: Member = {
+          ...(existing ?? initMember()),
+          ...targetSnapshot,
+          docId,
+          lastUpdated: new Date().toISOString(),
+        } as Member;
+        await this.persistMemberLocally(restored);
+        break;
+      }
+      case QueuedActionKind.UpdateSchool:
+      case 'update_school': {
+        const existing = this.schools.entries().find((s) => s.docId === docId || s.schoolId === docId);
+        const restored: School = {
+          ...(existing ?? initSchool()),
+          ...targetSnapshot,
+          docId,
+          schoolId: (targetSnapshot['schoolId'] as string) || existing?.schoolId || docId,
+          lastUpdated: new Date().toISOString(),
+        } as School;
+        await this.persistSchoolLocally(restored);
+        break;
+      }
+      case QueuedActionKind.UpdateEvent:
+      case 'update_event': {
+        const existing = this.events.get(docId);
+        const restored: IlcEvent = {
+          ...(existing ?? initEvent()),
+          ...targetSnapshot,
+          docId,
+          lastUpdated: new Date().toISOString(),
+        } as IlcEvent;
+        await this.persistEventLocally(restored);
+        break;
+      }
+      case QueuedActionKind.UpdateGrading:
+      case 'update_grading': {
+        const existing =
+          this.gradings.get(docId) ??
+          this.myGradings.get(docId) ??
+          this.myGradingsAssessed.get(docId);
+        const restored: Grading = {
+          ...(existing ?? {}),
+          ...targetSnapshot,
+          docId,
+          lastUpdated: new Date().toISOString(),
+        } as Grading;
+        this.applyLocalGradingUpdate(restored);
+        break;
+      }
+      default: {
+        if (action.collectionPath === FirestoreCollection.Members || action.collectionPath === 'members') {
+          const existing = this.members.get(docId);
+          const restored = {
+            ...(existing ?? initMember()),
+            ...targetSnapshot,
+            docId,
+            lastUpdated: new Date().toISOString(),
+          } as Member;
+          await this.persistMemberLocally(restored);
+        } else if (action.collectionPath === FirestoreCollection.Schools || action.collectionPath === 'schools') {
+          const existing = this.schools.entries().find((s) => s.docId === docId || s.schoolId === docId);
+          const restored = {
+            ...(existing ?? initSchool()),
+            ...targetSnapshot,
+            docId,
+            schoolId: (targetSnapshot['schoolId'] as string) || existing?.schoolId || docId,
+            lastUpdated: new Date().toISOString(),
+          } as School;
+          await this.persistSchoolLocally(restored);
+        } else if (action.collectionPath === FirestoreCollection.Events || action.collectionPath === 'events') {
+          const existing = this.events.get(docId);
+          const restored = {
+            ...(existing ?? initEvent()),
+            ...targetSnapshot,
+            docId,
+            lastUpdated: new Date().toISOString(),
+          } as IlcEvent;
+          await this.persistEventLocally(restored);
+        } else if (action.collectionPath === FirestoreCollection.Gradings || action.collectionPath === 'gradings') {
+          const existing = this.gradings.get(docId) ?? this.myGradings.get(docId);
+          const restored = {
+            ...(existing ?? {}),
+            ...targetSnapshot,
+            docId,
+            lastUpdated: new Date().toISOString(),
+          } as Grading;
+          this.applyLocalGradingUpdate(restored);
+        }
+        break;
+      }
+    }
   }
 
   async removeEventLocally(eventId: string): Promise<void> {
@@ -1826,6 +1979,51 @@ export class DataManagerService {
     let originalMember = oldMember;
     if (!originalMember) {
       originalMember = this.members.get(cleanMember.docId);
+    }
+
+    if (this.networkState.isOffline()) {
+      const changedNewState: Record<string, unknown> = {};
+      const changedOldState: Record<string, unknown> = {};
+      const changedKeys: string[] = [];
+
+      if (originalMember) {
+        for (const key of Object.keys(cleanMember) as Array<keyof Member>) {
+          if (key === 'docId' || key === 'lastUpdated') continue;
+          if (!deepObjEq(cleanMember[key], originalMember[key])) {
+            changedNewState[key] = cleanMember[key];
+            changedOldState[key] = originalMember[key];
+            changedKeys.push(key);
+          }
+        }
+      } else {
+        for (const key of Object.keys(cleanMember) as Array<keyof Member>) {
+          if (key === 'docId' || key === 'lastUpdated') continue;
+          changedNewState[key] = cleanMember[key];
+          changedKeys.push(key);
+        }
+      }
+
+      const summary = changedKeys.length > 0
+        ? `Updated ${changedKeys.map((k) => this.formatFieldSummary(k)).join(', ')}`
+        : `Updated profile for ${cleanMember.name || id}`;
+
+      await this.actionQueue.enqueueAction({
+        kind: QueuedActionKind.UpdateMember,
+        entityDocId: id,
+        entityTitle: this.memberDisplayName(id, cleanMember.memberId, cleanMember.name),
+        description: summary,
+        collectionPath: FirestoreCollection.Members,
+        oldState: changedOldState,
+        newState: changedNewState,
+        baselineSnapshot: originalMember ? structuredClone(originalMember) : undefined,
+      });
+      const updatedMember: Member = {
+        ...cleanMember,
+        docId: id,
+        lastUpdated: new Date().toISOString(),
+      };
+      await this.persistMemberLocally(updatedMember);
+      return;
     }
 
     // If the member is found in the current list of members, only update the 
@@ -1934,6 +2132,52 @@ export class DataManagerService {
       docRef = doc(this.db, 'schools', school.docId);
     } else {
       docRef = doc(collection(this.db, 'schools'));
+    }
+
+    if (this.networkState.isOffline()) {
+      const docId = school.docId || school.schoolId;
+      const changedNewState: Record<string, unknown> = {};
+      const changedOldState: Record<string, unknown> = {};
+      const changedKeys: string[] = [];
+
+      if (oldSchool) {
+        for (const key of Object.keys(school) as Array<keyof School>) {
+          if (key === 'docId' || key === 'lastUpdated') continue;
+          if (!deepObjEq(school[key], oldSchool[key])) {
+            changedNewState[key] = school[key];
+            changedOldState[key] = oldSchool[key];
+            changedKeys.push(key);
+          }
+        }
+      } else {
+        for (const key of Object.keys(school) as Array<keyof School>) {
+          if (key === 'docId' || key === 'lastUpdated') continue;
+          changedNewState[key] = school[key];
+          changedKeys.push(key);
+        }
+      }
+
+      const summary = changedKeys.length > 0
+        ? `Updated ${changedKeys.map((k) => this.formatFieldSummary(k)).join(', ')}`
+        : `Updated school ${school.schoolName || docId}`;
+
+      await this.actionQueue.enqueueAction({
+        kind: QueuedActionKind.UpdateSchool,
+        entityDocId: docId,
+        entityTitle: school.schoolName || docId,
+        description: summary,
+        collectionPath: FirestoreCollection.Schools,
+        oldState: changedOldState,
+        newState: changedNewState,
+        baselineSnapshot: oldSchool ? structuredClone(oldSchool) : undefined,
+      });
+      const updatedSchool: School = {
+        ...school,
+        docId,
+        lastUpdated: new Date().toISOString(),
+      };
+      await this.persistSchoolLocally(updatedSchool);
+      return;
     }
 
     // When we have the original school, only send changed fields.
@@ -2061,6 +2305,51 @@ export class DataManagerService {
       originalGrading = this.gradings.get(id)
         ?? this.myGradings.get(id)
         ?? this.myGradingsAssessed.get(id);
+    }
+
+    if (this.networkState.isOffline()) {
+      const changedNewState: Record<string, unknown> = {};
+      const changedOldState: Record<string, unknown> = {};
+      const changedKeys: string[] = [];
+
+      if (originalGrading) {
+        for (const key of Object.keys(newGrading) as Array<keyof Grading>) {
+          if (key === 'docId' || key === 'lastUpdated') continue;
+          if (!deepObjEq(newGrading[key], originalGrading[key])) {
+            changedNewState[key] = newGrading[key];
+            changedOldState[key] = originalGrading[key];
+            changedKeys.push(key);
+          }
+        }
+      } else {
+        for (const key of Object.keys(newGrading) as Array<keyof Grading>) {
+          if (key === 'docId' || key === 'lastUpdated') continue;
+          changedNewState[key] = newGrading[key];
+          changedKeys.push(key);
+        }
+      }
+
+      const summary = changedKeys.length > 0
+        ? `Updated ${changedKeys.map((k) => this.formatFieldSummary(k)).join(', ')}`
+        : `Updated grading for ${newGrading.studentName || id}`;
+
+      await this.actionQueue.enqueueAction({
+        kind: QueuedActionKind.UpdateGrading,
+        entityDocId: id,
+        entityTitle: `Grading for ${newGrading.studentName || id}`,
+        description: summary,
+        collectionPath: FirestoreCollection.Gradings,
+        oldState: changedOldState,
+        newState: changedNewState,
+        baselineSnapshot: originalGrading ? structuredClone(originalGrading) : undefined,
+      });
+      const updatedGrading: Grading = {
+        ...newGrading,
+        docId: id,
+        lastUpdated: new Date().toISOString(),
+      };
+      this.applyLocalGradingUpdate(updatedGrading);
+      return;
     }
 
     // Only send changed fields. This is critical for non-admin users (e.g.

@@ -12,6 +12,8 @@ import { NavigationTreeService, NavNode } from '../navigation-tree';
 import { ROUTING_CONFIG, initPathPatterns, Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 import { FindInstructorsService } from '../find-instructors.service';
+import { NetworkStateService } from '../network-state.service';
+import { ActionQueueService } from '../action-queue.service';
 
 describe('HeaderComponent', () => {
   let isHomeSig: ReturnType<typeof signal<boolean>>;
@@ -209,5 +211,45 @@ describe('HeaderComponent', () => {
     const logoImg = compiled.querySelector('.title-and-menu .header-logo') as HTMLImageElement;
     expect(logoImg).toBeTruthy();
     expect(logoImg.getAttribute('src')).toBe('/ilc.svg');
+  });
+
+  it('renders offline badge when networkState is offline and opens queue dialog on click', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    fixture.componentRef.setInput('isLoggedIn', true);
+    fixture.componentRef.setInput('breadcrumbs', [{ label: 'Members Portal', url: '/' }]);
+
+    const netService = TestBed.inject(NetworkStateService);
+    netService.markOffline();
+
+    const queueService = TestBed.inject(ActionQueueService);
+    const openSpy = vi.spyOn(queueService, 'openDialog');
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const badge = compiled.querySelector('.nav-network-badge') as HTMLButtonElement;
+    expect(badge).toBeTruthy();
+    expect(badge.textContent).toContain('Offline');
+
+    badge.click();
+    expect(openSpy).toHaveBeenCalled();
+  });
+
+  it('hosts app-offline-banner within header-container beneath nav-bar', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    fixture.componentRef.setInput('isLoggedIn', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const container = compiled.querySelector('.header-container');
+    expect(container).toBeTruthy();
+
+    const navBar = container?.querySelector('.nav-bar');
+    expect(navBar).toBeTruthy();
+
+    const banner = container?.querySelector('app-offline-banner');
+    expect(banner).toBeTruthy();
   });
 });
