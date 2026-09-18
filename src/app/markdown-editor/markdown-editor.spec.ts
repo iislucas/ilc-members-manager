@@ -1697,8 +1697,69 @@ describe('MarkdownEditor', () => {
     expect(popupInput.value).toBe('https://example.com');
   });
 
-  it('closes the link popup when clicking on the same link again', async () => {
-    fixture.componentRef.setInput('initialValue', 'Check [This Link](https://example.com) for details.');
+  it('alternates popup appearing (1st click), disappearing (2nd click), and appearing again (3rd click) when clicking on the same link', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [This Long Link](https://example.com) for details.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+    expect(component.linkPopupOpen()).toBe(false);
+
+    // 1st click: popup appears
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeTruthy();
+    expect(component.linkUrl()).toBe('https://example.com');
+
+    // 2nd click (elsewhere on the same link): popup disappears, cursor positioned
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 75, clientY: 110 }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeFalsy();
+
+    // 3rd click: popup appears again
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeTruthy();
+
+    // 4th click: popup disappears again
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeFalsy();
+
+    // 5th click: popup appears again
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeTruthy();
+  });
+
+  it('alternates popup when browser dispatches both mouseup and click events on each interaction', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [Link](https://example.com) here.');
     fixture.detectChanges();
     await new Promise((resolve) => setTimeout(resolve, 500));
     fixture.detectChanges();
@@ -1711,24 +1772,26 @@ describe('MarkdownEditor', () => {
     const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
     expect(anchor).toBeTruthy();
 
-    // First click: opens popup
+    // 1st interaction (mouseup + click): popup appears
+    anchor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
     anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 50));
     fixture.detectChanges();
 
     expect(component.linkPopupOpen()).toBe(true);
-    expect(component.linkUrl()).toBe('https://example.com');
 
-    // Second click on the SAME link after debounce delay: closes popup
+    // 2nd interaction (mouseup + click on the same link): popup disappears
     await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
     anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 50));
     fixture.detectChanges();
 
     expect(component.linkPopupOpen()).toBe(false);
 
-    // Third click on the SAME link after debounce delay: re-opens popup
+    // 3rd interaction (mouseup + click): popup appears again
     await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
     anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 50));
     fixture.detectChanges();

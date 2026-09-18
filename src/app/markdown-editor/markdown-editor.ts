@@ -295,6 +295,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   activeLinkAnchor: HTMLElement | null = null;
   savedLinkCursorPos: number | null = null;
   lastLinkPopupOpenedAt: number = 0;
+  lastLinkPopupClosedAt: number = 0;
 
   protected resolvedLinkHref = computed(() => {
     const raw = this.linkUrl().trim();
@@ -490,6 +491,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     this.linkPopupOpen.set(false);
     this.activeLinkAnchor = null;
     this.lastLinkPopupOpenedAt = 0;
+    this.lastLinkPopupClosedAt = Date.now();
     if (restoreCursor && this.savedLinkCursorPos !== null) {
       this.editor?.action((ctx) => {
         const view = ctx.get(editorViewCtx);
@@ -988,7 +990,6 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       .use(indentPlugin)
       .use(this.chipDecorationPlugin())
       .use(this.breakMarksPlugin())
-      .use(this.linkClickPlugin())
       .create();
     
     this.editor = editor;
@@ -2248,7 +2249,14 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     const { link } = state.schema.marks;
     if (!link) return;
 
+    const now = Date.now();
+    // Guard against rapid re-opening if the popup was just closed within 250ms
+    if (now - this.lastLinkPopupClosedAt < 250) {
+      return;
+    }
+
     if (this.linkPopupOpen()) {
+      const timeSinceOpen = now - this.lastLinkPopupOpenedAt;
       const currentRange = this.currentLinkRange();
       const isSameAnchor = !!(this.activeLinkAnchor && anchor && this.activeLinkAnchor === anchor);
       const targetCursorPos = exactCursorPos ?? pos;
@@ -2258,7 +2266,6 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       const isPosWithinRange = !!(currentRange && pos >= currentRange.from && pos <= currentRange.to);
 
       if (isSameAnchor || (isSameHref && (isWithinRange || isPosWithinRange))) {
-        const timeSinceOpen = Date.now() - this.lastLinkPopupOpenedAt;
         if (timeSinceOpen > 250) {
           // User clicked the same link again while popup is open -> simply close the popup
           this.closeLinkPopup(false);
@@ -2507,68 +2514,6 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       this.activeLinkAnchor = null;
       view.focus();
     });
-  }
-
-  private linkClickPlugin() {
-    return $prose(() => new Plugin({
-      key: new PluginKey('markdown-editor-link-click'),
-      props: {
-        handleClick: (view, pos, event) => {
-          const anchor = this.getAnchorFromEvent(event);
-          if (anchor && anchor.closest('.link-popup')) {
-            return false;
-          }
-
-          let mark: Mark | null = null;
-          for (const testPos of [pos, pos > 0 ? pos - 1 : pos, pos + 1]) {
-            if (testPos >= 0 && testPos <= view.state.doc.content.size) {
-              const m = view.state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
-              if (m) {
-                mark = m;
-                break;
-              }
-            }
-          }
-
-          if (anchor || mark) {
-            if (this.linkPopupOpen() && Date.now() - this.lastLinkPopupOpenedAt < 250) {
-              event.preventDefault();
-              event.stopPropagation();
-              return true;
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            let exactCursorPos: number | null = pos;
-            try {
-              const coordsPos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-              if (coordsPos && typeof coordsPos.pos === 'number') {
-                exactCursorPos = coordsPos.pos;
-              }
-            } catch {}
-            this.openLinkPopupForPosition(view, pos, mark, anchor, exactCursorPos);
-            return true;
-          }
-
-          if (this.linkPopupOpen()) {
-            this.closeLinkPopup(false);
-            let targetCursorPos = pos;
-            try {
-              const coordsPos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-              if (coordsPos && typeof coordsPos.pos === 'number') {
-                targetCursorPos = coordsPos.pos;
-              }
-            } catch {}
-            try {
-              const safePos = Math.min(Math.max(0, targetCursorPos), view.state.doc.content.size);
-              const sel = TextSelection.near(view.state.doc.resolve(safePos));
-              view.dispatch(view.state.tr.setSelection(sel));
-            } catch {}
-            view.focus();
-          }
-          return false;
-        },
-      },
-    }));
   }
 
   private linkClickHandler = (e: MouseEvent) => {
