@@ -18,7 +18,7 @@
      as a library in the broader project.
 */
 
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, input, output, effect, signal, computed, booleanAttribute, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, HostListener, input, output, effect, signal, computed, booleanAttribute, untracked } from '@angular/core';
 import { Editor, rootCtx, commandsCtx, defaultValueCtx, editorViewCtx, parserCtx, serializerCtx, remarkStringifyOptionsCtx } from '@milkdown/core';
 import {
   commonmark,
@@ -499,6 +499,31 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     }
   }
 
+  @HostListener('document:pointerdown', ['$event'])
+  onDocumentPointerDown(event: PointerEvent) {
+    this.handleOutsideLinkPopupInteraction(event);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    this.handleOutsideLinkPopupInteraction(event);
+  }
+
+  private handleOutsideLinkPopupInteraction(event: Event) {
+    if (!this.linkPopupOpen()) return;
+    const target = event.target as Node | null;
+    const el = target instanceof Element ? target : target?.parentElement;
+    if (el?.closest('.link-popup')) {
+      return;
+    }
+    const editorEl = this.editorRef?.nativeElement;
+    const wrapperEl = this.contentWrapperRef?.nativeElement;
+    if ((editorEl && editorEl.contains(el ?? null)) || (wrapperEl && wrapperEl.contains(el ?? null))) {
+      return;
+    }
+    this.closeLinkPopup(false);
+  }
+
   onEscape() {
     if (this.placeholdersUnfolded()) {
       this.placeholdersUnfolded.set(false);
@@ -667,6 +692,10 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       // editor-content container itself (i.e. empty space, not a
       // ProseMirror content node inside).
       if (e.target !== wrapper && e.target !== editorEl) return;
+
+      if (this.linkPopupOpen()) {
+        this.closeLinkPopup(false);
+      }
 
       this.editor?.action((ctx) => {
         const view = ctx.get(editorViewCtx);
@@ -2461,6 +2490,23 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
             this.openLinkPopupForPosition(view, pos, mark, anchor, exactCursorPos);
             return true;
           }
+
+          if (this.linkPopupOpen()) {
+            this.closeLinkPopup(false);
+            let targetCursorPos = pos;
+            try {
+              const coordsPos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+              if (coordsPos && typeof coordsPos.pos === 'number') {
+                targetCursorPos = coordsPos.pos;
+              }
+            } catch {}
+            try {
+              const safePos = Math.min(Math.max(0, targetCursorPos), view.state.doc.content.size);
+              const sel = TextSelection.near(view.state.doc.resolve(safePos));
+              view.dispatch(view.state.tr.setSelection(sel));
+            } catch {}
+            view.focus();
+          }
           return false;
         },
       },
@@ -2469,7 +2515,35 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
 
   private linkClickHandler = (e: MouseEvent) => {
     const anchor = this.getAnchorFromEvent(e);
-    if (!anchor) return;
+    if (!anchor) {
+      if (this.linkPopupOpen()) {
+        const target = e.target as Node | null;
+        const el = target instanceof Element ? target : target?.parentElement;
+        if (el?.closest('.link-popup')) {
+          return;
+        }
+        this.closeLinkPopup(false);
+        this.editor?.action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          let targetCursorPos: number | null = null;
+          try {
+            const coordsPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
+            if (coordsPos && typeof coordsPos.pos === 'number') {
+              targetCursorPos = coordsPos.pos;
+            }
+          } catch {}
+          if (targetCursorPos !== null) {
+            try {
+              const safePos = Math.min(Math.max(0, targetCursorPos), view.state.doc.content.size);
+              const sel = TextSelection.near(view.state.doc.resolve(safePos));
+              view.dispatch(view.state.tr.setSelection(sel));
+            } catch {}
+          }
+          view.focus();
+        });
+      }
+      return;
+    }
 
     // Do not intercept clicks on the "Open Link in New Tab" button inside the link popup itself
     if (anchor.closest('.link-popup')) return;
