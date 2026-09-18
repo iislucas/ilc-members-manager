@@ -213,33 +213,26 @@
         <app-icon name="trash" width="1em" height="1em"></app-icon>
       </button>
     </div>
-    <div class="menu-overlay" (click)="linkPopupOpen.set(false)"></div>
+    <div class="menu-overlay transparent" (click)="linkPopupOpen.set(false)"></div>
   }
 
   @if (placeholdersUnfolded()) {
     <div class="placeholders-dropdown-menu"
          [style.top.px]="placeholdersMenuPos().top"
          [style.left.px]="placeholdersMenuPos().left">
-      <div class="placeholders-dropdown-header">
-        <span>Placeholders</span>
-        <span class="placeholders-count">{{ chips().length }}</span>
-      </div>
-      <div class="placeholders-palette">
-        @for (chip of chips(); track chip.token) {
-          <div class="placeholder-item"
-               (click)="insertChip(chip); $event.stopPropagation()"
-               [title]="chip.description ? (chip.token + ' — ' + chip.description) : ('Insert ' + chip.token)">
-            <button type="button" class="chip-insert" (click)="insertChip(chip); $event.stopPropagation()">
-              {{ chip.label || chip.token }}
-            </button>
-            @if (chip.description) {
-              <span class="chip-description">{{ chip.description }}</span>
-            }
-          </div>
-        }
-      </div>
+      @for (chip of chips(); track chip.token) {
+        <button type="button"
+                class="menu-item placeholder-item"
+                (click)="insertChip(chip); $event.stopPropagation()"
+                [title]="chip.description ? (chip.token + ' — ' + chip.description) : ('Insert ' + chip.token)">
+          <span class="chip-insert">{{ chip.label || chip.token }}</span>
+          @if (chip.description) {
+            <span class="chip-description">{{ chip.description }}</span>
+          }
+        </button>
+      }
     </div>
-    <div class="menu-overlay" (click)="closePlaceholdersMenu()"></div>
+    <div class="menu-overlay transparent" (click)="closePlaceholdersMenu()"></div>
   }
 
   @if (imageModalOpen()) {
