@@ -1,3 +1,5 @@
+import { By } from '@angular/platform-browser';
+import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EmailNotificationsComponent } from './email-notifications.component';
 import { DataManagerService } from '../data-manager.service';
@@ -201,12 +203,17 @@ describe('EmailNotificationsComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should display the subjects of onboarding templates by default', () => {
+  it('should display the subjects of onboarding templates by default and on sub-tab switch', async () => {
     const el = fixture.nativeElement;
-    const inputs = el.querySelectorAll('input');
-
+    let inputs = el.querySelectorAll('input');
     expect(inputs[0].value).toBe('Welcome to the I Liq Chuan Family!');
-    expect(inputs[1].value).toBe('Congratulations on your Instructor License!');
+
+    component.setOnboardingSubtype('instructor');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    inputs = el.querySelectorAll('input');
+    expect(inputs[0].value).toBe('Congratulations on your Instructor License!');
   });
 
   it('renders pill tabs in the requested order with shortened names', () => {
@@ -253,6 +260,43 @@ describe('EmailNotificationsComponent', () => {
     expect(subSelect.options.length).toBe(6);
   });
 
+  it('should render Onboarding sub-pill tabs and switch between New Members and New Instructors', () => {
+    const subPills = fixture.nativeElement.querySelectorAll('.onboarding-sub-tabs .pill-tab');
+    expect(subPills.length).toBe(2);
+    expect(subPills[0].textContent.trim()).toBe('New Members');
+    expect(subPills[1].textContent.trim()).toBe('New Instructors');
+
+    component.setOnboardingSubtype('instructor');
+    expect(subtabSignal()).toBe('instructor');
+    expect(component.activeOnboardingSubtype()).toBe('instructor');
+  });
+
+  it('should render 3-dots kebab menu and reset template to default', () => {
+    component.templates.set({
+      ...component.templates(),
+      membershipActivatedSubject: 'Custom Subject Modified',
+      membershipActivatedBody: 'Custom Body Modified',
+    });
+    expect(component.templates().membershipActivatedSubject).toBe('Custom Subject Modified');
+    fixture.detectChanges();
+
+    component.toggleTemplateMenu('member');
+    expect(component.openTemplateMenu()).toBe('member');
+    fixture.detectChanges();
+
+    component.resetTemplateToDefault('member');
+    fixture.detectChanges();
+
+    expect(component.openTemplateMenu()).toBeNull();
+    expect(component.templates().membershipActivatedSubject).toBe('Welcome to the I Liq Chuan Family!');
+    expect(component.templates().membershipActivatedBody).toContain('Welcome to Zhong Xin Dao / I Liq Chuan');
+    expect(component.statusActionFeedback()?.message).toContain('reset to default');
+
+    const editorDebugEl = fixture.debugElement.query(By.directive(MarkdownEditor));
+    expect(editorDebugEl).toBeTruthy();
+    expect(editorDebugEl.componentInstance.initialValue()).toContain('Welcome to Zhong Xin Dao / I Liq Chuan');
+  });
+
   it('should update activePurchaseSubtype when setPurchaseSubtype is called', () => {
     component.setPurchaseSubtype('vod');
     expect(subtabSignal()).toBe('vod');
@@ -263,13 +307,18 @@ describe('EmailNotificationsComponent', () => {
     expect(component.activePurchaseSubtype()).toBe('vod-gift');
   });
 
-  it('should feed each template body into a markdown editor', () => {
+  it('should feed template body into markdown editor on each onboarding sub-tab', () => {
     const el = fixture.nativeElement;
-    const editors = el.querySelectorAll('app-markdown-editor');
-    expect(editors.length).toBe(2);
+    let editors = el.querySelectorAll('app-markdown-editor');
+    expect(editors.length).toBe(1);
     expect(component.templates().membershipActivatedBody).toContain(
       'Welcome to Zhong Xin Dao / I Liq Chuan',
     );
+
+    component.setOnboardingSubtype('instructor');
+    fixture.detectChanges();
+    editors = el.querySelectorAll('app-markdown-editor');
+    expect(editors.length).toBe(1);
     expect(component.templates().instructorLicenseActivatedBody).toContain(
       'Congratulations on getting your Instructor ID',
     );
@@ -887,8 +936,13 @@ describe('EmailNotificationsComponent', () => {
       component.testBodyMarkdown.set('Custom Body');
       fixture.detectChanges();
 
-      // Click Reset Template button
-      const resetBtn = fixture.nativeElement.querySelector('.reset-ping-btn') as HTMLButtonElement;
+      // Click Reset Template in kebab menu
+      const menuTrigger = fixture.nativeElement.querySelector('.ping-template-section .template-menu-trigger') as HTMLButtonElement;
+      expect(menuTrigger).toBeTruthy();
+      menuTrigger.click();
+      fixture.detectChanges();
+
+      const resetBtn = fixture.nativeElement.querySelector('.template-dropdown-menu .menu-item') as HTMLButtonElement;
       expect(resetBtn).toBeTruthy();
       resetBtn.click();
       fixture.detectChanges();

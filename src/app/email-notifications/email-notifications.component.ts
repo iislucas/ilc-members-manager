@@ -31,6 +31,7 @@ import {
 } from '../../../functions/src/email-markdown';
 
 export type TemplateCategory = 'settings' | 'test' | 'onboarding' | 'purchases' | 'digest' | 'logs';
+export type OnboardingSubtype = 'member' | 'instructor';
 export type PurchaseSubtype = 'order' | 'event' | 'vod' | 'vod-gift' | 'grading' | 'subscription';
 export type TestEmailType = 'ping' | 'welcome' | 'order' | 'digest';
 
@@ -77,6 +78,7 @@ export const DEFAULT_PING_BODY =
   'Hello **{name}**,\n\nThis is a test verification email from the I Liq Chuan system.\n\nAll systems operational.\n\nBest regards,\n[I Liq Chuan Association]({appBase})';
 
 const VALID_CATEGORIES: TemplateCategory[] = ['settings', 'test', 'onboarding', 'purchases', 'digest', 'logs'];
+const VALID_ONBOARDING_SUBTYPES: OnboardingSubtype[] = ['member', 'instructor'];
 const VALID_PURCHASE_SUBTYPES: PurchaseSubtype[] = ['order', 'event', 'vod', 'vod-gift', 'grading', 'subscription'];
 
 @Component({
@@ -114,6 +116,15 @@ export class EmailNotificationsComponent {
       return subtab as PurchaseSubtype;
     }
     return 'order';
+  });
+
+  // Derive active onboarding subtype from URL `subtab` query param, with fallback to 'member'
+  activeOnboardingSubtype = computed<OnboardingSubtype>(() => {
+    const subtab = this.viewSignals.urlParams.subtab();
+    if (subtab && VALID_ONBOARDING_SUBTYPES.includes(subtab as OnboardingSubtype)) {
+      return subtab as OnboardingSubtype;
+    }
+    return 'member';
   });
 
   // Placeholder tokens each template supports with human-readable descriptions.
@@ -645,6 +656,152 @@ export class EmailNotificationsComponent {
 
   setPurchaseSubtype(subtype: PurchaseSubtype) {
     this.viewSignals.urlParams.subtab.set(subtype);
+  }
+
+  setOnboardingSubtype(subtype: OnboardingSubtype) {
+    this.viewSignals.urlParams.subtab.set(subtype);
+  }
+
+  openTemplateMenu = signal<string | null>(null);
+
+  toggleTemplateMenu(id: string) {
+    if (this.openTemplateMenu() === id) {
+      this.openTemplateMenu.set(null);
+    } else {
+      this.openTemplateMenu.set(id);
+    }
+  }
+
+  closeTemplateMenu() {
+    this.openTemplateMenu.set(null);
+  }
+
+  resetTemplateToDefault(key: string) {
+    const defaults = initEmailTemplates();
+    const current = this.templates();
+
+    switch (key) {
+      case 'member':
+        this.templates.set({
+          ...current,
+          membershipActivatedSubject: defaults.membershipActivatedSubject,
+          membershipActivatedBody: defaults.membershipActivatedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Member Welcome template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'instructor':
+        this.templates.set({
+          ...current,
+          instructorLicenseActivatedSubject: defaults.instructorLicenseActivatedSubject,
+          instructorLicenseActivatedBody: defaults.instructorLicenseActivatedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Instructor Welcome template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'order':
+        this.templates.set({
+          ...current,
+          orderConfirmationSubject: defaults.orderConfirmationSubject,
+          orderConfirmationBody: defaults.orderConfirmationBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Store Order template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'event':
+        this.templates.set({
+          ...current,
+          eventRegistrationConfirmationSubject: defaults.eventRegistrationConfirmationSubject,
+          eventRegistrationConfirmationBody: defaults.eventRegistrationConfirmationBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Event Registration template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'vod':
+        this.templates.set({
+          ...current,
+          vodPurchaseConfirmationSubject: defaults.vodPurchaseConfirmationSubject,
+          vodPurchaseConfirmationBody: defaults.vodPurchaseConfirmationBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'VOD Purchase template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'vod-gift':
+        this.templates.set({
+          ...current,
+          vodGiftReceivedSubject: defaults.vodGiftReceivedSubject,
+          vodGiftReceivedBody: defaults.vodGiftReceivedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'VOD Gift template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'grading':
+        this.templates.set({
+          ...current,
+          gradingPaymentConfirmationSubject: defaults.gradingPaymentConfirmationSubject,
+          gradingPaymentConfirmationBody: defaults.gradingPaymentConfirmationBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Grading Payment template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'subscription':
+        this.templates.set({
+          ...current,
+          subscriptionRenewalSubject: defaults.subscriptionRenewalSubject,
+          subscriptionRenewalBody: defaults.subscriptionRenewalBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Subscription Renewal template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'digest-overall':
+        this.templates.set({
+          ...current,
+          eventDigestOverallSubject: defaults.eventDigestOverallSubject,
+          eventDigestOverallBody: defaults.eventDigestOverallBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Event Digest Overall template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'digest-item':
+        this.templates.set({
+          ...current,
+          eventDigestItemTemplate: defaults.eventDigestItemTemplate,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Event Digest Item template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'test-ping':
+        this.resetPingTemplate();
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Test Ping template reset to default.',
+        });
+        break;
+    }
+    this.closeTemplateMenu();
+    setTimeout(() => {
+      this.statusActionFeedback.set(null);
+    }, 4000);
   }
 
   constructor() {

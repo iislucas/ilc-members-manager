@@ -201,30 +201,41 @@ describe('MarkdownEditor', () => {
     const placeholdersGroup = fixture.nativeElement.querySelector('.toolbar-placeholders-group');
     expect(placeholdersGroup).toBeTruthy();
 
-    const chipBtn = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-insert');
+    const toggleBtn = fixture.nativeElement.querySelector('.placeholders-toggle-btn');
+    expect(toggleBtn).toBeTruthy();
+
+    // Initially closed / dropdown not open
+    expect(component.placeholdersUnfolded()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.placeholders-dropdown-menu')).toBeNull();
+
+    // Click toggle button to open dropdown
+    toggleBtn.click();
+    fixture.detectChanges();
+    expect(component.placeholdersUnfolded()).toBe(true);
+
+    const dropdown = fixture.nativeElement.querySelector('.placeholders-dropdown-menu');
+    expect(dropdown).toBeTruthy();
+
+    const chipBtn = fixture.nativeElement.querySelector('.placeholders-dropdown-menu .chip-insert');
     expect(chipBtn).toBeTruthy();
     expect(chipBtn.textContent.trim()).toBe('{name}');
 
     // Verify description is rendered
-    const descSpan = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-description');
+    const descSpan = fixture.nativeElement.querySelector('.placeholders-dropdown-menu .chip-description');
     expect(descSpan).toBeTruthy();
     expect(descSpan.textContent.trim()).toBe('Member name');
 
-    // Test folding
-    const toggleBtn = fixture.nativeElement.querySelector('.placeholders-toggle-btn');
-    expect(toggleBtn).toBeTruthy();
-    expect(component.placeholdersUnfolded()).toBe(true);
-
+    // Click toggle button to close dropdown
     toggleBtn.click();
     fixture.detectChanges();
     expect(component.placeholdersUnfolded()).toBe(false);
-    expect(fixture.nativeElement.querySelector('.placeholders-palette')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.placeholders-dropdown-menu')).toBeNull();
 
-    // Unfold again
+    // Open again
     toggleBtn.click();
     fixture.detectChanges();
     expect(component.placeholdersUnfolded()).toBe(true);
-    const unfoldedChipBtn = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-insert');
+    const unfoldedChipBtn = fixture.nativeElement.querySelector('.placeholders-dropdown-menu .chip-insert');
     expect(unfoldedChipBtn).toBeTruthy();
 
     component['editor']?.action((ctx) => {
@@ -232,12 +243,75 @@ describe('MarkdownEditor', () => {
       view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
     });
 
-    // Click chip button in toolbar
+    // Click chip button in dropdown to insert chip and automatically close dropdown
     unfoldedChipBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 200));
     fixture.detectChanges();
 
+    expect(component.placeholdersUnfolded()).toBe(false);
     expect(emittedValue).toContain('{name}');
+  });
+
+  it('fits placeholders menu to viewport when near right edge on narrow/mobile viewports', () => {
+    fixture.componentRef.setInput('chips', [
+      { token: '{name}', description: 'Member name with a reasonably long description' },
+    ]);
+    fixture.detectChanges();
+
+    const toggleBtn = fixture.nativeElement.querySelector('.placeholders-toggle-btn');
+    toggleBtn.click();
+    fixture.detectChanges();
+
+    expect(component.placeholdersUnfolded()).toBe(true);
+
+    // Mock button and container bounds as if button is located near right edge (e.g. on mobile, left = 280 in 320 container)
+    component.placeholdersToggleBtnRef!.nativeElement.getBoundingClientRect = () => ({
+      top: 10,
+      bottom: 40,
+      left: 280,
+      right: 320,
+      width: 40,
+      height: 30,
+      x: 280,
+      y: 10,
+      toJSON: () => {},
+    });
+
+    component.containerRef.nativeElement.getBoundingClientRect = () => ({
+      top: 0,
+      bottom: 600,
+      left: 0,
+      right: 320,
+      width: 320,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    });
+
+    component.updatePlaceholdersMenuPos();
+    // In a 320px wide container, left should be shifted away from 280 to keep menu on-screen
+    expect(component.placeholdersMenuPos().left).toBeLessThan(280);
+    expect(component.placeholdersMenuPos().left).toBeGreaterThanOrEqual(8);
+
+    // Mock placeholdersMenuRef to test fitPlaceholdersMenuToViewport shift
+    if (component.placeholdersMenuRef) {
+      component.placeholdersMenuRef.nativeElement.getBoundingClientRect = () => ({
+        top: 44,
+        bottom: 200,
+        left: 200,
+        right: 340, // 20px overflow past 320px
+        width: 140,
+        height: 156,
+        x: 200,
+        y: 44,
+        toJSON: () => {},
+      });
+
+      component.fitPlaceholdersMenuToViewport();
+      // Should shift left to avoid the overflow
+      expect(component.placeholdersMenuPos().left).toBeLessThan(200);
+    }
   });
 
   it('should toggle heading H1 without selection (cursor)', async () => {
@@ -303,14 +377,15 @@ describe('MarkdownEditor', () => {
     expect(fixture.nativeElement.querySelector('.menu')).toBeTruthy();
   });
 
-  it('should toggle fullscreen mode with button and escape key', () => {
+  it('should toggle fullscreen mode with button at far left and escape key', () => {
     expect(component.isFullscreen()).toBe(false);
     const container = fixture.nativeElement.querySelector('.markdown-editor-container');
     expect(container.classList).not.toContain('fullscreen');
-    expect(fixture.nativeElement.querySelector('.fullscreen-fixed-btn')).toBeNull();
 
-    const fullscreenBtn = fixture.nativeElement.querySelector('.fullscreen-menu-item');
+    // Fullscreen button is located at the far left in menu-header alongside info button
+    const fullscreenBtn = fixture.nativeElement.querySelector('.menu-header .fullscreen-btn');
     expect(fullscreenBtn).toBeTruthy();
+    expect(fullscreenBtn.getAttribute('title')).toBe('Fullscreen');
 
     // Enter fullscreen
     fullscreenBtn.click();
@@ -319,17 +394,19 @@ describe('MarkdownEditor', () => {
     expect(component.isFullscreen()).toBe(true);
     expect(container.classList).toContain('fullscreen');
 
-    // In fullscreen mode, the fixed leftmost exit button should be present
-    const fixedExitBtn = fixture.nativeElement.querySelector('.fullscreen-fixed-btn');
-    expect(fixedExitBtn).toBeTruthy();
+    // Button remains in the same position at the far left in fullscreen mode
+    const exitFullscreenBtn = fixture.nativeElement.querySelector('.menu-header .fullscreen-btn');
+    expect(exitFullscreenBtn).toBeTruthy();
+    expect(exitFullscreenBtn).toBe(fullscreenBtn);
+    expect(exitFullscreenBtn.getAttribute('title')).toBe('Exit Fullscreen');
 
-    // Click fixed button to exit fullscreen
-    fixedExitBtn.click();
+    // Click button again to exit fullscreen
+    exitFullscreenBtn.click();
     fixture.detectChanges();
 
     expect(component.isFullscreen()).toBe(false);
     expect(container.classList).not.toContain('fullscreen');
-    expect(fixture.nativeElement.querySelector('.fullscreen-fixed-btn')).toBeNull();
+    expect(fullscreenBtn.getAttribute('title')).toBe('Fullscreen');
 
     // Re-enter and exit with Escape key
     component.isFullscreen.set(true);
@@ -391,6 +468,12 @@ describe('MarkdownEditor', () => {
 
     const leftArrow = fixture.nativeElement.querySelector('.scroll-arrow-btn.left');
     expect(leftArrow).toBeTruthy();
+
+    // Verify fullscreen and info buttons in .menu-header appear to the left of both scroll arrows
+    const menuHeader = fixture.nativeElement.querySelector('.menu-header');
+    expect(menuHeader).toBeTruthy();
+    expect(menuHeader.compareDocumentPosition(leftArrow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(menuHeader.compareDocumentPosition(rightArrow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     leftArrow.click();
     expect(scrollBySpy).toHaveBeenCalledWith({ left: -120, behavior: 'smooth' });
@@ -1524,6 +1607,244 @@ describe('MarkdownEditor', () => {
     expect(component.linkPopupOpen()).toBe(false);
   });
 
+  it('handles clicks on text node targets inside link anchors without throwing and opens popup', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [ILC](https://ilc-kungfu.org) text.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+    const textNode = anchor.firstChild;
+    expect(textNode).toBeTruthy();
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+
+    // Simulate clicking on the Text node inside the anchor (Safari/WebKit event behavior)
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    textNode?.dispatchEvent(clickEvent);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://ilc-kungfu.org');
+  });
+
+  it('switches to clicked link even when link popup is already open for another link', async () => {
+    fixture.componentRef.setInput('initialValue', 'Link [One](https://one.com) and Link [Two](https://two.com)');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchors = fixture.nativeElement.querySelectorAll('.editor-content a') as NodeListOf<HTMLAnchorElement>;
+    expect(anchors.length).toBe(2);
+
+    // Click link One
+    const click1 = new MouseEvent('click', { bubbles: true, cancelable: true });
+    anchors[0].dispatchEvent(click1);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://one.com');
+
+    // Click link Two while popup is already open
+    const click2 = new MouseEvent('click', { bubbles: true, cancelable: true });
+    anchors[1].dispatchEvent(click2);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(click2.defaultPrevented).toBe(true);
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://two.com');
+  });
+
+  it('opens the link popup when clicking on a link while no popup is open', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [Sample](https://example.com) link.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+    expect(component.linkPopupOpen()).toBe(false);
+
+    // Clicking on link when popup is closed opens the link popup
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.linkUrl()).toBe('https://example.com');
+    const popupInput = fixture.nativeElement.querySelector('.link-popup input') as HTMLInputElement;
+    expect(popupInput).toBeTruthy();
+    expect(popupInput.value).toBe('https://example.com');
+  });
+
+  it('alternates popup appearing (1st click), disappearing (2nd click), and appearing again (3rd click) when clicking on the same link', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [This Long Link](https://example.com) for details.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+    expect(component.linkPopupOpen()).toBe(false);
+
+    // 1st click: popup appears
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeTruthy();
+    expect(component.linkUrl()).toBe('https://example.com');
+
+    // 2nd click (elsewhere on the same link): popup disappears, cursor positioned
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 75, clientY: 110 }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeFalsy();
+
+    // 3rd click: popup appears again
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeTruthy();
+
+    // 4th click: popup disappears again
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeFalsy();
+
+    // 5th click: popup appears again
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.link-popup')).toBeTruthy();
+  });
+
+  it('alternates popup when browser dispatches both mouseup and click events on each interaction', async () => {
+    fixture.componentRef.setInput('initialValue', 'Check [Link](https://example.com) here.');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    // 1st interaction (mouseup + click): popup appears
+    anchor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+
+    // 2nd interaction (mouseup + click on the same link): popup disappears
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+
+    // 3rd interaction (mouseup + click): popup appears again
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    anchor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+  });
+
+  it('updates markdown content when initialValue changes externally after initial load', async () => {
+    fixture.componentRef.setInput('initialValue', 'Original Content');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    expect(component.getMarkdown()).toContain('Original Content');
+
+    // Simulate external change such as "Reset to default"
+    fixture.componentRef.setInput('initialValue', 'Reset Default Content');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(component.getMarkdown()).toContain('Reset Default Content');
+  });
+
+  it('allows clicking the external open link button inside the popup without prevention', async () => {
+    fixture.componentRef.setInput('initialValue', 'Visit [Site](https://example.com)');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+
+    const openLinkBtn = fixture.nativeElement.querySelector('.link-popup a') as HTMLAnchorElement;
+    expect(openLinkBtn).toBeTruthy();
+    expect(openLinkBtn.getAttribute('target')).toBe('_blank');
+
+    const clickExternal = new MouseEvent('click', { bubbles: true, cancelable: true });
+    openLinkBtn.dispatchEvent(clickExternal);
+
+    // Should NOT be prevented by linkClickHandler because it's inside .link-popup
+    expect(clickExternal.defaultPrevented).toBe(false);
+  });
+
   it('renders single newlines between consecutive lines as hard breaks on separate lines and preserves them across round-trips', async () => {
     const templateText =
       'Your subscription for **{planName}** renewed successfully on {renewalDate}.\n\n' +
@@ -1559,6 +1880,152 @@ describe('MarkdownEditor', () => {
     fixture.detectChanges();
 
     expect(component.getMarkdown().trim()).toBe(templateText.trim());
+  });
+
+  it('preserves tapped cursor position when opening link popup and restores cursor on Escape', async () => {
+    fixture.componentRef.setInput('initialValue', 'Before [My Special Link](https://example.com) After');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    let viewRef: EditorView | null = null;
+    component['editor']?.action((ctx) => {
+      viewRef = ctx.get(editorViewCtx);
+      viewRef.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+      viewRef.posAtCoords = () => ({ pos: 12, inside: 10 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    // Click link
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 75, clientY: 110 }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.savedLinkCursorPos).toBe(12);
+
+    // Escape closes link popup and restores cursor to position 12
+    component.onEscape();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    expect(viewRef!.state.selection.from).toBe(12);
+  });
+
+  it('supports autoHeight input and applies auto-height classes', () => {
+    fixture.componentRef.setInput('autoHeight', true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.classList.contains('auto-height')).toBe(true);
+    const container = fixture.nativeElement.querySelector('.markdown-editor-container.auto-height');
+    expect(container).toBeTruthy();
+  });
+
+  it('updates cursor to clicked location, focuses editor, and closes popup when clicking elsewhere in the editor', async () => {
+    fixture.componentRef.setInput('initialValue', 'Before [Link Here](https://example.com) After Click Somewhere');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    let viewRef: EditorView | null = null;
+    component['editor']?.action((ctx) => {
+      viewRef = ctx.get(editorViewCtx);
+      viewRef.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+      viewRef.posAtCoords = (coords) => {
+        if (coords.left === 75) return { pos: 10, inside: 8 };
+        return { pos: 35, inside: 30 }; // click elsewhere
+      };
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    // 1. Click on the link
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 75, clientY: 110 }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+    expect(component.savedLinkCursorPos).toBe(10);
+
+    // 2. Click elsewhere in the editor content (on paragraph text inside ProseMirror)
+    const paragraph = (fixture.nativeElement.querySelector('.editor-content .ProseMirror p') ||
+      fixture.nativeElement.querySelector('.editor-content .ProseMirror')) as HTMLElement;
+    const focusSpy = vi.spyOn(viewRef!, 'focus');
+
+    paragraph.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 250, clientY: 110 }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    // Link popup should now be closed
+    expect(component.linkPopupOpen()).toBe(false);
+    // Editor should be focused
+    expect(focusSpy).toHaveBeenCalled();
+    // Cursor position should be updated to 35 (the new click location), NOT restored to 10
+    expect(viewRef!.state.selection.from).toBe(35);
+  });
+
+  it('closes link popup and moves cursor to end when clicking empty space below editor content', async () => {
+    fixture.componentRef.setInput('initialValue', 'First [Link](https://example.com) Text');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    let viewRef: EditorView | null = null;
+    component['editor']?.action((ctx) => {
+      viewRef = ctx.get(editorViewCtx);
+      viewRef.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+      viewRef.posAtCoords = () => ({ pos: 8, inside: 6 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 75, clientY: 110 }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+
+    // Click on empty space (the wrapper / editor-content container itself)
+    const editorContent = fixture.nativeElement.querySelector('.editor-content') as HTMLElement;
+    editorContent.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
+    // Cursor should be at the end of the content
+    const endPos = Math.max(0, viewRef!.state.doc.content.size - 1);
+    expect(viewRef!.state.selection.from).toBe(endPos);
+  });
+
+  it('closes link popup when clicking outside the editor without restoring cursor', async () => {
+    fixture.componentRef.setInput('initialValue', 'First [Link](https://example.com) Text');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    let viewRef: EditorView | null = null;
+    component['editor']?.action((ctx) => {
+      viewRef = ctx.get(editorViewCtx);
+      viewRef.coordsAtPos = () => ({ top: 100, bottom: 120, left: 50, right: 150 });
+      viewRef.posAtCoords = () => ({ pos: 8, inside: 6 });
+    });
+
+    const anchor = fixture.nativeElement.querySelector('.editor-content a') as HTMLAnchorElement;
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 75, clientY: 110 }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(true);
+
+    // Click outside on document body
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fixture.detectChanges();
+
+    expect(component.linkPopupOpen()).toBe(false);
   });
 });
 

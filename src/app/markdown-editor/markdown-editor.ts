@@ -18,7 +18,7 @@
      as a library in the broader project.
 */
 
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, input, output, effect, signal, computed, booleanAttribute, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, HostListener, input, output, effect, signal, computed, booleanAttribute, untracked } from '@angular/core';
 import { Editor, rootCtx, commandsCtx, defaultValueCtx, editorViewCtx, parserCtx, serializerCtx, remarkStringifyOptionsCtx } from '@milkdown/core';
 import {
   commonmark,
@@ -245,6 +245,7 @@ export class ImageNodeView implements NodeView {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(document:keydown.escape)': 'onEscape()',
+    '[class.auto-height]': 'autoHeight()',
   },
 })
 export class MarkdownEditor implements AfterViewInit, OnDestroy {
@@ -262,6 +263,8 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   enabledFeatures = input<MarkdownFeature[] | null>(null);
   // Whether the editor renders its own border, rounded corners, and focus ring.
   bordered = input<boolean, unknown>(false, { transform: booleanAttribute });
+  // Whether the editor expands vertically to fit its content rather than scrolling.
+  autoHeight = input<boolean, unknown>(false, { transform: booleanAttribute });
   // Optional padding for the textual content of the editor. Defaults to '8px 12px'.
   // Set to false or '0' for no padding, or pass a custom CSS string.
   // The header/toolbar is not padded by this setting.
@@ -289,6 +292,19 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   linkPopupPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
   linkUrl = signal<string>('');
   currentLinkRange = signal<{ from: number; to: number } | null>(null);
+  activeLinkAnchor: HTMLElement | null = null;
+  savedLinkCursorPos: number | null = null;
+  lastLinkPopupOpenedAt: number = 0;
+  lastLinkPopupClosedAt: number = 0;
+
+  protected resolvedLinkHref = computed(() => {
+    const raw = this.linkUrl().trim();
+    if (!raw) return '';
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) || raw.startsWith('#') || raw.startsWith('/')) {
+      return raw;
+    }
+    return `https://${raw}`;
+  });
 
   imageModalOpen = signal<boolean>(false);
   imageSourceType = signal<'upload' | 'url'>('upload');
@@ -303,11 +319,82 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   readonly showBreaks = signal<boolean>(false);
   readonly isRawMode = signal<boolean>(false);
   readonly rawContent = signal<string>('');
-  readonly placeholdersUnfolded = signal<boolean>(true);
+  readonly placeholdersUnfolded = signal<boolean>(false);
+  readonly placeholdersMenuPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
 
   togglePlaceholdersFold() {
-    this.placeholdersUnfolded.set(!this.placeholdersUnfolded());
+    if (this.placeholdersUnfolded()) {
+      this.placeholdersUnfolded.set(false);
+    } else {
+      this.updatePlaceholdersMenuPos();
+      this.placeholdersUnfolded.set(true);
+      requestAnimationFrame(() => this.fitPlaceholdersMenuToViewport());
+    }
     setTimeout(() => this.updateScrollState(), 0);
+  }
+
+  closePlaceholdersMenu() {
+    this.placeholdersUnfolded.set(false);
+  }
+
+  fitPlaceholdersMenuToViewport() {
+    const menuEl = this.placeholdersMenuRef?.nativeElement;
+    const containerEl = this.containerRef?.nativeElement;
+    if (!menuEl || !containerEl) return;
+
+    const margin = 12; // breathing room on edges
+    const vw = typeof document !== 'undefined' ? (document.documentElement.clientWidth || window.innerWidth) : 800;
+    const menuRect = menuEl.getBoundingClientRect();
+    const containerRect = containerEl.getBoundingClientRect();
+
+    // Check right overflow against viewport
+    const overflowViewport = menuRect.right - (vw - margin);
+    // Check right overflow against container if container is width-constrained
+    const overflowContainer = containerRect.width > 0 ? (menuRect.right - (containerRect.right - margin)) : 0;
+    const overflowRight = Math.max(overflowViewport, overflowContainer);
+
+    if (overflowRight > 0) {
+      // Shift left to bring right edge inside bounds, but never push past left margin
+      const currentLeft = this.placeholdersMenuPos().left;
+      const minLeft = margin;
+      const newLeft = Math.max(minLeft, currentLeft - overflowRight);
+      this.placeholdersMenuPos.update((pos) => ({ ...pos, left: newLeft }));
+    }
+  }
+
+  updatePlaceholdersMenuPos() {
+    const btnEl = this.placeholdersToggleBtnRef?.nativeElement;
+    const containerEl = this.containerRef?.nativeElement;
+    if (!btnEl || !containerEl) {
+      this.placeholdersMenuPos.set({ top: 38, left: 10 });
+      return;
+    }
+    const btnRect = btnEl.getBoundingClientRect();
+    const containerRect = containerEl.getBoundingClientRect();
+
+    let top = btnRect.bottom - containerRect.top + 4;
+    let left = btnRect.left - containerRect.left;
+
+    // Fallback for headless / test environments where getBoundingClientRect returns 0
+    if (btnRect.bottom === 0 && btnRect.left === 0) {
+      top = 38;
+      left = 10;
+    } else {
+      const vw = typeof document !== 'undefined' ? (document.documentElement.clientWidth || window.innerWidth) : 800;
+      const margin = 12;
+      const estimatedWidth = Math.min(280, vw - margin * 2);
+
+      const maxContainerLeft = containerRect.width > 0 ? containerRect.width - estimatedWidth - margin : left;
+      const maxViewportLeft = vw - containerRect.left - estimatedWidth - margin;
+      const maxLeft = Math.min(maxContainerLeft, maxViewportLeft);
+
+      if (left > maxLeft) {
+        left = Math.max(margin, maxLeft);
+      }
+      if (left < margin) left = margin;
+    }
+
+    this.placeholdersMenuPos.set({ top, left });
   }
 
   imageDimensions = computed(() => {
@@ -336,6 +423,8 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   @ViewChild('editorContainer') containerRef!: ElementRef;
   @ViewChild('menuRef') menuRef?: ElementRef<HTMLElement>;
   @ViewChild('rawTextarea') rawTextareaRef?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('placeholdersToggleBtn') placeholdersToggleBtnRef?: ElementRef<HTMLButtonElement>;
+  @ViewChild('placeholdersMenuRef') placeholdersMenuRef?: ElementRef<HTMLDivElement>;
   private lastRichHeight = 400;
   private menuResizeObserver?: ResizeObserver;
   private editor?: Editor;
@@ -398,9 +487,56 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     }, 50);
   }
 
+  closeLinkPopup(restoreCursor: boolean = true) {
+    this.linkPopupOpen.set(false);
+    this.activeLinkAnchor = null;
+    this.lastLinkPopupOpenedAt = 0;
+    this.lastLinkPopupClosedAt = Date.now();
+    if (restoreCursor && this.savedLinkCursorPos !== null) {
+      this.editor?.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        view.focus();
+        try {
+          const safePos = Math.min(Math.max(0, this.savedLinkCursorPos!), view.state.doc.content.size);
+          const sel = TextSelection.near(view.state.doc.resolve(safePos));
+          view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
+        } catch {}
+      });
+    }
+  }
+
+  @HostListener('document:pointerdown', ['$event'])
+  onDocumentPointerDown(event: PointerEvent) {
+    this.handleOutsideLinkPopupInteraction(event);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    this.handleOutsideLinkPopupInteraction(event);
+  }
+
+  private handleOutsideLinkPopupInteraction(event: Event) {
+    if (!this.linkPopupOpen()) return;
+    const target = event.target as Node | null;
+    const el = target instanceof Element ? target : target?.parentElement;
+    if (el?.closest('.link-popup')) {
+      return;
+    }
+    const editorEl = this.editorRef?.nativeElement;
+    const wrapperEl = this.contentWrapperRef?.nativeElement;
+    if ((editorEl && editorEl.contains(el ?? null)) || (wrapperEl && wrapperEl.contains(el ?? null))) {
+      return;
+    }
+    this.closeLinkPopup(false);
+  }
+
   onEscape() {
+    if (this.placeholdersUnfolded()) {
+      this.placeholdersUnfolded.set(false);
+      return;
+    }
     if (this.linkPopupOpen()) {
-      this.linkPopupOpen.set(false);
+      this.closeLinkPopup(true);
       return;
     }
     if (this.imageModalOpen()) {
@@ -430,6 +566,9 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     const { scrollLeft, scrollWidth, clientWidth } = el;
     this.canScrollLeft.set(scrollLeft > 1);
     this.canScrollRight.set(scrollLeft + clientWidth < scrollWidth - 1);
+    if (this.placeholdersUnfolded()) {
+      this.updatePlaceholdersMenuPos();
+    }
   }
 
   scrollToolbar(direction: 'left' | 'right') {
@@ -452,14 +591,27 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const value = this.initialValue();
-      if (value && this.isFirstLoad) {
-        if (untracked(() => this.isRawMode())) {
-          this.rawContent.set(value);
-          setTimeout(() => this.adjustRawTextareaHeight(), 0);
-        }
-        if (this.editor) {
-          this.setMarkdown(value);
-          this.isFirstLoad = false; // Only set initially
+      if (value !== undefined && value !== null) {
+        if (this.isFirstLoad) {
+          if (untracked(() => this.isRawMode())) {
+            this.rawContent.set(value);
+            setTimeout(() => this.adjustRawTextareaHeight(), 0);
+          }
+          if (this.editor) {
+            this.setMarkdown(value);
+            this.isFirstLoad = false; // Only set initially
+          }
+        } else {
+          // If value was changed externally (e.g. Reset to default or programmatic change)
+          if (value !== this.lastInputMarkdown) {
+            this.lastInputMarkdown = value;
+            if (untracked(() => this.isRawMode())) {
+              this.rawContent.set(value);
+              setTimeout(() => this.adjustRawTextareaHeight(), 0);
+            } else if (this.editor) {
+              this.setMarkdown(value);
+            }
+          }
         }
       }
     });
@@ -509,6 +661,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   }
 
   onRawInput(value: string) {
+    this.lastInputMarkdown = value;
     this.rawContent.set(value);
     this.changed.emit(value);
     this.adjustRawTextareaHeight();
@@ -560,6 +713,10 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       // ProseMirror content node inside).
       if (e.target !== wrapper && e.target !== editorEl) return;
 
+      if (this.linkPopupOpen()) {
+        this.closeLinkPopup(false);
+      }
+
       this.editor?.action((ctx) => {
         const view = ctx.get(editorViewCtx);
         const { state } = view;
@@ -604,6 +761,16 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.menuResizeObserver?.disconnect();
+    const container = this.containerRef?.nativeElement;
+    const editorEl = this.editorRef?.nativeElement;
+    if (container) {
+      container.removeEventListener('click', this.linkClickHandler, true);
+      container.removeEventListener('auxclick', this.linkClickHandler, true);
+    }
+    if (editorEl && editorEl !== container) {
+      editorEl.removeEventListener('click', this.linkClickHandler, true);
+      editorEl.removeEventListener('auxclick', this.linkClickHandler, true);
+    }
     this.editor?.destroy();
   }
 
@@ -805,7 +972,9 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
           },
         }));
         ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
-          this.changed.emit(this.cleanSerializedMarkdown(markdown));
+          const cleaned = this.cleanSerializedMarkdown(markdown);
+          this.lastInputMarkdown = cleaned;
+          this.changed.emit(cleaned);
         });
       })
       .use(bulletSchema)
@@ -821,14 +990,13 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       .use(indentPlugin)
       .use(this.chipDecorationPlugin())
       .use(this.breakMarksPlugin())
-      .use(this.linkClickPlugin())
       .create();
     
     this.editor = editor;
     
     // If initialValue was already set before editor was ready
     const value = this.initialValue();
-    if (value && this.isFirstLoad) {
+    if (value !== undefined && value !== null && this.isFirstLoad) {
       this.setMarkdown(value);
       this.isFirstLoad = false;
     }
@@ -842,7 +1010,8 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       const parser = ctx.get(parserCtx);
       const doc = parser(normalized);
       if (!doc) return;
-      const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, doc);
+      const content = (doc.type.name === 'doc' && doc.content) ? doc.content : doc;
+      const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, content);
       view.dispatch(tr);
     });
   }
@@ -851,6 +1020,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   // selected range. The token is plain text, so it round-trips through the
   // markdown untouched and the decoration below re-styles it as a pill.
   insertChip(chip: EditorChip) {
+    this.placeholdersUnfolded.set(false);
     this.editor?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       const { state } = view;
@@ -2050,46 +2220,134 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     });
   }
 
+  private getAnchorFromEvent(e: MouseEvent): HTMLAnchorElement | null {
+    if (typeof e.composedPath === 'function') {
+      for (const el of e.composedPath()) {
+        if (el instanceof HTMLAnchorElement) {
+          return el;
+        }
+      }
+    }
+    let node: Node | null = e.target as Node | null;
+    if (node && node.nodeType === Node.TEXT_NODE) {
+      node = node.parentElement;
+    }
+    if (node instanceof Element) {
+      return node.closest('a');
+    }
+    return null;
+  }
+
   openLinkPopupForPosition(
     view: EditorView,
     pos: number,
     mark?: Mark | null,
     anchor?: HTMLElement | null,
+    exactCursorPos?: number | null,
   ) {
     const { state } = view;
     const { link } = state.schema.marks;
     if (!link) return;
 
+    const now = Date.now();
+    // Guard against rapid re-opening if the popup was just closed within 250ms
+    if (now - this.lastLinkPopupClosedAt < 250) {
+      return;
+    }
+
+    if (this.linkPopupOpen()) {
+      const timeSinceOpen = now - this.lastLinkPopupOpenedAt;
+      const currentRange = this.currentLinkRange();
+      const isSameAnchor = !!(this.activeLinkAnchor && anchor && this.activeLinkAnchor === anchor);
+      const targetCursorPos = exactCursorPos ?? pos;
+      const clickedHref = anchor?.getAttribute('href') ?? (anchor as HTMLAnchorElement)?.href ?? mark?.attrs['href'] ?? null;
+      const isSameHref = clickedHref !== null ? (clickedHref === this.linkUrl() || decodeURIComponent(clickedHref) === decodeURIComponent(this.linkUrl())) : true;
+      const isWithinRange = !!(currentRange && targetCursorPos >= currentRange.from && targetCursorPos <= currentRange.to);
+      const isPosWithinRange = !!(currentRange && pos >= currentRange.from && pos <= currentRange.to);
+
+      if (isSameAnchor || (isSameHref && (isWithinRange || isPosWithinRange))) {
+        if (timeSinceOpen > 250) {
+          // User clicked the same link again while popup is open -> simply close the popup
+          this.closeLinkPopup(false);
+          try {
+            const safePos = Math.min(Math.max(0, targetCursorPos), state.doc.content.size);
+            const sel = TextSelection.near(state.doc.resolve(safePos));
+            view.dispatch(state.tr.setSelection(sel));
+          } catch {}
+          view.focus();
+          return;
+        } else {
+          // Rapid duplicate invocation from same event or bubble phase -> keep open
+          return;
+        }
+      }
+    }
+
+    this.activeLinkAnchor = (anchor as HTMLElement) ?? null;
+    this.savedLinkCursorPos = exactCursorPos ?? pos;
+    if (this.savedLinkCursorPos !== null) {
+      try {
+        const safePos = Math.min(Math.max(0, this.savedLinkCursorPos), state.doc.content.size);
+        const sel = TextSelection.near(state.doc.resolve(safePos));
+        view.dispatch(state.tr.setSelection(sel));
+      } catch {}
+    }
+
     let targetMark = mark;
     let targetPos = pos;
 
     if (!targetMark) {
-      const $pos = state.doc.resolve(pos);
-      targetMark = $pos.marks().find((m) => m.type.name === 'link');
-      if (!targetMark && pos > 0) {
-        targetMark = state.doc.resolve(pos - 1).marks().find((m) => m.type.name === 'link');
+      for (const testPos of [pos, pos > 0 ? pos - 1 : pos, pos + 1]) {
+        if (testPos >= 0 && testPos <= state.doc.content.size) {
+          const m = state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+          if (m) {
+            targetMark = m;
+            targetPos = testPos;
+            break;
+          }
+        }
       }
     }
 
     if (!targetMark && anchor) {
       try {
         const domPos = view.posAtDOM(anchor.firstChild || anchor, 0);
-        targetPos = domPos;
-        const $domPos = state.doc.resolve(domPos);
-        targetMark = $domPos.marks().find((m) => m.type.name === 'link');
+        for (const testPos of [domPos + 1, domPos, domPos > 0 ? domPos - 1 : domPos]) {
+          if (testPos >= 0 && testPos <= state.doc.content.size) {
+            const m = state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+            if (m) {
+              targetMark = m;
+              targetPos = testPos;
+              break;
+            }
+          }
+        }
       } catch {}
     }
 
     if (!targetMark && anchor) {
       const href = anchor.getAttribute('href');
       if (href) {
+        let decodedHref = href;
+        try {
+          decodedHref = decodeURIComponent(href);
+        } catch {}
         state.doc.descendants((node, p) => {
           if (targetMark) return false;
           if (node.isText) {
-            const found = node.marks.find((m) => m.type.name === 'link' && m.attrs['href'] === href);
+            const found = node.marks.find((m) => {
+              if (m.type.name !== 'link') return false;
+              const markHref = m.attrs['href'] || '';
+              return (
+                markHref === href ||
+                markHref === decodedHref ||
+                decodeURIComponent(markHref) === decodedHref ||
+                (anchor as HTMLAnchorElement).href === markHref
+              );
+            });
             if (found) {
               targetMark = found;
-              targetPos = p;
+              targetPos = p + 1;
               return false;
             }
           }
@@ -2098,61 +2356,109 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       }
     }
 
-    if (!targetMark) return;
-
-    const url = targetMark.attrs['href'] || '';
-    this.linkUrl.set(url);
-
-    // Find the contiguous range of this link mark within the block
-    const $pos = state.doc.resolve(targetPos);
-    let from = targetPos;
-    let to = targetPos;
-    let foundRange = false;
-
-    let start = $pos.start();
-    $pos.parent.forEach((child) => {
-      const end = start + child.nodeSize;
-      if (child.marks.some((m) => m.type.name === 'link' && m.attrs['href'] === url)) {
-        if (!foundRange) {
-          from = start;
-          to = end;
-          foundRange = true;
-        } else {
-          to = end;
-        }
-      }
-      start = end;
-    });
-
-    if (!foundRange) {
-      // Fallback: search entire document
-      start = 0;
-      state.doc.descendants((child, p) => {
-        if (child.isText && child.marks.some((m) => m.type.name === 'link' && m.attrs['href'] === url)) {
-          if (!foundRange) {
-            from = p;
-            to = p + child.nodeSize;
-            foundRange = true;
-          } else if (p <= to) {
-            to = p + child.nodeSize;
+    if (!targetMark && anchor && anchor.textContent) {
+      const text = anchor.textContent;
+      state.doc.descendants((node, p) => {
+        if (targetMark) return false;
+        if (node.isText && node.text === text) {
+          const found = node.marks.find((m) => m.type.name === 'link');
+          if (found) {
+            targetMark = found;
+            targetPos = p + 1;
+            return false;
           }
         }
+        return true;
       });
+    }
+
+    const url =
+      targetMark?.attrs['href'] ??
+      anchor?.getAttribute('href') ??
+      (anchor as HTMLAnchorElement)?.href ??
+      '';
+    this.linkUrl.set(url);
+
+    let from = targetPos;
+    let to = targetPos;
+
+    if (targetMark) {
+      // Find the contiguous range of this link mark within the block
+      const $pos = state.doc.resolve(targetPos);
+      let foundRange = false;
+
+      let start = $pos.start();
+      $pos.parent.forEach((child) => {
+        const end = start + child.nodeSize;
+        if (
+          child.marks.some(
+            (m) => m.type.name === 'link' && m.attrs['href'] === url,
+          )
+        ) {
+          if (!foundRange) {
+            from = start;
+            to = end;
+            foundRange = true;
+          } else {
+            to = end;
+          }
+        }
+        start = end;
+      });
+
+      if (!foundRange) {
+        // Fallback: search entire document
+        state.doc.descendants((child, p) => {
+          if (
+            child.isText &&
+            child.marks.some(
+              (m) => m.type.name === 'link' && m.attrs['href'] === url,
+            )
+          ) {
+            if (!foundRange) {
+              from = p;
+              to = p + child.nodeSize;
+              foundRange = true;
+            } else if (p <= to) {
+              to = p + child.nodeSize;
+            }
+          }
+        });
+      }
+    } else if (anchor) {
+      try {
+        const domPos = view.posAtDOM(anchor, 0);
+        from = domPos;
+        to = domPos + (anchor.textContent?.length || 0);
+      } catch {}
     }
 
     this.currentLinkRange.set({ from, to });
 
     try {
-      const coords = view.coordsAtPos(targetPos);
-      this.linkPopupPos.set(this.toContainerCoords(coords, 320));
+      if (anchor) {
+        const rect = anchor.getBoundingClientRect();
+        this.linkPopupPos.set(
+          this.toContainerCoords(
+            { left: rect.left, bottom: rect.bottom },
+            320,
+          ),
+        );
+      } else {
+        const coords = view.coordsAtPos(targetPos);
+        this.linkPopupPos.set(this.toContainerCoords(coords, 320));
+      }
     } catch {
       this.linkPopupPos.set({ top: 0, left: 0 });
     }
 
+    this.lastLinkPopupOpenedAt = Date.now();
     this.linkPopupOpen.set(true);
 
     setTimeout(() => {
-      const input = this.containerRef?.nativeElement?.querySelector('.link-popup input') as HTMLInputElement;
+      const input = this.containerRef?.nativeElement?.querySelector(
+        '.link-popup input',
+      ) as HTMLInputElement;
       if (input) {
         input.focus();
         input.select();
@@ -2188,6 +2494,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         }
       }
       this.linkPopupOpen.set(false);
+      this.activeLinkAnchor = null;
       view.focus();
     });
   }
@@ -2204,106 +2511,170 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         view.dispatch(state.tr.removeMark(range.from, range.to, link));
       }
       this.linkPopupOpen.set(false);
+      this.activeLinkAnchor = null;
       view.focus();
     });
   }
 
-  private linkClickPlugin() {
-    return $prose(() => new Plugin({
-      key: new PluginKey('markdown-editor-link-click'),
-      props: {
-        handleClick: (view, pos, event) => {
-          const target = event.target as HTMLElement | null;
-          const anchor = target?.closest('a');
-          const $pos = view.state.doc.resolve(pos);
-          let mark = $pos.marks().find((m) => m.type.name === 'link');
-          if (!mark && pos > 0) {
-            mark = view.state.doc.resolve(pos - 1).marks().find((m) => m.type.name === 'link');
-          }
-
-          if (anchor || mark) {
-            event.preventDefault();
-            if (!this.linkPopupOpen()) {
-              this.openLinkPopupForPosition(view, pos, mark, anchor);
-            }
-            return true;
-          }
-          return false;
-        },
-      },
-    }));
-  }
-
-  private setupLinkHandling() {
-    const el = this.editorRef.nativeElement;
-
-    // Intercept clicks on links in capture phase to prevent browser navigation and open popup
-    const handleLinkClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      const anchor = target?.closest('a');
-      if (!anchor) return;
-
-      // Always prevent default navigation for links inside the editor
-      e.preventDefault();
-
-      this.editor?.action((ctx) => {
-        const view = ctx.get(editorViewCtx);
-        const { state } = view;
-        let mark: any = null;
-        let targetPos = state.selection.$from.pos;
-
-        // Try cursor selection marks
-        mark = state.selection.$from.marks().find((m) => m.type.name === 'link');
-
-        // Try coords if available
-        if (!mark) {
+  private linkClickHandler = (e: MouseEvent) => {
+    const anchor = this.getAnchorFromEvent(e);
+    if (!anchor) {
+      if (this.linkPopupOpen()) {
+        const target = e.target as Node | null;
+        const el = target instanceof Element ? target : target?.parentElement;
+        if (el?.closest('.link-popup')) {
+          return;
+        }
+        this.closeLinkPopup(false);
+        this.editor?.action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          let targetCursorPos: number | null = null;
           try {
             const coordsPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
-            if (coordsPos) {
-              targetPos = coordsPos.pos;
-              const $pos = state.doc.resolve(targetPos);
-              mark = $pos.marks().find((m) => m.type.name === 'link') ||
-                (targetPos > 0 ? state.doc.resolve(targetPos - 1).marks().find((m) => m.type.name === 'link') : null);
+            if (coordsPos && typeof coordsPos.pos === 'number') {
+              targetCursorPos = coordsPos.pos;
             }
           } catch {}
-        }
+          if (targetCursorPos !== null) {
+            try {
+              const safePos = Math.min(Math.max(0, targetCursorPos), view.state.doc.content.size);
+              const sel = TextSelection.near(view.state.doc.resolve(safePos));
+              view.dispatch(view.state.tr.setSelection(sel));
+            } catch {}
+          }
+          view.focus();
+        });
+      }
+      return;
+    }
 
-        // Try posAtDOM on anchor
-        if (!mark) {
-          try {
-            const domPos = view.posAtDOM(anchor.firstChild || anchor, 0);
-            targetPos = domPos;
-            const $domPos = state.doc.resolve(domPos);
-            mark = $domPos.marks().find((m) => m.type.name === 'link');
-          } catch {}
-        }
+    // Do not intercept clicks on the "Open Link in New Tab" button inside the link popup itself
+    if (anchor.closest('.link-popup')) return;
 
-        // Fallback: search doc for link mark with matching href
-        if (!mark) {
-          const href = anchor.getAttribute('href');
-          if (href) {
-            state.doc.descendants((node, pos) => {
-              if (mark) return false;
-              if (node.isText) {
-                const found = node.marks.find((m) => m.type.name === 'link' && m.attrs['href'] === href);
-                if (found) {
-                  mark = found;
-                  targetPos = pos;
-                  return false;
-                }
-              }
-              return true;
-            });
+    // Always prevent default navigation for links inside the editor
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      let mark: Mark | null = null;
+      let targetPos = 0;
+
+      // 1. Resolve mark from anchor DOM position first
+      try {
+        const domPos = view.posAtDOM(anchor.firstChild || anchor, 0);
+        targetPos = domPos;
+        for (const testPos of [domPos + 1, domPos, domPos > 0 ? domPos - 1 : domPos]) {
+          if (testPos >= 0 && testPos <= state.doc.content.size) {
+            const m = state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+            if (m) {
+              mark = m;
+              targetPos = testPos;
+              break;
+            }
           }
         }
+      } catch {}
 
-        if (mark) {
-          this.openLinkPopupForPosition(view, targetPos, mark, anchor);
+      // 2. Resolve mark from anchor href attribute in document
+      if (!mark) {
+        const href = anchor.getAttribute('href');
+        if (href) {
+          let decodedHref = href;
+          try {
+            decodedHref = decodeURIComponent(href);
+          } catch {}
+          state.doc.descendants((node, pos) => {
+            if (mark) return false;
+            if (node.isText) {
+              const found = node.marks.find((m) => {
+                if (m.type.name !== 'link') return false;
+                const markHref = m.attrs['href'] || '';
+                return (
+                  markHref === href ||
+                  markHref === decodedHref ||
+                  decodeURIComponent(markHref) === decodedHref ||
+                  anchor.href === markHref
+                );
+              });
+              if (found) {
+                mark = found;
+                targetPos = pos + 1;
+                return false;
+              }
+            }
+            return true;
+          });
         }
-      });
-    };
+      }
 
-    el.addEventListener('click', handleLinkClick, true);
-    el.addEventListener('auxclick', handleLinkClick, true);
+      // 3. Resolve mark by matching anchor text content in document
+      if (!mark && anchor.textContent) {
+        const text = anchor.textContent;
+        state.doc.descendants((node, pos) => {
+          if (mark) return false;
+          if (node.isText && node.text === text) {
+            const found = node.marks.find((m) => m.type.name === 'link');
+            if (found) {
+              mark = found;
+              targetPos = pos + 1;
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      // 4. Try coords from event
+      if (!mark) {
+        try {
+          const coordsPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
+          if (coordsPos) {
+            targetPos = coordsPos.pos;
+            for (const testPos of [targetPos, targetPos > 0 ? targetPos - 1 : targetPos, targetPos + 1]) {
+              if (testPos >= 0 && testPos <= state.doc.content.size) {
+                const m = state.doc.resolve(testPos).marks().find((mk) => mk.type.name === 'link');
+                if (m) {
+                  mark = m;
+                  targetPos = testPos;
+                  break;
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // 5. Fallback to cursor selection only if no anchor mark was found
+      if (!mark) {
+        targetPos = state.selection.$from.pos;
+        mark = state.selection.$from.marks().find((m) => m.type.name === 'link') || null;
+      }
+
+      let exactCursorPos: number | null = null;
+      try {
+        const coordsPos = view.posAtCoords({ left: e.clientX, top: e.clientY });
+        if (coordsPos && typeof coordsPos.pos === 'number') {
+          exactCursorPos = coordsPos.pos;
+        }
+      } catch {}
+
+      this.openLinkPopupForPosition(view, targetPos, mark, anchor, exactCursorPos ?? targetPos);
+    });
+  };
+
+  private setupLinkHandling() {
+    const container = this.containerRef?.nativeElement;
+    const editorEl = this.editorRef?.nativeElement;
+
+    if (container) {
+      container.addEventListener('click', this.linkClickHandler, true);
+      container.addEventListener('auxclick', this.linkClickHandler, true);
+    } else if (editorEl) {
+      editorEl.addEventListener('click', this.linkClickHandler, true);
+      editorEl.addEventListener('auxclick', this.linkClickHandler, true);
+    }
   }
 }
