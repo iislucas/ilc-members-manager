@@ -201,30 +201,41 @@ describe('MarkdownEditor', () => {
     const placeholdersGroup = fixture.nativeElement.querySelector('.toolbar-placeholders-group');
     expect(placeholdersGroup).toBeTruthy();
 
-    const chipBtn = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-insert');
+    const toggleBtn = fixture.nativeElement.querySelector('.placeholders-toggle-btn');
+    expect(toggleBtn).toBeTruthy();
+
+    // Initially closed / dropdown not open
+    expect(component.placeholdersUnfolded()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.placeholders-dropdown-menu')).toBeNull();
+
+    // Click toggle button to open dropdown
+    toggleBtn.click();
+    fixture.detectChanges();
+    expect(component.placeholdersUnfolded()).toBe(true);
+
+    const dropdown = fixture.nativeElement.querySelector('.placeholders-dropdown-menu');
+    expect(dropdown).toBeTruthy();
+
+    const chipBtn = fixture.nativeElement.querySelector('.placeholders-dropdown-menu .chip-insert');
     expect(chipBtn).toBeTruthy();
     expect(chipBtn.textContent.trim()).toBe('{name}');
 
     // Verify description is rendered
-    const descSpan = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-description');
+    const descSpan = fixture.nativeElement.querySelector('.placeholders-dropdown-menu .chip-description');
     expect(descSpan).toBeTruthy();
     expect(descSpan.textContent.trim()).toBe('Member name');
 
-    // Test folding
-    const toggleBtn = fixture.nativeElement.querySelector('.placeholders-toggle-btn');
-    expect(toggleBtn).toBeTruthy();
-    expect(component.placeholdersUnfolded()).toBe(true);
-
+    // Click toggle button to close dropdown
     toggleBtn.click();
     fixture.detectChanges();
     expect(component.placeholdersUnfolded()).toBe(false);
-    expect(fixture.nativeElement.querySelector('.placeholders-palette')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.placeholders-dropdown-menu')).toBeNull();
 
-    // Unfold again
+    // Open again
     toggleBtn.click();
     fixture.detectChanges();
     expect(component.placeholdersUnfolded()).toBe(true);
-    const unfoldedChipBtn = fixture.nativeElement.querySelector('.toolbar-placeholders-group .chip-insert');
+    const unfoldedChipBtn = fixture.nativeElement.querySelector('.placeholders-dropdown-menu .chip-insert');
     expect(unfoldedChipBtn).toBeTruthy();
 
     component['editor']?.action((ctx) => {
@@ -232,11 +243,12 @@ describe('MarkdownEditor', () => {
       view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
     });
 
-    // Click chip button in toolbar
+    // Click chip button in dropdown to insert chip and automatically close dropdown
     unfoldedChipBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 200));
     fixture.detectChanges();
 
+    expect(component.placeholdersUnfolded()).toBe(false);
     expect(emittedValue).toContain('{name}');
   });
 
@@ -303,14 +315,15 @@ describe('MarkdownEditor', () => {
     expect(fixture.nativeElement.querySelector('.menu')).toBeTruthy();
   });
 
-  it('should toggle fullscreen mode with button and escape key', () => {
+  it('should toggle fullscreen mode with button at far left and escape key', () => {
     expect(component.isFullscreen()).toBe(false);
     const container = fixture.nativeElement.querySelector('.markdown-editor-container');
     expect(container.classList).not.toContain('fullscreen');
-    expect(fixture.nativeElement.querySelector('.fullscreen-fixed-btn')).toBeNull();
 
-    const fullscreenBtn = fixture.nativeElement.querySelector('.fullscreen-menu-item');
+    // Fullscreen button is located at the far left in menu-header alongside info button
+    const fullscreenBtn = fixture.nativeElement.querySelector('.menu-header .fullscreen-btn');
     expect(fullscreenBtn).toBeTruthy();
+    expect(fullscreenBtn.getAttribute('title')).toBe('Fullscreen');
 
     // Enter fullscreen
     fullscreenBtn.click();
@@ -319,17 +332,19 @@ describe('MarkdownEditor', () => {
     expect(component.isFullscreen()).toBe(true);
     expect(container.classList).toContain('fullscreen');
 
-    // In fullscreen mode, the fixed leftmost exit button should be present
-    const fixedExitBtn = fixture.nativeElement.querySelector('.fullscreen-fixed-btn');
-    expect(fixedExitBtn).toBeTruthy();
+    // Button remains in the same position at the far left in fullscreen mode
+    const exitFullscreenBtn = fixture.nativeElement.querySelector('.menu-header .fullscreen-btn');
+    expect(exitFullscreenBtn).toBeTruthy();
+    expect(exitFullscreenBtn).toBe(fullscreenBtn);
+    expect(exitFullscreenBtn.getAttribute('title')).toBe('Exit Fullscreen');
 
-    // Click fixed button to exit fullscreen
-    fixedExitBtn.click();
+    // Click button again to exit fullscreen
+    exitFullscreenBtn.click();
     fixture.detectChanges();
 
     expect(component.isFullscreen()).toBe(false);
     expect(container.classList).not.toContain('fullscreen');
-    expect(fixture.nativeElement.querySelector('.fullscreen-fixed-btn')).toBeNull();
+    expect(fullscreenBtn.getAttribute('title')).toBe('Fullscreen');
 
     // Re-enter and exit with Escape key
     component.isFullscreen.set(true);

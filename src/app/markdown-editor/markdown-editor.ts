@@ -303,11 +303,49 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   readonly showBreaks = signal<boolean>(false);
   readonly isRawMode = signal<boolean>(false);
   readonly rawContent = signal<string>('');
-  readonly placeholdersUnfolded = signal<boolean>(true);
+  readonly placeholdersUnfolded = signal<boolean>(false);
+  readonly placeholdersMenuPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
 
   togglePlaceholdersFold() {
-    this.placeholdersUnfolded.set(!this.placeholdersUnfolded());
+    if (this.placeholdersUnfolded()) {
+      this.placeholdersUnfolded.set(false);
+    } else {
+      this.updatePlaceholdersMenuPos();
+      this.placeholdersUnfolded.set(true);
+    }
     setTimeout(() => this.updateScrollState(), 0);
+  }
+
+  closePlaceholdersMenu() {
+    this.placeholdersUnfolded.set(false);
+  }
+
+  updatePlaceholdersMenuPos() {
+    const btnEl = this.placeholdersToggleBtnRef?.nativeElement;
+    const containerEl = this.containerRef?.nativeElement;
+    if (!btnEl || !containerEl) {
+      this.placeholdersMenuPos.set({ top: 38, left: 10 });
+      return;
+    }
+    const btnRect = btnEl.getBoundingClientRect();
+    const containerRect = containerEl.getBoundingClientRect();
+
+    let top = btnRect.bottom - containerRect.top + 4;
+    let left = btnRect.left - containerRect.left;
+
+    // Fallback for headless / test environments where getBoundingClientRect returns 0
+    if (btnRect.bottom === 0 && btnRect.left === 0) {
+      top = 38;
+      left = 10;
+    } else {
+      const estimatedWidth = 260;
+      if (containerRect.width > 0 && left + estimatedWidth > containerRect.width - 12) {
+        left = Math.max(8, containerRect.width - estimatedWidth - 12);
+      }
+      if (left < 8) left = 8;
+    }
+
+    this.placeholdersMenuPos.set({ top, left });
   }
 
   imageDimensions = computed(() => {
@@ -336,6 +374,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   @ViewChild('editorContainer') containerRef!: ElementRef;
   @ViewChild('menuRef') menuRef?: ElementRef<HTMLElement>;
   @ViewChild('rawTextarea') rawTextareaRef?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('placeholdersToggleBtn') placeholdersToggleBtnRef?: ElementRef<HTMLButtonElement>;
   private lastRichHeight = 400;
   private menuResizeObserver?: ResizeObserver;
   private editor?: Editor;
@@ -399,6 +438,10 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   }
 
   onEscape() {
+    if (this.placeholdersUnfolded()) {
+      this.placeholdersUnfolded.set(false);
+      return;
+    }
     if (this.linkPopupOpen()) {
       this.linkPopupOpen.set(false);
       return;
@@ -851,6 +894,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   // selected range. The token is plain text, so it round-trips through the
   // markdown untouched and the decoration below re-styles it as a pill.
   insertChip(chip: EditorChip) {
+    this.placeholdersUnfolded.set(false);
     this.editor?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       const { state } = view;

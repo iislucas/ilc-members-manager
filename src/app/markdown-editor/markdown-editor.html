@@ -5,15 +5,6 @@
     @if (menuOpen() && !isRawMode()) {
       <div class="toolbar-wrapper">
         <div class="toolbar-main">
-          @if (isFullscreen()) {
-            <button type="button" 
-                    class="icon-only-button fullscreen-fixed-btn" 
-                    (click)="toggleFullscreen(); $event.stopPropagation()"
-                    title="Exit Fullscreen">
-              <app-icon name="fullscreen_exit" width="1.2em" height="1.2em"></app-icon>
-            </button>
-          }
-
           @if (canScrollLeft()) {
             <button type="button" 
                     class="icon-only-button scroll-arrow-btn left" 
@@ -24,14 +15,20 @@
           }
 
           <div class="menu" #menuRef (scroll)="updateScrollState()" [class.collapsed]="!showDescriptions()">
-            <!-- Menu Header with Info Button -->
+            <!-- Menu Header with Fullscreen and Info Buttons at the far left -->
             <div class="menu-header">
-              @if (showDescriptions()) {
-                <span class="menu-title">Actions</span>
-              }
+              <button type="button" 
+                      (click)="toggleFullscreen(); $event.stopPropagation()" 
+                      class="fullscreen-btn fullscreen-menu-item menu-item" 
+                      [title]="isFullscreen() ? 'Exit Fullscreen' : 'Fullscreen'">
+                <app-icon [name]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
+              </button>
               <button type="button" (click)="toggleDescriptions(); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
                 <app-icon name="info" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
               </button>
+              @if (showDescriptions()) {
+                <span class="menu-title">Actions</span>
+              }
             </div>
             
             <div class="menu-item" (click)="undo()" title="Undo">
@@ -118,41 +115,19 @@
               <span class="menu-icon clear-format-icon">T&#x2715;</span>
               @if (showDescriptions()) { <span>Clear Formatting</span> }
             </div>
-            @if (!isFullscreen()) {
-              <div class="menu-item fullscreen-menu-item" (click)="toggleFullscreen()" title="Fullscreen">
-                <span class="menu-icon"><app-icon name="fullscreen" width="1.2em" height="1.2em"></app-icon></span>
-                @if (showDescriptions()) { <span>Fullscreen</span> }
-              </div>
-            }
 
             @if (chips().length > 0) {
               <div class="toolbar-divider"></div>
-              <div class="toolbar-placeholders-group" [class.unfolded]="placeholdersUnfolded()">
+              <div class="toolbar-placeholders-group" [class.unfolded]="placeholdersUnfolded()" [class.open]="placeholdersUnfolded()">
                 <button type="button"
+                        #placeholdersToggleBtn
                         class="placeholders-toggle-btn"
                         (click)="togglePlaceholdersFold(); $event.stopPropagation()"
-                        [title]="placeholdersUnfolded() ? 'Fold placeholder palette' : 'Unfold placeholder palette'">
+                        [title]="placeholdersUnfolded() ? 'Close placeholder options' : 'Choose a placeholder to insert'">
                   <span class="placeholder-tag">&#123; &#125;</span>
                   <span class="toggle-label">Placeholders ({{ chips().length }})</span>
                   <span class="fold-arrow">{{ placeholdersUnfolded() ? '▾' : '▸' }}</span>
                 </button>
-
-                @if (placeholdersUnfolded()) {
-                  <div class="placeholders-palette">
-                    @for (chip of chips(); track chip.token) {
-                      <div class="placeholder-item"
-                           (click)="insertChip(chip); $event.stopPropagation()"
-                           [title]="chip.description ? (chip.token + ' — ' + chip.description) : ('Insert ' + chip.token)">
-                        <button type="button" class="chip-insert">
-                          {{ chip.label || chip.token }}
-                        </button>
-                        @if (chip.description) {
-                          <span class="chip-description">{{ chip.description }}</span>
-                        }
-                      </div>
-                    }
-                  </div>
-                }
               </div>
             }
           </div>
@@ -190,20 +165,12 @@
           <app-icon name="format" width="1em" height="1em"></app-icon>
         </button>
       }
-      @if (isRawMode() && isFullscreen()) {
-        <button type="button" 
-                class="icon-only-button fullscreen-fixed-btn" 
-                (click)="toggleFullscreen(); $event.stopPropagation()"
-                title="Exit Fullscreen">
-          <app-icon name="fullscreen_exit" width="1.2em" height="1.2em"></app-icon>
-        </button>
-      }
-      @if (isRawMode() && !isFullscreen()) {
+      @if (isRawMode()) {
         <button type="button" 
                 class="icon-only-button" 
                 (click)="toggleFullscreen(); $event.stopPropagation()"
-                title="Fullscreen">
-          <app-icon name="fullscreen" width="1.2em" height="1.2em"></app-icon>
+                [title]="isFullscreen() ? 'Exit Fullscreen' : 'Fullscreen'">
+          <app-icon [name]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'" width="1.2em" height="1.2em"></app-icon>
         </button>
       }
     </div>
@@ -247,6 +214,32 @@
       </button>
     </div>
     <div class="menu-overlay" (click)="linkPopupOpen.set(false)"></div>
+  }
+
+  @if (placeholdersUnfolded()) {
+    <div class="placeholders-dropdown-menu"
+         [style.top.px]="placeholdersMenuPos().top"
+         [style.left.px]="placeholdersMenuPos().left">
+      <div class="placeholders-dropdown-header">
+        <span>Placeholders</span>
+        <span class="placeholders-count">{{ chips().length }}</span>
+      </div>
+      <div class="placeholders-palette">
+        @for (chip of chips(); track chip.token) {
+          <div class="placeholder-item"
+               (click)="insertChip(chip); $event.stopPropagation()"
+               [title]="chip.description ? (chip.token + ' — ' + chip.description) : ('Insert ' + chip.token)">
+            <button type="button" class="chip-insert" (click)="insertChip(chip); $event.stopPropagation()">
+              {{ chip.label || chip.token }}
+            </button>
+            @if (chip.description) {
+              <span class="chip-description">{{ chip.description }}</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+    <div class="menu-overlay" (click)="closePlaceholdersMenu()"></div>
   }
 
   @if (imageModalOpen()) {
