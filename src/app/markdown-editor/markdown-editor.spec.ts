@@ -252,6 +252,68 @@ describe('MarkdownEditor', () => {
     expect(emittedValue).toContain('{name}');
   });
 
+  it('fits placeholders menu to viewport when near right edge on narrow/mobile viewports', () => {
+    fixture.componentRef.setInput('chips', [
+      { token: '{name}', description: 'Member name with a reasonably long description' },
+    ]);
+    fixture.detectChanges();
+
+    const toggleBtn = fixture.nativeElement.querySelector('.placeholders-toggle-btn');
+    toggleBtn.click();
+    fixture.detectChanges();
+
+    expect(component.placeholdersUnfolded()).toBe(true);
+
+    // Mock button and container bounds as if button is located near right edge (e.g. on mobile, left = 280 in 320 container)
+    component.placeholdersToggleBtnRef!.nativeElement.getBoundingClientRect = () => ({
+      top: 10,
+      bottom: 40,
+      left: 280,
+      right: 320,
+      width: 40,
+      height: 30,
+      x: 280,
+      y: 10,
+      toJSON: () => {},
+    });
+
+    component.containerRef.nativeElement.getBoundingClientRect = () => ({
+      top: 0,
+      bottom: 600,
+      left: 0,
+      right: 320,
+      width: 320,
+      height: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    });
+
+    component.updatePlaceholdersMenuPos();
+    // In a 320px wide container, left should be shifted away from 280 to keep menu on-screen
+    expect(component.placeholdersMenuPos().left).toBeLessThan(280);
+    expect(component.placeholdersMenuPos().left).toBeGreaterThanOrEqual(8);
+
+    // Mock placeholdersMenuRef to test fitPlaceholdersMenuToViewport shift
+    if (component.placeholdersMenuRef) {
+      component.placeholdersMenuRef.nativeElement.getBoundingClientRect = () => ({
+        top: 44,
+        bottom: 200,
+        left: 200,
+        right: 340, // 20px overflow past 320px
+        width: 140,
+        height: 156,
+        x: 200,
+        y: 44,
+        toJSON: () => {},
+      });
+
+      component.fitPlaceholdersMenuToViewport();
+      // Should shift left to avoid the overflow
+      expect(component.placeholdersMenuPos().left).toBeLessThan(200);
+    }
+  });
+
   it('should toggle heading H1 without selection (cursor)', async () => {
     let emittedValue = '';
     component.changed.subscribe((value) => {

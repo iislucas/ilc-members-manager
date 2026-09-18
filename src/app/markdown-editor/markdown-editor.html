@@ -218,6 +218,7 @@
 
   @if (placeholdersUnfolded()) {
     <div class="placeholders-dropdown-menu"
+         #placeholdersMenuRef
          [style.top.px]="placeholdersMenuPos().top"
          [style.left.px]="placeholdersMenuPos().left">
       @for (chip of chips(); track chip.token) {

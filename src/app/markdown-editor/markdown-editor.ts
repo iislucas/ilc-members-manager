@@ -312,12 +312,38 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     } else {
       this.updatePlaceholdersMenuPos();
       this.placeholdersUnfolded.set(true);
+      requestAnimationFrame(() => this.fitPlaceholdersMenuToViewport());
     }
     setTimeout(() => this.updateScrollState(), 0);
   }
 
   closePlaceholdersMenu() {
     this.placeholdersUnfolded.set(false);
+  }
+
+  fitPlaceholdersMenuToViewport() {
+    const menuEl = this.placeholdersMenuRef?.nativeElement;
+    const containerEl = this.containerRef?.nativeElement;
+    if (!menuEl || !containerEl) return;
+
+    const margin = 12; // breathing room on edges
+    const vw = typeof document !== 'undefined' ? (document.documentElement.clientWidth || window.innerWidth) : 800;
+    const menuRect = menuEl.getBoundingClientRect();
+    const containerRect = containerEl.getBoundingClientRect();
+
+    // Check right overflow against viewport
+    const overflowViewport = menuRect.right - (vw - margin);
+    // Check right overflow against container if container is width-constrained
+    const overflowContainer = containerRect.width > 0 ? (menuRect.right - (containerRect.right - margin)) : 0;
+    const overflowRight = Math.max(overflowViewport, overflowContainer);
+
+    if (overflowRight > 0) {
+      // Shift left to bring right edge inside bounds, but never push past left margin
+      const currentLeft = this.placeholdersMenuPos().left;
+      const minLeft = margin;
+      const newLeft = Math.max(minLeft, currentLeft - overflowRight);
+      this.placeholdersMenuPos.update((pos) => ({ ...pos, left: newLeft }));
+    }
   }
 
   updatePlaceholdersMenuPos() {
@@ -338,11 +364,18 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       top = 38;
       left = 10;
     } else {
-      const estimatedWidth = 260;
-      if (containerRect.width > 0 && left + estimatedWidth > containerRect.width - 12) {
-        left = Math.max(8, containerRect.width - estimatedWidth - 12);
+      const vw = typeof document !== 'undefined' ? (document.documentElement.clientWidth || window.innerWidth) : 800;
+      const margin = 12;
+      const estimatedWidth = Math.min(280, vw - margin * 2);
+
+      const maxContainerLeft = containerRect.width > 0 ? containerRect.width - estimatedWidth - margin : left;
+      const maxViewportLeft = vw - containerRect.left - estimatedWidth - margin;
+      const maxLeft = Math.min(maxContainerLeft, maxViewportLeft);
+
+      if (left > maxLeft) {
+        left = Math.max(margin, maxLeft);
       }
-      if (left < 8) left = 8;
+      if (left < margin) left = margin;
     }
 
     this.placeholdersMenuPos.set({ top, left });
@@ -375,6 +408,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   @ViewChild('menuRef') menuRef?: ElementRef<HTMLElement>;
   @ViewChild('rawTextarea') rawTextareaRef?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('placeholdersToggleBtn') placeholdersToggleBtnRef?: ElementRef<HTMLButtonElement>;
+  @ViewChild('placeholdersMenuRef') placeholdersMenuRef?: ElementRef<HTMLDivElement>;
   private lastRichHeight = 400;
   private menuResizeObserver?: ResizeObserver;
   private editor?: Editor;
@@ -473,6 +507,9 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     const { scrollLeft, scrollWidth, clientWidth } = el;
     this.canScrollLeft.set(scrollLeft > 1);
     this.canScrollRight.set(scrollLeft + clientWidth < scrollWidth - 1);
+    if (this.placeholdersUnfolded()) {
+      this.updatePlaceholdersMenuPos();
+    }
   }
 
   scrollToolbar(direction: 'left' | 'right') {
