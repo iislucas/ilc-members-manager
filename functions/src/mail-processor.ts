@@ -416,7 +416,7 @@ export const sendAdminTestEmail = onCall(
       period: 'the next 3 months',
       eventsCount: '2',
       calendarUrl: `${origin}/events`,
-      preferencesUrl: `${origin}/settings/notifications`,
+      preferencesUrl: `${origin}/notifications/settings`,
       ...(data.replacements || {}),
     };
 

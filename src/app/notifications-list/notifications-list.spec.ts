@@ -6,6 +6,7 @@ import { MemberNotification, NotificationKind } from '../../../functions/src/dat
 import { FirebaseStateService } from '../firebase-state.service';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';
+import { Views } from '../app.config';
 
 describe('NotificationsListComponent', () => {
   let component: NotificationsListComponent;
@@ -67,8 +68,8 @@ describe('NotificationsListComponent', () => {
     mockRoutingService = {
       navigateToParts: vi.fn(),
       hrefForView: vi.fn().mockImplementation((view: string, vars?: any) => {
-        if (view === 'gradingView') return `#/gradings/${vars?.gradingId}`;
-        if (view === 'notificationSettings') return '#/settings/notifications';
+        if (view === Views.GradingView) return `#/gradings/${vars?.gradingId}`;
+        if (view === Views.UserNotificationSettings) return '#/notifications/settings';
         return '#/';
       }),
       hrefWithParams: vi.fn().mockImplementation((url: string) => `#${url}`),
@@ -186,7 +187,7 @@ describe('NotificationsListComponent', () => {
     expect(menuLinks[1].textContent).toContain('Unread notifications');
     expect(menuLinks[1].getAttribute('href')).toBe('#/notifications?filter=unread');
     expect(menuLinks[2].textContent).toContain('Notification settings');
-    expect(menuLinks[2].getAttribute('href')).toBe('#/settings/notifications');
+    expect(menuLinks[2].getAttribute('href')).toBe('#/notifications/settings');
   });
 
   it('should call dismissAllFyi when Dismiss All FYI in menu is clicked', async () => {

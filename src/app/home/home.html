@@ -350,7 +350,7 @@
           </a>
 
           <!-- Notifications -->
-          <a class="card" [href]="routingService.hrefForView(Views.NotificationSettings)">
+          <a class="card" [href]="routingService.hrefForView(Views.UserNotificationSettings)">
             <div class="icon-container">
               <app-icon name="notifications" width="48px" height="48px"></app-icon>
             </div>
@@ -462,13 +462,13 @@
               <p>Import or export data</p>
             </div>
           </a>
-          <a class="card" [href]="routingService.hrefForView(Views.EmailNotifications)">
+          <a class="card" [href]="routingService.hrefForView(Views.AppNotificationSettings)">
             <div class="icon-container">
               <app-icon name="mail" width="48px" height="48px"></app-icon>
             </div>
             <div class="content">
-              <h2>Email Notifications</h2>
-              <p>Templates, outbound test sender, and mail queue logs</p>
+              <h2>App Notifications</h2>
+              <p>Dispatch controls, email templates, test sender, and mail queue logs</p>
             </div>
           </a>
           <a class="card" [href]="routingService.hrefForView(Views.Settings)">

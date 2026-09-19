@@ -134,7 +134,7 @@ export async function enqueueDigestBatch(
   options: EnqueueDigestBatchOptions,
 ): Promise<number> {
   const calendarUrl = `${options.appBase}/events`;
-  const preferencesUrl = `${options.appBase}/settings/notifications`;
+  const preferencesUrl = `${options.appBase}/notifications/settings`;
   const batch = db.batch();
   let count = 0;
 

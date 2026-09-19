@@ -87,6 +87,10 @@ describe('NavigationTreeService', () => {
     return navTree.ancestors().map((a) => a.label);
   }
 
+  function breadcrumbLabels(): string[] {
+    return navTree.breadcrumbs().map((c) => c.label);
+  }
+
   it('gives a top-level page its area node as parent', () => {
     goTo(Views.ManageMembers);
     expect(navTree.ancestors()).toEqual([{ label: 'Admin', url: '/?tab=admin' }]);
@@ -120,9 +124,25 @@ describe('NavigationTreeService', () => {
     expect(ancestorLabels()).toEqual(['Train', 'Instructors', 'I7']);
   });
 
-  it('puts settings sub-pages under Settings', () => {
-    goTo(Views.NotificationSettings);
-    expect(navTree.parent()?.url).toBe('/settings');
+  it('puts notification settings under Me in the navigation tree', () => {
+    goTo(Views.UserNotificationSettings);
+    expect(ancestorLabels()).toEqual(['Me']);
+    expect(navTree.parent()?.url).toBe('/?tab=me');
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Me', 'Notification Settings']);
+  });
+
+  it('puts app notification settings under Admin in the navigation tree', () => {
+    goTo(Views.AppNotificationSettings);
+    expect(ancestorLabels()).toEqual(['Admin']);
+    expect(navTree.parent()?.url).toBe('/?tab=admin');
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Admin', 'App Notification Settings']);
+  });
+
+  it('puts notifications under Me in the navigation tree', () => {
+    goTo(Views.Notifications);
+    expect(ancestorLabels()).toEqual(['Me']);
+    expect(navTree.parent()?.url).toBe('/?tab=me');
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Me', 'Notifications']);
   });
 
   it('links a member back to their list, scrolled to their row', () => {

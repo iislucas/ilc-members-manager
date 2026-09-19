@@ -245,7 +245,7 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
   const category = (isAll ? 'all' : isCategory ? rawCategory : getEmailCategory(kind)) as EmailCategory;
 
   const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
-  const preferencesUrl = `${appBase}/settings/notifications`;
+  const preferencesUrl = `${appBase}/notifications/settings`;
   const categoryLabel = isAll
     ? 'All Email Notifications'
     : isCategory

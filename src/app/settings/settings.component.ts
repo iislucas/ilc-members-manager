@@ -37,9 +37,8 @@ export class SettingsComponent {
   // Derive the active tab from the URL `tab` parameter.
   activeTab = computed<SettingsTab>(() => {
     const urlTab = this.viewSignals.urlParams.tab();
-    if (urlTab === 'email-templates') {
-      // Backward compatibility redirect: route to dedicated Email Notifications view
-      this.routingService.navigateToParts(['email-notifications']);
+    if (urlTab === 'email-templates' || urlTab === 'notifications') {
+      this.routingService.navigateToParts(['app-notifications']);
       return DEFAULT_TAB;
     }
     if (urlTab && VALID_TABS.includes(urlTab as SettingsTab)) {
