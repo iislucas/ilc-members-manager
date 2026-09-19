@@ -16,6 +16,7 @@ import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import { recordTombstone } from './common';
 import { Member } from './data-model/members';
+import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
 import * as logger from 'firebase-functions/logger';
 
 const db = admin.firestore();
@@ -26,6 +27,33 @@ async function createNotification(
   notification: Omit<MemberNotification, 'docId'>,
 ): Promise<void> {
   await createMemberNotification(db, memberDocId, notification);
+}
+
+async function sendGradingEmail(
+  memberDocId: string | undefined,
+  templateKey: TransactionalEmailKey,
+  replacements: Record<string, string>,
+): Promise<void> {
+  if (!memberDocId) return;
+  try {
+    const memberSnap = await db.collection('members').doc(memberDocId).get();
+    if (!memberSnap.exists) return;
+    const memberData = memberSnap.data() as Member;
+    const emails = (memberData.emails || []).filter((e) => e && e.includes('@'));
+    if (emails.length === 0) return;
+
+    await sendTransactionalEmail(db, {
+      to: emails,
+      templateKey,
+      replacements: {
+        name: memberData.name || 'ILC Member',
+        ...replacements,
+      },
+      memberDocId,
+    });
+  } catch (err) {
+    logger.error(`[on-grading-update] Error sending ${templateKey} email to ${memberDocId}:`, err);
+  }
 }
 
 async function cancelAndDismissGradingNotifications(
@@ -563,6 +591,12 @@ export const onGradingCreated = onDocumentCreated(
             },
           }
         );
+        await sendGradingEmail(instructorMemberDocId, TransactionalEmailKey.GradingRequestReceived, {
+          studentName,
+          gradingLevel: grading.level,
+          gradingEventName: grading.gradingEvent || 'Individual Grading',
+          gradingUrl: `https://app.iliqchuan.com/gradings/${gradingDocId}`,
+        });
       }
 
       // Also notify the student's primary instructor (sifu), unless they are the
@@ -940,6 +974,12 @@ export const onGradingUpdated = onDocumentUpdated(
             },
           }
         );
+        await sendGradingEmail(grading.studentMemberDocId, TransactionalEmailKey.GradingPassed, {
+          gradingLevel: grading.level,
+          gradingEventName: grading.gradingEvent || 'Individual Grading',
+          notes: grading.resultNotes || '',
+          gradingUrl: `https://app.iliqchuan.com/gradings/${gradingDocId}`,
+        });
         // Also notify the student's primary instructor (sifu), unless they are
         // the one who recorded the result.
         // story: docs/user-stories/grading-sifu-notifications.md
@@ -982,6 +1022,12 @@ export const onGradingUpdated = onDocumentUpdated(
             },
           }
         );
+        await sendGradingEmail(grading.studentMemberDocId, TransactionalEmailKey.GradingNotPassed, {
+          gradingLevel: grading.level,
+          gradingEventName: grading.gradingEvent || 'Individual Grading',
+          notes: grading.resultNotes || '',
+          gradingUrl: `https://app.iliqchuan.com/gradings/${gradingDocId}`,
+        });
         // Also notify the student's primary instructor (sifu), unless they are
         // the one who recorded the result.
         // story: docs/user-stories/grading-sifu-notifications.md
@@ -1056,6 +1102,13 @@ export const onGradingUpdated = onDocumentUpdated(
           },
         }
       );
+      await sendGradingEmail(grading.studentMemberDocId, TransactionalEmailKey.GradingRequestAccepted, {
+        instructorName,
+        gradingLevel: grading.level,
+        gradingEventName: grading.gradingEvent || 'Individual Grading',
+        gradingDate: grading.gradingEventDate || 'TBD',
+        gradingUrl: `https://app.iliqchuan.com/gradings/${gradingDocId}`,
+      });
 
       // Also notify the student's primary instructor (sifu) that their
       // student's grading request was accepted, unless the sifu is the one who
@@ -1114,6 +1167,12 @@ export const onGradingUpdated = onDocumentUpdated(
           },
         }
       );
+      await sendGradingEmail(grading.studentMemberDocId, TransactionalEmailKey.GradingRequestDeclined, {
+        instructorName,
+        gradingLevel: grading.level,
+        notes: grading.declineNotes || '',
+        gradingUrl: `https://app.iliqchuan.com/gradings/${gradingDocId}`,
+      });
     }
 
     // Notify instructor if assigned/reassigned and is AwaitingAcceptance
@@ -1153,6 +1212,12 @@ export const onGradingUpdated = onDocumentUpdated(
             },
           }
         );
+        await sendGradingEmail(instructorMemberDocId, TransactionalEmailKey.GradingRequestReceived, {
+          studentName,
+          gradingLevel: grading.level,
+          gradingEventName: grading.gradingEvent || 'Individual Grading',
+          gradingUrl: `https://app.iliqchuan.com/gradings/${gradingDocId}`,
+        });
       }
     }
 

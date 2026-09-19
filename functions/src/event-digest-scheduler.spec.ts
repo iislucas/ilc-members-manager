@@ -193,8 +193,9 @@ describe('processEventDigest', () => {
       expect(mailPayload.templateData.unsubscribeUrl).toContain('/unsubscribe?mid=member-1&token=');
       expect(mailPayload.headers['List-Unsubscribe']).toContain('/unsubscribe?mid=member-1&token=');
       expect(mailPayload.headers['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
-      expect(mailPayload.message.html).toContain('<strong><a href="https://app.iliqchuan.com/events/event-1">Pushing Hands Masterclass</a></strong>');
-      expect(mailPayload.message.html).toContain('Unsubscribe with one click');
+      expect(mailPayload.message.html).toContain('From Upcoming Events Digest');
+      expect(mailPayload.message.html).toContain('From All Event Notifications');
+      expect(mailPayload.message.html).toContain('From All Portal Emails');
     } finally {
       environment.email.from = originalFrom;
     }

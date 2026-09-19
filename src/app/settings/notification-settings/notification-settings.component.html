@@ -124,10 +124,9 @@
       <!-- Account-wide master switch (saved to your member profile) -->
       <div class="pref-row">
         <div class="pref-info">
-          <span class="pref-title">Receive email notifications</span>
+          <span class="pref-title">Receive portal emails</span>
           <span class="pref-sub"
-            >Account-wide setting. Turn this on to allow transactional email
-            notifications.</span
+            >Master switch across all portal emails. Turn off to unsubscribe from all I Liq Chuan member-portal emails.</span
           >
         </div>
         <div class="toggle-control">
@@ -138,141 +137,308 @@
             [disabled]="digestBusy()"
             (change)="setGlobalEmail($any($event.target).checked)"
           />
-          <label for="global-email">Enabled</label>
+          <label for="global-email">
+            {{ globalEmailEnabled() ? "Enabled" : "Disabled" }}
+          </label>
         </div>
       </div>
 
-      <div class="pref-row">
-        <div class="pref-info">
-          <span class="pref-title">Video Access & Gifts</span>
-          <span class="pref-sub"
-            >Notifications when on-demand video access or a video gift is
-            granted to your account.</span
-          >
+      <!-- Category 1: Grading Notifications -->
+      <div class="category-block">
+        <div class="category-header">
+          <span class="category-title">Grading Notifications</span>
+          <div class="toggle-control">
+            <input
+              type="checkbox"
+              id="cat-email-gradings"
+              [disabled]="digestBusy() || !globalEmailEnabled()"
+              [checked]="isCategoryEmailEnabled(EmailCategory.Gradings)"
+              (change)="toggleCategoryEmail(EmailCategory.Gradings, $any($event.target).checked)"
+            />
+            <label for="cat-email-gradings">All Gradings</label>
+          </div>
         </div>
-        <div class="toggle-control">
-          <input
-            type="checkbox"
-            id="email-vod-gift"
-            [disabled]="digestBusy() || !globalEmailEnabled()"
-            [checked]="
-              isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived)
-            "
-            (change)="
-              toggleEmailKind(
-                TransactionalEmailKey.VodGiftReceived,
-                $any($event.target).checked
-              )
-            "
-          />
-          <label for="email-vod-gift">Video Gifts</label>
+        <div class="category-body">
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Grading Requests (For Instructors)</span>
+              <span class="pref-sub">Notifications when students request you to conduct their grading assessment.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-grading-request"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Gradings)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.GradingRequestReceived)"
+                (change)="toggleEmailKind(TransactionalEmailKey.GradingRequestReceived, $any($event.target).checked)"
+              />
+              <label for="email-grading-request">Requests</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Grading Request Accepted</span>
+              <span class="pref-sub">Notifications to students when an instructor accepts their grading request.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-grading-accepted"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Gradings)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.GradingRequestAccepted)"
+                (change)="toggleEmailKind(TransactionalEmailKey.GradingRequestAccepted, $any($event.target).checked)"
+              />
+              <label for="email-grading-accepted">Accepted</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Grading Request Declined</span>
+              <span class="pref-sub">Notifications to students if an instructor declines their grading request.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-grading-declined"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Gradings)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.GradingRequestDeclined)"
+                (change)="toggleEmailKind(TransactionalEmailKey.GradingRequestDeclined, $any($event.target).checked)"
+              />
+              <label for="email-grading-declined">Declined</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Grading Passed</span>
+              <span class="pref-sub">Congratulations and assessment feedback when you pass a level.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-grading-passed"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Gradings)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.GradingPassed)"
+                (change)="toggleEmailKind(TransactionalEmailKey.GradingPassed, $any($event.target).checked)"
+              />
+              <label for="email-grading-passed">Passed</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Grading Result (Feedback)</span>
+              <span class="pref-sub">Examiner guidance and follow-up grading details when a level is not passed.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-grading-not-passed"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Gradings)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.GradingNotPassed)"
+                (change)="toggleEmailKind(TransactionalEmailKey.GradingNotPassed, $any($event.target).checked)"
+              />
+              <label for="email-grading-not-passed">Not Passed</label>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="pref-row">
-        <div class="pref-info">
-          <span class="pref-title">Upcoming Events Digest</span>
-          <span class="pref-sub">
-            Receive scheduled summaries of forthcoming I Liq Chuan workshops and
-            events.
-          </span>
+      <!-- Category 2: Purchases & Orders -->
+      <div class="category-block">
+        <div class="category-header">
+          <span class="category-title">Purchases & Orders</span>
+          <div class="toggle-control">
+            <input
+              type="checkbox"
+              id="cat-email-purchases"
+              [disabled]="digestBusy() || !globalEmailEnabled()"
+              [checked]="isCategoryEmailEnabled(EmailCategory.Purchases)"
+              (change)="toggleCategoryEmail(EmailCategory.Purchases, $any($event.target).checked)"
+            />
+            <label for="cat-email-purchases">All Purchases</label>
+          </div>
         </div>
-        <div class="select-control">
-          <select
-            #freqSelect
-            id="event-digest-frequency"
-            class="digest-select"
-            [disabled]="digestBusy() || !globalEmailEnabled()"
-            [value]="eventDigestFrequency()"
-            (change)="setEventDigestFrequency(freqSelect.value)"
-          >
-            <option value="none">No digest emails (Off)</option>
-            <option value="weekly">Weekly digest (Every Monday)</option>
-            <option value="monthly">Monthly digest (1st of month)</option>
-          </select>
+        <div class="category-body">
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Order & Payment Receipts</span>
+              <span class="pref-sub">Receipts for store purchases and general orders.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-orders"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Purchases)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation)"
+                (change)="toggleEmailKind(TransactionalEmailKey.OrderConfirmation, $any($event.target).checked)"
+              />
+              <label for="email-orders">Receipts</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Subscription Renewals</span>
+              <span class="pref-sub">Invoices and renewal confirmations for ongoing recurring subscriptions.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-subscriptions"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Purchases)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.SubscriptionRenewal)"
+                (change)="toggleEmailKind(TransactionalEmailKey.SubscriptionRenewal, $any($event.target).checked)"
+              />
+              <label for="email-subscriptions">Renewals</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Event Registration Confirmations</span>
+              <span class="pref-sub">Confirmations, dates, and online links for registered workshops and events.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-event-regs"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Purchases)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.EventRegistrationConfirmation)"
+                (change)="toggleEmailKind(TransactionalEmailKey.EventRegistrationConfirmation, $any($event.target).checked)"
+              />
+              <label for="email-event-regs">Confirmations</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Video Access & Gifts</span>
+              <span class="pref-sub">Notifications when on-demand video access or a video gift is granted to your account.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-vod-gift"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Purchases)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.VodGiftReceived)"
+                (change)="toggleEmailKind(TransactionalEmailKey.VodGiftReceived, $any($event.target).checked)"
+              />
+              <label for="email-vod-gift">Video Gifts</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Grading Payment Confirmations</span>
+              <span class="pref-sub">Confirmations when a grading registration fee is paid.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-grading-payment"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Purchases)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.GradingPaymentConfirmation)"
+                (change)="toggleEmailKind(TransactionalEmailKey.GradingPaymentConfirmation, $any($event.target).checked)"
+              />
+              <label for="email-grading-payment">Payments</label>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="pref-row">
-        <div class="pref-info">
-          <span class="pref-title">Order & Payment Receipts</span>
-          <span class="pref-sub"
-            >Receipts for store purchases, grading assessment fees, and video
-            orders.</span
-          >
+      <!-- Category 3: Events & Workshops -->
+      <div class="category-block">
+        <div class="category-header">
+          <span class="category-title">Events & Digests</span>
+          <div class="toggle-control">
+            <input
+              type="checkbox"
+              id="cat-email-events"
+              [disabled]="digestBusy() || !globalEmailEnabled()"
+              [checked]="isCategoryEmailEnabled(EmailCategory.Events)"
+              (change)="toggleCategoryEmail(EmailCategory.Events, $any($event.target).checked)"
+            />
+            <label for="cat-email-events">All Events</label>
+          </div>
         </div>
-        <div class="toggle-control">
-          <input
-            type="checkbox"
-            id="email-orders"
-            [disabled]="digestBusy() || !globalEmailEnabled()"
-            [checked]="
-              isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation)
-            "
-            (change)="
-              toggleEmailKind(
-                TransactionalEmailKey.OrderConfirmation,
-                $any($event.target).checked
-              )
-            "
-          />
-          <label for="email-orders">Receipts</label>
-        </div>
-      </div>
-
-      <div class="pref-row">
-        <div class="pref-info">
-          <span class="pref-title">Subscription Renewals</span>
-          <span class="pref-sub"
-            >Invoices and renewal confirmations for ongoing recurring
-            subscriptions.</span
-          >
-        </div>
-        <div class="toggle-control">
-          <input
-            type="checkbox"
-            id="email-subscriptions"
-            [disabled]="digestBusy() || !globalEmailEnabled()"
-            [checked]="
-              isEmailKindEnabled(TransactionalEmailKey.SubscriptionRenewal)
-            "
-            (change)="
-              toggleEmailKind(
-                TransactionalEmailKey.SubscriptionRenewal,
-                $any($event.target).checked
-              )
-            "
-          />
-          <label for="email-subscriptions">Renewals</label>
+        <div class="category-body">
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Upcoming Events Digest</span>
+              <span class="pref-sub">
+                Receive scheduled summaries of forthcoming I Liq Chuan workshops and events.
+              </span>
+            </div>
+            <div class="select-control">
+              <select
+                #freqSelect
+                id="event-digest-frequency"
+                class="digest-select"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Events)"
+                [value]="eventDigestFrequency()"
+                (change)="setEventDigestFrequency(freqSelect.value)"
+              >
+                <option value="none">No digest emails (Off)</option>
+                <option value="weekly">Weekly digest (Every Monday)</option>
+                <option value="monthly">Monthly digest (1st of month)</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="pref-row">
-        <div class="pref-info">
-          <span class="pref-title">Event Registration Confirmations</span>
-          <span class="pref-sub"
-            >Confirmations, dates, and online links for registered workshops and
-            events.</span
-          >
+      <!-- Category 4: Account & Membership -->
+      <div class="category-block">
+        <div class="category-header">
+          <span class="category-title">Account & Membership Updates</span>
+          <div class="toggle-control">
+            <input
+              type="checkbox"
+              id="cat-email-account"
+              [disabled]="digestBusy() || !globalEmailEnabled()"
+              [checked]="isCategoryEmailEnabled(EmailCategory.Account)"
+              (change)="toggleCategoryEmail(EmailCategory.Account, $any($event.target).checked)"
+            />
+            <label for="cat-email-account">All Account</label>
+          </div>
         </div>
-        <div class="toggle-control">
-          <input
-            type="checkbox"
-            id="email-event-regs"
-            [disabled]="digestBusy() || !globalEmailEnabled()"
-            [checked]="
-              isEmailKindEnabled(
-                TransactionalEmailKey.EventRegistrationConfirmation
-              )
-            "
-            (change)="
-              toggleEmailKind(
-                TransactionalEmailKey.EventRegistrationConfirmation,
-                $any($event.target).checked
-              )
-            "
-          />
-          <label for="email-event-regs">Confirmations</label>
+        <div class="category-body">
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Membership Activated</span>
+              <span class="pref-sub">Confirmations when your annual or lifetime membership is activated or renewed.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-membership-activated"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Account)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.MembershipActivated)"
+                (change)="toggleEmailKind(TransactionalEmailKey.MembershipActivated, $any($event.target).checked)"
+              />
+              <label for="email-membership-activated">Membership</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Instructor License Activated</span>
+              <span class="pref-sub">Confirmations when your instructor license is issued or renewed.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-instructor-license"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Account)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.InstructorLicenseActivated)"
+                (change)="toggleEmailKind(TransactionalEmailKey.InstructorLicenseActivated, $any($event.target).checked)"
+              />
+              <label for="email-instructor-license">License</label>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -326,6 +492,26 @@
                 Disable All
               </button>
             </div>
+            <div class="batch-category">
+              <span class="batch-label">Email:</span>
+              <button
+                type="button"
+                class="inline-link-button"
+                [disabled]="digestBusy()"
+                (click)="setAllEmail(true)"
+              >
+                Enable All
+              </button>
+              <span class="bullet">•</span>
+              <button
+                type="button"
+                class="inline-link-button"
+                [disabled]="digestBusy()"
+                (click)="setAllEmail(false)"
+              >
+                Disable All
+              </button>
+            </div>
           </div>
         </div>
 
@@ -334,6 +520,7 @@
         </div>
 
         @for (kind of notificationKinds; track kind) {
+          @let emailKey = getTransactionalEmailKeyForKind(kind);
           <div class="pref-row">
             <div class="pref-info">
               <span class="pref-title">{{
@@ -363,6 +550,18 @@
                 />
                 <label [for]="'home-' + kind">Home Feed</label>
               </div>
+              @if (emailKey) {
+                <div class="toggle-control">
+                  <input
+                    type="checkbox"
+                    [id]="'email-kind-' + kind"
+                    [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(getEmailCategory(emailKey))"
+                    [checked]="isEmailKindEnabled(emailKey)"
+                    (change)="toggleEmailKind(emailKey, $any($event.target).checked)"
+                  />
+                  <label [for]="'email-kind-' + kind">Email</label>
+                </div>
+              }
             </div>
           </div>
         }

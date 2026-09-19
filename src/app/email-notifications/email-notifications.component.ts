@@ -22,7 +22,14 @@ import {
   EventDigestOverallContext,
 } from '../../../functions/src/data-model/events';
 import { EmailTemplates, initEmailTemplates } from '../../../functions/src/data-model/content-cache';
-import { MailQueueDoc, MailSendingStatus, MailDeliveryState } from '../../../functions/src/data-model/mail';
+import {
+  MailQueueDoc,
+  MailSendingStatus,
+  MailDeliveryState,
+  TransactionalEmailKey,
+  ALL_TRANSACTIONAL_EMAIL_KEYS,
+  resolveNotificationStatus,
+} from '../../../functions/src/data-model/mail';
 import {
   findUnsupportedEmailMarkdown,
   SUPPORTED_EMAIL_MARKDOWN,
@@ -30,10 +37,11 @@ import {
   formatTemplate,
 } from '../../../functions/src/email-markdown';
 
-export type TemplateCategory = 'settings' | 'test' | 'onboarding' | 'purchases' | 'digest' | 'logs';
+export type TemplateCategory = 'settings' | 'test' | 'onboarding' | 'purchases' | 'gradings' | 'digest' | 'logs';
 export type OnboardingSubtype = 'member' | 'instructor';
 export type PurchaseSubtype = 'order' | 'event' | 'vod' | 'vod-gift' | 'grading' | 'subscription';
-export type TestEmailType = 'ping' | 'welcome' | 'order' | 'digest';
+export type GradingSubtype = 'request' | 'accepted' | 'declined' | 'passed' | 'not-passed';
+export type TestEmailType = 'ping' | 'welcome' | 'order' | 'digest' | 'grading';
 
 export interface TestEmailReplacements {
   name: string;
@@ -58,6 +66,9 @@ export interface TestEmailReplacements {
   videoUrl: string;
   giverName: string;
   giftMessage: string;
+  studentName: string;
+  instructorName: string;
+  notes: string;
   gradingLevel: string;
   gradingEventName: string;
   gradingDate: string;
@@ -77,9 +88,139 @@ export const DEFAULT_PING_SUBJECT = '[Test] I Liq Chuan Email Verification';
 export const DEFAULT_PING_BODY =
   'Hello **{name}**,\n\nThis is a test verification email from the I Liq Chuan system.\n\nAll systems operational.\n\nBest regards,\n[I Liq Chuan Association]({appBase})';
 
-const VALID_CATEGORIES: TemplateCategory[] = ['settings', 'test', 'onboarding', 'purchases', 'digest', 'logs'];
+const VALID_CATEGORIES: TemplateCategory[] = ['settings', 'test', 'onboarding', 'purchases', 'gradings', 'digest', 'logs'];
 const VALID_ONBOARDING_SUBTYPES: OnboardingSubtype[] = ['member', 'instructor'];
 const VALID_PURCHASE_SUBTYPES: PurchaseSubtype[] = ['order', 'event', 'vod', 'vod-gift', 'grading', 'subscription'];
+const VALID_GRADING_SUBTYPES: GradingSubtype[] = ['request', 'accepted', 'declined', 'passed', 'not-passed'];
+
+export interface NotificationControlItem {
+  key: TransactionalEmailKey;
+  label: string;
+  description: string;
+  category: 'onboarding' | 'purchases' | 'gradings' | 'digest';
+}
+
+export interface NotificationControlGroup {
+  category: 'onboarding' | 'purchases' | 'gradings' | 'digest';
+  title: string;
+  description: string;
+  items: NotificationControlItem[];
+}
+
+export const NOTIFICATION_CONTROL_GROUPS: NotificationControlGroup[] = [
+  {
+    category: 'onboarding',
+    title: 'Onboarding Notifications',
+    description: 'Welcome and activation emails for new members and instructors.',
+    items: [
+      {
+        key: TransactionalEmailKey.MembershipActivated,
+        label: 'New Member Welcome',
+        description: 'Sent when a new member is activated with member ID and portal links.',
+        category: 'onboarding',
+      },
+      {
+        key: TransactionalEmailKey.InstructorLicenseActivated,
+        label: 'New Instructor Welcome',
+        description: 'Sent when an instructor license is issued or renewed with SOP guidelines.',
+        category: 'onboarding',
+      },
+    ],
+  },
+  {
+    category: 'purchases',
+    title: 'Purchases & Orders',
+    description: 'Receipts and confirmations for merchandise, event registrations, and digital content.',
+    items: [
+      {
+        key: TransactionalEmailKey.OrderConfirmation,
+        label: 'Store Order Confirmation',
+        description: 'Sent to customers immediately after a store order is placed.',
+        category: 'purchases',
+      },
+      {
+        key: TransactionalEmailKey.EventRegistrationConfirmation,
+        label: 'Event Registration Confirmation',
+        description: 'Sent to attendees upon registering for a workshop or seminar.',
+        category: 'purchases',
+      },
+      {
+        key: TransactionalEmailKey.VodPurchaseConfirmation,
+        label: 'Video on Demand (VOD) Purchase',
+        description: 'Sent when a member purchases streaming video access.',
+        category: 'purchases',
+      },
+      {
+        key: TransactionalEmailKey.VodGiftReceived,
+        label: 'VOD Gift Received',
+        description: 'Sent to gift recipients with a direct link to access gifted video content.',
+        category: 'purchases',
+      },
+      {
+        key: TransactionalEmailKey.GradingPaymentConfirmation,
+        label: 'Grading Payment Confirmation',
+        description: 'Sent upon successful payment for an upcoming grading examination.',
+        category: 'purchases',
+      },
+      {
+        key: TransactionalEmailKey.SubscriptionRenewal,
+        label: 'Subscription Renewal',
+        description: 'Sent when an annual or recurring membership subscription renews.',
+        category: 'purchases',
+      },
+    ],
+  },
+  {
+    category: 'gradings',
+    title: 'Grading Notifications',
+    description: 'Workflow updates for grading requests, instructor reviews, and examination outcomes.',
+    items: [
+      {
+        key: TransactionalEmailKey.GradingRequestReceived,
+        label: 'Grading Request Received',
+        description: 'Sent to the instructor when a student submits a new grading application.',
+        category: 'gradings',
+      },
+      {
+        key: TransactionalEmailKey.GradingRequestAccepted,
+        label: 'Grading Request Accepted',
+        description: 'Sent to the student when their instructor approves their grading request.',
+        category: 'gradings',
+      },
+      {
+        key: TransactionalEmailKey.GradingRequestDeclined,
+        label: 'Grading Request Declined',
+        description: 'Sent to the student if their instructor declines or requests postponement.',
+        category: 'gradings',
+      },
+      {
+        key: TransactionalEmailKey.GradingPassed,
+        label: 'Grading Passed',
+        description: 'Sent to the student celebrating their successful grading advancement.',
+        category: 'gradings',
+      },
+      {
+        key: TransactionalEmailKey.GradingNotPassed,
+        label: 'Feedback / Not Passed',
+        description: 'Sent to the student with constructive instructor feedback and areas to improve.',
+        category: 'gradings',
+      },
+    ],
+  },
+  {
+    category: 'digest',
+    title: 'Event Digests',
+    description: 'Scheduled automated roundups of upcoming association workshops and events.',
+    items: [
+      {
+        key: TransactionalEmailKey.EventDigestOverall,
+        label: 'Upcoming Event Digest',
+        description: 'Periodic digest of upcoming seminars and training opportunities sent to opted-in members.',
+        category: 'digest',
+      },
+    ],
+  },
+];
 
 @Component({
   selector: 'app-email-notifications',
@@ -125,6 +266,15 @@ export class EmailNotificationsComponent {
       return subtab as OnboardingSubtype;
     }
     return 'member';
+  });
+
+  // Derive active grading subtype from URL `subtab` query param, with fallback to 'request'
+  activeGradingSubtype = computed<GradingSubtype>(() => {
+    const subtab = this.viewSignals.urlParams.subtab();
+    if (subtab && VALID_GRADING_SUBTYPES.includes(subtab as GradingSubtype)) {
+      return subtab as GradingSubtype;
+    }
+    return 'request';
   });
 
   // Placeholder tokens each template supports with human-readable descriptions.
@@ -210,6 +360,62 @@ export class EmailNotificationsComponent {
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
+  readonly gradingRequestChips: EditorChip[] = [
+    { token: '{name}', description: "Instructor's full name" },
+    { token: '{studentName}', description: "Student's full name" },
+    { token: '{gradingLevel}', description: 'Grading curriculum level' },
+    { token: '{gradingEventName}', description: 'Event or session name' },
+    { token: '{gradingUrl}', description: 'Link to review grading request' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
+    { token: '{appBase}', description: 'Application base URL' },
+  ];
+
+  readonly gradingAcceptedChips: EditorChip[] = [
+    { token: '{name}', description: "Student's full name" },
+    { token: '{instructorName}', description: "Instructor's full name" },
+    { token: '{gradingLevel}', description: 'Grading curriculum level' },
+    { token: '{gradingEventName}', description: 'Event or session name' },
+    { token: '{gradingDate}', description: 'Grading date' },
+    { token: '{gradingUrl}', description: 'Link to grading portal' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
+    { token: '{appBase}', description: 'Application base URL' },
+  ];
+
+  readonly gradingDeclinedChips: EditorChip[] = [
+    { token: '{name}', description: "Student's full name" },
+    { token: '{instructorName}', description: "Instructor's full name" },
+    { token: '{gradingLevel}', description: 'Grading curriculum level' },
+    { token: '{notes}', description: 'Instructor notes explaining decline' },
+    { token: '{gradingUrl}', description: 'Link to select another instructor' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
+    { token: '{appBase}', description: 'Application base URL' },
+  ];
+
+  readonly gradingPassedChips: EditorChip[] = [
+    { token: '{name}', description: "Student's full name" },
+    { token: '{gradingLevel}', description: 'Grading curriculum level' },
+    { token: '{gradingEventName}', description: 'Event or session name' },
+    { token: '{notes}', description: 'Examiner feedback & congratulations notes' },
+    { token: '{gradingUrl}', description: 'Link to digital passbook' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
+    { token: '{appBase}', description: 'Application base URL' },
+  ];
+
+  readonly gradingNotPassedChips: EditorChip[] = [
+    { token: '{name}', description: "Student's full name" },
+    { token: '{gradingLevel}', description: 'Grading curriculum level' },
+    { token: '{gradingEventName}', description: 'Event or session name' },
+    { token: '{notes}', description: 'Examiner guidance and feedback' },
+    { token: '{gradingUrl}', description: 'Link to follow-up grading' },
+    { token: '{unsubscribeUrl}', description: 'Direct one-click unsubscribe link' },
+    { token: '{preferencesUrl}', description: 'Link to notification preferences' },
+    { token: '{appBase}', description: 'Application base URL' },
+  ];
+
   readonly subscriptionChips: EditorChip[] = [
     { token: '{name}', description: "Subscriber's full name" },
     { token: '{planName}', description: 'Subscription plan name' },
@@ -272,6 +478,21 @@ export class EmailNotificationsComponent {
   );
   gradingBodyWarnings = computed(() =>
     findUnsupportedEmailMarkdown(this.templates().gradingPaymentConfirmationBody || '')
+  );
+  gradingRequestReceivedBodyWarnings = computed(() =>
+    findUnsupportedEmailMarkdown(this.templates().gradingRequestReceivedBody || '')
+  );
+  gradingRequestAcceptedBodyWarnings = computed(() =>
+    findUnsupportedEmailMarkdown(this.templates().gradingRequestAcceptedBody || '')
+  );
+  gradingRequestDeclinedBodyWarnings = computed(() =>
+    findUnsupportedEmailMarkdown(this.templates().gradingRequestDeclinedBody || '')
+  );
+  gradingPassedBodyWarnings = computed(() =>
+    findUnsupportedEmailMarkdown(this.templates().gradingPassedBody || '')
+  );
+  gradingNotPassedBodyWarnings = computed(() =>
+    findUnsupportedEmailMarkdown(this.templates().gradingNotPassedBody || '')
   );
   subscriptionBodyWarnings = computed(() =>
     findUnsupportedEmailMarkdown(this.templates().subscriptionRenewalBody || '')
@@ -437,6 +658,9 @@ export class EmailNotificationsComponent {
       videoUrl: `${origin}/videos/v-21-form`,
       giverName: 'Sam Chin',
       giftMessage: 'Enjoy this video for your daily practice!',
+      studentName: 'Alex Chen',
+      instructorName: 'Master Joshua Craig',
+      notes: 'Good execution of basic alignments and 13 points. Keep cultivating relaxation and center line awareness.',
       gradingLevel: 'Student Level 3',
       gradingEventName: 'Annual International Grading Examination',
       gradingDate: 'October 12, 2026',
@@ -475,6 +699,8 @@ export class EmailNotificationsComponent {
       raw = this.templates().orderConfirmationSubject || 'Your I Liq Chuan Order Confirmation ({orderNumber})';
     } else if (type === 'digest') {
       raw = this.templates().eventDigestOverallSubject || 'Upcoming I Liq Chuan Events - {period}';
+    } else if (type === 'grading') {
+      raw = this.templates().gradingPassedSubject || 'Congratulations! You Passed Your I Liq Chuan Grading ({gradingLevel})';
     }
     return formatTemplate(raw, this.getTestReplacements());
   });
@@ -489,6 +715,8 @@ export class EmailNotificationsComponent {
       raw = this.templates().membershipActivatedBody || '';
     } else if (type === 'order') {
       raw = this.templates().orderConfirmationBody || '';
+    } else if (type === 'grading') {
+      raw = this.templates().gradingPassedBody || '';
     } else if (type === 'digest') {
       const itemTpl = this.templates().eventDigestItemTemplate || '';
       const overallTpl = this.templates().eventDigestOverallBody || '';
@@ -553,6 +781,47 @@ export class EmailNotificationsComponent {
   });
   gradingPreviewHtml = computed(() => {
     const formatted = formatTemplate(this.templates().gradingPaymentConfirmationBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  // Rendered previews for Gradings templates
+  gradingRequestReceivedPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().gradingRequestReceivedSubject || '', this.getTestReplacements());
+  });
+  gradingRequestReceivedPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().gradingRequestReceivedBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  gradingRequestAcceptedPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().gradingRequestAcceptedSubject || '', this.getTestReplacements());
+  });
+  gradingRequestAcceptedPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().gradingRequestAcceptedBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  gradingRequestDeclinedPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().gradingRequestDeclinedSubject || '', this.getTestReplacements());
+  });
+  gradingRequestDeclinedPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().gradingRequestDeclinedBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  gradingPassedPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().gradingPassedSubject || '', this.getTestReplacements());
+  });
+  gradingPassedPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().gradingPassedBody || '', this.getTestReplacements());
+    return markdownToHtml(formatted);
+  });
+
+  gradingNotPassedPreviewSubject = computed(() => {
+    return formatTemplate(this.templates().gradingNotPassedSubject || '', this.getTestReplacements());
+  });
+  gradingNotPassedPreviewHtml = computed(() => {
+    const formatted = formatTemplate(this.templates().gradingNotPassedBody || '', this.getTestReplacements());
     return markdownToHtml(formatted);
   });
 
@@ -628,6 +897,26 @@ export class EmailNotificationsComponent {
     this.updateBody('gradingPaymentConfirmationBody', markdown);
   }
 
+  setGradingRequestReceivedBody(markdown: string) {
+    this.updateBody('gradingRequestReceivedBody', markdown);
+  }
+
+  setGradingRequestAcceptedBody(markdown: string) {
+    this.updateBody('gradingRequestAcceptedBody', markdown);
+  }
+
+  setGradingRequestDeclinedBody(markdown: string) {
+    this.updateBody('gradingRequestDeclinedBody', markdown);
+  }
+
+  setGradingPassedBody(markdown: string) {
+    this.updateBody('gradingPassedBody', markdown);
+  }
+
+  setGradingNotPassedBody(markdown: string) {
+    this.updateBody('gradingNotPassedBody', markdown);
+  }
+
   setSubscriptionBody(markdown: string) {
     this.updateBody('subscriptionRenewalBody', markdown);
   }
@@ -655,6 +944,10 @@ export class EmailNotificationsComponent {
   }
 
   setPurchaseSubtype(subtype: PurchaseSubtype) {
+    this.viewSignals.urlParams.subtab.set(subtype);
+  }
+
+  setGradingSubtype(subtype: GradingSubtype) {
     this.viewSignals.urlParams.subtab.set(subtype);
   }
 
@@ -758,6 +1051,61 @@ export class EmailNotificationsComponent {
           message: 'Grading Payment template reset to default. Click "Save Changes" to apply.',
         });
         break;
+      case 'grading-request':
+        this.templates.set({
+          ...current,
+          gradingRequestReceivedSubject: defaults.gradingRequestReceivedSubject,
+          gradingRequestReceivedBody: defaults.gradingRequestReceivedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Grading Request Received template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'grading-accepted':
+        this.templates.set({
+          ...current,
+          gradingRequestAcceptedSubject: defaults.gradingRequestAcceptedSubject,
+          gradingRequestAcceptedBody: defaults.gradingRequestAcceptedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Grading Request Accepted template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'grading-declined':
+        this.templates.set({
+          ...current,
+          gradingRequestDeclinedSubject: defaults.gradingRequestDeclinedSubject,
+          gradingRequestDeclinedBody: defaults.gradingRequestDeclinedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Grading Request Declined template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'grading-passed':
+        this.templates.set({
+          ...current,
+          gradingPassedSubject: defaults.gradingPassedSubject,
+          gradingPassedBody: defaults.gradingPassedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Grading Passed template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'grading-not-passed':
+        this.templates.set({
+          ...current,
+          gradingNotPassedSubject: defaults.gradingNotPassedSubject,
+          gradingNotPassedBody: defaults.gradingNotPassedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'Grading Feedback / Not Passed template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
       case 'subscription':
         this.templates.set({
           ...current,
@@ -847,7 +1195,7 @@ export class EmailNotificationsComponent {
     this.testBodyMarkdown.set(markdown);
   }
 
-  loadTestSample(preset: 'welcome' | 'order' | 'digest' | 'blank') {
+  loadTestSample(preset: 'welcome' | 'order' | 'digest' | 'blank' | 'grading') {
     if (preset === 'blank') {
       this.setTestEmailType('ping');
       this.resetPingTemplate();
@@ -884,6 +1232,9 @@ export class EmailNotificationsComponent {
     } else if (type === 'order') {
       rawSubject = this.templates().orderConfirmationSubject || 'Your I Liq Chuan Order Confirmation ({orderNumber})';
       rawBodyMarkdown = this.templates().orderConfirmationBody || '';
+    } else if (type === 'grading') {
+      rawSubject = this.templates().gradingPassedSubject || 'Congratulations! You Passed Your I Liq Chuan Grading ({gradingLevel})';
+      rawBodyMarkdown = this.templates().gradingPassedBody || '';
     } else if (type === 'digest') {
       rawSubject = this.templates().eventDigestOverallSubject || 'Upcoming I Liq Chuan Events - {period}';
       const itemTpl = this.templates().eventDigestItemTemplate || '';
@@ -945,8 +1296,11 @@ export class EmailNotificationsComponent {
     }
   }
 
-  // --- GLOBAL MAIL SENDING 3-STATE SYSTEM ---
+  // --- GLOBAL MAIL SENDING & FINE-GRAINED NOTIFICATION CONTROLS ---
   readonly MailSendingStatus = MailSendingStatus;
+  readonly TransactionalEmailKey = TransactionalEmailKey;
+  readonly controlGroups = NOTIFICATION_CONTROL_GROUPS;
+
   mailStatus = computed<MailSendingStatus>(() => {
     const settings = this.dataManager.mailSettings();
     if (settings.status) {
@@ -958,22 +1312,88 @@ export class EmailNotificationsComponent {
   mailSettingsInfo = computed(() => this.dataManager.mailSettings());
   isUpdatingStatus = signal(false);
   isTogglingPause = this.isUpdatingStatus; // alias for backwards compatibility with any template bindings
+  isUpdatingKey = signal<string | null>(null);
   statusActionFeedback = signal<{ success: boolean; message: string } | null>(null);
   pauseActionFeedback = this.statusActionFeedback; // alias for backwards compatibility
 
-  async setMailStatus(target: MailSendingStatus) {
-    if (target === this.mailStatus()) return;
+  notificationStatusCounts = computed(() => {
+    const settings = this.dataManager.mailSettings();
+    let active = 0;
+    let paused = 0;
+    let off = 0;
+    for (const key of ALL_TRANSACTIONAL_EMAIL_KEYS) {
+      const st = resolveNotificationStatus(settings, key);
+      if (st === MailSendingStatus.Active) active++;
+      else if (st === MailSendingStatus.Paused) paused++;
+      else off++;
+    }
+    return { active, paused, off, total: ALL_TRANSACTIONAL_EMAIL_KEYS.length };
+  });
 
+  overallStatusMode = computed<'all-active' | 'all-paused' | 'all-off' | 'mixed'>(() => {
+    const counts = this.notificationStatusCounts();
+    if (counts.active === counts.total) return 'all-active';
+    if (counts.paused === counts.total) return 'all-paused';
+    if (counts.off === counts.total) return 'all-off';
+    return 'mixed';
+  });
+
+  getNotificationStatus(key: TransactionalEmailKey): MailSendingStatus {
+    const settings = this.dataManager.mailSettings();
+    return resolveNotificationStatus(settings, key);
+  }
+
+  async setNotificationStatus(key: TransactionalEmailKey, target: MailSendingStatus, label: string) {
+    const current = this.getNotificationStatus(key);
+    if (target === current) return;
+
+    this.isUpdatingKey.set(key);
+    this.statusActionFeedback.set(null);
+
+    try {
+      const res = await this.dataManager.setMailSendingState(target, key);
+      if (target === MailSendingStatus.Active) {
+        const releasedText = res.resumedCount > 0 ? ` (${res.resumedCount} queued email(s) released)` : '';
+        this.statusActionFeedback.set({
+          success: true,
+          message: `"${label}" is now ACTIVE${releasedText}.`,
+        });
+        if (res.resumedCount > 0) {
+          await this.loadMailLogs(false);
+        }
+      } else if (target === MailSendingStatus.Paused) {
+        this.statusActionFeedback.set({
+          success: true,
+          message: `"${label}" is now PAUSED. Outgoing emails for this notification will be held in queue.`,
+        });
+      } else {
+        this.statusActionFeedback.set({
+          success: true,
+          message: `"${label}" is now OFF. Automated emails for this notification are disabled.`,
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.statusActionFeedback.set({
+        success: false,
+        message: `Failed to update "${label}": ${msg}`,
+      });
+    } finally {
+      this.isUpdatingKey.set(null);
+    }
+  }
+
+  async setAllNotificationsStatus(target: MailSendingStatus) {
     let confirmMsg = '';
     if (target === MailSendingStatus.Off) {
       confirmMsg =
-        'Are you sure you want to turn email sending OFF? Automated notifications (purchases, registrations, digests) will NOT be sent and will NOT be queued.';
+        'Are you sure you want to turn ALL email notifications OFF? Automated notifications will not be sent and will not be queued.';
     } else if (target === MailSendingStatus.Paused) {
       confirmMsg =
-        'Are you sure you want to PAUSE email sending? Outbound transactional notifications will be queued as placeholders without sending.';
+        'Are you sure you want to PAUSE ALL email notifications? Outbound transactional notifications will be queued as placeholders without sending.';
     } else {
       confirmMsg =
-        'Are you sure you want to ACTIVATE email sending? Any queued placeholder emails will be rendered using current templates and dispatched via SMTP.';
+        'Are you sure you want to make ALL email notifications ACTIVE? Any queued placeholder emails will be rendered using current templates and dispatched via SMTP.';
     }
 
     if (!window.confirm(confirmMsg)) return;
@@ -982,21 +1402,21 @@ export class EmailNotificationsComponent {
     this.statusActionFeedback.set(null);
 
     try {
-      const res = await this.dataManager.setMailSendingState(target);
+      const res = await this.dataManager.setMailSendingState(target, 'all');
       if (target === MailSendingStatus.Off) {
         this.statusActionFeedback.set({
           success: true,
-          message: 'Mail sending is now OFF. Automated notifications are disabled and will not be queued.',
+          message: 'All notifications are now OFF. Automated notifications are disabled and will not be queued.',
         });
       } else if (target === MailSendingStatus.Paused) {
         this.statusActionFeedback.set({
           success: true,
-          message: 'Mail sending is now PAUSED. Outgoing notifications are being held as placeholders in the queue.',
+          message: 'All notifications are now PAUSED. Outgoing notifications are being held as placeholders in the queue.',
         });
       } else {
         this.statusActionFeedback.set({
           success: true,
-          message: `Mail sending is now ACTIVE. ${res.resumedCount} queued email(s) released for template interpretation and delivery.`,
+          message: `All notifications are now ACTIVE. ${res.resumedCount} queued email(s) released for template interpretation and delivery.`,
         });
         await this.loadMailLogs(false);
       }
@@ -1004,16 +1424,80 @@ export class EmailNotificationsComponent {
       const msg = err instanceof Error ? err.message : String(err);
       this.statusActionFeedback.set({
         success: false,
-        message: `Failed to update mail sending state: ${msg}`,
+        message: `Failed to update all notifications: ${msg}`,
       });
     } finally {
       this.isUpdatingStatus.set(false);
     }
   }
 
+  async setMailStatus(target: MailSendingStatus) {
+    await this.setAllNotificationsStatus(target);
+  }
+
   async toggleMailPause() {
     const nextStatus = this.isMailPaused() ? MailSendingStatus.Active : MailSendingStatus.Paused;
     await this.setMailStatus(nextStatus);
+  }
+
+  async navigateToTemplate(item: NotificationControlItem) {
+    switch (item.key) {
+      case TransactionalEmailKey.MembershipActivated:
+        await this.setCategory('onboarding');
+        this.setOnboardingSubtype('member');
+        break;
+      case TransactionalEmailKey.InstructorLicenseActivated:
+        await this.setCategory('onboarding');
+        this.setOnboardingSubtype('instructor');
+        break;
+      case TransactionalEmailKey.OrderConfirmation:
+        await this.setCategory('purchases');
+        this.setPurchaseSubtype('order');
+        break;
+      case TransactionalEmailKey.EventRegistrationConfirmation:
+        await this.setCategory('purchases');
+        this.setPurchaseSubtype('event');
+        break;
+      case TransactionalEmailKey.VodPurchaseConfirmation:
+        await this.setCategory('purchases');
+        this.setPurchaseSubtype('vod');
+        break;
+      case TransactionalEmailKey.VodGiftReceived:
+        await this.setCategory('purchases');
+        this.setPurchaseSubtype('vod-gift');
+        break;
+      case TransactionalEmailKey.GradingPaymentConfirmation:
+        await this.setCategory('purchases');
+        this.setPurchaseSubtype('grading');
+        break;
+      case TransactionalEmailKey.SubscriptionRenewal:
+        await this.setCategory('purchases');
+        this.setPurchaseSubtype('subscription');
+        break;
+      case TransactionalEmailKey.GradingRequestReceived:
+        await this.setCategory('gradings');
+        this.setGradingSubtype('request');
+        break;
+      case TransactionalEmailKey.GradingRequestAccepted:
+        await this.setCategory('gradings');
+        this.setGradingSubtype('accepted');
+        break;
+      case TransactionalEmailKey.GradingRequestDeclined:
+        await this.setCategory('gradings');
+        this.setGradingSubtype('declined');
+        break;
+      case TransactionalEmailKey.GradingPassed:
+        await this.setCategory('gradings');
+        this.setGradingSubtype('passed');
+        break;
+      case TransactionalEmailKey.GradingNotPassed:
+        await this.setCategory('gradings');
+        this.setGradingSubtype('not-passed');
+        break;
+      case TransactionalEmailKey.EventDigestOverall:
+        await this.setCategory('digest');
+        break;
+    }
   }
 
   // --- MAIL QUEUE & LOGS FUNCTIONALITY ---

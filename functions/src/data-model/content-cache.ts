@@ -18,6 +18,16 @@ import {
   eventDigestOverallSubject,
   eventDigestOverallBody,
   eventDigestItemTemplate,
+  gradingRequestReceivedSubject,
+  gradingRequestReceivedBody,
+  gradingRequestAcceptedSubject,
+  gradingRequestAcceptedBody,
+  gradingRequestDeclinedSubject,
+  gradingRequestDeclinedBody,
+  gradingPassedSubject,
+  gradingPassedBody,
+  gradingNotPassedSubject,
+  gradingNotPassedBody,
 } from '../email-templates';
 
 // A single cached blog post with only the fields the UI needs.
@@ -157,6 +167,22 @@ export interface EmailTemplates {
   subscriptionRenewalSubject: string;
   subscriptionRenewalBody: string;
 
+  // --- Grading Workflow Emails ---
+  gradingRequestReceivedSubject: string;
+  gradingRequestReceivedBody: string;
+
+  gradingRequestAcceptedSubject: string;
+  gradingRequestAcceptedBody: string;
+
+  gradingRequestDeclinedSubject: string;
+  gradingRequestDeclinedBody: string;
+
+  gradingPassedSubject: string;
+  gradingPassedBody: string;
+
+  gradingNotPassedSubject: string;
+  gradingNotPassedBody: string;
+
   // --- Upcoming Event Digest (Two-Tier Template) ---
   // 1. Overall Email Template (contains subject and body with {eventsList} placeholder)
   eventDigestOverallSubject: string;
@@ -244,6 +270,57 @@ export function initEmailTemplates(): EmailTemplates {
       renewalDate: '{renewalDate}',
       nextRenewalDate: '{nextRenewalDate}',
       receiptUrl: '{receiptUrl}',
+      appBase: '{appBase}',
+    }),
+
+    gradingRequestReceivedSubject: gradingRequestReceivedSubject(),
+    gradingRequestReceivedBody: gradingRequestReceivedBody({
+      name: '{name}',
+      studentName: '{studentName}',
+      gradingLevel: '{gradingLevel}',
+      gradingEventName: '{gradingEventName}',
+      gradingUrl: '{gradingUrl}',
+      appBase: '{appBase}',
+    }),
+
+    gradingRequestAcceptedSubject: gradingRequestAcceptedSubject(),
+    gradingRequestAcceptedBody: gradingRequestAcceptedBody({
+      name: '{name}',
+      instructorName: '{instructorName}',
+      gradingLevel: '{gradingLevel}',
+      gradingEventName: '{gradingEventName}',
+      gradingDate: '{gradingDate}',
+      gradingUrl: '{gradingUrl}',
+      appBase: '{appBase}',
+    }),
+
+    gradingRequestDeclinedSubject: gradingRequestDeclinedSubject(),
+    gradingRequestDeclinedBody: gradingRequestDeclinedBody({
+      name: '{name}',
+      instructorName: '{instructorName}',
+      gradingLevel: '{gradingLevel}',
+      notes: '{notes}',
+      gradingUrl: '{gradingUrl}',
+      appBase: '{appBase}',
+    }),
+
+    gradingPassedSubject: gradingPassedSubject(),
+    gradingPassedBody: gradingPassedBody({
+      name: '{name}',
+      gradingLevel: '{gradingLevel}',
+      gradingEventName: '{gradingEventName}',
+      notes: '{notes}',
+      gradingUrl: '{gradingUrl}',
+      appBase: '{appBase}',
+    }),
+
+    gradingNotPassedSubject: gradingNotPassedSubject(),
+    gradingNotPassedBody: gradingNotPassedBody({
+      name: '{name}',
+      gradingLevel: '{gradingLevel}',
+      gradingEventName: '{gradingEventName}',
+      notes: '{notes}',
+      gradingUrl: '{gradingUrl}',
       appBase: '{appBase}',
     }),
 

@@ -8,6 +8,7 @@ import { DataManagerService } from '../../data-manager.service';
 import {
   NotificationKind,
   EventDigestFrequency,
+  EmailCategory,
 } from '../../../../functions/src/data-model/notifications';
 import { TransactionalEmailKey } from '../../../../functions/src/data-model/mail';
 import { provideNavigationTreeStub } from '../../navigation-tree.testing';
@@ -216,6 +217,111 @@ describe('NotificationSettingsComponent', () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it('should toggle category-level email preferences and respect them in isEmailKindEnabled', async () => {
+    fixture.detectChanges();
+    const dataManager = TestBed.inject(DataManagerService);
+
+    expect(component.isCategoryEmailEnabled(EmailCategory.Gradings)).toBe(true);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.GradingPassed),
+    ).toBe(true);
+
+    await component.toggleCategoryEmail(EmailCategory.Gradings, false);
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          categoryEmailEnabled: expect.objectContaining({
+            [EmailCategory.Gradings]: false,
+          }),
+        }),
+      }),
+      expect.any(Object),
+    );
+
+    // When Gradings category is disabled on member, grading email kinds report disabled
+    mockFirebaseService.user.set({
+      email: 'test@example.com',
+      member: {
+        docId: 'member-123',
+        name: 'Test Student',
+        notificationSettings: {
+          categoryEmailEnabled: {
+            [EmailCategory.Gradings]: false,
+          },
+        },
+      },
+    });
+    fixture.detectChanges();
+    expect(component.isCategoryEmailEnabled(EmailCategory.Gradings)).toBe(false);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.GradingPassed),
+    ).toBe(false);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.GradingRequestReceived),
+    ).toBe(false);
+    // Unrelated categories remain enabled
+    expect(component.isCategoryEmailEnabled(EmailCategory.Purchases)).toBe(true);
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.OrderConfirmation),
+    ).toBe(true);
+  });
+
+  it('should batch update all email notifications on setAllEmail', async () => {
+    const dataManager = TestBed.inject(DataManagerService);
+
+    await component.setAllEmail(false);
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          globalEmailEnabled: false,
+          categoryEmailEnabled: expect.objectContaining({
+            [EmailCategory.Purchases]: false,
+            [EmailCategory.Gradings]: false,
+          }),
+        }),
+      }),
+      expect.any(Object),
+    );
+
+    await component.setAllEmail(true);
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          globalEmailEnabled: true,
+          categoryEmailEnabled: expect.objectContaining({
+            [EmailCategory.Purchases]: true,
+            [EmailCategory.Gradings]: true,
+          }),
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('should correctly map notification kinds to transactional email keys', () => {
+    expect(
+      component.getTransactionalEmailKeyForKind(NotificationKind.GradingRequestsYouAsInstructor),
+    ).toBe(TransactionalEmailKey.GradingRequestReceived);
+    expect(
+      component.getTransactionalEmailKeyForKind(NotificationKind.GradingPassed),
+    ).toBe(TransactionalEmailKey.GradingPassed);
+    expect(
+      component.getTransactionalEmailKeyForKind(NotificationKind.GradingNotPassed),
+    ).toBe(TransactionalEmailKey.GradingNotPassed);
+    expect(
+      component.getTransactionalEmailKeyForKind(NotificationKind.GradingPurchased),
+    ).toBe(TransactionalEmailKey.GradingPaymentConfirmation);
+    expect(
+      component.getTransactionalEmailKeyForKind(NotificationKind.PurchaseFulfilled),
+    ).toBe(TransactionalEmailKey.OrderConfirmation);
+    expect(
+      component.getTransactionalEmailKeyForKind(NotificationKind.BlogPost),
+    ).toBeNull();
   });
 
   describe('device push toggle', () => {

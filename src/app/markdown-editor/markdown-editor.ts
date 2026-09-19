@@ -432,6 +432,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   private lastTap = 0;
   private tapCount = 0;
   private lastInputMarkdown = '';
+  private isDestroyed = false;
 
   private safeScrollTo(top: number) {
     if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
@@ -661,6 +662,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   }
 
   onRawInput(value: string) {
+    if (this.isDestroyed) return;
     this.lastInputMarkdown = value;
     this.rawContent.set(value);
     this.changed.emit(value);
@@ -760,6 +762,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.isDestroyed = true;
     this.menuResizeObserver?.disconnect();
     const container = this.containerRef?.nativeElement;
     const editorEl = this.editorRef?.nativeElement;
@@ -972,6 +975,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
           },
         }));
         ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
+          if (this.isDestroyed) return;
           const cleaned = this.cleanSerializedMarkdown(markdown);
           this.lastInputMarkdown = cleaned;
           this.changed.emit(cleaned);

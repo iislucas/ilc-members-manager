@@ -10,17 +10,102 @@ import {
   MailSendingStatus,
   MailDeliveryState,
   TransactionalEmailKey,
+  resolveNotificationStatus,
 } from './data-model/mail';
 import { Member } from './data-model/members';
+import { EmailCategory } from './data-model/notifications';
 import { getUnsubscribeSecret, generateUnsubscribeToken } from './unsubscribe-token';
 
-export { TransactionalEmailKey };
+export { TransactionalEmailKey, EmailCategory };
 
 export interface SendEmailOptions {
   to: string | string[];
   templateKey: TransactionalEmailKey;
   replacements: Record<string, string>;
   replyTo?: string;
+  memberDocId?: string;
+}
+
+export function getEmailCategory(key: TransactionalEmailKey | string): EmailCategory {
+  switch (key) {
+    case TransactionalEmailKey.OrderConfirmation:
+    case TransactionalEmailKey.SubscriptionRenewal:
+    case TransactionalEmailKey.EventRegistrationConfirmation:
+    case TransactionalEmailKey.VodPurchaseConfirmation:
+    case TransactionalEmailKey.VodGiftReceived:
+    case TransactionalEmailKey.GradingPaymentConfirmation:
+      return EmailCategory.Purchases;
+
+    case TransactionalEmailKey.GradingRequestReceived:
+    case TransactionalEmailKey.GradingRequestAccepted:
+    case TransactionalEmailKey.GradingRequestDeclined:
+    case TransactionalEmailKey.GradingPassed:
+    case TransactionalEmailKey.GradingNotPassed:
+      return EmailCategory.Gradings;
+
+    case TransactionalEmailKey.EventDigestOverall:
+      return EmailCategory.Events;
+
+    case TransactionalEmailKey.MembershipActivated:
+    case TransactionalEmailKey.InstructorLicenseActivated:
+      return EmailCategory.Account;
+
+    default:
+      return EmailCategory.Purchases;
+  }
+}
+
+export function getCategoryLabel(category: EmailCategory | string): string {
+  switch (category) {
+    case EmailCategory.Purchases:
+      return 'All Purchases & Orders';
+    case EmailCategory.Gradings:
+      return 'All Grading Notifications';
+    case EmailCategory.Events:
+      return 'Upcoming Events & Digests';
+    case EmailCategory.Account:
+      return 'Account & Membership Updates';
+    case EmailCategory.All:
+    case 'all':
+      return 'All Member Portal Emails';
+    default:
+      return 'Email Notifications';
+  }
+}
+
+export function getEmailKindLabel(key: TransactionalEmailKey | string): string {
+  switch (key) {
+    case TransactionalEmailKey.OrderConfirmation:
+      return 'Order Receipts & Confirmations';
+    case TransactionalEmailKey.SubscriptionRenewal:
+      return 'Subscription Renewal Receipts';
+    case TransactionalEmailKey.EventRegistrationConfirmation:
+      return 'Event Registration Confirmations';
+    case TransactionalEmailKey.VodPurchaseConfirmation:
+      return 'Video on Demand Purchases';
+    case TransactionalEmailKey.VodGiftReceived:
+      return 'Video Gifts & Grants';
+    case TransactionalEmailKey.GradingPaymentConfirmation:
+      return 'Grading Assessment Fee Receipts';
+    case TransactionalEmailKey.GradingRequestReceived:
+      return 'Grading Requests';
+    case TransactionalEmailKey.GradingRequestAccepted:
+      return 'Grading Acceptance Notifications';
+    case TransactionalEmailKey.GradingRequestDeclined:
+      return 'Grading Request Updates';
+    case TransactionalEmailKey.GradingPassed:
+      return 'Grading Result (Passed) Notifications';
+    case TransactionalEmailKey.GradingNotPassed:
+      return 'Grading Result Feedback';
+    case TransactionalEmailKey.EventDigestOverall:
+      return 'Upcoming Events Digest';
+    case TransactionalEmailKey.MembershipActivated:
+      return 'Membership Activation Emails';
+    case TransactionalEmailKey.InstructorLicenseActivated:
+      return 'Instructor License Emails';
+    default:
+      return 'This Notification';
+  }
 }
 
 /**
@@ -35,7 +120,7 @@ export function extractValidRecipients(to: string | string[]): string[] {
 
 /**
  * Checks if the recipient member has opted out of this specific transactional email kind,
- * or muted email notifications globally.
+ * its broader category class, or muted email notifications globally.
  */
 export async function isMemberEmailOptedOut(
   db: admin.firestore.Firestore,
@@ -60,6 +145,11 @@ export async function isMemberEmailOptedOut(
     }
 
     if (settings.globalEmailEnabled === false) {
+      return true;
+    }
+
+    const category = getEmailCategory(templateKey);
+    if (settings.categoryEmailEnabled && settings.categoryEmailEnabled[category] === false) {
       return true;
     }
 
@@ -89,13 +179,27 @@ export interface BuildMailDocParams {
 export async function buildTransactionalMailDoc(params: BuildMailDocParams): Promise<Omit<MailQueueDoc, 'docId'>> {
   const { validRecipients, options, fromAddress, unsubscribeSecret, appBase, isPaused, db } = params;
   const primaryRecipient = validRecipients[0];
-  const token = generateUnsubscribeToken(primaryRecipient, unsubscribeSecret);
-  const unsubscribeUrl = `${appBase}/unsubscribe?email=${encodeURIComponent(primaryRecipient)}&token=${encodeURIComponent(token)}&kind=${encodeURIComponent(options.templateKey)}`;
+  const memberDocId = options.memberDocId;
+  const idQueryParam = memberDocId
+    ? `mid=${encodeURIComponent(memberDocId)}`
+    : `email=${encodeURIComponent(primaryRecipient)}`;
+  const token = generateUnsubscribeToken(memberDocId || primaryRecipient, unsubscribeSecret);
+  const category = getEmailCategory(options.templateKey);
+  const unsubscribeKindName = getEmailKindLabel(options.templateKey);
+  const unsubscribeCategoryName = getCategoryLabel(category);
+
+  const unsubscribeUrl = `${appBase}/unsubscribe?${idQueryParam}&token=${encodeURIComponent(token)}&kind=${encodeURIComponent(options.templateKey)}`;
+  const unsubscribeCategoryUrl = `${appBase}/unsubscribe?${idQueryParam}&token=${encodeURIComponent(token)}&category=${encodeURIComponent(category)}`;
+  const unsubscribeAllUrl = `${appBase}/unsubscribe?${idQueryParam}&token=${encodeURIComponent(token)}&kind=all`;
   const preferencesUrl = `${appBase}/settings/notifications`;
 
   const fullReplacements: Record<string, string> = {
     appBase,
     unsubscribeUrl,
+    unsubscribeKindName,
+    unsubscribeCategoryUrl,
+    unsubscribeCategoryName,
+    unsubscribeAllUrl,
     preferencesUrl,
     ...options.replacements,
   };
@@ -124,8 +228,11 @@ export async function buildTransactionalMailDoc(params: BuildMailDocParams): Pro
       },
       metadata: {
         templateKey: options.templateKey,
+        category,
         paused: true,
         unsubscribeUrl,
+        unsubscribeCategoryUrl,
+        unsubscribeAllUrl,
         queuedAt: new Date().toISOString(),
       },
     };
@@ -168,7 +275,10 @@ export async function buildTransactionalMailDoc(params: BuildMailDocParams): Pro
     },
     metadata: {
       templateKey: options.templateKey,
+      category,
       unsubscribeUrl,
+      unsubscribeCategoryUrl,
+      unsubscribeAllUrl,
       sentAt: new Date().toISOString(),
     },
   };
@@ -205,15 +315,14 @@ export async function sendTransactionalEmail(
       return null;
     }
 
-    // Resolve global mail status (defaults strictly to OFF if unconfigured)
+    // Resolve mail status (checks per-templateKey fine-grained override, falling back to global)
     const mailSettingsSnap = await db.doc('system/mail-settings').get();
     const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-    const status: MailSendingStatus =
-      mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+    const status: MailSendingStatus = resolveNotificationStatus(mailSettings, options.templateKey);
 
     if (status === MailSendingStatus.Off) {
       logger.info(
-        `[EmailDispatcher] Mail sending is OFF. Skipping notification for template ${options.templateKey}.`,
+        `[EmailDispatcher] Mail sending is OFF for template ${options.templateKey}. Skipping notification.`,
       );
       return null;
     }

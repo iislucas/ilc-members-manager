@@ -57,6 +57,12 @@ export enum TransactionalEmailKey {
   GradingPaymentConfirmation = 'gradingPaymentConfirmation',
   SubscriptionRenewal = 'subscriptionRenewal',
   EventDigestOverall = 'eventDigestOverall',
+  // Grading workflow emails
+  GradingRequestReceived = 'gradingRequestReceived',
+  GradingRequestAccepted = 'gradingRequestAccepted',
+  GradingRequestDeclined = 'gradingRequestDeclined',
+  GradingPassed = 'gradingPassed',
+  GradingNotPassed = 'gradingNotPassed',
 }
 
 export interface MailQueueDoc {
@@ -99,6 +105,23 @@ export function initMailDoc(): MailQueueDoc {
   };
 }
 
+export const ALL_TRANSACTIONAL_EMAIL_KEYS: TransactionalEmailKey[] = [
+  TransactionalEmailKey.MembershipActivated,
+  TransactionalEmailKey.InstructorLicenseActivated,
+  TransactionalEmailKey.OrderConfirmation,
+  TransactionalEmailKey.EventRegistrationConfirmation,
+  TransactionalEmailKey.VodPurchaseConfirmation,
+  TransactionalEmailKey.VodGiftReceived,
+  TransactionalEmailKey.GradingPaymentConfirmation,
+  TransactionalEmailKey.SubscriptionRenewal,
+  TransactionalEmailKey.EventDigestOverall,
+  TransactionalEmailKey.GradingRequestReceived,
+  TransactionalEmailKey.GradingRequestAccepted,
+  TransactionalEmailKey.GradingRequestDeclined,
+  TransactionalEmailKey.GradingPassed,
+  TransactionalEmailKey.GradingNotPassed,
+];
+
 export enum MailSendingStatus {
   Active = 'active',
   Paused = 'paused',
@@ -110,6 +133,7 @@ export enum MailSendingStatus {
  */
 export interface MailSettings {
   status: MailSendingStatus;
+  notificationStatus?: Partial<Record<TransactionalEmailKey, MailSendingStatus>>;
   sendingPaused?: boolean;
   unsubscribeSecret?: string;
   updatedAt?: string;
@@ -124,7 +148,32 @@ export function initMailSettings(): MailSettings {
   return {
     status: MailSendingStatus.Off,
     sendingPaused: false,
+    notificationStatus: {},
   };
+}
+
+/**
+ * Resolves the operational mail sending status for a given templateKey.
+ * Checks fine-grained notificationStatus first, then falls back to global status,
+ * and finally defaults to Off.
+ */
+export function resolveNotificationStatus(
+  settings: MailSettings | undefined,
+  templateKey?: TransactionalEmailKey | string,
+): MailSendingStatus {
+  if (!settings) {
+    return MailSendingStatus.Off;
+  }
+  if (templateKey && settings.notificationStatus && (templateKey in settings.notificationStatus)) {
+    const specific = settings.notificationStatus[templateKey as TransactionalEmailKey];
+    if (specific) {
+      return specific;
+    }
+  }
+  if (settings.status) {
+    return settings.status;
+  }
+  return settings.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off;
 }
 
 export interface DeleteMailItemsRequest {

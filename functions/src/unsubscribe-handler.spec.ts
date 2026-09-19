@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleUnsubscribeRequest, getCategoryLabel, escapeHtml } from './unsubscribe-handler';
 import { generateUnsubscribeToken } from './unsubscribe-token';
-import { EventDigestFrequency } from './data-model/notifications';
+import { EventDigestFrequency, EmailCategory } from './data-model/notifications';
 import { TransactionalEmailKey } from './data-model/mail';
 
 const testSecret = '0123456789abcdef0123456789abcdef';
@@ -231,5 +231,101 @@ describe('unsubscribe-handler', () => {
       }),
     });
     expect(res.body).toContain('Subscription Restored');
+  });
+
+  it('handles category unsubscribe on POST', async () => {
+    const token = generateUnsubscribeToken('mem_123', testSecret);
+    const { req, res } = createMockReqRes({
+      method: 'POST',
+      body: { mid: 'mem_123', token, category: EmailCategory.Gradings },
+    });
+
+    await handleUnsubscribeRequest(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockMemberUpdate).toHaveBeenCalledWith({
+      notificationSettings: expect.objectContaining({
+        categoryEmailEnabled: expect.objectContaining({
+          [EmailCategory.Gradings]: false,
+        }),
+      }),
+    });
+    expect(res.body).toContain('Unsubscribed Successfully');
+    expect(res.body).toContain('All Grading Notifications');
+  });
+
+  it('handles kind=all (all portal emails) unsubscribe on POST', async () => {
+    const token = generateUnsubscribeToken('mem_123', testSecret);
+    const { req, res } = createMockReqRes({
+      method: 'POST',
+      body: { mid: 'mem_123', token, kind: 'all' },
+    });
+
+    await handleUnsubscribeRequest(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockMemberUpdate).toHaveBeenCalledWith({
+      notificationSettings: expect.objectContaining({
+        globalEmailEnabled: false,
+      }),
+    });
+    expect(res.body).toContain('All Email Notifications');
+  });
+
+  it('supports category resubscribe action on POST', async () => {
+    const token = generateUnsubscribeToken('mem_123', testSecret);
+    const { req, res } = createMockReqRes({
+      method: 'POST',
+      body: { mid: 'mem_123', token, category: EmailCategory.Gradings, action: 'resubscribe' },
+    });
+
+    await handleUnsubscribeRequest(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockMemberUpdate).toHaveBeenCalledWith({
+      notificationSettings: expect.objectContaining({
+        categoryEmailEnabled: expect.objectContaining({
+          [EmailCategory.Gradings]: true,
+        }),
+      }),
+    });
+    expect(res.body).toContain('Subscription Restored');
+  });
+
+  it('supports kind=all resubscribe action on POST', async () => {
+    const token = generateUnsubscribeToken('mem_123', testSecret);
+    const { req, res } = createMockReqRes({
+      method: 'POST',
+      body: { mid: 'mem_123', token, kind: 'all', action: 'resubscribe' },
+    });
+
+    await handleUnsubscribeRequest(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockMemberUpdate).toHaveBeenCalledWith({
+      notificationSettings: expect.objectContaining({
+        globalEmailEnabled: true,
+      }),
+    });
+    expect(res.body).toContain('Subscription Restored');
+  });
+
+  it('handles grading passed transactional email kind unsubscribe on POST', async () => {
+    const token = generateUnsubscribeToken('mem_123', testSecret);
+    const { req, res } = createMockReqRes({
+      method: 'POST',
+      body: { mid: 'mem_123', token, kind: TransactionalEmailKey.GradingPassed },
+    });
+
+    await handleUnsubscribeRequest(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockMemberUpdate).toHaveBeenCalledWith({
+      notificationSettings: expect.objectContaining({
+        emailEnabled: expect.objectContaining({
+          [TransactionalEmailKey.GradingPassed]: false,
+        }),
+      }),
+    });
   });
 });

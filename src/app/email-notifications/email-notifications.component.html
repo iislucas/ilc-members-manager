@@ -37,6 +37,14 @@
       <button
         type="button"
         class="pill-tab"
+        data-label="Gradings"
+        [class.active]="activeCategory() === 'gradings'"
+        (click)="setCategory('gradings')">
+        Gradings
+      </button>
+      <button
+        type="button"
+        class="pill-tab"
         data-label="Event Digests"
         [class.active]="activeCategory() === 'digest'"
         (click)="setCategory('digest')">
@@ -62,7 +70,7 @@
 
     <!-- Compact status notice on non-settings tabs when sending is paused or off -->
     @if (activeCategory() !== 'settings') {
-      @if (mailStatus() === MailSendingStatus.Off) {
+      @if (overallStatusMode() === 'all-off') {
         <div class="mail-status-banner banner-off compact-banner">
           <div class="banner-content">
             <span class="status-indicator indicator-off"></span>
@@ -72,7 +80,7 @@
             Manage Settings
           </button>
         </div>
-      } @else if (mailStatus() === MailSendingStatus.Paused) {
+      } @else if (overallStatusMode() === 'all-paused') {
         <div class="mail-status-banner banner-paused compact-banner">
           <div class="banner-content">
             <span class="status-indicator indicator-paused"></span>
@@ -80,6 +88,16 @@
             @if (logCounts().paused > 0) {
               <span class="paused-chip">{{ logCounts().paused }} paused</span>
             }
+          </div>
+          <button type="button" class="subtle-button banner-settings-link" (click)="setCategory('settings')">
+            Manage Settings
+          </button>
+        </div>
+      } @else if (overallStatusMode() === 'mixed') {
+        <div class="mail-status-banner banner-mixed compact-banner">
+          <div class="banner-content">
+            <span class="status-indicator indicator-mixed"></span>
+            <span>Email Sending: <strong>Mixed</strong> ({{ notificationStatusCounts().active }} active, {{ notificationStatusCounts().paused }} paused, {{ notificationStatusCounts().off }} off)</span>
           </div>
           <button type="button" class="subtle-button banner-settings-link" (click)="setCategory('settings')">
             Manage Settings
@@ -98,123 +116,147 @@
           </p>
         </div>
 
-        @if (mailStatus() === MailSendingStatus.Off) {
-          <div class="mail-status-banner banner-off settings-banner">
-            <div class="banner-content">
-              <div class="banner-title">
+        <div class="mail-status-banner settings-banner"
+             [class.banner-off]="overallStatusMode() === 'all-off'"
+             [class.banner-paused]="overallStatusMode() === 'all-paused'"
+             [class.banner-active]="overallStatusMode() === 'all-active'"
+             [class.banner-mixed]="overallStatusMode() === 'mixed'">
+          <div class="banner-content">
+            <div class="banner-title">
+              @if (overallStatusMode() === 'all-off') {
                 <span class="status-indicator indicator-off"></span>
                 <span>Current Status: <strong>OFF</strong></span>
-              </div>
-              <p class="banner-desc">
-                Automated transactional notifications (purchases, registrations, event digests) are disabled and <strong>will not be written to the mail queue</strong>.
-                Admins can safely use the <strong><a href="javascript:void(0)" (click)="setCategory('test')">Test</a></strong> tab to verify SMTP delivery and iterate on templates before turning notifications on.
-              </p>
-            </div>
-            <div class="banner-actions">
-              <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
-                <button
-                  type="button"
-                  class="status-btn status-btn-off active"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Off)">
-                  Off
-                </button>
-                <button
-                  type="button"
-                  class="status-btn status-btn-paused"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Paused)">
-                  Pause
-                </button>
-                <button
-                  type="button"
-                  class="status-btn status-btn-active"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Active)">
-                  Turn On
-                </button>
-              </div>
-            </div>
-          </div>
-        } @else if (mailStatus() === MailSendingStatus.Paused) {
-          <div class="mail-status-banner banner-paused settings-banner">
-            <div class="banner-content">
-              <div class="banner-title">
+              } @else if (overallStatusMode() === 'all-paused') {
                 <span class="status-indicator indicator-paused"></span>
                 <strong>Current Status: PAUSED</strong>
                 @if (logCounts().paused > 0) {
                   <span class="paused-chip">{{ logCounts().paused }} placeholder email{{ logCounts().paused === 1 ? '' : 's' }} queued</span>
                 }
-              </div>
-              <p class="banner-desc">
-                Automated transactional notifications (purchases, registrations, event digests) are held as placeholders in <code>/mail</code>.
-                Templates will be interpreted dynamically using the latest saved definitions when sending is resumed.
-              </p>
-            </div>
-            <div class="banner-actions">
-              <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
-                <button
-                  type="button"
-                  class="status-btn status-btn-off"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Off)">
-                  Turn Off
-                </button>
-                <button
-                  type="button"
-                  class="status-btn status-btn-paused active"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Paused)">
-                  Paused
-                </button>
-                <button
-                  type="button"
-                  class="status-btn status-btn-active"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Active)">
-                  Resume ▶
-                </button>
-              </div>
-            </div>
-          </div>
-        } @else {
-          <div class="mail-status-banner banner-active settings-banner">
-            <div class="banner-content">
-              <div class="banner-title">
+              } @else if (overallStatusMode() === 'all-active') {
                 <span class="status-indicator indicator-active"></span>
                 <span>Current Status: <strong>ACTIVE (ON)</strong></span>
-              </div>
-              <p class="banner-desc">
-                Automated notifications and purchase confirmations are sent immediately to real recipients via Google Workspace SMTP.
-              </p>
+              } @else {
+                <span class="status-indicator indicator-mixed"></span>
+                <span>Current Status: <strong>CUSTOM / MIXED</strong></span>
+                <div class="status-breakdown-chips">
+                  <span class="status-chip chip-active">{{ notificationStatusCounts().active }} Active</span>
+                  <span class="status-chip chip-paused">{{ notificationStatusCounts().paused }} Paused</span>
+                  <span class="status-chip chip-off">{{ notificationStatusCounts().off }} Off</span>
+                </div>
+              }
             </div>
-            <div class="banner-actions">
-              <div class="status-toggle-group" role="group" aria-label="Mail Dispatch State">
-                <button
-                  type="button"
-                  class="status-btn status-btn-off"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Off)">
-                  Turn Off
-                </button>
-                <button
-                  type="button"
-                  class="status-btn status-btn-paused"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Paused)">
-                  Pause ⏸
-                </button>
-                <button
-                  type="button"
-                  class="status-btn status-btn-active active"
-                  [disabled]="isUpdatingStatus()"
-                  (click)="setMailStatus(MailSendingStatus.Active)">
-                  Active
-                </button>
-              </div>
+            <p class="banner-desc">
+              @if (overallStatusMode() === 'all-off') {
+                Automated transactional notifications (purchases, registrations, event digests) are disabled and <strong>will not be written to the mail queue</strong>.
+                Admins can safely use the <strong><a href="javascript:void(0)" (click)="setCategory('test')">Test</a></strong> tab to verify SMTP delivery and iterate on templates before turning notifications on.
+              } @else if (overallStatusMode() === 'all-paused') {
+                Automated transactional notifications (purchases, registrations, event digests) are held as placeholders in <code>/mail</code>.
+                Templates will be interpreted dynamically using the latest saved definitions when sending is resumed.
+              } @else if (overallStatusMode() === 'all-active') {
+                Automated notifications and purchase confirmations are sent immediately to real recipients via Google Workspace SMTP.
+              } @else {
+                Individual notifications have customized statuses configured below. You can use the top-level batch buttons to apply a status to all notifications, or adjust each notification individually.
+              }
+            </p>
+          </div>
+          <div class="banner-actions">
+            <div class="status-toggle-group batch-toggle-group" role="group" aria-label="Mail Dispatch State">
+              <button
+                type="button"
+                class="status-btn status-btn-off"
+                [class.active]="overallStatusMode() === 'all-off'"
+                [disabled]="isUpdatingStatus()"
+                (click)="setAllNotificationsStatus(MailSendingStatus.Off)">
+                Turn Off All
+              </button>
+              <button
+                type="button"
+                class="status-btn status-btn-paused"
+                [class.active]="overallStatusMode() === 'all-paused'"
+                [disabled]="isUpdatingStatus()"
+                (click)="setAllNotificationsStatus(MailSendingStatus.Paused)">
+                Pause All
+              </button>
+              <button
+                type="button"
+                class="status-btn status-btn-active"
+                [class.active]="overallStatusMode() === 'all-active'"
+                [disabled]="isUpdatingStatus()"
+                (click)="setAllNotificationsStatus(MailSendingStatus.Active)">
+                Make All Active
+              </button>
             </div>
           </div>
-        }
+        </div>
+
+        <!-- Fine-Grained Notification Controls -->
+        <div class="fine-grained-controls-section">
+          <div class="section-title-bar">
+            <h5>Notification Type Controls</h5>
+            <span class="section-badge">{{ notificationStatusCounts().total }} Notifications</span>
+          </div>
+          <p class="section-subtext">
+            Configure delivery status individually for each transactional email notification. Changing a notification to <strong>Active</strong> will release any held placeholder emails for that specific template.
+          </p>
+
+          <div class="control-groups-container">
+            @for (group of controlGroups; track group.category) {
+              <div class="control-group-block">
+                <div class="group-header">
+                  <h6>{{ group.title }}</h6>
+                  <span class="group-desc">{{ group.description }}</span>
+                </div>
+                <div class="group-items-list">
+                  @for (item of group.items; track item.key) {
+                    <div class="notification-control-row" [attr.data-key]="item.key">
+                      <div class="item-info">
+                        <div class="item-title-line">
+                          <span class="item-label">{{ item.label }}</span>
+                          @let st = getNotificationStatus(item.key);
+                          <span class="status-badge" [class.badge-active]="st === MailSendingStatus.Active" [class.badge-paused]="st === MailSendingStatus.Paused" [class.badge-off]="st === MailSendingStatus.Off">
+                            {{ st === MailSendingStatus.Active ? 'Active' : st === MailSendingStatus.Paused ? 'Paused' : 'Off' }}
+                          </span>
+                          <button type="button" class="template-jump-btn" (click)="navigateToTemplate(item)">
+                            Edit Template
+                          </button>
+                        </div>
+                        <p class="item-desc">{{ item.description }}</p>
+                      </div>
+                      <div class="item-actions">
+                        <div class="mini-toggle-group" role="group" [attr.aria-label]="item.label + ' Status'">
+                          <button
+                            type="button"
+                            class="mini-btn mini-btn-off"
+                            [class.active]="getNotificationStatus(item.key) === MailSendingStatus.Off"
+                            [disabled]="isUpdatingKey() === item.key || isUpdatingStatus()"
+                            (click)="setNotificationStatus(item.key, MailSendingStatus.Off, item.label)">
+                            Off
+                          </button>
+                          <button
+                            type="button"
+                            class="mini-btn mini-btn-paused"
+                            [class.active]="getNotificationStatus(item.key) === MailSendingStatus.Paused"
+                            [disabled]="isUpdatingKey() === item.key || isUpdatingStatus()"
+                            (click)="setNotificationStatus(item.key, MailSendingStatus.Paused, item.label)">
+                            Pause
+                          </button>
+                          <button
+                            type="button"
+                            class="mini-btn mini-btn-active"
+                            [class.active]="getNotificationStatus(item.key) === MailSendingStatus.Active"
+                            [disabled]="isUpdatingKey() === item.key || isUpdatingStatus()"
+                            (click)="setNotificationStatus(item.key, MailSendingStatus.Active, item.label)">
+                            Active
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
 
         <div class="settings-cards-grid">
           <div class="settings-card">
@@ -223,7 +265,7 @@
           </div>
           <div class="settings-card">
             <h5>Template Configuration</h5>
-            <p>Customize email templates for <a href="javascript:void(0)" (click)="setCategory('onboarding')">Onboarding</a>, <a href="javascript:void(0)" (click)="setCategory('purchases')">Purchases</a>, and <a href="javascript:void(0)" (click)="setCategory('digest')">Event Digests</a>. Changes take effect on next send or when resumed.</p>
+            <p>Customize email templates for <a href="javascript:void(0)" (click)="setCategory('onboarding')">Onboarding</a>, <a href="javascript:void(0)" (click)="setCategory('purchases')">Purchases</a>, <a href="javascript:void(0)" (click)="setCategory('gradings')">Gradings</a>, and <a href="javascript:void(0)" (click)="setCategory('digest')">Event Digests</a>. Changes take effect on next send or when resumed.</p>
           </div>
           <div class="settings-card">
             <h5>Mail Logs &amp; Queue</h5>
@@ -832,6 +874,383 @@
       }
     }
 
+    <!-- GRADINGS CATEGORY -->
+    @if (activeCategory() === 'gradings') {
+      <div class="purchase-nav-container">
+        <div class="pill-tabs purchase-sub-tabs">
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Request Received"
+            [class.active]="activeGradingSubtype() === 'request'"
+            (click)="setGradingSubtype('request')">
+            Request Received
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Request Accepted"
+            [class.active]="activeGradingSubtype() === 'accepted'"
+            (click)="setGradingSubtype('accepted')">
+            Request Accepted
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Request Declined"
+            [class.active]="activeGradingSubtype() === 'declined'"
+            (click)="setGradingSubtype('declined')">
+            Request Declined
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Grading Passed"
+            [class.active]="activeGradingSubtype() === 'passed'"
+            (click)="setGradingSubtype('passed')">
+            Grading Passed
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Feedback / Not Passed"
+            [class.active]="activeGradingSubtype() === 'not-passed'"
+            (click)="setGradingSubtype('not-passed')">
+            Feedback / Not Passed
+          </button>
+        </div>
+        <div class="purchase-sub-menu-wrapper">
+          <label for="grading-sub-select" class="visually-hidden">Select Grading Email Template</label>
+          <select
+            id="grading-sub-select"
+            class="input-style purchase-sub-select"
+            [ngModel]="activeGradingSubtype()"
+            (ngModelChange)="setGradingSubtype($event)">
+            <option value="request">Request Received (Instructor Alert)</option>
+            <option value="accepted">Request Accepted (Student Notice)</option>
+            <option value="declined">Request Declined (Student Notice)</option>
+            <option value="passed">Grading Passed (Student Congratulations)</option>
+            <option value="not-passed">Feedback / Not Passed (Student Guidance)</option>
+          </select>
+        </div>
+      </div>
+
+      @if (activeGradingSubtype() === 'request') {
+        <div class="template-section">
+          <div class="template-header">
+            <h4>Grading Request Received (Instructor Alert)</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('grading-request'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'grading-request') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('grading-request')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="grading-req-subject">Email Subject</label>
+            <input
+              id="grading-req-subject"
+              type="text"
+              [(ngModel)]="templates().gradingRequestReceivedSubject"
+              placeholder="Grading Request Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().gradingRequestReceivedBody"
+                [chips]="gradingRequestChips"
+                [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
+                (changed)="setGradingRequestReceivedBody($event)"
+              ></app-markdown-editor>
+            </div>
+            @if (gradingRequestReceivedBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ gradingRequestReceivedBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Grading Request)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ gradingRequestReceivedPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="gradingRequestReceivedPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeGradingSubtype() === 'accepted') {
+        <div class="template-section">
+          <div class="template-header">
+            <h4>Grading Request Accepted (Student Notice)</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('grading-accepted'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'grading-accepted') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('grading-accepted')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="grading-acc-subject">Email Subject</label>
+            <input
+              id="grading-acc-subject"
+              type="text"
+              [(ngModel)]="templates().gradingRequestAcceptedSubject"
+              placeholder="Accepted Request Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().gradingRequestAcceptedBody"
+                [chips]="gradingAcceptedChips"
+                [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
+                (changed)="setGradingRequestAcceptedBody($event)"
+              ></app-markdown-editor>
+            </div>
+            @if (gradingRequestAcceptedBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ gradingRequestAcceptedBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Accepted Request)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ gradingRequestAcceptedPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="gradingRequestAcceptedPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeGradingSubtype() === 'declined') {
+        <div class="template-section">
+          <div class="template-header">
+            <h4>Grading Request Declined (Student Notice)</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('grading-declined'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'grading-declined') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('grading-declined')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="grading-dec-subject">Email Subject</label>
+            <input
+              id="grading-dec-subject"
+              type="text"
+              [(ngModel)]="templates().gradingRequestDeclinedSubject"
+              placeholder="Declined Request Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().gradingRequestDeclinedBody"
+                [chips]="gradingDeclinedChips"
+                [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
+                (changed)="setGradingRequestDeclinedBody($event)"
+              ></app-markdown-editor>
+            </div>
+            @if (gradingRequestDeclinedBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ gradingRequestDeclinedBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Declined Request)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ gradingRequestDeclinedPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="gradingRequestDeclinedPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeGradingSubtype() === 'passed') {
+        <div class="template-section">
+          <div class="template-header">
+            <h4>Grading Passed (Student Congratulations)</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('grading-passed'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'grading-passed') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('grading-passed')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="grading-pass-subject">Email Subject</label>
+            <input
+              id="grading-pass-subject"
+              type="text"
+              [(ngModel)]="templates().gradingPassedSubject"
+              placeholder="Passed Exam Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().gradingPassedBody"
+                [chips]="gradingPassedChips"
+                [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
+                (changed)="setGradingPassedBody($event)"
+              ></app-markdown-editor>
+            </div>
+            @if (gradingPassedBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ gradingPassedBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Passed Exam)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ gradingPassedPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="gradingPassedPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (activeGradingSubtype() === 'not-passed') {
+        <div class="template-section">
+          <div class="template-header">
+            <h4>Grading Feedback / Not Passed (Student Guidance)</h4>
+            <div class="template-actions-menu">
+              <button
+                type="button"
+                class="icon-only-button template-menu-trigger"
+                (click)="toggleTemplateMenu('grading-not-passed'); $event.stopPropagation()"
+                title="Template actions"
+                aria-label="Template actions">
+                <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+              </button>
+              @if (openTemplateMenu() === 'grading-not-passed') {
+                <div class="menu-overlay transparent" (click)="closeTemplateMenu()"></div>
+                <div class="menu-style template-dropdown-menu">
+                  <button type="button" class="menu-item" (click)="resetTemplateToDefault('grading-not-passed')">
+                    <app-icon name="undo" width="1em" height="1em"></app-icon>
+                    <span>Reset to default</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="grading-notpass-subject">Email Subject</label>
+            <input
+              id="grading-notpass-subject"
+              type="text"
+              [(ngModel)]="templates().gradingNotPassedSubject"
+              placeholder="Grading Feedback Subject..."
+              class="input-style"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Body (Markdown)</label>
+            <div class="editor-wrapper">
+              <app-markdown-editor
+                [initialValue]="templates().gradingNotPassedBody"
+                [chips]="gradingNotPassedChips"
+                [enabledFeatures]="bodyFeatures"
+                [autoHeight]="true"
+                (changed)="setGradingNotPassedBody($event)"
+              ></app-markdown-editor>
+            </div>
+            @if (gradingNotPassedBodyWarnings().length > 0) {
+              <div class="format-warning">
+                ⚠️ Unsupported formatting: {{ gradingNotPassedBodyWarnings().join(', ') }}.
+              </div>
+            }
+          </div>
+          <div class="preview-section inline-preview">
+            <h5>Rendered HTML Preview (Sample Grading Feedback)</h5>
+            <div class="preview-box">
+              <div class="preview-subject">
+                <strong>Subject:</strong> {{ gradingNotPassedPreviewSubject() }}
+              </div>
+              <div class="preview-body" [innerHTML]="gradingNotPassedPreviewHtml()"></div>
+            </div>
+          </div>
+        </div>
+      }
+    }
+
     <!-- EVENT DIGEST (TWO-TIER) CATEGORY -->
     @if (activeCategory() === 'digest') {
       <div class="digest-explainer">
@@ -1010,6 +1429,14 @@
               [class.active]="testEmailType() === 'digest'"
               (click)="setTestEmailType('digest')">
               Event Digest
+            </button>
+            <button
+              type="button"
+              class="pill-tab"
+              data-label="Grading Passed"
+              [class.active]="testEmailType() === 'grading'"
+              (click)="setTestEmailType('grading')">
+              Grading Passed
             </button>
           </div>
         </div>

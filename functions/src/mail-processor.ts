@@ -17,6 +17,10 @@ import {
   DeleteMailItemsResponse,
   UpdateMailItemRequest,
   UpdateMailItemResponse,
+  TransactionalEmailKey,
+  ALL_TRANSACTIONAL_EMAIL_KEYS,
+  resolveNotificationStatus,
+  initMailSettings,
 } from './data-model/mail';
 import { EmailTemplates, initEmailTemplates } from './data-model/content-cache';
 
@@ -29,7 +33,10 @@ export {
   DeleteMailItemsResponse,
   UpdateMailItemRequest,
   UpdateMailItemResponse,
-} from './data-model/mail';
+  TransactionalEmailKey,
+  ALL_TRANSACTIONAL_EMAIL_KEYS,
+  resolveNotificationStatus,
+};
 export const smtpPassword = defineSecret('SMTP_PASSWORD');
 
 /**
@@ -79,16 +86,16 @@ export async function checkMailSendability(
 ): Promise<{ canSend: boolean; recipients?: string }> {
   const mailSettingsSnap = await db.doc('system/mail-settings').get();
   const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-  const status: MailSendingStatus =
-    mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+  const templateKey = data.templateKey;
+  const status: MailSendingStatus = resolveNotificationStatus(mailSettings, templateKey);
 
   if (!data.metadata?.adminTest) {
     if (status === MailSendingStatus.Off) {
-      logger.info(`[MailProcessor] Mail sending is OFF. Skipping document ${mailId}.`);
+      logger.info(`[MailProcessor] Mail sending is OFF for template ${templateKey || 'unknown'}. Skipping document ${mailId}.`);
       return { canSend: false };
     }
     if (status === MailSendingStatus.Paused) {
-      logger.info(`[MailProcessor] Mail sending is PAUSED. Setting document ${mailId} to PAUSED.`);
+      logger.info(`[MailProcessor] Mail sending is PAUSED for template ${templateKey || 'unknown'}. Setting document ${mailId} to PAUSED.`);
       await ref.update({
         status: MailDeliveryState.Paused,
         'delivery.state': MailDeliveryState.Paused,
@@ -723,18 +730,21 @@ export const updateMailItem = onCall(
 
 export interface SetMailSendingStateRequest {
   status: MailSendingStatus;
+  templateKey?: TransactionalEmailKey | 'all';
 }
 
 export interface SetMailSendingStateResponse {
   success: boolean;
   status: MailSendingStatus;
   resumedCount: number;
+  templateKey?: string;
 }
 
 /**
  * Admin-only callable Cloud Function to change outbound mail sending state ('active' | 'paused' | 'off').
- * When transitioning to 'active', all documents in /mail with status: 'PAUSED' are transitioned to 'PENDING',
- * which fires processMailQueue to dynamically render templates and dispatch emails.
+ * Can target a specific templateKey or 'all' (system-wide).
+ * When transitioning to 'active', documents in /mail with status: 'PAUSED' (matching templateKey or all)
+ * are transitioned to 'PENDING', which fires processMailQueue to dynamically render templates and dispatch emails.
  */
 export const setMailSendingState = onCall(
   {
@@ -754,53 +764,124 @@ export const setMailSendingState = onCall(
     }
 
     const status = data.status;
+    const templateKey = data.templateKey;
+    const isSingleKey =
+      templateKey &&
+      templateKey !== 'all' &&
+      Object.values(TransactionalEmailKey).includes(templateKey as TransactionalEmailKey);
+
     const db = admin.firestore();
     const settingsRef = db.doc('system/mail-settings');
     const now = new Date().toISOString();
     const adminEmail = request.auth?.token.email || 'admin';
 
-    const updates: Partial<MailSettings> = {
-      status,
-      sendingPaused: status === MailSendingStatus.Paused,
-      updatedAt: now,
-      updatedBy: adminEmail,
-      ...(status === MailSendingStatus.Paused ? { pausedAt: now, pausedBy: adminEmail } : {}),
-      ...(status === MailSendingStatus.Active ? { resumedAt: now, resumedBy: adminEmail } : {}),
-    };
-
-    await settingsRef.set(updates, { merge: true });
-
     let resumedCount = 0;
-    if (status === MailSendingStatus.Active) {
-      const pausedDocsSnap = await db
-        .collection(FirestoreCollection.Mail)
-        .where('status', '==', MailDeliveryState.Paused)
-        .get();
 
-      if (!pausedDocsSnap.empty) {
-        const batch = db.batch();
-        for (const doc of pausedDocsSnap.docs) {
-          batch.update(doc.ref, {
-            status: MailDeliveryState.Pending,
-            'delivery.state': MailDeliveryState.Pending,
-            'delivery.resumedAt': admin.firestore.FieldValue.serverTimestamp(),
-            'delivery.resumedBy': adminEmail,
-          });
-          resumedCount++;
+    if (isSingleKey) {
+      const key = templateKey as TransactionalEmailKey;
+      const snap = await settingsRef.get();
+      const current = snap.exists ? (snap.data() as MailSettings) : initMailSettings();
+      const notificationStatus = { ...(current.notificationStatus || {}) };
+      notificationStatus[key] = status;
+
+      // Check if all keys share the same status to keep top-level status aligned
+      const allSame = ALL_TRANSACTIONAL_EMAIL_KEYS.every(
+        (k) => notificationStatus[k] === status,
+      );
+
+      const updates: Partial<MailSettings> = {
+        notificationStatus,
+        updatedAt: now,
+        updatedBy: adminEmail,
+        ...(allSame ? { status, sendingPaused: status === MailSendingStatus.Paused } : {}),
+      };
+
+      await settingsRef.set(updates, { merge: true });
+
+      // If transitioning single key to active, resume paused emails matching this templateKey
+      if (status === MailSendingStatus.Active) {
+        const pausedDocsSnap = await db
+          .collection(FirestoreCollection.Mail)
+          .where('status', '==', MailDeliveryState.Paused)
+          .where('templateKey', '==', key)
+          .get();
+
+        if (!pausedDocsSnap.empty) {
+          const batch = db.batch();
+          for (const doc of pausedDocsSnap.docs) {
+            batch.update(doc.ref, {
+              status: MailDeliveryState.Pending,
+              'delivery.state': MailDeliveryState.Pending,
+              'delivery.resumedAt': admin.firestore.FieldValue.serverTimestamp(),
+              'delivery.resumedBy': adminEmail,
+            });
+            resumedCount++;
+          }
+          await batch.commit();
         }
-        await batch.commit();
       }
+
+      logger.info(
+        `[MailProcessor] Notification status for ${key} set to ${status} by ${adminEmail}. Resumed ${resumedCount} paused emails.`,
+      );
+
+      return {
+        success: true,
+        status,
+        resumedCount,
+        templateKey: key,
+      };
+    } else {
+      // Top-level action: Pause All, Turn Off All, or Make All Active
+      const notificationStatus: Partial<Record<TransactionalEmailKey, MailSendingStatus>> = {};
+      for (const key of ALL_TRANSACTIONAL_EMAIL_KEYS) {
+        notificationStatus[key] = status;
+      }
+
+      const updates: Partial<MailSettings> = {
+        status,
+        notificationStatus,
+        sendingPaused: status === MailSendingStatus.Paused,
+        updatedAt: now,
+        updatedBy: adminEmail,
+        ...(status === MailSendingStatus.Paused ? { pausedAt: now, pausedBy: adminEmail } : {}),
+        ...(status === MailSendingStatus.Active ? { resumedAt: now, resumedBy: adminEmail } : {}),
+      };
+
+      await settingsRef.set(updates, { merge: true });
+
+      if (status === MailSendingStatus.Active) {
+        const pausedDocsSnap = await db
+          .collection(FirestoreCollection.Mail)
+          .where('status', '==', MailDeliveryState.Paused)
+          .get();
+
+        if (!pausedDocsSnap.empty) {
+          const batch = db.batch();
+          for (const doc of pausedDocsSnap.docs) {
+            batch.update(doc.ref, {
+              status: MailDeliveryState.Pending,
+              'delivery.state': MailDeliveryState.Pending,
+              'delivery.resumedAt': admin.firestore.FieldValue.serverTimestamp(),
+              'delivery.resumedBy': adminEmail,
+            });
+            resumedCount++;
+          }
+          await batch.commit();
+        }
+      }
+
+      logger.info(
+        `[MailProcessor] System-wide mail sending status set to ${status} by ${adminEmail}. Resumed ${resumedCount} paused emails.`,
+      );
+
+      return {
+        success: true,
+        status,
+        resumedCount,
+        templateKey: 'all',
+      };
     }
-
-    logger.info(
-      `[MailProcessor] Mail sending status set to ${status} by ${adminEmail}. Resumed ${resumedCount} paused emails.`,
-    );
-
-    return {
-      success: true,
-      status,
-      resumedCount,
-    };
   },
 );
 
