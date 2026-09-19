@@ -80,7 +80,7 @@ export enum Views {
   MyEventEdit = 'myEventEdit',
   ManageEventEdit = 'manageEventEdit',
   DownloadResource = 'downloadResource',
-  NotificationSettings = 'notificationSettings',
+  UserNotificationSettings = 'userNotificationSettings',
   Notifications = 'notifications',
   OrderComplete = 'orderComplete',
   MyOrders = 'myOrders',
@@ -100,7 +100,7 @@ export enum Views {
   ManageEventRegistrations = 'manageEventRegistrations',
   ManageEventRegistration = 'manageEventRegistration',
   EventRegistrations = 'eventRegistrations',
-  EmailNotifications = 'emailNotifications',
+  AppNotificationSettings = 'appNotificationSettings',
   OfflineActionQueue = 'offlineActionQueue',
 }
 
@@ -227,8 +227,8 @@ export const initPathPatterns = {
     'unpaid',
   ]),
   [Views.Settings]: addUrlParams(pathPattern`settings`, ['tab']),
-  [Views.EmailNotifications]: addUrlParams(pathPattern`email-notifications`, ['tab', 'subtab', 'mailId']),
-  [Views.NotificationSettings]: pathPattern`settings/notifications`,
+  [Views.AppNotificationSettings]: addUrlParams(pathPattern`app-notifications`, ['tab', 'subtab', 'mailId']),
+  [Views.UserNotificationSettings]: pathPattern`notifications/settings`,
   [Views.Notifications]: addUrlParams(pathPattern`notifications`, ['filter', 'style']),
   [Views.ClassVideoLibrary]: addUrlParams(pathPattern`class-video-library`, [
     'q', 'tag', 'instructorId',

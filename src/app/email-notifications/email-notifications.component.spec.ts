@@ -33,7 +33,7 @@ describe('EmailNotificationsComponent', () => {
 
     mockRoutingService = {
       signals: {
-        [Views.EmailNotifications]: {
+        [Views.AppNotificationSettings]: {
           urlParams: {
             tab: tabSignal,
             subtab: subtabSignal,

@@ -134,7 +134,7 @@ export class NotificationsListComponent {
     '/notifications?filter=unread&style=info',
   );
   protected notificationSettingsHref = this.routingService.hrefForView(
-    Views.NotificationSettings,
+    Views.UserNotificationSettings,
   );
   protected notificationsHref = this.unreadNotificationsHref;
 

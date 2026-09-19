@@ -222,7 +222,7 @@ describe('HomeComponent', () => {
     expect(element.textContent).toContain('Manage email updates, digests, and alert preferences');
 
     const links = element.querySelectorAll<HTMLAnchorElement>('a.card');
-    const notifLink = Array.from(links).find((a) => a.getAttribute('href')?.includes('settings/notifications'));
+    const notifLink = Array.from(links).find((a) => a.getAttribute('href')?.includes('notifications/settings'));
     expect(notifLink).toBeTruthy();
   });
 

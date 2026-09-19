@@ -191,7 +191,7 @@ export async function buildTransactionalMailDoc(params: BuildMailDocParams): Pro
   const unsubscribeUrl = `${appBase}/unsubscribe?${idQueryParam}&token=${encodeURIComponent(token)}&kind=${encodeURIComponent(options.templateKey)}`;
   const unsubscribeCategoryUrl = `${appBase}/unsubscribe?${idQueryParam}&token=${encodeURIComponent(token)}&category=${encodeURIComponent(category)}`;
   const unsubscribeAllUrl = `${appBase}/unsubscribe?${idQueryParam}&token=${encodeURIComponent(token)}&kind=all`;
-  const preferencesUrl = `${appBase}/settings/notifications`;
+  const preferencesUrl = `${appBase}/notifications/settings`;
 
   const fullReplacements: Record<string, string> = {
     appBase,
