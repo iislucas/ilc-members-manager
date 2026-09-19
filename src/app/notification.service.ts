@@ -89,6 +89,60 @@ interface WebPushSubscriptionJson {
   keys?: { p256dh: string; auth: string };
 }
 
+// ---------------------------------------------------------------------------
+// Deterministic notification document ID helpers
+// ---------------------------------------------------------------------------
+// Catch-up sync streams run client-side on login/session start. To prevent race
+// conditions (e.g. multiple tabs opening simultaneously) from generating duplicate
+// notification documents in Firestore, each entity-based notification uses a
+// deterministic document ID derived from its entity key rather than a random UUID.
+export function deterministicBlogPostNotifDocId(
+  feedCollection: string,
+  postId: string,
+): string {
+  return `blog_${feedCollection}_${postId}`;
+}
+
+export function deterministicBlogSummaryNotifDocId(
+  feedCollection: string,
+): string {
+  return `summary_blog_${feedCollection}`;
+}
+
+export function deterministicPendingEventNotifDocId(eventId: string): string {
+  return `pending_event_${eventId}`;
+}
+
+export function deterministicPendingEventsSummaryNotifDocId(): string {
+  return 'summary_pending_events';
+}
+
+export function deterministicOrderIssueNotifDocId(orderId: string): string {
+  return `order_issue_${orderId}`;
+}
+
+export function deterministicOrderIssuesSummaryNotifDocId(): string {
+  return 'summary_order_issues';
+}
+
+export function deterministicUploadNotifDocId(uploadDocId: string): string {
+  return `upload_${uploadDocId}`;
+}
+
+export function deterministicUploadsSummaryNotifDocId(): string {
+  return 'summary_new_uploads';
+}
+
+export function deterministicUnpaidGradingNotifDocId(
+  gradingDocId: string,
+): string {
+  return `unpaid_grading_${gradingDocId}`;
+}
+
+export function deterministicUnpaidGradingsSummaryNotifDocId(): string {
+  return 'summary_unpaid_gradings';
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -756,7 +810,8 @@ export class NotificationService implements OnDestroy {
 
       if (posts.length <= max) {
         for (const post of posts) {
-          const ref = doc(notifCollection); // auto-generated ID
+          const docId = deterministicBlogPostNotifDocId(feed.collection, post.id);
+          const ref = doc(notifCollection, docId);
           const fields = this.blogPostFields(feed, post);
           const notification: MemberNotification = {
             docId: ref.id,
@@ -773,7 +828,8 @@ export class NotificationService implements OnDestroy {
         const remainingPosts = posts.slice(max);
 
         for (const post of latestPosts) {
-          const ref = doc(notifCollection);
+          const docId = deterministicBlogPostNotifDocId(feed.collection, post.id);
+          const ref = doc(notifCollection, docId);
           const fields = this.blogPostFields(feed, post);
           const notification: MemberNotification = {
             docId: ref.id,
@@ -793,7 +849,8 @@ export class NotificationService implements OnDestroy {
             ? 'members-area'
             : 'instructors-area';
         const summaryMarkdown = `📰 **${count}** more ${feed.label} ${plural}: [View in ${feed.label} Area](/${areaRoute})`;
-        const summaryRef = doc(notifCollection);
+        const summaryDocId = deterministicBlogSummaryNotifDocId(feed.collection);
+        const summaryRef = doc(notifCollection, summaryDocId);
         const newestRemaining = remainingPosts[0];
         const lastSeenDateStr = newestRemaining.publishOn
           ? new Date(newestRemaining.publishOn).toISOString()
@@ -942,7 +999,8 @@ export class NotificationService implements OnDestroy {
 
       if (events.length <= max) {
         for (const event of events) {
-          const ref = doc(notifCollection); // auto-generated ID
+          const docId = deterministicPendingEventNotifDocId(event.docId);
+          const ref = doc(notifCollection, docId);
           const title = event.title || 'Untitled event';
           const notification: MemberNotification = {
             docId: ref.id,
@@ -959,7 +1017,8 @@ export class NotificationService implements OnDestroy {
         const remainingEvents = events.slice(max);
 
         for (const event of latestEvents) {
-          const ref = doc(notifCollection);
+          const docId = deterministicPendingEventNotifDocId(event.docId);
+          const ref = doc(notifCollection, docId);
           const title = event.title || 'Untitled event';
           const notification: MemberNotification = {
             docId: ref.id,
@@ -975,7 +1034,8 @@ export class NotificationService implements OnDestroy {
         const count = remainingEvents.length;
         const plural = count === 1 ? 'proposed event' : 'proposed events';
         const summaryMarkdown = `🗓️ **${count}** more ${plural} awaiting approval: [View in Manage Events](/manage-events?status=proposed)`;
-        const summaryRef = doc(notifCollection);
+        const summaryDocId = deterministicPendingEventsSummaryNotifDocId();
+        const summaryRef = doc(notifCollection, summaryDocId);
         const summaryNotification: MemberNotification = {
           docId: summaryRef.id,
           markdown: summaryMarkdown,
@@ -1163,7 +1223,8 @@ export class NotificationService implements OnDestroy {
 
       if (orders.length <= max) {
         for (const order of orders) {
-          const ref = doc(notifCollection); // auto-generated ID
+          const docId = deterministicOrderIssueNotifDocId(order.docId);
+          const ref = doc(notifCollection, docId);
           const fields = this.orderIssueFields(order);
           const notification: MemberNotification = {
             docId: ref.id,
@@ -1180,7 +1241,8 @@ export class NotificationService implements OnDestroy {
         const remainingOrders = orders.slice(max);
 
         for (const order of latestOrders) {
-          const ref = doc(notifCollection);
+          const docId = deterministicOrderIssueNotifDocId(order.docId);
+          const ref = doc(notifCollection, docId);
           const fields = this.orderIssueFields(order);
           const notification: MemberNotification = {
             docId: ref.id,
@@ -1196,7 +1258,8 @@ export class NotificationService implements OnDestroy {
         const count = remainingOrders.length;
         const plural = count === 1 ? 'order' : 'orders';
         const summaryMarkdown = `📦 **${count}** more ${plural} need attention: [View in Manage Orders](/orders)`;
-        const summaryRef = doc(notifCollection);
+        const summaryDocId = deterministicOrderIssuesSummaryNotifDocId();
+        const summaryRef = doc(notifCollection, summaryDocId);
         const summaryNotification: MemberNotification = {
           docId: summaryRef.id,
           markdown: summaryMarkdown,
@@ -1412,7 +1475,8 @@ export class NotificationService implements OnDestroy {
 
       if (newUploads.length <= max) {
         for (const upload of newUploads) {
-          const ref = doc(notifCollection);
+          const docId = deterministicUploadNotifDocId(upload.docId);
+          const ref = doc(notifCollection, docId);
           const fields = this.uploadNotificationFields(upload);
           const notification: MemberNotification = {
             docId: ref.id,
@@ -1429,7 +1493,8 @@ export class NotificationService implements OnDestroy {
         const remainingUploads = newUploads.slice(max);
 
         for (const upload of latestUploads) {
-          const ref = doc(notifCollection);
+          const docId = deterministicUploadNotifDocId(upload.docId);
+          const ref = doc(notifCollection, docId);
           const fields = this.uploadNotificationFields(upload);
           const notification: MemberNotification = {
             docId: ref.id,
@@ -1456,7 +1521,8 @@ export class NotificationService implements OnDestroy {
         const link = `/manage-materials?startDate=${encodeURIComponent(startDateStr)}&endDate=${encodeURIComponent(endDateStr)}`;
         const summaryMarkdown = `📁 **${count}** more ${plural} ${dateDisplay}: [View in Materials Manager](${link})`;
 
-        const summaryRef = doc(notifCollection);
+        const summaryDocId = deterministicUploadsSummaryNotifDocId();
+        const summaryRef = doc(notifCollection, summaryDocId);
         const summaryNotification: MemberNotification = {
           docId: summaryRef.id,
           markdown: summaryMarkdown,
@@ -1637,7 +1703,8 @@ export class NotificationService implements OnDestroy {
 
       if (unpaid.length <= max) {
         for (const g of unpaid) {
-          const ref = doc(notifCollection);
+          const docId = deterministicUnpaidGradingNotifDocId(g.docId);
+          const ref = doc(notifCollection, docId);
           const notification: MemberNotification = {
             docId: ref.id,
             markdown: this.unpaidGradingMarkdown(
@@ -1656,7 +1723,8 @@ export class NotificationService implements OnDestroy {
         const remainingUnpaid = unpaid.slice(max);
 
         for (const g of latestUnpaid) {
-          const ref = doc(notifCollection);
+          const docId = deterministicUnpaidGradingNotifDocId(g.docId);
+          const ref = doc(notifCollection, docId);
           const notification: MemberNotification = {
             docId: ref.id,
             markdown: this.unpaidGradingMarkdown(
@@ -1677,7 +1745,8 @@ export class NotificationService implements OnDestroy {
           member.docId === remainingUnpaid[0].studentMemberDocId;
         const link = member.instructorId ? '/gradings' : '/my-gradings';
         const summaryMarkdown = `🥋 **${count}** more ${plural}: [View in Gradings](${link})`;
-        const summaryRef = doc(notifCollection);
+        const summaryDocId = deterministicUnpaidGradingsSummaryNotifDocId();
+        const summaryRef = doc(notifCollection, summaryDocId);
         const summaryNotification: MemberNotification = {
           docId: summaryRef.id,
           markdown: summaryMarkdown,

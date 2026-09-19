@@ -1,7 +1,19 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { writeBatch, getDocs, getDoc, where } from 'firebase/firestore';
-import { NotificationService } from './notification.service';
+import {
+  NotificationService,
+  deterministicBlogPostNotifDocId,
+  deterministicBlogSummaryNotifDocId,
+  deterministicPendingEventNotifDocId,
+  deterministicPendingEventsSummaryNotifDocId,
+  deterministicOrderIssueNotifDocId,
+  deterministicOrderIssuesSummaryNotifDocId,
+  deterministicUploadNotifDocId,
+  deterministicUploadsSummaryNotifDocId,
+  deterministicUnpaidGradingNotifDocId,
+  deterministicUnpaidGradingsSummaryNotifDocId,
+} from './notification.service';
 import {
   FirebaseStateService,
   createFirebaseStateServiceMock,
@@ -26,7 +38,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     query: vi.fn((...a: unknown[]) => a),
     collection: vi.fn((...a: unknown[]) => ({ __collection: a })),
     collectionGroup: vi.fn((...a: unknown[]) => ({ __collectionGroup: a })),
-    doc: vi.fn((...a: unknown[]) => ({ id: 'mock-doc-id', __doc: a })),
+    doc: vi.fn((...a: unknown[]) => ({ id: (a[1] as string) || 'mock-doc-id', __doc: a })),
     where: vi.fn((...a: unknown[]) => ({ __where: a })),
     limit: vi.fn((...a: unknown[]) => ({ __limit: a })),
   };
@@ -1197,6 +1209,79 @@ describe('NotificationService', () => {
 
       (service as any).processPushNotifications(active);
       expect(triggerSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deterministic notification document IDs', () => {
+    it('generates consistent, predictable IDs for all entity-based notification streams', () => {
+      expect(deterministicBlogPostNotifDocId('members-post', 'post-123')).toBe(
+        'blog_members-post_post-123',
+      );
+      expect(deterministicBlogSummaryNotifDocId('members-post')).toBe(
+        'summary_blog_members-post',
+      );
+      expect(deterministicPendingEventNotifDocId('event-abc')).toBe(
+        'pending_event_event-abc',
+      );
+      expect(deterministicPendingEventsSummaryNotifDocId()).toBe(
+        'summary_pending_events',
+      );
+      expect(deterministicOrderIssueNotifDocId('order-xyz')).toBe(
+        'order_issue_order-xyz',
+      );
+      expect(deterministicOrderIssuesSummaryNotifDocId()).toBe(
+        'summary_order_issues',
+      );
+      expect(deterministicUploadNotifDocId('upload-456')).toBe(
+        'upload_upload-456',
+      );
+      expect(deterministicUploadsSummaryNotifDocId()).toBe(
+        'summary_new_uploads',
+      );
+      expect(deterministicUnpaidGradingNotifDocId('grading-789')).toBe(
+        'unpaid_grading_grading-789',
+      );
+      expect(deterministicUnpaidGradingsSummaryNotifDocId()).toBe(
+        'summary_unpaid_gradings',
+      );
+    });
+
+    it('assigns deterministic doc IDs during blog feed sync to guarantee idempotent writes', async () => {
+      const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
+      getDocsMock.mockReset();
+
+      // 1) existing notifications query: empty
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      // 2) posts query: returns 1 post
+      const post = {
+        id: '6aada866affc65662a2b1636',
+        title: '9/19 Throwing Hands with Inst. Jeffrey Wong',
+        urlId: 'martial-art-of-awareness-with-inst-jeffrey-wong-pf69g-gtd8g-drxyd-lxtd8',
+        publishOn: 1789765734601,
+      };
+      getDocsMock.mockResolvedValueOnce({
+        docs: [{ id: 'AWLLIsvC79IkACHHWbm5', data: () => post }],
+      });
+
+      const writes: { ref: any; notif: MemberNotification }[] = [];
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        set: (ref: any, notif: MemberNotification) => writes.push({ ref, notif }),
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const feed = {
+        collection: 'members-post',
+        label: 'Members',
+        route: 'members-area/post',
+      };
+      await (service as any).syncBlogFeedNotifications('uGZjWTsJudxswMoUGBPa', feed);
+
+      expect(writes).toHaveLength(1);
+      const expectedDocId = 'blog_members-post_6aada866affc65662a2b1636';
+      expect(writes[0].ref.id).toBe(expectedDocId);
+      expect(writes[0].notif.docId).toBe(expectedDocId);
     });
   });
 });
