@@ -174,10 +174,10 @@ describe('HeaderComponent', () => {
     expect(component.hasTopTabs()).toBe(true);
   });
 
-  it('computes hasTopTabs as true for EmailNotifications view', async () => {
+  it('computes hasTopTabs as true for AppNotificationSettings view', async () => {
     const fixture = TestBed.createComponent(HeaderComponent);
     const component = fixture.componentInstance;
-    component.routingService.matchedPatternId = signal(Views.EmailNotifications);
+    component.routingService.matchedPatternId = signal(Views.AppNotificationSettings);
     fixture.detectChanges();
     await fixture.whenStable();
 

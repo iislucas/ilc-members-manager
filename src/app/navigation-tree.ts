@@ -257,7 +257,9 @@ export class NavigationTreeService {
       view === Views.MyStudents ||
       view === Views.MyStudentView ||
       view === Views.MySchools ||
-      view === Views.MySchoolEdit
+      view === Views.MySchoolEdit ||
+      view === Views.Notifications ||
+      view === Views.UserNotificationSettings
     ) {
       return 'me';
     }
@@ -296,9 +298,8 @@ export class NavigationTreeService {
       view === Views.ManageVideoTags ||
       view === Views.Statistics ||
       view === Views.ImportExport ||
-      view === Views.EmailNotifications ||
-      view === Views.Settings ||
-      view === Views.NotificationSettings
+      view === Views.AppNotificationSettings ||
+      view === Views.Settings
     ) {
       return 'admin';
     }
@@ -478,8 +479,6 @@ export class NavigationTreeService {
           }),
         ];
       }
-      case Views.NotificationSettings:
-        return [this.node(Views.Settings, 'Settings')];
       case Views.VideoView:
         return [this.node(Views.Videos, 'Video on Demand')];
       case Views.ManageVideoTags:
@@ -706,9 +705,9 @@ export class NavigationTreeService {
         return this.loadedGradingTitle() || 'Grading Details';
       case Views.Settings:
         return 'Settings';
-      case Views.EmailNotifications:
-        return 'Email Notifications';
-      case Views.NotificationSettings:
+      case Views.AppNotificationSettings:
+        return 'App Notification Settings';
+      case Views.UserNotificationSettings:
         return 'Notification Settings';
       case Views.Notifications:
         return 'Notifications';

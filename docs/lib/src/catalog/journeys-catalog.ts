@@ -575,8 +575,8 @@ export const USER_JOURNEYS_CATALOG: UserJourneyEntry[] = [
         actorTaxonomyId: 'active-member',
         title: 'Configure 2-Tier Push Preferences',
         description: 'Member toggles push preferences in settings. Account-wide globalPushEnabled and per-kind switches persist to Firestore Member doc. Per-device devicePushEnabled persists to client localStorage, ensuring muted browsers do not auto-resubscribe even if OS permissions are granted.',
-        screenViewId: 'notificationSettings',
-        screenPath: '/settings/notifications',
+        screenViewId: 'userNotificationSettings',
+        screenPath: '/notifications/settings',
         mutatedDataTypes: ['member'],
       },
       {

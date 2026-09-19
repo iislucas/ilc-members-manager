@@ -235,7 +235,7 @@ export class EmailNotificationsComponent {
   firebaseState = inject(FirebaseStateService);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
-  private viewSignals = this.routingService.signals[Views.EmailNotifications];
+  private viewSignals = this.routingService.signals[Views.AppNotificationSettings];
   readonly MailDeliveryState = MailDeliveryState;
 
   // Derive active category from the URL `tab` query param, with fallback to 'settings'
@@ -671,7 +671,7 @@ export class EmailNotificationsComponent {
       period: 'the next 3 months',
       eventsCount: String(upcomingEvents.length),
       calendarUrl: `${origin}/events`,
-      preferencesUrl: `${origin}/settings/notifications`,
+      preferencesUrl: `${origin}/notifications/settings`,
       unsubscribeUrl: `${origin}/unsubscribe?demo=true`,
     };
   }
@@ -858,7 +858,7 @@ export class EmailNotificationsComponent {
       eventsCount: String(upcomingEvents.length),
       eventsList: compiledItems,
       calendarUrl: `${appBase}/events`,
-      preferencesUrl: `${appBase}/settings/notifications`,
+      preferencesUrl: `${appBase}/notifications/settings`,
       appBase,
     });
 

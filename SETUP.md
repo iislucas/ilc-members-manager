@@ -268,7 +268,7 @@ To prevent outbound emails from landing in recipients' spam or junk folders, con
 
 ### 5.6 Email Templates & Foldable Placeholders
 
-ILC Administrators can customize and test all transactional and digest email templates directly from the portal at `/email-notifications`:
+ILC Administrators can customize and test all transactional and digest email templates directly from the portal at `/app-notifications`:
 
 #### Template Categories:
 
@@ -302,7 +302,7 @@ The backend provides two automated digest functions:
 
 Each function queries `/events` for listed public events in the next 3 months (`today <= end` and `start <= today + 3 months`), filters members who opted into that frequency (`weekly` or `monthly` in their `/members/{memberDocId}` settings), renders the templates, and writes outbound tasks into `/mail`.
 
-Members can adjust their preference at `/settings/notifications` ("Upcoming Events Digest" -> Weekly / Monthly / None).
+Members can adjust their preference at `/notifications/settings` ("Upcoming Events Digest" -> Weekly / Monthly / None).
 
 ### 5.8 Mail Document Lifecycle & Anti-Circular Sending Protection
 
@@ -341,14 +341,14 @@ The system supports a 3-way global outbound dispatch state stored in `/system/ma
 
 ### 5.10 Admin Test Email Tool & Mail Logs Viewer
 
-Administrators have access to real-time email management tools in the portal via the dedicated **Email Notifications** space (`/email-notifications`):
+Administrators have access to real-time email management tools in the portal via the dedicated **Email Notifications** space (`/app-notifications`):
 
-#### 1. Test Email Sender (`/email-notifications?tab=test` -> Test Email Sender):
+#### 1. Test Email Sender (`/app-notifications?tab=test` -> Test Email Sender):
 - Select quick presets (*Quick Ping*, *Welcome Notice*, *Order Confirmation*, *Event Digest*) to auto-populate sample data.
 - Live rendered HTML preview alongside raw markdown editing.
 - Sends test emails using the exact same code pathway as transactional messages (enqueuing to `/mail` and awaiting queue trigger dispatch).
 
-#### 2. Mail Logs & Queue Viewer (`/email-notifications?tab=logs` -> Mail Logs & Queue):
+#### 2. Mail Logs & Queue Viewer (`/app-notifications?tab=logs` -> Mail Logs & Queue):
 - **Live Status Inspection**: View all recently dispatched emails, status badges (`SUCCESS` in green, `PENDING`/`PROCESSING` in amber, `ERROR` in red), recipient, and dispatch timestamps.
 - **Metric Summary Cards**: Instant counters for Total Tracked, Delivered, In-Flight, and Error counts.
 - **Filter & Search**: Quickly search by recipient email, subject line, or Document ID, or filter by delivery status.

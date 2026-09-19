@@ -80,7 +80,7 @@ export class NavigationMenuComponent {
       view === Views.MySchools ||
       view === Views.MySchoolEdit ||
       view === Views.Notifications ||
-      view === Views.NotificationSettings
+      view === Views.UserNotificationSettings
     ) {
       return 'me';
     }
@@ -159,7 +159,8 @@ export class NavigationMenuComponent {
       case Views.ManageGradings: return 'Gradings';
       case Views.MemberGradings: return 'Gradings';
       case Views.Settings: return 'Settings';
-      case Views.EmailNotifications: return 'Email Notifications';
+      case Views.AppNotificationSettings: return 'App Notifications';
+      case Views.UserNotificationSettings: return 'Notification Settings';
       case Views.ClassVideoLibrary: return 'Class Video Library';
       case Views.ManageOrders: return 'Orders';
       case Views.Statistics: return 'Statistics';

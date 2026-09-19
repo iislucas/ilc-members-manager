@@ -49,7 +49,7 @@ export class NotificationsViewComponent implements OnDestroy {
   protected deletingIds = signal<Set<string>>(new Set());
 
   protected syncError = this.notificationService.syncError;
-  protected settingsHref = this.routingService.hrefForView(Views.NotificationSettings);
+  protected settingsHref = this.routingService.hrefForView(Views.UserNotificationSettings);
 
   protected onDismissError() {
     this.notificationService.dismissSyncError();
