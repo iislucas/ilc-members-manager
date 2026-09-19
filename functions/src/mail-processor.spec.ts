@@ -13,6 +13,8 @@ import {
   updateMailItem,
   processMailQueue,
   MailSendingStatus,
+  TransactionalEmailKey,
+  resolveNotificationStatus,
 } from './mail-processor';
 import * as common from './common';
 import { environment } from './environment/environment';
@@ -852,6 +854,135 @@ describe('mail-processor', () => {
         }),
       );
       expect(mockBatchCommit).toHaveBeenCalled();
+    });
+
+    it('sets fine-grained status for a specific templateKey and resumes matching paused emails', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockSet = vi.fn().mockResolvedValue({});
+      const mockBatchUpdate = vi.fn();
+      const mockBatchCommit = vi.fn().mockResolvedValue({});
+
+      const mockBatch = {
+        update: mockBatchUpdate,
+        commit: mockBatchCommit,
+      };
+
+      const pausedGradingDoc = { ref: { id: 'gradingDoc1' } };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return {
+              get: vi.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ status: MailSendingStatus.Off, notificationStatus: {} }),
+              }),
+              set: mockSet,
+            };
+          }
+          return {};
+        }),
+        collection: vi.fn().mockImplementation((coll: string) => {
+          if (coll === 'mail') {
+            return {
+              where: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                  get: vi.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [pausedGradingDoc],
+                  }),
+                }),
+              }),
+            };
+          }
+          return {};
+        }),
+        batch: vi.fn().mockReturnValue(mockBatch),
+      } as any);
+
+      const result = await setMailSendingState.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: {
+          status: MailSendingStatus.Active,
+          templateKey: TransactionalEmailKey.GradingPassed,
+        },
+      } as any);
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe(MailSendingStatus.Active);
+      expect(result.templateKey).toBe(TransactionalEmailKey.GradingPassed);
+      expect(result.resumedCount).toBe(1);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notificationStatus: expect.objectContaining({
+            [TransactionalEmailKey.GradingPassed]: MailSendingStatus.Active,
+          }),
+        }),
+        { merge: true },
+      );
+      expect(mockBatchUpdate).toHaveBeenCalledWith(
+        pausedGradingDoc.ref,
+        expect.objectContaining({
+          status: MailDeliveryState.Pending,
+        }),
+      );
+    });
+
+    it('sets status for all templates when templateKey is all', async () => {
+      vi.spyOn(common, 'assertAdmin').mockResolvedValue({} as any);
+      const mockSet = vi.fn().mockResolvedValue({});
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        doc: vi.fn().mockImplementation((path: string) => {
+          if (path === 'system/mail-settings') {
+            return { set: mockSet };
+          }
+          return {};
+        }),
+      } as any);
+
+      const result = await setMailSendingState.run({
+        auth: { token: { email: 'admin@iliqchuan.com' } },
+        data: {
+          status: MailSendingStatus.Paused,
+          templateKey: 'all',
+        },
+      } as any);
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe(MailSendingStatus.Paused);
+      expect(result.templateKey).toBe('all');
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: MailSendingStatus.Paused,
+          notificationStatus: expect.objectContaining({
+            [TransactionalEmailKey.OrderConfirmation]: MailSendingStatus.Paused,
+            [TransactionalEmailKey.GradingPassed]: MailSendingStatus.Paused,
+          }),
+        }),
+        { merge: true },
+      );
+    });
+
+    it('correctly resolves fine-grained vs global status with resolveNotificationStatus', () => {
+      expect(resolveNotificationStatus(undefined)).toBe(MailSendingStatus.Off);
+
+      const settings = {
+        status: MailSendingStatus.Off,
+        notificationStatus: {
+          [TransactionalEmailKey.GradingPassed]: MailSendingStatus.Active,
+          [TransactionalEmailKey.OrderConfirmation]: MailSendingStatus.Paused,
+        },
+      };
+
+      expect(resolveNotificationStatus(settings, TransactionalEmailKey.GradingPassed)).toBe(
+        MailSendingStatus.Active,
+      );
+      expect(resolveNotificationStatus(settings, TransactionalEmailKey.OrderConfirmation)).toBe(
+        MailSendingStatus.Paused,
+      );
+      expect(resolveNotificationStatus(settings, TransactionalEmailKey.MembershipActivated)).toBe(
+        MailSendingStatus.Off,
+      );
     });
   });
 

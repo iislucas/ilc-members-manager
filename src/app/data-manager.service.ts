@@ -40,6 +40,7 @@ import {
   UpdateMailItemRequest,
   UpdateMailItemResponse,
   MailDeliveryState,
+  TransactionalEmailKey,
 } from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { GenericFsDoc } from '../../functions/src/data-model/base';
@@ -2843,17 +2844,19 @@ export class DataManagerService {
   }
 
   /**
-   * Admin-only callable to set global outbound mail sending state ('active' | 'paused' | 'off').
-   * When transitioning to 'active', transitions all documents in /mail with status: 'PAUSED' to 'PENDING'.
+   * Admin-only callable to set outbound mail sending state ('active' | 'paused' | 'off').
+   * Supports fine-grained targeting per templateKey or 'all' for system-wide status.
+   * When transitioning to 'active', transitions matching documents in /mail with status: 'PAUSED' to 'PENDING'.
    */
   async setMailSendingState(
     status: MailSendingStatus,
-  ): Promise<{ success: boolean; status: MailSendingStatus; resumedCount: number }> {
+    templateKey?: TransactionalEmailKey | 'all',
+  ): Promise<{ success: boolean; status: MailSendingStatus; resumedCount: number; templateKey?: string }> {
     const fn = httpsCallable<
-      { status: MailSendingStatus },
-      { success: boolean; status: MailSendingStatus; resumedCount: number }
+      { status: MailSendingStatus; templateKey?: TransactionalEmailKey | 'all' },
+      { success: boolean; status: MailSendingStatus; resumedCount: number; templateKey?: string }
     >(this.functions, 'setMailSendingState');
-    const res = await fn({ status });
+    const res = await fn({ status, templateKey });
     return res.data;
   }
 

@@ -419,6 +419,14 @@ export enum EventDigestFrequency {
   Monthly = 'monthly',
 }
 
+export enum EmailCategory {
+  Purchases = 'purchases',
+  Gradings = 'gradings',
+  Events = 'events',
+  Account = 'account',
+  All = 'all',
+}
+
 export interface MemberNotificationSettings {
   pushEnabled: { [kind in NotificationKind]?: boolean };
   homeEnabled: { [kind in NotificationKind]?: boolean };
@@ -426,6 +434,7 @@ export interface MemberNotificationSettings {
   globalEmailEnabled?: boolean;
   eventDigestFrequency?: EventDigestFrequency;
   emailEnabled?: { [key in TransactionalEmailKey]?: boolean };
+  categoryEmailEnabled?: { [category in EmailCategory]?: boolean };
 }
 
 export type MemberNotificationFsDoc = Omit<MemberNotification, 'docId'>;

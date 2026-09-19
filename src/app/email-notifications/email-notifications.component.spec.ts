@@ -12,7 +12,7 @@ import { SearchableSet } from '../searchable-set';
 import { Member } from '../../../functions/src/data-model/members';
 import { IlcEvent, EventStatus } from '../../../functions/src/data-model/events';
 import { initEmailTemplates } from '../../../functions/src/data-model/content-cache';
-import { initMailSettings, MailSendingStatus, MailDeliveryState } from '../../../functions/src/data-model/mail';
+import { initMailSettings, MailSendingStatus, MailDeliveryState, TransactionalEmailKey } from '../../../functions/src/data-model/mail';
 
 describe('EmailNotificationsComponent', () => {
   let component: EmailNotificationsComponent;
@@ -218,15 +218,56 @@ describe('EmailNotificationsComponent', () => {
 
   it('renders pill tabs in the requested order with shortened names', () => {
     const tabs = Array.from(fixture.nativeElement.querySelectorAll('.header-extension-tabs .pill-tab')) as HTMLElement[];
-    expect(tabs.length).toBe(6);
+    expect(tabs.length).toBe(7);
     expect(tabs.map(t => t.textContent?.trim())).toEqual([
       'Settings',
       'Test',
       'Onboarding',
       'Purchases',
+      'Gradings',
       'Event Digests',
       'Logs & Queue',
     ]);
+  });
+
+  it('should render Gradings sub-pill tabs and switch between the 5 grading subtabs', async () => {
+    tabSignal.set('gradings');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const subPills = fixture.nativeElement.querySelectorAll('.purchase-sub-tabs .pill-tab');
+    expect(subPills.length).toBe(5);
+    expect(Array.from(subPills).map((p: any) => p.textContent.trim())).toEqual([
+      'Request Received',
+      'Request Accepted',
+      'Request Declined',
+      'Grading Passed',
+      'Feedback / Not Passed',
+    ]);
+
+    component.setGradingSubtype('accepted');
+    expect(subtabSignal()).toBe('accepted');
+    expect(component.activeGradingSubtype()).toBe('accepted');
+
+    component.setGradingSubtype('declined');
+    expect(subtabSignal()).toBe('declined');
+    expect(component.activeGradingSubtype()).toBe('declined');
+
+    component.setGradingSubtype('passed');
+    expect(subtabSignal()).toBe('passed');
+    expect(component.activeGradingSubtype()).toBe('passed');
+
+    component.setGradingSubtype('not-passed');
+    expect(subtabSignal()).toBe('not-passed');
+    expect(component.activeGradingSubtype()).toBe('not-passed');
+  });
+
+  it('should update grading template bodies and reset to default', () => {
+    component.setGradingPassedBody('Congratulations! You passed with high distinction.');
+    expect(component.templates().gradingPassedBody).toBe('Congratulations! You passed with high distinction.');
+
+    component.resetTemplateToDefault('grading-passed');
+    expect(component.templates().gradingPassedBody).toContain('Congratulations! You have successfully passed');
   });
 
   it('defaults activeCategory to settings when urlParams.tab is empty', () => {
@@ -244,7 +285,7 @@ describe('EmailNotificationsComponent', () => {
     expect(statusBanner.textContent).toContain('Current Status: OFF');
 
     const toggleButtons = Array.from(fixture.nativeElement.querySelectorAll('.settings-banner .status-btn')) as HTMLElement[];
-    expect(toggleButtons.map(b => b.textContent?.trim())).toEqual(['Off', 'Pause', 'Turn On']);
+    expect(toggleButtons.map(b => b.textContent?.trim())).toEqual(['Turn Off All', 'Pause All', 'Make All Active']);
   });
 
   it('should update activeCategory when urlParams.tab changes', async () => {
@@ -452,7 +493,7 @@ describe('EmailNotificationsComponent', () => {
 
     // 2. Transition to PAUSED
     await component.setMailStatus(MailSendingStatus.Paused);
-    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Paused);
+    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Paused, 'all');
     expect(component.statusActionFeedback()?.success).toBe(true);
 
     // Simulate settings update to PAUSED
@@ -470,7 +511,7 @@ describe('EmailNotificationsComponent', () => {
       resumedCount: 2,
     });
     await component.setMailStatus(MailSendingStatus.Active);
-    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Active);
+    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Active, 'all');
     expect(component.statusActionFeedback()?.message).toContain('2 queued email(s) released');
 
     // Simulate settings update to ACTIVE
@@ -483,7 +524,117 @@ describe('EmailNotificationsComponent', () => {
 
     // 4. Transition back to OFF
     await component.setMailStatus(MailSendingStatus.Off);
-    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Off);
+    expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Off, 'all');
+  });
+
+  describe('Fine-Grained Notification Controls & Top-Level Batch Operations', () => {
+    beforeEach(async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await component.setCategory('settings');
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    it('renders all 4 control groups and 14 notification items', () => {
+      const groups = fixture.nativeElement.querySelectorAll('.control-group-block');
+      expect(groups.length).toBe(4);
+
+      const rows = fixture.nativeElement.querySelectorAll('.notification-control-row');
+      expect(rows.length).toBe(14);
+    });
+
+    it('displays mixed overall status and summary chips when notifications have different states', async () => {
+      mockDataManager.mailSettings.set({
+        status: MailSendingStatus.Off,
+        notificationStatus: {
+          [TransactionalEmailKey.MembershipActivated]: MailSendingStatus.Active,
+          [TransactionalEmailKey.OrderConfirmation]: MailSendingStatus.Paused,
+        },
+      });
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.overallStatusMode()).toBe('mixed');
+      const counts = component.notificationStatusCounts();
+      expect(counts.active).toBe(1);
+      expect(counts.paused).toBe(1);
+      expect(counts.off).toBe(12);
+
+      const banner = fixture.nativeElement.querySelector('.settings-banner.banner-mixed');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain('Current Status: CUSTOM / MIXED');
+      expect(banner.textContent).toContain('1 Active');
+      expect(banner.textContent).toContain('1 Paused');
+      expect(banner.textContent).toContain('12 Off');
+    });
+
+    it('allows toggling an individual notification status with specific templateKey', async () => {
+      mockDataManager.setMailSendingState.mockResolvedValueOnce({
+        success: true,
+        status: MailSendingStatus.Active,
+        resumedCount: 1,
+        templateKey: TransactionalEmailKey.OrderConfirmation,
+      });
+
+      await component.setNotificationStatus(
+        TransactionalEmailKey.OrderConfirmation,
+        MailSendingStatus.Active,
+        'Store Order Confirmation',
+      );
+
+      expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(
+        MailSendingStatus.Active,
+        TransactionalEmailKey.OrderConfirmation,
+      );
+      expect(component.statusActionFeedback()?.success).toBe(true);
+      expect(component.statusActionFeedback()?.message).toContain('Store Order Confirmation');
+      expect(component.statusActionFeedback()?.message).toContain('1 queued email(s) released');
+    });
+
+    it('renders correct active status on mini-toggle buttons according to resolved status', async () => {
+      mockDataManager.mailSettings.set({
+        status: MailSendingStatus.Off,
+        notificationStatus: {
+          [TransactionalEmailKey.MembershipActivated]: MailSendingStatus.Active,
+          [TransactionalEmailKey.GradingPassed]: MailSendingStatus.Paused,
+        },
+      });
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const memberRow = fixture.nativeElement.querySelector(`[data-key="${TransactionalEmailKey.MembershipActivated}"]`);
+      expect(memberRow).toBeTruthy();
+      expect(memberRow.querySelector('.status-badge').textContent.trim()).toBe('Active');
+      expect(memberRow.querySelector('.mini-btn-active.active')).toBeTruthy();
+
+      const gradingRow = fixture.nativeElement.querySelector(`[data-key="${TransactionalEmailKey.GradingPassed}"]`);
+      expect(gradingRow).toBeTruthy();
+      expect(gradingRow.querySelector('.status-badge').textContent.trim()).toBe('Paused');
+      expect(gradingRow.querySelector('.mini-btn-paused.active')).toBeTruthy();
+    });
+
+    it('executes batch operations Pause All, Turn Off All, and Make All Active', async () => {
+      await component.setAllNotificationsStatus(MailSendingStatus.Paused);
+      expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Paused, 'all');
+
+      await component.setAllNotificationsStatus(MailSendingStatus.Active);
+      expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Active, 'all');
+
+      await component.setAllNotificationsStatus(MailSendingStatus.Off);
+      expect(mockDataManager.setMailSendingState).toHaveBeenCalledWith(MailSendingStatus.Off, 'all');
+    });
+
+    it('navigates to template editor when Edit Template is clicked', async () => {
+      await component.navigateToTemplate({
+        key: TransactionalEmailKey.GradingPassed,
+        label: 'Grading Passed',
+        description: '',
+        category: 'gradings',
+      });
+
+      expect(component.activeCategory()).toBe('gradings');
+      expect(component.activeGradingSubtype()).toBe('passed');
+    });
   });
 
   it('should extract templateData entries in getTemplateDataEntries', () => {
@@ -908,11 +1059,12 @@ describe('EmailNotificationsComponent', () => {
       fixture.detectChanges();
 
       const pills = fixture.nativeElement.querySelectorAll('.email-to-send-pills .pill-tab');
-      expect(pills.length).toBe(4);
+      expect(pills.length).toBe(5);
       expect(pills[0].textContent.trim()).toBe('Quick Ping');
       expect(pills[1].textContent.trim()).toBe('Welcome Notice');
       expect(pills[2].textContent.trim()).toBe('Order Confirmation');
       expect(pills[3].textContent.trim()).toBe('Event Digest');
+      expect(pills[4].textContent.trim()).toBe('Grading Passed');
 
       // Check rendered preview To: and Subject:
       const meta = fixture.nativeElement.querySelector('.preview-header-meta');

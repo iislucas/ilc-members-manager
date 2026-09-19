@@ -14,7 +14,13 @@ import {
   EventDigestOverallContext,
 } from './data-model/events';
 import { FirestoreCollection } from './data-model/collections';
-import { MailSettings, MailSendingStatus, MailDeliveryState } from './data-model/mail';
+import {
+  MailSettings,
+  MailSendingStatus,
+  MailDeliveryState,
+  TransactionalEmailKey,
+  resolveNotificationStatus,
+} from './data-model/mail';
 import { EventDigestFrequency } from './data-model/notifications';
 import { getUnsubscribeSecret, generateUnsubscribeToken } from './unsubscribe-token';
 
@@ -138,6 +144,8 @@ export async function enqueueDigestBatch(
 
     const token = generateUnsubscribeToken(docId, options.unsubscribeSecret);
     const unsubscribeUrl = `${options.appBase}/unsubscribe?mid=${encodeURIComponent(docId)}&token=${encodeURIComponent(token)}&kind=eventDigest`;
+    const unsubscribeCategoryUrl = `${options.appBase}/unsubscribe?mid=${encodeURIComponent(docId)}&token=${encodeURIComponent(token)}&category=events`;
+    const unsubscribeAllUrl = `${options.appBase}/unsubscribe?mid=${encodeURIComponent(docId)}&token=${encodeURIComponent(token)}&kind=all`;
 
     const replacements: EventDigestOverallContext = {
       name: member.name || 'ILC Member',
@@ -147,6 +155,10 @@ export async function enqueueDigestBatch(
       calendarUrl,
       preferencesUrl,
       unsubscribeUrl,
+      unsubscribeKindName: 'Upcoming Events Digest',
+      unsubscribeCategoryUrl,
+      unsubscribeCategoryName: 'All Event Notifications',
+      unsubscribeAllUrl,
       appBase: options.appBase,
     };
 
@@ -212,11 +224,13 @@ export async function processEventDigest(
 
   const mailSettingsSnap = await db.doc('system/mail-settings').get();
   const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-  const status: MailSendingStatus =
-    mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+  const status: MailSendingStatus = resolveNotificationStatus(
+    mailSettings,
+    TransactionalEmailKey.EventDigestOverall,
+  );
 
   if (status === MailSendingStatus.Off) {
-    logger.info(`[EventDigest] Mail sending is OFF. Skipping ${frequency} digest dispatch.`);
+    logger.info(`[EventDigest] Mail sending is OFF for ${TransactionalEmailKey.EventDigestOverall}. Skipping ${frequency} digest dispatch.`);
     return 0;
   }
 

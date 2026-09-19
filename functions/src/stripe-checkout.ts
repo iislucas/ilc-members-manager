@@ -55,7 +55,7 @@ function requireAllowedOrigin(origin: unknown): string {
 
 import * as admin from 'firebase-admin';
 import { getMemberByEmail } from './common';
-import { MailSettings, MailSendingStatus } from './data-model/mail';
+import { MailSettings, MailSendingStatus, TransactionalEmailKey, resolveNotificationStatus } from './data-model/mail';
 import { Member } from './data-model/members';
 
 export const createStripeCheckoutSession = onCall<
@@ -174,8 +174,10 @@ export const createStripeCheckoutSession = onCall<
     // When email notifications are turned off, gifts can only be sent to existing member accounts
     const mailSettingsSnap = await db.doc('system/mail-settings').get();
     const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-    const mailStatus: MailSendingStatus =
-      mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+    const mailStatus: MailSendingStatus = resolveNotificationStatus(
+      mailSettings,
+      TransactionalEmailKey.VodGiftReceived,
+    );
 
     if (mailStatus === MailSendingStatus.Off) {
       let recipientMember: Member | null = null;

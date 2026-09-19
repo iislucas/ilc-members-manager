@@ -15,7 +15,7 @@ import { createMemberNotification } from '../notifications';
 import { Member } from '../data-model/members';
 import { sendTransactionalEmail } from '../email-dispatcher';
 import { environment } from '../environment/environment';
-import { MailSettings, MailSendingStatus, TransactionalEmailKey } from '../data-model/mail';
+import { MailSettings, MailSendingStatus, TransactionalEmailKey, resolveNotificationStatus } from '../data-model/mail';
 
 export interface GrantVideoAccessRequest {
   targetType: 'video' | 'series';
@@ -87,8 +87,10 @@ export const grantVideoAccess = onCall(
     // Check mail settings status: if OFF, only allow granting to existing member accounts
     const mailSettingsSnap = await db.doc('system/mail-settings').get();
     const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-    const mailStatus: MailSendingStatus =
-      mailSettings?.status ?? (mailSettings?.sendingPaused ? MailSendingStatus.Paused : MailSendingStatus.Off);
+    const mailStatus: MailSendingStatus = resolveNotificationStatus(
+      mailSettings,
+      TransactionalEmailKey.VodGiftReceived,
+    );
 
     if (mailStatus === MailSendingStatus.Off && !recipientMember) {
       throw new HttpsError(

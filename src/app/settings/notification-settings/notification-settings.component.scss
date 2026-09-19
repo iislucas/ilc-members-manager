@@ -335,6 +335,47 @@
   }
 }
 
+.category-block {
+  margin-top: 1.25rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  overflow: hidden;
+
+  .category-header {
+    background-color: #f8fafc;
+    padding: 0.85rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid v.$border-color-light;
+
+    .category-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: v.$text-primary;
+    }
+  }
+
+  .category-body {
+    .pref-row {
+      border: none;
+      border-bottom: 1px solid v.$border-color-light;
+      border-radius: 0;
+      background: white;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+}
+
+.no-email-placeholder {
+  font-size: 0.82rem;
+  color: v.$text-placeholder;
+  font-style: italic;
+}
+
 @media (max-width: 600px) {
   .settings-card {
     padding: 1.25rem;

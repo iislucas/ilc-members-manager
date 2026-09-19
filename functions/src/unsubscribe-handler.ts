@@ -3,15 +3,17 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { FirestoreCollection } from './data-model/collections';
 import { Member } from './data-model/members';
-import { EventDigestFrequency } from './data-model/notifications';
+import { EventDigestFrequency, EmailCategory } from './data-model/notifications';
 import { TransactionalEmailKey } from './data-model/mail';
 import { verifyUnsubscribeToken, getUnsubscribeSecret } from './unsubscribe-token';
 import { environment } from './environment/environment';
+import { getEmailCategory } from './email-dispatcher';
 
-export function getCategoryLabel(kind: string): string {
-  switch (kind) {
+export function getCategoryLabel(kindOrCategory: string): string {
+  switch (kindOrCategory) {
     case 'eventDigest':
     case 'eventDigestOverall':
+    case EmailCategory.Events:
       return 'Upcoming Events Digest';
     case TransactionalEmailKey.OrderConfirmation:
       return 'Order Receipts & Confirmations';
@@ -21,13 +23,32 @@ export function getCategoryLabel(kind: string): string {
       return 'Event & Workshop Registration Confirmations';
     case TransactionalEmailKey.VodPurchaseConfirmation:
       return 'Video on Demand Confirmations';
+    case TransactionalEmailKey.VodGiftReceived:
+      return 'Video Gifts & Grants';
     case TransactionalEmailKey.GradingPaymentConfirmation:
       return 'Grading Assessment Payment Confirmations';
+    case TransactionalEmailKey.GradingRequestReceived:
+      return 'Grading Requests (For Instructors)';
+    case TransactionalEmailKey.GradingRequestAccepted:
+      return 'Grading Request Accepted Notifications';
+    case TransactionalEmailKey.GradingRequestDeclined:
+      return 'Grading Request Updates';
+    case TransactionalEmailKey.GradingPassed:
+      return 'Grading Passed Notifications';
+    case TransactionalEmailKey.GradingNotPassed:
+      return 'Grading Result Feedback';
     case TransactionalEmailKey.MembershipActivated:
       return 'Membership Activation Notifications';
     case TransactionalEmailKey.InstructorLicenseActivated:
       return 'Instructor License Notifications';
+    case EmailCategory.Purchases:
+      return 'All Purchases & Orders';
+    case EmailCategory.Gradings:
+      return 'All Grading Notifications';
+    case EmailCategory.Account:
+      return 'All Account & Membership Updates';
     case 'all':
+    case EmailCategory.All:
       return 'All Email Notifications';
     default:
       return 'Email Notifications';
@@ -51,8 +72,9 @@ export function renderUnsubscribePageHtml(params: {
   postParams?: Record<string, string>;
   preferencesUrl: string;
   isSuccessState?: boolean;
+  extraOptionsHtml?: string;
 }): string {
-  const { title, heading, message, buttonLabel, buttonAction, postParams, preferencesUrl, isSuccessState } = params;
+  const { title, heading, message, buttonLabel, buttonAction, postParams, preferencesUrl, isSuccessState, extraOptionsHtml } = params;
 
   let formHtml = '';
   if (buttonLabel && buttonAction && postParams) {
@@ -191,6 +213,7 @@ export function renderUnsubscribePageHtml(params: {
     <h1>${escapeHtml(heading)}</h1>
     <p>${message}</p>
     ${formHtml}
+    ${extraOptionsHtml ? `<div class="extra-options" style="margin-top: 1.5rem; border-top: 1px dashed var(--border); padding-top: 1rem;">${extraOptionsHtml}</div>` : ''}
     <div class="footer-links">
       <p style="margin-bottom: 0;">
         <a href="${escapeHtml(preferencesUrl)}">Manage All Notification Preferences</a> • 
@@ -212,12 +235,22 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
   const mid = (query['mid'] || body['mid'] || '').trim();
   const email = (query['email'] || body['email'] || '').trim().toLowerCase();
   const token = (query['token'] || body['token'] || '').trim();
-  const kind = (query['kind'] || body['kind'] || 'eventDigest').trim();
+  const rawCategory = (query['category'] || body['category'] || '').trim();
+  const rawKind = (query['kind'] || body['kind'] || '').trim();
   const action = (query['action'] || body['action'] || 'unsubscribe').trim();
+
+  const isAll = rawKind === 'all' || rawCategory === 'all';
+  const isCategory = !isAll && !!rawCategory;
+  const kind = isAll ? 'all' : isCategory ? '' : (rawKind || 'eventDigest');
+  const category = (isAll ? 'all' : isCategory ? rawCategory : getEmailCategory(kind)) as EmailCategory;
 
   const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
   const preferencesUrl = `${appBase}/settings/notifications`;
-  const categoryLabel = getCategoryLabel(kind);
+  const categoryLabel = isAll
+    ? 'All Email Notifications'
+    : isCategory
+      ? getCategoryLabel(category)
+      : getCategoryLabel(kind);
 
   if (!token) {
     res.status(400).send(
@@ -263,7 +296,7 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
   const isEmailValid = email ? verifyUnsubscribeToken(email, token, secret) : false;
 
   if (!isMidValid && !isEmailValid) {
-    logger.warn(`[Unsubscribe] Invalid token for mid="${mid}", email="${email}", kind="${kind}".`);
+    logger.warn(`[Unsubscribe] Invalid token for mid="${mid}", email="${email}", kind="${kind}", category="${rawCategory}".`);
     res.status(403).send(
       renderUnsubscribePageHtml({
         title: 'Invalid Link',
@@ -278,6 +311,42 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
   const memberData = (memberDoc?.data() || {}) as Member;
   const recipientDisplay = email || (memberData.emails || [])[0] || 'your email';
 
+  // Build secondary option forms for broader unsubscriptions
+  let extraOptionsHtml = '';
+  const postParamsBase: Record<string, string> = { token };
+  if (mid) postParamsBase['mid'] = mid;
+  if (email) postParamsBase['email'] = email;
+
+  if (!isAll) {
+    const allForm = `
+      <form method="POST" action="/unsubscribe" style="margin-top: 0.5rem;">
+        ${Object.entries(postParamsBase).map(([k, v]) => `<input type="hidden" name="${escapeHtml(k)}" value="${escapeHtml(v)}">`).join('\n')}
+        <input type="hidden" name="kind" value="all">
+        <input type="hidden" name="action" value="unsubscribe">
+        <button type="submit" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 0.8rem; margin-top: 0.25rem;">
+          Unsubscribe from All Portal Emails
+        </button>
+      </form>
+    `;
+
+    if (!isCategory && category && category !== EmailCategory.All) {
+      const categoryClassLabel = getCategoryLabel(category);
+      const catForm = `
+        <form method="POST" action="/unsubscribe" style="margin-top: 0.5rem;">
+          ${Object.entries(postParamsBase).map(([k, v]) => `<input type="hidden" name="${escapeHtml(k)}" value="${escapeHtml(v)}">`).join('\n')}
+          <input type="hidden" name="category" value="${escapeHtml(category)}">
+          <input type="hidden" name="action" value="unsubscribe">
+          <button type="submit" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 0.8rem; margin-top: 0.25rem;">
+            Unsubscribe from ${escapeHtml(categoryClassLabel)}
+          </button>
+        </form>
+      `;
+      extraOptionsHtml = `<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Looking for broader options?</p>${catForm}${allForm}`;
+    } else {
+      extraOptionsHtml = `<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Looking for broader options?</p>${allForm}`;
+    }
+  }
+
   // Check if RFC 8058 automated one-click POST from Gmail/Yahoo
   const isRfc8058 =
     req.method === 'POST' &&
@@ -285,17 +354,32 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
       req.headers['list-unsubscribe'] === 'One-Click' ||
       req.headers['content-type']?.includes('application/x-www-form-urlencoded'));
 
+  const activePostParams: Record<string, string> = { ...postParamsBase };
+  if (isCategory) {
+    activePostParams['category'] = rawCategory;
+  } else {
+    activePostParams['kind'] = kind;
+  }
+
   if (req.method === 'POST') {
     const isResubscribe = action === 'resubscribe';
     const settings = memberData.notificationSettings || { pushEnabled: {}, homeEnabled: {} };
 
     if (memberDocRef) {
       if (isResubscribe) {
-        if (kind === 'eventDigest' || kind === 'eventDigestOverall') {
-          settings.eventDigestFrequency = EventDigestFrequency.Monthly;
-        } else if (kind === 'all') {
-          settings.eventDigestFrequency = EventDigestFrequency.Monthly;
+        if (isAll) {
           settings.globalEmailEnabled = true;
+          settings.eventDigestFrequency = EventDigestFrequency.Monthly;
+        } else if (isCategory) {
+          settings.categoryEmailEnabled = {
+            ...settings.categoryEmailEnabled,
+            [category]: true,
+          };
+          if (category === EmailCategory.Events) {
+            settings.eventDigestFrequency = EventDigestFrequency.Monthly;
+          }
+        } else if (kind === 'eventDigest' || kind === 'eventDigestOverall') {
+          settings.eventDigestFrequency = EventDigestFrequency.Monthly;
         } else {
           settings.emailEnabled = {
             ...settings.emailEnabled,
@@ -304,11 +388,19 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
         }
       } else {
         // Unsubscribe
-        if (kind === 'eventDigest' || kind === 'eventDigestOverall') {
-          settings.eventDigestFrequency = EventDigestFrequency.None;
-        } else if (kind === 'all') {
-          settings.eventDigestFrequency = EventDigestFrequency.None;
+        if (isAll) {
           settings.globalEmailEnabled = false;
+          settings.eventDigestFrequency = EventDigestFrequency.None;
+        } else if (isCategory) {
+          settings.categoryEmailEnabled = {
+            ...settings.categoryEmailEnabled,
+            [category]: false,
+          };
+          if (category === EmailCategory.Events) {
+            settings.eventDigestFrequency = EventDigestFrequency.None;
+          }
+        } else if (kind === 'eventDigest' || kind === 'eventDigestOverall') {
+          settings.eventDigestFrequency = EventDigestFrequency.None;
         } else {
           settings.emailEnabled = {
             ...settings.emailEnabled,
@@ -322,7 +414,7 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
       });
 
       logger.info(
-        `[Unsubscribe] Member ${memberDocRef.id} (${recipientDisplay}) ${isResubscribe ? 'resubscribed to' : 'unsubscribed from'} ${kind}.`,
+        `[Unsubscribe] Member ${memberDocRef.id} (${recipientDisplay}) ${isResubscribe ? 'resubscribed to' : 'unsubscribed from'} ${isCategory ? `category:${category}` : kind}.`,
       );
     }
 
@@ -340,9 +432,10 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
           message: `You have successfully re-subscribed to <strong>${escapeHtml(categoryLabel)}</strong> for ${escapeHtml(recipientDisplay)}.`,
           buttonLabel: 'Unsubscribe Again',
           buttonAction: 'unsubscribe',
-          postParams: { mid, email, token, kind },
+          postParams: activePostParams,
           preferencesUrl,
           isSuccessState: true,
+          extraOptionsHtml: isAll ? undefined : extraOptionsHtml,
         }),
       );
     } else {
@@ -353,9 +446,10 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
           message: `You will no longer receive <strong>${escapeHtml(categoryLabel)}</strong> at ${escapeHtml(recipientDisplay)}.`,
           buttonLabel: 'Undo / Re-subscribe',
           buttonAction: 'resubscribe',
-          postParams: { mid, email, token, kind },
+          postParams: activePostParams,
           preferencesUrl,
           isSuccessState: true,
+          extraOptionsHtml: isAll ? undefined : extraOptionsHtml,
         }),
       );
     }
@@ -366,14 +460,27 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
   const currentSettings = memberData.notificationSettings;
   let isCurrentlySubscribed = true;
 
-  if (kind === 'eventDigest' || kind === 'eventDigestOverall') {
+  if (currentSettings?.globalEmailEnabled === false) {
+    isCurrentlySubscribed = false;
+  } else if (isAll) {
+    isCurrentlySubscribed = true;
+  } else if (isCategory) {
+    isCurrentlySubscribed = currentSettings?.categoryEmailEnabled?.[category] !== false;
+    if (category === EmailCategory.Events) {
+      isCurrentlySubscribed =
+        isCurrentlySubscribed &&
+        (currentSettings?.eventDigestFrequency === EventDigestFrequency.Weekly ||
+          currentSettings?.eventDigestFrequency === EventDigestFrequency.Monthly);
+    }
+  } else if (kind === 'eventDigest' || kind === 'eventDigestOverall') {
     isCurrentlySubscribed =
-      currentSettings?.eventDigestFrequency === EventDigestFrequency.Weekly ||
-      currentSettings?.eventDigestFrequency === EventDigestFrequency.Monthly;
-  } else if (kind === 'all') {
-    isCurrentlySubscribed = currentSettings?.globalEmailEnabled !== false;
+      currentSettings?.categoryEmailEnabled?.[EmailCategory.Events] !== false &&
+      (currentSettings?.eventDigestFrequency === EventDigestFrequency.Weekly ||
+        currentSettings?.eventDigestFrequency === EventDigestFrequency.Monthly);
   } else {
-    isCurrentlySubscribed = currentSettings?.emailEnabled?.[kind as TransactionalEmailKey] !== false;
+    isCurrentlySubscribed =
+      currentSettings?.categoryEmailEnabled?.[category] !== false &&
+      currentSettings?.emailEnabled?.[kind as TransactionalEmailKey] !== false;
   }
 
   if (!isCurrentlySubscribed) {
@@ -384,8 +491,9 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
         message: `You are currently unsubscribed from <strong>${escapeHtml(categoryLabel)}</strong> for ${escapeHtml(recipientDisplay)}.`,
         buttonLabel: 'Re-subscribe to These Emails',
         buttonAction: 'resubscribe',
-        postParams: { mid, email, token, kind },
+        postParams: activePostParams,
         preferencesUrl,
+        extraOptionsHtml: isAll ? undefined : extraOptionsHtml,
       }),
     );
     return;
@@ -398,8 +506,9 @@ export async function handleUnsubscribeRequest(req: any, res: any): Promise<void
       message: `Click below to stop receiving <strong>${escapeHtml(categoryLabel)}</strong> at <strong>${escapeHtml(recipientDisplay)}</strong>.`,
       buttonLabel: 'Confirm Unsubscribe',
       buttonAction: 'unsubscribe',
-      postParams: { mid, email, token, kind },
+      postParams: activePostParams,
       preferencesUrl,
+      extraOptionsHtml: isAll ? undefined : extraOptionsHtml,
     }),
   );
 }

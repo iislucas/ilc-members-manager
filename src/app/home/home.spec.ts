@@ -212,6 +212,20 @@ describe('HomeComponent', () => {
     expect(orderLink).toBeTruthy();
   });
 
+  it('renders Notifications card in the Me tab', async () => {
+    component.setActiveTab('me');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('Notifications');
+    expect(element.textContent).toContain('Manage email updates, digests, and alert preferences');
+
+    const links = element.querySelectorAll<HTMLAnchorElement>('a.card');
+    const notifLink = Array.from(links).find((a) => a.getAttribute('href')?.includes('settings/notifications'));
+    expect(notifLink).toBeTruthy();
+  });
+
   it('shows Video on Demand card on Learn tab for members', async () => {
     component.setActiveTab('learn');
     fixture.detectChanges();

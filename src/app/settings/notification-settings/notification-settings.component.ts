@@ -18,7 +18,7 @@ import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { Member } from '../../../../functions/src/data-model/members';
-import { EventDigestFrequency, NotificationKind } from '../../../../functions/src/data-model/notifications';
+import { EventDigestFrequency, NotificationKind, EmailCategory } from '../../../../functions/src/data-model/notifications';
 import { TransactionalEmailKey } from '../../../../functions/src/data-model/mail';
 import { IconComponent } from '../../icons/icon.component';
 
@@ -129,11 +129,75 @@ export class NotificationSettingsComponent implements OnInit {
 
   protected digestBusy = signal(false);
 
+  readonly EmailCategory = EmailCategory;
+
+  // Account-wide category email switch
+  isCategoryEmailEnabled(category: EmailCategory): boolean {
+    const member = this.currentUser()?.member;
+    const settings = member?.notificationSettings;
+    if (settings?.globalEmailEnabled === false) return false;
+    return settings?.categoryEmailEnabled?.[category] !== false;
+  }
+
+  async toggleCategoryEmail(category: EmailCategory, enabled: boolean) {
+    const member = this.currentUser()?.member;
+    if (!member) return;
+    this.digestBusy.set(true);
+    try {
+      const updated: Member = {
+        ...member,
+        notificationSettings: {
+          pushEnabled: {},
+          homeEnabled: {},
+          ...member.notificationSettings,
+          categoryEmailEnabled: {
+            ...member.notificationSettings?.categoryEmailEnabled,
+            [category]: enabled,
+          },
+        },
+      };
+      await this.dataManager.updateMember(member.docId, updated, member);
+    } catch (e) {
+      console.error('Failed to update category email setting', e);
+    } finally {
+      this.digestBusy.set(false);
+    }
+  }
+
+  getEmailCategory(key: TransactionalEmailKey): EmailCategory {
+    switch (key) {
+      case TransactionalEmailKey.OrderConfirmation:
+      case TransactionalEmailKey.SubscriptionRenewal:
+      case TransactionalEmailKey.EventRegistrationConfirmation:
+      case TransactionalEmailKey.VodPurchaseConfirmation:
+      case TransactionalEmailKey.VodGiftReceived:
+      case TransactionalEmailKey.GradingPaymentConfirmation:
+        return EmailCategory.Purchases;
+
+      case TransactionalEmailKey.GradingRequestReceived:
+      case TransactionalEmailKey.GradingRequestAccepted:
+      case TransactionalEmailKey.GradingRequestDeclined:
+      case TransactionalEmailKey.GradingPassed:
+      case TransactionalEmailKey.GradingNotPassed:
+        return EmailCategory.Gradings;
+
+      case TransactionalEmailKey.EventDigestOverall:
+        return EmailCategory.Events;
+
+      case TransactionalEmailKey.MembershipActivated:
+      case TransactionalEmailKey.InstructorLicenseActivated:
+      default:
+        return EmailCategory.Account;
+    }
+  }
+
   // Check if a specific transactional email category is enabled (defaults to true if unset)
   isEmailKindEnabled(key: TransactionalEmailKey): boolean {
     const member = this.currentUser()?.member;
     const settings = member?.notificationSettings;
     if (settings?.globalEmailEnabled === false) return false;
+    const cat = this.getEmailCategory(key);
+    if (settings?.categoryEmailEnabled && settings.categoryEmailEnabled[cat] === false) return false;
     return settings?.emailEnabled?.[key] !== false;
   }
 
@@ -159,6 +223,70 @@ export class NotificationSettingsComponent implements OnInit {
       console.error('Failed to update email notification setting', e);
     } finally {
       this.digestBusy.set(false);
+    }
+  }
+
+  async setAllEmail(enabled: boolean) {
+    const member = this.currentUser()?.member;
+    if (!member) return;
+    this.digestBusy.set(true);
+    try {
+      const allKeys = Object.values(TransactionalEmailKey);
+      const emailEnabled: { [key in TransactionalEmailKey]?: boolean } = {};
+      allKeys.forEach((k) => { emailEnabled[k] = enabled; });
+      const categoryEmailEnabled: { [cat in EmailCategory]?: boolean } = {
+        [EmailCategory.Purchases]: enabled,
+        [EmailCategory.Gradings]: enabled,
+        [EmailCategory.Events]: enabled,
+        [EmailCategory.Account]: enabled,
+        [EmailCategory.All]: enabled,
+      };
+      const updated: Member = {
+        ...member,
+        notificationSettings: {
+          pushEnabled: {},
+          homeEnabled: {},
+          ...member.notificationSettings,
+          globalEmailEnabled: enabled,
+          categoryEmailEnabled,
+          emailEnabled,
+        },
+      };
+      await this.dataManager.updateMember(member.docId, updated, member);
+    } catch (e) {
+      console.error('Failed to batch update email settings', e);
+    } finally {
+      this.digestBusy.set(false);
+    }
+  }
+
+  getTransactionalEmailKeyForKind(kind: NotificationKind): TransactionalEmailKey | null {
+    switch (kind) {
+      case NotificationKind.GradingRequestsYouAsInstructor:
+        return TransactionalEmailKey.GradingRequestReceived;
+      case NotificationKind.GradingRequestAccepted:
+        return TransactionalEmailKey.GradingRequestAccepted;
+      case NotificationKind.GradingRequestDeclined:
+        return TransactionalEmailKey.GradingRequestDeclined;
+      case NotificationKind.GradingPassed:
+        return TransactionalEmailKey.GradingPassed;
+      case NotificationKind.GradingNotPassed:
+        return TransactionalEmailKey.GradingNotPassed;
+      case NotificationKind.GradingPurchased:
+        return TransactionalEmailKey.GradingPaymentConfirmation;
+      case NotificationKind.PurchaseFulfilled:
+        return TransactionalEmailKey.OrderConfirmation;
+      case NotificationKind.EventRegistrationConfirmed:
+        return TransactionalEmailKey.EventRegistrationConfirmation;
+      case NotificationKind.VideoAccessGranted:
+      case NotificationKind.VideoGiftReceived:
+        return TransactionalEmailKey.VodGiftReceived;
+      case NotificationKind.MembershipActivated:
+        return TransactionalEmailKey.MembershipActivated;
+      case NotificationKind.InstructorLicenseActivated:
+        return TransactionalEmailKey.InstructorLicenseActivated;
+      default:
+        return null;
     }
   }
 
