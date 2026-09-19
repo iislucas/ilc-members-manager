@@ -337,11 +337,49 @@ describe('NotificationSettingsComponent', () => {
       expect(mockNotificationService.enablePushOnThisDevice).toHaveBeenCalled();
     });
 
+    it('automatically activates globalPush when toggled to true while globalPush is not yet enabled', async () => {
+      const dataManager = TestBed.inject(DataManagerService);
+      mockFirebaseService.user.set({
+        member: {
+          docId: 'member-123',
+          notificationSettings: { globalPushEnabled: false },
+        },
+      });
+
+      await component.toggleDevicePush(true);
+      expect(dataManager.updateMember).toHaveBeenCalledWith(
+        'member-123',
+        expect.objectContaining({
+          notificationSettings: expect.objectContaining({
+            globalPushEnabled: true,
+          }),
+        }),
+        expect.any(Object),
+      );
+      expect(mockNotificationService.enablePushOnThisDevice).toHaveBeenCalled();
+    });
+
     it('calls disablePushOnThisDevice when toggled to false', async () => {
       await component.toggleDevicePush(false);
       expect(
         mockNotificationService.disablePushOnThisDevice,
       ).toHaveBeenCalled();
+    });
+
+    it('does not disable device-push input even when globalPush is false', () => {
+      mockNotificationService.isPushSupported = true;
+      mockNotificationService.pushDeviceEnabled.set(false);
+      mockFirebaseService.user.set({
+        member: {
+          docId: 'member-123',
+          notificationSettings: { globalPushEnabled: false },
+        },
+      });
+      fixture.detectChanges();
+
+      const input = fixture.nativeElement.querySelector('#device-push') as HTMLInputElement;
+      expect(input).toBeTruthy();
+      expect(input.disabled).toBe(false);
     });
 
     it('renders correct labels when push is supported', async () => {

@@ -314,10 +314,25 @@ export class NotificationSettingsComponent implements OnInit {
 
   // Enable/disable web push on this specific device.
   async toggleDevicePush(enabled: boolean) {
-    if (enabled && !this.globalPushEnabled()) return; // gated on the account switch
     this.pushBusy.set(true);
     try {
       if (enabled) {
+        // If account-wide push is currently off, activate it so Cloud Functions will deliver pushes.
+        if (!this.globalPushEnabled()) {
+          const member = this.currentUser()?.member;
+          if (member) {
+            const updated: Member = {
+              ...member,
+              notificationSettings: {
+                pushEnabled: {},
+                homeEnabled: {},
+                ...member.notificationSettings,
+                globalPushEnabled: true,
+              },
+            };
+            await this.dataManager.updateMember(member.docId, updated, member);
+          }
+        }
         await this.notificationService.enablePushOnThisDevice();
       } else {
         await this.notificationService.disablePushOnThisDevice();

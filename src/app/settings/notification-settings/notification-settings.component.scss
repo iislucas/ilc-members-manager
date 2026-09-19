@@ -281,6 +281,73 @@
   flex-shrink: 0;
 }
 
+.switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+
+  .switch-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+
+    &:focus-visible + .switch-track {
+      box-shadow: 0 0 0 3px rgba(77, 124, 254, 0.4);
+    }
+
+    &:checked + .switch-track {
+      background-color: #2563eb;
+
+      .switch-thumb {
+        transform: translateX(18px);
+      }
+    }
+
+    &:disabled + .switch-track {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+
+  .switch-track {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition:
+      background-color 0.2s ease,
+      box-shadow 0.2s ease;
+    flex-shrink: 0;
+
+    .switch-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      background-color: #ffffff;
+      border-radius: 50%;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+  }
+
+  .switch-status-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: v.$text-primary;
+    cursor: pointer;
+    user-select: none;
+    min-width: 32px;
+  }
+}
+
 .toggle-control {
   display: flex;
   align-items: center;

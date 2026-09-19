@@ -42,16 +42,21 @@
               }
             </span>
           </div>
-          <div class="toggle-control">
+          <div class="switch-control">
             <input
               type="checkbox"
               id="global-push"
+              role="switch"
+              class="switch-input"
               [checked]="globalPushEnabled()"
               [disabled]="pushBusy()"
               (change)="setGlobalPush($any($event.target).checked)"
             />
-            <label for="global-push" class="switch-label">
-              {{ globalPushEnabled() ? "Enabled" : "Disabled" }}
+            <label for="global-push" class="switch-track" aria-hidden="true">
+              <span class="switch-thumb"></span>
+            </label>
+            <label for="global-push" class="switch-status-label">
+              {{ globalPushEnabled() ? "On" : "Off" }}
             </label>
           </div>
         </div>
@@ -61,29 +66,30 @@
           <div class="pref-info">
             <span class="pref-title">Push notifications on this device</span>
             <span class="pref-sub">
-              @if (!globalPushEnabled()) {
-                Turn on account-wide push above first.
-              } @else if (perm === "denied") {
+              @if (perm === "denied") {
                 Blocked by your browser settings for this site.
               } @else if (pushDeviceEnabled()) {
                 Active — receiving background notifications on this device.
               } @else {
-                Disabled — notifications are turned off for this device.
+                Off — notifications are turned off for this device.
               }
             </span>
           </div>
-          <div class="toggle-control">
+          <div class="switch-control">
             <input
               type="checkbox"
               id="device-push"
+              role="switch"
+              class="switch-input"
               [checked]="pushDeviceEnabled()"
-              [disabled]="
-                pushBusy() || !globalPushEnabled() || perm === 'denied'
-              "
+              [disabled]="pushBusy() || perm === 'denied'"
               (change)="toggleDevicePush($any($event.target).checked)"
             />
-            <label for="device-push" class="switch-label">
-              {{ pushDeviceEnabled() ? "Enabled" : "Disabled" }}
+            <label for="device-push" class="switch-track" aria-hidden="true">
+              <span class="switch-thumb"></span>
+            </label>
+            <label for="device-push" class="switch-status-label">
+              {{ pushDeviceEnabled() ? "On" : "Off" }}
             </label>
           </div>
         </div>
@@ -129,16 +135,21 @@
             >Master switch across all portal emails. Turn off to unsubscribe from all I Liq Chuan member-portal emails.</span
           >
         </div>
-        <div class="toggle-control">
+        <div class="switch-control">
           <input
             type="checkbox"
             id="global-email"
+            role="switch"
+            class="switch-input"
             [checked]="globalEmailEnabled()"
             [disabled]="digestBusy()"
             (change)="setGlobalEmail($any($event.target).checked)"
           />
-          <label for="global-email">
-            {{ globalEmailEnabled() ? "Enabled" : "Disabled" }}
+          <label for="global-email" class="switch-track" aria-hidden="true">
+            <span class="switch-thumb"></span>
+          </label>
+          <label for="global-email" class="switch-status-label">
+            {{ globalEmailEnabled() ? "On" : "Off" }}
           </label>
         </div>
       </div>
