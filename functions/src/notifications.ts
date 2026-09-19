@@ -66,7 +66,16 @@ export function gradingStageFromKind(kind: NotificationKind): string {
  * 7. Member profile transitions without an order: ${newDocId}_${snake_case_kind}
  */
 export function generateBackendNotificationDocId(
-  notification: Omit<MemberNotification, 'docId'> & { docId?: string },
+  notification:
+    | (Omit<MemberNotification, 'docId'> & { docId?: string })
+    | {
+        kind: NotificationKind;
+        data?: Record<string, unknown>;
+        createdAt?: string;
+        docId?: string;
+        markdown?: string;
+        dismissed?: boolean;
+      },
   newDocId: string,
 ): string {
   if (notification.docId) {

@@ -12,7 +12,7 @@ import {
   createFirebaseStateServiceMock,
   UserDetails,
 } from '../firebase-state.service';
-import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { Component, input, output, provideZonelessChangeDetection, signal } from '@angular/core';
 import { initMember, Member } from '../../../functions/src/data-model/members';
 import { initSchool, School } from '../../../functions/src/data-model/schools';
 import { SearchableSet } from '../searchable-set';
@@ -20,6 +20,17 @@ import { ROUTING_CONFIG, initPathPatterns, FIREBASE_APP } from '../app.config';
 import { User } from 'firebase/auth';
 import { CountryCode } from '../country-codes';
 import { provideNavigationTreeStub } from '../navigation-tree.testing';
+import { MarkdownEditor } from '../markdown-editor/markdown-editor';
+
+@Component({
+  selector: 'app-markdown-editor',
+  standalone: true,
+  template: '',
+})
+class MockMarkdownEditorComponent {
+  initialValue = input<string>('');
+  changed = output<string>();
+}
 
 describe('SchoolEditComponent', () => {
   let component: SchoolEditComponent;
@@ -81,7 +92,12 @@ describe('SchoolEditComponent', () => {
           },
         },
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(SchoolEditComponent, {
+        remove: { imports: [MarkdownEditor] },
+        add: { imports: [MockMarkdownEditorComponent] },
+      })
+      .compileComponents();
   }
 
   async function setupComponent(userDetails: UserDetails) {

@@ -774,7 +774,12 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       editorEl.removeEventListener('click', this.linkClickHandler, true);
       editorEl.removeEventListener('auxclick', this.linkClickHandler, true);
     }
-    this.editor?.destroy();
+    try {
+      this.editor?.destroy();
+    } catch {
+      // ignore destruction errors
+    }
+    this.editor = undefined;
   }
 
   normalizeMarkdown(text: string): string {
@@ -996,6 +1001,15 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       .use(this.breakMarksPlugin())
       .create();
     
+    if (this.isDestroyed) {
+      try {
+        editor.destroy();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     this.editor = editor;
     
     // If initialValue was already set before editor was ready
@@ -1007,17 +1021,23 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   }
 
   private setMarkdown(markdown: string) {
+    if (this.isDestroyed || !this.editor) return;
     this.lastInputMarkdown = markdown;
     const normalized = this.normalizeMarkdown(markdown);
-    this.editor?.action((ctx) => {
-      const view = ctx.get(editorViewCtx);
-      const parser = ctx.get(parserCtx);
-      const doc = parser(normalized);
-      if (!doc) return;
-      const content = (doc.type.name === 'doc' && doc.content) ? doc.content : doc;
-      const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, content);
-      view.dispatch(tr);
-    });
+    try {
+      this.editor?.action((ctx) => {
+        if (this.isDestroyed) return;
+        const view = ctx.get(editorViewCtx);
+        const parser = ctx.get(parserCtx);
+        const doc = parser(normalized);
+        if (!doc) return;
+        const content = (doc.type.name === 'doc' && doc.content) ? doc.content : doc;
+        const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, content);
+        view.dispatch(tr);
+      });
+    } catch {
+      // ignore errors if editor is torn down concurrently
+    }
   }
 
   // Inserts a chip's token text at the current selection, replacing any
