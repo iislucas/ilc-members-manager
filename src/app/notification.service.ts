@@ -97,50 +97,57 @@ interface WebPushSubscriptionJson {
 // notification documents in Firestore, each entity-based notification uses a
 // deterministic document ID derived from its entity key rather than a random UUID.
 export function deterministicBlogPostNotifDocId(
+  postDocId: string,
   feedCollection: string,
-  postId: string,
 ): string {
-  return `blog_${feedCollection}_${postId}`;
+  return `${postDocId}_blog_${feedCollection}`;
 }
 
 export function deterministicBlogSummaryNotifDocId(
+  newDocId: string,
   feedCollection: string,
 ): string {
-  return `summary_blog_${feedCollection}`;
+  return `${newDocId}_summary_blog_${feedCollection}`;
 }
 
 export function deterministicPendingEventNotifDocId(eventId: string): string {
-  return `pending_event_${eventId}`;
+  return `${eventId}_pending_event`;
 }
 
-export function deterministicPendingEventsSummaryNotifDocId(): string {
-  return 'summary_pending_events';
+export function deterministicPendingEventsSummaryNotifDocId(
+  newDocId: string,
+): string {
+  return `${newDocId}_summary_pending_events`;
 }
 
 export function deterministicOrderIssueNotifDocId(orderId: string): string {
-  return `order_issue_${orderId}`;
+  return `${orderId}_order_issue`;
 }
 
-export function deterministicOrderIssuesSummaryNotifDocId(): string {
-  return 'summary_order_issues';
+export function deterministicOrderIssuesSummaryNotifDocId(
+  newDocId: string,
+): string {
+  return `${newDocId}_summary_order_issues`;
 }
 
 export function deterministicUploadNotifDocId(uploadDocId: string): string {
-  return `upload_${uploadDocId}`;
+  return `${uploadDocId}_upload`;
 }
 
-export function deterministicUploadsSummaryNotifDocId(): string {
-  return 'summary_new_uploads';
+export function deterministicUploadsSummaryNotifDocId(newDocId: string): string {
+  return `${newDocId}_summary_new_uploads`;
 }
 
 export function deterministicUnpaidGradingNotifDocId(
   gradingDocId: string,
 ): string {
-  return `unpaid_grading_${gradingDocId}`;
+  return `${gradingDocId}_unpaid_grading`;
 }
 
-export function deterministicUnpaidGradingsSummaryNotifDocId(): string {
-  return 'summary_unpaid_gradings';
+export function deterministicUnpaidGradingsSummaryNotifDocId(
+  newDocId: string,
+): string {
+  return `${newDocId}_summary_unpaid_gradings`;
 }
 
 @Injectable({
@@ -800,6 +807,7 @@ export class NotificationService implements OnDestroy {
       .map((d) => ({
         ...initCachedBlogPost(),
         ...(d.data() as CachedBlogPost),
+        docId: d.id,
       }))
       .filter((p) => p.id && !notifiedPostIds.has(p.id))
       .sort((a, b) => (b.publishOn || 0) - (a.publishOn || 0));
@@ -810,7 +818,10 @@ export class NotificationService implements OnDestroy {
 
       if (posts.length <= max) {
         for (const post of posts) {
-          const docId = deterministicBlogPostNotifDocId(feed.collection, post.id);
+          const docId = deterministicBlogPostNotifDocId(
+            post.docId || post.id,
+            feed.collection,
+          );
           const ref = doc(notifCollection, docId);
           const fields = this.blogPostFields(feed, post);
           const notification: MemberNotification = {
@@ -828,7 +839,10 @@ export class NotificationService implements OnDestroy {
         const remainingPosts = posts.slice(max);
 
         for (const post of latestPosts) {
-          const docId = deterministicBlogPostNotifDocId(feed.collection, post.id);
+          const docId = deterministicBlogPostNotifDocId(
+            post.docId || post.id,
+            feed.collection,
+          );
           const ref = doc(notifCollection, docId);
           const fields = this.blogPostFields(feed, post);
           const notification: MemberNotification = {
@@ -849,7 +863,10 @@ export class NotificationService implements OnDestroy {
             ? 'members-area'
             : 'instructors-area';
         const summaryMarkdown = `📰 **${count}** more ${feed.label} ${plural}: [View in ${feed.label} Area](/${areaRoute})`;
-        const summaryDocId = deterministicBlogSummaryNotifDocId(feed.collection);
+        const summaryDocId = deterministicBlogSummaryNotifDocId(
+          doc(notifCollection).id,
+          feed.collection,
+        );
         const summaryRef = doc(notifCollection, summaryDocId);
         const newestRemaining = remainingPosts[0];
         const lastSeenDateStr = newestRemaining.publishOn
@@ -1034,7 +1051,9 @@ export class NotificationService implements OnDestroy {
         const count = remainingEvents.length;
         const plural = count === 1 ? 'proposed event' : 'proposed events';
         const summaryMarkdown = `🗓️ **${count}** more ${plural} awaiting approval: [View in Manage Events](/manage-events?status=proposed)`;
-        const summaryDocId = deterministicPendingEventsSummaryNotifDocId();
+        const summaryDocId = deterministicPendingEventsSummaryNotifDocId(
+          doc(notifCollection).id,
+        );
         const summaryRef = doc(notifCollection, summaryDocId);
         const summaryNotification: MemberNotification = {
           docId: summaryRef.id,
@@ -1258,7 +1277,9 @@ export class NotificationService implements OnDestroy {
         const count = remainingOrders.length;
         const plural = count === 1 ? 'order' : 'orders';
         const summaryMarkdown = `📦 **${count}** more ${plural} need attention: [View in Manage Orders](/orders)`;
-        const summaryDocId = deterministicOrderIssuesSummaryNotifDocId();
+        const summaryDocId = deterministicOrderIssuesSummaryNotifDocId(
+          doc(notifCollection).id,
+        );
         const summaryRef = doc(notifCollection, summaryDocId);
         const summaryNotification: MemberNotification = {
           docId: summaryRef.id,
@@ -1521,7 +1542,9 @@ export class NotificationService implements OnDestroy {
         const link = `/manage-materials?startDate=${encodeURIComponent(startDateStr)}&endDate=${encodeURIComponent(endDateStr)}`;
         const summaryMarkdown = `📁 **${count}** more ${plural} ${dateDisplay}: [View in Materials Manager](${link})`;
 
-        const summaryDocId = deterministicUploadsSummaryNotifDocId();
+        const summaryDocId = deterministicUploadsSummaryNotifDocId(
+          doc(notifCollection).id,
+        );
         const summaryRef = doc(notifCollection, summaryDocId);
         const summaryNotification: MemberNotification = {
           docId: summaryRef.id,
@@ -1745,7 +1768,9 @@ export class NotificationService implements OnDestroy {
           member.docId === remainingUnpaid[0].studentMemberDocId;
         const link = member.instructorId ? '/gradings' : '/my-gradings';
         const summaryMarkdown = `🥋 **${count}** more ${plural}: [View in Gradings](${link})`;
-        const summaryDocId = deterministicUnpaidGradingsSummaryNotifDocId();
+        const summaryDocId = deterministicUnpaidGradingsSummaryNotifDocId(
+          doc(notifCollection).id,
+        );
         const summaryRef = doc(notifCollection, summaryDocId);
         const summaryNotification: MemberNotification = {
           docId: summaryRef.id,

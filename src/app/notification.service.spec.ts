@@ -1214,35 +1214,35 @@ describe('NotificationService', () => {
 
   describe('deterministic notification document IDs', () => {
     it('generates consistent, predictable IDs for all entity-based notification streams', () => {
-      expect(deterministicBlogPostNotifDocId('members-post', 'post-123')).toBe(
-        'blog_members-post_post-123',
-      );
-      expect(deterministicBlogSummaryNotifDocId('members-post')).toBe(
-        'summary_blog_members-post',
-      );
+      expect(
+        deterministicBlogPostNotifDocId('AWLLIsvC79IkACHHWbm5', 'members-post'),
+      ).toBe('AWLLIsvC79IkACHHWbm5_blog_members-post');
+      expect(
+        deterministicBlogSummaryNotifDocId('rand123', 'members-post'),
+      ).toBe('rand123_summary_blog_members-post');
       expect(deterministicPendingEventNotifDocId('event-abc')).toBe(
-        'pending_event_event-abc',
+        'event-abc_pending_event',
       );
-      expect(deterministicPendingEventsSummaryNotifDocId()).toBe(
-        'summary_pending_events',
+      expect(deterministicPendingEventsSummaryNotifDocId('rand123')).toBe(
+        'rand123_summary_pending_events',
       );
       expect(deterministicOrderIssueNotifDocId('order-xyz')).toBe(
-        'order_issue_order-xyz',
+        'order-xyz_order_issue',
       );
-      expect(deterministicOrderIssuesSummaryNotifDocId()).toBe(
-        'summary_order_issues',
+      expect(deterministicOrderIssuesSummaryNotifDocId('rand123')).toBe(
+        'rand123_summary_order_issues',
       );
       expect(deterministicUploadNotifDocId('upload-456')).toBe(
-        'upload_upload-456',
+        'upload-456_upload',
       );
-      expect(deterministicUploadsSummaryNotifDocId()).toBe(
-        'summary_new_uploads',
+      expect(deterministicUploadsSummaryNotifDocId('rand123')).toBe(
+        'rand123_summary_new_uploads',
       );
       expect(deterministicUnpaidGradingNotifDocId('grading-789')).toBe(
-        'unpaid_grading_grading-789',
+        'grading-789_unpaid_grading',
       );
-      expect(deterministicUnpaidGradingsSummaryNotifDocId()).toBe(
-        'summary_unpaid_gradings',
+      expect(deterministicUnpaidGradingsSummaryNotifDocId('rand123')).toBe(
+        'rand123_summary_unpaid_gradings',
       );
     });
 
@@ -1279,7 +1279,7 @@ describe('NotificationService', () => {
       await (service as any).syncBlogFeedNotifications('uGZjWTsJudxswMoUGBPa', feed);
 
       expect(writes).toHaveLength(1);
-      const expectedDocId = 'blog_members-post_6aada866affc65662a2b1636';
+      const expectedDocId = 'AWLLIsvC79IkACHHWbm5_blog_members-post';
       expect(writes[0].ref.id).toBe(expectedDocId);
       expect(writes[0].notif.docId).toBe(expectedDocId);
     });
