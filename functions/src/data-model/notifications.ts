@@ -175,6 +175,7 @@ export interface NotificationPurchaseData {
   // A short human-readable summary of what was purchased, e.g.
   // "Annual Membership, Video Library Access".
   summary: string;
+  orderDocId?: string;
 }
 
 export interface NotificationOrderIssueData {

@@ -9,6 +9,7 @@ import {
   NotificationKind,
   MemberNotification,
 } from './data-model/notifications';
+import { OrderStatus } from './data-model/orders';
 
 describe('backend notifications helper', () => {
   describe('toSnakeCase', () => {
@@ -55,7 +56,11 @@ describe('backend notifications helper', () => {
             markdown: 'Order processed',
             createdAt: '2026-09-20T00:00:00Z',
             dismissed: false,
-            data: { orderDocId: 'order_123' },
+            data: {
+              orderDocId: 'order_123',
+              orderId: 'order_123',
+              summary: 'Annual Membership',
+            },
           },
           'rand_id',
         ),
@@ -68,7 +73,10 @@ describe('backend notifications helper', () => {
             markdown: 'Membership pending',
             createdAt: '2026-09-20T00:00:00Z',
             dismissed: false,
-            data: { orderId: 'sq_order_456' },
+            data: {
+              orderId: 'sq_order_456',
+              summary: 'Membership Pending',
+            },
           },
           'rand_id',
         ),
@@ -81,7 +89,12 @@ describe('backend notifications helper', () => {
             markdown: 'Order issue',
             createdAt: '2026-09-20T00:00:00Z',
             dismissed: false,
-            data: { orderDocId: 'order_789' },
+            data: {
+              orderDocId: 'order_789',
+              orderRef: '789',
+              status: OrderStatus.NeedsManualProcessing,
+              issues: ['Missing customer email'],
+            },
           },
           'rand_id',
         ),
@@ -150,7 +163,11 @@ describe('backend notifications helper', () => {
             markdown: 'Assigned as manager',
             createdAt: '2026-09-20T00:15:30Z',
             dismissed: false,
-            data: { gradingDocId: 'grading_xyz' },
+            data: {
+              gradingDocId: 'grading_xyz',
+              studentName: 'Student Name',
+              level: 'Entry Level',
+            },
           },
           'rand_id',
         ),
@@ -165,7 +182,11 @@ describe('backend notifications helper', () => {
             markdown: 'Video granted',
             createdAt: '2026-09-20T00:00:00Z',
             dismissed: false,
-            data: { videoId: 'video_m1' },
+            data: {
+              videoId: 'video_m1',
+              title: 'Test Video',
+              grantKind: 'purchase',
+            },
           },
           'rand_id',
         ),
@@ -178,7 +199,11 @@ describe('backend notifications helper', () => {
             markdown: 'Gift received',
             createdAt: '2026-09-20T00:00:00Z',
             dismissed: false,
-            data: { seriesId: 'series_tai_chi' },
+            data: {
+              seriesId: 'series_tai_chi',
+              title: 'Tai Chi Series',
+              grantKind: 'gift',
+            },
           },
           'rand_id',
         ),
@@ -193,7 +218,11 @@ describe('backend notifications helper', () => {
             markdown: 'New upload',
             createdAt: '2026-09-20T00:00:00Z',
             dismissed: false,
-            data: { uploadDocId: 'upload_999' },
+            data: {
+              uploadDocId: 'upload_999',
+              memberDocId: 'member_123',
+              uploadName: 'upload.mp4',
+            },
           },
           'rand_id',
         ),
@@ -263,7 +292,11 @@ describe('backend notifications helper', () => {
         markdown: 'Your order was fulfilled',
         createdAt: '2026-09-20T00:00:00Z',
         dismissed: false,
-        data: { orderDocId: 'order_123' },
+        data: {
+          orderDocId: 'order_123',
+          orderId: 'order_123',
+          summary: 'Order Fulfilled',
+        },
       };
 
       await createMemberNotification(mockDb, 'member_456', notification);
