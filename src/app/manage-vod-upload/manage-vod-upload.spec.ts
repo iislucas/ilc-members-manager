@@ -84,6 +84,12 @@ describe('ManageVodUploadComponent', () => {
       description: 'Existing series description',
       priceCents: 4999,
       tags: ['basics'],
+      stripeProductId: 'prod_series_123',
+      stripePriceId: 'price_series_123',
+      instructorName: 'Sam Chin',
+      instructorDocId: 'inst_doc_1',
+      instructorId: '1',
+      location: 'Kuala Lumpur',
       videoCount: 2,
       totalDurationSeconds: 7200,
       videos: [
@@ -284,5 +290,107 @@ describe('ManageVodUploadComponent', () => {
     );
     expect(component.uploadComplete()).toBe(true);
     expect(component.fileEntries()[0].status).toBe('done');
+  });
+
+  it('should select series via onSeriesSelected and populate all series signals', () => {
+    component.onSeriesSelected(sampleSeries[0]);
+    expect(component.existingSeriesId()).toBe('series_123');
+    expect(component.seriesTitle()).toBe('Existing Series Title');
+    expect(component.seriesDescription()).toBe('Existing series description');
+    expect(component.seriesPriceDollars()).toBe(49.99);
+    expect(component.selectedSeries()).toEqual(sampleSeries[0]);
+    expect(component.seriesSearchInput()).toContain('Existing Series Title');
+  });
+
+  it('should clear selected series when clearSelectedSeries is called', () => {
+    component.onSeriesSelected(sampleSeries[0]);
+    expect(component.existingSeriesId()).toBe('series_123');
+
+    component.clearSelectedSeries();
+    expect(component.existingSeriesId()).toBe('');
+    expect(component.seriesSearchInput()).toBe('');
+    expect(component.selectedSeries()).toBeNull();
+  });
+
+  it('should clear selection when series text input is emptied', () => {
+    component.onSeriesSelected(sampleSeries[0]);
+    expect(component.existingSeriesId()).toBe('series_123');
+
+    component.onSeriesTextUpdated('');
+    expect(component.existingSeriesId()).toBe('');
+    expect(component.seriesSearchInput()).toBe('');
+  });
+
+  it('should calculate offset part indices when adding files to an existing series', async () => {
+    component.setUploadMode('existing_series');
+    component.onSeriesSelected(sampleSeries[0]); // sampleSeries[0] has 2 existing videos
+
+    const file1 = new File(['fake-1'], 'part_a.mp4', { type: 'video/mp4' });
+    const file2 = new File(['fake-2'], 'part_b.mp4', { type: 'video/mp4' });
+    await component.addFiles([file1, file2]);
+
+    expect(component.fileEntries().length).toBe(2);
+    expect(component.fileEntries()[0].partIndex).toBe(3); // 2 + 1
+    expect(component.fileEntries()[1].partIndex).toBe(4); // 2 + 2
+  });
+
+  it('should inherit series Stripe IDs and credits when uploading in existing_series mode', async () => {
+    component.setUploadMode('existing_series');
+    component.onSeriesSelected(sampleSeries[0]);
+
+    const file1 = new File(['fake-1'], 'episode_3.mp4', { type: 'video/mp4' });
+    await component.addFiles([file1]);
+
+    await component.startUploadAndTranscode();
+
+    expect(mockDataService.transcodeVideoForVod).toHaveBeenCalledWith(
+      'upload_item_123',
+      'admin_doc_id',
+      expect.objectContaining({
+        seriesId: 'series_123',
+        seriesTitle: 'Existing Series Title',
+        seriesDescription: 'Existing series description',
+        seriesStripeProductId: 'prod_series_123',
+        seriesStripePriceId: 'price_series_123',
+        seriesPartIndex: 3,
+        instructorName: 'Sam Chin',
+        instructorDocId: 'inst_doc_1',
+        instructorId: '1',
+        location: 'Kuala Lumpur',
+        priceCents: 4999,
+        isBuyable: true,
+      }),
+    );
+  });
+
+  it('should block upload and show error when existing_series is chosen but no series selected', async () => {
+    component.setUploadMode('existing_series');
+    component.clearSelectedSeries();
+
+    const file1 = new File(['fake-1'], 'episode.mp4', { type: 'video/mp4' });
+    await component.addFiles([file1]);
+
+    await component.startUploadAndTranscode();
+
+    expect(component.errorMessage()).toBe('Please select an existing video series to add to.');
+    expect(mockResumableService.uploadVideo).not.toHaveBeenCalled();
+  });
+
+  it('should replace submit button with app-spinner when isProcessing is true and have no spinners in buttons', () => {
+    component.isProcessing.set(true);
+    fixture.detectChanges();
+
+    const element: HTMLElement = fixture.nativeElement;
+    const spinner = element.querySelector('.submit-buttons-row app-spinner');
+    expect(spinner).toBeTruthy();
+
+    const submitBtn = element.querySelector('.submit-btn');
+    expect(submitBtn).toBeNull();
+
+    // Verify style guide rule: no button in the component contains an app-spinner
+    const allButtons = element.querySelectorAll('button');
+    allButtons.forEach((btn) => {
+      expect(btn.querySelector('app-spinner')).toBeNull();
+    });
   });
 });

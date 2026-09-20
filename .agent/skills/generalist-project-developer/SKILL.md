@@ -154,7 +154,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 - Keep them simple.
 - Use native control flow (`@if`, `@for`, `@switch`).
-- **No Spinners Inside Buttons (Anti-Pattern)**: Do NOT place `<app-spinner>` inside a `<button>` element. Placing a spinner inside a button creates layout shifting and looks unpolished. When a save or submission is in progress (`isSaving()`), replace the action button(s) with `<app-spinner>Saving...</app-spinner>` in the template (`@if (isSaving()) { <app-spinner>Saving...</app-spinner> } @else { <button ...>Save</button> }`).
+- **No Spinners Inside Buttons (Anti-Pattern)**: Do NOT place `<app-spinner>` inside a `<button>` element. It is really ugly, disrupts button layout, and creates layout shifting. Buttons can be hidden and show a spinner, but never show a spinner in a button. When a save or submission is in progress (`isSaving()`), replace the action button(s) with `<app-spinner>Saving...</app-spinner>` in the template (`@if (isSaving()) { <app-spinner>Saving...</app-spinner> } @else { <button ...>Save</button> }`).
 - Use the async pipe for observables.
 
 ### Services

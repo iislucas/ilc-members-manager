@@ -155,9 +155,9 @@ Avoid rewriting the same signal many times with optional chaining and checks. In
 
 ### Action Buttons & Loading States (No Spinners Inside Buttons)
 
-Do **NOT** place `<app-spinner>` inside a `<button>` tag (e.g. `<button><app-spinner></app-spinner> Saving...</button>`). It disrupts button layout, creates visual noise, and is an anti-pattern.
+Do **NOT** place `<app-spinner>` inside a `<button>` tag (e.g. `<button><app-spinner></app-spinner> Saving...</button>`). It is really ugly, disrupts button layout, and creates layout shifting.
 
-Instead, **replace the action button(s)** when the operation is processing:
+Buttons can be hidden and show a spinner, but never show a spinner in a button. Instead, **replace the action button(s)** when the operation is processing:
 
 ```html
 @if (isSaving()) {

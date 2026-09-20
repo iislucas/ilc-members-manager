@@ -143,19 +143,30 @@
       </div>
 
       <!-- Series Filter -->
-      <div class="filter-item">
+      <div class="series-filter-item">
         <label>Series:</label>
-        <select
-          class="filter-select"
-          [ngModel]="selectedSeriesFilter()"
-          (ngModelChange)="selectedSeriesFilter.set($event)"
-        >
-          <option value="all">All Videos</option>
-          <option value="no_series">Standalone Only</option>
-          @for (s of allSeries(); track s.seriesId) {
-            <option [value]="s.seriesId">{{ s.title }} ({{ s.videoCount }} parts)</option>
+        <div class="series-autocomplete-wrapper">
+          <app-autocomplete
+            name="Filter Series"
+            [searchableSet]="seriesFilterSet"
+            [displayFns]="seriesFilterDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="selectedSeriesSearchTerm()"
+            placeholder="All Series (search series)..."
+            (itemSelected)="onSeriesFilterSelected($event)"
+            (textUpdated)="onSeriesFilterTextUpdated($event)"
+          ></app-autocomplete>
+          @if (selectedSeriesFilter() !== 'all') {
+            <button
+              type="button"
+              class="icon-only-button clear-series-btn"
+              (click)="clearSeriesFilter()"
+              title="Clear series filter"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
           }
-        </select>
+        </div>
       </div>
 
       <!-- Featured Filter -->
@@ -687,20 +698,21 @@
 
                   <div class="menu-divider"></div>
 
-                  <button
-                    type="button"
-                    class="menu-item danger-item"
-                    [disabled]="isDeleting(d.docId)"
-                    (click)="deleteVideo(d); closeMenu()"
-                  >
-                    @if (isDeleting(d.docId)) {
+                  @if (isDeleting(d.docId)) {
+                    <div class="menu-item disabled deleting-item">
                       <app-spinner size="14px"></app-spinner>
                       <span>Deleting from VOD...</span>
-                    } @else {
+                    </div>
+                  } @else {
+                    <button
+                      type="button"
+                      class="menu-item danger-item"
+                      (click)="deleteVideo(d); closeMenu()"
+                    >
                       <app-icon name="delete"></app-icon>
                       <span>Delete from VOD</span>
-                    }
-                  </button>
+                    </button>
+                  }
                 </div>
               }
             </div>
@@ -808,22 +820,21 @@
 
               <!-- Transcode Action Trigger Button -->
               <div class="transcode-action-row">
-                <button
-                  type="button"
-                  class="transcode-btn"
-                  [disabled]="isTranscoding() || selectedResolutions().length === 0"
-                  (click)="transcodeAtQuality(d)"
-                >
-                  @if (isTranscoding()) {
-                    <app-spinner size="14px"></app-spinner>
-                    <span>Queueing Transcode...</span>
-                  } @else {
+                @if (isTranscoding()) {
+                  <app-spinner size="14px">Queueing Transcode...</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="transcode-btn"
+                    [disabled]="selectedResolutions().length === 0"
+                    (click)="transcodeAtQuality(d)"
+                  >
                     <app-icon name="speed"></app-icon>
                     <span>
                       {{ d.vodStatus === 'ready' ? 'Re-transcode at Selected Quality' : 'Start Transcoding with Selected Quality' }}
                     </span>
-                  }
-                </button>
+                  </button>
+                }
               </div>
             </div>
           </div>

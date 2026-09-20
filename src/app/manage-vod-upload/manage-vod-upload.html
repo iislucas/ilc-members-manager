@@ -88,176 +88,280 @@
       @if (uploadMode() === 'existing_series') {
         <div class="form-group">
           <label class="form-label">Select Existing Video Series: <span class="required">*</span></label>
-          <select
-            class="form-input"
-            [ngModel]="existingSeriesId()"
-            (ngModelChange)="onExistingSeriesSelected($event)"
-            [disabled]="isProcessing()"
-          >
-            <option value="" disabled>-- Choose a Series --</option>
-            @for (series of availableSeries(); track series.seriesId) {
-              <option [value]="series.seriesId">
-                {{ series.title }} ({{ series.videoCount }} videos &bull; {{ formatDuration(series.totalDurationSeconds) }})
-              </option>
+          <div class="series-autocomplete-wrapper">
+            <app-autocomplete
+              name="Select Video Series"
+              [searchableSet]="seriesSet"
+              [displayFns]="seriesDisplayFns"
+              [inputBoxIsChip]="false"
+              [initSearchTerm]="seriesSearchInput()"
+              placeholder="Search by series title or instructor..."
+              (itemSelected)="onSeriesSelected($event)"
+              (textUpdated)="onSeriesTextUpdated($event)"
+              [disabled]="isProcessing()"
+            ></app-autocomplete>
+            @if (existingSeriesId()) {
+              <button
+                type="button"
+                class="icon-only-button clear-series-btn"
+                (click)="clearSelectedSeries()"
+                title="Clear selected series"
+                [disabled]="isProcessing()"
+              >
+                <app-icon name="close"></app-icon>
+              </button>
             }
-          </select>
+          </div>
         </div>
+
+        <!-- Selected Series Summary Card -->
+        @if (selectedSeries(); as series) {
+          <div class="selected-series-card">
+            <div class="selected-series-header">
+              <div class="series-title-row">
+                <app-icon name="video_library" class="series-icon"></app-icon>
+                <div class="series-title-info">
+                  <h4 class="series-title">{{ series.title }}</h4>
+                  <div class="series-meta-row">
+                    <span class="series-count-badge">
+                      {{ series.videoCount }} existing episode{{ series.videoCount === 1 ? '' : 's' }}
+                    </span>
+                    @if (series.totalDurationSeconds > 0) {
+                      <span class="series-duration-badge">
+                        {{ formatDuration(series.totalDurationSeconds) }}
+                      </span>
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            @if (series.description) {
+              <p class="series-description">{{ series.description }}</p>
+            }
+
+            <div class="series-attributes-grid">
+              <div class="attribute-item">
+                <span class="attr-label">Series Pricing:</span>
+                <span class="attr-value price-val">
+                  @if (series.priceCents && series.priceCents > 0) {
+                    ${{ (series.priceCents / 100).toFixed(2) }} USD (Bundle)
+                  } @else {
+                    Included with Membership / Free
+                  }
+                </span>
+              </div>
+
+              @if (series.accessTiers && series.accessTiers.length > 0) {
+                <div class="attribute-item">
+                  <span class="attr-label">Access Tiers:</span>
+                  <div class="tier-chips-list">
+                    @for (tier of series.accessTiers; track tier) {
+                      <span class="mini-tier-chip">{{ tier }}</span>
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (series.instructorName) {
+                <div class="attribute-item">
+                  <span class="attr-label">Instructor:</span>
+                  <span class="attr-value">{{ series.instructorName }}</span>
+                </div>
+              }
+
+              @if (series.eventTitle) {
+                <div class="attribute-item">
+                  <span class="attr-label">Linked Event:</span>
+                  <span class="attr-value">{{ series.eventTitle }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="series-inheritance-notice">
+              <app-icon name="info" width="16px" height="16px"></app-icon>
+              <span>
+                Series title, bundle pricing, access tiers, and credits are set by this series and will apply automatically to all newly added episodes.
+              </span>
+            </div>
+          </div>
+        } @else {
+          <div class="series-unselected-hint">
+            <app-icon name="info" width="20px" height="20px"></app-icon>
+            <span>Please search and select an existing series above to add new episodes to it.</span>
+          </div>
+        }
       }
 
-      <!-- Series / Title & Description -->
-      <div class="form-group">
-        <label class="form-label">
-          @if (uploadMode() === 'standalone') {
-            Video Title:
-          } @else {
-            Series Collection Title: <span class="required">*</span>
-          }
-        </label>
-        <input
-          type="text"
-          class="form-input"
-          [placeholder]="uploadMode() === 'standalone' ? 'e.g. Masterclass on Spinning Hands' : 'e.g. Refinement of Basic Exercises'"
-          [ngModel]="seriesTitle()"
-          (ngModelChange)="seriesTitle.set($event)"
-          [disabled]="isProcessing()"
-        />
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Description &amp; Overview:</label>
-        <textarea
-          class="form-input form-textarea"
-          rows="3"
-          placeholder="Detailed description of what this video or series covers..."
-          [ngModel]="seriesDescription()"
-          (ngModelChange)="seriesDescription.set($event)"
-          [disabled]="isProcessing()"
-        ></textarea>
-      </div>
-
-      <!-- Pricing Section -->
-      <div class="pricing-card-section">
-        <div class="section-subtitle">
-          <app-icon name="shopping_cart"></app-icon>
-          <span>
+      @if (uploadMode() !== 'existing_series') {
+        <!-- Series / Title & Description -->
+        <div class="form-group">
+          <label class="form-label">
             @if (uploadMode() === 'standalone') {
-              Purchase Price (USD)
+              Video Title:
             } @else {
-              Single Series Bundle Price (USD)
+              Series Collection Title: <span class="required">*</span>
             }
-          </span>
-        </div>
-        <p class="field-hint">
-          @if (uploadMode() === 'standalone') {
-            Direct purchase price for this standalone video. Leave empty if included free in membership.
-          } @else {
-            One-off price to purchase and unlock <strong>all videos</strong> in this series collection.
-          }
-        </p>
-
-        <div class="price-input-row">
-          <span class="currency-symbol">$</span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            class="form-input price-input"
-            placeholder="49.99"
-            [ngModel]="seriesPriceDollars()"
-            (ngModelChange)="seriesPriceDollars.set($event)"
-            [disabled]="isProcessing()"
-          />
-          <span class="price-tag-label">USD (Single payment for entire set)</span>
-        </div>
-      </div>
-
-      <!-- Access Tiers Permissions -->
-      <div class="form-group access-tiers-group">
-        <label class="form-label">Allowed Access Tiers:</label>
-        <div class="tiers-checkbox-list">
-          @for (tier of availableAccessTiers; track tier.value) {
-            <label class="tier-checkbox-item">
-              <input
-                type="checkbox"
-                [checked]="selectedAccessTiers().includes(tier.value)"
-                (change)="toggleAccessTier(tier.value)"
-                [disabled]="isProcessing()"
-              />
-              <div class="tier-label-box">
-                <span class="tier-name">{{ tier.label }}</span>
-                <span class="tier-desc">{{ tier.description }}</span>
-              </div>
-            </label>
-          }
-        </div>
-      </div>
-
-      <!-- Instructor & Event Association -->
-      <div class="form-row-two-col">
-        <div class="form-group">
-          <label class="form-label">Featured Instructor:</label>
-          <app-autocomplete
-            name="Featured Instructor"
-            [searchableSet]="dataService.instructors"
-            [displayFns]="instructorDisplayFns"
-            [inputBoxIsChip]="false"
-            [initSearchTerm]="instructorSearchInput()"
-            placeholder="Search instructor name..."
-            (itemSelected)="onInstructorSelected($event)"
-            (textUpdated)="onInstructorTextUpdated($event)"
-          ></app-autocomplete>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Linked Event (Optional):</label>
-          <app-autocomplete
-            name="Linked Event"
-            [searchableSet]="eventsSet"
-            [displayFns]="eventDisplayFns"
-            [inputBoxIsChip]="false"
-            [initSearchTerm]="eventSearchInput()"
-            placeholder="Search workshop / event..."
-            (itemSelected)="onEventSelected($event)"
-            (textUpdated)="onEventTextUpdated($event)"
-          ></app-autocomplete>
-        </div>
-      </div>
-
-      <!-- Date & Location -->
-      <div class="form-row-two-col">
-        <div class="form-group">
-          <label class="form-label">Recorded Date:</label>
-          <input
-            type="date"
-            class="form-input"
-            [ngModel]="recordedDate()"
-            (ngModelChange)="recordedDate.set($event)"
-            [disabled]="isProcessing()"
-          />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Location / City:</label>
+          </label>
           <input
             type="text"
             class="form-input"
-            placeholder="e.g. Paris, France"
-            [ngModel]="location()"
-            (ngModelChange)="location.set($event)"
+            [placeholder]="uploadMode() === 'standalone' ? 'e.g. Masterclass on Spinning Hands' : 'e.g. Refinement of Basic Exercises'"
+            [ngModel]="seriesTitle()"
+            (ngModelChange)="seriesTitle.set($event)"
             [disabled]="isProcessing()"
           />
         </div>
-      </div>
 
-      <!-- Tags Input -->
-      <div class="form-group">
-        <label class="form-label">Search Tags:</label>
-        <app-tag-input
-          [tags]="tags()"
-          (tagsChange)="tags.set($event)"
-          placeholder="Add tags (e.g. spinning_hands, basic_exercises)..."
-        ></app-tag-input>
-      </div>
+        <div class="form-group">
+          <label class="form-label">Description &amp; Overview:</label>
+          <textarea
+            class="form-input form-textarea"
+            rows="3"
+            placeholder="Detailed description of what this video or series covers..."
+            [ngModel]="seriesDescription()"
+            (ngModelChange)="seriesDescription.set($event)"
+            [disabled]="isProcessing()"
+          ></textarea>
+        </div>
+
+        <!-- Pricing Section -->
+        <div class="pricing-card-section">
+          <div class="section-subtitle">
+            <app-icon name="shopping_cart"></app-icon>
+            <span>
+              @if (uploadMode() === 'standalone') {
+                Purchase Price (USD)
+              } @else {
+                Single Series Bundle Price (USD)
+              }
+            </span>
+          </div>
+          <p class="field-hint">
+            @if (uploadMode() === 'standalone') {
+              Direct purchase price for this standalone video. Leave empty if included free in membership.
+            } @else {
+              One-off price to purchase and unlock <strong>all videos</strong> in this series collection.
+            }
+          </p>
+
+          <div class="price-input-row">
+            <span class="currency-symbol">$</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              class="form-input price-input"
+              placeholder="49.99"
+              [ngModel]="seriesPriceDollars()"
+              (ngModelChange)="seriesPriceDollars.set($event)"
+              [disabled]="isProcessing()"
+            />
+            <span class="price-tag-label">USD (Single payment for entire set)</span>
+          </div>
+        </div>
+
+        <!-- Access Tiers Permissions -->
+        <div class="form-group access-tiers-group">
+          <label class="form-label">Allowed Access Tiers:</label>
+          <div class="tiers-checkbox-list">
+            @for (tier of availableAccessTiers; track tier.value) {
+              <label class="tier-checkbox-item">
+                <input
+                  type="checkbox"
+                  [checked]="selectedAccessTiers().includes(tier.value)"
+                  (change)="toggleAccessTier(tier.value)"
+                  [disabled]="isProcessing()"
+                />
+                <div class="tier-label-box">
+                  <span class="tier-name">{{ tier.label }}</span>
+                  <span class="tier-desc">{{ tier.description }}</span>
+                </div>
+              </label>
+            }
+          </div>
+        </div>
+
+        <!-- Instructor & Event Association -->
+        <div class="form-row-two-col">
+          <div class="form-group">
+            <label class="form-label">Featured Instructor:</label>
+            <app-autocomplete
+              name="Featured Instructor"
+              [searchableSet]="dataService.instructors"
+              [displayFns]="instructorDisplayFns"
+              [inputBoxIsChip]="false"
+              [initSearchTerm]="instructorSearchInput()"
+              placeholder="Search instructor name..."
+              (itemSelected)="onInstructorSelected($event)"
+              (textUpdated)="onInstructorTextUpdated($event)"
+            ></app-autocomplete>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Linked Event (Optional):</label>
+            <app-autocomplete
+              name="Linked Event"
+              [searchableSet]="eventsSet"
+              [displayFns]="eventDisplayFns"
+              [inputBoxIsChip]="false"
+              [initSearchTerm]="eventSearchInput()"
+              placeholder="Search workshop / event..."
+              (itemSelected)="onEventSelected($event)"
+              (textUpdated)="onEventTextUpdated($event)"
+            ></app-autocomplete>
+          </div>
+        </div>
+
+        <!-- Date & Location -->
+        <div class="form-row-two-col">
+          <div class="form-group">
+            <label class="form-label">Recorded Date:</label>
+            <input
+              type="date"
+              class="form-input"
+              [ngModel]="recordedDate()"
+              (ngModelChange)="recordedDate.set($event)"
+              [disabled]="isProcessing()"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Location / City:</label>
+            <input
+              type="text"
+              class="form-input"
+              placeholder="e.g. Paris, France"
+              [ngModel]="location()"
+              (ngModelChange)="location.set($event)"
+              [disabled]="isProcessing()"
+            />
+          </div>
+        </div>
+
+        <!-- Tags Input -->
+        <div class="form-group">
+          <label class="form-label">Search Tags:</label>
+          <app-tag-input
+            [tags]="tags()"
+            (tagsChange)="tags.set($event)"
+            placeholder="Add tags (e.g. spinning_hands, basic_exercises)..."
+          ></app-tag-input>
+        </div>
+
+        <!-- Featured Toggle -->
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              [checked]="isFeatured()"
+              (change)="isFeatured.set(!isFeatured())"
+              [disabled]="isProcessing()"
+            />
+            <span>Feature on Catalog Hero Spotlight Banner</span>
+          </label>
+        </div>
+      }
 
       <!-- Transcoding Preset -->
       <div class="form-group">
@@ -300,19 +404,6 @@
             Light (720p-360p)
           </button>
         </div>
-      </div>
-
-      <!-- Featured Toggle -->
-      <div class="form-group">
-        <label class="checkbox-label">
-          <input
-            type="checkbox"
-            [checked]="isFeatured()"
-            (change)="isFeatured.set(!isFeatured())"
-            [disabled]="isProcessing()"
-          />
-          <span>Feature on Catalog Hero Spotlight Banner</span>
-        </label>
       </div>
     </div>
 
@@ -558,46 +649,48 @@
         }
 
         <div class="submit-buttons-row">
-          <a class="subtle-btn" [href]="routingService.hrefForView(Views.ManageVod, {})" [class.disabled]="isProcessing()">
-            Cancel
-          </a>
+          @if (isProcessing()) {
+            <app-spinner>Uploading &amp; Transcoding Videos...</app-spinner>
+          } @else {
+            <a class="subtle-btn" [href]="routingService.hrefForView(Views.ManageVod, {})">
+              Cancel
+            </a>
 
-          @if (hasErrors()) {
+            @if (hasErrors()) {
+              <button
+                type="button"
+                class="outlined-button retry-failed-btn"
+                (click)="retryAllFailed()"
+              >
+                <app-icon name="refresh"></app-icon>
+                <span>Resume Failed Videos</span>
+              </button>
+            }
+
             <button
               type="button"
-              class="outlined-button retry-failed-btn"
-              [disabled]="isProcessing()"
-              (click)="retryAllFailed()"
+              class="primary-btn submit-btn"
+              [disabled]="fileEntries().length === 0 || allDone() || isOffline() || (uploadMode() === 'existing_series' && !existingSeriesId())"
+              [title]="isOffline() ? 'Uploading requires an active internet connection' : (uploadMode() === 'existing_series' && !existingSeriesId() ? 'Please select an existing series first' : '')"
+              (click)="startUploadAndTranscode()"
             >
-              <app-icon name="refresh"></app-icon>
-              <span>Resume Failed Videos</span>
+              @if (allDone()) {
+                <app-icon name="check"></app-icon>
+                <span>All Videos Uploaded</span>
+              } @else {
+                <app-icon name="cloud_upload"></app-icon>
+                <span>
+                  @if (uploadMode() === 'standalone') {
+                    Upload &amp; Transcode Video
+                  } @else if (uploadMode() === 'existing_series') {
+                    Upload &amp; Add to Series ({{ fileEntries().length }} Video{{ fileEntries().length === 1 ? '' : 's' }})
+                  } @else {
+                    Upload &amp; Create Series ({{ fileEntries().length }} Video{{ fileEntries().length === 1 ? '' : 's' }})
+                  }
+                </span>
+              }
             </button>
           }
-
-          <button
-            type="button"
-            class="primary-btn submit-btn"
-            [disabled]="fileEntries().length === 0 || isProcessing() || allDone() || isOffline()"
-            [title]="isOffline() ? 'Uploading requires an active internet connection' : ''"
-            (click)="startUploadAndTranscode()"
-          >
-            @if (isProcessing()) {
-              <app-spinner size="18px"></app-spinner>
-              <span>Uploading &amp; Transcoding...</span>
-            } @else if (allDone()) {
-              <app-icon name="check"></app-icon>
-              <span>All Videos Uploaded</span>
-            } @else {
-              <app-icon name="cloud_upload"></app-icon>
-              <span>
-                @if (uploadMode() === 'standalone') {
-                  Upload &amp; Transcode Video
-                } @else {
-                  Upload &amp; Create Series ({{ fileEntries().length }} Videos)
-                }
-              </span>
-            }
-          </button>
         </div>
       </div>
     </div>

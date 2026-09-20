@@ -549,4 +549,135 @@ describe('ManageVodComponent', () => {
 
     expect(component.grantingSeries()?.seriesId).toBe('series-1');
   });
+
+  describe('Series Autocomplete Filter', () => {
+    it('should initialize seriesFilterSet with standalone option and available series', () => {
+      fixture.detectChanges();
+      const entries = component.seriesFilterSet.entries();
+      expect(entries.length).toBe(2);
+      expect(entries[0].seriesId).toBe('no_series');
+      expect(entries[1].seriesId).toBe('series-1');
+      expect(component.seriesFilterDisplayFns.toName(entries[0])).toContain('Standalone Only (No Series)');
+      expect(component.seriesFilterDisplayFns.toName(entries[1])).toBe('Sample Series 1 (2 parts)');
+    });
+
+    it('should select a series via onSeriesFilterSelected and update signals', () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      component.onSeriesFilterSelected(series);
+
+      expect(component.selectedSeriesFilter()).toBe('series-1');
+      expect(component.selectedSeriesSearchTerm()).toBe('Sample Series 1 (2 parts)');
+    });
+
+    it('should select standalone videos via setSeriesFilter and update signals', () => {
+      component.setSeriesFilter('no_series');
+
+      expect(component.selectedSeriesFilter()).toBe('no_series');
+      expect(component.selectedSeriesSearchTerm()).toContain('Standalone Only (No Series)');
+    });
+
+    it('should reset series filter to all when search text is emptied', () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      component.onSeriesFilterSelected(series);
+      expect(component.selectedSeriesFilter()).toBe('series-1');
+
+      component.onSeriesFilterTextUpdated('');
+      expect(component.selectedSeriesFilter()).toBe('all');
+      expect(component.selectedSeriesSearchTerm()).toBe('');
+    });
+
+    it('should clear series filter when clearSeriesFilter is called', () => {
+      component.setSeriesFilter('series-1');
+      expect(component.selectedSeriesFilter()).toBe('series-1');
+
+      component.clearSeriesFilter();
+      expect(component.selectedSeriesFilter()).toBe('all');
+      expect(component.selectedSeriesSearchTerm()).toBe('');
+    });
+
+    it('should clear series filter when clearAllFilters is called', () => {
+      component.setSeriesFilter('series-1');
+      component.clearAllFilters();
+
+      expect(component.selectedSeriesFilter()).toBe('all');
+      expect(component.selectedSeriesSearchTerm()).toBe('');
+    });
+
+    it('should filter videos correctly by series and standalone', () => {
+      const videosWithSeries: VideoItem[] = [
+        { ...initVideoItem(), docId: 'v1', seriesId: 'series-1', title: 'Video in Series' },
+        { ...initVideoItem(), docId: 'v2', seriesId: undefined, title: 'Standalone Video' },
+      ];
+      mockDataService.videos.entries.set(videosWithSeries);
+      fixture.detectChanges();
+
+      component.setSeriesFilter('series-1');
+      expect(component.filteredVideos().map((v) => v.docId)).toEqual(['v1']);
+
+      component.setSeriesFilter('no_series');
+      expect(component.filteredVideos().map((v) => v.docId)).toEqual(['v2']);
+
+      component.clearSeriesFilter();
+      expect(component.filteredVideos().length).toBe(2);
+    });
+
+    it('should filter series collections list when series filter is applied', () => {
+      component.setSeriesFilter('series-1');
+      expect(component.filteredSeries().map((s) => s.seriesId)).toEqual(['series-1']);
+
+      component.setSeriesFilter('no_series');
+      expect(component.filteredSeries()).toEqual([]);
+
+      component.clearSeriesFilter();
+      expect(component.filteredSeries().length).toBe(1);
+    });
+  });
+
+  describe('Edit Series Modal', () => {
+    it('should populate edit fields when openSeriesModal is called', () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      component.openSeriesModal(series);
+
+      expect(component.editingSeries()?.seriesId).toBe('series-1');
+      expect(component.editingSeriesTitle()).toBe('Sample Series 1');
+      expect(component.editingSeriesDescription()).toBe('A great series');
+      expect(component.editingSeriesVideos().length).toBe(2);
+    });
+
+    it('should call updateVideoSeries with trimmed values and close modal on saveSeriesChanges', async () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      component.openSeriesModal(series);
+
+      component.editingSeriesTitle.set('  Updated Series Title  ');
+      component.editingSeriesDescription.set('  Updated Description  ');
+      component.editingSeriesPriceDollars.set(29.99);
+
+      // Also set series filter to this series
+      component.setSeriesFilter('series-1');
+
+      // Setup drawer video for one of the videos in series
+      component.drawerVideo.set({ ...series.videos[0] });
+
+      // When updateVideoSeries completes, mock updated video item returned by get()
+      const updatedV1 = { ...series.videos[0], seriesTitle: 'Updated Series Title' };
+      mockDataService.videos.get = vi.fn().mockReturnValue(updatedV1);
+
+      await component.saveSeriesChanges();
+
+      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
+        'series-1',
+        {
+          title: 'Updated Series Title',
+          description: 'Updated Description',
+          priceCents: 2999,
+        },
+        ['v1', 'v2'],
+      );
+
+      expect(component.editingSeries()).toBeNull();
+      expect(component.selectedSeriesFilter()).toBe('series-1');
+      expect(component.drawerVideo()?.seriesTitle).toBe('Updated Series Title');
+    });
+  });
 });
+

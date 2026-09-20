@@ -5,7 +5,7 @@ import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { getDocs, query, where, collection, onSnapshot } from 'firebase/firestore';
+import { getDocs, query, where, collection, onSnapshot, writeBatch } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
@@ -15,6 +15,12 @@ import { ActionQueueService, QueuedActionKind, RollbackTarget } from './action-q
 import { FirestoreCollection } from '../../functions/src/data-model/collections';
 
 vi.mock('firebase/firestore', () => {
+  const mockBatch = {
+    update: vi.fn(),
+    set: vi.fn(),
+    delete: vi.fn(),
+    commit: vi.fn().mockResolvedValue(undefined),
+  };
   return {
     getFirestore: vi.fn(),
     collection: vi.fn(),
@@ -27,6 +33,7 @@ vi.mock('firebase/firestore', () => {
     onSnapshot: vi.fn().mockReturnValue(() => {}), // return unsubscribe function
     doc: vi.fn().mockReturnValue({ id: 'mock-doc-ref' }),
     updateDoc: vi.fn().mockResolvedValue(undefined),
+    writeBatch: vi.fn().mockReturnValue(mockBatch),
     getDocs: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
@@ -587,6 +594,179 @@ describe('DataManagerService - searchEvents', () => {
         'my_students_inst_doc_1',
         'docId',
         'student_1',
+      );
+    });
+  });
+
+  describe('Video mutations optimistic and cache updates', () => {
+    let syncService: IncrementalSyncService;
+
+    beforeEach(() => {
+      syncService = TestBed.inject(IncrementalSyncService);
+      vi.mocked(syncService.upsertCachedEntry).mockClear();
+      vi.mocked(syncService.deleteCachedEntry).mockClear();
+    });
+
+    it('updateVideoMetadata updates in-memory videos and syncs cache', async () => {
+      const v: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-meta-1',
+        title: 'Original Title',
+        isPublished: true,
+      };
+      service.videos.setEntries([v]);
+
+      await service.updateVideoMetadata('v-meta-1', {
+        title: 'Updated Title',
+        isPublished: false,
+      });
+
+      const updated = service.videos.get('v-meta-1');
+      expect(updated?.title).toBe('Updated Title');
+      expect(updated?.isPublished).toBe(false);
+
+      expect(syncService.upsertCachedEntry).toHaveBeenCalledWith(
+        'admin_videos',
+        'docId',
+        expect.objectContaining({ docId: 'v-meta-1', title: 'Updated Title' }),
+      );
+      expect(syncService.deleteCachedEntry).toHaveBeenCalledWith(
+        'public_videos',
+        'docId',
+        'v-meta-1',
+      );
+    });
+
+    it('updateVideoSeries updates seriesTitle, forVodSeriesTitle, part index, in-memory videos, and cache', async () => {
+      const v1: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-series-1',
+        title: 'Part 1',
+        seriesId: 'series-xyz',
+        seriesTitle: 'Old Title',
+        forVodSeriesTitle: 'Old Title',
+        seriesPartIndex: 1,
+        isPublished: true,
+      };
+      const v2: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-series-2',
+        title: 'Part 2',
+        seriesId: 'series-xyz',
+        seriesTitle: 'Old Title',
+        forVodSeriesTitle: 'Old Title',
+        seriesPartIndex: 2,
+        isPublished: true,
+      };
+      service.videos.setEntries([v1, v2]);
+
+      // Reorder and rename series
+      await service.updateVideoSeries(
+        'series-xyz',
+        {
+          title: 'New Series Name',
+          description: 'New Description',
+          priceCents: 4900,
+        },
+        ['v-series-2', 'v-series-1'], // Reversed order
+      );
+
+      const updatedV1 = service.videos.get('v-series-1');
+      const updatedV2 = service.videos.get('v-series-2');
+
+      expect(updatedV2?.seriesPartIndex).toBe(1);
+      expect(updatedV2?.seriesTitle).toBe('New Series Name');
+      expect(updatedV2?.forVodSeriesTitle).toBe('New Series Name');
+      expect(updatedV2?.seriesDescription).toBe('New Description');
+      expect(updatedV2?.priceCents).toBe(4900);
+      expect(updatedV2?.isBuyable).toBe(true);
+
+      expect(updatedV1?.seriesPartIndex).toBe(2);
+      expect(updatedV1?.seriesTitle).toBe('New Series Name');
+      expect(updatedV1?.forVodSeriesTitle).toBe('New Series Name');
+
+      // Check series list grouping immediately reflects new title
+      const seriesList = service.getVideoSeriesList();
+      const series = seriesList.find((s) => s.seriesId === 'series-xyz');
+      expect(series).toBeDefined();
+      expect(series?.title).toBe('New Series Name');
+      expect(series?.videos[0].docId).toBe('v-series-2');
+      expect(series?.videos[1].docId).toBe('v-series-1');
+
+      // Verify cache updates
+      expect(syncService.upsertCachedEntry).toHaveBeenCalledWith(
+        'admin_videos',
+        'docId',
+        expect.objectContaining({ docId: 'v-series-1', seriesTitle: 'New Series Name' }),
+      );
+      expect(syncService.upsertCachedEntry).toHaveBeenCalledWith(
+        'public_videos',
+        'docId',
+        expect.objectContaining({ docId: 'v-series-1', seriesTitle: 'New Series Name' }),
+      );
+    });
+
+    it('addVideosToSeries appends videos, updates in-memory videos, and syncs cache', async () => {
+      const v1: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-add-1',
+        title: 'Part 1',
+        seriesId: 'series-abc',
+        seriesTitle: 'Existing Series',
+        seriesPartIndex: 1,
+        isPublished: true,
+      };
+      const v2: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-add-2',
+        title: 'Standalone Video',
+        isPublished: true,
+      };
+      service.videos.setEntries([v1, v2]);
+
+      await service.addVideosToSeries('series-abc', ['v-add-2']);
+
+      const updatedV2 = service.videos.get('v-add-2');
+      expect(updatedV2?.seriesId).toBe('series-abc');
+      expect(updatedV2?.seriesPartIndex).toBe(2);
+      expect(updatedV2?.seriesTitle).toBe('Existing Series');
+      expect(updatedV2?.forVodSeriesTitle).toBe('Existing Series');
+
+      expect(syncService.upsertCachedEntry).toHaveBeenCalledWith(
+        'admin_videos',
+        'docId',
+        expect.objectContaining({ docId: 'v-add-2', seriesId: 'series-abc' }),
+      );
+    });
+
+    it('renameVideoTag renames tag in affected videos in-memory and syncs cache', async () => {
+      const v1: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-tag-1',
+        tags: ['old-tag', 'other-tag'],
+        isPublished: true,
+      };
+      const v2: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-tag-2',
+        tags: ['different-tag'],
+        isPublished: true,
+      };
+      service.videos.setEntries([v1, v2]);
+
+      const res = await service.renameVideoTag('old-tag', 'new-tag');
+      expect(res.updatedVideos).toBe(1);
+
+      const updatedV1 = service.videos.get('v-tag-1');
+      expect(updatedV1?.tags).toEqual(['new-tag', 'other-tag']);
+
+      const updatedV2 = service.videos.get('v-tag-2');
+      expect(updatedV2?.tags).toEqual(['different-tag']);
+
+      expect(syncService.upsertCachedEntry).toHaveBeenCalledWith(
+        'admin_videos',
+        'docId',
+        expect.objectContaining({ docId: 'v-tag-1', tags: ['new-tag', 'other-tag'] }),
       );
     });
   });
