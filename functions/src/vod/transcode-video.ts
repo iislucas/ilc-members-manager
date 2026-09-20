@@ -301,7 +301,11 @@ export const transcodeVideoForVod = onCall(
         ? VodStatus.Ready
         : VodStatus.Transcoding;
 
-    await videoRef.set(updatedVideo);
+    const { docId: _omittedDocId, ...videoPayload } = updatedVideo;
+    await videoRef.set({
+      ...videoPayload,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     // Update source upload record with VOD tracking status
     await uploadRef.update({

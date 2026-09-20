@@ -82,7 +82,7 @@ export const onTranscodeJobFinished = onMessagePublished(
           vodStatus: VodStatus.Ready,
           manifestUrl,
           spriteSheetUrl: `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(spriteStoragePath)}?alt=media`,
-          lastUpdated: nowIso as any,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp() as any,
         };
 
         await videoDoc.ref.set(updatePayload, { merge: true });
@@ -97,7 +97,7 @@ export const onTranscodeJobFinished = onMessagePublished(
           {
             vodStatus: VodStatus.Failed,
             vodError: errorMsg,
-            lastUpdated: nowIso as any,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp() as any,
           },
           { merge: true },
         );

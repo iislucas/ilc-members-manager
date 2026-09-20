@@ -105,13 +105,11 @@ export const checkVodJobStatus = onCall(
       }
     }
 
-    const updatedVideo: Partial<VideoItem> = {
+    await videoRef.update({
       vodStatus: updatedStatus,
       vodError: vodError || '',
-      lastUpdated: nowIso,
-    };
-
-    await videoRef.update(updatedVideo);
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     // Sync to source upload item if present
     if (video.sourceMemberDocId && video.sourceUploadDocId) {

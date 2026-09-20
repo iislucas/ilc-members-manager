@@ -62,7 +62,8 @@ async function run() {
     'schools',
     'instructors',
     'orders',
-    'gradings'
+    'gradings',
+    'videos',
   ];
 
   let totalDocsChecked = 0;
