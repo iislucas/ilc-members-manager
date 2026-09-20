@@ -3,7 +3,11 @@
   <div class="editor-header-sticky" [class.toolbar-open]="menuOpen() && !isRawMode()" [class.raw-mode-header]="isRawMode()">
     <!-- Formatting Toolbar at the Top of the Editor -->
     @if (menuOpen() && !isRawMode()) {
-      <div class="toolbar-wrapper">
+      <!-- Keep the caret where it is: without this, pressing a toolbar button
+           moves focus out of the editor, the browser drops the text selection,
+           and commands that act on a range (Link above all) see a collapsed
+           cursor instead of the words that were selected. -->
+      <div class="toolbar-wrapper" (mousedown)="$event.preventDefault()">
         <div class="toolbar-main" [class.collapsed]="!showDescriptions()">
           <!-- Menu Header with Fullscreen and Info Buttons at the far left (always to the left of scroll arrows) -->
           <div class="menu-header">

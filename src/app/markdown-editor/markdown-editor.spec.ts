@@ -2027,5 +2027,25 @@ describe('MarkdownEditor', () => {
 
     expect(component.linkPopupOpen()).toBe(false);
   });
-});
 
+  it('does not let the toolbar take focus away from the editor', async () => {
+    // Pressing a toolbar button must not move focus out of the editor. If it
+    // does, the browser clears the text selection, and every command that acts
+    // on a range sees a collapsed cursor instead of the selected words -- which
+    // is why Link used to insert the URL as plain text rather than wrapping
+    // what was selected. Suppressing the default mousedown is what prevents it.
+    fixture.componentRef.setInput('initialValue', 'Hello world');
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    const toolbar = fixture.nativeElement.querySelector('.toolbar-wrapper') as HTMLElement;
+    expect(toolbar).toBeTruthy();
+
+    const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    const linkButton = toolbar.querySelector('.menu-item') as HTMLElement;
+    linkButton.dispatchEvent(mousedown);
+
+    expect(mousedown.defaultPrevented).toBe(true);
+  });
+});
