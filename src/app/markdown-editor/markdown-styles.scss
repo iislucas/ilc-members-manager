@@ -1,6 +1,21 @@
+/*
+ * Rendered markdown.
+ *
+ * The declarations below are !important because they have to win against the
+ * host page's own styles. That makes them awkward to override from outside,
+ * so the colours and the font are read from custom properties with the
+ * historical values as fallbacks. A consumer themes the output by setting
+ * those properties on (or above) the viewer:
+ *
+ *   app-markdown-viewer {
+ *     --md-link-color: var(--my-accent);
+ *   }
+ *
+ * Nothing changes for a consumer that sets none of them.
+ */
 @mixin markdown-display-styles {
-  font-family: sans-serif !important; /* Consolidate font */
-  color: #1f2937 !important;
+  font-family: var(--md-font-family, sans-serif) !important;
+  color: var(--md-text-color, #1f2937) !important;
   font-size: 1rem !important;
   line-height: 1.5 !important;
   
@@ -144,7 +159,7 @@
 
   hr {
     border: 0 !important;
-    border-top: 1px solid #e5e7eb !important;
+    border-top: 1px solid var(--md-border-color, #e5e7eb) !important;
     margin: 1.5rem 0 !important;
   }
 
@@ -154,19 +169,19 @@
     margin: 1rem 0 !important;
 
     th, td {
-      border: 1px solid #e5e7eb !important;
+      border: 1px solid var(--md-border-color, #e5e7eb) !important;
       padding: 0.5rem 0.75rem !important;
       text-align: left !important;
     }
 
     th {
-      background-color: #f9fafb !important;
+      background-color: var(--md-table-header-bg, #f9fafb) !important;
       font-weight: 600 !important;
     }
   }
 
   code {
-    background: #f4f4f5 !important;
+    background: var(--md-code-bg, #f4f4f5) !important;
     padding: 0.15rem 0.35rem !important;
     border-radius: 4px !important;
     font-size: 0.9em !important;
@@ -174,8 +189,8 @@
   }
 
   pre {
-    background: #f4f4f5 !important;
-    border: 1px solid #e5e7eb !important;
+    background: var(--md-code-bg, #f4f4f5) !important;
+    border: 1px solid var(--md-border-color, #e5e7eb) !important;
     border-radius: 6px !important;
     padding: 1rem !important;
     overflow-x: auto !important;
@@ -189,11 +204,11 @@
   }
 
   a {
-    color: #950000 !important;
+    color: var(--md-link-color, #950000) !important;
     text-decoration: underline !important;
 
     &:hover {
-      color: #7a0000 !important;
+      color: var(--md-link-hover-color, #7a0000) !important;
     }
   }
 
@@ -329,8 +344,8 @@
   }
 
   blockquote {
-    border-left: 4px solid #950000 !important;
-    background: rgba(149, 0, 0, 0.04) !important;
+    border-left: 4px solid var(--md-accent-color, #950000) !important;
+    background: var(--md-blockquote-bg, rgba(149, 0, 0, 0.04)) !important;
     margin: 12px 0 !important;
     padding: 8px 16px !important;
     border-radius: 0 6px 6px 0 !important;
