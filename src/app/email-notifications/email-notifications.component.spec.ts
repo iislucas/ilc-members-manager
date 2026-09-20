@@ -286,6 +286,32 @@ describe('EmailNotificationsComponent', () => {
 
     const toggleButtons = Array.from(fixture.nativeElement.querySelectorAll('.settings-banner .status-btn')) as HTMLElement[];
     expect(toggleButtons.map(b => b.textContent?.trim())).toEqual(['Turn Off All', 'Pause All', 'Make All Active']);
+    // Three standalone action buttons, not a segmented selector.
+    expect(fixture.nativeElement.querySelector('.settings-banner .status-toggle-group')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.settings-banner .status-action-buttons')).toBeTruthy();
+    // Every status stays clickable; only the current one is marked.
+    expect(toggleButtons.every(b => !(b as HTMLButtonElement).disabled)).toBe(true);
+    expect(toggleButtons.filter(b => b.classList.contains('is-current')).map(b => b.textContent?.trim())).toEqual([
+      'Turn Off All',
+    ]);
+  });
+
+  it('marks no batch button as current when notifications are in a mixed state', async () => {
+    mockDataManager.mailSettings.set({
+      status: MailSendingStatus.Off,
+      notificationStatus: {
+        [TransactionalEmailKey.MembershipActivated]: MailSendingStatus.Active,
+      },
+    });
+    await component.setCategory('settings');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const toggleButtons = Array.from(
+      fixture.nativeElement.querySelectorAll('.settings-banner .status-btn'),
+    ) as HTMLElement[];
+    expect(toggleButtons.length).toBe(3);
+    expect(toggleButtons.filter(b => b.classList.contains('is-current'))).toEqual([]);
   });
 
   it('should update activeCategory when urlParams.tab changes', async () => {
@@ -566,6 +592,44 @@ describe('EmailNotificationsComponent', () => {
       expect(banner.textContent).toContain('1 Active');
       expect(banner.textContent).toContain('1 Paused');
       expect(banner.textContent).toContain('12 Off');
+
+      // The mixed state is spelled out as a dominant status plus exceptions.
+      expect(component.mixedStatusSummary()).toBe(
+        'All off, except for New Member Welcome (active), Store Order Confirmation (paused).',
+      );
+      const detailText = banner.querySelector('.status-detail')?.textContent?.replace(/\s+/g, ' ').trim();
+      expect(detailText).toBe('All off, except for New Member Welcome (active), Store Order Confirmation (paused).');
+    });
+
+    it('summarises only the first few exceptions when many notifications differ', async () => {
+      mockDataManager.mailSettings.set({
+        status: MailSendingStatus.Off,
+        notificationStatus: {
+          [TransactionalEmailKey.MembershipActivated]: MailSendingStatus.Active,
+          [TransactionalEmailKey.InstructorLicenseActivated]: MailSendingStatus.Active,
+          [TransactionalEmailKey.OrderConfirmation]: MailSendingStatus.Paused,
+          [TransactionalEmailKey.GradingPassed]: MailSendingStatus.Paused,
+        },
+      });
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const detail = component.mixedStatusDetail();
+      expect(detail?.baseWord).toBe('off');
+      expect(detail?.listed.length).toBe(3);
+      expect(detail?.hiddenCount).toBe(1);
+      expect(component.mixedStatusSummary()).toContain('and 1 more');
+    });
+
+    it('has no mixed summary when every notification shares one status', async () => {
+      mockDataManager.mailSettings.set({ status: MailSendingStatus.Active, notificationStatus: {} });
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.overallStatusMode()).toBe('all-active');
+      expect(component.mixedStatusDetail()).toBeNull();
+      expect(component.mixedStatusSummary()).toBe('');
+      expect(fixture.nativeElement.querySelector('.settings-banner .status-detail')).toBeFalsy();
     });
 
     it('allows toggling an individual notification status with specific templateKey', async () => {

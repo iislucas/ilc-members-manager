@@ -166,33 +166,42 @@
     }
   }
 
-  .status-toggle-group {
-    display: inline-flex;
+  /*
+   * Three independent action buttons rather than a segmented selector: the
+   * notifications can be in a mixed state that matches none of them, so
+   * nothing here implies that one option is always selected.
+   */
+  .status-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    background: #ffffff;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 3px;
-    gap: 3px;
+    gap: 8px;
 
     .status-btn {
-      padding: 6px 14px;
+      padding: 8px 14px;
       font-size: 0.825rem;
       font-weight: 600;
       border-radius: 6px;
-      border: 1px solid transparent;
-      background: transparent;
-      color: #64748b;
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      color: #475569;
       cursor: pointer;
+      white-space: nowrap;
       transition: all 0.15s ease;
 
-      &:hover:not(:disabled):not(.active) {
-        background: rgba(0, 0, 0, 0.04);
+      &:hover:not(:disabled) {
+        background: #f8fafc;
         color: #334155;
+        border-color: #94a3b8;
       }
 
-      &.active {
+      /* The state the notifications are already in, if any. */
+      &.is-current {
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+
+        &::after {
+          content: " ✓";
+        }
 
         &.status-btn-off {
           background: #f1f5f9;
@@ -217,6 +226,17 @@
         opacity: 0.6;
         cursor: not-allowed;
       }
+    }
+  }
+
+  .status-detail {
+    margin: 6px 0 0 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #475569;
+
+    strong {
+      font-weight: 700;
     }
   }
 
@@ -255,6 +275,7 @@
     .banner-content {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 10px;
       font-size: 0.85rem;
     }
@@ -269,6 +290,62 @@
   &.settings-banner {
     margin-bottom: 24px;
     padding: 20px 24px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+
+    .banner-content {
+      flex: 1 1 340px;
+      min-width: 0;
+    }
+
+    /* Wrap the batch buttons below the status text when space runs out. */
+    .banner-actions {
+      flex: 0 1 auto;
+      margin-left: auto;
+    }
+
+    @media (max-width: 720px) {
+      padding: 16px;
+
+      .banner-actions {
+        flex: 1 1 100%;
+        margin-left: 0;
+      }
+
+      .status-action-buttons {
+        width: 100%;
+
+        .status-btn {
+          flex: 1 1 auto;
+          text-align: center;
+        }
+      }
+    }
+
+    /* On phones each action gets its own full-width row. */
+    @media (max-width: 520px) {
+      .status-action-buttons .status-btn {
+        flex: 1 1 100%;
+      }
+    }
+  }
+
+  &.compact-banner {
+    /* Let the status sentence share the first line with the dot and wrap inside itself. */
+    .banner-content > span:not(.status-detail):not(.status-indicator):not(.paused-chip) {
+      flex: 1 1 0%;
+      min-width: 0;
+    }
+
+    .status-indicator {
+      flex: 0 0 auto;
+    }
+
+    .status-detail {
+      flex-basis: 100%;
+      margin: 2px 0 0 0;
+      font-size: 0.8rem;
+    }
   }
 }
 
