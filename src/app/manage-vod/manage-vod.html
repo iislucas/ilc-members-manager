@@ -687,20 +687,21 @@
 
                   <div class="menu-divider"></div>
 
-                  <button
-                    type="button"
-                    class="menu-item danger-item"
-                    [disabled]="isDeleting(d.docId)"
-                    (click)="deleteVideo(d); closeMenu()"
-                  >
-                    @if (isDeleting(d.docId)) {
+                  @if (isDeleting(d.docId)) {
+                    <div class="menu-item disabled deleting-item">
                       <app-spinner size="14px"></app-spinner>
                       <span>Deleting from VOD...</span>
-                    } @else {
+                    </div>
+                  } @else {
+                    <button
+                      type="button"
+                      class="menu-item danger-item"
+                      (click)="deleteVideo(d); closeMenu()"
+                    >
                       <app-icon name="delete"></app-icon>
                       <span>Delete from VOD</span>
-                    }
-                  </button>
+                    </button>
+                  }
                 </div>
               }
             </div>
@@ -808,22 +809,21 @@
 
               <!-- Transcode Action Trigger Button -->
               <div class="transcode-action-row">
-                <button
-                  type="button"
-                  class="transcode-btn"
-                  [disabled]="isTranscoding() || selectedResolutions().length === 0"
-                  (click)="transcodeAtQuality(d)"
-                >
-                  @if (isTranscoding()) {
-                    <app-spinner size="14px"></app-spinner>
-                    <span>Queueing Transcode...</span>
-                  } @else {
+                @if (isTranscoding()) {
+                  <app-spinner size="14px">Queueing Transcode...</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="transcode-btn"
+                    [disabled]="selectedResolutions().length === 0"
+                    (click)="transcodeAtQuality(d)"
+                  >
                     <app-icon name="speed"></app-icon>
                     <span>
                       {{ d.vodStatus === 'ready' ? 'Re-transcode at Selected Quality' : 'Start Transcoding with Selected Quality' }}
                     </span>
-                  }
-                </button>
+                  </button>
+                }
               </div>
             </div>
           </div>

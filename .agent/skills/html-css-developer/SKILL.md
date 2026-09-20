@@ -237,9 +237,9 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 
 > [!WARNING]
 > **NO SPINNERS INSIDE BUTTONS (ANTI-PATTERN)**
-> Do NOT place `<app-spinner>` inside a `<button>` element (e.g. `<button><app-spinner></app-spinner> Saving...</button>`). Placing a spinner inside a button disrupts button geometry and looks unpolished.
+> Do NOT place `<app-spinner>` inside a `<button>` element (e.g. `<button><app-spinner></app-spinner> Saving...</button>`). It is really ugly, disrupts button geometry, and creates layout shifting.
 >
-> **Standard Pattern**: When an action (e.g. Save, Submit, Checkout) is in progress, **replace the action button(s)** with `<app-spinner>` in the template:
+> **Standard Pattern**: The button can be hidden, and show a spinner, but never show a spinner inside a button. When an action (e.g. Save, Submit, Checkout, Upload) is in progress, **replace the action button(s)** with `<app-spinner>` in the template:
 > ```html
 > @if (isSaving()) {
 >   <app-spinner>Saving changes...</app-spinner>

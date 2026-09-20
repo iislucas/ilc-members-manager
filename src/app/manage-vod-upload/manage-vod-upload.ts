@@ -12,6 +12,7 @@ import {
   inject,
   signal,
   computed,
+  effect,
   ChangeDetectionStrategy,
   HostListener,
 } from '@angular/core';
@@ -163,10 +164,36 @@ export class ManageVodUploadComponent implements OnInit {
     toName: (i) => (i.instructorId ? `${i.name} [${i.instructorId}]` : i.name),
   };
 
+  // Series Autocomplete Set & Display Functions
+  seriesSet = new SearchableSet<'seriesId', VideoSeries>(
+    ['title', 'description', 'instructorName', 'seriesId'],
+    'seriesId',
+  );
+
+  seriesDisplayFns: DisplayFns<VideoSeries> = {
+    toChipId: (s) => s.seriesId,
+    toName: (s) => `${s.title} (${s.videoCount} video${s.videoCount === 1 ? '' : 's'})`,
+  };
+
+  seriesSearchInput = signal('');
+
   // Available series from active catalog
   availableSeries = computed<VideoSeries[]>(() => {
     return this.dataService.getVideoSeriesList();
   });
+
+  selectedSeries = computed<VideoSeries | null>(() => {
+    const id = this.existingSeriesId();
+    if (!id) return null;
+    return this.availableSeries().find((s) => s.seriesId === id) || null;
+  });
+
+  constructor() {
+    effect(() => {
+      const seriesList = this.availableSeries();
+      this.seriesSet.setEntries(seriesList);
+    });
+  }
 
   // Total summary of selected files
   totalSelectedDurationSeconds = computed(() => {
@@ -194,32 +221,78 @@ export class ManageVodUploadComponent implements OnInit {
   // --- Mode & Quality Helpers ---
   setUploadMode(mode: 'new_series' | 'existing_series' | 'standalone'): void {
     this.uploadMode.set(mode);
-    if (mode === 'standalone' && this.fileEntries().length > 0) {
-      this.recalculatePartIndices();
+    this.errorMessage.set(null);
+    this.recalculatePartIndices();
+  }
+
+  onSeriesSelected(series: VideoSeries): void {
+    this.existingSeriesId.set(series.seriesId);
+    this.seriesSearchInput.set(this.seriesDisplayFns.toName(series));
+
+    this.seriesTitle.set(series.title);
+    this.seriesDescription.set(series.description || '');
+    if (typeof series.priceCents === 'number') {
+      this.seriesPriceDollars.set(series.priceCents / 100);
+    } else {
+      this.seriesPriceDollars.set(null);
+    }
+    if (series.accessTiers && series.accessTiers.length > 0) {
+      this.selectedAccessTiers.set([...series.accessTiers]);
+    } else if (series.accessTier) {
+      this.selectedAccessTiers.set([series.accessTier]);
+    } else {
+      this.selectedAccessTiers.set([VodAccessTier.MembersOnly]);
+    }
+    if (series.tags && series.tags.length > 0) {
+      this.tags.set([...series.tags]);
+    } else {
+      this.tags.set([]);
+    }
+    if (series.instructorDocId) {
+      this.selectedInstructorDocId.set(series.instructorDocId);
+      this.selectedInstructorName.set(series.instructorName || '');
+      this.selectedInstructorId.set(series.instructorId || '');
+    } else {
+      this.selectedInstructorDocId.set('');
+      this.selectedInstructorName.set('');
+      this.selectedInstructorId.set('');
+    }
+    if (series.eventDocId) {
+      this.selectedEventDocId.set(series.eventDocId);
+      this.selectedEventTitle.set(series.eventTitle || '');
+    } else {
+      this.selectedEventDocId.set('');
+      this.selectedEventTitle.set('');
+    }
+    if (series.location) {
+      this.location.set(series.location);
+    }
+    if (series.recordedDate) {
+      this.recordedDate.set(series.recordedDate);
+    }
+    this.isFeatured.set(Boolean(series.featured));
+    this.recalculatePartIndices();
+  }
+
+  onSeriesTextUpdated(text: string): void {
+    this.seriesSearchInput.set(text);
+    if (!text.trim()) {
+      this.clearSelectedSeries();
     }
   }
 
+  clearSelectedSeries(): void {
+    this.existingSeriesId.set('');
+    this.seriesSearchInput.set('');
+    this.recalculatePartIndices();
+  }
+
   onExistingSeriesSelected(seriesId: string): void {
-    this.existingSeriesId.set(seriesId);
     const series = this.availableSeries().find((s) => s.seriesId === seriesId);
     if (series) {
-      this.seriesTitle.set(series.title);
-      this.seriesDescription.set(series.description);
-      if (typeof series.priceCents === 'number') {
-        this.seriesPriceDollars.set(series.priceCents / 100);
-      }
-      if (series.tags && series.tags.length > 0) {
-        this.tags.set([...series.tags]);
-      }
-      if (series.instructorDocId) {
-        this.selectedInstructorDocId.set(series.instructorDocId);
-        this.selectedInstructorName.set(series.instructorName || '');
-        this.selectedInstructorId.set(series.instructorId || '');
-      }
-      if (series.location) {
-        this.location.set(series.location);
-      }
-      this.recalculatePartIndices();
+      this.onSeriesSelected(series);
+    } else {
+      this.clearSelectedSeries();
     }
   }
 
@@ -533,21 +606,27 @@ export class ManageVodUploadComponent implements OnInit {
     const mode = this.uploadMode();
     let finalSeriesId = '';
     let finalSeriesTitle = '';
+    let finalSeriesDescription = '';
     let priceCents: number | undefined = undefined;
 
-    if (this.seriesPriceDollars() && this.seriesPriceDollars()! > 0) {
-      priceCents = Math.round(this.seriesPriceDollars()! * 100);
-    }
+    const existingSeries = mode === 'existing_series'
+      ? (this.selectedSeries() || this.availableSeries().find((s) => s.seriesId === this.existingSeriesId()))
+      : undefined;
 
-    if (mode === 'new_series') {
-      finalSeriesTitle = this.seriesTitle().trim();
-      finalSeriesId = `series_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    } else if (mode === 'existing_series') {
-      finalSeriesId = this.existingSeriesId();
-      finalSeriesTitle =
-        this.seriesTitle().trim() ||
-        this.availableSeries().find((s) => s.seriesId === finalSeriesId)?.title ||
-        '';
+    if (mode === 'existing_series' && existingSeries) {
+      finalSeriesId = existingSeries.seriesId;
+      finalSeriesTitle = existingSeries.title;
+      finalSeriesDescription = existingSeries.description || '';
+      priceCents = existingSeries.priceCents;
+    } else {
+      if (this.seriesPriceDollars() && this.seriesPriceDollars()! > 0) {
+        priceCents = Math.round(this.seriesPriceDollars()! * 100);
+      }
+      if (mode === 'new_series') {
+        finalSeriesTitle = this.seriesTitle().trim();
+        finalSeriesId = `series_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        finalSeriesDescription = this.seriesDescription();
+      }
     }
 
     const adminUser = this.firebaseState.user();
@@ -613,7 +692,7 @@ export class ManageVodUploadComponent implements OnInit {
         memberDocId: adminDocId,
         memberId: adminMember?.memberId || 'ADMIN',
         memberName: adminMember?.name || 'Administrator',
-        instructorId: this.selectedInstructorId() || adminMember?.instructorId || '',
+        instructorId: (mode === 'existing_series' ? existingSeries?.instructorId : this.selectedInstructorId()) || adminMember?.instructorId || '',
         name: entry.title || entry.file.name,
         contentType: entry.file.type || 'video/mp4',
         size: entry.file.size,
@@ -621,12 +700,12 @@ export class ManageVodUploadComponent implements OnInit {
         previewUrl,
         storagePath: originalStoragePath,
         previewStoragePath: previewUrl ? previewStoragePath : '',
-        date: this.recordedDate(),
-        location: this.location(),
-        eventDocId: this.selectedEventDocId(),
-        eventTitle: this.selectedEventTitle(),
-        notes: entry.description || this.seriesDescription(),
-        tags: this.tags(),
+        date: mode === 'existing_series' ? (existingSeries?.recordedDate || this.recordedDate()) : this.recordedDate(),
+        location: mode === 'existing_series' ? (existingSeries?.location || '') : this.location(),
+        eventDocId: mode === 'existing_series' ? (existingSeries?.eventDocId || '') : this.selectedEventDocId(),
+        eventTitle: mode === 'existing_series' ? (existingSeries?.eventTitle || '') : this.selectedEventTitle(),
+        notes: entry.description || (mode === 'existing_series' ? (existingSeries?.description || '') : this.seriesDescription()),
+        tags: mode === 'existing_series' ? (existingSeries?.tags || []) : this.tags(),
         source: UploadItemSource.Direct,
         createdAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
@@ -640,28 +719,44 @@ export class ManageVodUploadComponent implements OnInit {
       entry.eta = '';
       this.fileEntries.update((list) => [...list]);
 
+      const accessTiersToUse = mode === 'existing_series'
+        ? (existingSeries?.accessTiers && existingSeries.accessTiers.length > 0
+            ? existingSeries.accessTiers
+            : (existingSeries?.accessTier ? [existingSeries.accessTier] : [VodAccessTier.MembersOnly]))
+        : this.selectedAccessTiers();
+
+      const primaryTier = mode === 'existing_series'
+        ? (existingSeries?.accessTier || accessTiersToUse[0] || VodAccessTier.MembersOnly)
+        : (this.selectedAccessTiers()[0] || VodAccessTier.MembersOnly);
+
+      const isBuyableToUse = mode === 'existing_series'
+        ? Boolean(existingSeries?.priceCents && existingSeries.priceCents > 0)
+        : Boolean(priceCents && priceCents > 0);
+
       const vodConfig: Partial<VideoItem> = {
         title: entry.title || entry.file.name,
-        description: entry.description || this.seriesDescription(),
-        tags: this.tags(),
-        accessTiers: this.selectedAccessTiers(),
-        accessTier: this.selectedAccessTiers()[0] || VodAccessTier.MembersOnly,
-        isBuyable: Boolean(priceCents && priceCents > 0),
+        description: entry.description || (mode === 'existing_series' ? (existingSeries?.description || '') : this.seriesDescription()),
+        tags: mode === 'existing_series' ? (existingSeries?.tags || []) : this.tags(),
+        accessTiers: accessTiersToUse,
+        accessTier: primaryTier,
+        isBuyable: isBuyableToUse,
         priceCents,
-        currency: 'usd',
+        currency: mode === 'existing_series' ? (existingSeries?.currency || 'usd') : 'usd',
         seriesId: finalSeriesId || undefined,
         seriesTitle: finalSeriesTitle || undefined,
-        seriesDescription: this.seriesDescription() || undefined,
+        seriesDescription: finalSeriesDescription || undefined,
         seriesPartIndex: mode !== 'standalone' ? entry.partIndex : undefined,
         seriesPriceCents: priceCents,
-        instructorDocId: this.selectedInstructorDocId() || undefined,
-        instructorName: this.selectedInstructorName() || undefined,
-        instructorId: this.selectedInstructorId() || undefined,
-        eventDocId: this.selectedEventDocId() || undefined,
-        eventTitle: this.selectedEventTitle() || undefined,
-        recordedDate: this.recordedDate(),
-        location: this.location(),
-        featured: this.isFeatured(),
+        seriesStripeProductId: mode === 'existing_series' ? (existingSeries?.stripeProductId || undefined) : undefined,
+        seriesStripePriceId: mode === 'existing_series' ? (existingSeries?.stripePriceId || undefined) : undefined,
+        instructorDocId: mode === 'existing_series' ? (existingSeries?.instructorDocId || undefined) : (this.selectedInstructorDocId() || undefined),
+        instructorName: mode === 'existing_series' ? (existingSeries?.instructorName || undefined) : (this.selectedInstructorName() || undefined),
+        instructorId: mode === 'existing_series' ? (existingSeries?.instructorId || undefined) : (this.selectedInstructorId() || undefined),
+        eventDocId: mode === 'existing_series' ? (existingSeries?.eventDocId || undefined) : (this.selectedEventDocId() || undefined),
+        eventTitle: mode === 'existing_series' ? (existingSeries?.eventTitle || undefined) : (this.selectedEventTitle() || undefined),
+        recordedDate: mode === 'existing_series' ? (existingSeries?.recordedDate || this.recordedDate()) : this.recordedDate(),
+        location: mode === 'existing_series' ? (existingSeries?.location || '') : this.location(),
+        featured: mode === 'existing_series' ? Boolean(existingSeries?.featured) : this.isFeatured(),
         resolutions: this.selectedResolutions(),
         thumbnailUrl: previewUrl,
       };
@@ -709,7 +804,7 @@ export class ManageVodUploadComponent implements OnInit {
     } else if (mode === 'existing_series') {
       const finalSeriesId = this.existingSeriesId();
       if (!finalSeriesId) {
-        this.errorMessage.set('Please select an existing video series.');
+        this.errorMessage.set('Please select an existing video series to add to.');
         return;
       }
       finalSeriesTitle =
