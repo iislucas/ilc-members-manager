@@ -145,6 +145,14 @@ describe('NavigationTreeService', () => {
     expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Me', 'Notifications']);
   });
 
+  it('puts Manage VOD Upload under Admin and Manage VOD in the navigation tree', () => {
+    goTo(Views.ManageVodUpload);
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage VOD']);
+    expect(navTree.parent()?.url).toBe('/manage-vod');
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Admin', 'Manage VOD', 'Upload VOD & Series']);
+    expect(navTree.currentTitle()).toBe('Upload VOD & Series');
+  });
+
   it('links a member back to their list, scrolled to their row', () => {
     goTo(Views.ManageMemberView, { memberId: 'M42' });
     expect(navTree.parent()?.url).toBe('/members?jumpTo=M42');
