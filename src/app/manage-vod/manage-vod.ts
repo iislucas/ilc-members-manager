@@ -25,6 +25,7 @@ import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
+import { SearchableSet } from '../searchable-set';
 import { TagInputComponent } from '../tag-input/tag-input';
 import { GrantVodModalComponent } from '../grant-vod-modal/grant-vod-modal';
 
@@ -69,7 +70,26 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   // Series & View Mode Signals
   viewMode = signal<'all_videos' | 'series_collections'>('series_collections');
   selectedSeriesFilter = signal<string>('all');
+  selectedSeriesSearchTerm = signal<string>('');
   allSeries = computed<VideoSeries[]>(() => this.dataService.getVideoSeriesList());
+  standaloneVideoCount = computed(
+    () => this.dataService.videos.entries().filter((v) => !v.seriesId && !v.forVodPageId).length,
+  );
+
+  seriesFilterSet = new SearchableSet<'seriesId', VideoSeries>(
+    ['title', 'description', 'instructorName', 'seriesId'],
+    'seriesId',
+  );
+
+  seriesFilterDisplayFns: DisplayFns<VideoSeries> = {
+    toChipId: (s) => s.seriesId,
+    toName: (s) => {
+      if (s.seriesId === 'no_series') {
+        return `Standalone Only (No Series) (${s.videoCount})`;
+      }
+      return `${s.title} (${s.videoCount} part${s.videoCount === 1 ? '' : 's'})`;
+    },
+  };
 
   setViewMode(mode: 'all_videos' | 'series_collections'): void {
     this.viewMode.set(mode);
@@ -356,6 +376,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     const q = this.searchQuery().trim().toLowerCase();
     const tagFilter = this.selectedTagFilter().trim().toLowerCase();
     const status = this.selectedStatus();
+    const seriesFilter = this.selectedSeriesFilter();
 
     if (q) {
       list = list.filter(
@@ -370,6 +391,14 @@ export class ManageVodComponent implements OnInit, OnDestroy {
 
     if (tagFilter) {
       list = list.filter((s) => s.tags && s.tags.some((t) => t.toLowerCase() === tagFilter));
+    }
+
+    if (seriesFilter !== 'all') {
+      if (seriesFilter === 'no_series') {
+        list = [];
+      } else {
+        list = list.filter((s) => s.seriesId === seriesFilter);
+      }
     }
 
     if (status === 'draft') {
@@ -396,6 +425,20 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   VodStatus = VodStatus;
 
   constructor() {
+    effect(() => {
+      const seriesList = this.allSeries();
+      const standaloneCount = this.standaloneVideoCount();
+      const standaloneEntry: VideoSeries = {
+        seriesId: 'no_series',
+        title: 'Standalone Only (No Series)',
+        description: 'Standalone videos that are not part of any series',
+        tags: [],
+        videoCount: standaloneCount,
+        totalDurationSeconds: 0,
+        videos: [],
+      };
+      this.seriesFilterSet.setEntries([standaloneEntry, ...seriesList]);
+    });
     effect(() => {
       const vid = this.selectedVideoIdParam();
       if (vid) {
@@ -517,6 +560,36 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.viewSignals.urlParams.accessTier.set('');
     this.selectedTagFilter.set('');
     this.selectedTagSearchTerm.set('');
+    this.clearSeriesFilter();
+  }
+
+  setSeriesFilter(seriesId: string): void {
+    this.selectedSeriesFilter.set(seriesId);
+    if (!seriesId || seriesId === 'all') {
+      this.selectedSeriesSearchTerm.set('');
+    } else if (seriesId === 'no_series') {
+      this.selectedSeriesSearchTerm.set(
+        `Standalone Only (No Series) (${this.standaloneVideoCount()})`,
+      );
+    } else {
+      const s = this.allSeries().find((x) => x.seriesId === seriesId);
+      this.selectedSeriesSearchTerm.set(s ? this.seriesFilterDisplayFns.toName(s) : seriesId);
+    }
+  }
+
+  onSeriesFilterSelected(item: VideoSeries): void {
+    this.setSeriesFilter(item.seriesId);
+  }
+
+  onSeriesFilterTextUpdated(text: string): void {
+    this.selectedSeriesSearchTerm.set(text);
+    if (!text.trim()) {
+      this.selectedSeriesFilter.set('all');
+    }
+  }
+
+  clearSeriesFilter(): void {
+    this.setSeriesFilter('all');
   }
 
   onTagSelected(item: TagItem): void {

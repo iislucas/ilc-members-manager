@@ -299,6 +299,7 @@
     flex-wrap: wrap;
 
     .tag-filter-item,
+    .series-filter-item,
     .filter-item,
     .status-filter-item {
       display: flex;
@@ -325,11 +326,13 @@
       }
     }
 
-    .tag-autocomplete-wrapper {
+    .tag-autocomplete-wrapper,
+    .series-autocomplete-wrapper {
       position: relative;
       min-width: 200px;
 
-      .clear-tag-btn {
+      .clear-tag-btn,
+      .clear-series-btn {
         position: absolute;
         right: 6px;
         top: 50%;
@@ -347,13 +350,38 @@
       }
     }
 
+    .series-autocomplete-wrapper {
+      min-width: 240px;
+    }
+
+    .tag-autocomplete-wrapper:has(.clear-tag-btn) input,
+    .series-autocomplete-wrapper:has(.clear-series-btn) input {
+      padding-right: 28px;
+    }
+
     .filter-select {
-      padding: 9px 12px;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding: 8px 34px 8px 12px;
       border: 1px solid v.$border-color-light;
       border-radius: 6px;
       font-size: 0.9rem;
-      background: white;
+      background-color: white;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px 16px;
       color: v.$text-primary;
+      cursor: pointer;
+      line-height: 1.4;
+
+      &:focus,
+      &:focus-visible {
+        outline: none;
+        border-color: v.$heading-accent-color;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      }
     }
   }
 }

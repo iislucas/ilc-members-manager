@@ -143,19 +143,30 @@
       </div>
 
       <!-- Series Filter -->
-      <div class="filter-item">
+      <div class="series-filter-item">
         <label>Series:</label>
-        <select
-          class="filter-select"
-          [ngModel]="selectedSeriesFilter()"
-          (ngModelChange)="selectedSeriesFilter.set($event)"
-        >
-          <option value="all">All Videos</option>
-          <option value="no_series">Standalone Only</option>
-          @for (s of allSeries(); track s.seriesId) {
-            <option [value]="s.seriesId">{{ s.title }} ({{ s.videoCount }} parts)</option>
+        <div class="series-autocomplete-wrapper">
+          <app-autocomplete
+            name="Filter Series"
+            [searchableSet]="seriesFilterSet"
+            [displayFns]="seriesFilterDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="selectedSeriesSearchTerm()"
+            placeholder="All Series (search series)..."
+            (itemSelected)="onSeriesFilterSelected($event)"
+            (textUpdated)="onSeriesFilterTextUpdated($event)"
+          ></app-autocomplete>
+          @if (selectedSeriesFilter() !== 'all') {
+            <button
+              type="button"
+              class="icon-only-button clear-series-btn"
+              (click)="clearSeriesFilter()"
+              title="Clear series filter"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
           }
-        </select>
+        </div>
       </div>
 
       <!-- Featured Filter -->
