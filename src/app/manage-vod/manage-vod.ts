@@ -950,8 +950,15 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           isPublished: v.isPublished,
           tags,
         });
+        if (this.selectedSeriesFilter() === seriesId) {
+          this.setSeriesFilter(seriesId);
+        }
       } else {
         await this.dataService.updateVideoMetadata(v.docId, patch);
+      }
+
+      if (this.drawerVideo()?.docId === v.docId) {
+        this.drawerVideo.set(this.dataService.videos.get(v.docId) || null);
       }
 
       this.closeEditModal(true);
@@ -1018,12 +1025,19 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       await this.dataService.updateVideoSeries(
         s.seriesId,
         {
-          title: this.editingSeriesTitle(),
-          description: this.editingSeriesDescription(),
+          title: this.editingSeriesTitle().trim(),
+          description: this.editingSeriesDescription().trim(),
           priceCents,
         },
         orderedIds,
       );
+      if (this.selectedSeriesFilter() === s.seriesId) {
+        this.setSeriesFilter(s.seriesId);
+      }
+      const currentDrawer = this.drawerVideo();
+      if (currentDrawer && orderedIds.includes(currentDrawer.docId)) {
+        this.drawerVideo.set(this.dataService.videos.get(currentDrawer.docId) || null);
+      }
       this.closeSeriesModal();
     } catch (err) {
       console.error('Error updating series:', err);

@@ -3282,13 +3282,27 @@ export class DataManagerService {
     patch: Partial<VideoItem>,
   ): Promise<void> {
     const videoRef = doc(this.db, 'videos', videoId);
-    const nowIso = new Date().toISOString();
     await updateDoc(videoRef, {
       ...patch,
-      lastUpdated: nowIso,
+      lastUpdated: serverTimestamp(),
     });
     if (patch.tags && patch.tags.length > 0) {
       this.saveSystemTags(patch.tags);
+    }
+    const existing = this.videos.get(videoId);
+    if (existing) {
+      const updated: VideoItem = {
+        ...existing,
+        ...patch,
+        lastUpdated: new Date().toISOString(),
+      };
+      this.videos.upsert(updated);
+      await Promise.all([
+        this.syncService.upsertCachedEntry('admin_videos', 'docId', updated),
+        ...(updated.isPublished
+          ? [this.syncService.upsertCachedEntry('public_videos', 'docId', updated)]
+          : [this.syncService.deleteCachedEntry('public_videos', 'docId', updated.docId)]),
+      ]);
     }
   }
 
@@ -3325,6 +3339,8 @@ export class DataManagerService {
       ? orderedVideoIds
       : targetVideos.map((v) => v.docId);
 
+    const updatedVideosList: VideoItem[] = [];
+
     for (let i = 0; i < videoIdsToProcess.length; i++) {
       const vId = videoIdsToProcess[i];
       const videoRef = doc(this.db, 'videos', vId);
@@ -3332,7 +3348,10 @@ export class DataManagerService {
         lastUpdated: serverTimestamp(),
       };
 
-      if (patch.title !== undefined) updates['seriesTitle'] = patch.title;
+      if (patch.title !== undefined) {
+        updates['seriesTitle'] = patch.title;
+        updates['forVodSeriesTitle'] = patch.title;
+      }
       if (patch.description !== undefined) updates['seriesDescription'] = patch.description;
       if (patch.priceCents !== undefined) {
         updates['seriesPriceCents'] = patch.priceCents;
@@ -3353,9 +3372,47 @@ export class DataManagerService {
       updates['seriesPartIndex'] = i + 1;
 
       batch.update(videoRef, updates);
+
+      const existing = this.videos.get(vId);
+      if (existing) {
+        const updated: VideoItem = {
+          ...existing,
+          ...(patch.title !== undefined ? { seriesTitle: patch.title, forVodSeriesTitle: patch.title } : {}),
+          ...(patch.description !== undefined ? { seriesDescription: patch.description } : {}),
+          ...(patch.priceCents !== undefined ? {
+            seriesPriceCents: patch.priceCents,
+            priceCents: patch.priceCents,
+            isBuyable: patch.priceCents > 0,
+          } : {}),
+          ...(patch.currency !== undefined ? { currency: patch.currency } : {}),
+          ...(patch.stripePriceId !== undefined ? { seriesStripePriceId: patch.stripePriceId } : {}),
+          ...(patch.stripeProductId !== undefined ? { seriesStripeProductId: patch.stripeProductId } : {}),
+          ...(patch.accessTier !== undefined ? { accessTier: patch.accessTier } : {}),
+          ...(patch.accessTiers !== undefined ? { accessTiers: patch.accessTiers } : {}),
+          ...(patch.isPublished !== undefined ? { isPublished: patch.isPublished } : {}),
+          ...(patch.featured !== undefined ? { featured: patch.featured } : {}),
+          ...(patch.tags !== undefined ? { tags: patch.tags } : {}),
+          seriesId,
+          seriesPartIndex: i + 1,
+          lastUpdated: nowIso,
+        };
+        updatedVideosList.push(updated);
+      }
     }
 
     await batch.commit();
+
+    if (updatedVideosList.length > 0) {
+      this.videos.upsertMany(updatedVideosList);
+      await Promise.all(
+        updatedVideosList.flatMap((updated) => [
+          this.syncService.upsertCachedEntry('admin_videos', 'docId', updated),
+          ...(updated.isPublished
+            ? [this.syncService.upsertCachedEntry('public_videos', 'docId', updated)]
+            : [this.syncService.deleteCachedEntry('public_videos', 'docId', updated.docId)]),
+        ]),
+      );
+    }
 
     if (patch.tags && patch.tags.length > 0) {
       this.saveSystemTags(patch.tags);
@@ -3375,6 +3432,8 @@ export class DataManagerService {
     const startIndex = existingSeries ? existingSeries.videos.length : 0;
 
     const batch = writeBatch(this.db);
+    const updatedVideosList: VideoItem[] = [];
+    const nowIso = new Date().toISOString();
 
     for (let i = 0; i < videoIds.length; i++) {
       const vId = videoIds[i];
@@ -3386,7 +3445,9 @@ export class DataManagerService {
       };
 
       if (seriesData?.title || existingSeries?.title) {
-        updates['seriesTitle'] = seriesData?.title || existingSeries?.title;
+        const t = seriesData?.title || existingSeries?.title;
+        updates['seriesTitle'] = t;
+        updates['forVodSeriesTitle'] = t;
       }
       if (seriesData?.description || existingSeries?.description) {
         updates['seriesDescription'] = seriesData?.description || existingSeries?.description;
@@ -3399,9 +3460,39 @@ export class DataManagerService {
       }
 
       batch.update(videoRef, updates);
+
+      const existing = this.videos.get(vId);
+      if (existing) {
+        const updated: VideoItem = {
+          ...existing,
+          seriesId,
+          seriesPartIndex: startIndex + i + 1,
+          ...(seriesData?.title || existingSeries?.title ? { seriesTitle: seriesData?.title || existingSeries?.title, forVodSeriesTitle: seriesData?.title || existingSeries?.title } : {}),
+          ...(seriesData?.description || existingSeries?.description ? { seriesDescription: seriesData?.description || existingSeries?.description } : {}),
+          ...(seriesData?.priceCents !== undefined || existingSeries?.priceCents !== undefined ? {
+            seriesPriceCents: seriesData?.priceCents !== undefined ? seriesData.priceCents : existingSeries?.priceCents,
+            priceCents: seriesData?.priceCents !== undefined ? seriesData.priceCents : existingSeries?.priceCents,
+            isBuyable: ((seriesData?.priceCents !== undefined ? seriesData.priceCents : existingSeries?.priceCents) || 0) > 0,
+          } : {}),
+          lastUpdated: nowIso,
+        };
+        updatedVideosList.push(updated);
+      }
     }
 
     await batch.commit();
+
+    if (updatedVideosList.length > 0) {
+      this.videos.upsertMany(updatedVideosList);
+      await Promise.all(
+        updatedVideosList.flatMap((updated) => [
+          this.syncService.upsertCachedEntry('admin_videos', 'docId', updated),
+          ...(updated.isPublished
+            ? [this.syncService.upsertCachedEntry('public_videos', 'docId', updated)]
+            : [this.syncService.deleteCachedEntry('public_videos', 'docId', updated.docId)]),
+        ]),
+      );
+    }
   }
 
   /**
@@ -3441,16 +3532,37 @@ export class DataManagerService {
       .entries()
       .filter((v) => v.tags && v.tags.includes(cleanOld));
 
+    const updatedVideosList: VideoItem[] = [];
+    const nowIso = new Date().toISOString();
+
     for (const v of affectedVideos) {
-      const updatedTags = v.tags.map((t) => (t === cleanOld ? cleanNew : t));
+      const updatedTags = Array.from(new Set(v.tags.map((t) => (t === cleanOld ? cleanNew : t))));
       const videoRef = doc(this.db, 'videos', v.docId);
       await updateDoc(videoRef, {
-        tags: Array.from(new Set(updatedTags)),
+        tags: updatedTags,
         lastUpdated: serverTimestamp(),
       }).catch((err) => {
         console.warn(`Failed to update tags on video ${v.docId}:`, err);
       });
+      const updated: VideoItem = {
+        ...v,
+        tags: updatedTags,
+        lastUpdated: nowIso,
+      };
+      updatedVideosList.push(updated);
       updatedVideos++;
+    }
+
+    if (updatedVideosList.length > 0) {
+      this.videos.upsertMany(updatedVideosList);
+      await Promise.all(
+        updatedVideosList.flatMap((updated) => [
+          this.syncService.upsertCachedEntry('admin_videos', 'docId', updated),
+          ...(updated.isPublished
+            ? [this.syncService.upsertCachedEntry('public_videos', 'docId', updated)]
+            : [this.syncService.deleteCachedEntry('public_videos', 'docId', updated.docId)]),
+        ]),
+      );
     }
 
     return { updatedVideos };

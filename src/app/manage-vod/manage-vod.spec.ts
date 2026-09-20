@@ -632,4 +632,52 @@ describe('ManageVodComponent', () => {
       expect(component.filteredSeries().length).toBe(1);
     });
   });
+
+  describe('Edit Series Modal', () => {
+    it('should populate edit fields when openSeriesModal is called', () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      component.openSeriesModal(series);
+
+      expect(component.editingSeries()?.seriesId).toBe('series-1');
+      expect(component.editingSeriesTitle()).toBe('Sample Series 1');
+      expect(component.editingSeriesDescription()).toBe('A great series');
+      expect(component.editingSeriesVideos().length).toBe(2);
+    });
+
+    it('should call updateVideoSeries with trimmed values and close modal on saveSeriesChanges', async () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      component.openSeriesModal(series);
+
+      component.editingSeriesTitle.set('  Updated Series Title  ');
+      component.editingSeriesDescription.set('  Updated Description  ');
+      component.editingSeriesPriceDollars.set(29.99);
+
+      // Also set series filter to this series
+      component.setSeriesFilter('series-1');
+
+      // Setup drawer video for one of the videos in series
+      component.drawerVideo.set({ ...series.videos[0] });
+
+      // When updateVideoSeries completes, mock updated video item returned by get()
+      const updatedV1 = { ...series.videos[0], seriesTitle: 'Updated Series Title' };
+      mockDataService.videos.get = vi.fn().mockReturnValue(updatedV1);
+
+      await component.saveSeriesChanges();
+
+      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
+        'series-1',
+        {
+          title: 'Updated Series Title',
+          description: 'Updated Description',
+          priceCents: 2999,
+        },
+        ['v1', 'v2'],
+      );
+
+      expect(component.editingSeries()).toBeNull();
+      expect(component.selectedSeriesFilter()).toBe('series-1');
+      expect(component.drawerVideo()?.seriesTitle).toBe('Updated Series Title');
+    });
+  });
 });
+

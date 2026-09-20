@@ -305,6 +305,33 @@ describe('SearchableSet', () => {
       expect(searchableSet.get('2')?.name).toBe('Bob');
     });
 
+    it('should upsert multiple entries in a single batch update', () => {
+      searchableSet.setEntries([
+        { id: '1', name: 'Alice' },
+        { id: '2', name: 'Bob' },
+        { id: '3', name: 'Charlie' },
+      ]);
+      expect(searchableSet.entries().length).toBe(3);
+
+      searchableSet.upsertMany([
+        { id: '2', name: 'Bob Updated' },
+        { id: '3', name: 'Charlie Updated' },
+        { id: '4', name: 'Diana' },
+      ]);
+
+      expect(searchableSet.entries().length).toBe(4);
+      expect(searchableSet.get('1')?.name).toBe('Alice');
+      expect(searchableSet.get('2')?.name).toBe('Bob Updated');
+      expect(searchableSet.get('3')?.name).toBe('Charlie Updated');
+      expect(searchableSet.get('4')?.name).toBe('Diana');
+    });
+
+    it('should handle empty array in upsertMany gracefully', () => {
+      searchableSet.setEntries([{ id: '1', name: 'Alice' }]);
+      searchableSet.upsertMany([]);
+      expect(searchableSet.entries().length).toBe(1);
+    });
+
     it('should delete entry by ID', () => {
       searchableSet.setEntries([
         { id: '1', name: 'Alice' },

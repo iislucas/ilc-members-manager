@@ -140,6 +140,39 @@ export class SearchableSet<
   }
 
   /**
+   * Insert or replace multiple entries (matched by their id field), leaving all
+   * other entries untouched. Used for optimistic local updates when multiple
+   * records are modified in a batch.
+   */
+  upsertMany(newEntries: T[]) {
+    if (!newEntries || newEntries.length === 0) return;
+    this.state.update((state) => {
+      const entryMap = new Map(newEntries.map((e) => [e[this.idField], e]));
+      const updatedList: T[] = [];
+      const seenIds = new Set<string>();
+
+      for (const e of state.entries) {
+        const id = e[this.idField];
+        if (entryMap.has(id)) {
+          updatedList.push(entryMap.get(id)!);
+          seenIds.add(id);
+        } else {
+          updatedList.push(e);
+        }
+      }
+
+      for (const e of newEntries) {
+        const id = e[this.idField];
+        if (!seenIds.has(id)) {
+          updatedList.push(e);
+        }
+      }
+
+      return { ...state, entries: updatedList };
+    });
+  }
+
+  /**
    * Remove a single entry (matched by its id field) from the set.
    */
   delete(id: string) {
