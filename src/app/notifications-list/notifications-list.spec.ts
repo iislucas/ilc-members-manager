@@ -208,6 +208,46 @@ describe('NotificationsListComponent', () => {
     expect(compiled.querySelector('.notification-card')?.textContent).toContain('Grading request awaiting your review');
   });
 
+  it('should render audience chip for each notification', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+    const chips = compiled.querySelectorAll('.audience-chip');
+    expect(chips.length).toBe(2);
+    // mockTodoNotif is GradingRequestsYouAsInstructor -> 'you'
+    expect(chips[0].textContent?.trim()).toBe('you');
+    expect(chips[0].classList.contains('audience-you')).toBe(true);
+    // mockFyiNotif is GradingRequestAccepted -> 'you'
+    expect(chips[1].textContent?.trim()).toBe('you');
+    expect(chips[1].classList.contains('audience-you')).toBe(true);
+  });
+
+  it('should render instructors and public audience chips appropriately', () => {
+    const instructorPostNotif: MemberNotification = {
+      docId: 'id-inst',
+      markdown: 'New instructor guidelines',
+      createdAt: '2026-05-14T12:00:00Z',
+      dismissed: false,
+      kind: NotificationKind.BlogPost,
+      data: { blogPath: 'instructors-post', blogCategory: '', lastSeenDateStr: '' },
+    };
+    const publicEventNotif: MemberNotification = {
+      docId: 'id-pub',
+      markdown: 'New public seminar',
+      createdAt: '2026-05-14T12:00:00Z',
+      dismissed: false,
+      kind: NotificationKind.NewEventPosted,
+      data: { eventId: 'ev-1', title: 'Public Seminar' },
+    };
+    mockNotificationService.notifications.set([instructorPostNotif, publicEventNotif]);
+    fixture.detectChanges();
+
+    const chips = fixture.nativeElement.querySelectorAll('.audience-chip');
+    expect(chips.length).toBe(2);
+    expect(chips[0].textContent?.trim()).toBe('instructors');
+    expect(chips[0].classList.contains('audience-instructors')).toBe(true);
+    expect(chips[1].textContent?.trim()).toBe('public');
+    expect(chips[1].classList.contains('audience-public')).toBe(true);
+  });
+
   // The dismiss handlers wait for the fold-up animation (~280ms) before
   // committing the change, so give them a little longer than that to settle.
   const waitForCollapse = () => new Promise((r) => setTimeout(r, 350));

@@ -219,6 +219,7 @@
                   </div>
                   <div class="notification-content">
                     <div class="meta">
+                      <span class="audience-chip audience-{{ audienceOf(n) }}">{{ audienceOf(n) }}</span>
                       <span class="date">{{ n.kind === 'BlogPost' ? 'Posted: ' : '' }}{{ n.createdAt | date:'short' }}</span>
                     </div>
                     <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
