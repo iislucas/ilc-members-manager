@@ -79,6 +79,7 @@ The storage engine uses browser **IndexedDB** via [`IdbStorageService`](../src/a
 | `/instructors` | `public_instructors` | Public (all users & visitors) | None | `instructorId` |
 | `/schools` | `schools` | Public (all users & visitors) | None | `schoolId` |
 | `/events` | `public_events` | Public (all users & visitors) | None | `docId` |
+| `/products` | `products` | Public (all users & visitors) | None | `docId` |
 | `/videos` (public) | `public_videos` | Public / Standard Members | `where('isPublished', '==', true)` | `id` |
 | `/videos` (admin) | `admin_videos` | HQ Admin only | None (all videos including unpublished) | `id` |
 | `/orders` | `admin_orders` | HQ Admin only | None | `docId` |
@@ -108,11 +109,37 @@ If a document is deleted while a client is offline or between sessions, a delta 
 3. **Cache Pruning**:
    Any IDs found in the tombstone query are removed from the in-memory [`SearchableSet`](../src/app/searchable-set.ts) and deleted from the persistent IndexedDB record set.
 4. **Security Rules**:
-   [`firestore.rules`](../firestore.rules) allows reading deletion tombstones for public collections (`instructors`, `schools`, `events`, `videos`) to all users, and restricted collections to admins.
+   [`firestore.rules`](../firestore.rules) allows reading deletion tombstones for public collections (`instructors`, `schools`, `events`, `videos`, `products`) to all users, and restricted collections to admins.
 
 ---
 
-## 6. Firestore Timestamp Standardization
+## 6. SyncedCollection Abstraction Layer
+
+To prevent low-level caching leaks (such as manually calling `persistEventLocally`, `persistSchoolLocally`, `upsertCachedEntry`, or `forceRefresh` in UI components or services), the [`SyncedCollection<ID, T>`](../src/app/synced-collection.ts) wrapper inherits directly from [`SearchableSet<ID, T>`](../src/app/searchable-set.ts) and encapsulates:
+1. **In-Memory Reactive State**: Extends [`SearchableSet<ID, T>`](../src/app/searchable-set.ts), providing Angular Signals (`entries`, `loading`, `loaded`, `error`, `entriesMap`, `uniqueEntries`, `duplicateEntries`, `missingIdEntries`) and client-side fuzzy search via MiniSearch with drop-in compatibility for all UI selectors and autocomplete components.
+2. **Persistent Local Cache**: Automatic local storage in IndexedDB (`ilc_cache_v1`) via [`IdbStorageService`](../src/app/idb-storage.service.ts).
+3. **Atomic 3-Way Synchronization**:
+   - `save(item: T)`: Generates/preserves ID, writes to Firestore with `serverTimestamp()`, updates in-memory signal state, and persists to IndexedDB.
+   - `update(id: string, updates: Partial<T>)`: Updates Firestore with `serverTimestamp()`, merges updates into in-memory signals, and persists to IndexedDB.
+   - `delete(id: string)`: Deletes from Firestore, writes deletion tombstone to `/system/deletions/{collection}/{id}`, deletes from in-memory signals, and removes from IndexedDB.
+   - `getById(id: string)`: Checks in-memory cache first (0 network cost); on cache miss, fetches from Firestore, self-heals local memory and IndexedDB, and returns the result.
+   - `loadCache(options?)`: Immediately loads cached bundle from IndexedDB into memory.
+   - `sync(options?)`: Delta syncs modified records and prunes tombstones with support for dynamic cache keys, collection paths, query constraints, and client-side filters.
+4. **Offline Resilience**: When `networkState.isOffline()` is true, operations are enqueued to [`ActionQueueService`](../src/app/action-queue.service.ts) and applied optimistically to memory and IndexedDB.
+
+All collections using IndexedDB delta caching are backed by `SyncedCollection`:
+- `dataService.events`: `SyncedCollection<'docId', IlcEvent>`
+- `dataService.products`: `SyncedCollection<'docId', Product>`
+- `dataService.schools`: `SyncedCollection<'schoolId', School>`
+- `dataService.orders`: `SyncedCollection<'docId', Order>`
+- `dataService.videos`: `SyncedCollection<'docId', VideoItem>`
+- `dataService.members`: `SyncedCollection<'docId', Member>`
+- `dataService.myStudents`: `SyncedCollection<'docId', Member>`
+- `findInstructorsService.instructors`: `SyncedCollection<'instructorId', InstructorPublicData>`
+
+---
+
+## 7. Firestore Timestamp Standardization
 
 All synced collections enforce native Firestore `Timestamp` objects for the `lastUpdated` field:
 - **Write Operations**: All client services and Cloud Functions must use `serverTimestamp()` or `admin.firestore.FieldValue.serverTimestamp()`. ISO date strings (`new Date().toISOString()`) must not be written to Firestore `lastUpdated` fields.
@@ -120,18 +147,18 @@ All synced collections enforce native Firestore `Timestamp` objects for the `las
 
 ---
 
-## 7. Optimistic Caching Updates
+## 8. Optimistic Caching Updates
 
 To keep the UI responsive and prevent UI rollback before delta sync fires:
-- When a document is created or updated locally (e.g. `saveVideo`, `deleteVideo`, `persistEventLocally`, `removeEventLocally`, `addOrder`, `updateOrder`), the client service immediately:
+- When a document is created or updated locally, the `SyncedCollection` immediately:
   1. Updates the in-memory [`SearchableSet`](../src/app/searchable-set.ts).
   2. Upserts or deletes the record in the persistent IndexedDB cache using [`IdbStorageService`](../src/app/idb-storage.service.ts).
 
 ---
 
-## 8. Management UI & Diagnostics
+## 9. Management UI & Diagnostics
 
 The [Local Cache Settings Component](../src/app/settings/local-cache/local-cache.ts) (`/settings/local-cache`) provides administrative inspection and management:
 - **Storage Metrics**: Total entries cached, last sync date/time, and estimated storage consumption.
-- **Per-Collection Sync**: Force re-sync or full refresh of any individual collection (`admin_orders`, `public_videos`, `admin_videos`, `public_events`, `public_instructors`, `schools`, `members_admin_*`).
+- **Per-Collection Sync**: Force re-sync or full refresh of any individual collection (`admin_orders`, `public_videos`, `admin_videos`, `public_events`, `products`, `public_instructors`, `schools`, `members_admin_*`).
 - **Cache Eviction**: Clear individual collections or all local caches upon confirmation.
