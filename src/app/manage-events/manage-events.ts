@@ -308,13 +308,7 @@ export class ManageEventsComponent implements OnDestroy {
   // Admin quick actions
   async setStatus(docId: string, status: EventStatus) {
     try {
-      const docRef = doc(this.db, 'events', docId);
-      await updateDoc(docRef, { status, lastUpdated: serverTimestamp() });
-      const ev = this.dataService.events.get(docId) || this.rawEvents().find((e) => e.docId === docId);
-      if (ev) {
-        const updated = { ...ev, status, lastUpdated: new Date().toISOString() };
-        await this.dataService.persistEventLocally(updated);
-      }
+      await this.dataService.events.update(docId, { status });
       this.rawEvents.update((list) => list.map((e) => (e.docId === docId ? { ...e, status } : e)));
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';

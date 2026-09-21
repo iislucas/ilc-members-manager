@@ -808,6 +808,36 @@ export class ProductViewComponent implements OnInit {
           console.warn('Could not load user registration for event upgrade:', err);
         });
     });
+
+    // Reactively update linkedEvent and product if dataService signals update
+    effect(() => {
+      const evId = this.effectiveEventId();
+      if (evId && this.dataService?.events?.get) {
+        const ev = this.dataService.events.get(evId);
+        if (ev) {
+          this.linkedEvent.set(ev);
+          if (ev.productId && this.dataService?.products?.get) {
+            const prod = this.dataService.products.get(ev.productId);
+            if (prod) {
+              this.product.set(prod);
+              this.errorMessage.set(null);
+            }
+          }
+        }
+      }
+      const prodId = this.effectiveProductId();
+      if (prodId && this.dataService?.products?.get) {
+        const prod = this.dataService.products.get(prodId);
+        if (prod) {
+          this.product.set(prod);
+          this.errorMessage.set(null);
+          if (prod.eventDocId && this.dataService?.events?.get) {
+            const ev = this.dataService.events.get(prod.eventDocId);
+            if (ev) this.linkedEvent.set(ev);
+          }
+        }
+      }
+    });
   }
 
   ngOnInit() {
@@ -829,19 +859,29 @@ export class ProductViewComponent implements OnInit {
     this.errorMessage.set(null);
     try {
       if (evId) {
-        const ev = await this.dataService.getEventById(evId);
-        if (ev) {
-          this.linkedEvent.set(ev);
-          if (ev.productId) {
-            const prod = await this.productService.getProduct(ev.productId);
-            if (prod) this.product.set(prod);
+        let ev: IlcEvent | undefined;
+        let prod: Product | undefined;
+        if (typeof this.dataService.getEventAndProduct === 'function') {
+          const res = await this.dataService.getEventAndProduct(evId);
+          ev = res.event;
+          prod = res.product;
+        } else {
+          ev = await this.dataService.getEventById(evId);
+          if (ev?.productId) {
+            prod = await this.productService.getProduct(ev.productId);
           } else {
-            const prod = await this.productService.getProductByEventId(evId);
-            if (prod) this.product.set(prod);
+            prod = await this.productService.getProductByEventId(evId);
           }
         }
+        if (ev) this.linkedEvent.set(ev);
+        if (prod) this.product.set(prod);
       } else if (prodId) {
-        const prod = await this.productService.getProduct(prodId);
+        let prod: Product | undefined;
+        if (this.dataService?.products?.getById) {
+          prod = await this.dataService.products.getById(prodId);
+        } else {
+          prod = await this.productService.getProduct(prodId);
+        }
         if (prod) {
           this.product.set(prod);
           if (prod.eventDocId) {

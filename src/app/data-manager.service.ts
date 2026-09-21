@@ -45,7 +45,7 @@ import {
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { GenericFsDoc } from '../../functions/src/data-model/base';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
-import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent } from '../../functions/src/data-model/events';
+import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent, Product, firestoreDocToProduct } from '../../functions/src/data-model/events';
 import { Grading, GradingFsDoc, firestoreDocToGrading } from '../../functions/src/data-model/gradings';
 import { UploadItem, firestoreDocToUploadItem, initUploadItem } from '../../functions/src/data-model/materials';
 import { Member, initMember, InstructorPublicData, initInstructor, MemberFsDoc, firestoreDocToMember, firestoreDocToInstructorPublicData } from '../../functions/src/data-model/members';
@@ -58,6 +58,7 @@ import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
+import { SyncedCollection } from './synced-collection';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { deepObjEq, computeObjectDiff, formatFieldLabel, formatFieldSummary } from './utils';
 import { FindInstructorsService } from './find-instructors.service';
@@ -218,8 +219,11 @@ export class DataManagerService {
   });
 
   // A signal to hold the state of the members list.
-  public members = new SearchableSet<'docId', Member>(
-    [
+  public members = new SyncedCollection<'docId', Member>({
+    collectionPath: 'members',
+    cacheKey: 'members_admin',
+    idField: 'docId',
+    searchFields: [
       'memberId',
       'instructorId',
       'name',
@@ -233,15 +237,23 @@ export class DataManagerService {
       'country',
       'tags',
     ],
-    'docId',
-  );
+    docConverter: firestoreDocToMember,
+    sortFn: (a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
+    db: this.db,
+    syncService: this.syncService,
+    actionQueue: this.actionQueue,
+    networkState: this.networkState,
+  });
   // Delegate to FindInstructorsService for a single, shared instructor cache
   // that works both in the authenticated main app and the standalone WC.
   public get instructors() {
     return this.findInstructorsService.instructors;
   }
-  public myStudents = new SearchableSet<'docId', Member>(
-    [
+  public myStudents = new SyncedCollection<'docId', Member>({
+    collectionPath: 'members',
+    cacheKey: 'instructor_my_students',
+    idField: 'docId',
+    searchFields: [
       'memberId',
       'name',
       'emails',
@@ -254,8 +266,13 @@ export class DataManagerService {
       'country',
       'tags',
     ],
-    'docId',
-  );
+    docConverter: firestoreDocToMember,
+    sortFn: (a, b) => (a.name || '').localeCompare(b.name || ''),
+    db: this.db,
+    syncService: this.syncService,
+    actionQueue: this.actionQueue,
+    networkState: this.networkState,
+  });
   public mySchools = new SearchableSet<'schoolId', School>(
     [
       'schoolName',
@@ -266,20 +283,36 @@ export class DataManagerService {
     ],
     'schoolId',
   );
-  public schools = new SearchableSet<'schoolId', School>(
-    [
+  public schools = new SyncedCollection<'schoolId', School>({
+    collectionPath: 'schools',
+    cacheKey: 'schools',
+    idField: 'schoolId',
+    searchFields: [
       'schoolName',
       'schoolId',
       'schoolCity',
       'schoolCountyOrState',
       'schoolCountry',
     ],
-    'schoolId',
-  );
-  public orders = new SearchableSet<'docId', Order>(
-    ['referenceNumber', 'lastName', 'firstName', 'email', 'externalId', 'orderNumber', 'customerEmail'],
-    'docId',
-  );
+    docConverter: firestoreDocToSchool,
+    sortFn: (a, b) => (b.schoolId || '').localeCompare(a.schoolId || ''),
+    db: this.db,
+    syncService: this.syncService,
+    actionQueue: this.actionQueue,
+    networkState: this.networkState,
+  });
+  public orders = new SyncedCollection<'docId', Order>({
+    collectionPath: 'orders',
+    cacheKey: 'admin_orders',
+    idField: 'docId',
+    searchFields: ['referenceNumber', 'lastName', 'firstName', 'email', 'externalId', 'orderNumber', 'customerEmail'],
+    docConverter: firestoreDocToOrder,
+    sortFn: compareOrdersByDateDesc,
+    db: this.db,
+    syncService: this.syncService,
+    actionQueue: this.actionQueue,
+    networkState: this.networkState,
+  });
   public counters = signal<Counters | null>(null);
   public emailTemplates = signal<EmailTemplates | null>(null);
   public mailSettings = signal<MailSettings>(initMailSettings());
@@ -309,14 +342,59 @@ export class DataManagerService {
     ['videoId', 'videoTitle', 'orderId'],
     'docId',
   );
-  public videos = new SearchableSet<'docId', VideoItem>(
-    ['title', 'description', 'instructorName', 'tags', 'location', 'eventTitle'],
-    'docId',
-  );
-  public events = new SearchableSet<'docId', IlcEvent>(
-    ['title', 'description', 'location', 'city', 'country', 'leadingInstructorName', 'schoolName', 'status'],
-    'docId',
-  );
+  public videos = new SyncedCollection<'docId', VideoItem>({
+    collectionPath: 'videos',
+    cacheKey: 'admin_videos',
+    idField: 'docId',
+    searchFields: ['title', 'description', 'instructorName', 'tags', 'location', 'eventTitle'],
+    docConverter: firestoreDocToVideoItem,
+    sortFn: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''),
+    db: this.db,
+    syncService: this.syncService,
+    actionQueue: this.actionQueue,
+    networkState: this.networkState,
+  });
+  public events = new SyncedCollection<'docId', IlcEvent>({
+    collectionPath: 'events',
+    cacheKey: 'public_events',
+    idField: 'docId',
+    searchFields: [
+      'title',
+      'description',
+      'location',
+      'city',
+      'country',
+      'leadingInstructorName',
+      'schoolName',
+      'status',
+    ],
+    docConverter: firestoreDocToIlcEvent,
+    sortFn: compareEventsByStartDesc,
+    db: this.db,
+    syncService: this.syncService,
+    actionQueue: this.actionQueue,
+    networkState: this.networkState,
+  });
+
+  public products = new SyncedCollection<'docId', Product>({
+    collectionPath: 'products',
+    cacheKey: 'products',
+    idField: 'docId',
+    searchFields: [
+      'title',
+      'descriptionMarkdown',
+      'purchaseDetailsMarkdown',
+      'inPersonDetailsMarkdown',
+      'currency',
+      'eventDocId',
+    ],
+    docConverter: firestoreDocToProduct,
+    sortFn: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''),
+    db: this.db,
+    syncService: this.syncService,
+    actionQueue: this.actionQueue,
+    networkState: this.networkState,
+  });
 
   public tagsDoc = signal<Record<string, VideoTagMeta>>({});
   public tagsSet = new SearchableSet<'tag', TagItem>(
@@ -426,14 +504,15 @@ export class DataManagerService {
   }
 
   constructor() {
-    // 1. Immediately load public schools and events from IndexedDB cache and sync in background
-    this.syncService.loadCachedData('schools', this.schools, (a, b) =>
-      (b.schoolId || '').localeCompare(a.schoolId || ''),
-    );
+    // 1. Immediately load public schools, events, and products from IndexedDB cache and sync in background
+    this.schools.loadCache();
     this.updateSchoolsSync();
 
-    this.syncService.loadCachedData('public_events', this.events, compareEventsByStartDesc);
+    this.events.loadCache();
     this.updateEventsSync();
+
+    this.products.loadCache();
+    this.updateProductsSync();
 
     // 2. Setup public system listeners
     this.updateCountryCodesSync();
@@ -659,16 +738,9 @@ export class DataManagerService {
   async updateMembersSync(user: UserDetails, forceFullRefresh = false) {
     if (user.isAdmin) {
       const cacheKey = `members_admin_${user.firebaseUser?.uid || 'admin'}`;
-      this.syncService.loadCachedData(cacheKey, this.members, (a, b) =>
-        (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
-      );
-      await this.syncService.syncCollection({
+      await this.members.sync({
         cacheKey,
         collectionPath: 'members',
-        idField: 'docId',
-        targetSet: this.members,
-        docConverter: firestoreDocToMember,
-        sortFn: (a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
         forceFullRefresh,
       });
     } else if (user.schoolsManaged.length > 0) {
@@ -699,50 +771,25 @@ export class DataManagerService {
   }
 
   async updateSchoolsSync(forceFullRefresh = false) {
-    this.syncService.loadCachedData('schools', this.schools, (a, b) =>
-      (b.schoolId || '').localeCompare(a.schoolId || ''),
-    );
-    await this.syncService.syncCollection({
-      cacheKey: 'schools',
-      collectionPath: 'schools',
-      idField: 'schoolId',
-      targetSet: this.schools,
-      docConverter: firestoreDocToSchool,
-      sortFn: (a, b) => (b.schoolId || '').localeCompare(a.schoolId || ''),
-      forceFullRefresh,
-    });
+    await this.schools.sync(forceFullRefresh);
+    return this.schools;
   }
 
   // Instructor data is now managed by FindInstructorsService.
 
   async updateOrdersSync(forceFullRefresh = false) {
-    const cacheKey = 'admin_orders';
-    this.syncService.loadCachedData(cacheKey, this.orders, compareOrdersByDateDesc);
-    await this.syncService.syncCollection({
-      cacheKey,
-      collectionPath: 'orders',
-      idField: 'docId',
-      targetSet: this.orders,
-      docConverter: firestoreDocToOrder,
-      sortFn: compareOrdersByDateDesc,
-      forceFullRefresh,
-    });
+    await this.orders.sync(forceFullRefresh);
     return this.orders;
   }
 
   async updateEventsSync(forceFullRefresh = false) {
-    const cacheKey = 'public_events';
-    this.syncService.loadCachedData(cacheKey, this.events, compareEventsByStartDesc);
-    await this.syncService.syncCollection({
-      cacheKey,
-      collectionPath: 'events',
-      idField: 'docId',
-      targetSet: this.events,
-      docConverter: firestoreDocToIlcEvent,
-      sortFn: compareEventsByStartDesc,
-      forceFullRefresh,
-    });
+    await this.events.sync(forceFullRefresh);
     return this.events;
+  }
+
+  async updateProductsSync(forceFullRefresh = false) {
+    await this.products.sync(forceFullRefresh);
+    return this.products;
   }
 
   async getRecentOrders(limitCount: number = 1000, status?: string, kindFilter?: string): Promise<Order[]> {
@@ -1144,20 +1191,97 @@ export class DataManagerService {
   }
 
   async getEventById(id: string): Promise<IlcEvent | undefined> {
-    if (!id) return undefined;
-    const cached = this.events.get(id);
-    if (cached) return cached;
-    try {
-      const docRef = doc(this.db, 'events', id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return firestoreDocToIlcEvent(docSnap as unknown as GenericFsDoc);
+    return await this.events.getById(id);
+  }
+
+  async saveEvent(event: IlcEvent): Promise<string> {
+    return await this.events.save(event);
+  }
+
+  async updateEvent(id: string, updates: Partial<IlcEvent>): Promise<void> {
+    return await this.events.update(id, updates);
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    return await this.events.delete(id);
+  }
+
+  async saveProduct(product: Product): Promise<string> {
+    const docId = await this.products.save(product);
+
+    if (product.eventDocId) {
+      const eventUpdates: Partial<IlcEvent> = {
+        productId: docId,
+      };
+      if (product.onlineJoiningLink !== undefined) {
+        eventUpdates.onlineJoiningLink = product.onlineJoiningLink;
       }
-      return undefined;
-    } catch (error) {
-      console.error('Error getting event by ID:', error);
-      return undefined;
+      if (product.purchaseDetailsMarkdown !== undefined) {
+        eventUpdates.purchaseDetailsMarkdown = product.purchaseDetailsMarkdown;
+      }
+      if (product.inPersonDetailsMarkdown !== undefined) {
+        eventUpdates.inPersonDetailsMarkdown = product.inPersonDetailsMarkdown;
+      }
+      if (product.recordedVideoId !== undefined) {
+        eventUpdates.recordedVideoId = product.recordedVideoId;
+      }
+      if (product.recordedVideoUrl !== undefined) {
+        eventUpdates.recordedVideoUrl = product.recordedVideoUrl;
+      }
+      await this.events.update(product.eventDocId, eventUpdates);
     }
+    return docId;
+  }
+
+  async deleteProduct(productId: string): Promise<void> {
+    if (!productId) return;
+    const product = this.products.get(productId) || (await this.products.getById(productId));
+    if (product?.eventDocId) {
+      await this.events.update(product.eventDocId, { productId: '' });
+    }
+    await this.products.delete(productId);
+  }
+
+  async getProductForEvent(eventId: string): Promise<Product | undefined> {
+    if (!eventId) return undefined;
+    const event = await this.events.getById(eventId);
+    if (event?.productId) {
+      return await this.products.getById(event.productId);
+    }
+    const memoryMatch = this.products.entries().find((p) => p.eventDocId === eventId);
+    if (memoryMatch) return memoryMatch;
+
+    try {
+      const q = query(collection(this.db, 'products'), where('eventDocId', '==', eventId));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const prod = firestoreDocToProduct(snap.docs[0]);
+        this.products.upsert(prod);
+        await this.syncService.upsertCachedEntry('products', 'docId', prod);
+        if (event && !event.productId) {
+          await this.events.update(eventId, { productId: prod.docId });
+        }
+        return prod;
+      }
+    } catch (err) {
+      console.error('Error in getProductForEvent:', err);
+    }
+    return undefined;
+  }
+
+  async getEventAndProduct(
+    eventId: string,
+  ): Promise<{ event: IlcEvent | undefined; product: Product | undefined }> {
+    if (!eventId) return { event: undefined, product: undefined };
+    const event = await this.events.getById(eventId);
+    let product: Product | undefined;
+    if (event?.productId) {
+      product = await this.products.getById(event.productId);
+    }
+    if (!product) {
+      product = await this.getProductForEvent(eventId);
+    }
+    return { event, product };
   }
 
   // Returns the forthcoming listed events the given instructor is involved in,
@@ -1304,19 +1428,9 @@ export class DataManagerService {
       const isStudentOfInstructor = (m: Member) =>
         Boolean(m.primaryInstructorId && m.primaryInstructorId.trim().toUpperCase() === instructorIdUpper);
 
-      this.syncService.loadCachedData(
-        cacheKey,
-        this.myStudents,
-        (a, b) => (a.name || '').localeCompare(b.name || ''),
-        isStudentOfInstructor,
-      );
-      await this.syncService.syncCollection({
+      await this.myStudents.sync({
         cacheKey,
         collectionPath: `instructors/${user.member.docId}/members`,
-        idField: 'docId',
-        targetSet: this.myStudents,
-        docConverter: firestoreDocToMember,
-        sortFn: (a, b) => (a.name || '').localeCompare(b.name || ''),
         additionalFilter: isStudentOfInstructor,
         forceFullRefresh,
       });
@@ -1773,8 +1887,8 @@ export class DataManagerService {
   }
 
   private async removeMemberLocally(memberDocId: string, primarySchoolId?: string): Promise<void> {
-    this.members.delete(memberDocId);
-    this.myStudents.delete(memberDocId);
+    this.members.deleteLocal(memberDocId);
+    this.myStudents.deleteLocal(memberDocId);
     const user = this.firebaseService.user();
     if (user?.isAdmin) {
       const adminCacheKey = `members_admin_${user.firebaseUser?.uid || 'admin'}`;
@@ -1799,7 +1913,7 @@ export class DataManagerService {
   }
 
   private async removeSchoolLocally(schoolId: string): Promise<void> {
-    this.schools.delete(schoolId);
+    this.schools.deleteLocal(schoolId);
     this.mySchools.delete(schoolId);
     await this.syncService.deleteCachedEntry('schools', 'schoolId', schoolId);
   }
@@ -1919,8 +2033,7 @@ export class DataManagerService {
   }
 
   async removeEventLocally(eventId: string): Promise<void> {
-    this.events.delete(eventId);
-    await this.syncService.deleteCachedEntry('public_events', 'docId', eventId);
+    await this.events.delete(eventId);
   }
 
   async addMember(member: Member): Promise<DocumentReference> {
@@ -3111,20 +3224,10 @@ export class DataManagerService {
   async updateVideosSync(user: UserDetails | null, forceFullRefresh = false) {
     const isAdmin = Boolean(user?.isAdmin);
     const cacheKey = isAdmin ? 'admin_videos' : 'public_videos';
-
-    this.syncService.loadCachedData(cacheKey, this.videos, (a, b) =>
-      (b.createdAt || '').localeCompare(a.createdAt || ''),
-    );
-
     const queryConstraints = isAdmin ? undefined : [where('isPublished', '==', true)];
 
-    await this.syncService.syncCollection({
+    await this.videos.sync({
       cacheKey,
-      collectionPath: 'videos',
-      idField: 'docId',
-      targetSet: this.videos,
-      docConverter: firestoreDocToVideoItem,
-      sortFn: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''),
       queryConstraints,
       forceFullRefresh,
     });
@@ -3135,12 +3238,7 @@ export class DataManagerService {
    * Look up a video by its docId.
    */
   async getVideoById(videoId: string): Promise<VideoItem | null> {
-    const cached = this.videos.get(videoId);
-    if (cached) return cached;
-    const videoRef = doc(this.db, 'videos', videoId);
-    const snap = await getDoc(videoRef);
-    if (!snap.exists()) return null;
-    return firestoreDocToVideoItem(snap);
+    return (await this.videos.getById(videoId)) ?? null;
   }
 
   /**
@@ -3795,6 +3893,7 @@ export class DataManagerService {
       this.updateMembersSync(user, true),
       this.updateSchoolsSync(true),
       this.updateEventsSync(true),
+      this.updateProductsSync(true),
       this.updateVideosSync(user, true),
       this.updateMyStudentsSync(user, true),
       this.findInstructorsService.updateInstructorsSync(true),

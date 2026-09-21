@@ -175,11 +175,18 @@ export class SearchableSet<
   /**
    * Remove a single entry (matched by its id field) from the set.
    */
-  delete(id: string) {
+  delete(id: string): void | Promise<void> {
     this.state.update((state) => {
       const entries = state.entries.filter((e) => e[this.idField] !== id);
       return { ...state, entries };
     });
+  }
+
+  /**
+   * Synchronously removes an entry from memory.
+   */
+  remove(id: string): void {
+    this.delete(id);
   }
 
   setError(error: string) {
