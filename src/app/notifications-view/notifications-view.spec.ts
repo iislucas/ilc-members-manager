@@ -130,6 +130,17 @@ describe('NotificationsViewComponent', () => {
     expect(component.visibleNotifications()[0].docId).toBe('id1');
   });
 
+  it('should render audience chip on notification cards', () => {
+    const chips = fixture.nativeElement.querySelectorAll('.audience-chip');
+    expect(chips.length).toBe(2);
+    // unreadNotif is GradingRequestsYouAsInstructor -> 'you'
+    expect(chips[0].textContent?.trim()).toBe('you');
+    expect(chips[0].classList.contains('audience-you')).toBe(true);
+    // readNotif is BlogPost (general) -> 'members'
+    expect(chips[1].textContent?.trim()).toBe('members');
+    expect(chips[1].classList.contains('audience-members')).toBe(true);
+  });
+
   it('should link any notification carrying a gradingDocId, regardless of kind', () => {
     // e.g. an "assigned as grading manager" notification whose kind is not one
     // of the original grading-request kinds.

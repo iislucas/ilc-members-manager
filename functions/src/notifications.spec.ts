@@ -7,6 +7,8 @@ import {
 } from './notifications';
 import {
   NotificationKind,
+  NotificationAudience,
+  notificationAudience,
   MemberNotification,
 } from './data-model/notifications';
 import { OrderStatus } from './data-model/orders';
@@ -308,6 +310,166 @@ describe('backend notifications helper', () => {
         ...notification,
         docId: 'order_123_purchase_fulfilled',
       });
+    });
+  });
+
+  describe('notificationAudience', () => {
+    it('returns explicit audience when set on the notification', () => {
+      const notif: MemberNotification = {
+        docId: 'test-1',
+        markdown: 'Test',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.PurchaseFulfilled,
+        audience: NotificationAudience.Public,
+        data: { orderId: '123', summary: 'Item' },
+      };
+      expect(notificationAudience(notif)).toBe(NotificationAudience.Public);
+    });
+
+    it('identifies admin-only notifications', () => {
+      const adminKinds = [
+        NotificationKind.PendingEventApproval,
+        NotificationKind.PendingEventsSummary,
+        NotificationKind.OrderNeedsAttention,
+        NotificationKind.OrderIssuesSummary,
+        NotificationKind.ManualOrderFulfilled,
+        NotificationKind.NewUpload,
+        NotificationKind.NewUploadsSummary,
+      ];
+      for (const kind of adminKinds) {
+        const notif = {
+          docId: 'test-admin',
+          markdown: 'Admin alert',
+          createdAt: '2026-09-20T00:00:00Z',
+          dismissed: false,
+          kind,
+          data: {} as any,
+        } as unknown as MemberNotification;
+        expect(notificationAudience(notif)).toBe(NotificationAudience.Admin);
+      }
+    });
+
+    it('identifies public notifications', () => {
+      const notif: MemberNotification = {
+        docId: 'test-public',
+        markdown: 'New public event',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.NewEventPosted,
+        data: { eventId: 'evt-1', title: 'Summer Retreat' },
+      };
+      expect(notificationAudience(notif)).toBe(NotificationAudience.Public);
+    });
+
+    it('identifies instructor broadcast notifications (and only instructor posts)', () => {
+      const postNotif: MemberNotification = {
+        docId: 'test-inst-post',
+        markdown: 'Instructor SOP updated',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.BlogPost,
+        data: {
+          blogPath: 'instructors-post',
+          blogCategory: '',
+          lastSeenDateStr: '',
+        },
+      };
+      expect(notificationAudience(postNotif)).toBe(
+        NotificationAudience.Instructors,
+      );
+
+      const summaryNotif: MemberNotification = {
+        docId: 'test-inst-summary',
+        markdown: '3 new instructor posts',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.BlogPostsSummary,
+        data: {
+          count: 3,
+          feedLabel: 'Instructors',
+          feedCollection: 'instructors-post',
+          areaRoute: '',
+        },
+      };
+      expect(notificationAudience(summaryNotif)).toBe(
+        NotificationAudience.Instructors,
+      );
+    });
+
+    it('identifies member broadcast notifications', () => {
+      const postNotif: MemberNotification = {
+        docId: 'test-mem-post',
+        markdown: 'New members post',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.BlogPost,
+        data: {
+          blogPath: 'members-post',
+          blogCategory: '',
+          lastSeenDateStr: '',
+        },
+      };
+      expect(notificationAudience(postNotif)).toBe(
+        NotificationAudience.Members,
+      );
+
+      const summaryNotif: MemberNotification = {
+        docId: 'test-mem-summary',
+        markdown: '2 new member posts',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.BlogPostsSummary,
+        data: {
+          count: 2,
+          feedLabel: 'Members',
+          feedCollection: 'members-post',
+          areaRoute: '',
+        },
+      };
+      expect(notificationAudience(summaryNotif)).toBe(
+        NotificationAudience.Members,
+      );
+    });
+
+    it('identifies personal notifications as "you", including GradingRequestsYouAsInstructor', () => {
+      const reqNotif: MemberNotification = {
+        docId: 'test-req',
+        markdown: 'Student requested you as instructor',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.GradingRequestsYouAsInstructor,
+        data: {
+          gradingDocId: 'g-1',
+          studentName: 'Alex',
+          level: 'Student 1',
+        },
+      };
+      expect(notificationAudience(reqNotif)).toBe(NotificationAudience.You);
+
+      const managerNotif: MemberNotification = {
+        docId: 'test-mgr',
+        markdown: 'Added as grading manager',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.GradingManagerAdded,
+        data: {
+          gradingDocId: 'g-1',
+          studentName: 'Alex',
+          level: 'Student 1',
+        },
+      };
+      expect(notificationAudience(managerNotif)).toBe(NotificationAudience.You);
+
+      const purchaseNotif: MemberNotification = {
+        docId: 'test-purchase',
+        markdown: 'Purchase fulfilled',
+        createdAt: '2026-09-20T00:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.PurchaseFulfilled,
+        data: { orderId: '123', summary: 'Membership' },
+      };
+      expect(notificationAudience(purchaseNotif)).toBe(NotificationAudience.You);
     });
   });
 });

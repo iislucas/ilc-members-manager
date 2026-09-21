@@ -113,11 +113,63 @@ export function notificationStyle(kind: NotificationKind): NotificationStyle {
   return ACTION_NOTIFICATION_KINDS.has(kind) ? NotificationStyle.Action : NotificationStyle.Info;
 }
 
+// Visual chips indicating who else sees a notification.
+export enum NotificationAudience {
+  Admin = 'admin',
+  Public = 'public',
+  Instructors = 'instructors',
+  Members = 'members',
+  You = 'you',
+}
+
+export function notificationAudience(n: MemberNotification): NotificationAudience {
+  if (n.audience) {
+    return n.audience;
+  }
+  switch (n.kind) {
+    // Admin-only notifications: all administrators see these
+    case NotificationKind.PendingEventApproval:
+    case NotificationKind.PendingEventsSummary:
+    case NotificationKind.OrderNeedsAttention:
+    case NotificationKind.OrderIssuesSummary:
+    case NotificationKind.ManualOrderFulfilled:
+    case NotificationKind.NewUpload:
+    case NotificationKind.NewUploadsSummary:
+      return NotificationAudience.Admin;
+
+    // Public notifications: public/everyone sees these
+    case NotificationKind.NewEventPosted:
+      return NotificationAudience.Public;
+
+    // Instructors-only posts: all licensed instructors see these
+    case NotificationKind.BlogPost: {
+      const data = n.data as NotificationBlogPostData | undefined;
+      if (data?.blogPath === 'instructors-post') {
+        return NotificationAudience.Instructors;
+      }
+      return NotificationAudience.Members;
+    }
+
+    case NotificationKind.BlogPostsSummary: {
+      const data = n.data as NotificationBlogPostsSummaryData | undefined;
+      if (data?.feedCollection === 'instructors-post') {
+        return NotificationAudience.Instructors;
+      }
+      return NotificationAudience.Members;
+    }
+
+    // Direct personal notifications: only "you" see this specific notification
+    default:
+      return NotificationAudience.You;
+  }
+}
+
 export interface MemberNotificationCommon {
   docId: string;
   markdown: string;
   createdAt: string; // ISO string
   dismissed: boolean;
+  audience?: NotificationAudience;
 }
 
 export interface NotificationGradingData {

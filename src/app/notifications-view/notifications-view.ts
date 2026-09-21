@@ -19,7 +19,13 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { MemberNotification, NotificationStyle, notificationStyle } from '../../../functions/src/data-model/notifications';
+import {
+  MemberNotification,
+  NotificationAudience,
+  NotificationStyle,
+  notificationAudience,
+  notificationStyle,
+} from '../../../functions/src/data-model/notifications';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -118,6 +124,10 @@ export class NotificationsViewComponent implements OnDestroy {
 
   styleOf(n: MemberNotification): NotificationStyle {
     return notificationStyle(n.kind);
+  }
+
+  audienceOf(n: MemberNotification): NotificationAudience {
+    return notificationAudience(n);
   }
 
   setFilter(filter: NotificationFilter) {

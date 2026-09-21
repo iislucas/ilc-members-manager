@@ -9,7 +9,13 @@
 
 import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { MemberNotification, NotificationStyle, notificationStyle } from '../../../functions/src/data-model/notifications';
+import {
+  MemberNotification,
+  NotificationAudience,
+  NotificationStyle,
+  notificationAudience,
+  notificationStyle,
+} from '../../../functions/src/data-model/notifications';
 import { FirebaseStateService } from '../firebase-state.service';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';
@@ -211,6 +217,10 @@ export class NotificationsListComponent {
 
   styleOf(n: MemberNotification): NotificationStyle {
     return notificationStyle(n.kind);
+  }
+
+  audienceOf(n: MemberNotification): NotificationAudience {
+    return notificationAudience(n);
   }
 
   // Returns an href to the grading detail view for grading notifications, or
