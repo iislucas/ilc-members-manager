@@ -747,7 +747,7 @@ export class ProductEditComponent implements OnInit {
     this.errorMessage.set(null);
 
     try {
-      const savedDocId = await this.productService.saveProduct(finalModel);
+      const savedDocId = await this.dataService.saveProduct(finalModel);
       if (this.embedded()) {
         this.productSaved.emit(savedDocId);
       } else {
@@ -773,7 +773,7 @@ export class ProductEditComponent implements OnInit {
 
     this.isSaving.set(true);
     try {
-      await this.productService.deleteProduct(id);
+      await this.dataService.deleteProduct(id);
       if (this.embedded()) {
         this.productSaved.emit('');
       } else {

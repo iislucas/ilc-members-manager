@@ -1560,6 +1560,9 @@ describe('Firestore Rules', () => {
         await db.collection('system').doc('deletions').collection('schools').doc('deleted-sch-1').set({
           deletedAt: new Date().toISOString(),
         });
+        await db.collection('system').doc('deletions').collection('products').doc('deleted-prod-1').set({
+          deletedAt: new Date().toISOString(),
+        });
         await db.collection('system').doc('deletions').collection('members').doc('deleted-mem-1').set({
           deletedAt: new Date().toISOString(),
         });
@@ -1707,7 +1710,7 @@ describe('Firestore Rules', () => {
       await assertSucceeds(memberDb.collection('system').doc('mail-settings').get());
     });
 
-    it('should allow anyone to read deletions for public collections (instructors, schools, events)', async () => {
+    it('should allow anyone to read deletions for public collections (instructors, schools, events, products)', async () => {
       const unauthDb = testEnv.unauthenticatedContext().firestore();
       await assertSucceeds(
         unauthDb
@@ -1715,6 +1718,14 @@ describe('Firestore Rules', () => {
           .doc('deletions')
           .collection('schools')
           .doc('deleted-sch-1')
+          .get(),
+      );
+      await assertSucceeds(
+        unauthDb
+          .collection('system')
+          .doc('deletions')
+          .collection('products')
+          .doc('deleted-prod-1')
           .get(),
       );
     });

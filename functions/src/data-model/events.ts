@@ -562,11 +562,8 @@ export function initProduct(): Product {
   };
 }
 
-export function firestoreDocToProduct(doc: {
-  id: string;
-  data: () => Record<string, unknown> | undefined;
-}): Product {
-  const data = doc.data() || {};
+export function firestoreDocToProduct(doc: GenericFsDoc): Product {
+  const data = (doc.data() as Record<string, unknown>) || {};
   const defaults = initProduct();
   return {
     ...defaults,

@@ -531,16 +531,25 @@ export class EventEditComponent implements OnInit {
     this.isSaving.set(true);
     this.errorMessage.set(null);
     try {
-      const docRef = doc(this.db, 'events', ev.docId);
-      await updateDoc(docRef, {
-        status: newStatus,
-        lastUpdated: serverTimestamp(),
-        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
-      });
+      if (typeof this.dataService.events?.update === 'function') {
+        await this.dataService.events.update(ev.docId, {
+          status: newStatus,
+          updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+        });
+      } else {
+        const docRef = doc(this.db, 'events', ev.docId);
+        await updateDoc(docRef, {
+          status: newStatus,
+          lastUpdated: serverTimestamp(),
+          updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+        });
+      }
       // Update local state so chip and form model reflect the change.
       const updatedEvent = { ...ev, status: newStatus, lastUpdated: new Date().toISOString() };
       this.event.set(updatedEvent);
-      await this.dataService.persistEventLocally(updatedEvent);
+      if (typeof this.dataService.persistEventLocally === 'function') {
+        await this.dataService.persistEventLocally(updatedEvent);
+      }
       this.eventFormModel.update(m => ({ ...m, status: newStatus }));
       this.successMessage.set(`Status changed to "${eventStatusLabel(newStatus)}".`);
     } catch (error: unknown) {
@@ -560,9 +569,15 @@ export class EventEditComponent implements OnInit {
 
     this.isSaving.set(true);
     try {
-      const docRef = doc(this.db, 'events', ev.docId);
-      await deleteDoc(docRef);
-      await this.dataService.removeEventLocally(ev.docId);
+      if (typeof this.dataService.events?.delete === 'function') {
+        await this.dataService.events.delete(ev.docId);
+      } else {
+        const docRef = doc(this.db, 'events', ev.docId);
+        await deleteDoc(docRef);
+      }
+      if (typeof this.dataService.removeEventLocally === 'function') {
+        await this.dataService.removeEventLocally(ev.docId);
+      }
       this.successMessage.set('Event deleted successfully.');
       setTimeout(() => this.routingService.navigateToParts([this.listUrl()]), 1500);
     } catch (error: unknown) {
@@ -1407,6 +1422,23 @@ export class EventEditComponent implements OnInit {
         recordedVideoUrl: formData.recordedVideoUrl || '',
       };
 
+      const savedEvent: IlcEvent = {
+        ...eventData,
+        ...formData,
+        ...updatePayload,
+        managerDocIds,
+        contacts,
+        descriptionMarkdown: formData.description,
+        status: (formData.status || updatePayload.status) as EventStatus,
+        heroImageUrl: formData.heroImageUrl,
+        heroImageLargeUrl: formData.heroImageLargeUrl,
+        heroImageThumbUrl: formData.heroImageThumbUrl,
+        heroImageOriginalUrl: formData.heroImageOriginalUrl,
+        documents: formData.documents,
+        lastUpdated: new Date().toISOString(),
+        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+      };
+
       if (this.networkState?.isOffline?.()) {
         const diff = computeObjectDiff<IlcEvent>(eventData, updatePayload, {
           ignoreKeys: ['docId', 'lastUpdated'],
@@ -1427,19 +1459,31 @@ export class EventEditComponent implements OnInit {
           newState: diff.changedNewState,
           baselineSnapshot: structuredClone(eventData) as unknown as Record<string, unknown>,
         });
-        await this.dataService.persistEventLocally({
-          ...eventData,
-          ...updatePayload,
-          status: updatePayload.status as EventStatus,
-          lastUpdated: new Date().toISOString(),
-        });
+        if (typeof this.dataService.events?.save === 'function') {
+          await this.dataService.events.save(savedEvent);
+        }
+        if (typeof this.dataService.persistEventLocally === 'function') {
+          await this.dataService.persistEventLocally({
+            ...eventData,
+            ...updatePayload,
+            status: updatePayload.status as EventStatus,
+            lastUpdated: new Date().toISOString(),
+          });
+        }
         this.successMessage.set('Event saved locally (offline). It will sync automatically when back online.');
       } else {
+        const docRef = doc(this.db, 'events', eventData.docId);
         await updateDoc(docRef, {
           ...updatePayload,
           lastUpdated: serverTimestamp(),
           updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
         });
+        if (typeof this.dataService.events?.update === 'function') {
+          await this.dataService.events.update(eventData.docId, updatePayload);
+        }
+        if (typeof this.dataService.persistEventLocally === 'function') {
+          await this.dataService.persistEventLocally(savedEvent);
+        }
         this.successMessage.set('Event saved successfully.');
       }
       // Mirror the persisted manager/contact lists and product fields back into the form model so
@@ -1455,24 +1499,7 @@ export class EventEditComponent implements OnInit {
         recordedVideoId: m.recordedVideoId || '',
         recordedVideoUrl: m.recordedVideoUrl || '',
       }));
-      // Update the local event data so isDirty resets
-      const savedEvent: IlcEvent = {
-        ...eventData,
-        ...formData,
-        managerDocIds,
-        contacts,
-        descriptionMarkdown: formData.description,
-        status: formData.status as EventStatus,
-        heroImageUrl: formData.heroImageUrl,
-        heroImageLargeUrl: formData.heroImageLargeUrl,
-        heroImageThumbUrl: formData.heroImageThumbUrl,
-        heroImageOriginalUrl: formData.heroImageOriginalUrl,
-        documents: formData.documents,
-        lastUpdated: new Date().toISOString(),
-        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
-      };
       this.event.set(savedEvent);
-      await this.dataService.persistEventLocally(savedEvent);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error saving event:', error);

@@ -494,7 +494,7 @@ describe('DataManagerService - searchEvents', () => {
 
       await service.updateEventsSync();
 
-      expect(syncService.loadCachedData).toHaveBeenCalledWith('public_events', service.events, expect.any(Function));
+      expect(syncService.loadCachedData).toHaveBeenCalledWith('public_events', service.events.targetSet, expect.any(Function));
       expect(syncService.syncCollection).toHaveBeenCalledWith(
         expect.objectContaining({
           cacheKey: 'public_events',
