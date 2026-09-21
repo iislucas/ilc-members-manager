@@ -32,7 +32,7 @@ describe('ManageVodComponent', () => {
     getTagMeta: ReturnType<typeof vi.fn>;
     getTagDescription: ReturnType<typeof vi.fn>;
     updateVideoMetadata: ReturnType<typeof vi.fn>;
-    getVideoSeriesList: ReturnType<typeof vi.fn>;
+    getVideoSeriesList: ReturnType<typeof vi.fn<() => VideoSeries[]>>;
     updateVideoSeries: ReturnType<typeof vi.fn>;
     deleteVideo: ReturnType<typeof vi.fn>;
     transcodeVideoForVod: ReturnType<typeof vi.fn>;
@@ -49,6 +49,7 @@ describe('ManageVodComponent', () => {
           status: WritableSignal<string | null>;
           featured: WritableSignal<string | null>;
           accessTier: WritableSignal<string | null>;
+          year: WritableSignal<string | null>;
           instructorId: WritableSignal<string | null>;
           videoId: WritableSignal<string | null>;
           editVideoId: WritableSignal<string | null>;
@@ -73,6 +74,7 @@ describe('ManageVodComponent', () => {
         featured: true,
         durationSeconds: 3600,
         tags: ['basics', 'spinning'],
+        recordedDate: '2026-03-20',
         lastUpdated: '2026-01-01',
       },
       {
@@ -86,6 +88,7 @@ describe('ManageVodComponent', () => {
         featured: false,
         durationSeconds: 1800,
         tags: ['partner'],
+        recordedDate: '2025-11-15',
         lastUpdated: '2026-01-02',
       },
       {
@@ -98,6 +101,7 @@ describe('ManageVodComponent', () => {
         featured: false,
         durationSeconds: 5400,
         tags: ['saturday'],
+        recordedDate: '2024-05-10',
         lastUpdated: '2026-01-03',
       },
     ];
@@ -107,6 +111,7 @@ describe('ManageVodComponent', () => {
       title: 'Sample Series 1',
       description: 'A great series',
       tags: ['basics'],
+      recordedDate: '2026-03-20',
       videoCount: 2,
       totalDurationSeconds: 5400,
       videos: [sampleVideos[0], sampleVideos[1]],
@@ -167,6 +172,7 @@ describe('ManageVodComponent', () => {
             status: signal(null),
             featured: signal(null),
             accessTier: signal(null),
+            year: signal(null),
             instructorId: signal(null),
             videoId: signal(null),
             editVideoId: signal(null),
@@ -246,6 +252,7 @@ describe('ManageVodComponent', () => {
     component.setStatus('ready');
     component.setFeaturedFilter('featured');
     component.setAccessTierFilter('public');
+    component.setYearFilter('2025');
     component.selectedTagFilter.set('basics');
 
     component.clearAllFilters();
@@ -254,7 +261,61 @@ describe('ManageVodComponent', () => {
     expect(component.selectedStatus()).toBe('all');
     expect(component.selectedFeatured()).toBe('all');
     expect(component.selectedAccessTier()).toBe('all');
+    expect(component.selectedYear()).toBe('all');
     expect(component.selectedTagFilter()).toBe('');
+  });
+
+  it('should compute availableYears sorted descending', () => {
+    expect(component.availableYears()).toEqual(['2026', '2025', '2024']);
+  });
+
+  it('should search videos by recordedDate in search query', () => {
+    component.setSearchQuery('2025');
+    expect(component.filteredVideos().length).toBe(1);
+    expect(component.filteredVideos()[0].docId).toBe('v2');
+
+    component.setSearchQuery('2026-03');
+    expect(component.filteredVideos().length).toBe(1);
+    expect(component.filteredVideos()[0].docId).toBe('v1');
+  });
+
+  it('should filter videos by selectedYear', () => {
+    component.setYearFilter('2024');
+    expect(component.filteredVideos().length).toBe(1);
+    expect(component.filteredVideos()[0].docId).toBe('v3');
+  });
+
+  it('should search series by recordedDate or constituent episode recordedDate', () => {
+    // v2 has recordedDate '2025-11-15' and is an episode of sampleSeries
+    component.setSearchQuery('2025');
+    expect(component.filteredSeries().length).toBe(1);
+    expect(component.filteredSeries()[0].seriesId).toBe('series-1');
+
+    component.setSearchQuery('1999');
+    expect(component.filteredSeries().length).toBe(0);
+  });
+
+  it('should filter series by selectedYear', () => {
+    component.setYearFilter('2026');
+    expect(component.filteredSeries().length).toBe(1);
+    expect(component.filteredSeries()[0].seriesId).toBe('series-1');
+
+    // Neither sampleSeries nor any of its episodes has 2024 (only v3 has 2024, not in series)
+    component.setYearFilter('2024');
+    expect(component.filteredSeries().length).toBe(0);
+  });
+
+  it('should edit and save recordedDate in edit modal', async () => {
+    const video = mockDataService.videos.entries()[0];
+    component.openEditModal(video);
+    expect(component.editRecordedDate()).toBe('2026-03-20');
+
+    component.editRecordedDate.set('2026-04-15');
+    await component.saveVideoChanges();
+
+    expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', expect.objectContaining({
+      recordedDate: '2026-04-15',
+    }));
   });
 
   it('should open and close edit modal with URL parameter sync', () => {

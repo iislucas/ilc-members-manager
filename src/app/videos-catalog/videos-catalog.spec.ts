@@ -344,6 +344,13 @@ describe('VideosCatalogComponent', () => {
     expect(component.formatVideoDate(videoWithoutDate)).toBe('');
   });
 
+  it('should search entries by recordedDate in search query', () => {
+    mockRoutingService.signals.videos.urlParams.q.set('2026-03');
+    const entries = component.filteredCatalogEntries();
+    expect(entries.length).toBe(1);
+    expect(entries[0].id).toBe('v2');
+  });
+
   it('should count only purchased videos for My Videos and exclude class library videos', () => {
     // v1 is buyable, v2 is buyable ($25), v3 is class video library ($0)
     // Initially no grants

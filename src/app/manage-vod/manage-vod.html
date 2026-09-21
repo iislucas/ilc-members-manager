@@ -201,6 +201,21 @@
         </select>
       </div>
 
+      <!-- Year Filter -->
+      <div class="filter-item">
+        <label>Year:</label>
+        <select
+          class="filter-select"
+          [ngModel]="selectedYear()"
+          (ngModelChange)="setYearFilter($event)"
+        >
+          <option value="all">All Years</option>
+          @for (y of availableYears(); track y) {
+            <option [value]="y">{{ y }}</option>
+          }
+        </select>
+      </div>
+
       <!-- Status Filter -->
       <div class="status-filter-item">
         <label>Status:</label>
@@ -219,7 +234,7 @@
       </div>
 
       <!-- Active Filters Reset -->
-      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all' || selectedSeriesFilter() !== 'all') {
+      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all' || selectedSeriesFilter() !== 'all' || selectedYear() !== 'all') {
         <button
           type="button"
           class="subtle-btn clear-all-btn"
@@ -525,6 +540,13 @@
                 <span class="meta-item">
                   <app-icon name="person"></app-icon>
                   <span>{{ series.instructorName }}</span>
+                </span>
+              }
+              @if (series.recordedDate) {
+                <span class="dot-sep">&bull;</span>
+                <span class="meta-item">
+                  <app-icon name="calendar_today"></app-icon>
+                  <span>{{ series.recordedDate }}</span>
                 </span>
               }
             </div>
@@ -958,6 +980,16 @@
           <div class="form-group">
             <label>Description</label>
             <textarea rows="3" [(ngModel)]="edit.description"></textarea>
+          </div>
+
+          <!-- Recording Date -->
+          <div class="form-group">
+            <label>Recording Date (YYYY-MM-DD)</label>
+            <input
+              type="date"
+              [ngModel]="editRecordedDate()"
+              (ngModelChange)="editRecordedDate.set($event)"
+            />
           </div>
 
           <!-- Access Tiers (Multi-select) -->

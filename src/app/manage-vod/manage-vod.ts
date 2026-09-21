@@ -59,6 +59,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   selectedStatus = computed(() => this.viewSignals.urlParams.status() || 'all');
   selectedFeatured = computed(() => this.viewSignals.urlParams.featured() || 'all');
   selectedAccessTier = computed(() => this.viewSignals.urlParams.accessTier() || 'all');
+  selectedYear = computed(() => this.viewSignals.urlParams.year() || 'all');
   selectedVideoIdParam = computed(() => this.viewSignals.urlParams.videoId() || '');
   editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
   grantVideoIdParam = computed(() => this.viewSignals.urlParams.grantVideoId() || '');
@@ -66,6 +67,20 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   tabParam = computed(() => this.viewSignals.urlParams.tab() || 'series_collections');
   selectedTagFilter = signal<string>('');
   selectedTagSearchTerm = signal<string>('');
+
+  availableYears = computed<string[]>(() => {
+    const all = this.dataService.videos.entries();
+    const years = new Set<string>();
+    for (const v of all) {
+      if (v.recordedDate) {
+        const match = v.recordedDate.match(/^(\d{4})/);
+        if (match) {
+          years.add(match[1]);
+        }
+      }
+    }
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  });
 
   // Series & View Mode Signals
   viewMode = signal<'all_videos' | 'series_collections'>('series_collections');
@@ -238,6 +253,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   // Edit Modal State
   editingVideo = signal<VideoItem | null>(null);
   isSaving = signal(false);
+  editRecordedDate = signal<string>('');
   editTags = signal<string[]>([]);
   editAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
   editIsBuyable = signal<boolean>(false);
@@ -289,10 +305,16 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           v.title.toLowerCase().includes(q) ||
           v.description.toLowerCase().includes(q) ||
           v.instructorName.toLowerCase().includes(q) ||
+          (v.recordedDate && v.recordedDate.toLowerCase().includes(q)) ||
           (v.location && v.location.toLowerCase().includes(q)) ||
           (v.featured && ('featured'.includes(q) || 'spotlight'.includes(q))) ||
           (v.tags && v.tags.some((t) => t.toLowerCase().includes(q))),
       );
+    }
+
+    const year = this.selectedYear();
+    if (year !== 'all') {
+      items = items.filter((v) => Boolean(v.recordedDate && v.recordedDate.startsWith(year)));
     }
 
     if (tagFilter) {
@@ -377,6 +399,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     const tagFilter = this.selectedTagFilter().trim().toLowerCase();
     const status = this.selectedStatus();
     const seriesFilter = this.selectedSeriesFilter();
+    const year = this.selectedYear();
 
     if (q) {
       list = list.filter(
@@ -384,8 +407,23 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           s.title.toLowerCase().includes(q) ||
           s.description.toLowerCase().includes(q) ||
           (s.instructorName && s.instructorName.toLowerCase().includes(q)) ||
+          (s.recordedDate && s.recordedDate.toLowerCase().includes(q)) ||
+          (s.location && s.location.toLowerCase().includes(q)) ||
           (s.tags && s.tags.some((t) => t.toLowerCase().includes(q))) ||
-          s.videos.some((v) => v.title.toLowerCase().includes(q)),
+          s.videos.some(
+            (v) =>
+              v.title.toLowerCase().includes(q) ||
+              (v.recordedDate && v.recordedDate.toLowerCase().includes(q)),
+          ),
+      );
+    }
+
+    if (year !== 'all') {
+      list = list.filter((s) =>
+        Boolean(
+          (s.recordedDate && s.recordedDate.startsWith(year)) ||
+          s.videos.some((v) => v.recordedDate && v.recordedDate.startsWith(year)),
+        ),
       );
     }
 
@@ -553,11 +591,17 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.viewSignals.urlParams.accessTier.set(tier === 'all' ? '' : tier);
   }
 
+  setYearFilter(year: string): void {
+    this.viewSignals.urlParams.year.set(year === 'all' ? '' : year);
+  }
+
   clearAllFilters(): void {
     this.viewSignals.urlParams.q.set('');
     this.viewSignals.urlParams.status.set('');
     this.viewSignals.urlParams.featured.set('');
     this.viewSignals.urlParams.accessTier.set('');
+    this.viewSignals.urlParams.year.set('');
+    this.selectedSeriesFilter.set('all');
     this.selectedTagFilter.set('');
     this.selectedTagSearchTerm.set('');
     this.clearSeriesFilter();
@@ -846,6 +890,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   openEditModal(video: VideoItem, updateUrl = true): void {
     this.closeMenu();
     this.editingVideo.set({ ...video });
+    this.editRecordedDate.set(video.recordedDate || '');
     this.priceDollars.set(
       video.priceCents ? video.priceCents / 100 : null,
     );
@@ -925,6 +970,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       const patch: Partial<VideoItem> = {
         title: v.title,
         description: v.description,
+        recordedDate: this.editRecordedDate().trim(),
         accessTier: tiers[0] || VodAccessTier.MembersOnly,
         accessTiers: tiers,
         isBuyable,
@@ -949,6 +995,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           accessTiers: tiers,
           isPublished: v.isPublished,
           tags,
+          recordedDate: this.editRecordedDate().trim() || undefined,
         });
         if (this.selectedSeriesFilter() === seriesId) {
           this.setSeriesFilter(seriesId);

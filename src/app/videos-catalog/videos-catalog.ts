@@ -417,9 +417,15 @@ export class VideosCatalogComponent {
           e.title.toLowerCase().includes(q) ||
           e.description.toLowerCase().includes(q) ||
           (e.instructorName && e.instructorName.toLowerCase().includes(q)) ||
+          (e.recordedDate && e.recordedDate.toLowerCase().includes(q)) ||
           (e.location && e.location.toLowerCase().includes(q)) ||
           (e.tags && e.tags.some((t) => t.toLowerCase().includes(q))) ||
-          (e.episodes && e.episodes.some((ep) => ep.title.toLowerCase().includes(q))),
+          (e.episodes &&
+            e.episodes.some(
+              (ep) =>
+                ep.title.toLowerCase().includes(q) ||
+                (ep.recordedDate && ep.recordedDate.toLowerCase().includes(q)),
+            )),
       );
     }
 

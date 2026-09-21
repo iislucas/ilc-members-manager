@@ -3366,6 +3366,7 @@ export class DataManagerService {
       if (patch.isPublished !== undefined) updates['isPublished'] = patch.isPublished;
       if (patch.featured !== undefined) updates['featured'] = patch.featured;
       if (patch.tags !== undefined) updates['tags'] = patch.tags;
+      if (patch.recordedDate !== undefined) updates['recordedDate'] = patch.recordedDate;
 
       // Assign sequence part index
       updates['seriesId'] = seriesId;
