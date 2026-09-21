@@ -98,6 +98,7 @@
           <div class="banner-content">
             <span class="status-indicator indicator-mixed"></span>
             <span>Email Sending: <strong>Mixed</strong> ({{ notificationStatusCounts().active }} active, {{ notificationStatusCounts().paused }} paused, {{ notificationStatusCounts().off }} off)</span>
+            <span class="status-detail">{{ mixedStatusSummary() }}</span>
           </div>
           <button type="button" class="subtle-button banner-settings-link" (click)="setCategory('settings')">
             Manage Settings
@@ -145,6 +146,17 @@
                 </div>
               }
             </div>
+            @if (mixedStatusDetail(); as detail) {
+              <p class="status-detail">
+                All <strong>{{ detail.baseWord }}</strong>, except for
+                @for (exception of detail.listed; track exception.key; let last = $last) {
+                  <strong>{{ exception.label }}</strong> ({{ exception.statusWord }}){{ last && detail.hiddenCount === 0 ? "." : "," }}
+                }
+                @if (detail.hiddenCount > 0) {
+                  and {{ detail.hiddenCount }} more.
+                }
+              </p>
+            }
             <p class="banner-desc">
               @if (overallStatusMode() === 'all-off') {
                 Automated transactional notifications (purchases, registrations, event digests) are disabled and <strong>will not be written to the mail queue</strong>.
@@ -160,11 +172,13 @@
             </p>
           </div>
           <div class="banner-actions">
-            <div class="status-toggle-group batch-toggle-group" role="group" aria-label="Mail Dispatch State">
+            <div class="status-action-buttons" role="group" aria-label="Apply a status to all notifications">
               <button
                 type="button"
                 class="status-btn status-btn-off"
-                [class.active]="overallStatusMode() === 'all-off'"
+                [class.is-current]="overallStatusMode() === 'all-off'"
+                [attr.aria-current]="overallStatusMode() === 'all-off' ? 'true' : null"
+                [title]="overallStatusMode() === 'all-off' ? 'All notifications are already off' : 'Turn every notification off'"
                 [disabled]="isUpdatingStatus()"
                 (click)="setAllNotificationsStatus(MailSendingStatus.Off)">
                 Turn Off All
@@ -172,7 +186,9 @@
               <button
                 type="button"
                 class="status-btn status-btn-paused"
-                [class.active]="overallStatusMode() === 'all-paused'"
+                [class.is-current]="overallStatusMode() === 'all-paused'"
+                [attr.aria-current]="overallStatusMode() === 'all-paused' ? 'true' : null"
+                [title]="overallStatusMode() === 'all-paused' ? 'All notifications are already paused' : 'Pause every notification'"
                 [disabled]="isUpdatingStatus()"
                 (click)="setAllNotificationsStatus(MailSendingStatus.Paused)">
                 Pause All
@@ -180,7 +196,9 @@
               <button
                 type="button"
                 class="status-btn status-btn-active"
-                [class.active]="overallStatusMode() === 'all-active'"
+                [class.is-current]="overallStatusMode() === 'all-active'"
+                [attr.aria-current]="overallStatusMode() === 'all-active' ? 'true' : null"
+                [title]="overallStatusMode() === 'all-active' ? 'All notifications are already active' : 'Make every notification active'"
                 [disabled]="isUpdatingStatus()"
                 (click)="setAllNotificationsStatus(MailSendingStatus.Active)">
                 Make All Active

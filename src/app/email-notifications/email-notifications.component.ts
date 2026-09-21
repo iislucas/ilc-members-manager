@@ -107,6 +107,16 @@ export interface NotificationControlGroup {
   items: NotificationControlItem[];
 }
 
+/** Lower-case word used when describing a status in a sentence. */
+export function mailStatusWord(status: MailSendingStatus): string {
+  if (status === MailSendingStatus.Active) return 'active';
+  if (status === MailSendingStatus.Paused) return 'paused';
+  return 'off';
+}
+
+/** How many exceptions to name before falling back to "and N more". */
+const MAX_LISTED_STATUS_EXCEPTIONS = 3;
+
 export const NOTIFICATION_CONTROL_GROUPS: NotificationControlGroup[] = [
   {
     category: 'onboarding',
@@ -221,6 +231,11 @@ export const NOTIFICATION_CONTROL_GROUPS: NotificationControlGroup[] = [
     ],
   },
 ];
+
+/** Human readable label for every transactional email key. */
+export const NOTIFICATION_LABELS_BY_KEY: ReadonlyMap<string, string> = new Map(
+  NOTIFICATION_CONTROL_GROUPS.flatMap((group) => group.items.map((item) => [item.key as string, item.label] as const)),
+);
 
 @Component({
   selector: 'app-email-notifications',
@@ -1336,6 +1351,48 @@ export class EmailNotificationsComponent {
     if (counts.paused === counts.total) return 'all-paused';
     if (counts.off === counts.total) return 'all-off';
     return 'mixed';
+  });
+
+  /**
+   * Describes a mixed configuration as a dominant status plus the notifications
+   * that differ from it, e.g. "All off, except for ...". Null unless mixed.
+   */
+  mixedStatusDetail = computed(() => {
+    if (this.overallStatusMode() !== 'mixed') return null;
+    const settings = this.dataManager.mailSettings();
+    const counts = this.notificationStatusCounts();
+    let base = MailSendingStatus.Off;
+    if (counts.active >= counts.paused && counts.active >= counts.off) {
+      base = MailSendingStatus.Active;
+    } else if (counts.paused >= counts.off && counts.paused >= counts.active) {
+      base = MailSendingStatus.Paused;
+    }
+    const exceptions: { key: TransactionalEmailKey; label: string; statusWord: string }[] = [];
+    for (const key of ALL_TRANSACTIONAL_EMAIL_KEYS) {
+      const st = resolveNotificationStatus(settings, key);
+      if (st === base) continue;
+      exceptions.push({
+        key,
+        label: NOTIFICATION_LABELS_BY_KEY.get(key) ?? key,
+        statusWord: mailStatusWord(st),
+      });
+    }
+    const listed = exceptions.slice(0, MAX_LISTED_STATUS_EXCEPTIONS);
+    return {
+      baseWord: mailStatusWord(base),
+      listed,
+      hiddenCount: exceptions.length - listed.length,
+      exceptionCount: exceptions.length,
+    };
+  });
+
+  /** One-line version of {@link mixedStatusDetail}, e.g. for the compact banner. */
+  mixedStatusSummary = computed(() => {
+    const detail = this.mixedStatusDetail();
+    if (!detail) return '';
+    const names = detail.listed.map((e) => `${e.label} (${e.statusWord})`).join(', ');
+    const more = detail.hiddenCount > 0 ? `, and ${detail.hiddenCount} more` : '';
+    return `All ${detail.baseWord}, except for ${names}${more}.`;
   });
 
   getNotificationStatus(key: TransactionalEmailKey): MailSendingStatus {
