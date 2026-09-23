@@ -7,7 +7,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins, recordTombstone, recordDeletionLog } from '../common';
 import { DeletionSource, DeletionLogActor } from '../data-model/deletion-logs';
-import { firestoreDocToVideoItem, VodStatus } from '../data-model/vod';
+import { firestoreDocToVideoItem, VideoItemFsDoc, VodStatus } from '../data-model/vod';
 
 export interface DeleteVideoRequest {
   videoId: string;
@@ -53,11 +53,12 @@ export const deleteVideoFromCatalog = onCall(
     }
 
     if (videoSnap.exists) {
+      const videoData = videoSnap.data() as VideoItemFsDoc;
       await recordDeletionLog(
         db,
         'videos',
         data.videoId,
-        videoSnap.data() as Record<string, unknown>,
+        videoData,
         actor,
         DeletionSource.ClientAction,
       );

@@ -205,7 +205,7 @@ describe('recordTombstone', () => {
     );
   });
 
-  it('records tombstone when actor is a simple string', async () => {
+  it('records tombstone when actor has only email', async () => {
     const setMock = vi.fn().mockResolvedValue(undefined);
     const docMock = vi.fn().mockReturnValue({ set: setMock });
     const subColMock = vi.fn().mockReturnValue({ doc: docMock });
@@ -215,7 +215,7 @@ describe('recordTombstone', () => {
     } as any;
 
     const { recordTombstone } = await import('./common.js');
-    await recordTombstone(dbMock, 'schools', 'sch-999', 'superadmin@example.com');
+    await recordTombstone(dbMock, 'schools', 'sch-999', { email: 'superadmin@example.com' });
 
     expect(setMock).toHaveBeenCalledWith(
       expect.objectContaining({

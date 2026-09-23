@@ -797,7 +797,7 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
     admin.firestore(),
     FirestoreCollection.Events,
     eventDocId,
-    eventData as unknown as Record<string, unknown>,
+    eventData,
     actorInfo,
     DeletionSource.CloudFunctionTrigger,
   );
