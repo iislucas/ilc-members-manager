@@ -17,11 +17,10 @@ export const deleteVideoFromCatalog = onCall(
   { cors: allowedOrigins },
   async (request) => {
     const adminMember = await assertAdmin(request);
-    const actorEmail = request.auth?.token?.email || adminMember.emails?.[0] || 'admin';
     const actor: DeletionLogActor = {
-      email: actorEmail,
-      name: adminMember.name || '',
-      uid: request.auth?.uid || '',
+      email: request.auth!.token.email!,
+      name: adminMember.name,
+      uid: request.auth!.uid,
     };
 
     const data = request.data as DeleteVideoRequest;
