@@ -17,6 +17,7 @@ import {
   getDoc,
   updateDoc,
   setDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 import {
   getStorage,
@@ -38,6 +39,7 @@ import {
   BlogPostStatus,
   BlogPostSourceKind,
 } from '../../../functions/src/data-model/content-cache';
+import { FirestoreCollection } from '../../../functions/src/data-model/collections';
 import { isDraftPost } from './squarespace-content.component';
 import { FormsModule } from '@angular/forms';
 import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
@@ -63,6 +65,10 @@ export class SquarespaceArticleEditComponent {
   slugManuallyEdited = signal<boolean>(false);
 
   public readonly BlogPostStatus = BlogPostStatus;
+  public readonly FirestoreCollection = FirestoreCollection;
+
+  // The audience collection selected by the user (defaults to input collection, can be changed by admin)
+  targetCollection = signal<string>('articles-post');
 
   post = signal<CachedBlogPost | null>(null);
   docId = signal<string>('');
@@ -87,20 +93,27 @@ export class SquarespaceArticleEditComponent {
   isSaving = signal<boolean>(false);
   error = signal<string | null>(null);
 
+  slugPrefix = computed(() => {
+    const coll = this.targetCollection();
+    if (coll === FirestoreCollection.MembersPost) return '/members-area/post';
+    if (coll === FirestoreCollection.InstructorsPost) return '/instructors-area/post';
+    return '/articles/post';
+  });
+
   viewHref = computed(() => {
-    const coll = this.collection();
+    const coll = this.targetCollection();
     const slug = this.urlId() || this.blogPostPath();
     if (!slug) {
-      if (coll === 'members-post') {
+      if (coll === FirestoreCollection.MembersPost) {
         return this.routingService.hrefForView(Views.MembersArea);
-      } else if (coll === 'instructors-post') {
+      } else if (coll === FirestoreCollection.InstructorsPost) {
         return this.routingService.hrefForView(Views.InstructorsArea);
       }
       return this.routingService.hrefForView(Views.Articles);
     }
-    if (coll === 'members-post') {
+    if (coll === FirestoreCollection.MembersPost) {
       return this.routingService.hrefForView(Views.MembersAreaPost, { blogPostPath: slug });
-    } else if (coll === 'instructors-post') {
+    } else if (coll === FirestoreCollection.InstructorsPost) {
       return this.routingService.hrefForView(Views.InstructorsAreaPost, { blogPostPath: slug });
     }
     return this.routingService.hrefForView(Views.ArticlesPost, { blogPostPath: slug });
@@ -109,27 +122,35 @@ export class SquarespaceArticleEditComponent {
   cancelHref = computed(() => {
     if (this.isNew()) {
       const coll = this.collection();
-      if (coll === 'members-post') {
+      if (coll === FirestoreCollection.MembersPost) {
         return this.routingService.hrefForView(Views.MembersArea);
-      } else if (coll === 'instructors-post') {
+      } else if (coll === FirestoreCollection.InstructorsPost) {
         return this.routingService.hrefForView(Views.InstructorsArea);
       }
       return this.routingService.hrefForView(Views.Articles);
     }
-    return this.viewHref();
+    const origColl = this.collection();
+    const slug = this.blogPostPath() || this.urlId();
+    if (origColl === FirestoreCollection.MembersPost) {
+      return this.routingService.hrefForView(Views.MembersAreaPost, { blogPostPath: slug });
+    } else if (origColl === FirestoreCollection.InstructorsPost) {
+      return this.routingService.hrefForView(Views.InstructorsAreaPost, { blogPostPath: slug });
+    }
+    return this.routingService.hrefForView(Views.ArticlesPost, { blogPostPath: slug });
   });
 
   areaLabel = computed(() => {
-    const coll = this.collection();
-    if (coll === 'members-post') return 'Members Area';
-    if (coll === 'instructors-post') return 'Instructors Area';
-    return 'Articles & Guides';
+    const coll = this.targetCollection();
+    if (coll === FirestoreCollection.MembersPost) return 'Members Area';
+    if (coll === FirestoreCollection.InstructorsPost) return 'Instructors Area';
+    return 'Articles & Guides (Public)';
   });
 
   constructor() {
     effect(() => {
       const coll = this.collection();
       const slug = this.blogPostPath();
+      this.targetCollection.set(coll);
       if (coll && slug) {
         this.loadPost(coll, slug);
       } else if (coll && !slug) {
@@ -139,6 +160,10 @@ export class SquarespaceArticleEditComponent {
         this.loading.set(false);
       }
     });
+  }
+
+  onAudienceChange(newColl: string) {
+    this.targetCollection.set(newColl);
   }
 
   initNewPost(coll: string) {
@@ -287,7 +312,7 @@ export class SquarespaceArticleEditComponent {
       return;
     }
 
-    const coll = this.collection();
+    const coll = this.targetCollection();
     const docId = this.docId();
     if (!docId) {
       this.imageUploadError.set('Cannot upload image: document ID is missing.');
@@ -315,7 +340,7 @@ export class SquarespaceArticleEditComponent {
   }
 
   uploadArticleImage = async (blob: Blob, meta: { originalFile?: File; altText?: string }): Promise<string> => {
-    const coll = this.collection();
+    const coll = this.targetCollection();
     const docId = this.docId();
     if (!docId) {
       throw new Error('Cannot upload image: document ID is missing.');
@@ -344,16 +369,16 @@ export class SquarespaceArticleEditComponent {
   cancel() {
     if (this.isNew()) {
       const coll = this.collection();
-      if (coll === 'members-post') {
+      if (coll === FirestoreCollection.MembersPost) {
         this.routingService.navigateTo('/members-area');
-      } else if (coll === 'instructors-post') {
+      } else if (coll === FirestoreCollection.InstructorsPost) {
         this.routingService.navigateTo('/instructors-area');
       } else {
         this.routingService.navigateTo('/articles');
       }
       return;
     }
-    const href = this.viewHref();
+    const href = this.cancelHref();
     if (href) {
       this.routingService.navigateTo(href);
     }
@@ -376,24 +401,43 @@ export class SquarespaceArticleEditComponent {
     this.error.set(null);
 
     try {
-      const coll = this.collection();
-      const postsRef = collection(this.db, coll);
+      const initialColl = this.collection();
+      const targetColl = this.targetCollection();
+      const postsRef = collection(this.db, targetColl);
 
-      // Check slug uniqueness within collection
+      // Check slug uniqueness within destination collection
       const q = query(postsRef, where('urlId', '==', trimmedSlug));
       const snap = await getDocs(q);
-      const existingMatchingDoc = snap.docs.find((d) => d.id !== this.docId());
-      if (existingMatchingDoc) {
-        this.error.set(`An article with the URL slug "${trimmedSlug}" already exists. Please choose a different slug.`);
-        this.isSaving.set(false);
-        return;
-      }
 
-      const directDoc = await getDoc(doc(this.db, coll, trimmedSlug));
-      if (directDoc.exists() && directDoc.id !== this.docId()) {
-        this.error.set(`An article with the slug "${trimmedSlug}" already exists. Please choose a different slug.`);
-        this.isSaving.set(false);
-        return;
+      if (initialColl === targetColl) {
+        const existingMatchingDoc = snap.docs.find((d) => d.id !== this.docId());
+        if (existingMatchingDoc) {
+          this.error.set(`An article with the URL slug "${trimmedSlug}" already exists. Please choose a different slug.`);
+          this.isSaving.set(false);
+          return;
+        }
+
+        const directDoc = await getDoc(doc(this.db, targetColl, trimmedSlug));
+        if (directDoc.exists() && directDoc.id !== this.docId()) {
+          this.error.set(`An article with the slug "${trimmedSlug}" already exists. Please choose a different slug.`);
+          this.isSaving.set(false);
+          return;
+        }
+      } else {
+        // Moving to a new collection: slug must not collide with any existing doc in targetColl
+        const existingMatchingDoc = snap.docs[0];
+        if (existingMatchingDoc) {
+          this.error.set(`An article with the URL slug "${trimmedSlug}" already exists in the destination collection. Please choose a different slug.`);
+          this.isSaving.set(false);
+          return;
+        }
+
+        const directDoc = await getDoc(doc(this.db, targetColl, trimmedSlug));
+        if (directDoc.exists()) {
+          this.error.set(`An article with the slug "${trimmedSlug}" already exists in the destination collection. Please choose a different slug.`);
+          this.isSaving.set(false);
+          return;
+        }
       }
 
       const rawMarkdown = this.bodyMarkdown();
@@ -439,9 +483,9 @@ export class SquarespaceArticleEditComponent {
           lastUpdated: nowIso,
         };
 
-        await setDoc(doc(this.db, coll, this.docId()), newPost);
-      } else {
-        await updateDoc(doc(this.db, coll, this.docId()), {
+        await setDoc(doc(this.db, targetColl, this.docId()), newPost);
+      } else if (initialColl === targetColl) {
+        await updateDoc(doc(this.db, targetColl, this.docId()), {
           title: trimmedTitle,
           urlId: trimmedSlug,
           bodyMarkdown: rawMarkdown,
@@ -457,15 +501,39 @@ export class SquarespaceArticleEditComponent {
           publishOn: publishTimestamp,
           lastUpdated: nowIso,
         });
+      } else {
+        // Moving article to different collection: write complete object to target collection and delete from original collection
+        const updatedPost: CachedBlogPost = {
+          ...initCachedBlogPost(),
+          ...(this.post() || {}),
+          id: this.docId(),
+          title: trimmedTitle,
+          urlId: trimmedSlug,
+          bodyMarkdown: rawMarkdown,
+          body: compiledHtml,
+          excerpt: this.excerpt().trim(),
+          assetUrl: this.assetUrl().trim(),
+          author: this.author().trim(),
+          categories: cats,
+          tags: tags,
+          isDraft: isDraftVal,
+          status: isDraftVal ? BlogPostStatus.Draft : BlogPostStatus.Published,
+          kind: BlogPostSourceKind.FirebaseSourced,
+          publishOn: publishTimestamp,
+          lastUpdated: nowIso,
+        };
+
+        await setDoc(doc(this.db, targetColl, this.docId()), updatedPost);
+        await deleteDoc(doc(this.db, initialColl, this.docId()));
       }
 
       this.isSaving.set(false);
 
-      // Navigate to the article view
+      // Navigate to the article view in target collection
       let targetPath = `/articles/post/${trimmedSlug}`;
-      if (coll === 'members-post') {
+      if (targetColl === FirestoreCollection.MembersPost) {
         targetPath = `/members-area/post/${trimmedSlug}`;
-      } else if (coll === 'instructors-post') {
+      } else if (targetColl === FirestoreCollection.InstructorsPost) {
         targetPath = `/instructors-area/post/${trimmedSlug}`;
       }
       this.routingService.navigateTo(targetPath);

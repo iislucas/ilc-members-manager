@@ -47,6 +47,26 @@
       <div class="form-section">
         <h3>Article Metadata</h3>
 
+        <label for="post-audience">Audience / Visibility</label>
+        <div class="rhs audience-field-group">
+          @if (firebaseService.isAdmin()) {
+            <select
+              id="post-audience"
+              [ngModel]="targetCollection()"
+              (ngModelChange)="onAudienceChange($event)"
+            >
+              <option [value]="FirestoreCollection.ArticlesPost">🌐 Public (Everyone)</option>
+              <option [value]="FirestoreCollection.MembersPost">👥 Active Members Only</option>
+              <option [value]="FirestoreCollection.InstructorsPost">🥋 Licensed Instructors Only</option>
+            </select>
+          } @else {
+            <span class="audience-read-only">{{ areaLabel() }}</span>
+          }
+          <p class="note">
+            Controls who can view this article. Changing this moves the article between the public, members, and instructors collections.
+          </p>
+        </div>
+
         <label for="post-title">Title *</label>
         <div class="rhs">
           <input
@@ -80,7 +100,7 @@
               Auto-generate
             </button>
           </div>
-          <p class="note">The URL slug determines the path to this article: e.g. <code>/articles/post/{{ urlId() || 'slug' }}</code></p>
+          <p class="note">The URL slug determines the path to this article: e.g. <code>{{ slugPrefix() }}/{{ urlId() || 'slug' }}</code></p>
         </div>
 
         <label for="post-publish-date">Publish Date</label>

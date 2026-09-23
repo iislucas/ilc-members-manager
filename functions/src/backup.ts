@@ -64,7 +64,7 @@ export const BACKUP_MIXED_COLLECTIONS: {
   cachedFrom: BlogPostSourceKind;
 }[] = [
   { name: FirestoreCollection.MembersPost, cachedFrom: BlogPostSourceKind.Squarespace },
-  { name: 'instructors-post', cachedFrom: BlogPostSourceKind.Squarespace },
+  { name: FirestoreCollection.InstructorsPost, cachedFrom: BlogPostSourceKind.Squarespace },
 ];
 
 /**
