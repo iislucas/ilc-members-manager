@@ -3,6 +3,7 @@ import { OfflineBannerComponent } from './offline-banner.component';
 import { NetworkStateService } from '../network-state.service';
 import { ActionQueueService } from '../action-queue.service';
 import { RoutingService } from '../routing.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { signal, Signal, WritableSignal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -26,12 +27,17 @@ interface MockRouting {
   hrefForView: ReturnType<typeof vi.fn>;
 }
 
+interface MockFirebaseState {
+  user: WritableSignal<any>;
+}
+
 describe('OfflineBannerComponent', () => {
   let component: OfflineBannerComponent;
   let fixture: ComponentFixture<OfflineBannerComponent>;
   let mockNetwork: MockNetworkState;
   let mockActionQueue: MockActionQueue;
   let mockRouting: MockRouting;
+  let mockFirebaseState: MockFirebaseState;
 
   const isOfflineSignal = signal(false);
   const isReconnectingSignal = signal(false);
@@ -39,6 +45,7 @@ describe('OfflineBannerComponent', () => {
   const pendingCountSignal = signal(0);
   const conflictCountSignal = signal(0);
   const statusMessageSignal = signal('');
+  const userSignal = signal<any>(null);
 
   beforeEach(async () => {
     isOfflineSignal.set(false);
@@ -47,6 +54,7 @@ describe('OfflineBannerComponent', () => {
     pendingCountSignal.set(0);
     conflictCountSignal.set(0);
     statusMessageSignal.set('');
+    userSignal.set(null);
 
     mockNetwork = {
       isOffline: isOfflineSignal,
@@ -68,12 +76,17 @@ describe('OfflineBannerComponent', () => {
       hrefForView: vi.fn().mockReturnValue('/offline-queue'),
     };
 
+    mockFirebaseState = {
+      user: userSignal,
+    };
+
     await TestBed.configureTestingModule({
       imports: [OfflineBannerComponent],
       providers: [
         { provide: NetworkStateService, useValue: mockNetwork },
         { provide: ActionQueueService, useValue: mockActionQueue },
         { provide: RoutingService, useValue: mockRouting },
+        { provide: FirebaseStateService, useValue: mockFirebaseState },
       ],
     }).compileComponents();
 
@@ -143,4 +156,32 @@ describe('OfflineBannerComponent', () => {
     retryBtn.click();
     expect(mockNetwork.checkConnection).toHaveBeenCalled();
   });
+
+  it('renders offline warning with cached data notice and sign-in button when signed out and offline', () => {
+    userSignal.set(null);
+    isOfflineSignal.set(true);
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('.offline-banner');
+    expect(banner).toBeTruthy();
+    expect(banner.textContent).toContain('You are currently offline (viewing local cached data)');
+
+    const loginBtn = fixture.nativeElement.querySelector('.btn-login') as HTMLAnchorElement;
+    expect(loginBtn).toBeTruthy();
+    expect(loginBtn.textContent).toContain('Sign In');
+  });
+
+  it('renders standard offline warning and no sign-in button when signed in and offline', () => {
+    userSignal.set({ uid: 'test-user-123' });
+    isOfflineSignal.set(true);
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('.offline-banner');
+    expect(banner).toBeTruthy();
+    expect(banner.textContent).toContain('Edits are saved locally');
+
+    const loginBtn = fixture.nativeElement.querySelector('.btn-login');
+    expect(loginBtn).toBeNull();
+  });
 });
+

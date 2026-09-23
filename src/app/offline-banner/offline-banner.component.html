@@ -24,6 +24,17 @@
       </div>
 
       <div class="banner-right">
+        @if (!isLoggedIn()) {
+          <a
+            class="banner-btn btn-login"
+            [href]="loginHref()"
+            title="Sign in when online"
+          >
+            <app-icon name="person"></app-icon>
+            <span>Sign In</span>
+          </a>
+        }
+
         @if (pendingCount() > 0) {
           <a
             class="banner-btn btn-queue"

@@ -28,9 +28,10 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
         'This service only works for users with an email address.',
       );
     }
+    const email = user.email.toLowerCase().trim();
 
     if (!user.emailVerified) {
-      logger.info('User email is not verified, blocking profile fetch/linking', { email: user.email });
+      logger.info('User email is not verified, blocking profile fetch/linking', { email });
       return {
         userMemberProfiles: [],
         isAdmin: false,
@@ -39,15 +40,21 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       };
     }
 
-    let aclDoc = await db.collection('acl').doc(user.email).get();
+    let aclDoc = await db.collection('acl').doc(email).get();
     if (!aclDoc.exists) {
       // Check if any member document already lists this email.
-      const existingMembersQuery = await db.collection('members')
-        .where('emails', 'array-contains', user.email)
+      let existingMembersQuery = await db.collection('members')
+        .where('emails', 'array-contains', email)
         .get();
 
+      if (existingMembersQuery.empty && user.email !== email) {
+        existingMembersQuery = await db.collection('members')
+          .where('emails', 'array-contains', user.email.trim())
+          .get();
+      }
+
       if (!existingMembersQuery.empty) {
-        logger.info('Found existing members for email without ACL, creating ACL', { email: user.email });
+        logger.info('Found existing members for email without ACL, creating ACL', { email });
         const memberDocIds = existingMembersQuery.docs.map((doc) => doc.id);
 
         const aclData = {
@@ -57,10 +64,10 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
           notYetLinkedToMember: false,
         };
 
-        await db.collection('acl').doc(user.email).set(aclData);
-        aclDoc = await db.collection('acl').doc(user.email).get(); // Refresh to continue normal flow
+        await db.collection('acl').doc(email).set(aclData);
+        aclDoc = await db.collection('acl').doc(email).get(); // Refresh to continue normal flow
       } else {
-        logger.info('Creating guest profile for user', { email: user.email });
+        logger.info('Creating guest profile for user', { email });
 
         const memberRef = db.collection('members').doc();
         const memberDocId = memberRef.id;
@@ -68,7 +75,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
         const guestMember: Member = {
           ...initMember(),
           docId: memberDocId,
-          emails: [user.email],
+          emails: [email],
           membershipType: MembershipType.NotYetAMember,
         };
 
@@ -87,7 +94,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
 
         const batch = db.batch();
         batch.set(memberRef, memberFirestoreData);
-        batch.set(db.collection('acl').doc(user.email), aclData);
+        batch.set(db.collection('acl').doc(email), aclData);
         await batch.commit();
 
         return {

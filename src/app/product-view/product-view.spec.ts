@@ -85,7 +85,16 @@ describe('ProductViewComponent', () => {
   const mockFirebaseState = {
     loginStatus: signal('SignedIn'),
     loggedIn: signal(Promise.resolve({})),
-    user: signal({
+    loginError: signal<string | null>(null),
+    unverifiedUser: signal<any>(null),
+    checkEmailStatus: vi.fn().mockResolvedValue({ hasMemberRecord: true, hasAuthAccount: true, isGoogleManaged: false }),
+    clearLoginError: vi.fn(),
+    signInWithEmailAndPassword: vi.fn(),
+    signInWithGoogle: vi.fn(),
+    createUserWithEmailAndPassword: vi.fn(),
+    sendPasswordResetEmail: vi.fn(),
+    sendEmailVerification: vi.fn(),
+    user: signal<any>({
       email: 'member@example.com',
       isAdmin: false,
       isFullMember: true,
@@ -636,4 +645,69 @@ describe('ProductViewComponent', () => {
       expect(statusCard).toBeTruthy();
     });
   });
+
+  describe('unauthenticated user inline login', () => {
+    it('shows sign-in button and unfolds inline login when event requires membership', async () => {
+      await component.loadProduct();
+
+      mockFirebaseState.user.set(null as any);
+      const memberOnlyProduct: Product = {
+        ...mockProduct,
+        allowNonMembers: false,
+        allowMembers: true,
+      };
+      component.product.set(memberOnlyProduct);
+      fixture.detectChanges();
+
+      expect(component.isRoleEligible()).toBe(false);
+
+      const notice = fixture.nativeElement.querySelector('.role-ineligible-notice');
+      expect(notice).toBeTruthy();
+      expect(notice.textContent).toContain('If you are an active member, sign in to register');
+
+      const signInBtn = notice.querySelector('button.primary-button');
+      expect(signInBtn).toBeTruthy();
+      expect(signInBtn.textContent).toContain('Sign In');
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
+
+      // Click Sign In button to unfold
+      signInBtn.click();
+      fixture.detectChanges();
+
+      expect(component.showInlineLogin()).toBe(true);
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeTruthy();
+
+      // Click again to fold
+      signInBtn.click();
+      fixture.detectChanges();
+
+      expect(component.showInlineLogin()).toBe(false);
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
+    });
+
+    it('shows "Sign in for member rates" button and toggles inline login in attendee status card', async () => {
+      await component.loadProduct();
+
+      mockFirebaseState.user.set(null as any);
+      component.product.set(mockProduct); // allowNonMembers: true, hasMemberPrice: true
+      fixture.detectChanges();
+
+      expect(component.isRoleEligible()).toBe(true);
+
+      const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
+      expect(statusCard).toBeTruthy();
+
+      const memberRateBtn = statusCard.querySelector('.signin-member-link');
+      expect(memberRateBtn).toBeTruthy();
+      expect(memberRateBtn.textContent).toContain('Sign in for member rates');
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
+
+      memberRateBtn.click();
+      fixture.detectChanges();
+
+      expect(component.showInlineLogin()).toBe(true);
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeTruthy();
+    });
+  });
 });
+

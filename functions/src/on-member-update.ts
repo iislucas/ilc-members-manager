@@ -37,10 +37,14 @@ export async function updateACL(aclUpdate: {
   }
   const memberDocId = member?.docId || previous?.docId;
 
-  const emails = member?.emails || [];
+  const emails = (member?.emails || [])
+    .filter(Boolean)
+    .map((e) => e.trim().toLowerCase());
   const instructorId = member?.instructorId;
 
-  const previousEmails = previous?.emails || [];
+  const previousEmails = (previous?.emails || [])
+    .filter(Boolean)
+    .map((e) => e.trim().toLowerCase());
   const previousInstructorId = previous?.instructorId;
   const added = emails.filter((e) => !previousEmails.includes(e));
   const removed = previousEmails.filter((e) => !emails.includes(e));
@@ -197,7 +201,8 @@ async function getSchoolInfo(
 }
 
 export async function refreshACLAdminStatus(email: string) {
-  const aclRef = getDb().collection('acl').doc(email);
+  const cleanEmail = email.trim().toLowerCase();
+  const aclRef = getDb().collection('acl').doc(cleanEmail);
   const aclSnap = await aclRef.get();
 
   if (!aclSnap.exists) return;

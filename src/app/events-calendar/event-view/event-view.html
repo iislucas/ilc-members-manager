@@ -12,6 +12,34 @@
       <app-icon name="lock"></app-icon>
       <h2>Event Not Available</h2>
       <p>This event is currently in draft mode and is only accessible to event organizers and administrators.</p>
+      @if (!user()) {
+        <div class="draft-signin-action">
+          <p class="draft-signin-hint">Are you an organizer or administrator?</p>
+          <button
+            type="button"
+            class="primary-button draft-signin-btn"
+            (click)="toggleDraftLogin()"
+          >
+            <span>{{ showDraftLogin() ? 'Hide Sign In' : 'Organizer Sign In' }}</span>
+          </button>
+        </div>
+        @if (showDraftLogin()) {
+          <div class="inline-auth-panel card">
+            <div class="inline-auth-header">
+              <strong>Sign in as Organizer</strong>
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="showDraftLogin.set(false)"
+                title="Close sign in"
+              >
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+            <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
+          </div>
+        }
+      }
     </div>
   } @else if (event(); as ev) {
     @if (ev.heroImageLargeUrl || ev.heroImageUrl) {
@@ -255,8 +283,37 @@
             } @else {
               <div class="resource-restricted">
                 <app-icon name="lock"></app-icon>
-                <span>These instructions are reserved for registered in-person attendees.</span>
+                <div class="restricted-info">
+                  <span>These instructions are reserved for registered in-person attendees.</span>
+                  @if (!user()) {
+                    <p class="signin-hint">Already registered? Sign in to view attendee instructions.</p>
+                    <button
+                      type="button"
+                      class="subtle-button signin-inline-btn"
+                      (click)="toggleInPersonLogin()"
+                    >
+                      <app-icon name="person"></app-icon>
+                      <span>{{ showInPersonLogin() ? 'Hide Sign In' : 'Sign In' }}</span>
+                    </button>
+                  }
+                </div>
               </div>
+              @if (!user() && showInPersonLogin()) {
+                <div class="inline-auth-panel card">
+                  <div class="inline-auth-header">
+                    <strong>Sign in to view instructions</strong>
+                    <button
+                      type="button"
+                      class="icon-only-button"
+                      (click)="showInPersonLogin.set(false)"
+                      title="Close sign in"
+                    >
+                      <app-icon name="close"></app-icon>
+                    </button>
+                  </div>
+                  <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
+                </div>
+              }
             }
           </div>
         }
@@ -296,8 +353,37 @@
             } @else {
               <div class="resource-restricted">
                 <app-icon name="lock"></app-icon>
-                <span>These details are reserved for registered attendees.</span>
+                <div class="restricted-info">
+                  <span>These details are reserved for registered attendees.</span>
+                  @if (!user()) {
+                    <p class="signin-hint">Already registered? Sign in to view joining link and details.</p>
+                    <button
+                      type="button"
+                      class="subtle-button signin-inline-btn"
+                      (click)="toggleOnlineLogin()"
+                    >
+                      <app-icon name="person"></app-icon>
+                      <span>{{ showOnlineLogin() ? 'Hide Sign In' : 'Sign In' }}</span>
+                    </button>
+                  }
+                </div>
               </div>
+              @if (!user() && showOnlineLogin()) {
+                <div class="inline-auth-panel card">
+                  <div class="inline-auth-header">
+                    <strong>Sign in to view online details</strong>
+                    <button
+                      type="button"
+                      class="icon-only-button"
+                      (click)="showOnlineLogin.set(false)"
+                      title="Close sign in"
+                    >
+                      <app-icon name="close"></app-icon>
+                    </button>
+                  </div>
+                  <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
+                </div>
+              }
             }
           </div>
         }
@@ -319,8 +405,37 @@
             } @else {
               <div class="resource-restricted">
                 <app-icon name="lock"></app-icon>
-                <span>The video recording is available to participants registered with video access.</span>
+                <div class="restricted-info">
+                  <span>The video recording is available to participants registered with video access.</span>
+                  @if (!user()) {
+                    <p class="signin-hint">Have access? Sign in to watch the recording.</p>
+                    <button
+                      type="button"
+                      class="subtle-button signin-inline-btn"
+                      (click)="toggleVideoLogin()"
+                    >
+                      <app-icon name="person"></app-icon>
+                      <span>{{ showVideoLogin() ? 'Hide Sign In' : 'Sign In' }}</span>
+                    </button>
+                  }
+                </div>
               </div>
+              @if (!user() && showVideoLogin()) {
+                <div class="inline-auth-panel card">
+                  <div class="inline-auth-header">
+                    <strong>Sign in to watch recording</strong>
+                    <button
+                      type="button"
+                      class="icon-only-button"
+                      (click)="showVideoLogin.set(false)"
+                      title="Close sign in"
+                    >
+                      <app-icon name="close"></app-icon>
+                    </button>
+                  </div>
+                  <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
+                </div>
+              }
             }
           </div>
         }
