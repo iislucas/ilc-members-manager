@@ -8,7 +8,7 @@ import {
 } from './data-model/members';
 import { School } from './data-model/schools';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { FirestoreCollection } from './data-model/collections';
 import {
   DeletionLogEntry,
@@ -195,6 +195,24 @@ export async function recordTombstone(
   }
 }
 
+function isFirestoreTimestamp(val: unknown): boolean {
+  if (!val || typeof val !== 'object') return false;
+  if (typeof Timestamp === 'function' && val instanceof Timestamp) return true;
+  const candidate = val as { toDate?: unknown; seconds?: unknown; nanoseconds?: unknown };
+  return (
+    typeof candidate.toDate === 'function' &&
+    typeof candidate.seconds === 'number' &&
+    typeof candidate.nanoseconds === 'number'
+  );
+}
+
+function isFirestoreFieldValue(val: unknown): boolean {
+  if (!val || typeof val !== 'object') return false;
+  if (typeof FieldValue === 'function' && val instanceof FieldValue) return true;
+  const candidate = val as { constructor?: { name?: string }; isEqual?: unknown };
+  return candidate.constructor?.name === 'FieldValue' || typeof candidate.isEqual === 'function';
+}
+
 /**
  * Recursively cleans document data for Firestore writes:
  * 1. Strips keys with `undefined` values (which Firestore rejects).
@@ -203,24 +221,27 @@ export async function recordTombstone(
  * 3. Preserves `FieldValue` and `Date` instances.
  * 4. Recurses cleanly into nested objects and arrays.
  */
-export function sanitizeForFirestore<T>(data: T): T {
+export function sanitizeForFirestore<T>(
+  data: T,
+  TimestampCtor: typeof Timestamp = Timestamp,
+): T {
   if (data === undefined || data === null) {
     return data;
   }
 
-  // Preserve native Firestore Admin Timestamp instances directly
-  if (data instanceof admin.firestore.Timestamp) {
+  // Preserve native Firestore Timestamp instances directly
+  if (isFirestoreTimestamp(data)) {
     return data;
   }
 
   // Preserve FieldValue instances
-  if (data instanceof admin.firestore.FieldValue) {
+  if (isFirestoreFieldValue(data)) {
     return data;
   }
 
   // If it's a client Firestore Timestamp or any object providing .toDate()
   if (typeof (data as unknown as { toDate?: () => Date })?.toDate === 'function') {
-    return admin.firestore.Timestamp.fromDate((data as unknown as { toDate: () => Date }).toDate()) as unknown as T;
+    return TimestampCtor.fromDate((data as unknown as { toDate: () => Date }).toDate()) as unknown as T;
   }
 
   // Preserve native Date instances
@@ -242,13 +263,13 @@ export function sanitizeForFirestore<T>(data: T): T {
     if (isSerializedTs) {
       const s = (typeof obj['_seconds'] === 'number' ? obj['_seconds'] : obj['seconds']) as number;
       const ns = (typeof obj['_nanoseconds'] === 'number' ? obj['_nanoseconds'] : obj['nanoseconds']) as number;
-      return new admin.firestore.Timestamp(s, ns) as unknown as T;
+      return new TimestampCtor(s, ns) as unknown as T;
     }
 
     const sanitizedObj: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       if (value !== undefined) {
-        sanitizedObj[key] = sanitizeForFirestore(value);
+        sanitizedObj[key] = sanitizeForFirestore(value, TimestampCtor);
       }
     }
     return sanitizedObj as T;
@@ -257,7 +278,7 @@ export function sanitizeForFirestore<T>(data: T): T {
   if (Array.isArray(data)) {
     return data
       .filter((item) => item !== undefined)
-      .map((item) => sanitizeForFirestore(item)) as unknown as T;
+      .map((item) => sanitizeForFirestore(item, TimestampCtor)) as unknown as T;
   }
 
   return data;
