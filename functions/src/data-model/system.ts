@@ -21,23 +21,20 @@ export type Counters = {
 export type Tombstone = {
   docId: string;
   collection: string;
-  deletedAt: string; // ISO timestamp
-  deletedBy?: string; // Email or username of the actor who performed the deletion
+  deletedAt: FsTimestamp;
+  deletedBy: string; // Email or username of the actor who performed the deletion
   deletedByName?: string; // Display name of the actor
   deletedByUid?: string; // Firebase Auth UID of the actor
 };
 
-export type TombstoneFsDoc = Omit<Tombstone, 'deletedAt'> & {
-  deletedAt: FsTimestamp;
-};
+export type TombstoneFsDoc = Tombstone;
 
 export function firestoreDocToTombstone(doc: GenericFsDoc): Tombstone {
-  const docData = doc.data() as TombstoneFsDoc & { collection?: string };
-  const deletedAt = normalizeLastUpdated(docData.deletedAt);
+  const docData = (doc.data() || {}) as Partial<TombstoneFsDoc> & { collection?: string };
   return {
     docId: doc.id,
     collection: docData.collection || '',
-    deletedAt,
+    deletedAt: docData.deletedAt as FsTimestamp,
     deletedBy: docData.deletedBy || '',
     deletedByName: docData.deletedByName || '',
     deletedByUid: docData.deletedByUid || '',

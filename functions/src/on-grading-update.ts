@@ -15,6 +15,7 @@ import { NotificationKind, MemberNotification } from './data-model/notifications
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import { recordTombstone, recordDeletionLog } from './common';
+import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
 import { Member } from './data-model/members';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
 import * as logger from 'firebase-functions/logger';
@@ -1433,7 +1434,7 @@ export const onGradingDeleted = onDocumentDeleted(
       await cancelAndDismissGradingNotifications(memberDocId, gradingDocId);
     }
 
-    let actorInfo: { email?: string; name?: string; uid?: string } | undefined;
+    let actorInfo: DeletionLogActor = { email: 'unknown' };
     try {
       const existingTombstone = await db
         .collection('system')
@@ -1462,7 +1463,7 @@ export const onGradingDeleted = onDocumentDeleted(
       gradingDocId,
       snap.data() as Record<string, unknown>,
       actorInfo,
-      'cloud_function_trigger',
+      DeletionSource.CloudFunctionTrigger,
     );
 
     // 2. Tombstone

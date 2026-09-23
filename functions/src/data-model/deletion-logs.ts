@@ -4,8 +4,16 @@
  * pre-deletion data snapshots, deletion timestamp, and actor identity.
  */
 
+import { FsTimestamp } from './base';
+
+export enum DeletionSource {
+  CloudFunctionTrigger = 'cloud_function_trigger',
+  ClientAction = 'client_action',
+  AdminScript = 'admin_script',
+}
+
 export interface DeletionLogActor {
-  email?: string;
+  email: string;
   name?: string;
   uid?: string;
 }
@@ -17,16 +25,16 @@ export interface DeletionLogEntry<T = Record<string, unknown>> {
   collectionName: string;
   /** Document ID of the deleted entity */
   docId: string;
-  /** ISO timestamp when the deletion occurred / was recorded */
-  deletedAt: string;
+  /** Firestore Timestamp when the deletion occurred / was recorded */
+  deletedAt: FsTimestamp;
   /** Email or username of the actor who performed or triggered the deletion */
-  deletedBy?: string;
+  deletedBy: string;
   /** Full display name of the actor */
   deletedByName?: string;
   /** Firebase Auth UID of the actor if authenticated */
   deletedByUid?: string;
   /** How the deletion was triggered */
-  source: 'cloud_function_trigger' | 'client_action' | 'admin_script';
+  source: DeletionSource;
   /** Complete pre-deletion snapshot of the document */
   data: T;
 }

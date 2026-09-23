@@ -20,6 +20,7 @@ import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-schoo
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
 import { ensureCountersAreAtLeast } from './counters';
 import { FirestoreUpdate, recordTombstone, recordDeletionLog } from './common';
+import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
 import * as logger from 'firebase-functions/logger';
 import { environment } from './environment/environment.js';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
@@ -530,7 +531,7 @@ export const onMemberDeleted = onDocumentDeleted(
     member.docId = snap.id;
 
     // Check if the deletion tombstone already has actor information written by the client
-    let actorInfo: { email?: string; name?: string; uid?: string } | undefined;
+    let actorInfo: DeletionLogActor = { email: 'unknown' };
     try {
       const existingTombstone = await getDb()
         .collection('system')
@@ -559,7 +560,7 @@ export const onMemberDeleted = onDocumentDeleted(
       snap.id,
       member as unknown as Record<string, unknown>,
       actorInfo,
-      'cloud_function_trigger',
+      DeletionSource.CloudFunctionTrigger,
     );
 
     // 2. Cascade mirrors and permissions

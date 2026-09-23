@@ -29,7 +29,8 @@ import { FirestoreCollection, FirestoreSubcollection } from './data-model/collec
 import { Member } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { VideoGrant, VideoGrantKind } from './data-model/vod';
-import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone } from './common';
+import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone, recordDeletionLog } from './common';
+import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
 import { createMemberNotification } from './notifications';
 import { contentChanged } from './content-cache';
 
@@ -766,5 +767,41 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
     logger.warn(`Failed to clean up storage for event ${eventDocId}:`, err);
   }
 
-  await recordTombstone(admin.firestore(), FirestoreCollection.Events, eventDocId);
+  let actorInfo: DeletionLogActor = {
+    email: eventData.ownerEmails?.[0] || 'unknown',
+  };
+  try {
+    const existingTombstone = await admin
+      .firestore()
+      .collection('system')
+      .doc('deletions')
+      .collection(FirestoreCollection.Events)
+      .doc(eventDocId)
+      .get();
+    if (existingTombstone.exists) {
+      const tData = existingTombstone.data();
+      if (tData?.deletedBy) {
+        actorInfo = {
+          email: tData.deletedBy,
+          name: tData.deletedByName || '',
+          uid: tData.deletedByUid || '',
+        };
+      }
+    }
+  } catch (e) {
+    logger.warn(`Could not read existing event tombstone: ${e}`);
+  }
+
+  // 1. Audit log full document data snapshot to /deletion_logs
+  await recordDeletionLog(
+    admin.firestore(),
+    FirestoreCollection.Events,
+    eventDocId,
+    eventData as unknown as Record<string, unknown>,
+    actorInfo,
+    DeletionSource.CloudFunctionTrigger,
+  );
+
+  // 2. Tombstone
+  await recordTombstone(admin.firestore(), FirestoreCollection.Events, eventDocId, actorInfo);
 });
