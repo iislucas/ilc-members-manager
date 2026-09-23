@@ -212,9 +212,6 @@ export async function refreshACLAdminStatus(email: string) {
 
   const data = aclSnap.data() as ACL;
   if (!data.memberDocIds || data.memberDocIds.length === 0) {
-    if (data.isAdmin === true && data.notYetLinkedToMember === true) {
-      return;
-    }
     await aclRef.delete();
     return;
   }

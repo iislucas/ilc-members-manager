@@ -599,11 +599,11 @@ describe('on-member-update triggers logic', () => {
   });
 
   describe('refreshACLAdminStatus', () => {
-    it('should not delete ACL doc if memberDocIds is empty but user is an unlinked standalone admin', async () => {
+    it('should delete ACL doc if memberDocIds is empty, even if user was previously an admin', async () => {
       const mockAclRef = {
         get: vi.fn().mockResolvedValue({
           exists: true,
-          data: () => ({ isAdmin: true, memberDocIds: [], notYetLinkedToMember: true }),
+          data: () => ({ isAdmin: true, memberDocIds: [] }),
         }),
         delete: vi.fn().mockResolvedValue(undefined),
         update: vi.fn().mockResolvedValue(undefined),
@@ -617,28 +617,6 @@ describe('on-member-update triggers logic', () => {
       } as any);
 
       await refreshACLAdminStatus('admin@iliqchuan.com');
-
-      expect(mockAclRef.delete).not.toHaveBeenCalled();
-    });
-
-    it('should delete ACL doc if memberDocIds is empty and user was linked to a member even if previously admin', async () => {
-      const mockAclRef = {
-        get: vi.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({ isAdmin: true, memberDocIds: [], notYetLinkedToMember: false }),
-        }),
-        delete: vi.fn().mockResolvedValue(undefined),
-        update: vi.fn().mockResolvedValue(undefined),
-      };
-
-      vi.spyOn(admin, 'firestore').mockReturnValue({
-        collection: vi.fn().mockImplementation((col: string) => {
-          if (col === 'acl') return { doc: vi.fn().mockReturnValue(mockAclRef) };
-          return {};
-        }),
-      } as any);
-
-      await refreshACLAdminStatus('deleted-admin-member@example.com');
 
       expect(mockAclRef.delete).toHaveBeenCalledTimes(1);
     });
