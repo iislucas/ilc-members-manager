@@ -237,7 +237,9 @@ describe('SyncedCollection', () => {
         expect.objectContaining({
           docId: 'del-1',
           deletedAt: 'MOCK_SERVER_TIMESTAMP',
+          deletedBy: 'unknown',
         }),
+        { merge: true },
       );
 
       // In-memory signals removed

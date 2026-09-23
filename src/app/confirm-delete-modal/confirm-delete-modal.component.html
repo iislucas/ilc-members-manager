@@ -1,0 +1,110 @@
+@if (isOpen()) {
+  <div class="modal-backdrop" (click)="onCancel()" role="presentation">
+    <div
+      class="modal-dialog"
+      (click)="$event.stopPropagation()"
+      role="alertdialog"
+      aria-modal="true"
+      [attr.aria-label]="title()"
+    >
+      <div class="modal-header">
+        <div class="header-title-group">
+          <div class="warning-icon-wrapper">
+            <app-icon name="warning" width="22px" height="22px" fill="#dc2626"></app-icon>
+          </div>
+          <h3>{{ title() }}</h3>
+        </div>
+        <button
+          type="button"
+          class="close-btn"
+          (click)="onCancel()"
+          [disabled]="isDeleting()"
+          aria-label="Cancel deletion dialog"
+        >
+          <app-icon name="close" width="20px" height="20px"></app-icon>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="warning-banner">
+          <app-icon name="warning" width="20px" height="20px" fill="#b91c1c"></app-icon>
+          <div class="warning-text">
+            <strong>Warning: Destructive Admin Action</strong>
+            <p>{{ warningMessage() }}</p>
+          </div>
+        </div>
+
+        <div class="entity-card">
+          <div class="entity-row">
+            <span class="entity-label">{{ entityType() }}:</span>
+            <span class="entity-value highlight">{{ entityName() }}</span>
+          </div>
+          @if (entityIdentifier()) {
+            <div class="entity-row">
+              <span class="entity-label">Identifier:</span>
+              <span class="entity-value monospace">{{ entityIdentifier() }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="safety-checks">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              [checked]="understoodRisk()"
+              (change)="understoodRisk.set($any($event.target).checked)"
+              [disabled]="isDeleting()"
+            />
+            <span>
+              I understand this action will immediately delete this {{ entityType().toLowerCase() }} and revoke associated access.
+            </span>
+          </label>
+
+          @if (requireConfirmationWord()) {
+            <div class="confirm-input-group">
+              <label for="deleteConfirmInput" class="confirm-input-label">
+                Type <strong>{{ confirmWord() }}</strong> to confirm:
+              </label>
+              <input
+                id="deleteConfirmInput"
+                type="text"
+                class="confirm-input"
+                [placeholder]="confirmWord()"
+                [value]="confirmationInput()"
+                (input)="confirmationInput.set($any($event.target).value)"
+                [disabled]="isDeleting()"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="subtle-button"
+          (click)="onCancel()"
+          [disabled]="isDeleting()"
+        >
+          Cancel
+        </button>
+
+        @if (isDeleting()) {
+          <app-spinner>Deleting {{ entityType().toLowerCase() }}...</app-spinner>
+        } @else {
+          <button
+            type="button"
+            class="delete-confirm-btn"
+            [disabled]="!canConfirm()"
+            (click)="onConfirm()"
+          >
+            <app-icon name="trash" width="16px" height="16px" fill="currentColor"></app-icon>
+            Permanently Delete
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

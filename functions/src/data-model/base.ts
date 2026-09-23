@@ -1,10 +1,12 @@
-import {
-  Timestamp,
-  FieldValue,
-} from 'firebase/firestore';
-import type { FieldValue as AdminFieldValue } from 'firebase-admin/firestore';
+import type { Timestamp, FieldValue } from 'firebase-admin/firestore';
 
-export type FsTimestamp = Timestamp | FieldValue | AdminFieldValue;
+export type FsTimestamp =
+  | Timestamp
+  | FieldValue
+  | { toDate?: () => Date }
+  | { seconds: number; nanoseconds: number }
+  | { _seconds: number; _nanoseconds: number }
+  | unknown;
 
 export type GenericFsDoc = { data: () => unknown; id: string };
 
