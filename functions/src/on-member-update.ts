@@ -85,6 +85,9 @@ export async function updateACL(aclUpdate: {
     const update: FirestoreUpdate<ACL> = {
       memberDocIds: FieldValue.arrayUnion(memberDocId),
     };
+    if (member?.isAdmin) {
+      update.isAdmin = true;
+    }
     batch.set(aclRef, update, { merge: true });
   }
 
@@ -224,6 +227,11 @@ export async function refreshACLAdminStatus(email: string) {
     memberSnaps = await getDb().getAll(...memberRefs);
   }
 
+  const anyAdmin = memberSnaps.some(
+    (snap: admin.firestore.DocumentSnapshot) =>
+      snap.exists && snap.data()?.isAdmin === true,
+  );
+
   const anyFullMember = memberSnaps.some(
     (snap: admin.firestore.DocumentSnapshot) =>
       snap.exists && snap.data()?.membershipType !== 'NotYetAMember',
@@ -251,10 +259,8 @@ export async function refreshACLAdminStatus(email: string) {
     data.memberDocIds || [],
   );
 
-  const wasAdmin = data.isAdmin === true;
-
   await aclRef.update({
-    isAdmin: wasAdmin,
+    isAdmin: anyAdmin,
     instructorIds: Array.from(newInstructorIds),
     schoolDocIds: schoolInfo.docIds,
     notYetLinkedToMember: !anyFullMember,

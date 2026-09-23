@@ -643,7 +643,7 @@ describe('on-member-update triggers logic', () => {
       expect(mockAclRef.delete).toHaveBeenCalledTimes(1);
     });
 
-    it('should preserve canonical isAdmin: wasAdmin and not elevate from stale member profiles', async () => {
+    it('should sync isAdmin: true from linked member profiles when member is admin', async () => {
       const mockAclRef = {
         get: vi.fn().mockResolvedValue({
           exists: true,
@@ -656,7 +656,44 @@ describe('on-member-update triggers logic', () => {
         exists: true,
         data: () => ({
           docId: 'm1',
-          isAdmin: true, // Stale or unsynced member profile claims admin
+          isAdmin: true,
+          membershipType: 'Life',
+        }),
+      };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        collection: vi.fn().mockImplementation((col: string) => {
+          if (col === 'acl') return { doc: vi.fn().mockReturnValue(mockAclRef) };
+          if (col === 'members') return { doc: vi.fn().mockReturnValue({}) };
+          if (col === 'schools') return { where: vi.fn().mockReturnValue({ get: vi.fn().mockResolvedValue({ docs: [] }) }) };
+          return {};
+        }),
+        getAll: vi.fn().mockResolvedValue([mockMemberSnap]),
+      } as any);
+
+      await refreshACLAdminStatus('admin@example.com');
+
+      expect(mockAclRef.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isAdmin: true,
+        }),
+      );
+    });
+
+    it('should sync isAdmin: false when linked member profiles are not admin', async () => {
+      const mockAclRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ isAdmin: true, memberDocIds: ['m1'] }),
+        }),
+        update: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const mockMemberSnap = {
+        exists: true,
+        data: () => ({
+          docId: 'm1',
+          isAdmin: false,
           membershipType: 'Life',
         }),
       };
