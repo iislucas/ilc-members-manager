@@ -31,11 +31,21 @@ import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { deepObjEq } from '../utils';
 import { GradingEventInputComponent, GradingEventDetails } from '../grading-event-input/grading-event-input';
+import { ConfirmDeleteModalComponent } from '../confirm-delete-modal/confirm-delete-modal.component';
 
 @Component({
   selector: 'app-grading-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, InstructorSelectorComponent, MemberSelectorComponent, AutocompleteComponent, GradingEventInputComponent],
+  imports: [
+    FormField,
+    IconComponent,
+    SpinnerComponent,
+    InstructorSelectorComponent,
+    MemberSelectorComponent,
+    AutocompleteComponent,
+    GradingEventInputComponent,
+    ConfirmDeleteModalComponent,
+  ],
   templateUrl: './grading-edit.html',
   styleUrl: './grading-edit.scss',
 })
@@ -54,6 +64,7 @@ export class GradingEditComponent {
 
   // The core object of interest.
   grading = input.required<Grading>();
+  showDeleteConfirmModal = signal<boolean>(false);
 
   // The signal holding the data model for the form.
   gradingFormModel = signal<Grading>(initGrading());
@@ -414,19 +425,24 @@ export class GradingEditComponent {
     }
   }
 
-  async deleteGrading($event: Event) {
+  deleteGrading($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
+    this.asyncError.set(null);
+    this.showDeleteConfirmModal.set(true);
+  }
+
+  async confirmDeleteGrading(): Promise<void> {
     const grading = this.editableGrading();
-    if (confirm('Are you sure you want to delete this grading?')) {
-      this.asyncError.set(null);
-      if (grading.docId) {
-        try {
-          await this.dataService.deleteGrading(grading.docId);
-        } catch (e: unknown) {
-          console.error(e);
-          this.asyncError.set(e as Error);
-        }
+    if (grading.docId) {
+      try {
+        await this.dataService.deleteGrading(grading.docId);
+        this.showDeleteConfirmModal.set(false);
+        this.close.emit();
+      } catch (e: unknown) {
+        console.error(e);
+        this.asyncError.set(e as Error);
+        this.showDeleteConfirmModal.set(false);
       }
     }
   }

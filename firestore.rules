@@ -280,6 +280,10 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /deletion_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
     match /orders/{orderId} {
       allow read: if isAdmin();
       allow write: if isAdmin();

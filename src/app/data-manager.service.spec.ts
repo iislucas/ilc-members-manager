@@ -5,7 +5,7 @@ import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc } from 'firebase/firestore';
+import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
@@ -344,7 +344,7 @@ describe('DataManagerService - searchEvents', () => {
       expect(service.members.get('mem_conflict_test')?.name).toBe('Server Authority Name');
     });
 
-    it('deleteMember removes the member from the in-memory SearchableSet', async () => {
+    it('deleteMember removes the member from the in-memory SearchableSet and writes tombstone', async () => {
       const initialMember: Member = {
         ...initMember(),
         docId: 'mem1',
@@ -357,6 +357,16 @@ describe('DataManagerService - searchEvents', () => {
 
       await service.deleteMember('mem1');
       expect(service.members.get('mem1')).toBeUndefined();
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          docId: 'mem1',
+          collection: 'members',
+          deletedBy: 'unknown',
+        }),
+        { merge: true },
+      );
+      expect(deleteDoc).toHaveBeenCalled();
     });
 
     it('setSchool updates in-memory schools set', async () => {

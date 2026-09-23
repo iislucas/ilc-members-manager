@@ -65,6 +65,7 @@ import { AppPathPatterns, Views, FIREBASE_APP } from '../app.config';
 import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
+import { ConfirmDeleteModalComponent } from '../confirm-delete-modal/confirm-delete-modal.component';
 import { environment } from '../../environments/environment';
 import { NotificationService } from '../notification.service';
 
@@ -109,6 +110,7 @@ export interface GroupedSeriesGrant {
     MemberRowHeaderComponent,
     ImageUploadPreviewComponent,
     MarkdownEditor,
+    ConfirmDeleteModalComponent,
   ],
   templateUrl: './member-details.html',
   styleUrl: './member-details.scss',
@@ -123,6 +125,7 @@ export class MemberDetailsComponent {
   // Maybe we can use membersService.members? and not need this...?
   allMembers = input.required<Member[]>();
   close = output();
+  showDeleteConfirmModal = signal<boolean>(false);
 
   // Constants
   environment = environment;
@@ -1529,21 +1532,23 @@ export class MemberDetailsComponent {
     }
 
     // Administrators deleting another member's account:
-    if (
-      confirm(
-        `Are you sure you want to IMMEDIATELY delete ${member.name}? (This is an admin action)`,
-      )
-    ) {
-      this.asyncError.set(null);
-      if (member.docId) {
-        try {
-          await this.membersService.deleteMember(member.docId);
-          this.close.emit();
-        } catch (e: unknown) {
-          console.error(e);
-          this.asyncError.set(e as Error);
-        }
-      }
+    // Open safety confirmation modal to prevent accidental immediate deletion
+    this.showDeleteConfirmModal.set(true);
+  }
+
+  async confirmAdminDelete(): Promise<void> {
+    const member = this.editableMember();
+    if (!member.docId) return;
+
+    this.asyncError.set(null);
+    try {
+      await this.membersService.deleteMember(member.docId);
+      this.showDeleteConfirmModal.set(false);
+      this.close.emit();
+    } catch (e: unknown) {
+      console.error(e);
+      this.asyncError.set(e as Error);
+      this.showDeleteConfirmModal.set(false);
     }
   }
 

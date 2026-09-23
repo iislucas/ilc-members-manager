@@ -426,5 +426,15 @@
         </div>
       </div>
     </form>
+
+    <app-confirm-delete-modal
+      [isOpen]="showDeleteConfirmModal()"
+      [entityName]="editableSchool().schoolName"
+      [entityIdentifier]="editableSchool().schoolId || editableSchool().docId"
+      entityType="School"
+      warningMessage="This action will permanently delete this school and remove all student mappings. A pre-deletion snapshot is saved to audit logs."
+      (confirmed)="confirmDeleteSchool()"
+      (cancelled)="showDeleteConfirmModal.set(false)"
+    ></app-confirm-delete-modal>
   </div>
 }

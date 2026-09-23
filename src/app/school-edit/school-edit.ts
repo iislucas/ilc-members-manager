@@ -35,6 +35,7 @@ import { AppPathPatterns, Views, FIREBASE_APP } from '../app.config';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
+import { ConfirmDeleteModalComponent } from '../confirm-delete-modal/confirm-delete-modal.component';
 import { deepObjEq } from '../utils';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import {
@@ -55,6 +56,7 @@ import { FirebaseStateService } from '../firebase-state.service';
     IdAssignmentComponent,
     ImageUploadPreviewComponent,
     MarkdownEditor,
+    ConfirmDeleteModalComponent,
   ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
@@ -71,6 +73,7 @@ export class SchoolEditComponent {
   // The schoolId comes from the route path variable, passed in by app.html.
   schoolId = input.required<string>();
   titleLoaded = output<string>();
+  showDeleteConfirmModal = signal<boolean>(false);
 
   // Constants
   AssignKind = AssignKind;
@@ -550,30 +553,30 @@ export class SchoolEditComponent {
     }
   }
 
-  async deleteSchool($event: Event) {
+  deleteSchool($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
     this.asyncError.set(null);
-    if (
-      confirm(
-        `Are you sure you want to delete ${this.editableSchool().schoolName}?`,
-      )
-    ) {
-      if (this.editableSchool().docId) {
-        try {
-          this.isDeleting.set(true);
-          await this.membersService.deleteSchool(
-            this.editableSchool().docId,
-            (msg) => this.deleteProgress.set(msg)
-          );
-          this.navigateBack();
-        } catch (e: unknown) {
-          console.error(e);
-          this.asyncError.set(e as Error);
-        } finally {
-          this.isDeleting.set(false);
-          this.deleteProgress.set('');
-        }
+    this.showDeleteConfirmModal.set(true);
+  }
+
+  async confirmDeleteSchool(): Promise<void> {
+    if (this.editableSchool().docId) {
+      try {
+        this.isDeleting.set(true);
+        await this.membersService.deleteSchool(
+          this.editableSchool().docId,
+          (msg) => this.deleteProgress.set(msg)
+        );
+        this.showDeleteConfirmModal.set(false);
+        this.navigateBack();
+      } catch (e: unknown) {
+        console.error(e);
+        this.asyncError.set(e as Error);
+        this.showDeleteConfirmModal.set(false);
+      } finally {
+        this.isDeleting.set(false);
+        this.deleteProgress.set('');
       }
     }
   }

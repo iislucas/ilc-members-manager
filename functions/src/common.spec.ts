@@ -171,3 +171,105 @@ describe('assertAdmin and assertAdminOrSchoolManager', () => {
     await expect(assertAdminOrSchoolManager(makeReq('student@example.com'))).rejects.toThrowError(HttpsError);
   });
 });
+
+describe('recordTombstone', () => {
+  it('records tombstone with docId, collection, and actor metadata', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const subColMock = vi.fn().mockReturnValue({ doc: docMock });
+    const sysDocMock = vi.fn().mockReturnValue({ collection: subColMock });
+    const dbMock = {
+      collection: vi.fn().mockReturnValue({ doc: sysDocMock }),
+    } as any;
+
+    const { recordTombstone } = await import('./common.js');
+    await recordTombstone(dbMock, 'members', 'mem-123', {
+      email: 'admin@example.com',
+      name: 'Admin User',
+      uid: 'uid-admin',
+    });
+
+    expect(dbMock.collection).toHaveBeenCalledWith('system');
+    expect(sysDocMock).toHaveBeenCalledWith('deletions');
+    expect(subColMock).toHaveBeenCalledWith('members');
+    expect(docMock).toHaveBeenCalledWith('mem-123');
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        docId: 'mem-123',
+        collection: 'members',
+        deletedBy: 'admin@example.com',
+        deletedByName: 'Admin User',
+        deletedByUid: 'uid-admin',
+      }),
+      { merge: true },
+    );
+  });
+
+  it('records tombstone when actor is a simple string', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const subColMock = vi.fn().mockReturnValue({ doc: docMock });
+    const sysDocMock = vi.fn().mockReturnValue({ collection: subColMock });
+    const dbMock = {
+      collection: vi.fn().mockReturnValue({ doc: sysDocMock }),
+    } as any;
+
+    const { recordTombstone } = await import('./common.js');
+    await recordTombstone(dbMock, 'schools', 'sch-999', 'superadmin@example.com');
+
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        docId: 'sch-999',
+        collection: 'schools',
+        deletedBy: 'superadmin@example.com',
+      }),
+      { merge: true },
+    );
+  });
+});
+
+describe('recordDeletionLog', () => {
+  it('saves full snapshot and actor metadata to deletion_logs', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const colMock = vi.fn().mockReturnValue({ doc: docMock });
+    const dbMock = {
+      collection: colMock,
+    } as any;
+
+    const sampleMember = {
+      name: 'Pietro Roselli',
+      memberId: 'IT32',
+      membershipType: 'Life',
+    };
+
+    const { recordDeletionLog } = await import('./common.js');
+    const logId = await recordDeletionLog(
+      dbMock,
+      'members',
+      'mem-it32',
+      sampleMember,
+      {
+        email: 'admin@example.com',
+        name: 'Admin User',
+        uid: 'uid-1',
+      },
+      'cloud_function_trigger',
+    );
+
+    expect(logId).toBeDefined();
+    expect(colMock).toHaveBeenCalledWith('deletion_logs');
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionName: 'members',
+        docId: 'mem-it32',
+        deletedBy: 'admin@example.com',
+        deletedByName: 'Admin User',
+        deletedByUid: 'uid-1',
+        source: 'cloud_function_trigger',
+        data: sampleMember,
+      }),
+    );
+  });
+});
+

@@ -8,7 +8,7 @@ import * as logger from 'firebase-functions/logger';
 import { School } from './data-model/schools';
 import { ensureSchoolCountersAreAtLeast } from './counters';
 import { refreshACLAdminStatus } from './on-member-update';
-import { recordTombstone } from './common';
+import { recordTombstone, recordDeletionLog } from './common';
 
 const db = admin.firestore();
 
@@ -193,7 +193,40 @@ export const onSchoolDeleted = onDocumentDeleted(
     const snap = event.data;
     if (!snap) return;
 
-    await recordTombstone(db, 'schools', snap.id);
+    let actorInfo: { email?: string; name?: string; uid?: string } | undefined;
+    try {
+      const existingTombstone = await db
+        .collection('system')
+        .doc('deletions')
+        .collection('schools')
+        .doc(snap.id)
+        .get();
+      if (existingTombstone.exists) {
+        const tData = existingTombstone.data();
+        if (tData?.deletedBy) {
+          actorInfo = {
+            email: tData.deletedBy,
+            name: tData.deletedByName || '',
+            uid: tData.deletedByUid || '',
+          };
+        }
+      }
+    } catch (e) {
+      logger.warn(`Could not read existing school tombstone: ${e}`);
+    }
+
+    // 1. Audit log full document data snapshot to /deletion_logs
+    await recordDeletionLog(
+      db,
+      'schools',
+      snap.id,
+      snap.data() as Record<string, unknown>,
+      actorInfo,
+      'cloud_function_trigger',
+    );
+
+    // 2. Tombstone
+    await recordTombstone(db, 'schools', snap.id, actorInfo);
 
     // Refresh ACLs of any users who were associated with this school
     const existingEmails = await findEmailsWithSchoolInACL(snap.id);

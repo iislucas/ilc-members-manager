@@ -22,6 +22,7 @@ export enum FirestoreCollection {
   InstructorsPost = 'instructors-post',
   NewsPost = 'news-post',
   Mail = 'mail',
+  DeletionLogs = 'deletion_logs',
 }
 
 export enum FirestoreSubcollection {

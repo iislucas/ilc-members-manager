@@ -28,6 +28,7 @@ export const BACKUP_COLLECTIONS: string[] = [
   FirestoreCollection.VideoGrants,
   FirestoreCollection.Statistics,
   FirestoreCollection.ArticlesPost,
+  FirestoreCollection.DeletionLogs,
 ];
 
 // Sub-collections holding authored data. A `db.collection(name).get()` returns

@@ -48,7 +48,7 @@ describe('MemberDetailsComponent', () => {
     dataManagerServiceMock = {
       updateMember: vi.fn(),
       addMember: vi.fn(),
-      deleteMember: vi.fn(),
+      deleteMember: vi.fn().mockResolvedValue(undefined),
       scheduleAccountDeletion: vi.fn(),
       cancelAccountDeletion: vi.fn(),
       createNextMemberId: vi.fn(),
@@ -842,12 +842,12 @@ describe('MemberDetailsComponent', () => {
       const event = new MouseEvent('click');
       await component.deleteMember(event);
 
+      expect(component.showDeleteConfirmModal()).toBe(false);
       expect(dataManagerServiceMock.deleteMember).not.toHaveBeenCalled();
       expect(dataManagerServiceMock.scheduleAccountDeletion).toHaveBeenCalledWith('test-id');
     });
 
-    it('calls deleteMember when admin deletes another member', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
+    it('opens confirm modal when admin clicks delete button for another member', async () => {
       firebaseStateServiceMock.user.set({
         isAdmin: true,
         member: mockMember,
@@ -862,8 +862,33 @@ describe('MemberDetailsComponent', () => {
       const event = new MouseEvent('click');
       await component.deleteMember(event);
 
-      expect(dataManagerServiceMock.deleteMember).toHaveBeenCalledWith('other-id');
-      expect(dataManagerServiceMock.scheduleAccountDeletion).not.toHaveBeenCalled();
+      expect(component.showDeleteConfirmModal()).toBe(true);
+      expect(dataManagerServiceMock.deleteMember).not.toHaveBeenCalled();
+    });
+
+    it('deletes member and closes when admin confirms deletion in modal', async () => {
+      firebaseStateServiceMock.user.set({
+        isAdmin: true,
+        member: mockMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'test@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+      fixture.componentRef.setInput('member', otherMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      component.showDeleteConfirmModal.set(true);
+
+      const deleteSpy = vi.spyOn(component.membersService, 'deleteMember').mockResolvedValue(undefined);
+      const closeSpy = vi.fn();
+      component.close.subscribe(closeSpy);
+
+      await component.confirmAdminDelete();
+
+      expect(deleteSpy).toHaveBeenCalledWith('other-id');
+      expect(component.showDeleteConfirmModal()).toBe(false);
+      expect(closeSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

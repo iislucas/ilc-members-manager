@@ -1326,4 +1326,14 @@
       </div>
     </div>
   </form>
+
+  <app-confirm-delete-modal
+    [isOpen]="showDeleteConfirmModal()"
+    [entityName]="editableMember().name"
+    [entityIdentifier]="editableMember().memberId || editableMember().docId"
+    entityType="Member"
+    warningMessage="This action will permanently delete this member account, disconnect all permissions and links, and purge student mappings. A pre-deletion snapshot is saved to audit logs."
+    (confirmed)="confirmAdminDelete()"
+    (cancelled)="showDeleteConfirmModal.set(false)"
+  ></app-confirm-delete-modal>
 </div>

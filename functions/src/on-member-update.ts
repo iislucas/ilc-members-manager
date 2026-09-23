@@ -19,7 +19,7 @@ import { createMemberNotification } from './notifications';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
 import { ensureCountersAreAtLeast } from './counters';
-import { FirestoreUpdate, recordTombstone } from './common';
+import { FirestoreUpdate, recordTombstone, recordDeletionLog } from './common';
 import * as logger from 'firebase-functions/logger';
 import { environment } from './environment/environment.js';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
@@ -529,12 +529,46 @@ export const onMemberDeleted = onDocumentDeleted(
     const member = snap.data() as Member;
     member.docId = snap.id;
 
+    // Check if the deletion tombstone already has actor information written by the client
+    let actorInfo: { email?: string; name?: string; uid?: string } | undefined;
+    try {
+      const existingTombstone = await getDb()
+        .collection('system')
+        .doc('deletions')
+        .collection('members')
+        .doc(snap.id)
+        .get();
+      if (existingTombstone.exists) {
+        const tData = existingTombstone.data();
+        if (tData?.deletedBy) {
+          actorInfo = {
+            email: tData.deletedBy,
+            name: tData.deletedByName || '',
+            uid: tData.deletedByUid || '',
+          };
+        }
+      }
+    } catch (e) {
+      logger.warn(`Could not read existing tombstone for actor info: ${e}`);
+    }
+
+    // 1. Audit log full document data snapshot to /deletion_logs
+    await recordDeletionLog(
+      getDb(),
+      'members',
+      snap.id,
+      member as unknown as Record<string, unknown>,
+      actorInfo,
+      'cloud_function_trigger',
+    );
+
+    // 2. Cascade mirrors and permissions
     await updateMemberViewForSchoolAndInstrucor(snap.id, undefined, member);
     await updateInstructorPublicProfile({ previous: member, member: undefined });
     await updateACL({ previous: member, member: undefined });
-    await recordTombstone(getDb(), 'members', snap.id);
+    await recordTombstone(getDb(), 'members', snap.id, actorInfo);
     if (member.instructorId) {
-      await recordTombstone(getDb(), 'instructors', snap.id);
+      await recordTombstone(getDb(), 'instructors', snap.id, actorInfo);
     }
   },
 );

@@ -14,7 +14,7 @@ import { Grading, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading
 import { NotificationKind, MemberNotification } from './data-model/notifications';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
-import { recordTombstone } from './common';
+import { recordTombstone, recordDeletionLog } from './common';
 import { Member } from './data-model/members';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
 import * as logger from 'firebase-functions/logger';
@@ -1433,8 +1433,41 @@ export const onGradingDeleted = onDocumentDeleted(
       await cancelAndDismissGradingNotifications(memberDocId, gradingDocId);
     }
 
-    await recordTombstone(db, 'gradings', gradingDocId);
+    let actorInfo: { email?: string; name?: string; uid?: string } | undefined;
+    try {
+      const existingTombstone = await db
+        .collection('system')
+        .doc('deletions')
+        .collection('gradings')
+        .doc(gradingDocId)
+        .get();
+      if (existingTombstone.exists) {
+        const tData = existingTombstone.data();
+        if (tData?.deletedBy) {
+          actorInfo = {
+            email: tData.deletedBy,
+            name: tData.deletedByName || '',
+            uid: tData.deletedByUid || '',
+          };
+        }
+      }
+    } catch (e) {
+      logger.warn(`Could not read existing grading tombstone: ${e}`);
+    }
 
-    logger.info(`Grading ${gradingDocId} deleted and mirrors removed.`);
+    // 1. Audit log full document data snapshot to /deletion_logs
+    await recordDeletionLog(
+      db,
+      'gradings',
+      gradingDocId,
+      snap.data() as Record<string, unknown>,
+      actorInfo,
+      'cloud_function_trigger',
+    );
+
+    // 2. Tombstone
+    await recordTombstone(db, 'gradings', gradingDocId, actorInfo);
+
+    logger.info(`Grading ${gradingDocId} deleted, audit logged, and mirrors removed.`);
   },
 );
