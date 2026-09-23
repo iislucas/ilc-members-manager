@@ -1,4 +1,4 @@
-import { FsTimestamp, GenericFsDoc, normalizeLastUpdated } from './base';
+import { FsTimestamp, GenericFsDoc } from './base';
 import { Member } from './members';
 
 // ==================================================================
@@ -27,10 +27,8 @@ export type Tombstone = {
   deletedByUid?: string; // Firebase Auth UID of the actor
 };
 
-export type TombstoneFsDoc = Tombstone;
-
 export function firestoreDocToTombstone(doc: GenericFsDoc): Tombstone {
-  const docData = (doc.data() || {}) as Partial<TombstoneFsDoc> & { collection?: string };
+  const docData = (doc.data() || {}) as Partial<Tombstone> & { collection?: string };
   return {
     docId: doc.id,
     collection: docData.collection || '',
@@ -73,8 +71,6 @@ export type ACL = {
   // Whether this ACL entry is for a guest or unlinked account.
   notYetLinkedToMember?: boolean;
 };
-
-export type ACLFsDoc = ACL;
 
 // ==================================================================
 // # Statistics
