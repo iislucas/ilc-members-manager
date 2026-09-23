@@ -558,7 +558,7 @@ export const onMemberDeleted = onDocumentDeleted(
       getDb(),
       'members',
       snap.id,
-      member as unknown as Record<string, unknown>,
+      member,
       actorInfo,
       DeletionSource.CloudFunctionTrigger,
     );

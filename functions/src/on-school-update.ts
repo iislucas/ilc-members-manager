@@ -5,7 +5,7 @@ import {
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { School } from './data-model/schools';
+import { School, SchoolFsDoc } from './data-model/schools';
 import { ensureSchoolCountersAreAtLeast } from './counters';
 import { refreshACLAdminStatus } from './on-member-update';
 import { recordTombstone, recordDeletionLog } from './common';
@@ -221,7 +221,7 @@ export const onSchoolDeleted = onDocumentDeleted(
       db,
       'schools',
       snap.id,
-      snap.data() as Record<string, unknown>,
+      snap.data() as SchoolFsDoc,
       actorInfo,
       DeletionSource.CloudFunctionTrigger,
     );

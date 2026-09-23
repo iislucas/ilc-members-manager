@@ -10,7 +10,7 @@ import * as admin from 'firebase-admin';
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
 import { StudentLevel } from './data-model/curriculum';
-import { Grading, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model/gradings';
+import { Grading, GradingFsDoc, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model/gradings';
 import { NotificationKind, MemberNotification } from './data-model/notifications';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
@@ -1461,7 +1461,7 @@ export const onGradingDeleted = onDocumentDeleted(
       db,
       'gradings',
       gradingDocId,
-      snap.data() as Record<string, unknown>,
+      snap.data() as GradingFsDoc,
       actorInfo,
       DeletionSource.CloudFunctionTrigger,
     );

@@ -18,7 +18,7 @@ export interface DeletionLogActor {
   uid?: string;
 }
 
-export interface DeletionLogEntry<T = Record<string, unknown>> {
+export interface DeletionLogEntry<T extends object = Record<string, unknown>> {
   /** Generated unique document ID for this log entry */
   id?: string;
   /** Name of the collection the document was deleted from (e.g. 'members', 'schools') */
