@@ -607,6 +607,25 @@
         text-decoration: underline;
       }
     }
+
+    .signin-member-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      font-size: 0.85em;
+      font-weight: 600;
+      color: v.$heading-accent-color;
+      text-decoration: underline;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      box-shadow: none !important;
+
+      &:hover {
+        opacity: 0.85;
+      }
+    }
   }
 
   .status-description {
@@ -754,6 +773,30 @@
     padding: 0.5em 1.25em;
     text-decoration: none;
     font-size: 0.9em;
+  }
+}
+
+.inline-auth-panel {
+  margin-top: 1em;
+  padding: 1.25em;
+  background: v.$theme-bg-color;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+
+  .inline-auth-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid v.$border-color-light;
+
+    strong {
+      color: v.$text-primary;
+      font-size: 1rem;
+    }
   }
 }
 

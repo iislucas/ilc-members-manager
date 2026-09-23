@@ -484,13 +484,37 @@
 
   .resource-restricted {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.6rem;
     color: v.$text-muted;
     font-size: 0.9rem;
 
     app-icon {
       font-size: 1.1rem;
+      margin-top: 2px;
+    }
+
+    .restricted-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      align-items: flex-start;
+
+      .signin-hint {
+        margin: 0;
+        font-size: 0.85rem;
+        color: v.$text-secondary;
+      }
+
+      .signin-inline-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.25rem 0.6rem;
+        box-shadow: none !important;
+      }
     }
   }
 }
@@ -714,4 +738,48 @@
     color: v.$text-secondary;
     line-height: 1.5;
   }
+
+  .draft-signin-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    width: 100%;
+
+    .draft-signin-hint {
+      font-size: 0.9rem;
+      color: v.$text-secondary;
+    }
+
+    .draft-signin-btn {
+      padding: 0.5rem 1.25rem;
+      font-size: 0.9rem;
+    }
+  }
 }
+
+.inline-auth-panel {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  background: v.$theme-bg-color;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+
+  .inline-auth-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid v.$border-color-light;
+
+    strong {
+      color: v.$text-primary;
+      font-size: 1rem;
+    }
+  }
+}
+

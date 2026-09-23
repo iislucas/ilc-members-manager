@@ -220,7 +220,15 @@
                     ></app-icon>
                     <span class="status-name">{{ attendeeStatusLabel() }}</span>
                   </div>
-                  @if (selectedRole() !== AttendeeRole.Instructor) {
+                  @if (!user()) {
+                    <button
+                      type="button"
+                      class="inline-link-button signin-member-link"
+                      (click)="toggleInlineLogin()"
+                    >
+                      <span>{{ showInlineLogin() ? 'Hide Sign In' : 'Sign in for member rates' }}</span>
+                    </button>
+                  } @else if (selectedRole() !== AttendeeRole.Instructor) {
                     <a
                       [href]="routingService.hrefForView(Views.MyOrders)"
                       class="upgrade-membership-link"
@@ -232,6 +240,22 @@
                   }
                 </div>
                 <p class="status-description">{{ attendeeStatusSubtitle() }}</p>
+                @if (isRoleEligible() && !user() && showInlineLogin()) {
+                  <div class="inline-auth-panel card">
+                    <div class="inline-auth-header">
+                      <strong>Sign in to your ILC Account</strong>
+                      <button
+                        type="button"
+                        class="icon-only-button"
+                        (click)="showInlineLogin.set(false)"
+                        title="Close sign in"
+                      >
+                        <app-icon name="close"></app-icon>
+                      </button>
+                    </div>
+                    <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
+                  </div>
+                }
               </div>
             </div>
           }
@@ -568,18 +592,50 @@
                 <app-icon name="lock"></app-icon>
                 <div class="role-ineligible-text">
                   <strong>Registration Restricted</strong>
-                  <p>
-                    This event requires an active ILC Membership. Join or
-                    upgrade your membership to register.
-                  </p>
+                  @if (!user()) {
+                    <p>
+                      This event requires an active ILC Membership. If you are an active member, sign in to register.
+                    </p>
+                  } @else {
+                    <p>
+                      This event requires an active ILC Membership. Join or
+                      upgrade your membership to register.
+                    </p>
+                  }
                 </div>
-                <a
-                  [href]="routingService.hrefForView(Views.MyOrders)"
-                  class="primary-button inline-btn"
-                >
-                  <span>View Memberships</span>
-                </a>
+                @if (!user()) {
+                  <button
+                    type="button"
+                    class="primary-button inline-btn"
+                    (click)="toggleInlineLogin()"
+                  >
+                    <span>{{ showInlineLogin() ? 'Hide Sign In' : 'Sign In' }}</span>
+                  </button>
+                } @else {
+                  <a
+                    [href]="routingService.hrefForView(Views.BecomeAMember)"
+                    class="primary-button inline-btn"
+                  >
+                    <span>Join / Upgrade</span>
+                  </a>
+                }
               </div>
+              @if (!user() && showInlineLogin()) {
+                <div class="inline-auth-panel card">
+                  <div class="inline-auth-header">
+                    <strong>Sign in to your ILC Account</strong>
+                    <button
+                      type="button"
+                      class="icon-only-button"
+                      (click)="showInlineLogin.set(false)"
+                      title="Close sign in"
+                    >
+                      <app-icon name="close"></app-icon>
+                    </button>
+                  </div>
+                  <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
+                </div>
+              }
             } @else if (hasFullRegistration() && upgradeDifference() > 0) {
               <div class="full-package-info">
                 <p>

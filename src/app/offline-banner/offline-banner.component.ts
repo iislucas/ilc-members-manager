@@ -15,6 +15,7 @@ import { AppPathPatterns, Views } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { NetworkStateService } from '../network-state.service';
 import { ActionQueueService } from '../action-queue.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { IconComponent } from '../icons/icon.component';
 
 @Component({
@@ -28,9 +29,18 @@ import { IconComponent } from '../icons/icon.component';
 export class OfflineBannerComponent {
   networkState = inject(NetworkStateService);
   actionQueue = inject(ActionQueueService);
+  firebaseState = inject(FirebaseStateService);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
+  isLoggedIn = computed(() => !!this.firebaseState.user());
   queueHref = computed(() => this.routingService.hrefForView(Views.OfflineActionQueue));
+  loginHref = computed(() => {
+    let path = window.location.pathname + window.location.search;
+    if (path.startsWith('/')) {
+      path = path.substring(1);
+    }
+    return path ? '/login?returnUrl=' + encodeURIComponent(path) : '/login';
+  });
 
   isChecking = signal<boolean>(false);
 
@@ -60,6 +70,9 @@ export class OfflineBannerComponent {
     }
     if (this.isReconnecting()) {
       return this.networkState.statusMessage() || 'Logging back in and reconnecting...';
+    }
+    if (!this.isLoggedIn()) {
+      return 'You are currently offline (viewing local cached data). Sign in when online to access member features and registrations.';
     }
     return 'You are currently offline. Edits are saved locally and some data may be out of date.';
   });

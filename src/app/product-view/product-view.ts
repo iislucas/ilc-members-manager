@@ -51,11 +51,12 @@ import {
   MembershipType,
 } from '../../../functions/src/data-model/members';
 import { environment } from '../../environments/environment';
+import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 
 @Component({
   selector: 'app-product-view',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent, MarkdownViewer],
+  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent, MarkdownViewer, InlineAuthComponent],
   templateUrl: './product-view.html',
   styleUrl: './product-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -73,6 +74,12 @@ export class ProductViewComponent implements OnInit {
 
   eventId = input<string>('');
   productId = input<string>('');
+
+  showInlineLogin = signal(false);
+
+  toggleInlineLogin(): void {
+    this.showInlineLogin.update((v) => !v);
+  }
 
   // Route pathVars signal
   private routeEventId = this.routingService.signals[Views.EventRegister]?.pathVars?.eventId;
@@ -783,9 +790,12 @@ export class ProductViewComponent implements OnInit {
   });
 
   constructor() {
-    // Refresh attendee registration if auth updates after page load
+    // Refresh attendee registration and close inline login if auth updates after page load
     effect(() => {
       const user = this.firebaseState.user();
+      if (user) {
+        this.showInlineLogin.set(false);
+      }
       const ev = this.linkedEvent();
       const evId = ev?.docId || this.effectiveEventId();
 

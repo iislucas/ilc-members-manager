@@ -70,7 +70,18 @@ describe('EventViewComponent', () => {
   };
 
   const mockFirebaseState = {
-    user: signal({
+    loginStatus: signal('SignedIn'),
+    loggedIn: signal(Promise.resolve({})),
+    loginError: signal<string | null>(null),
+    unverifiedUser: signal<any>(null),
+    checkEmailStatus: vi.fn().mockResolvedValue({ hasMemberRecord: true, hasAuthAccount: true, isGoogleManaged: false }),
+    clearLoginError: vi.fn(),
+    signInWithEmailAndPassword: vi.fn(),
+    signInWithGoogle: vi.fn(),
+    createUserWithEmailAndPassword: vi.fn(),
+    sendPasswordResetEmail: vi.fn(),
+    sendEmailVerification: vi.fn(),
+    user: signal<any>({
       email: 'user@example.com',
       isAdmin: false,
       isFullMember: true,
@@ -150,4 +161,66 @@ describe('EventViewComponent', () => {
     });
     expect(component.canManage()).toBe(false);
   });
+
+  describe('unauthenticated user inline login', () => {
+    it('shows Organizer Sign In and toggles inline auth on draft events', async () => {
+      mockFirebaseState.user.set(null as any);
+      component.event.set({
+        ...mockEvent,
+        status: 'draft' as any,
+      });
+      fixture.detectChanges();
+
+      expect(component.isDraftRestricted()).toBe(true);
+
+      const draftCard = fixture.nativeElement.querySelector('.draft-restricted-card');
+      expect(draftCard).toBeTruthy();
+      expect(draftCard.textContent).toContain('Organizer Sign In');
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
+
+      const signInBtn = draftCard.querySelector('button.draft-signin-btn');
+      expect(signInBtn).toBeTruthy();
+
+      signInBtn.click();
+      fixture.detectChanges();
+
+      expect(component.showDraftLogin()).toBe(true);
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeTruthy();
+
+      signInBtn.click();
+      fixture.detectChanges();
+
+      expect(component.showDraftLogin()).toBe(false);
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
+    });
+
+    it('shows Sign In button and toggles inline auth for protected in-person instructions when signed out', async () => {
+      mockFirebaseState.user.set(null as any);
+      component.event.set({
+        ...mockEvent,
+        status: 'published' as any,
+        inPersonDetailsMarkdown: 'Secret entrance code is 1234.',
+      });
+      component.registration.set(null);
+      fixture.detectChanges();
+
+      expect(component.canAccessRegistrationDetails()).toBe(false);
+
+      const inPersonCard = fixture.nativeElement.querySelector('.in-person-card');
+      expect(inPersonCard).toBeTruthy();
+      expect(inPersonCard.textContent).toContain('Already registered? Sign in to view attendee instructions');
+
+      const signInBtn = inPersonCard.querySelector('button.signin-inline-btn');
+      expect(signInBtn).toBeTruthy();
+      expect(signInBtn.textContent).toContain('Sign In');
+      expect(inPersonCard.querySelector('app-inline-auth')).toBeFalsy();
+
+      signInBtn.click();
+      fixture.detectChanges();
+
+      expect(component.showInPersonLogin()).toBe(true);
+      expect(inPersonCard.querySelector('app-inline-auth')).toBeTruthy();
+    });
+  });
 });
+

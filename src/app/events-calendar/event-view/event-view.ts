@@ -15,11 +15,12 @@ import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { ProductService } from '../../product.service';
 import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
+import { InlineAuthComponent } from '../../inline-auth/inline-auth.component';
 
 @Component({
   selector: 'app-event-view',
   standalone: true,
-  imports: [IconComponent, SpinnerComponent, MarkdownViewer],
+  imports: [IconComponent, SpinnerComponent, MarkdownViewer, InlineAuthComponent],
   templateUrl: './event-view.html',
   styleUrl: './event-view.scss',
 })
@@ -31,6 +32,29 @@ export class EventViewComponent implements OnInit {
 
   eventId = input.required<string>();
   titleLoaded = output<string>();
+
+  user = this.firebaseState.user;
+
+  showDraftLogin = signal(false);
+  showInPersonLogin = signal(false);
+  showOnlineLogin = signal(false);
+  showVideoLogin = signal(false);
+
+  toggleDraftLogin(): void {
+    this.showDraftLogin.update((v) => !v);
+  }
+
+  toggleInPersonLogin(): void {
+    this.showInPersonLogin.update((v) => !v);
+  }
+
+  toggleOnlineLogin(): void {
+    this.showOnlineLogin.update((v) => !v);
+  }
+
+  toggleVideoLogin(): void {
+    this.showVideoLogin.update((v) => !v);
+  }
 
   event = signal<IlcEvent | null>(null);
   product = signal<Product | null>(null);
@@ -222,6 +246,12 @@ export class EventViewComponent implements OnInit {
     effect(async () => {
       // Re-check registration when auth resolves or changes
       const user = this.firebaseState.user();
+      if (user) {
+        this.showDraftLogin.set(false);
+        this.showInPersonLogin.set(false);
+        this.showOnlineLogin.set(false);
+        this.showVideoLogin.set(false);
+      }
       const ev = this.event();
       if (ev) {
         await this.loadUserRegistration(ev);

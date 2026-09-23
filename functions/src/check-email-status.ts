@@ -64,9 +64,29 @@ export const checkEmailStatus = onCall<
 
   // 1. Check ACL collection for a member record.
   const aclDoc = await db.collection('acl').doc(email).get();
-  const hasMemberRecord =
+  let hasMemberRecord =
     aclDoc.exists &&
     ((aclDoc.data() as { memberDocIds?: string[] })?.memberDocIds?.length ?? 0) > 0;
+
+  // Fallback: Check members collection directly if not found in ACL
+  if (!hasMemberRecord) {
+    const rawEmail = request.data?.email?.trim();
+    let memberQuery = await db.collection('members')
+      .where('emails', 'array-contains', email)
+      .limit(1)
+      .get();
+
+    if (memberQuery.empty && rawEmail && rawEmail !== email) {
+      memberQuery = await db.collection('members')
+        .where('emails', 'array-contains', rawEmail)
+        .limit(1)
+        .get();
+    }
+
+    if (!memberQuery.empty) {
+      hasMemberRecord = true;
+    }
+  }
 
   // 2. Check Firebase Auth for an existing account and providers.
   let hasAuthAccount = false;

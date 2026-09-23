@@ -154,6 +154,22 @@
     }
   }
 
+  &.btn-login {
+    background: #ffffff;
+    color: #4a5568;
+    border: 1px solid #cbd5e0;
+    box-shadow: none !important;
+
+    &:hover {
+      background: #f7fafc;
+      color: #1a202c;
+    }
+
+    app-icon {
+      font-size: 1rem;
+    }
+  }
+
   &.btn-retry {
     background: #ffffff;
     color: #4a5568;
