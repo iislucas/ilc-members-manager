@@ -19,6 +19,7 @@ export enum FirestoreCollection {
   Statistics = 'statistics',
   MembersPost = 'members-post',
   ArticlesPost = 'articles-post',
+  InstructorsPost = 'instructors-post',
   NewsPost = 'news-post',
   Mail = 'mail',
 }

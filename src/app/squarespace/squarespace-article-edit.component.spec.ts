@@ -6,13 +6,14 @@ import { RoutingService } from '../routing.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { FIREBASE_APP } from '../app.config';
 import { initializeApp } from 'firebase/app';
-import { getDocs, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { getDocs, getDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   CachedBlogPost,
   BlogPostStatus,
   BlogPostSourceKind,
 } from '../../../functions/src/data-model/content-cache';
+import { FirestoreCollection } from '../../../functions/src/data-model/collections';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
@@ -29,6 +30,7 @@ vi.mock('firebase/firestore', () => ({
   getDocs: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
   updateDoc: vi.fn().mockResolvedValue(undefined),
   setDoc: vi.fn().mockResolvedValue(undefined),
+  deleteDoc: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock firebase/storage
@@ -494,6 +496,163 @@ describe('SquarespaceArticleEditComponent', () => {
       fixture.detectChanges();
       component.cancel();
       expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/articles');
+    });
+  });
+
+  describe('Audience and Collection Moving', () => {
+    it('defaults targetCollection to input collection and updates on onAudienceChange', () => {
+      fixture.componentRef.setInput('collection', 'members-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      expect(component.targetCollection()).toBe('members-post');
+      expect(component.areaLabel()).toBe('Members Area');
+      expect(component.slugPrefix()).toBe('/members-area/post');
+
+      component.onAudienceChange('articles-post');
+      expect(component.targetCollection()).toBe('articles-post');
+      expect(component.areaLabel()).toBe('Articles & Guides (Public)');
+      expect(component.slugPrefix()).toBe('/articles/post');
+
+      component.onAudienceChange('instructors-post');
+      expect(component.targetCollection()).toBe('instructors-post');
+      expect(component.areaLabel()).toBe('Instructors Area');
+      expect(component.slugPrefix()).toBe('/instructors-area/post');
+    });
+
+    it('moves an existing article to another collection via setDoc and deleteDoc, updating kind and navigating', async () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      (getDocs as any).mockResolvedValue({
+        empty: false,
+        docs: [
+          {
+            id: 'doc-firestore-id-123',
+            data: () => ({ ...mockPostData }),
+          },
+        ],
+      });
+
+      fixture.componentRef.setInput('collection', 'members-post');
+      fixture.componentRef.setInput('blogPostPath', 'my-sample-article');
+      fixture.detectChanges();
+      await component.loadPost('members-post', 'my-sample-article');
+
+      // Change audience to articles-post (Public)
+      component.onAudienceChange('articles-post');
+      component.title.set('Updated Public Article');
+
+      // Mock slug uniqueness check on target collection (empty, no conflict)
+      (getDocs as any).mockResolvedValue({ empty: true, docs: [] });
+      (getDoc as any).mockResolvedValue({ exists: () => false });
+
+      await component.save();
+
+      // Should setDoc on target collection (articles-post) with docId and kind = FirebaseSourced
+      expect(setDoc).toHaveBeenCalledTimes(1);
+      const setDocCall = (setDoc as any).mock.calls[0];
+      const targetDocRef = setDocCall[0];
+      const targetData = setDocCall[1] as CachedBlogPost;
+
+      expect(targetDocRef.id).toBe('doc-firestore-id-123');
+      expect(targetData.title).toBe('Updated Public Article');
+      expect(targetData.kind).toBe(BlogPostSourceKind.FirebaseSourced);
+
+      // Should deleteDoc from initial collection (members-post)
+      expect(deleteDoc).toHaveBeenCalledTimes(1);
+      const deleteDocCall = (deleteDoc as any).mock.calls[0];
+      const initialDocRef = deleteDocCall[0];
+      expect(initialDocRef.id).toBe('doc-firestore-id-123');
+
+      // Should navigate to public article view
+      expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/articles/post/my-sample-article');
+    });
+
+    it('moves an existing article to instructors-post and navigates to instructors area', async () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      (getDocs as any).mockResolvedValue({
+        empty: false,
+        docs: [
+          {
+            id: 'doc-firestore-id-123',
+            data: () => ({ ...mockPostData }),
+          },
+        ],
+      });
+
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.componentRef.setInput('blogPostPath', 'my-sample-article');
+      fixture.detectChanges();
+      await component.loadPost('articles-post', 'my-sample-article');
+
+      // Change audience to instructors-post
+      component.onAudienceChange('instructors-post');
+
+      // Mock slug uniqueness check on target collection (empty, no conflict)
+      (getDocs as any).mockResolvedValue({ empty: true, docs: [] });
+      (getDoc as any).mockResolvedValue({ exists: () => false });
+
+      await component.save();
+
+      expect(setDoc).toHaveBeenCalledTimes(1);
+      expect(deleteDoc).toHaveBeenCalledTimes(1);
+      expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/instructors-area/post/my-sample-article');
+    });
+
+    it('rejects moving when slug already exists in destination collection', async () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      (getDocs as any).mockResolvedValue({
+        empty: false,
+        docs: [
+          {
+            id: 'doc-firestore-id-123',
+            data: () => ({ ...mockPostData }),
+          },
+        ],
+      });
+
+      fixture.componentRef.setInput('collection', 'members-post');
+      fixture.componentRef.setInput('blogPostPath', 'my-sample-article');
+      fixture.detectChanges();
+      await component.loadPost('members-post', 'my-sample-article');
+
+      // Change audience to articles-post
+      component.onAudienceChange('articles-post');
+
+      // Conflict in destination collection
+      (getDocs as any).mockResolvedValue({
+        empty: false,
+        docs: [{ id: 'other-doc-id', data: () => ({ urlId: 'my-sample-article' }) }],
+      });
+
+      await component.save();
+
+      expect(component.error()).toBe('An article with the URL slug "my-sample-article" already exists in the destination collection. Please choose a different slug.');
+      expect(setDoc).not.toHaveBeenCalled();
+      expect(deleteDoc).not.toHaveBeenCalled();
+    });
+
+    it('creates new article directly in selected targetCollection when audience is changed', async () => {
+      vi.spyOn(firebaseServiceMock, 'isAdmin').mockReturnValue(true);
+      fixture.componentRef.setInput('collection', 'articles-post');
+      fixture.componentRef.setInput('blogPostPath', null);
+      fixture.detectChanges();
+
+      // Change audience to instructors-post
+      component.onAudienceChange('instructors-post');
+      component.title.set('Instructor Secret Technique');
+      component.urlId.set('instructor-secret-technique');
+
+      (getDocs as any).mockResolvedValue({ empty: true, docs: [] });
+      (getDoc as any).mockResolvedValue({ exists: () => false });
+
+      await component.save();
+
+      expect(setDoc).toHaveBeenCalledTimes(1);
+      const setDocCall = (setDoc as any).mock.calls[0];
+      const targetDocRef = setDocCall[0];
+      expect(targetDocRef.id).toBe(component.docId());
+      expect(deleteDoc).not.toHaveBeenCalled();
+      expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('/instructors-area/post/instructor-secret-technique');
     });
   });
 });
