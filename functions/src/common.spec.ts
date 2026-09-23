@@ -228,8 +228,54 @@ describe('recordTombstone', () => {
   });
 });
 
+describe('sanitizeForFirestore', () => {
+  it('strips undefined fields while preserving Firestore Timestamp instances', async () => {
+    const { sanitizeForFirestore } = await import('./common.js');
+    const admin = await import('firebase-admin');
+
+    const ts = admin.firestore.Timestamp.fromDate(new Date('2026-01-15T12:00:00Z'));
+    const input = {
+      name: 'Test Member',
+      undefinedField: undefined,
+      lastUpdated: ts,
+      nested: {
+        keep: 'yes',
+        remove: undefined,
+        nestedTs: ts,
+      },
+      list: ['item1', undefined, 'item2'],
+    };
+
+    const sanitized = sanitizeForFirestore(input);
+
+    expect(sanitized.name).toBe('Test Member');
+    expect('undefinedField' in sanitized).toBe(false);
+    expect(sanitized.lastUpdated).toBe(ts);
+    expect(sanitized.lastUpdated instanceof admin.firestore.Timestamp).toBe(true);
+    expect(sanitized.nested.keep).toBe('yes');
+    expect('remove' in sanitized.nested).toBe(false);
+    expect(sanitized.nested.nestedTs).toBe(ts);
+    expect(sanitized.list).toEqual(['item1', 'item2']);
+  });
+
+  it('converts serialized timestamp objects {_seconds, _nanoseconds} to native Timestamps', async () => {
+    const { sanitizeForFirestore } = await import('./common.js');
+    const admin = await import('firebase-admin');
+
+    const serializedTs = { _seconds: 1700000000, _nanoseconds: 500000000 };
+    const input = {
+      lastUpdated: serializedTs,
+    };
+
+    const sanitized = sanitizeForFirestore(input);
+    expect(sanitized.lastUpdated instanceof admin.firestore.Timestamp).toBe(true);
+    expect((sanitized.lastUpdated as admin.firestore.Timestamp).seconds).toBe(1700000000);
+    expect((sanitized.lastUpdated as admin.firestore.Timestamp).nanoseconds).toBe(500000000);
+  });
+});
+
 describe('recordDeletionLog', () => {
-  it('saves full snapshot and actor metadata to deletion_logs', async () => {
+  it('saves full snapshot and actor metadata to deletion_logs, preserving Timestamps and removing undefined', async () => {
     const setMock = vi.fn().mockResolvedValue(undefined);
     const docMock = vi.fn().mockReturnValue({ set: setMock });
     const colMock = vi.fn().mockReturnValue({ doc: docMock });
@@ -237,10 +283,14 @@ describe('recordDeletionLog', () => {
       collection: colMock,
     } as any;
 
+    const admin = await import('firebase-admin');
+    const ts = admin.firestore.Timestamp.now();
     const sampleMember = {
       name: 'Pietro Roselli',
       memberId: 'IT32',
       membershipType: 'Life',
+      lastUpdated: ts,
+      undefinedField: undefined,
     };
 
     const { recordDeletionLog } = await import('./common.js');
@@ -267,9 +317,19 @@ describe('recordDeletionLog', () => {
         deletedByName: 'Admin User',
         deletedByUid: 'uid-1',
         source: 'cloud_function_trigger',
-        data: sampleMember,
+        data: expect.objectContaining({
+          name: 'Pietro Roselli',
+          memberId: 'IT32',
+          membershipType: 'Life',
+          lastUpdated: ts,
+        }),
       }),
     );
+    // Ensure undefined field was removed
+    const callArg = setMock.mock.calls[0][0];
+    expect('undefinedField' in callArg.data).toBe(false);
+    expect(callArg.data.lastUpdated instanceof admin.firestore.Timestamp).toBe(true);
   });
 });
+
 

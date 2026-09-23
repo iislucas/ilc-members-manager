@@ -193,6 +193,74 @@ export async function recordTombstone(
 }
 
 /**
+ * Recursively cleans document data for Firestore writes:
+ * 1. Strips keys with `undefined` values (which Firestore rejects).
+ * 2. Strictly preserves Firestore `Timestamp` instances (both Admin and client SDKs)
+ *    and converts serialized `{ _seconds, _nanoseconds }` plain objects back to native Timestamps.
+ * 3. Preserves `FieldValue` and `Date` instances.
+ * 4. Recurses cleanly into nested objects and arrays.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === undefined || data === null) {
+    return data;
+  }
+
+  // Preserve native Firestore Admin Timestamp instances directly
+  if (data instanceof admin.firestore.Timestamp) {
+    return data;
+  }
+
+  // Preserve FieldValue instances
+  if (data instanceof admin.firestore.FieldValue) {
+    return data;
+  }
+
+  // If it's a client Firestore Timestamp or any object providing .toDate()
+  if (typeof (data as { toDate?: () => Date }).toDate === 'function') {
+    return admin.firestore.Timestamp.fromDate((data as { toDate: () => Date }).toDate()) as unknown as T;
+  }
+
+  // Preserve native Date instances
+  if (data instanceof Date) {
+    return data;
+  }
+
+  // Check if data is a serialized Firestore Timestamp object (e.g. from JSON exports)
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    const obj = data as Record<string, unknown>;
+    const hasSec = typeof obj['_seconds'] === 'number' || typeof obj['seconds'] === 'number';
+    const hasNano = typeof obj['_nanoseconds'] === 'number' || typeof obj['nanoseconds'] === 'number';
+    const keyList = Object.keys(obj);
+    const isSerializedTs =
+      hasSec &&
+      hasNano &&
+      (keyList.length === 2 || (keyList.length === 3 && 'toDate' in obj));
+
+    if (isSerializedTs) {
+      const s = (typeof obj['_seconds'] === 'number' ? obj['_seconds'] : obj['seconds']) as number;
+      const ns = (typeof obj['_nanoseconds'] === 'number' ? obj['_nanoseconds'] : obj['nanoseconds']) as number;
+      return new admin.firestore.Timestamp(s, ns) as unknown as T;
+    }
+
+    const sanitizedObj: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        sanitizedObj[key] = sanitizeForFirestore(value);
+      }
+    }
+    return sanitizedObj as T;
+  }
+
+  if (Array.isArray(data)) {
+    return data
+      .filter((item) => item !== undefined)
+      .map((item) => sanitizeForFirestore(item)) as unknown as T;
+  }
+
+  return data;
+}
+
+/**
  * Saves a complete audit log entry of a deleted document into /deletion_logs
  * with its pre-deletion data snapshot, collection name, docId, and actor metadata.
  */
@@ -221,8 +289,8 @@ export async function recordDeletionLog(
       deletedByUid = actor.uid || '';
     }
 
-    // Clean up undefined fields in data snapshot so Firestore doesn't reject them
-    const sanitizedData = JSON.parse(JSON.stringify(data));
+    // Clean up undefined fields while preserving native Firestore Timestamps
+    const sanitizedData = sanitizeForFirestore(data);
 
     const logEntry: DeletionLogEntry<Record<string, unknown>> = {
       id: logId,
