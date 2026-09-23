@@ -9,6 +9,7 @@ import { School } from './data-model/schools';
 import { ensureSchoolCountersAreAtLeast } from './counters';
 import { refreshACLAdminStatus } from './on-member-update';
 import { recordTombstone, recordDeletionLog } from './common';
+import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
 
 const db = admin.firestore();
 
@@ -193,7 +194,7 @@ export const onSchoolDeleted = onDocumentDeleted(
     const snap = event.data;
     if (!snap) return;
 
-    let actorInfo: { email?: string; name?: string; uid?: string } | undefined;
+    let actorInfo: DeletionLogActor = { email: 'unknown' };
     try {
       const existingTombstone = await db
         .collection('system')
@@ -222,7 +223,7 @@ export const onSchoolDeleted = onDocumentDeleted(
       snap.id,
       snap.data() as Record<string, unknown>,
       actorInfo,
-      'cloud_function_trigger',
+      DeletionSource.CloudFunctionTrigger,
     );
 
     // 2. Tombstone

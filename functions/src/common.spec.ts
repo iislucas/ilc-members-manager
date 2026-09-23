@@ -269,8 +269,8 @@ describe('sanitizeForFirestore', () => {
 
     const sanitized = sanitizeForFirestore(input);
     expect(sanitized.lastUpdated instanceof admin.firestore.Timestamp).toBe(true);
-    expect((sanitized.lastUpdated as admin.firestore.Timestamp).seconds).toBe(1700000000);
-    expect((sanitized.lastUpdated as admin.firestore.Timestamp).nanoseconds).toBe(500000000);
+    expect((sanitized.lastUpdated as unknown as admin.firestore.Timestamp).seconds).toBe(1700000000);
+    expect((sanitized.lastUpdated as unknown as admin.firestore.Timestamp).nanoseconds).toBe(500000000);
   });
 });
 
@@ -294,6 +294,7 @@ describe('recordDeletionLog', () => {
     };
 
     const { recordDeletionLog } = await import('./common.js');
+    const { DeletionSource } = await import('./data-model/deletion-logs.js');
     const logId = await recordDeletionLog(
       dbMock,
       'members',
@@ -304,7 +305,7 @@ describe('recordDeletionLog', () => {
         name: 'Admin User',
         uid: 'uid-1',
       },
-      'cloud_function_trigger',
+      DeletionSource.CloudFunctionTrigger,
     );
 
     expect(logId).toBeDefined();
@@ -316,7 +317,7 @@ describe('recordDeletionLog', () => {
         deletedBy: 'admin@example.com',
         deletedByName: 'Admin User',
         deletedByUid: 'uid-1',
-        source: 'cloud_function_trigger',
+        source: DeletionSource.CloudFunctionTrigger,
         data: expect.objectContaining({
           name: 'Pietro Roselli',
           memberId: 'IT32',

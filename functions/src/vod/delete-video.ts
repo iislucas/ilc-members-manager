@@ -5,7 +5,8 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import { assertAdmin, allowedOrigins, recordTombstone } from '../common';
+import { assertAdmin, allowedOrigins, recordTombstone, recordDeletionLog } from '../common';
+import { DeletionSource, DeletionLogActor } from '../data-model/deletion-logs';
 import { firestoreDocToVideoItem, VodStatus } from '../data-model/vod';
 
 export interface DeleteVideoRequest {
@@ -15,7 +16,13 @@ export interface DeleteVideoRequest {
 export const deleteVideoFromCatalog = onCall(
   { cors: allowedOrigins },
   async (request) => {
-    await assertAdmin(request);
+    const adminMember = await assertAdmin(request);
+    const actorEmail = request.auth?.token?.email || adminMember.emails?.[0] || 'admin';
+    const actor: DeletionLogActor = {
+      email: actorEmail,
+      name: adminMember.name || '',
+      uid: request.auth?.uid || '',
+    };
 
     const data = request.data as DeleteVideoRequest;
     if (!data || !data.videoId) {
@@ -46,8 +53,19 @@ export const deleteVideoFromCatalog = onCall(
       }
     }
 
+    if (videoSnap.exists) {
+      await recordDeletionLog(
+        db,
+        'videos',
+        data.videoId,
+        videoSnap.data() as Record<string, unknown>,
+        actor,
+        DeletionSource.ClientAction,
+      );
+    }
+
     await videoRef.delete();
-    await recordTombstone(db, 'videos', data.videoId);
+    await recordTombstone(db, 'videos', data.videoId, actor);
 
     return { success: true, videoId: data.videoId };
   },

@@ -10,7 +10,11 @@ import { School } from './data-model/schools';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue } from 'firebase-admin/firestore';
 import { FirestoreCollection } from './data-model/collections';
-import { DeletionLogEntry } from './data-model/deletion-logs';
+import {
+  DeletionLogEntry,
+  DeletionSource,
+  DeletionLogActor,
+} from './data-model/deletion-logs';
 
 export const allowedOrigins = environment.domains;
 if (process.env.GCLOUD_PROJECT) {
@@ -156,13 +160,13 @@ export async function assertAdminOrSchoolManager(
 /**
  * Records a tombstone document when a record is deleted so incremental
  * delta sync on clients can detect and prune deletions from local storage.
- * Records the username/email of the actor if provided.
+ * Requires the actor identity (email or username) who performed the deletion.
  */
 export async function recordTombstone(
   db: admin.firestore.Firestore,
   collectionName: string,
   docId: string,
-  actor?: { email?: string; name?: string; uid?: string } | string,
+  actor: DeletionLogActor | string,
 ): Promise<void> {
   try {
     const tombstoneRef = db
@@ -171,20 +175,26 @@ export async function recordTombstone(
       .collection(collectionName)
       .doc(docId);
 
+    let deletedBy = 'unknown';
+    let deletedByName = '';
+    let deletedByUid = '';
+
+    if (typeof actor === 'string') {
+      deletedBy = actor.trim() || 'unknown';
+    } else if (actor && typeof actor === 'object') {
+      deletedBy = actor.email?.trim() || actor.name?.trim() || actor.uid?.trim() || 'unknown';
+      deletedByName = actor.name?.trim() || '';
+      deletedByUid = actor.uid?.trim() || '';
+    }
+
     const tombstoneData: Record<string, unknown> = {
       docId,
       collection: collectionName,
       deletedAt: FieldValue.serverTimestamp(),
+      deletedBy,
     };
-
-    if (typeof actor === 'string' && actor) {
-      tombstoneData.deletedBy = actor;
-    } else if (actor && typeof actor === 'object') {
-      if (actor.email) tombstoneData.deletedBy = actor.email;
-      else if (actor.name) tombstoneData.deletedBy = actor.name;
-      if (actor.name) tombstoneData.deletedByName = actor.name;
-      if (actor.uid) tombstoneData.deletedByUid = actor.uid;
-    }
+    if (deletedByName) tombstoneData.deletedByName = deletedByName;
+    if (deletedByUid) tombstoneData.deletedByUid = deletedByUid;
 
     await tombstoneRef.set(tombstoneData, { merge: true });
   } catch (error) {
@@ -216,8 +226,8 @@ export function sanitizeForFirestore<T>(data: T): T {
   }
 
   // If it's a client Firestore Timestamp or any object providing .toDate()
-  if (typeof (data as { toDate?: () => Date }).toDate === 'function') {
-    return admin.firestore.Timestamp.fromDate((data as { toDate: () => Date }).toDate()) as unknown as T;
+  if (typeof (data as unknown as { toDate?: () => Date })?.toDate === 'function') {
+    return admin.firestore.Timestamp.fromDate((data as unknown as { toDate: () => Date }).toDate()) as unknown as T;
   }
 
   // Preserve native Date instances
@@ -263,17 +273,17 @@ export function sanitizeForFirestore<T>(data: T): T {
 /**
  * Saves a complete audit log entry of a deleted document into /deletion_logs
  * with its pre-deletion data snapshot, collection name, docId, and actor metadata.
+ * Requires the actor identity (email or username) who performed the deletion.
  */
 export async function recordDeletionLog(
   db: admin.firestore.Firestore,
   collectionName: string,
   docId: string,
   data: Record<string, unknown>,
-  actor?: { email?: string; name?: string; uid?: string } | string,
-  source: 'cloud_function_trigger' | 'client_action' | 'admin_script' = 'cloud_function_trigger',
+  actor: DeletionLogActor | string,
+  source: DeletionSource = DeletionSource.CloudFunctionTrigger,
 ): Promise<string | undefined> {
   try {
-    const timestamp = new Date().toISOString();
     const logId = `${collectionName}_${docId}_${Date.now()}`;
     const logRef = db.collection(FirestoreCollection.DeletionLogs).doc(logId);
 
@@ -281,12 +291,12 @@ export async function recordDeletionLog(
     let deletedByName = '';
     let deletedByUid = '';
 
-    if (typeof actor === 'string' && actor) {
-      deletedBy = actor;
+    if (typeof actor === 'string') {
+      deletedBy = actor.trim() || 'unknown';
     } else if (actor && typeof actor === 'object') {
-      deletedBy = actor.email || actor.name || actor.uid || 'unknown';
-      deletedByName = actor.name || '';
-      deletedByUid = actor.uid || '';
+      deletedBy = actor.email?.trim() || actor.name?.trim() || actor.uid?.trim() || 'unknown';
+      deletedByName = actor.name?.trim() || '';
+      deletedByUid = actor.uid?.trim() || '';
     }
 
     // Clean up undefined fields while preserving native Firestore Timestamps
@@ -296,18 +306,15 @@ export async function recordDeletionLog(
       id: logId,
       collectionName,
       docId,
-      deletedAt: timestamp,
+      deletedAt: FieldValue.serverTimestamp(),
       deletedBy,
-      deletedByName,
-      deletedByUid,
+      deletedByName: deletedByName || undefined,
+      deletedByUid: deletedByUid || undefined,
       source,
       data: sanitizedData,
     };
 
-    await logRef.set({
-      ...logEntry,
-      loggedAt: FieldValue.serverTimestamp(),
-    });
+    await logRef.set(logEntry);
 
     console.log(
       `[Audit] Deletion log recorded in ${FirestoreCollection.DeletionLogs}/${logId} for ${collectionName}/${docId} by ${deletedBy}`,
