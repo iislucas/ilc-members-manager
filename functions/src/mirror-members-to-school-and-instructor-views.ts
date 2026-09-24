@@ -1,6 +1,13 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member } from './data-model/members';
+import { recordDeletionLog } from './common';
+import {
+  DeletionSource,
+  DeletionTriggerKind,
+  CascadeCase,
+  CascadedDeletionTrigger,
+} from './data-model/deletion-logs';
 
 const db = admin.firestore();
 
@@ -22,6 +29,24 @@ export async function updateMemberViewForSchoolAndInstrucor(
         .doc(previousSchoolDocId)
         .collection('members')
         .doc(memberDocId);
+      const prevSnap = await previousMemberRef.get();
+      if (prevSnap.exists) {
+        const trigger: CascadedDeletionTrigger = {
+          kind: DeletionTriggerKind.Cascaded,
+          cascadeCase: CascadeCase.MemberSchoolChanged,
+          sourceCollection: 'members',
+          sourceDocId: memberDocId,
+          sourceName: member?.name || previousMember?.name,
+        };
+        await recordDeletionLog(
+          db,
+          `schools_${previousSchoolDocId}_members`,
+          memberDocId,
+          prevSnap.data() as Member,
+          trigger,
+          DeletionSource.CloudFunctionTrigger,
+        );
+      }
       await previousMemberRef.delete();
     }
   }
@@ -38,6 +63,24 @@ export async function updateMemberViewForSchoolAndInstrucor(
       if (member) {
         await memberRef.set(member as Member);
       } else {
+        const prevSnap = await memberRef.get();
+        if (prevSnap.exists) {
+          const trigger: CascadedDeletionTrigger = {
+            kind: DeletionTriggerKind.Cascaded,
+            cascadeCase: CascadeCase.MemberDeletedToSchoolView,
+            sourceCollection: 'members',
+            sourceDocId: memberDocId,
+            sourceName: previousMember?.name,
+          };
+          await recordDeletionLog(
+            db,
+            `schools_${schoolDocId}_members`,
+            memberDocId,
+            prevSnap.data() as Member,
+            trigger,
+            DeletionSource.CloudFunctionTrigger,
+          );
+        }
         await memberRef.delete();
       }
     }
@@ -64,6 +107,24 @@ export async function updateMemberViewForSchoolAndInstrucor(
         .doc(previousInstructorDocId)
         .collection('members')
         .doc(memberDocId);
+      const prevSnap = await previousMemberRef.get();
+      if (prevSnap.exists) {
+        const trigger: CascadedDeletionTrigger = {
+          kind: DeletionTriggerKind.Cascaded,
+          cascadeCase: CascadeCase.MemberInstructorChanged,
+          sourceCollection: 'members',
+          sourceDocId: memberDocId,
+          sourceName: member?.name || previousMember?.name,
+        };
+        await recordDeletionLog(
+          db,
+          `instructors_${previousInstructorDocId}_members`,
+          memberDocId,
+          prevSnap.data() as Member,
+          trigger,
+          DeletionSource.CloudFunctionTrigger,
+        );
+      }
       await previousMemberRef.delete();
     } else {
       logger.warn(
@@ -84,6 +145,24 @@ export async function updateMemberViewForSchoolAndInstrucor(
       if (member) {
         await memberRef.set(member as Member);
       } else {
+        const prevSnap = await memberRef.get();
+        if (prevSnap.exists) {
+          const trigger: CascadedDeletionTrigger = {
+            kind: DeletionTriggerKind.Cascaded,
+            cascadeCase: CascadeCase.MemberDeletedToInstructorView,
+            sourceCollection: 'members',
+            sourceDocId: memberDocId,
+            sourceName: previousMember?.name,
+          };
+          await recordDeletionLog(
+            db,
+            `instructors_${instructorDocId}_members`,
+            memberDocId,
+            prevSnap.data() as Member,
+            trigger,
+            DeletionSource.CloudFunctionTrigger,
+          );
+        }
         await memberRef.delete();
       }
     } else {

@@ -14,6 +14,10 @@ import {
   DeletionLogEntry,
   DeletionSource,
   DeletionLogActor,
+  DeletionTrigger,
+  DeletionTriggerKind,
+  CascadeCase,
+  describeDeletionTrigger,
 } from './data-model/deletion-logs';
 import { Tombstone } from './data-model/system';
 
@@ -159,15 +163,34 @@ export async function assertAdminOrSchoolManager(
 }
 
 /**
+ * Normalizes either a structured DeletionTrigger or a legacy DeletionLogActor
+ * into a canonical MECE DeletionTrigger.
+ */
+export function normalizeDeletionTrigger(
+  input: DeletionTrigger | DeletionLogActor,
+): DeletionTrigger {
+  if (input && typeof input === 'object' && 'kind' in input) {
+    return input as DeletionTrigger;
+  }
+  const actor = input as DeletionLogActor;
+  return {
+    kind: DeletionTriggerKind.DirectUser,
+    email: actor?.email || 'unknown',
+    name: actor?.name,
+    uid: actor?.uid,
+  };
+}
+
+/**
  * Records a tombstone document when a record is deleted so incremental
  * delta sync on clients can detect and prune deletions from local storage.
- * Requires the actor identity (email or username) who performed the deletion.
+ * Supports direct user actions as well as cascaded deletions from other documents.
  */
 export async function recordTombstone(
   db: admin.firestore.Firestore,
   collectionName: string,
   docId: string,
-  actor: DeletionLogActor,
+  triggerOrActor: DeletionTrigger | DeletionLogActor,
 ): Promise<void> {
   try {
     const tombstoneRef = db
@@ -176,18 +199,25 @@ export async function recordTombstone(
       .collection(collectionName)
       .doc(docId);
 
-    const deletedBy = actor.email.trim() || 'unknown';
-    const deletedByName = actor.name?.trim() || '';
-    const deletedByUid = actor.uid?.trim() || '';
+    const trigger = normalizeDeletionTrigger(triggerOrActor);
+    const { deletedBy, deletedByName, deletedByUid } = describeDeletionTrigger(trigger);
 
     const tombstoneData: Tombstone = {
       docId,
       collection: collectionName,
       deletedAt: FieldValue.serverTimestamp(),
       deletedBy,
+      triggerKind: trigger.kind,
     };
     if (deletedByName) tombstoneData.deletedByName = deletedByName;
     if (deletedByUid) tombstoneData.deletedByUid = deletedByUid;
+
+    if (trigger.kind === DeletionTriggerKind.Cascaded) {
+      tombstoneData.cascadeCase = trigger.cascadeCase;
+      tombstoneData.sourceCollection = trigger.sourceCollection;
+      tombstoneData.sourceDocId = trigger.sourceDocId;
+      if (trigger.sourceName) tombstoneData.sourceName = trigger.sourceName;
+    }
 
     await tombstoneRef.set(tombstoneData, { merge: true });
   } catch (error) {
@@ -286,24 +316,23 @@ export function sanitizeForFirestore<T>(
 
 /**
  * Saves a complete audit log entry of a deleted document into /deletion_logs
- * with its pre-deletion data snapshot, collection name, docId, and actor metadata.
- * Requires the actor identity (email or username) who performed the deletion.
+ * with its pre-deletion data snapshot, collection name, docId, and MECE trigger metadata.
+ * Supports direct user actions, cascaded deletions from other documents, system lifecycles, and scripts.
  */
 export async function recordDeletionLog<T extends object>(
   db: admin.firestore.Firestore,
   collectionName: string,
   docId: string,
   data: T,
-  actor: DeletionLogActor,
+  triggerOrActor: DeletionTrigger | DeletionLogActor,
   source: DeletionSource = DeletionSource.CloudFunctionTrigger,
 ): Promise<string | undefined> {
   try {
     const logId = `${collectionName}_${docId}_${Date.now()}`;
     const logRef = db.collection(FirestoreCollection.DeletionLogs).doc(logId);
 
-    const deletedBy = actor.email.trim() || 'unknown';
-    const deletedByName = actor.name?.trim() || '';
-    const deletedByUid = actor.uid?.trim() || '';
+    const trigger = normalizeDeletionTrigger(triggerOrActor);
+    const { deletedBy, deletedByName, deletedByUid } = describeDeletionTrigger(trigger);
 
     // Clean up undefined fields while preserving native Firestore Timestamps
     const sanitizedData = sanitizeForFirestore(data);
@@ -317,13 +346,14 @@ export async function recordDeletionLog<T extends object>(
       deletedByName: deletedByName || undefined,
       deletedByUid: deletedByUid || undefined,
       source,
+      trigger,
       data: sanitizedData,
     };
 
     await logRef.set(logEntry);
 
     console.log(
-      `[Audit] Deletion log recorded in ${FirestoreCollection.DeletionLogs}/${logId} for ${collectionName}/${docId} by ${deletedBy}`,
+      `[Audit] Deletion log recorded in ${FirestoreCollection.DeletionLogs}/${logId} for ${collectionName}/${docId} (${trigger.kind}: ${deletedBy})`,
     );
     return logId;
   } catch (error) {

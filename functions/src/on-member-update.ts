@@ -20,7 +20,13 @@ import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-schoo
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
 import { ensureCountersAreAtLeast } from './counters';
 import { FirestoreUpdate, recordTombstone, recordDeletionLog } from './common';
-import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
+import {
+  DeletionSource,
+  DeletionLogActor,
+  DeletionTriggerKind,
+  CascadeCase,
+  CascadedDeletionTrigger,
+} from './data-model/deletion-logs';
 import * as logger from 'firebase-functions/logger';
 import { environment } from './environment/environment.js';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
@@ -211,6 +217,22 @@ export async function refreshACLAdminStatus(email: string) {
     if (data.isAdmin === true) {
       return;
     }
+    const trigger: CascadedDeletionTrigger = {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.MemberDeletedToAcl,
+      sourceCollection: 'members',
+      sourceDocId: email,
+      sourceName: email,
+    };
+    await recordDeletionLog(
+      getDb(),
+      'acl',
+      email,
+      data,
+      trigger,
+      DeletionSource.CloudFunctionTrigger,
+    );
+    await recordTombstone(getDb(), 'acl', email, trigger);
     await aclRef.delete();
     return;
   }
@@ -286,7 +308,14 @@ async function mirrorGradingsForSifuChange(
     if (cleanPrevSifu) {
       const assessors = [grading.gradingInstructorId, ...gradingManagerIdsOf(grading)];
       if (!assessors.includes(cleanPrevSifu)) {
-        await removeGradingFromInstructor(grading.docId, cleanPrevSifu);
+        const trigger: CascadedDeletionTrigger = {
+          kind: DeletionTriggerKind.Cascaded,
+          cascadeCase: CascadeCase.MemberInstructorChanged,
+          sourceCollection: 'members',
+          sourceDocId: memberDocId,
+          sourceName: grading.studentName || memberDocId,
+        };
+        await removeGradingFromInstructor(grading.docId, cleanPrevSifu, trigger);
       }
     }
     if (cleanCurrSifu) {
@@ -569,7 +598,14 @@ export const onMemberDeleted = onDocumentDeleted(
     await updateACL({ previous: member, member: undefined });
     await recordTombstone(getDb(), 'members', snap.id, actorInfo);
     if (member.instructorId) {
-      await recordTombstone(getDb(), 'instructors', snap.id, actorInfo);
+      await recordTombstone(getDb(), 'instructors', snap.id, {
+        kind: DeletionTriggerKind.Cascaded,
+        cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+        sourceCollection: 'members',
+        sourceDocId: snap.id,
+        sourceName: member.name,
+        initiatingUserEmail: actorInfo.email && actorInfo.email !== 'unknown' ? actorInfo.email : undefined,
+      });
     }
   },
 );

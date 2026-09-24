@@ -226,6 +226,42 @@ describe('recordTombstone', () => {
       { merge: true },
     );
   });
+
+  it('records tombstone for cascaded deletion with source doc info and no email', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const subColMock = vi.fn().mockReturnValue({ doc: docMock });
+    const sysDocMock = vi.fn().mockReturnValue({ collection: subColMock });
+    const dbMock = {
+      collection: vi.fn().mockReturnValue({ doc: sysDocMock }),
+    } as any;
+
+    const { recordTombstone } = await import('./common.js');
+    const { DeletionTriggerKind, CascadeCase } = await import('./data-model/deletion-logs.js');
+
+    await recordTombstone(dbMock, 'instructors', 'inst-42', {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+      sourceCollection: 'members',
+      sourceDocId: 'mem-42',
+      sourceName: 'Pietro Roselli',
+    });
+
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        docId: 'inst-42',
+        collection: 'instructors',
+        triggerKind: DeletionTriggerKind.Cascaded,
+        cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+        sourceCollection: 'members',
+        sourceDocId: 'mem-42',
+        sourceName: 'Pietro Roselli',
+        deletedBy: 'cascaded:members/mem-42',
+        deletedByName: 'Cascaded from Pietro Roselli (member_deleted_to_instructor_profile)',
+      }),
+      { merge: true },
+    );
+  });
 });
 
 describe('sanitizeForFirestore', () => {
@@ -330,6 +366,125 @@ describe('recordDeletionLog', () => {
     const callArg = setMock.mock.calls[0][0];
     expect('undefinedField' in callArg.data).toBe(false);
     expect(callArg.data.lastUpdated instanceof admin.firestore.Timestamp).toBe(true);
+  });
+
+  it('records cascaded deletion log with full MECE trigger details and data snapshot', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const colMock = vi.fn().mockReturnValue({ doc: docMock });
+    const dbMock = {
+      collection: colMock,
+    } as any;
+
+    const { recordDeletionLog } = await import('./common.js');
+    const { DeletionSource, DeletionTriggerKind, CascadeCase } = await import('./data-model/deletion-logs.js');
+    type CascadedDeletionTrigger = import('./data-model/deletion-logs.js').CascadedDeletionTrigger;
+
+    const cascadedTrigger: CascadedDeletionTrigger = {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+      sourceCollection: 'members',
+      sourceDocId: 'mem-100',
+      sourceName: 'Pietro Roselli',
+    };
+
+    const instProfile = {
+      name: 'Pietro Roselli',
+      level: 'Instructor Level 2',
+      published: true,
+    };
+
+    const logId = await recordDeletionLog(
+      dbMock,
+      'instructors',
+      'inst-100',
+      instProfile,
+      cascadedTrigger,
+      DeletionSource.CloudFunctionTrigger,
+    );
+
+    expect(logId).toBeDefined();
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionName: 'instructors',
+        docId: 'inst-100',
+        deletedBy: 'cascaded:members/mem-100',
+        deletedByName: 'Cascaded from Pietro Roselli (member_deleted_to_instructor_profile)',
+        source: DeletionSource.CloudFunctionTrigger,
+        trigger: cascadedTrigger,
+        data: instProfile,
+      }),
+    );
+  });
+});
+
+describe('normalizeDeletionTrigger and describeDeletionTrigger', () => {
+  it('normalizes legacy DeletionLogActor to DirectUser trigger', async () => {
+    const { normalizeDeletionTrigger } = await import('./common.js');
+    const { DeletionTriggerKind, describeDeletionTrigger } = await import('./data-model/deletion-logs.js');
+
+    const actor = { email: 'admin@ilc.com', name: 'Admin', uid: 'u123' };
+    const trigger = normalizeDeletionTrigger(actor);
+
+    expect(trigger).toEqual({
+      kind: DeletionTriggerKind.DirectUser,
+      email: 'admin@ilc.com',
+      name: 'Admin',
+      uid: 'u123',
+    });
+
+    const desc = describeDeletionTrigger(trigger);
+    expect(desc.deletedBy).toBe('admin@ilc.com');
+    expect(desc.deletedByName).toBe('Admin');
+    expect(desc.deletedByUid).toBe('u123');
+  });
+
+  it('normalizes CascadedDeletionTrigger without mutation', async () => {
+    const { normalizeDeletionTrigger } = await import('./common.js');
+    const { DeletionTriggerKind, CascadeCase, describeDeletionTrigger } = await import('./data-model/deletion-logs.js');
+    type CascadedDeletionTrigger = import('./data-model/deletion-logs.js').CascadedDeletionTrigger;
+
+    const cascaded: CascadedDeletionTrigger = {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.MemberDeletedToAcl,
+      sourceCollection: 'members',
+      sourceDocId: 'mem-abc',
+      sourceName: 'John Doe',
+    };
+    const trigger = normalizeDeletionTrigger(cascaded);
+    expect(trigger).toBe(cascaded);
+
+    const desc = describeDeletionTrigger(trigger);
+    expect(desc.deletedBy).toBe('cascaded:members/mem-abc');
+    expect(desc.deletedByName).toBe('Cascaded from John Doe (member_deleted_to_acl)');
+    expect(desc.deletedByUid).toBeUndefined();
+  });
+
+  it('describes SystemLifecycle and AdminScript triggers', async () => {
+    const { DeletionTriggerKind, describeDeletionTrigger } = await import('./data-model/deletion-logs.js');
+
+    const sysDesc = describeDeletionTrigger({
+      kind: DeletionTriggerKind.SystemLifecycle,
+      processName: 'ttl_prune',
+      reason: 'Expired session',
+    });
+    expect(sysDesc.deletedBy).toBe('system:ttl_prune');
+    expect(sysDesc.deletedByName).toBe('Expired session');
+
+    const scriptDescWithOp = describeDeletionTrigger({
+      kind: DeletionTriggerKind.AdminScript,
+      scriptName: 'fix-tombstones',
+      operator: 'superadmin',
+    });
+    expect(scriptDescWithOp.deletedBy).toBe('superadmin');
+    expect(scriptDescWithOp.deletedByName).toBe('Script: fix-tombstones');
+
+    const scriptDescNoOp = describeDeletionTrigger({
+      kind: DeletionTriggerKind.AdminScript,
+      scriptName: 'fix-tombstones',
+    });
+    expect(scriptDescNoOp.deletedBy).toBe('script:fix-tombstones');
+    expect(scriptDescNoOp.deletedByName).toBe('Script: fix-tombstones');
   });
 });
 

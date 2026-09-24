@@ -1,5 +1,6 @@
 import { FsTimestamp, GenericFsDoc } from './base';
 import { Member } from './members';
+import { DeletionTriggerKind, CascadeCase } from './deletion-logs';
 
 // ==================================================================
 // # Counters
@@ -22,9 +23,14 @@ export type Tombstone = {
   docId: string;
   collection: string;
   deletedAt: FsTimestamp;
-  deletedBy: string; // Email or username of the actor who performed the deletion
-  deletedByName?: string; // Display name of the actor
-  deletedByUid?: string; // Firebase Auth UID of the actor
+  deletedBy: string; // Email, source document reference, or system identifier
+  deletedByName?: string; // Display name or cascade description
+  deletedByUid?: string; // Firebase Auth UID of the actor if authenticated
+  triggerKind?: DeletionTriggerKind;
+  cascadeCase?: CascadeCase;
+  sourceCollection?: string;
+  sourceDocId?: string;
+  sourceName?: string;
 };
 
 export function firestoreDocToTombstone(doc: GenericFsDoc): Tombstone {
@@ -36,6 +42,11 @@ export function firestoreDocToTombstone(doc: GenericFsDoc): Tombstone {
     deletedBy: docData.deletedBy || '',
     deletedByName: docData.deletedByName || '',
     deletedByUid: docData.deletedByUid || '',
+    triggerKind: docData.triggerKind,
+    cascadeCase: docData.cascadeCase,
+    sourceCollection: docData.sourceCollection || '',
+    sourceDocId: docData.sourceDocId || '',
+    sourceName: docData.sourceName || '',
   };
 }
 
