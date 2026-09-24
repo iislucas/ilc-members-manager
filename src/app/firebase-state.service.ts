@@ -346,7 +346,7 @@ export class FirebaseStateService {
       this.user.set({
         ...currentUserDetails,
         member: newProfile,
-        isAdmin: newProfile.isAdmin,
+        isAdmin: currentUserDetails.isAdmin,
       });
       const cached = await this.idb.get<CachedUserDetails>(
         `cached_user_details_${currentUserDetails.firebaseUser.uid}`,
@@ -385,7 +385,7 @@ export class FirebaseStateService {
       ...currentUserDetails,
       member: newActiveMember,
       memberProfiles: updatedProfiles,
-      isAdmin: newActiveMember.isAdmin ?? currentUserDetails.isAdmin,
+      isAdmin: currentUserDetails.isAdmin,
     };
     this.user.set(updatedDetails);
 
@@ -399,9 +399,6 @@ export class FirebaseStateService {
         );
         if (cachedIdx >= 0) {
           cached.userMemberProfiles[cachedIdx] = updatedMember;
-        }
-        if (isCurrentActive) {
-          cached.isAdmin = updatedMember.isAdmin ?? cached.isAdmin;
         }
         await this.idb.set(
           `cached_user_details_${currentUserDetails.firebaseUser.uid}`,
@@ -445,7 +442,7 @@ export class FirebaseStateService {
           this.user.set({
             ...updatedDetails,
             member: updatedMember,
-            isAdmin: updatedMember.isAdmin,
+            isAdmin: updatedDetails.isAdmin,
             // Update the profile in the list as well
             memberProfiles: updatedDetails.memberProfiles.map((p) =>
               p.docId === updatedMember.docId ? updatedMember : p,

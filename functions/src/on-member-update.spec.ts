@@ -599,7 +599,7 @@ describe('on-member-update triggers logic', () => {
   });
 
   describe('refreshACLAdminStatus', () => {
-    it('should delete ACL doc if memberDocIds is empty, even if user was previously an admin', async () => {
+    it('should retain ACL doc if memberDocIds is empty and user is an admin', async () => {
       const mockAclRef = {
         get: vi.fn().mockResolvedValue({
           exists: true,
@@ -618,7 +618,7 @@ describe('on-member-update triggers logic', () => {
 
       await refreshACLAdminStatus('admin@iliqchuan.com');
 
-      expect(mockAclRef.delete).toHaveBeenCalledTimes(1);
+      expect(mockAclRef.delete).not.toHaveBeenCalled();
     });
 
     it('should delete ACL doc if memberDocIds is empty and user is not an admin', async () => {
@@ -643,11 +643,11 @@ describe('on-member-update triggers logic', () => {
       expect(mockAclRef.delete).toHaveBeenCalledTimes(1);
     });
 
-    it('should sync isAdmin: true from linked member profiles when member is admin', async () => {
+    it('should update membership details without mutating or overriding isAdmin', async () => {
       const mockAclRef = {
         get: vi.fn().mockResolvedValue({
           exists: true,
-          data: () => ({ isAdmin: false, memberDocIds: ['m1'] }),
+          data: () => ({ isAdmin: true, memberDocIds: ['m1'] }),
         }),
         update: vi.fn().mockResolvedValue(undefined),
       };
@@ -656,7 +656,6 @@ describe('on-member-update triggers logic', () => {
         exists: true,
         data: () => ({
           docId: 'm1',
-          isAdmin: true,
           membershipType: 'Life',
         }),
       };
@@ -673,48 +672,10 @@ describe('on-member-update triggers logic', () => {
 
       await refreshACLAdminStatus('admin@example.com');
 
-      expect(mockAclRef.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          isAdmin: true,
-        }),
-      );
-    });
-
-    it('should sync isAdmin: false when linked member profiles are not admin', async () => {
-      const mockAclRef = {
-        get: vi.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({ isAdmin: true, memberDocIds: ['m1'] }),
-        }),
-        update: vi.fn().mockResolvedValue(undefined),
-      };
-
-      const mockMemberSnap = {
-        exists: true,
-        data: () => ({
-          docId: 'm1',
-          isAdmin: false,
-          membershipType: 'Life',
-        }),
-      };
-
-      vi.spyOn(admin, 'firestore').mockReturnValue({
-        collection: vi.fn().mockImplementation((col: string) => {
-          if (col === 'acl') return { doc: vi.fn().mockReturnValue(mockAclRef) };
-          if (col === 'members') return { doc: vi.fn().mockReturnValue({}) };
-          if (col === 'schools') return { where: vi.fn().mockReturnValue({ get: vi.fn().mockResolvedValue({ docs: [] }) }) };
-          return {};
-        }),
-        getAll: vi.fn().mockResolvedValue([mockMemberSnap]),
-      } as any);
-
-      await refreshACLAdminStatus('revoked-admin@example.com');
-
-      expect(mockAclRef.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          isAdmin: false,
-        }),
-      );
+      expect(mockAclRef.update).toHaveBeenCalledTimes(1);
+      const updateArg = mockAclRef.update.mock.calls[0][0];
+      expect(updateArg).not.toHaveProperty('isAdmin');
+      expect(updateArg).toHaveProperty('membershipExpires', 'life');
     });
   });
 });

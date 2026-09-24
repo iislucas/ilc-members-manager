@@ -295,7 +295,6 @@ export class MemberDetailsComponent {
       () => !this.userIsAdmin(),
     );
     disabled(schema.classVideoLibraryExpirationDate, () => !this.userIsAdmin());
-    disabled(schema.isAdmin, () => !this.userIsAdmin());
     disabled(schema.notes, () => !this.userIsSchoolManagerOrAdmin());
     disabled(schema.tags, () => !this.userIsAdmin());
   });

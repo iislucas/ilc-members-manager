@@ -49,7 +49,6 @@ export async function updateACL(aclUpdate: {
   const added = emails.filter((e) => !previousEmails.includes(e));
   const removed = previousEmails.filter((e) => !emails.includes(e));
 
-  const isAdminChanged = member?.isAdmin !== previous?.isAdmin;
   const instructorIdChanged = instructorId !== previousInstructorId;
   const membershipTypeChanged = member?.membershipType !== previous?.membershipType;
   const membershipExpiresChanged = member?.currentMembershipExpires !== previous?.currentMembershipExpires;
@@ -59,7 +58,6 @@ export async function updateACL(aclUpdate: {
   if (
     added.length === 0 &&
     removed.length === 0 &&
-    !isAdminChanged &&
     !instructorIdChanged &&
     !membershipTypeChanged &&
     !membershipExpiresChanged &&
@@ -75,19 +73,16 @@ export async function updateACL(aclUpdate: {
     if (!email) continue;
     const aclRef = getDb().collection('acl').doc(email);
     const aclSnap = await aclRef.get();
-    // Security check: If target ACL is an admin account, never attach a non-admin member document to it
-    if (aclSnap.exists && aclSnap.data()?.isAdmin === true && !member?.isAdmin) {
+    // Security check: Never attach a member document to an existing admin ACL via member profile updates
+    if (aclSnap.exists && aclSnap.data()?.isAdmin === true) {
       logger.warn(
-        `Security violation: Non-admin member ${memberDocId} attempted to link to admin ACL ${email}. Ignored.`,
+        `Security violation: Member ${memberDocId} attempted to link to existing admin ACL ${email}. Ignored.`,
       );
       continue;
     }
     const update: FirestoreUpdate<ACL> = {
       memberDocIds: FieldValue.arrayUnion(memberDocId),
     };
-    if (member?.isAdmin) {
-      update.isAdmin = true;
-    }
     batch.set(aclRef, update, { merge: true });
   }
 
@@ -212,6 +207,9 @@ export async function refreshACLAdminStatus(email: string) {
 
   const data = aclSnap.data() as ACL;
   if (!data.memberDocIds || data.memberDocIds.length === 0) {
+    if (data.isAdmin === true) {
+      return;
+    }
     await aclRef.delete();
     return;
   }
@@ -223,11 +221,6 @@ export async function refreshACLAdminStatus(email: string) {
   if (memberRefs.length > 0) {
     memberSnaps = await getDb().getAll(...memberRefs);
   }
-
-  const anyAdmin = memberSnaps.some(
-    (snap: admin.firestore.DocumentSnapshot) =>
-      snap.exists && snap.data()?.isAdmin === true,
-  );
 
   const anyFullMember = memberSnaps.some(
     (snap: admin.firestore.DocumentSnapshot) =>
@@ -257,7 +250,6 @@ export async function refreshACLAdminStatus(email: string) {
   );
 
   await aclRef.update({
-    isAdmin: anyAdmin,
     instructorIds: Array.from(newInstructorIds),
     schoolDocIds: schoolInfo.docIds,
     notYetLinkedToMember: !anyFullMember,

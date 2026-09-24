@@ -1,4 +1,5 @@
 import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
+import { AdminsSettingsComponent } from './admins/admins.component';
 import { CountersComponent } from './counters/counters';
 import { CountryCodesComponent } from './country-codes/country-codes';
 import { Backups } from './backups/backups';
@@ -10,14 +11,15 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 
 // Valid tab identifiers for the settings page.
-type SettingsTab = 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources' | 'local-cache' | 'app-version';
-const VALID_TABS: SettingsTab[] = ['counters', 'country-codes', 'backups', 'content-cache', 'resources', 'local-cache', 'app-version'];
-const DEFAULT_TAB: SettingsTab = 'counters';
+type SettingsTab = 'admins' | 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources' | 'local-cache' | 'app-version';
+const VALID_TABS: SettingsTab[] = ['admins', 'counters', 'country-codes', 'backups', 'content-cache', 'resources', 'local-cache', 'app-version'];
+const DEFAULT_TAB: SettingsTab = 'admins';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   imports: [
+    AdminsSettingsComponent,
     CountersComponent,
     CountryCodesComponent,
     Backups,
