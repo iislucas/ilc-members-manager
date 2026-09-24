@@ -29,7 +29,14 @@ import { initGrading, firestoreDocToGrading, type GradingFsDoc } from '../../fun
 import { initVideoItem, type VideoItemFsDoc } from '../../functions/src/data-model/vod';
 import { firestoreDocToTombstone } from '../../functions/src/data-model/system';
 import { sanitizeForFirestore } from '../../functions/src/common';
-import { DeletionSource, type DeletionLogEntry } from '../../functions/src/data-model/deletion-logs';
+import { InstructorLicenseType } from '../../functions/src/data-model/curriculum';
+import {
+  DeletionSource,
+  DeletionTriggerKind,
+  CascadeCase,
+  type DeletionLogEntry,
+  type CascadedDeletionTrigger,
+} from '../../functions/src/data-model/deletion-logs';
 
 describe('story: timestamps-and-deletions', () => {
   it('writes and reads native Firestore Timestamp instances without corruption', async () => {
@@ -285,5 +292,107 @@ describe('story: timestamps-and-deletions', () => {
     // Normalization to ISO string works smoothly
     const member = firestoreDocToMember(snap);
     expect(typeof member.lastUpdated).toBe('string');
+  });
+
+  it('records MECE cascaded deletion log and tombstone without requiring email when member deletion triggers cascade', async () => {
+    const memId = `mem-cascade-${Date.now()}`;
+    const testDate = new Date('2026-09-01T15:00:00.000Z');
+    const nativeTs = admin.firestore.Timestamp.fromDate(testDate);
+
+    // 1. Create a member with instructor credentials
+    await db.collection('members').doc(memId).set({
+      ...initMember(),
+      name: 'Cascaded Audit Instructor',
+      memberId: 'IT88',
+      instructorId: 'I-88',
+      instructorLicenseType: InstructorLicenseType.Life,
+      emails: [`instructor-${Date.now()}@example.com`],
+      lastUpdated: nativeTs,
+    });
+
+    // 2. Create the mirrored instructor profile doc
+    await db.collection('instructors').doc(memId).set({
+      name: 'Cascaded Audit Instructor',
+      memberId: 'IT88',
+      instructorId: 'I-88',
+      instructorLicenseType: InstructorLicenseType.Life,
+      lastUpdated: nativeTs,
+    });
+
+    // Verify instructor exists before cascade
+    const preSnap = await db.collection('instructors').doc(memId).get();
+    expect(preSnap.exists).toBe(true);
+
+    // 3. Delete the parent member doc to trigger onMemberDeleted
+    await db.collection('members').doc(memId).delete();
+
+    // 4. Wait for the mirrored instructor doc to be deleted by cascade trigger
+    await waitFor(
+      async () => {
+        const instSnap = await db.collection('instructors').doc(memId).get();
+        return instSnap.exists ? undefined : true;
+      },
+      (deleted) => deleted === true,
+      'cascaded instructor deletion',
+    );
+
+    // 5. Verify cascaded deletion log in /deletion_logs
+    const logSnap = await waitFor(
+      async () => {
+        const res = await db
+          .collection('deletion_logs')
+          .where('collectionName', '==', 'instructors')
+          .where('docId', '==', memId)
+          .limit(1)
+          .get();
+        return res.empty ? undefined : res.docs[0];
+      },
+      (doc) => !!doc,
+      'cascaded instructor deletion log',
+    );
+
+    const logData = logSnap.data() as DeletionLogEntry<Record<string, unknown>>;
+    expect(logData.deletedAt instanceof admin.firestore.Timestamp).toBe(true);
+    expect(logData.source).toBe(DeletionSource.CloudFunctionTrigger);
+
+    // Trigger metadata must be MECE CascadedDeletionTrigger
+    expect(logData.trigger).toBeDefined();
+    expect(logData.trigger.kind).toBe(DeletionTriggerKind.Cascaded);
+    const cascadedTrigger = logData.trigger as CascadedDeletionTrigger;
+    expect(cascadedTrigger.cascadeCase).toBe(CascadeCase.MemberDeletedToInstructorProfile);
+    expect(cascadedTrigger.sourceCollection).toBe('members');
+    expect(cascadedTrigger.sourceDocId).toBe(memId);
+    expect(cascadedTrigger.sourceName).toBe('Cascaded Audit Instructor');
+
+    // Backward-compatible summary fields describe the cascade without requiring a user email
+    expect(logData.deletedBy).toBe(`cascaded:members/${memId}`);
+    expect(logData.deletedByName).toBe(
+      `Cascaded from Cascaded Audit Instructor (${CascadeCase.MemberDeletedToInstructorProfile})`,
+    );
+
+    // Document snapshot in deletion log must preserve native Timestamp
+    expect(logData.data['lastUpdated'] instanceof admin.firestore.Timestamp).toBe(true);
+    const lastUpdatedMs = (logData.data['lastUpdated'] as admin.firestore.Timestamp).toDate().getTime();
+    expect(Math.abs(Date.now() - lastUpdatedMs)).toBeLessThan(60000);
+    expect(logData.data['name']).toBe('Cascaded Audit Instructor');
+    expect(logData.data['instructorId']).toBe('I-88');
+
+    // 6. Verify tombstone in /system/deletions/instructors/{memId}
+    const tombstoneSnap = await db
+      .collection('system')
+      .doc('deletions')
+      .collection('instructors')
+      .doc(memId)
+      .get();
+
+    expect(tombstoneSnap.exists).toBe(true);
+    const tombstone = firestoreDocToTombstone(tombstoneSnap);
+    expect(tombstone.deletedAt instanceof admin.firestore.Timestamp).toBe(true);
+    expect(tombstone.triggerKind).toBe(DeletionTriggerKind.Cascaded);
+    expect(tombstone.cascadeCase).toBe(CascadeCase.MemberDeletedToInstructorProfile);
+    expect(tombstone.sourceCollection).toBe('members');
+    expect(tombstone.sourceDocId).toBe(memId);
+    expect(tombstone.sourceName).toBe('Cascaded Audit Instructor');
+    expect(tombstone.deletedBy).toBe(`cascaded:members/${memId}`);
   });
 });

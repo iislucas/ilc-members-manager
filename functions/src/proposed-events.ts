@@ -30,7 +30,13 @@ import { Member } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { VideoGrant, VideoGrantKind } from './data-model/vod';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone, recordDeletionLog } from './common';
-import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
+import {
+  DeletionSource,
+  DeletionLogActor,
+  DeletionTriggerKind,
+  CascadeCase,
+  CascadedDeletionTrigger,
+} from './data-model/deletion-logs';
 import { createMemberNotification } from './notifications';
 import { contentChanged } from './content-cache';
 
@@ -751,6 +757,24 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
       .doc(docId)
       .collection(FirestoreSubcollection.Events)
       .doc(eventDocId);
+    const targetSnap = await ref.get();
+    if (targetSnap.exists) {
+      const trigger: CascadedDeletionTrigger = {
+        kind: DeletionTriggerKind.Cascaded,
+        cascadeCase: CascadeCase.EventDeletedToMemberView,
+        sourceCollection: FirestoreCollection.Events,
+        sourceDocId: eventDocId,
+        sourceName: eventData.title,
+      };
+      await recordDeletionLog(
+        admin.firestore(),
+        `members_${docId}_events`,
+        eventDocId,
+        targetSnap.data() as IlcEvent,
+        trigger,
+        DeletionSource.CloudFunctionTrigger,
+      );
+    }
     await ref.delete();
     logger.info(`Removed mirrored event ${eventDocId} from member ${docId} subcollection.`);
   }
