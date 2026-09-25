@@ -353,6 +353,10 @@ export const createProductCheckoutSession = onCall<
   let tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo, pricingTierType);
   let tier = product.tiers[tierKey];
 
+  if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+    tierKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, includeVideo, pricingTierType);
+    tier = product.tiers[tierKey];
+  }
   if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
     // If no special tier for member/instructor, fall back to standard non_member tier
     tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, pricingTierType);
@@ -364,6 +368,10 @@ export const createProductCheckoutSession = onCall<
     pricingTierType = PricingTierType.Standard;
     tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo, PricingTierType.Standard);
     tier = product.tiers[tierKey];
+    if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+      tierKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, includeVideo, PricingTierType.Standard);
+      tier = product.tiers[tierKey];
+    }
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, PricingTierType.Standard);
       tier = product.tiers[tierKey];
@@ -374,6 +382,10 @@ export const createProductCheckoutSession = onCall<
   if ((!tier || !tier.enabled) && includeVideo) {
     let fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, pricingTierType);
     tier = product.tiers[fallbackNovideoKey];
+    if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+      fallbackNovideoKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, false, pricingTierType);
+      tier = product.tiers[fallbackNovideoKey];
+    }
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, pricingTierType);
       tier = product.tiers[fallbackNovideoKey];
@@ -381,6 +393,10 @@ export const createProductCheckoutSession = onCall<
     if ((!tier || !tier.enabled) && pricingTierType === PricingTierType.EarlyBird) {
       fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, PricingTierType.Standard);
       tier = product.tiers[fallbackNovideoKey];
+      if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+        fallbackNovideoKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, false, PricingTierType.Standard);
+        tier = product.tiers[fallbackNovideoKey];
+      }
       if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
         fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, PricingTierType.Standard);
         tier = product.tiers[fallbackNovideoKey];
@@ -736,6 +752,10 @@ export const updateProductRegistration = onCall<
   let tierKey = getPricingTierKey(role, tierLookupAttendance, hasVideoAccess, pricingTierType);
   let tier = product.tiers[tierKey];
 
+  if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+    tierKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, hasVideoAccess, pricingTierType);
+    tier = product.tiers[tierKey];
+  }
   if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
     tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, hasVideoAccess, pricingTierType);
     tier = product.tiers[tierKey];
@@ -744,6 +764,10 @@ export const updateProductRegistration = onCall<
     pricingTierType = PricingTierType.Standard;
     tierKey = getPricingTierKey(role, tierLookupAttendance, hasVideoAccess, PricingTierType.Standard);
     tier = product.tiers[tierKey];
+    if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+      tierKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, hasVideoAccess, PricingTierType.Standard);
+      tier = product.tiers[tierKey];
+    }
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, hasVideoAccess, PricingTierType.Standard);
       tier = product.tiers[tierKey];
@@ -754,6 +778,10 @@ export const updateProductRegistration = onCall<
   if ((!tier || !tier.enabled) && hasVideoAccess) {
     let fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, pricingTierType);
     tier = product.tiers[fallbackNovideoKey];
+    if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+      fallbackNovideoKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, false, pricingTierType);
+      tier = product.tiers[fallbackNovideoKey];
+    }
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, pricingTierType);
       tier = product.tiers[fallbackNovideoKey];
@@ -761,6 +789,10 @@ export const updateProductRegistration = onCall<
     if ((!tier || !tier.enabled) && pricingTierType === PricingTierType.EarlyBird) {
       fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, PricingTierType.Standard);
       tier = product.tiers[fallbackNovideoKey];
+      if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+        fallbackNovideoKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, false, PricingTierType.Standard);
+        tier = product.tiers[fallbackNovideoKey];
+      }
       if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
         fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, PricingTierType.Standard);
         tier = product.tiers[fallbackNovideoKey];
@@ -1063,6 +1095,12 @@ export const registerEventInPerson = onCall<
   let tier = product.tiers[tierKey];
 
   if (!tier || !tier.enabled) {
+    if (role === AttendeeRole.Instructor) {
+      tierKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, includeVideo, PricingTierType.InPerson);
+      tier = product.tiers[tierKey];
+    }
+  }
+  if (!tier || !tier.enabled) {
     // Fall back to non_member in_person tier
     if (role === AttendeeRole.Member || role === AttendeeRole.Instructor) {
       tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, PricingTierType.InPerson);
@@ -1074,6 +1112,10 @@ export const registerEventInPerson = onCall<
   if (!tier || !tier.enabled) {
     tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo, PricingTierType.Standard);
     tier = product.tiers[tierKey];
+    if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+      tierKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, includeVideo, PricingTierType.Standard);
+      tier = product.tiers[tierKey];
+    }
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, PricingTierType.Standard);
       tier = product.tiers[tierKey];
@@ -1084,6 +1126,10 @@ export const registerEventInPerson = onCall<
   if ((!tier || !tier.enabled) && includeVideo) {
     let fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, PricingTierType.InPerson);
     tier = product.tiers[fallbackNovideoKey];
+    if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+      fallbackNovideoKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, false, PricingTierType.InPerson);
+      tier = product.tiers[fallbackNovideoKey];
+    }
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, PricingTierType.InPerson);
       tier = product.tiers[fallbackNovideoKey];
@@ -1091,6 +1137,10 @@ export const registerEventInPerson = onCall<
     if (!tier || !tier.enabled) {
       fallbackNovideoKey = getPricingTierKey(role, tierLookupAttendance, false, PricingTierType.Standard);
       tier = product.tiers[fallbackNovideoKey];
+      if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+        fallbackNovideoKey = getPricingTierKey(AttendeeRole.Member, tierLookupAttendance, false, PricingTierType.Standard);
+        tier = product.tiers[fallbackNovideoKey];
+      }
       if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
         fallbackNovideoKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, false, PricingTierType.Standard);
         tier = product.tiers[fallbackNovideoKey];
