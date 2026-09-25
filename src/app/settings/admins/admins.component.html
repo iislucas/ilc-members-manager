@@ -1,0 +1,178 @@
+<div class="admins-settings-container">
+  <div class="header-section">
+    <h2>System Administrators</h2>
+    <p class="subtitle">
+      Administrator privileges are assigned directly to email login accounts (stored in <code>/acl/&#123;email&#125;</code>) rather than to member records.
+      Administrators have full administrative authority across all sections of the application.
+    </p>
+  </div>
+
+  @if (statusMessage()) {
+    <div class="info-banner">
+      <app-icon name="check"></app-icon>
+      <span class="banner-text">{{ statusMessage() }}</span>
+      <button class="icon-only-button close-btn" (click)="statusMessage.set('')" title="Dismiss">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <div class="error-container">
+      <app-icon name="warning"></app-icon>
+      <span class="error-message">{{ errorMessage() }}</span>
+      <button class="icon-only-button close-btn" (click)="errorMessage.set('')" title="Dismiss">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+  }
+
+  <!-- Add Admin Form -->
+  <div class="card add-admin-card">
+    <h3>Add Administrator</h3>
+    <form class="add-admin-form" (ngSubmit)="addAdmin()">
+      <div class="input-row">
+        <input
+          type="email"
+          class="form-control"
+          placeholder="admin.login@example.com"
+          [ngModel]="newAdminEmail()"
+          (ngModelChange)="newAdminEmail.set($event)"
+          name="newAdminEmail"
+          [disabled]="isProcessing()"
+          required
+        />
+        <button
+          type="submit"
+          class="action-button primary"
+          [disabled]="isProcessing() || !newAdminEmail().trim()"
+        >
+          @if (isProcessing()) {
+            <app-spinner></app-spinner>
+          } @else {
+            <app-icon name="add"></app-icon>
+          }
+          <span>Grant Admin</span>
+        </button>
+      </div>
+      <p class="form-hint">
+        Enter the Google or login email address. If this email already has associated member profiles, they will automatically be linked.
+      </p>
+    </form>
+  </div>
+
+  <!-- Revoke Confirmation Modal / Dialog -->
+  @if (emailToRevoke(); as revokeEmail) {
+    <div class="confirm-modal-backdrop" (click)="cancelRevoke()">
+      <div class="confirm-modal" (click)="$event.stopPropagation()">
+        <div class="confirm-icon warning">
+          <app-icon name="warning" width="32px" height="32px"></app-icon>
+        </div>
+        <h3>Revoke Administrator Access?</h3>
+        <p>
+          Are you sure you want to remove administrator privileges from
+          <strong>{{ revokeEmail }}</strong>?
+        </p>
+        <p class="warning-text">
+          This user will immediately lose access to all admin management features and restricted data.
+        </p>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="action-button subtle"
+            (click)="cancelRevoke()"
+            [disabled]="isProcessing()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="action-button danger"
+            (click)="confirmRevoke()"
+            [disabled]="isProcessing()"
+          >
+            @if (isProcessing()) {
+              <app-spinner></app-spinner>
+            }
+            <span>Revoke Access</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Administrators List -->
+  <div class="card admins-list-card">
+    <div class="card-header">
+      <h3>Active Administrators ({{ admins().length }})</h3>
+    </div>
+
+    @if (isLoading()) {
+      <div class="loading-state">
+        <app-spinner></app-spinner>
+        <span>Loading administrators...</span>
+      </div>
+    } @else if (admins().length === 0) {
+      <p class="empty-state">No administrators found.</p>
+    } @else {
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Email Login</th>
+              <th>Linked Member Profiles</th>
+              <th>Role</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (admin of admins(); track admin.email) {
+              <tr [class.current-user-row]="admin.email.toLowerCase() === currentUserEmail()">
+                <td class="email-cell">
+                  <span class="email-text">{{ admin.email }}</span>
+                  @if (admin.email.toLowerCase() === currentUserEmail()) {
+                    <span class="badge self-badge" title="You are currently signed in with this account">
+                      You
+                    </span>
+                  }
+                </td>
+                <td class="members-cell">
+                  @if (admin.memberNames.length > 0) {
+                    <div class="member-chips">
+                      @for (name of admin.memberNames; track name) {
+                        <span class="member-chip">{{ name }}</span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="unlinked-label">No member profile linked</span>
+                  }
+                </td>
+                <td>
+                  <span class="badge admin-badge">Administrator</span>
+                </td>
+                <td class="actions-col">
+                  @if (admin.email.toLowerCase() === currentUserEmail()) {
+                    <span class="disabled-action-hint" title="You cannot revoke your own admin access">
+                      Cannot revoke self
+                    </span>
+                  } @else {
+                    <button
+                      type="button"
+                      class="action-button danger-subtle"
+                      (click)="promptRevoke(admin.email)"
+                      [disabled]="isProcessing()"
+                      title="Revoke administrator privileges"
+                    >
+                      <app-icon name="delete" width="16px" height="16px"></app-icon>
+                      <span>Revoke</span>
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

@@ -67,6 +67,8 @@ export type ACL = {
   // owns or manages (matched by instructorId). "YYYY-MM-DD" for the
   // furthest expiry, or "" if not a school owner/manager.
   schoolLicenseExpires: string;
+  // Whether this ACL entry is for a guest or unlinked account.
+  notYetLinkedToMember?: boolean;
 };
 
 export type ACLFsDoc = ACL;

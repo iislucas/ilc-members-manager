@@ -1247,13 +1247,7 @@
       }
 
       @if (userIsAdmin()) {
-        <h3>Admin</h3>
-        <label for="isAdmin">Is Admin</label>
-        <div class="rhs">
-          <input type="checkbox" id="isAdmin" [formField]="form.isAdmin" />
-          <span class="note">(can edit all members)</span>
-        </div>
-
+        <h3>Internal Admin Notes</h3>
         <label for="notes" class="align-top">Notes</label>
         <div class="rhs">
           <textarea id="notes" [formField]="form.notes"></textarea>

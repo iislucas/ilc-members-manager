@@ -102,6 +102,8 @@ export {
 
 export { unsubscribeHandler } from './unsubscribe-handler';
 
+export { setAdminPrivilege } from './manage-admin';
+
 export * as actions from './actions';
 
 

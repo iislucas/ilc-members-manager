@@ -1,5 +1,7 @@
 <div class="page-layout">
   <div class="pill-tabs">
+    <button class="pill-tab" data-label="Admins" [class.active]="activeTab() === 'admins'"
+      (click)="setActiveTab('admins')">Admins</button>
     <button class="pill-tab" data-label="Counters" [class.active]="activeTab() === 'counters'"
       (click)="setActiveTab('counters')">Counters</button>
     <button class="pill-tab" data-label="Country Codes" [class.active]="activeTab() === 'country-codes'" (click)="setActiveTab('country-codes')">Country Codes</button>
@@ -14,6 +16,12 @@
     <button class="pill-tab" data-label="Version & Updates" [class.active]="activeTab() === 'app-version'"
       (click)="setActiveTab('app-version')">Version &amp; Updates</button>
   </div>
+
+  @if (activeTab() === 'admins') {
+  <div class="tab-content">
+    <app-admins-settings></app-admins-settings>
+  </div>
+  }
 
   @if (activeTab() === 'counters') {
   <div class="tab-content">

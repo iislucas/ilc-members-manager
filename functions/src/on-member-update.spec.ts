@@ -599,7 +599,7 @@ describe('on-member-update triggers logic', () => {
   });
 
   describe('refreshACLAdminStatus', () => {
-    it('should not delete ACL doc if memberDocIds is empty but user is an admin', async () => {
+    it('should retain ACL doc if memberDocIds is empty and user is an admin', async () => {
       const mockAclRef = {
         get: vi.fn().mockResolvedValue({
           exists: true,
@@ -643,11 +643,11 @@ describe('on-member-update triggers logic', () => {
       expect(mockAclRef.delete).toHaveBeenCalledTimes(1);
     });
 
-    it('should preserve canonical isAdmin: wasAdmin and not elevate from stale member profiles', async () => {
+    it('should update membership details without mutating or overriding isAdmin', async () => {
       const mockAclRef = {
         get: vi.fn().mockResolvedValue({
           exists: true,
-          data: () => ({ isAdmin: false, memberDocIds: ['m1'] }),
+          data: () => ({ isAdmin: true, memberDocIds: ['m1'] }),
         }),
         update: vi.fn().mockResolvedValue(undefined),
       };
@@ -656,7 +656,6 @@ describe('on-member-update triggers logic', () => {
         exists: true,
         data: () => ({
           docId: 'm1',
-          isAdmin: true, // Stale or unsynced member profile claims admin
           membershipType: 'Life',
         }),
       };
@@ -671,13 +670,12 @@ describe('on-member-update triggers logic', () => {
         getAll: vi.fn().mockResolvedValue([mockMemberSnap]),
       } as any);
 
-      await refreshACLAdminStatus('revoked-admin@example.com');
+      await refreshACLAdminStatus('admin@example.com');
 
-      expect(mockAclRef.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          isAdmin: false,
-        }),
-      );
+      expect(mockAclRef.update).toHaveBeenCalledTimes(1);
+      const updateArg = mockAclRef.update.mock.calls[0][0];
+      expect(updateArg).not.toHaveProperty('isAdmin');
+      expect(updateArg).toHaveProperty('membershipExpires', 'life');
     });
   });
 });

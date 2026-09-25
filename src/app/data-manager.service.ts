@@ -2736,6 +2736,18 @@ export class DataManagerService {
     await updateCounters(counters);
   }
 
+  async setAdminPrivilege(
+    email: string,
+    isAdmin: boolean,
+  ): Promise<{ success: boolean; email: string; isAdmin: boolean }> {
+    const fn = httpsCallable<
+      { email: string; isAdmin: boolean },
+      { success: boolean; email: string; isAdmin: boolean }
+    >(this.functions, 'setAdminPrivilege');
+    const result = await fn({ email, isAdmin });
+    return result.data;
+  }
+
   downloadMembersAsCsv() {
     const memberFields = Object.keys(initMember()) as Array<keyof Member>;
     const members = this.members.entries().map((m) => {

@@ -163,7 +163,11 @@ export type Member = {
 
   lastUpdated: string; // ISO string: YYYY-MM-DD ; Converted from server Timestamp;
 
-  isAdmin: boolean;
+  /**
+   * @deprecated Admin privilege is a property of the login email in `/acl/{email}`, not the member profile.
+   * Kept optional for backwards compatibility.
+   */
+  isAdmin?: boolean;
 
   // Internal ILC HQ Information
   memberId: string; // ILC Member Id (human readable): UNIQUE
