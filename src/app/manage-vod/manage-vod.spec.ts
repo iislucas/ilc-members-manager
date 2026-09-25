@@ -737,7 +737,7 @@ describe('ManageVodComponent', () => {
           priceCents: 2999,
           stripePriceId: 'price_series_1',
           accessTier: VodAccessTier.MembersOnly,
-          accessTiers: [VodAccessTier.MembersOnly, VodAccessTier.InstructorsOnly],
+          accessTiers: [VodAccessTier.MembersOnly, VodAccessTier.InstructorsOnly, VodAccessTier.DirectPurchase],
           isPublished: true,
         },
         ['v1', 'v2'],

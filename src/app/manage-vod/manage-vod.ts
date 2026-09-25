@@ -916,13 +916,14 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.editApplyToEntireSeries.set(false);
 
     const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
-      ? video.accessTiers
-      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+      ? video.accessTiers.filter((t) => t !== VodAccessTier.DirectPurchase)
+      : (video.accessTier && video.accessTier !== VodAccessTier.DirectPurchase ? [video.accessTier] : [VodAccessTier.MembersOnly]);
     this.editAccessTiers.set([...tiers]);
     this.editIsBuyable.set(
       Boolean(
         video.isBuyable ||
-        tiers.includes(VodAccessTier.DirectPurchase) ||
+        (Array.isArray(video.accessTiers) && video.accessTiers.includes(VodAccessTier.DirectPurchase)) ||
+        video.accessTier === VodAccessTier.DirectPurchase ||
         (video.priceCents && video.priceCents > 0) ||
         (video.seriesPriceCents && video.seriesPriceCents > 0),
       ),
@@ -989,8 +990,12 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           ? this.editStripePriceId().trim()
           : undefined;
 
-        patch.accessTier = tiers[0] || VodAccessTier.MembersOnly;
-        patch.accessTiers = tiers;
+        const finalTiers = isBuyable
+          ? Array.from(new Set([...tiers, VodAccessTier.DirectPurchase]))
+          : (tiers.length > 0 ? tiers.filter((t) => t !== VodAccessTier.DirectPurchase) : [VodAccessTier.MembersOnly]);
+
+        patch.accessTier = tiers[0] || (isBuyable ? VodAccessTier.DirectPurchase : VodAccessTier.MembersOnly);
+        patch.accessTiers = finalTiers;
         patch.isBuyable = isBuyable;
         patch.isPublished = v.isPublished;
         patch.priceCents = priceCents;
@@ -1043,12 +1048,13 @@ export class ManageVodComponent implements OnInit, OnDestroy {
         : null,
     );
     const tiers = Array.isArray(series.accessTiers) && series.accessTiers.length > 0
-      ? series.accessTiers
-      : (series.accessTier ? [series.accessTier] : [VodAccessTier.MembersOnly]);
+      ? series.accessTiers.filter((t) => t !== VodAccessTier.DirectPurchase)
+      : (series.accessTier && series.accessTier !== VodAccessTier.DirectPurchase ? [series.accessTier] : [VodAccessTier.MembersOnly]);
     this.editingSeriesAccessTiers.set([...tiers]);
     this.editingSeriesIsBuyable.set(
       Boolean(
-        tiers.includes(VodAccessTier.DirectPurchase) ||
+        (Array.isArray(series.accessTiers) && series.accessTiers.includes(VodAccessTier.DirectPurchase)) ||
+        series.accessTier === VodAccessTier.DirectPurchase ||
         (series.priceCents && series.priceCents > 0) ||
         series.stripePriceId,
       ),
@@ -1113,6 +1119,10 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       const tiers = this.editingSeriesAccessTiers();
       const isPublished = this.editingSeriesIsPublished();
 
+      const finalTiers = isBuyable
+        ? Array.from(new Set([...tiers, VodAccessTier.DirectPurchase]))
+        : (tiers.length > 0 ? tiers.filter((t) => t !== VodAccessTier.DirectPurchase) : [VodAccessTier.MembersOnly]);
+
       await this.dataService.updateVideoSeries(
         s.seriesId,
         {
@@ -1120,8 +1130,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           description: this.editingSeriesDescription().trim(),
           priceCents,
           stripePriceId,
-          accessTier: tiers[0] || VodAccessTier.MembersOnly,
-          accessTiers: tiers,
+          accessTier: tiers[0] || (isBuyable ? VodAccessTier.DirectPurchase : VodAccessTier.MembersOnly),
+          accessTiers: finalTiers,
           isPublished,
         },
         orderedIds,
