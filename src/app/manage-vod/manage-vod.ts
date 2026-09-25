@@ -125,7 +125,17 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   editingSeriesTitle = signal<string>('');
   editingSeriesDescription = signal<string>('');
   editingSeriesPriceDollars = signal<number | null>(null);
+  editingSeriesAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
+  editingSeriesIsBuyable = signal<boolean>(false);
+  editingSeriesStripePriceId = signal<string>('');
+  editingSeriesIsPublished = signal<boolean>(true);
   isSavingSeries = signal<boolean>(false);
+
+  editingVideoInSeries = computed(() => {
+    const seriesId = this.editSeriesId().trim();
+    const seriesTitle = this.editSeriesTitle().trim();
+    return Boolean(seriesId || seriesTitle);
+  });
 
   // Tag autocomplete display helper
   tagDisplayFns: DisplayFns<TagItem> = {
@@ -950,59 +960,50 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.isSaving.set(true);
     try {
       const tags = this.editTags();
-      const tiers = this.editAccessTiers();
-      const isBuyable = this.editIsBuyable();
-
-      const price = this.priceDollars();
-      const priceCents = isBuyable && price ? Math.round(price * 100) : undefined;
-      const stripePriceId = isBuyable && this.editStripePriceId().trim()
-        ? this.editStripePriceId().trim()
-        : undefined;
-
       const seriesId = this.editSeriesId().trim();
       const seriesTitle = this.editSeriesTitle().trim();
       const seriesDescription = this.editSeriesDescription().trim();
       const seriesPartIndex = this.editSeriesPartIndex();
-      const seriesPriceCents = this.editSeriesPriceDollars() !== null
-        ? Math.round(this.editSeriesPriceDollars()! * 100)
-        : undefined;
+      const isSeriesVideo = Boolean(seriesId || seriesTitle);
 
       const patch: Partial<VideoItem> = {
         title: v.title,
         description: v.description,
         recordedDate: this.editRecordedDate().trim(),
-        accessTier: tiers[0] || VodAccessTier.MembersOnly,
-        accessTiers: tiers,
-        isBuyable,
-        isPublished: v.isPublished,
         featured: v.featured,
         tags,
-        priceCents,
-        stripePriceId,
-        seriesId: seriesId || undefined,
-        seriesTitle: seriesTitle || undefined,
-        seriesDescription: seriesDescription || undefined,
-        seriesPartIndex: seriesPartIndex !== null ? seriesPartIndex : undefined,
-        seriesPriceCents,
       };
 
-      if (this.editApplyToEntireSeries() && seriesId) {
-        await this.dataService.updateVideoSeries(seriesId, {
-          title: seriesTitle,
-          description: seriesDescription,
-          priceCents: seriesPriceCents,
-          accessTier: tiers[0] || VodAccessTier.MembersOnly,
-          accessTiers: tiers,
-          isPublished: v.isPublished,
-          tags,
-          recordedDate: this.editRecordedDate().trim() || undefined,
-        });
-        if (this.selectedSeriesFilter() === seriesId) {
-          this.setSeriesFilter(seriesId);
-        }
+      if (isSeriesVideo) {
+        patch.seriesId = seriesId || undefined;
+        patch.seriesTitle = seriesTitle || undefined;
+        patch.seriesDescription = seriesDescription || undefined;
+        patch.seriesPartIndex = seriesPartIndex !== null ? seriesPartIndex : undefined;
+        patch.isPublished = v.isPublished;
       } else {
-        await this.dataService.updateVideoMetadata(v.docId, patch);
+        const tiers = this.editAccessTiers();
+        const isBuyable = this.editIsBuyable();
+        const price = this.priceDollars();
+        const priceCents = isBuyable && price ? Math.round(price * 100) : undefined;
+        const stripePriceId = isBuyable && this.editStripePriceId().trim()
+          ? this.editStripePriceId().trim()
+          : undefined;
+
+        patch.accessTier = tiers[0] || VodAccessTier.MembersOnly;
+        patch.accessTiers = tiers;
+        patch.isBuyable = isBuyable;
+        patch.isPublished = v.isPublished;
+        patch.priceCents = priceCents;
+        patch.stripePriceId = stripePriceId;
+        patch.seriesId = undefined;
+        patch.seriesTitle = undefined;
+        patch.seriesDescription = undefined;
+        patch.seriesPartIndex = undefined;
+        patch.seriesPriceCents = undefined;
+        patch.seriesStripePriceId = undefined;
       }
+
+      await this.dataService.updateVideoMetadata(v.docId, patch);
 
       if (this.drawerVideo()?.docId === v.docId) {
         this.drawerVideo.set(this.dataService.videos.get(v.docId) || null);
@@ -1018,6 +1019,17 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     }
   }
 
+  openSeriesFromVideoEdit(video: VideoItem): void {
+    const sId = this.editSeriesId().trim() || video.seriesId || video.forVodPageId;
+    const series = this.allSeries().find(
+      (s) => (sId && s.seriesId === sId) || s.videos.some((v) => v.docId === video.docId),
+    );
+    if (series) {
+      this.closeEditModal(false);
+      this.openSeriesModal(series);
+    }
+  }
+
   // --- Series Modal Management ---
   openSeriesModal(series: VideoSeries): void {
     this.closeMenu();
@@ -1026,8 +1038,36 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.editingSeriesTitle.set(series.title);
     this.editingSeriesDescription.set(series.description || '');
     this.editingSeriesPriceDollars.set(
-      typeof series.priceCents === 'number' ? series.priceCents / 100 : null,
+      typeof series.priceCents === 'number' && series.priceCents > 0
+        ? series.priceCents / 100
+        : null,
     );
+    const tiers = Array.isArray(series.accessTiers) && series.accessTiers.length > 0
+      ? series.accessTiers
+      : (series.accessTier ? [series.accessTier] : [VodAccessTier.MembersOnly]);
+    this.editingSeriesAccessTiers.set([...tiers]);
+    this.editingSeriesIsBuyable.set(
+      Boolean(
+        tiers.includes(VodAccessTier.DirectPurchase) ||
+        (series.priceCents && series.priceCents > 0) ||
+        series.stripePriceId,
+      ),
+    );
+    this.editingSeriesStripePriceId.set(series.stripePriceId || '');
+    this.editingSeriesIsPublished.set(series.isPublished !== false);
+  }
+
+  toggleSeriesAccessTier(tier: VodAccessTier): void {
+    const current = this.editingSeriesAccessTiers();
+    if (current.includes(tier)) {
+      this.editingSeriesAccessTiers.set(current.filter((t) => t !== tier));
+    } else {
+      this.editingSeriesAccessTiers.set([...current, tier]);
+    }
+  }
+
+  isSeriesAccessTierSelected(tier: VodAccessTier): boolean {
+    return this.editingSeriesAccessTiers().includes(tier);
   }
 
   closeSeriesModal(): void {
@@ -1064,10 +1104,14 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.isSavingSeries.set(true);
     try {
       const orderedIds = this.editingSeriesVideos().map((v) => v.docId);
-      const priceCents =
-        this.editingSeriesPriceDollars() !== null
-          ? Math.round(this.editingSeriesPriceDollars()! * 100)
-          : undefined;
+      const isBuyable = this.editingSeriesIsBuyable();
+      const price = this.editingSeriesPriceDollars();
+      const priceCents = isBuyable && price !== null && price > 0
+        ? Math.round(price * 100)
+        : 0;
+      const stripePriceId = isBuyable ? this.editingSeriesStripePriceId().trim() : '';
+      const tiers = this.editingSeriesAccessTiers();
+      const isPublished = this.editingSeriesIsPublished();
 
       await this.dataService.updateVideoSeries(
         s.seriesId,
@@ -1075,6 +1119,10 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           title: this.editingSeriesTitle().trim(),
           description: this.editingSeriesDescription().trim(),
           priceCents,
+          stripePriceId,
+          accessTier: tiers[0] || VodAccessTier.MembersOnly,
+          accessTiers: tiers,
+          isPublished,
         },
         orderedIds,
       );

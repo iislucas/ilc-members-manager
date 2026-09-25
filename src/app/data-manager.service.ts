@@ -15,6 +15,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   DocumentReference,
   getFirestore,
   onSnapshot,
@@ -3399,10 +3400,17 @@ export class DataManagerService {
     patch: Partial<VideoItem>,
   ): Promise<void> {
     const videoRef = doc(this.db, 'videos', videoId);
-    await updateDoc(videoRef, {
-      ...patch,
+    const updates: Record<string, any> = {
       lastUpdated: serverTimestamp(),
-    });
+    };
+    for (const [key, val] of Object.entries(patch)) {
+      if (val === undefined) {
+        updates[key] = deleteField();
+      } else {
+        updates[key] = val;
+      }
+    }
+    await updateDoc(videoRef, updates);
     if (patch.tags && patch.tags.length > 0) {
       this.saveSystemTags(patch.tags);
     }
@@ -3413,6 +3421,11 @@ export class DataManagerService {
         ...patch,
         lastUpdated: new Date().toISOString(),
       };
+      for (const [key, val] of Object.entries(patch)) {
+        if (val === undefined) {
+          delete (updated as Record<string, any>)[key];
+        }
+      }
       this.videos.upsert(updated);
       await Promise.all([
         this.syncService.upsertCachedEntry('admin_videos', 'docId', updated),
@@ -3476,7 +3489,15 @@ export class DataManagerService {
         updates['isBuyable'] = patch.priceCents > 0;
       }
       if (patch.currency !== undefined) updates['currency'] = patch.currency;
-      if (patch.stripePriceId !== undefined) updates['seriesStripePriceId'] = patch.stripePriceId;
+      if (patch.stripePriceId !== undefined) {
+        if (patch.stripePriceId) {
+          updates['seriesStripePriceId'] = patch.stripePriceId;
+          updates['stripePriceId'] = patch.stripePriceId;
+        } else {
+          updates['seriesStripePriceId'] = deleteField();
+          updates['stripePriceId'] = deleteField();
+        }
+      }
       if (patch.stripeProductId !== undefined) updates['seriesStripeProductId'] = patch.stripeProductId;
       if (patch.accessTier !== undefined) updates['accessTier'] = patch.accessTier;
       if (patch.accessTiers !== undefined) updates['accessTiers'] = patch.accessTiers;
@@ -3503,7 +3524,10 @@ export class DataManagerService {
             isBuyable: patch.priceCents > 0,
           } : {}),
           ...(patch.currency !== undefined ? { currency: patch.currency } : {}),
-          ...(patch.stripePriceId !== undefined ? { seriesStripePriceId: patch.stripePriceId } : {}),
+          ...(patch.stripePriceId !== undefined ? {
+            seriesStripePriceId: patch.stripePriceId || '',
+            stripePriceId: patch.stripePriceId || '',
+          } : {}),
           ...(patch.stripeProductId !== undefined ? { seriesStripeProductId: patch.stripeProductId } : {}),
           ...(patch.accessTier !== undefined ? { accessTier: patch.accessTier } : {}),
           ...(patch.accessTiers !== undefined ? { accessTiers: patch.accessTiers } : {}),

@@ -5,7 +5,7 @@ import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc } from 'firebase/firestore';
+import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
@@ -32,6 +32,7 @@ vi.mock('firebase/firestore', () => {
     query: vi.fn(),
     onSnapshot: vi.fn().mockReturnValue(() => {}), // return unsubscribe function
     doc: vi.fn().mockReturnValue({ id: 'mock-doc-ref' }),
+    deleteField: vi.fn().mockReturnValue({ _methodName: 'deleteField' }),
     updateDoc: vi.fn().mockResolvedValue(undefined),
     writeBatch: vi.fn().mockReturnValue(mockBatch),
     getDocs: vi.fn(),
@@ -655,6 +656,38 @@ describe('DataManagerService - searchEvents', () => {
         'public_videos',
         'docId',
         'v-meta-1',
+      );
+    });
+
+    it('updateVideoMetadata converts undefined values to deleteField() and removes them in-memory', async () => {
+      const v: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-meta-undef',
+        title: 'With Stripe Price',
+        stripePriceId: 'price_test_123',
+        priceCents: 1500,
+        isBuyable: true,
+      };
+      service.videos.setEntries([v]);
+
+      await service.updateVideoMetadata('v-meta-undef', {
+        title: 'Without Stripe Price',
+        stripePriceId: undefined,
+        priceCents: undefined,
+      });
+
+      const updated = service.videos.get('v-meta-undef');
+      expect(updated?.title).toBe('Without Stripe Price');
+      expect(updated?.stripePriceId).toBeUndefined();
+      expect(updated?.priceCents).toBeUndefined();
+
+      expect(updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          title: 'Without Stripe Price',
+          stripePriceId: expect.objectContaining({ _methodName: 'deleteField' }),
+          priceCents: expect.objectContaining({ _methodName: 'deleteField' }),
+        }),
       );
     });
 

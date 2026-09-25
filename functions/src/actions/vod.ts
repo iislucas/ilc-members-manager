@@ -316,7 +316,13 @@ export async function createOrUpdateVideoSeries(
       updates['isBuyable'] = seriesData.priceCents > 0;
     }
     if (seriesData.stripeProductId) updates['seriesStripeProductId'] = seriesData.stripeProductId;
-    if (seriesData.stripePriceId) updates['seriesStripePriceId'] = seriesData.stripePriceId;
+    if (seriesData.stripePriceId) {
+      updates['seriesStripePriceId'] = seriesData.stripePriceId;
+      updates['stripePriceId'] = seriesData.stripePriceId;
+    }
+    if (seriesData.accessTier) updates['accessTier'] = seriesData.accessTier;
+    if (seriesData.accessTiers) updates['accessTiers'] = seriesData.accessTiers;
+    if (seriesData.isPublished !== undefined) updates['isPublished'] = seriesData.isPublished;
 
     batch.set(videoRef, updates, { merge: true });
   }
