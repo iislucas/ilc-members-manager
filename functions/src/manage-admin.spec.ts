@@ -334,6 +334,9 @@ describe('manage-admin', () => {
         data: () => ({ name: 'Super Admin', docId: 'm1' }),
       };
 
+      const mockDeletionLogSet = vi.fn().mockResolvedValue(undefined);
+      const mockTombstoneSet = vi.fn().mockResolvedValue(undefined);
+
       mockDb.collection.mockImplementation((col: string) => {
         if (col === 'acl') {
           return {
@@ -349,6 +352,20 @@ describe('manage-admin', () => {
           };
         }
         if (col === 'members') return { where: vi.fn().mockReturnValue(makeQueryMock([callerMemberRef])) };
+        if (col === 'deletion_logs') {
+          return {
+            doc: vi.fn().mockReturnValue({ set: mockDeletionLogSet }),
+          };
+        }
+        if (col === 'system') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              collection: vi.fn().mockReturnValue({
+                doc: vi.fn().mockReturnValue({ set: mockTombstoneSet }),
+              }),
+            }),
+          };
+        }
         return {};
       });
 
@@ -357,6 +374,8 @@ describe('manage-admin', () => {
       expect(res.success).toBe(true);
       expect(res.isAdmin).toBe(false);
       expect(targetAclRef.delete).toHaveBeenCalledTimes(1);
+      expect(mockDeletionLogSet).toHaveBeenCalledTimes(1);
+      expect(mockTombstoneSet).toHaveBeenCalledTimes(1);
     });
   });
 });

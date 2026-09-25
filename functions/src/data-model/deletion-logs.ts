@@ -75,6 +75,9 @@ export enum CascadeCase {
   /** Event deleted -> Cascades to member subcollection mirrors and storage */
   EventDeletedToMemberView = 'event_deleted_to_member_view',
 
+  /** Event organizer/manager changed -> Old member subcollection mirror removed */
+  EventManagerChanged = 'event_manager_changed',
+
   /** Video deleted from catalog -> Unlinks upload references */
   VideoDeleted = 'video_deleted',
 

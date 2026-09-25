@@ -442,12 +442,30 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   // Remove from targets no longer associated
   for (const docId of previousTargets) {
     if (!currentTargets.has(docId)) {
-      await db
+      const targetRef = db
         .collection(FirestoreCollection.Members)
         .doc(docId)
         .collection(FirestoreSubcollection.Events)
-        .doc(event.params.docId)
-        .delete();
+        .doc(event.params.docId);
+      const targetSnap = await targetRef.get();
+      if (targetSnap.exists) {
+        const trigger: CascadedDeletionTrigger = {
+          kind: DeletionTriggerKind.Cascaded,
+          cascadeCase: CascadeCase.EventManagerChanged,
+          sourceCollection: FirestoreCollection.Events,
+          sourceDocId: event.params.docId,
+          sourceName: after.title,
+        };
+        await recordDeletionLog(
+          db,
+          `members_${docId}_events`,
+          event.params.docId,
+          targetSnap.data() as IlcEvent,
+          trigger,
+          DeletionSource.CloudFunctionTrigger,
+        );
+      }
+      await targetRef.delete();
       logger.info(`Removed mirrored event ${event.params.docId} from member ${docId} subcollection.`);
     }
   }

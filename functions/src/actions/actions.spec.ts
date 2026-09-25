@@ -782,6 +782,16 @@ describe('Database Actions Library', () => {
 
       const check = await getVideo(ctx, video.data!.docId);
       expect(check).toBeNull();
+
+      const tombstoneSnap = await ctx.db
+        .collection('system')
+        .doc('deletions')
+        .collection('videos')
+        .doc(video.data!.docId)
+        .get();
+      expect(tombstoneSnap.exists).toBe(true);
+      expect(tombstoneSnap.data()?.docId).toBe(video.data!.docId);
+      expect(tombstoneSnap.data()?.deletedBy).toBe('admin@example.com');
     });
   });
 
