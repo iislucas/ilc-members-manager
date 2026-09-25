@@ -1030,8 +1030,10 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         const view = ctx.get(editorViewCtx);
         const parser = ctx.get(parserCtx);
         const doc = parser(normalized);
-        if (!doc) return;
-        const content = (doc.type.name === 'doc' && doc.content) ? doc.content : doc;
+        const paragraphType = view.state.schema.nodes['paragraph'];
+        const content = (!normalized.trim() && paragraphType)
+          ? paragraphType.create()
+          : ((doc.type.name === 'doc' && doc.content) ? doc.content : doc);
         const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, content);
         view.dispatch(tr);
       });

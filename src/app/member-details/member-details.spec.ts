@@ -15,6 +15,7 @@ import {
   MembershipType,
   InstructorPublicData,
 } from '../../../functions/src/data-model/members';
+import { InstructorLicenseType } from '../../../functions/src/data-model/curriculum';
 import { School } from '../../../functions/src/data-model/schools';
 import {
   VideoItem,
@@ -105,6 +106,29 @@ describe('MemberDetailsComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should not mark form dirty on load for an instructor with markdown bio editor', async () => {
+    const member: Member = {
+      ...initMember(),
+      docId: 'g9lgrrknj0su9XdCMVAH',
+      name: 'Yen Lee Chin',
+      memberId: 'Family4',
+      instructorId: '2',
+      instructorLicenseType: InstructorLicenseType.Life,
+      instructorLicenseExpires: '9999-12-31',
+      country: 'United States',
+      tags: ['Master'],
+      publicBioMarkdown: '',
+    };
+    fixture.componentRef.setInput('member', member);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 600));
+    fixture.detectChanges();
+
+    expect(component.isDirty()).toBe(false);
+    expect(component.form().dirty()).toBe(false);
   });
 
   it('should call preventDefault and updateMember on save', async () => {

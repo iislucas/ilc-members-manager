@@ -1168,6 +1168,9 @@ export class MemberDetailsComponent {
   }
 
   onBioChanged(markdown: string) {
+    if ((this.form.publicBioMarkdown().value() ?? '') === markdown) {
+      return;
+    }
     this.form.publicBioMarkdown().value.set(markdown);
     this.form.publicBioMarkdown().markAsDirty();
   }
