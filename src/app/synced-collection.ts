@@ -262,8 +262,6 @@ export class SyncedCollection<
 
     const isOffline = Boolean(this.networkState?.isOffline?.());
     if (!isOffline) {
-      await deleteDoc(docRef);
-
       try {
         let deletedBy = 'unknown';
         let deletedByName = '';
@@ -301,6 +299,8 @@ export class SyncedCollection<
           err,
         );
       }
+
+      await deleteDoc(docRef);
     }
 
     super.delete(id);

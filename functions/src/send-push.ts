@@ -26,6 +26,13 @@ import webpush from 'web-push';
 import { Member, PushSubscriptionDoc } from './data-model/members';
 import { MemberNotification, MemberNotificationSettings, NotificationKind } from './data-model/notifications';
 import { environment } from './environment/environment';
+import { recordDeletionLog } from './common';
+import {
+  CascadeCase,
+  CascadedDeletionTrigger,
+  DeletionSource,
+  DeletionTriggerKind,
+} from './data-model/deletion-logs';
 
 const vapidPrivateKey = defineSecret('VAPID_PRIVATE_KEY');
 
@@ -152,6 +159,20 @@ export const sendPushOnNotification = onDocumentCreated(
           const statusCode = (err as { statusCode?: number })?.statusCode;
           // 404/410 mean the subscription is gone/expired — prune it.
           if (statusCode === 404 || statusCode === 410) {
+            const trigger: CascadedDeletionTrigger = {
+              kind: DeletionTriggerKind.Cascaded,
+              cascadeCase: CascadeCase.StalePushSubscription,
+              sourceCollection: 'members',
+              sourceDocId: memberDocId,
+            };
+            await recordDeletionLog(
+              admin.firestore(),
+              `members_${memberDocId}_push_subscriptions`,
+              doc.id,
+              sub,
+              trigger,
+              DeletionSource.CloudFunctionTrigger,
+            );
             await doc.ref.delete();
             logger.info(`Pruned expired push subscription ${doc.id} for member ${memberDocId}.`);
           } else {
