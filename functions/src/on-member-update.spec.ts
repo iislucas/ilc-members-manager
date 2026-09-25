@@ -550,7 +550,7 @@ describe('on-member-update triggers logic', () => {
       expect(firestoreSpy).not.toHaveBeenCalled();
     });
 
-    it('should refuse to link a non-admin member document to an admin ACL document', async () => {
+    it('should link a member document to an admin ACL document when admin email is added', async () => {
       const mockBatch = {
         set: vi.fn(),
         update: vi.fn(),
@@ -561,23 +561,21 @@ describe('on-member-update triggers logic', () => {
       const mockAdminAclRef = {
         get: vi.fn().mockResolvedValue({
           exists: true,
-          data: () => ({ isAdmin: true, memberDocIds: ['admin-doc-1'] }),
+          data: () => ({ isAdmin: true, memberDocIds: [] }),
         }),
         update: vi.fn().mockResolvedValue({}),
       };
 
       const member = {
-        docId: 'student-member-1',
-        name: 'Attacker Student',
-        isAdmin: false,
-        emails: ['student@example.com', 'admin@example.com'],
+        docId: 'member-42',
+        name: 'Abby Ruhe',
+        emails: ['abby@example.com', 'abbyruhe42@gmail.com'],
       } as Member;
 
       const previous = {
-        docId: 'student-member-1',
-        name: 'Attacker Student',
-        isAdmin: false,
-        emails: ['student@example.com'],
+        docId: 'member-42',
+        name: 'Abby Ruhe',
+        emails: ['abby@example.com'],
       } as Member;
 
       vi.spyOn(admin, 'firestore').mockReturnValue({
@@ -593,13 +591,19 @@ describe('on-member-update triggers logic', () => {
 
       await updateACL({ previous, member });
 
-      // Ensure batch.set was NOT called to union student-member-1 into admin ACL
-      expect(mockBatch.set).not.toHaveBeenCalled();
+      // Ensure batch.set was called to union member-42 into admin ACL
+      expect(mockBatch.set).toHaveBeenCalledWith(
+        mockAdminAclRef,
+        expect.objectContaining({
+          memberDocIds: expect.anything(),
+        }),
+        { merge: true },
+      );
     });
   });
 
   describe('refreshACLAdminStatus', () => {
-    it('should retain ACL doc if memberDocIds is empty and user is an admin', async () => {
+    it('should retain ACL doc and clear member-derived credentials if memberDocIds is empty and user is an admin', async () => {
       const mockAclRef = {
         get: vi.fn().mockResolvedValue({
           exists: true,
@@ -619,6 +623,14 @@ describe('on-member-update triggers logic', () => {
       await refreshACLAdminStatus('admin@iliqchuan.com');
 
       expect(mockAclRef.delete).not.toHaveBeenCalled();
+      expect(mockAclRef.update).toHaveBeenCalledWith({
+        instructorIds: [],
+        schoolDocIds: [],
+        notYetLinkedToMember: true,
+        membershipExpires: '',
+        instructorLicenseExpires: '',
+        schoolLicenseExpires: '',
+      });
     });
 
     it('should delete ACL doc if memberDocIds is empty and user is not an admin', async () => {
