@@ -110,7 +110,7 @@ describe('canMarkMembershipInactive', () => {
   ): MemberStatusFields => ({
     membershipType,
     currentMembershipExpires,
-    instructorId: null,
+    instructorId: '',
     instructorLicenseType: InstructorLicenseType.Annual,
     instructorLicenseExpires: '',
   });

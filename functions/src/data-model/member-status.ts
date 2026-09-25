@@ -17,7 +17,7 @@ export type MembershipFields = {
 
 /** Core instructor fields required to evaluate instructor license validity. */
 export type InstructorLicenseFields = {
-  instructorId: number | string | null;
+  instructorId: string;
   instructorLicenseType: InstructorLicenseType;
   instructorLicenseExpires: string;
 };

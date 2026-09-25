@@ -529,7 +529,7 @@ describe('ProductViewComponent', () => {
         member: {
           docId: 'mem-inst-expired',
           memberId: 'US200',
-          instructorId: 5,
+          instructorId: '5',
           instructorLicenseExpires: '2020-01-01', // expired license!
           membershipType: MembershipType.Annual,
           currentMembershipExpires: '2999-01-01', // active membership
@@ -550,7 +550,7 @@ describe('ProductViewComponent', () => {
         member: {
           docId: 'mem-all-expired',
           memberId: 'US300',
-          instructorId: 5,
+          instructorId: '5',
           instructorLicenseExpires: '2020-01-01',
           membershipType: MembershipType.Annual,
           currentMembershipExpires: '2020-01-01', // expired membership!
@@ -571,7 +571,7 @@ describe('ProductViewComponent', () => {
         member: {
           docId: 'mem-inst-active',
           memberId: 'US400',
-          instructorId: 12,
+          instructorId: '12',
           instructorLicenseExpires: '2999-01-01', // active license
           membershipType: MembershipType.Annual,
           currentMembershipExpires: '2999-01-01',

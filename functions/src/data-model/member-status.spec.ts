@@ -30,7 +30,7 @@ describe('Member Status & Hierarchy Library', () => {
   const expiredMemberRecord: MemberStatusFields = {
     membershipType: MembershipType.Annual,
     currentMembershipExpires: past,
-    instructorId: null,
+    instructorId: '',
     instructorLicenseType: InstructorLicenseType.None,
     instructorLicenseExpires: '',
   };
@@ -39,7 +39,7 @@ describe('Member Status & Hierarchy Library', () => {
   const activeAnnualMemberRecord: MemberStatusFields = {
     membershipType: MembershipType.Annual,
     currentMembershipExpires: future,
-    instructorId: null,
+    instructorId: '',
     instructorLicenseType: InstructorLicenseType.None,
     instructorLicenseExpires: '',
   };
@@ -48,7 +48,7 @@ describe('Member Status & Hierarchy Library', () => {
   const activeLifeMemberRecord: MemberStatusFields = {
     membershipType: MembershipType.Life,
     currentMembershipExpires: '',
-    instructorId: null,
+    instructorId: '',
     instructorLicenseType: InstructorLicenseType.None,
     instructorLicenseExpires: '',
   };
@@ -236,7 +236,7 @@ describe('Member Status & Hierarchy Library', () => {
       expect(isLifeInstructor({ instructorId: '1', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: 'life' })).toBe(true);
       expect(isLifeInstructor({ instructorId: '1', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: '9999-12-31' })).toBe(true);
       expect(isLifeInstructor({ instructorId: '1', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: '2027-01-01' })).toBe(false);
-      expect(isLifeInstructor({ instructorId: null, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: 'life' })).toBe(false);
+      expect(isLifeInstructor({ instructorId: '', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: 'life' })).toBe(false);
     });
   });
 });

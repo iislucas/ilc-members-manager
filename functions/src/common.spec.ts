@@ -55,34 +55,32 @@ describe('hasActiveInstructorLicense', () => {
   const past = '2000-01-01';
 
   it('is false if member has no instructorId', () => {
-    expect(hasActiveInstructorLicense({ instructorId: null, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: future })).toBe(false);
-    expect(hasActiveInstructorLicense({ instructorId: 0, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: future })).toBe(false);
-    expect(hasActiveInstructorLicense({ instructorId: null, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: future })).toBe(false);
+    expect(hasActiveInstructorLicense({ instructorId: '', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: future })).toBe(false);
   });
 
   it('is true for Life license type regardless of expiry', () => {
-    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseType: InstructorLicenseType.Life, instructorLicenseExpires: '' })).toBe(true);
+    expect(hasActiveInstructorLicense({ instructorId: '10', instructorLicenseType: InstructorLicenseType.Life, instructorLicenseExpires: '' })).toBe(true);
   });
 
   it('is true for life sentinel string expiry', () => {
-    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: 'life' })).toBe(true);
-    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: '9999-12-31' })).toBe(true);
+    expect(hasActiveInstructorLicense({ instructorId: '10', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: 'life' })).toBe(true);
+    expect(hasActiveInstructorLicense({ instructorId: '10', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: '9999-12-31' })).toBe(true);
   });
 
   it('is true for future license expiry', () => {
-    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: future })).toBe(true);
+    expect(hasActiveInstructorLicense({ instructorId: '10', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: future })).toBe(true);
   });
 
   it('is true for license expiring today', () => {
-    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: today })).toBe(true);
+    expect(hasActiveInstructorLicense({ instructorId: '10', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: today })).toBe(true);
   });
 
   it('is false for expired license', () => {
-    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: past })).toBe(false);
+    expect(hasActiveInstructorLicense({ instructorId: '10', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: past })).toBe(false);
   });
 
   it('is false for empty license expiry', () => {
-    expect(hasActiveInstructorLicense({ instructorId: 10, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: '' })).toBe(false);
+    expect(hasActiveInstructorLicense({ instructorId: '10', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: '' })).toBe(false);
   });
 });
 
