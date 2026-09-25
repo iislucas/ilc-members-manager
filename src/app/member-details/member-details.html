@@ -12,7 +12,7 @@
         >⚠️ Account scheduled for deletion on
         <strong>{{ e.scheduledDeletionDate }}</strong></span
       >
-      @if (userIsAdmin()) {
+      @if (isEditingSelf() || userIsAdmin()) {
         <button
           type="button"
           class="cancel-deletion-button"
@@ -1303,7 +1303,7 @@
         @if (e.scheduledDeletionDate) {
           <div class="deletion-notice">
             <span>Scheduled for deletion: {{ e.scheduledDeletionDate }}</span>
-            @if (userIsAdmin()) {
+            @if (isEditingSelf() || userIsAdmin()) {
               <button
                 type="button"
                 class="cancel-deletion-button"
@@ -1313,14 +1313,14 @@
               </button>
             }
           </div>
-        } @else if (userIsAdmin() && canDelete()) {
+        } @else if (canDelete() && (userIsAdmin() || isEditingSelf())) {
           <button
             type="button"
             class="delete-button"
             (click)="deleteMember($event)"
           >
             <app-icon name="trash" fill="#000" />
-            Delete (Admin)
+            {{ !isEditingSelf() && userIsAdmin() ? "Delete (Admin)" : "Schedule Deletion" }}
           </button>
         }
       </div>

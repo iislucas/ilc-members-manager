@@ -25,21 +25,26 @@ export async function scheduleAccountDeletionHandler(
     throw new HttpsError('invalid-argument', 'memberDocId is required.');
   }
 
-  const userEmail = request.auth.token.email;
-  const isAdmin = await checkIsAdmin(userEmail);
-
-  if (!isAdmin) {
-    throw new HttpsError(
-      'permission-denied',
-      'Only administrators can schedule account deletion.',
-    );
-  }
-
   const db = admin.firestore();
   const memberSnap = await db.collection('members').doc(memberDocId).get();
 
   if (!memberSnap.exists) {
     throw new HttpsError('not-found', 'Member not found.');
+  }
+
+  const member = memberSnap.data() as Member;
+  const userEmail = request.auth.token.email.toLowerCase().trim();
+  const isAdmin = await checkIsAdmin(userEmail);
+  const isOwner = Boolean(
+    member.emails &&
+    member.emails.some((e) => e.toLowerCase().trim() === userEmail),
+  );
+
+  if (!isAdmin && !isOwner) {
+    throw new HttpsError(
+      'permission-denied',
+      'You do not have permission to schedule deletion for this account.',
+    );
   }
 
   const deletionDate = addDays(new Date(), 30);
@@ -71,21 +76,26 @@ export async function cancelAccountDeletionHandler(
     throw new HttpsError('invalid-argument', 'memberDocId is required.');
   }
 
-  const userEmail = request.auth.token.email;
-  const isAdmin = await checkIsAdmin(userEmail);
-
-  if (!isAdmin) {
-    throw new HttpsError(
-      'permission-denied',
-      'Only administrators can cancel account deletion.',
-    );
-  }
-
   const db = admin.firestore();
   const memberSnap = await db.collection('members').doc(memberDocId).get();
 
   if (!memberSnap.exists) {
     throw new HttpsError('not-found', 'Member not found.');
+  }
+
+  const member = memberSnap.data() as Member;
+  const userEmail = request.auth.token.email.toLowerCase().trim();
+  const isAdmin = await checkIsAdmin(userEmail);
+  const isOwner = Boolean(
+    member.emails &&
+    member.emails.some((e) => e.toLowerCase().trim() === userEmail),
+  );
+
+  if (!isAdmin && !isOwner) {
+    throw new HttpsError(
+      'permission-denied',
+      'You do not have permission to cancel deletion for this account.',
+    );
   }
 
   await db.collection('members').doc(memberDocId).update({

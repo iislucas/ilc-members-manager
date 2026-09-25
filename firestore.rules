@@ -54,8 +54,8 @@ service cloud.firestore {
         return request.resource.data.lastUpdated == request.time;
       }
       allow read: if isOwner() || isAdmin() || isManagerOfMemberSchool();
-      allow delete: if isAdmin();
-      allow write: if hasValidEditUpdate() && isAdmin();
+      allow delete: if isAdmin() && !isOwner();
+      allow create, update: if hasValidEditUpdate() && isAdmin();
       allow update: if hasValidEditUpdate() && isManagerOfMemberSchool() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
