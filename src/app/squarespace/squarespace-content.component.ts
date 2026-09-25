@@ -20,6 +20,7 @@ import {
     ExpiryStatus,
     hasActiveMembership,
     satisfiesMemberStatusLevel,
+    toMemberStatusContext,
     MemberStatusLevel,
 } from '../../../functions/src/data-model/members';
 import { IconComponent, IconName } from '../icons/icon.component';
@@ -314,7 +315,8 @@ export class SquarespaceContentComponent implements OnDestroy {
     }
 
     private isActiveMember(): boolean {
-        return hasActiveMembership(this.firebaseService.user()?.member);
+        const m = this.firebaseService.user()?.member;
+        return m ? hasActiveMembership(m) : false;
     }
 
     public checkAccessAndSubscribe(collectionName: string) {
@@ -331,7 +333,9 @@ export class SquarespaceContentComponent implements OnDestroy {
             return;
         }
 
-        if (user.isAdmin) {
+        const ctx = toMemberStatusContext(user);
+
+        if (ctx.isAdmin) {
             this.subscribeToCollection(collectionName);
             return;
         }
@@ -340,7 +344,7 @@ export class SquarespaceContentComponent implements OnDestroy {
         const isInstructorArea = collectionName === 'instructors-post';
 
         if (isMemberArea) {
-            if (!satisfiesMemberStatusLevel(user, MemberStatusLevel.ActiveMember)) {
+            if (!satisfiesMemberStatusLevel(ctx, MemberStatusLevel.ActiveMember)) {
                 if (!user.member?.currentMembershipExpires || (user.member?.currentMembershipExpires && new Date(user.member.currentMembershipExpires) < new Date())) {
                     this.error.set('Your membership has expired. Please renew your membership to access this content.');
                 } else {
@@ -353,7 +357,7 @@ export class SquarespaceContentComponent implements OnDestroy {
                 this.error.set('You must be an instructor to view this content.');
                 return;
             }
-            if (!satisfiesMemberStatusLevel(user, MemberStatusLevel.ActiveInstructor)) {
+            if (!satisfiesMemberStatusLevel(ctx, MemberStatusLevel.ActiveInstructor)) {
                 this.error.set('Your instructor license has expired. Please renew your instructor license to access this content.');
                 return;
             }

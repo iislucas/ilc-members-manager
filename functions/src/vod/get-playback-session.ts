@@ -205,8 +205,8 @@ export const getVideoPlaybackSession = onCall(
 
     // 6. Check multiple tier conditions (with subset hierarchy: instructors are members)
     const today = new Date().toISOString().split('T')[0];
-    const isInstructor = hasActiveInstructorLicense(member, today);
-    const isMember = hasActiveMembership(member, today);
+    const isInstructor = member ? hasActiveInstructorLicense(member, today) : false;
+    const isMember = member ? hasActiveMembership(member, today) : false;
     const isClassSubscriber = Boolean(
       member &&
       member.classVideoLibrarySubscription &&

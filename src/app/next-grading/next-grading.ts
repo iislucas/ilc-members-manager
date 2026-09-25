@@ -225,7 +225,8 @@ export class NextGradingComponent {
   }
 
   isActiveMember = computed(() => {
-    return hasActiveMembership(this.user()?.member, this.today());
+    const m = this.user()?.member;
+    return m ? hasActiveMembership(m, this.today()) : false;
   });
 
   currentStudentLevel = computed(() => {

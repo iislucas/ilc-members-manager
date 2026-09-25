@@ -146,7 +146,8 @@ export class InstructorLicensePurchaseComponent {
   }
 
   isActiveMember = computed(() => {
-    return hasActiveMembership(this.user()?.member, this.today());
+    const m = this.user()?.member;
+    return m ? hasActiveMembership(m, this.today()) : false;
   });
 
   studentLevelNum = computed<number>(() => {
@@ -184,7 +185,8 @@ export class InstructorLicensePurchaseComponent {
   });
 
   isLifeInstructor = computed(() => {
-    return isLifeInstructor(this.user()?.member);
+    const m = this.user()?.member;
+    return m ? isLifeInstructor(m) : false;
   });
 
   isInstructorTier = computed(() => {

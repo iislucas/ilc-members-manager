@@ -52,6 +52,7 @@ import {
   getAttendeeRoleForStatus,
   isLifeMember,
   isRegistrationAllowed,
+  toMemberStatusContext,
 } from '../../../functions/src/data-model/members';
 import { environment } from '../../environments/environment';
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
@@ -153,10 +154,13 @@ export class ProductViewComponent implements OnInit {
 
   // Determine user's eligible default role strictly from active license/membership status
   userRole = computed<AttendeeRole>(() => {
-    return getAttendeeRoleForStatus(this.user());
+    return getAttendeeRoleForStatus(toMemberStatusContext(this.user()));
   });
 
-  isLifeMember = computed(() => isLifeMember(this.user()?.member));
+  isLifeMember = computed(() => {
+    const m = this.user()?.member;
+    return m ? isLifeMember(m) : false;
+  });
 
   // Preselected and locked attendee status based on verified identity
   selectedRole = computed<AttendeeRole>(() => {

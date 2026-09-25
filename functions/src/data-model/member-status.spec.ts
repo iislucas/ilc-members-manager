@@ -5,11 +5,16 @@ import {
   satisfiesMemberStatusLevel,
   getAttendeeRoleForStatus,
   isRegistrationAllowed,
+  isRegistrationAllowedForContext,
   hasActiveMembership,
   hasActiveInstructorLicense,
   isLifeMember,
   isLifeInstructor,
+  toMemberStatusContext,
+  PUBLIC_MEMBER_STATUS_CONTEXT,
   MembershipType,
+  MemberStatusFields,
+  RegistrationPermissions,
 } from './member-status';
 import { InstructorLicenseType } from './curriculum';
 import { AttendeeRole } from './events';
@@ -19,57 +24,62 @@ describe('Member Status & Hierarchy Library', () => {
   const future = '2027-01-01';
   const past = '2025-01-01';
 
-  const publicUser = null;
-  const accountUser = { hasAccount: true };
-  const expiredMember = {
-    hasAccount: true,
-    member: {
-      membershipType: MembershipType.Annual,
-      currentMembershipExpires: past,
-    },
+  const publicUser = PUBLIC_MEMBER_STATUS_CONTEXT;
+  const accountUser = toMemberStatusContext({ isAdmin: false });
+
+  const expiredMemberRecord: MemberStatusFields = {
+    membershipType: MembershipType.Annual,
+    currentMembershipExpires: past,
+    instructorId: null,
+    instructorLicenseType: InstructorLicenseType.None,
+    instructorLicenseExpires: '',
   };
-  const activeAnnualMember = {
-    hasAccount: true,
-    member: {
-      membershipType: MembershipType.Annual,
-      currentMembershipExpires: future,
-    },
+  const expiredMember = toMemberStatusContext({ member: expiredMemberRecord });
+
+  const activeAnnualMemberRecord: MemberStatusFields = {
+    membershipType: MembershipType.Annual,
+    currentMembershipExpires: future,
+    instructorId: null,
+    instructorLicenseType: InstructorLicenseType.None,
+    instructorLicenseExpires: '',
   };
-  const activeLifeMember = {
-    hasAccount: true,
-    member: {
-      membershipType: MembershipType.Life,
-      currentMembershipExpires: '',
-    },
+  const activeAnnualMember = toMemberStatusContext({ member: activeAnnualMemberRecord });
+
+  const activeLifeMemberRecord: MemberStatusFields = {
+    membershipType: MembershipType.Life,
+    currentMembershipExpires: '',
+    instructorId: null,
+    instructorLicenseType: InstructorLicenseType.None,
+    instructorLicenseExpires: '',
   };
-  const activeInstructor = {
-    hasAccount: true,
-    member: {
-      instructorId: 'INST-001',
-      instructorLicenseExpires: future,
-      membershipType: MembershipType.Annual,
-      currentMembershipExpires: future,
-    },
+  const activeLifeMember = toMemberStatusContext({ member: activeLifeMemberRecord });
+
+  const activeInstructorRecord: MemberStatusFields = {
+    instructorId: 'INST-001',
+    instructorLicenseExpires: future,
+    instructorLicenseType: InstructorLicenseType.Annual,
+    membershipType: MembershipType.Annual,
+    currentMembershipExpires: future,
   };
-  const activeLifeInstructor = {
-    hasAccount: true,
-    member: {
-      instructorId: 'INST-002',
-      instructorLicenseType: InstructorLicenseType.Life,
-      membershipType: MembershipType.Annual,
-      currentMembershipExpires: past,
-    },
+  const activeInstructor = toMemberStatusContext({ member: activeInstructorRecord });
+
+  const activeLifeInstructorRecord: MemberStatusFields = {
+    instructorId: 'INST-002',
+    instructorLicenseType: InstructorLicenseType.Life,
+    instructorLicenseExpires: '9999-12-31',
+    membershipType: MembershipType.Annual,
+    currentMembershipExpires: past,
   };
-  const adminUser = {
-    hasAccount: true,
-    isAdmin: true,
-  };
+  const activeLifeInstructor = toMemberStatusContext({ member: activeLifeInstructorRecord });
+
+  const adminUser = toMemberStatusContext({ isAdmin: true });
 
   describe('Invariant: Every Active Instructor is an Active Member', () => {
     it('returns true for hasActiveMembership when user has an active instructor license even if membership is expired', () => {
-      const instructorWithExpiredMembership = {
+      const instructorWithExpiredMembership: MemberStatusFields = {
         instructorId: 'INST-100',
         instructorLicenseExpires: future,
+        instructorLicenseType: InstructorLicenseType.Annual,
         membershipType: MembershipType.Annual,
         currentMembershipExpires: past,
       };
@@ -78,9 +88,10 @@ describe('Member Status & Hierarchy Library', () => {
     });
 
     it('returns true for hasActiveMembership when user has a Life instructor license even if membership is Inactive', () => {
-      const lifeInstructorWithInactiveMembership = {
+      const lifeInstructorWithInactiveMembership: MemberStatusFields = {
         instructorId: 'INST-101',
         instructorLicenseType: InstructorLicenseType.Life,
+        instructorLicenseExpires: 'life',
         membershipType: MembershipType.Inactive,
         currentMembershipExpires: '',
       };
@@ -92,7 +103,7 @@ describe('Member Status & Hierarchy Library', () => {
   describe('getMemberStatusLevel', () => {
     it('resolves Public (1) for unauthenticated / anonymous users', () => {
       expect(getMemberStatusLevel(publicUser, today)).toBe(MemberStatusLevel.Public);
-      expect(getMemberStatusLevel(undefined, today)).toBe(MemberStatusLevel.Public);
+      expect(getMemberStatusLevel(toMemberStatusContext(null), today)).toBe(MemberStatusLevel.Public);
     });
 
     it('resolves Account (2) for authenticated users without active membership', () => {
@@ -168,63 +179,64 @@ describe('Member Status & Hierarchy Library', () => {
     });
   });
 
-  describe('isRegistrationAllowed', () => {
+  describe('isRegistrationAllowed and isRegistrationAllowedForContext', () => {
+    const allowAll: RegistrationPermissions = { allowNonMembers: true, allowMembers: false, allowInstructors: false };
+    const allowMembersOnly: RegistrationPermissions = { allowNonMembers: false, allowMembers: true, allowInstructors: false };
+    const allowInstructorsOnly: RegistrationPermissions = { allowNonMembers: false, allowMembers: false, allowInstructors: true };
+    const allowNone: RegistrationPermissions = { allowNonMembers: false, allowMembers: false, allowInstructors: false };
+
     it('allows everyone when allowNonMembers is true', () => {
-      const perms = { allowNonMembers: true, allowMembers: false, allowInstructors: false };
-      expect(isRegistrationAllowed(perms, publicUser, today)).toBe(true);
-      expect(isRegistrationAllowed(perms, accountUser, today)).toBe(true);
-      expect(isRegistrationAllowed(perms, activeAnnualMember, today)).toBe(true);
-      expect(isRegistrationAllowed(perms, activeInstructor, today)).toBe(true);
-      expect(isRegistrationAllowed(perms, AttendeeRole.NonMember, today)).toBe(true);
-      expect(isRegistrationAllowed(perms, AttendeeRole.Member, today)).toBe(true);
-      expect(isRegistrationAllowed(perms, AttendeeRole.Instructor, today)).toBe(true);
+      expect(isRegistrationAllowed(allowAll, AttendeeRole.NonMember)).toBe(true);
+      expect(isRegistrationAllowed(allowAll, AttendeeRole.Member)).toBe(true);
+      expect(isRegistrationAllowed(allowAll, AttendeeRole.Instructor)).toBe(true);
+
+      expect(isRegistrationAllowedForContext(allowAll, publicUser, today)).toBe(true);
+      expect(isRegistrationAllowedForContext(allowAll, accountUser, today)).toBe(true);
+      expect(isRegistrationAllowedForContext(allowAll, activeAnnualMember, today)).toBe(true);
+      expect(isRegistrationAllowedForContext(allowAll, activeInstructor, today)).toBe(true);
     });
 
     it('allows members and instructors when allowMembers is true', () => {
-      const perms = { allowNonMembers: false, allowMembers: true, allowInstructors: false };
-      expect(isRegistrationAllowed(perms, publicUser, today)).toBe(false);
-      expect(isRegistrationAllowed(perms, accountUser, today)).toBe(false);
-      expect(isRegistrationAllowed(perms, activeAnnualMember, today)).toBe(true);
-      expect(isRegistrationAllowed(perms, activeLifeMember, today)).toBe(true);
-      // Invariant: Instructor is an Active Member, so instructor is allowed even if allowInstructors is false
-      expect(isRegistrationAllowed(perms, activeInstructor, today)).toBe(true);
+      expect(isRegistrationAllowed(allowMembersOnly, AttendeeRole.NonMember)).toBe(false);
+      expect(isRegistrationAllowed(allowMembersOnly, AttendeeRole.Member)).toBe(true);
+      expect(isRegistrationAllowed(allowMembersOnly, AttendeeRole.Instructor)).toBe(true);
 
-      expect(isRegistrationAllowed(perms, AttendeeRole.NonMember, today)).toBe(false);
-      expect(isRegistrationAllowed(perms, AttendeeRole.Member, today)).toBe(true);
-      expect(isRegistrationAllowed(perms, AttendeeRole.Instructor, today)).toBe(true);
+      expect(isRegistrationAllowedForContext(allowMembersOnly, publicUser, today)).toBe(false);
+      expect(isRegistrationAllowedForContext(allowMembersOnly, accountUser, today)).toBe(false);
+      expect(isRegistrationAllowedForContext(allowMembersOnly, activeAnnualMember, today)).toBe(true);
+      expect(isRegistrationAllowedForContext(allowMembersOnly, activeLifeMember, today)).toBe(true);
+      // Invariant: Instructor is an Active Member, so instructor is allowed even if allowInstructors is false
+      expect(isRegistrationAllowedForContext(allowMembersOnly, activeInstructor, today)).toBe(true);
     });
 
     it('allows only instructors when only allowInstructors is true', () => {
-      const perms = { allowNonMembers: false, allowMembers: false, allowInstructors: true };
-      expect(isRegistrationAllowed(perms, publicUser, today)).toBe(false);
-      expect(isRegistrationAllowed(perms, accountUser, today)).toBe(false);
-      expect(isRegistrationAllowed(perms, activeAnnualMember, today)).toBe(false);
-      expect(isRegistrationAllowed(perms, activeInstructor, today)).toBe(true);
+      expect(isRegistrationAllowed(allowInstructorsOnly, AttendeeRole.NonMember)).toBe(false);
+      expect(isRegistrationAllowed(allowInstructorsOnly, AttendeeRole.Member)).toBe(false);
+      expect(isRegistrationAllowed(allowInstructorsOnly, AttendeeRole.Instructor)).toBe(true);
 
-      expect(isRegistrationAllowed(perms, AttendeeRole.NonMember, today)).toBe(false);
-      expect(isRegistrationAllowed(perms, AttendeeRole.Member, today)).toBe(false);
-      expect(isRegistrationAllowed(perms, AttendeeRole.Instructor, today)).toBe(true);
+      expect(isRegistrationAllowedForContext(allowInstructorsOnly, publicUser, today)).toBe(false);
+      expect(isRegistrationAllowedForContext(allowInstructorsOnly, accountUser, today)).toBe(false);
+      expect(isRegistrationAllowedForContext(allowInstructorsOnly, activeAnnualMember, today)).toBe(false);
+      expect(isRegistrationAllowedForContext(allowInstructorsOnly, activeInstructor, today)).toBe(true);
     });
 
     it('allows Admin unconditionally even if all allow flags are false', () => {
-      const perms = { allowNonMembers: false, allowMembers: false, allowInstructors: false };
-      expect(isRegistrationAllowed(perms, adminUser, today)).toBe(true);
+      expect(isRegistrationAllowedForContext(allowNone, adminUser, today)).toBe(true);
     });
   });
 
   describe('isLifeMember and isLifeInstructor', () => {
     it('correctly identifies Life members', () => {
-      expect(isLifeMember({ membershipType: MembershipType.Life })).toBe(true);
-      expect(isLifeMember({ membershipType: MembershipType.Annual })).toBe(false);
-      expect(isLifeMember(null)).toBe(false);
+      expect(isLifeMember({ membershipType: MembershipType.Life, currentMembershipExpires: '' })).toBe(true);
+      expect(isLifeMember({ membershipType: MembershipType.Annual, currentMembershipExpires: '2027-01-01' })).toBe(false);
     });
 
     it('correctly identifies Life instructors', () => {
-      expect(isLifeInstructor({ instructorId: '1', instructorLicenseType: InstructorLicenseType.Life })).toBe(true);
-      expect(isLifeInstructor({ instructorId: '1', instructorLicenseExpires: 'life' })).toBe(true);
-      expect(isLifeInstructor({ instructorId: '1', instructorLicenseExpires: '9999-12-31' })).toBe(true);
-      expect(isLifeInstructor({ instructorId: '1', instructorLicenseExpires: '2027-01-01' })).toBe(false);
-      expect(isLifeInstructor({ instructorId: null, instructorLicenseExpires: 'life' })).toBe(false);
+      expect(isLifeInstructor({ instructorId: '1', instructorLicenseType: InstructorLicenseType.Life, instructorLicenseExpires: '' })).toBe(true);
+      expect(isLifeInstructor({ instructorId: '1', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: 'life' })).toBe(true);
+      expect(isLifeInstructor({ instructorId: '1', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: '9999-12-31' })).toBe(true);
+      expect(isLifeInstructor({ instructorId: '1', instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: '2027-01-01' })).toBe(false);
+      expect(isLifeInstructor({ instructorId: null, instructorLicenseType: InstructorLicenseType.None, instructorLicenseExpires: 'life' })).toBe(false);
     });
   });
 });

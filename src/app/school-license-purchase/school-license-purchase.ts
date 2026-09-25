@@ -215,7 +215,8 @@ export class SchoolLicensePurchaseComponent {
   }
 
   isActiveMember = computed(() => {
-    return hasActiveMembership(this.user()?.member, this.today());
+    const m = this.user()?.member;
+    return m ? hasActiveMembership(m, this.today()) : false;
   });
 
   // Schools owned/managed by this member

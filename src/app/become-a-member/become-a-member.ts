@@ -35,7 +35,7 @@ import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
-import { MembershipType } from '../../../functions/src/data-model/members';
+import { MembershipType, isLifeMember as isLifeMemberStatus } from '../../../functions/src/data-model/members';
 import {
   StripeProduct,
   StripeProductPrice,
@@ -177,7 +177,8 @@ export class BecomeAMemberComponent {
   );
 
   isLifeMember = computed(() => {
-    return this.user()?.member?.membershipType === MembershipType.Life;
+    const m = this.user()?.member;
+    return m ? isLifeMemberStatus(m) : false;
   });
 
   hasActiveAnnualMembership = computed(() => {
