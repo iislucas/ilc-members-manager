@@ -703,15 +703,19 @@ describe('ManageVodComponent', () => {
       expect(component.editingSeriesTitle()).toBe('Sample Series 1');
       expect(component.editingSeriesDescription()).toBe('A great series');
       expect(component.editingSeriesVideos().length).toBe(2);
+      expect(component.isSeriesAccessTierSelected(VodAccessTier.MembersOnly)).toBe(true);
     });
 
-    it('should call updateVideoSeries with trimmed values and close modal on saveSeriesChanges', async () => {
+    it('should call updateVideoSeries with trimmed values, access tiers, and close modal on saveSeriesChanges', async () => {
       const series = mockDataService.getVideoSeriesList()[0];
       component.openSeriesModal(series);
 
       component.editingSeriesTitle.set('  Updated Series Title  ');
       component.editingSeriesDescription.set('  Updated Description  ');
+      component.editingSeriesIsBuyable.set(true);
       component.editingSeriesPriceDollars.set(29.99);
+      component.editingSeriesStripePriceId.set('price_series_1');
+      component.toggleSeriesAccessTier(VodAccessTier.InstructorsOnly);
 
       // Also set series filter to this series
       component.setSeriesFilter('series-1');
@@ -731,6 +735,10 @@ describe('ManageVodComponent', () => {
           title: 'Updated Series Title',
           description: 'Updated Description',
           priceCents: 2999,
+          stripePriceId: 'price_series_1',
+          accessTier: VodAccessTier.MembersOnly,
+          accessTiers: [VodAccessTier.MembersOnly, VodAccessTier.InstructorsOnly, VodAccessTier.DirectPurchase],
+          isPublished: true,
         },
         ['v1', 'v2'],
       );
@@ -738,6 +746,49 @@ describe('ManageVodComponent', () => {
       expect(component.editingSeries()).toBeNull();
       expect(component.selectedSeriesFilter()).toBe('series-1');
       expect(component.drawerVideo()?.seriesTitle).toBe('Updated Series Title');
+    });
+
+    it('should identify when an edited video is in a series and navigate to series edit', () => {
+      const videoInSeries: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-ep-1',
+        title: 'Episode 1',
+        seriesId: 'series-1',
+        seriesTitle: 'Sample Series 1',
+        seriesPartIndex: 1,
+      };
+
+      component.openEditModal(videoInSeries);
+      expect(component.editingVideoInSeries()).toBe(true);
+
+      component.openSeriesFromVideoEdit(videoInSeries);
+      expect(component.editingVideo()).toBeNull();
+      expect(component.editingSeries()?.seriesId).toBe('series-1');
+    });
+
+    it('should save episode metadata without stripePriceId undefined when video is in a series', async () => {
+      const videoInSeries: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-ep-2',
+        title: 'Episode 2',
+        seriesId: 'series-1',
+        seriesTitle: 'Sample Series 1',
+        seriesPartIndex: 2,
+        isPublished: true,
+      };
+
+      component.openEditModal(videoInSeries);
+      component.editingVideo.update((v) => v ? { ...v, title: 'Episode 2 - Updated' } : null);
+
+      await component.saveVideoChanges();
+
+      expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v-ep-2', expect.objectContaining({
+        title: 'Episode 2 - Updated',
+        seriesId: 'series-1',
+      }));
+      const lastCallArg = (mockDataService.updateVideoMetadata as ReturnType<typeof vi.fn>).mock.calls.at(-1)[1];
+      expect('stripePriceId' in lastCallArg).toBe(false);
+      expect('priceCents' in lastCallArg).toBe(false);
     });
   });
 });

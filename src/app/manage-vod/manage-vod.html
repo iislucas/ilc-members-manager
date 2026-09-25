@@ -992,64 +992,87 @@
             />
           </div>
 
-          <!-- Access Tiers (Multi-select) -->
-          <div class="form-group access-tiers-group">
-            <label class="section-heading-label">Who Can View (Allowed Access Methods)</label>
-            <p class="section-description">Select which groups have automatic streaming access:</p>
-            <div class="tiers-checkbox-grid">
-              @for (t of availableAccessTiers; track t.value) {
-                <label class="tier-card-option" [class.checked]="isAccessTierSelected(t.value)">
-                  <input
-                    type="checkbox"
-                    [checked]="isAccessTierSelected(t.value)"
-                    (change)="toggleAccessTier(t.value)"
-                  />
-                  <div class="tier-card-content">
-                    <span class="tier-title">{{ t.label }}</span>
-                    <span class="tier-desc">{{ t.description }}</span>
+          @if (editingVideoInSeries()) {
+            <!-- Series-Wide Access Notice -->
+            <div class="form-group series-access-notice card">
+              <div class="notice-header">
+                <app-icon name="collections"></app-icon>
+                <span class="notice-title">Series-Wide Access &amp; Pricing</span>
+              </div>
+              <p class="notice-desc">
+                This episode is Part {{ editSeriesPartIndex() || edit.seriesPartIndex || 1 }} of
+                <strong>{{ editSeriesTitle() || edit.seriesTitle || 'this series' }}</strong>.
+                Access permissions (who can stream), bundle purchase pricing, and Stripe configurations are set series-wide for all episodes.
+              </p>
+              <button
+                type="button"
+                class="secondary-btn edit-series-access-btn"
+                (click)="openSeriesFromVideoEdit(edit)"
+              >
+                <app-icon name="edit"></app-icon>
+                <span>Edit Series Access &amp; Settings</span>
+              </button>
+            </div>
+          } @else {
+            <!-- Access Tiers (Multi-select) -->
+            <div class="form-group access-tiers-group">
+              <label class="section-heading-label">Who Can View (Allowed Access Methods)</label>
+              <p class="section-description">Select which groups have automatic streaming access:</p>
+              <div class="tiers-checkbox-grid">
+                @for (t of availableAccessTiers; track t.value) {
+                  <label class="tier-card-option" [class.checked]="isAccessTierSelected(t.value)">
+                    <input
+                      type="checkbox"
+                      [checked]="isAccessTierSelected(t.value)"
+                      (change)="toggleAccessTier(t.value)"
+                    />
+                    <div class="tier-card-content">
+                      <span class="tier-title">{{ t.label }}</span>
+                      <span class="tier-desc">{{ t.description }}</span>
+                    </div>
+                  </label>
+                }
+              </div>
+            </div>
+
+            <!-- One-off VOD Purchase Option -->
+            <div class="form-group buyable-box">
+              <label class="checkbox-label buyable-toggle">
+                <input
+                  type="checkbox"
+                  [ngModel]="editIsBuyable()"
+                  (ngModelChange)="editIsBuyable.set($event)"
+                />
+                <span class="buyable-label-text">Available for Direct / One-Off VOD Purchase</span>
+              </label>
+              <p class="buyable-hint">Allows users without the above memberships or licenses to purchase individual lifetime streaming access.</p>
+
+              @if (editIsBuyable()) {
+                <div class="form-row buyable-inputs">
+                  <div class="form-group">
+                    <label>Purchase Price ($ USD) <span class="required">*</span></label>
+                    <input
+                      type="number"
+                      step="0.50"
+                      min="0.50"
+                      [ngModel]="priceDollars()"
+                      (ngModelChange)="priceDollars.set($event)"
+                      placeholder="15.00"
+                    />
                   </div>
-                </label>
+                  <div class="form-group">
+                    <label>Stripe Price ID (Optional)</label>
+                    <input
+                      type="text"
+                      [ngModel]="editStripePriceId()"
+                      (ngModelChange)="editStripePriceId.set($event)"
+                      placeholder="price_1N..."
+                    />
+                  </div>
+                </div>
               }
             </div>
-          </div>
-
-          <!-- One-off VOD Purchase Option -->
-          <div class="form-group buyable-box">
-            <label class="checkbox-label buyable-toggle">
-              <input
-                type="checkbox"
-                [ngModel]="editIsBuyable()"
-                (ngModelChange)="editIsBuyable.set($event)"
-              />
-              <span class="buyable-label-text">Available for Direct / One-Off VOD Purchase</span>
-            </label>
-            <p class="buyable-hint">Allows users without the above memberships or licenses to purchase individual lifetime streaming access.</p>
-
-            @if (editIsBuyable()) {
-              <div class="form-row buyable-inputs">
-                <div class="form-group">
-                  <label>Purchase Price ($ USD) <span class="required">*</span></label>
-                  <input
-                    type="number"
-                    step="0.50"
-                    min="0.50"
-                    [ngModel]="priceDollars()"
-                    (ngModelChange)="priceDollars.set($event)"
-                    placeholder="15.00"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Stripe Price ID (Optional)</label>
-                  <input
-                    type="text"
-                    [ngModel]="editStripePriceId()"
-                    (ngModelChange)="editStripePriceId.set($event)"
-                    placeholder="price_1N..."
-                  />
-                </div>
-              </div>
-            }
-          </div>
+          }
 
           <!-- Tags -->
           <div class="form-group">
@@ -1063,7 +1086,13 @@
           <!-- Video Series & Collection Configuration -->
           <div class="form-group series-config-box">
             <label class="section-heading-label">Video Series / Collection</label>
-            <p class="section-description">Link this video as an episode of a multi-part series collection with bundle pricing.</p>
+            <p class="section-description">
+              @if (editingVideoInSeries()) {
+                Episode numbering and series linkage for this collection.
+              } @else {
+                Link this video as an episode of a multi-part series collection with bundle pricing.
+              }
+            </p>
 
             <div class="form-row">
               <div class="form-group flex-2">
@@ -1086,31 +1115,6 @@
                 />
               </div>
             </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Series Bundle Price ($ USD)</label>
-                <input
-                  type="number"
-                  step="0.50"
-                  min="0"
-                  [ngModel]="editSeriesPriceDollars()"
-                  (ngModelChange)="editSeriesPriceDollars.set($event)"
-                  placeholder="49.99"
-                />
-              </div>
-            </div>
-
-            @if (editSeriesId() || editSeriesTitle()) {
-              <label class="checkbox-label apply-all-series-toggle">
-                <input
-                  type="checkbox"
-                  [ngModel]="editApplyToEntireSeries()"
-                  (ngModelChange)="editApplyToEntireSeries.set($event)"
-                />
-                <span>Apply title, bundle price, access tiers, and visibility to <strong>all videos in this series</strong></span>
-              </label>
-            }
           </div>
 
           <!-- Catalog Visibility & Spotlight Status -->
@@ -1183,17 +1187,78 @@
             ></textarea>
           </div>
 
-          <div class="form-group">
-            <label>Single Series Bundle Price ($ USD)</label>
-            <input
-              type="number"
-              step="0.50"
-              min="0"
-              [ngModel]="editingSeriesPriceDollars()"
-              (ngModelChange)="editingSeriesPriceDollars.set($event)"
-              placeholder="49.99"
-            />
-            <p class="field-hint">One-time payment unlocks all constituent episodes for the purchaser.</p>
+          <!-- Access Tiers (Multi-select) -->
+          <div class="form-group access-tiers-group">
+            <label class="section-heading-label">Who Can View (Allowed Access Methods)</label>
+            <p class="section-description">Select which groups have streaming access to this series:</p>
+            <div class="tiers-checkbox-grid">
+              @for (t of availableAccessTiers; track t.value) {
+                <label class="tier-card-option" [class.checked]="isSeriesAccessTierSelected(t.value)">
+                  <input
+                    type="checkbox"
+                    [checked]="isSeriesAccessTierSelected(t.value)"
+                    (change)="toggleSeriesAccessTier(t.value)"
+                  />
+                  <div class="tier-card-content">
+                    <span class="tier-title">{{ t.label }}</span>
+                    <span class="tier-desc">{{ t.description }}</span>
+                  </div>
+                </label>
+              }
+            </div>
+          </div>
+
+          <!-- Series Direct Purchase Option -->
+          <div class="form-group buyable-box">
+            <label class="checkbox-label buyable-toggle">
+              <input
+                type="checkbox"
+                [ngModel]="editingSeriesIsBuyable()"
+                (ngModelChange)="editingSeriesIsBuyable.set($event)"
+              />
+              <span class="buyable-label-text">Available for Direct Series Bundle Purchase</span>
+            </label>
+            <p class="buyable-hint">Allows users without the above memberships to purchase permanent streaming access to all episodes in this series.</p>
+
+            @if (editingSeriesIsBuyable()) {
+              <div class="form-row buyable-inputs">
+                <div class="form-group">
+                  <label>Bundle Purchase Price ($ USD) <span class="required">*</span></label>
+                  <input
+                    type="number"
+                    step="0.50"
+                    min="0.50"
+                    [ngModel]="editingSeriesPriceDollars()"
+                    (ngModelChange)="editingSeriesPriceDollars.set($event)"
+                    placeholder="49.99"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Stripe Price ID (Optional)</label>
+                  <input
+                    type="text"
+                    [ngModel]="editingSeriesStripePriceId()"
+                    (ngModelChange)="editingSeriesStripePriceId.set($event)"
+                    placeholder="price_1N..."
+                  />
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Series Catalog Visibility -->
+          <div class="form-group visibility-toggles-group">
+            <label class="section-heading-label">Series Catalog Visibility</label>
+            <div class="toggles-row">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  [ngModel]="editingSeriesIsPublished()"
+                  (ngModelChange)="editingSeriesIsPublished.set($event)"
+                />
+                <span>Listed in Public / Member Catalog</span>
+              </label>
+            </div>
           </div>
 
           <!-- Reorderable Episodes List -->
