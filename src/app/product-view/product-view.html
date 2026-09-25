@@ -228,7 +228,7 @@
                     >
                       <span>{{ showInlineLogin() ? 'Hide Sign In' : 'Sign in for member rates' }}</span>
                     </button>
-                  } @else if (selectedRole() !== AttendeeRole.Instructor) {
+                  } @else if (selectedRole() !== AttendeeRole.Instructor && !isLifeMember()) {
                     <a
                       [href]="routingService.hrefForView(Views.MyOrders)"
                       class="upgrade-membership-link"

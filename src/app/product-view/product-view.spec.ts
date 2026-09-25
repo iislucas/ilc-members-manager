@@ -529,7 +529,7 @@ describe('ProductViewComponent', () => {
         member: {
           docId: 'mem-inst-expired',
           memberId: 'US200',
-          instructorId: 5,
+          instructorId: '5',
           instructorLicenseExpires: '2020-01-01', // expired license!
           membershipType: MembershipType.Annual,
           currentMembershipExpires: '2999-01-01', // active membership
@@ -550,7 +550,7 @@ describe('ProductViewComponent', () => {
         member: {
           docId: 'mem-all-expired',
           memberId: 'US300',
-          instructorId: 5,
+          instructorId: '5',
           instructorLicenseExpires: '2020-01-01',
           membershipType: MembershipType.Annual,
           currentMembershipExpires: '2020-01-01', // expired membership!
@@ -571,7 +571,7 @@ describe('ProductViewComponent', () => {
         member: {
           docId: 'mem-inst-active',
           memberId: 'US400',
-          instructorId: 12,
+          instructorId: '12',
           instructorLicenseExpires: '2999-01-01', // active license
           membershipType: MembershipType.Annual,
           currentMembershipExpires: '2999-01-01',
@@ -585,7 +585,7 @@ describe('ProductViewComponent', () => {
   });
 
   describe('events without special member or instructor pricing', () => {
-    it('does not list attendee status and defaults selectedRole to NonMember', async () => {
+    it('does not list attendee status card and retains verified member role', async () => {
       await component.loadProduct();
 
       // Product with NO special member or instructor price (standard pricing for all)
@@ -621,7 +621,8 @@ describe('ProductViewComponent', () => {
       fixture.detectChanges();
 
       expect(component.hasSpecialPricing()).toBe(false);
-      expect(component.selectedRole()).toBe(AttendeeRole.NonMember);
+      expect(component.selectedRole()).toBe(AttendeeRole.Member);
+      expect(component.isRoleEligible()).toBe(true);
       expect(component.attendanceModeStepLabel()).toBe('1. Attendance Mode');
       expect(component.videoStepLabel()).toBe('2. Video Recording Add-on');
 
@@ -643,6 +644,99 @@ describe('ProductViewComponent', () => {
       // The Attendee Status section MUST be rendered in the DOM
       const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
       expect(statusCard).toBeTruthy();
+    });
+
+    it('allows Life members to register for members-only events with no special member discount', async () => {
+      await component.loadProduct();
+
+      // Members-only event (allowNonMembers: false, hasMemberPrice: false)
+      const membersOnlyEventProduct: Product = {
+        ...mockProduct,
+        allowNonMembers: false,
+        allowMembers: true,
+        allowInstructors: true,
+        hasMemberPrice: false,
+        hasInstructorPrice: false,
+        tiers: {
+          'member_in_person_novideo': { enabled: true, price: 545 },
+          'instructor_in_person_novideo': { enabled: true, price: 545 },
+        },
+      };
+
+      // Set user as Life member (with empty expiration date)
+      mockFirebaseState.user.set({
+        email: 'life-member@example.com',
+        isAdmin: false,
+        isFullMember: true,
+        isInstructor: false,
+        member: {
+          docId: 'mem-life',
+          memberId: 'US999',
+          name: 'Life Member',
+          emails: ['life-member@example.com'],
+          membershipType: MembershipType.Life,
+          currentMembershipExpires: '',
+        } as any,
+      });
+
+      component.product.set(membersOnlyEventProduct);
+      fixture.detectChanges();
+
+      expect(component.userRole()).toBe(AttendeeRole.Member);
+      expect(component.selectedRole()).toBe(AttendeeRole.Member);
+      expect(component.isRoleEligible()).toBe(true);
+
+      const notice = fixture.nativeElement.querySelector('.role-ineligible-notice');
+      expect(notice).toBeFalsy();
+    });
+
+    it('considers Life member active even if currentMembershipExpires is an old date', async () => {
+      await component.loadProduct();
+
+      mockFirebaseState.user.set({
+        email: 'life-old@example.com',
+        isAdmin: false,
+        isFullMember: true,
+        isInstructor: false,
+        member: {
+          docId: 'mem-life-old',
+          memberId: 'US998',
+          name: 'Old Life Member',
+          emails: ['life-old@example.com'],
+          membershipType: MembershipType.Life,
+          currentMembershipExpires: '2020-01-01', // old past date
+        } as any,
+      });
+
+      expect(component.userRole()).toBe(AttendeeRole.Member);
+      expect(component.selectedRole()).toBe(AttendeeRole.Member);
+    });
+
+    it('does not display upgrade membership link to Life members in attendee status card', async () => {
+      await component.loadProduct();
+
+      mockFirebaseState.user.set({
+        email: 'life-card@example.com',
+        isAdmin: false,
+        isFullMember: true,
+        isInstructor: false,
+        member: {
+          docId: 'mem-life-card',
+          memberId: 'US997',
+          name: 'Life Member Card',
+          emails: ['life-card@example.com'],
+          membershipType: MembershipType.Life,
+          currentMembershipExpires: '',
+        } as any,
+      });
+
+      component.product.set(mockProduct); // hasMemberPrice: true -> status card shown
+      fixture.detectChanges();
+
+      const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
+      expect(statusCard).toBeTruthy();
+      const upgradeLink = statusCard.querySelector('.upgrade-membership-link');
+      expect(upgradeLink).toBeFalsy();
     });
   });
 

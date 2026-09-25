@@ -27,7 +27,7 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
 import { Grading, GradingStatus, isGradingPaid, unpaidGradingsInProgressionOrder, nextGradingPayment } from '../../../functions/src/data-model/gradings';
-import { MembershipType } from '../../../functions/src/data-model/members';
+import { MembershipType, hasActiveMembership } from '../../../functions/src/data-model/members';
 import {
   CheckoutSessionSummary,
   StripeProduct,
@@ -226,10 +226,7 @@ export class NextGradingComponent {
 
   isActiveMember = computed(() => {
     const m = this.user()?.member;
-    if (!m) return false;
-    if (m.membershipType === MembershipType.Life) return true;
-    const expires = m.currentMembershipExpires;
-    return !!expires && expires >= this.today();
+    return m ? hasActiveMembership(m, this.today()) : false;
   });
 
   currentStudentLevel = computed(() => {

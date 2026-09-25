@@ -6,8 +6,8 @@ import { GradingListComponent } from '../grading-list/grading-list';
 import { IconComponent } from '../icons/icon.component';
 import { nextGradingLevel } from '../../../functions/src/data-model/curriculum';
 import { GradingStatus, isGradingPaid } from '../../../functions/src/data-model/gradings';
-import { ExpiryStatus } from '../../../functions/src/data-model/members';
-import { getMemberExpiryStatus } from '../member-tags';
+import { hasActiveMembership } from '../../../functions/src/data-model/members';
+
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { environment } from '../../environments/environment';
@@ -48,7 +48,7 @@ export class MemberGradingsComponent {
   isActiveMember = computed(() => {
     const u = this.user();
     if (!u) return false;
-    return getMemberExpiryStatus(u.member, this.today()) === ExpiryStatus.Valid;
+    return hasActiveMembership(u.member, this.today());
   });
 
   // The docId of an existing open (unpaid, not-failed) grading the member can

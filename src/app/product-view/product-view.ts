@@ -49,6 +49,10 @@ import {
   hasActiveInstructorLicense,
   hasActiveMembership,
   MembershipType,
+  getAttendeeRoleForStatus,
+  isLifeMember,
+  isRegistrationAllowed,
+  toMemberStatusContext,
 } from '../../../functions/src/data-model/members';
 import { environment } from '../../environments/environment';
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
@@ -150,45 +154,19 @@ export class ProductViewComponent implements OnInit {
 
   // Determine user's eligible default role strictly from active license/membership status
   userRole = computed<AttendeeRole>(() => {
-    const u = this.user();
-    if (!u?.member) return AttendeeRole.NonMember;
-    if (hasActiveInstructorLicense(u.member)) {
-      return AttendeeRole.Instructor;
-    }
-    if (hasActiveMembership(u.member)) {
-      return AttendeeRole.Member;
-    }
-    return AttendeeRole.NonMember;
+    return getAttendeeRoleForStatus(toMemberStatusContext(this.user()));
+  });
+
+  isLifeMember = computed(() => {
+    const m = this.user()?.member;
+    return m ? isLifeMember(m) : false;
   });
 
   // Preselected and locked attendee status based on verified identity
   selectedRole = computed<AttendeeRole>(() => {
     const reg = this.existingRegistration();
     if (reg?.role) return reg.role;
-
-    // If the registration setup doesn't actually have a special member or instructor license price,
-    // their status doesn't matter and defaults to NonMember.
-    if (!this.hasSpecialPricing()) {
-      return AttendeeRole.NonMember;
-    }
-
-    const role = this.userRole();
-    if (role === AttendeeRole.Instructor) {
-      if (this.hasInstructorPrice()) {
-        return AttendeeRole.Instructor;
-      }
-      if (this.hasMemberPrice()) {
-        return AttendeeRole.Member;
-      }
-      return AttendeeRole.NonMember;
-    }
-    if (role === AttendeeRole.Member) {
-      if (this.hasMemberPrice()) {
-        return AttendeeRole.Member;
-      }
-      return AttendeeRole.NonMember;
-    }
-    return AttendeeRole.NonMember;
+    return this.userRole();
   });
 
   attendeeStatusLabel = computed(() => {
@@ -222,10 +200,9 @@ export class ProductViewComponent implements OnInit {
   isRoleEligible = computed(() => {
     const p = this.product();
     if (!p) return false;
-    const role = this.selectedRole();
-    if (role === AttendeeRole.Instructor) return Boolean(p.allowInstructors);
-    if (role === AttendeeRole.Member) return Boolean(p.allowMembers || p.allowInstructors);
-    return Boolean(p.allowNonMembers);
+    const u = this.user();
+    if (u?.isAdmin) return true;
+    return isRegistrationAllowed(p, this.selectedRole());
   });
 
   // Early-bird calculations
@@ -406,6 +383,12 @@ export class ProductViewComponent implements OnInit {
       key = getPricingTierKey(role, attendance, includeVid, PricingTierType.Standard);
       tier = p.tiers[key];
     }
+    if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+      const memberKey = getPricingTierKey(AttendeeRole.Member, attendance, includeVid, tierType);
+      if (p.tiers[memberKey]?.enabled) {
+        tier = p.tiers[memberKey];
+      }
+    }
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVid, tierType);
       if (p.tiers[fallbackKey]?.enabled) {
@@ -415,6 +398,12 @@ export class ProductViewComponent implements OnInit {
     if ((!tier || !tier.enabled) && includeVid) {
       key = getPricingTierKey(role, attendance, false, tierType);
       tier = p.tiers[key];
+      if ((!tier || !tier.enabled) && role === AttendeeRole.Instructor) {
+        const memberKey = getPricingTierKey(AttendeeRole.Member, attendance, false, tierType);
+        if (p.tiers[memberKey]?.enabled) {
+          tier = p.tiers[memberKey];
+        }
+      }
       if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
         const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, false, tierType);
         if (p.tiers[fallbackKey]?.enabled) {
@@ -448,6 +437,12 @@ export class ProductViewComponent implements OnInit {
     if ((!targetTier || !targetTier.enabled) && this.isEarlyBirdActive()) {
       targetTier = p.tiers[getPricingTierKey(role, attendance, includeVid, PricingTierType.Standard)];
     }
+    if ((!targetTier || !targetTier.enabled) && role === AttendeeRole.Instructor) {
+      const memberKey = getPricingTierKey(AttendeeRole.Member, attendance, includeVid, tierType);
+      if (p.tiers[memberKey]?.enabled) {
+        targetTier = p.tiers[memberKey];
+      }
+    }
     if ((!targetTier || !targetTier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
       const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVid, tierType);
       if (p.tiers[fallbackKey]?.enabled) {
@@ -456,6 +451,12 @@ export class ProductViewComponent implements OnInit {
     }
     if ((!targetTier || !targetTier.enabled) && includeVid) {
       targetTier = p.tiers[getPricingTierKey(role, attendance, false, tierType)];
+      if ((!targetTier || !targetTier.enabled) && role === AttendeeRole.Instructor) {
+        const memberKey = getPricingTierKey(AttendeeRole.Member, attendance, false, tierType);
+        if (p.tiers[memberKey]?.enabled) {
+          targetTier = p.tiers[memberKey];
+        }
+      }
       if ((!targetTier || !targetTier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
         const fbKey = getPricingTierKey(AttendeeRole.NonMember, attendance, false, tierType);
         if (p.tiers[fbKey]?.enabled) targetTier = p.tiers[fbKey];
@@ -575,6 +576,12 @@ export class ProductViewComponent implements OnInit {
     if (p && p.tiers[primaryKey]?.enabled) {
       return primaryKey;
     }
+    if (role === AttendeeRole.Instructor) {
+      const memberKey = getPricingTierKey(AttendeeRole.Member, attendance, includeVideo, tierType);
+      if (p?.tiers[memberKey]?.enabled) {
+        return memberKey;
+      }
+    }
     if (role === AttendeeRole.Member || role === AttendeeRole.Instructor) {
       const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVideo, tierType);
       if (p?.tiers[fallbackKey]?.enabled) {
@@ -585,6 +592,12 @@ export class ProductViewComponent implements OnInit {
       const novideoKey = getPricingTierKey(role, attendance, false, tierType);
       if (p && p.tiers[novideoKey]?.enabled) {
         return novideoKey;
+      }
+      if (role === AttendeeRole.Instructor) {
+        const memberNoVidKey = getPricingTierKey(AttendeeRole.Member, attendance, false, tierType);
+        if (p?.tiers[memberNoVidKey]?.enabled) {
+          return memberNoVidKey;
+        }
       }
       if (role === AttendeeRole.Member || role === AttendeeRole.Instructor) {
         const fallbackNoVidKey = getPricingTierKey(AttendeeRole.NonMember, attendance, false, tierType);

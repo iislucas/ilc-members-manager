@@ -10,7 +10,11 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { InstructorLicenseType } from '../../../functions/src/data-model/curriculum';
 import { Grading, gradingDisplayId, orderDisplayNumber } from '../../../functions/src/data-model/gradings';
-import { MembershipType } from '../../../functions/src/data-model/members';
+import {
+  MembershipType,
+  isLifeMember as isLifeMemberStatus,
+  isLifeInstructor as isLifeInstructorStatus,
+} from '../../../functions/src/data-model/members';
 import { MemberOrder } from '../../../functions/src/data-model/orders';
 
 export enum SubscriptionCardCategory {
@@ -71,15 +75,13 @@ export class MemberOrdersComponent {
   today = computed(() => new Date().toISOString().split('T')[0]);
 
   isLifeMember = computed(() => {
-    return this.user()?.member?.membershipType === MembershipType.Life;
+    const m = this.user()?.member;
+    return m ? isLifeMemberStatus(m) : false;
   });
 
   isLifeInstructor = computed(() => {
     const m = this.user()?.member;
-    return (
-      m?.instructorLicenseType === InstructorLicenseType.Life ||
-      m?.instructorLicenseExpires === '9999-12-31'
-    );
+    return m ? isLifeInstructorStatus(m) : false;
   });
 
   studentLevelNum = computed<number>(() => {

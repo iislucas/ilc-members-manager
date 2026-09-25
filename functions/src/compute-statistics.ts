@@ -12,31 +12,14 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { assertAdmin, allowedOrigins } from './common';
+import { assertAdmin, allowedOrigins, hasActiveMembership, hasActiveInstructorLicense } from './common';
 import { InstructorLicenseType } from './data-model/curriculum';
 import { Member, MembershipType } from './data-model/members';
 import { SquareSpaceOrder, OrderKind } from './data-model/orders';
 import { School } from './data-model/schools';
 import { MemberStatisticsFsDoc, Histogram, HistogramMap } from './data-model/system';
 
-// Returns true if the member has a currently valid (non-expired) membership.
-function isActiveMember(member: Member, todayIso: string): boolean {
-  const type = member.membershipType;
-  if (type === MembershipType.Life) return true;
-  if (type !== MembershipType.Annual) return false;
-  const expires = member.currentMembershipExpires;
-  if (!expires) return false;
-  return expires >= todayIso;
-}
 
-// Returns true if the member has a valid instructor license.
-function isActiveInstructor(member: Member, todayIso: string): boolean {
-  if (!member.instructorId) return false;
-  if (member.instructorLicenseType === InstructorLicenseType.Life) return true;
-  const expires = member.instructorLicenseExpires;
-  if (!expires) return false;
-  return expires >= todayIso;
-}
 
 // Increments a key in a histogram, initialising it to 0 if absent.
 function incrementHistogram(histogram: Histogram, key: string): void {
@@ -87,8 +70,8 @@ export function computeStatisticsFromMembers(
   let nonArrayMastersLevels = 0;
 
   for (const member of members) {
-    if (isActiveMember(member, todayIso)) activeMembers++;
-    if (isActiveInstructor(member, todayIso)) activeInstructors++;
+    if (hasActiveMembership(member, todayIso)) activeMembers++;
+    if (hasActiveInstructorLicense(member, todayIso)) activeInstructors++;
 
     incrementHistogram(membershipTypeHistogram, member.membershipType);
     incrementHistogram(studentLevelHistogram, member.studentLevel);

@@ -9,7 +9,8 @@ import {
   markInactiveRefusal,
   removedStudentMarkdown,
 } from './instructor-students';
-import { canMarkMembershipInactive, Member, MembershipType } from './data-model/members';
+import { canMarkMembershipInactive, Member, MembershipType, MemberStatusFields } from './data-model/members';
+import { InstructorLicenseType } from './data-model/curriculum';
 import { NotificationKind, notificationStyle } from './data-model/notifications';
 
 const member = (overrides: Partial<Member>): Member =>
@@ -106,7 +107,13 @@ describe('canMarkMembershipInactive', () => {
   const membership = (
     membershipType: MembershipType,
     currentMembershipExpires = '',
-  ) => ({ membershipType, currentMembershipExpires });
+  ): MemberStatusFields => ({
+    membershipType,
+    currentMembershipExpires,
+    instructorId: '',
+    instructorLicenseType: InstructorLicenseType.Annual,
+    instructorLicenseExpires: '',
+  });
 
   it('allows an Annual membership that has expired', () => {
     expect(

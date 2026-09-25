@@ -42,6 +42,34 @@ describe('stripe-product-checkout tier resolution', () => {
     expect(resolvedTier?.price).toBe(100);
   });
 
+  it('validates instructor tier falls back to member tier before non_member tier', () => {
+    const product: Product = {
+      ...initProduct(),
+      docId: 'prod_test_inst_fallback',
+      allowNonMembers: true,
+      allowMembers: true,
+      allowInstructors: true,
+      allowInPerson: true,
+      tiers: {
+        member_in_person_novideo: { enabled: true, price: 80 },
+        non_member_in_person_novideo: { enabled: true, price: 100 },
+      },
+    };
+
+    const instTierKey = getPricingTierKey(AttendeeRole.Instructor, AttendanceType.InPerson, false);
+    let resolvedTier = product.tiers[instTierKey];
+    if (!resolvedTier || !resolvedTier.enabled) {
+      const memberFallbackKey = getPricingTierKey(AttendeeRole.Member, AttendanceType.InPerson, false);
+      resolvedTier = product.tiers[memberFallbackKey];
+    }
+    if (!resolvedTier || !resolvedTier.enabled) {
+      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, AttendanceType.InPerson, false);
+      resolvedTier = product.tiers[fallbackKey];
+    }
+    expect(resolvedTier).toBeDefined();
+    expect(resolvedTier?.price).toBe(80);
+  });
+
   it('validates upgrade delta and entitlement logic', () => {
     // Entitlement check helper reproducing server-side check
     function checkUpgradeEntitlement(

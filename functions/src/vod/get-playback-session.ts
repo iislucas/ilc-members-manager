@@ -15,7 +15,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins, getMemberByEmail, hasActiveMembership } from '../common';
+import { allowedOrigins, getMemberByEmail, hasActiveMembership, hasActiveInstructorLicense } from '../common';
 import { Member } from '../data-model/members';
 import { VideoItem, VodAccessTier, VodStatus, firestoreDocToVideoItem } from '../data-model/vod';
 
@@ -205,15 +205,8 @@ export const getVideoPlaybackSession = onCall(
 
     // 6. Check multiple tier conditions (with subset hierarchy: instructors are members)
     const today = new Date().toISOString().split('T')[0];
-    const isInstructor = Boolean(
-      member &&
-      member.instructorLicenseExpires &&
-      member.instructorLicenseExpires >= today,
-    );
-    const isMember = Boolean(
-      member &&
-      (hasActiveMembership(member) || isInstructor),
-    );
+    const isInstructor = member ? hasActiveInstructorLicense(member, today) : false;
+    const isMember = member ? hasActiveMembership(member, today) : false;
     const isClassSubscriber = Boolean(
       member &&
       member.classVideoLibrarySubscription &&
