@@ -504,6 +504,12 @@ export class DataManagerService {
   }
 
   constructor() {
+    // Safeguard: myStudents is a filtered instructor view and must never delete
+    // canonical member documents from Firestore if delete() is invoked.
+    this.myStudents.delete = async (id: string): Promise<void> => {
+      this.myStudents.deleteLocal(id);
+    };
+
     // 1. Immediately load public schools, events, and products from IndexedDB cache and sync in background
     this.schools.loadCache();
     this.updateSchoolsSync();
@@ -1866,7 +1872,7 @@ export class DataManagerService {
         await this.syncService.upsertCachedEntry(instructorCacheKey, 'docId', member);
       }
     } else {
-      this.myStudents.delete(member.docId);
+      this.myStudents.deleteLocal(member.docId);
       if (user?.member?.docId) {
         const instructorCacheKey = `my_students_${user.member.docId}`;
         await this.syncService.deleteCachedEntry(instructorCacheKey, 'docId', member.docId);
@@ -2033,7 +2039,8 @@ export class DataManagerService {
   }
 
   async removeEventLocally(eventId: string): Promise<void> {
-    await this.events.delete(eventId);
+    this.events.deleteLocal(eventId);
+    await this.syncService.deleteCachedEntry('public_events', 'docId', eventId);
   }
 
   async addMember(member: Member): Promise<DocumentReference> {
