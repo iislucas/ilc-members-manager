@@ -1,5 +1,5 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
@@ -13,91 +13,98 @@ function addDays(date: Date, days: number): Date {
   return result;
 }
 
+export async function scheduleAccountDeletionHandler(
+  request: CallableRequest<{ memberDocId: string }>,
+): Promise<{ success: boolean; scheduledDeletionDate: string }> {
+  if (!request.auth || !request.auth.token.email) {
+    throw new HttpsError('unauthenticated', 'Must be authenticated.');
+  }
+
+  const memberDocId = request.data?.memberDocId;
+  if (!memberDocId) {
+    throw new HttpsError('invalid-argument', 'memberDocId is required.');
+  }
+
+  const userEmail = request.auth.token.email;
+  const isAdmin = await checkIsAdmin(userEmail);
+
+  if (!isAdmin) {
+    throw new HttpsError(
+      'permission-denied',
+      'Only administrators can schedule account deletion.',
+    );
+  }
+
+  const db = admin.firestore();
+  const memberSnap = await db.collection('members').doc(memberDocId).get();
+
+  if (!memberSnap.exists) {
+    throw new HttpsError('not-found', 'Member not found.');
+  }
+
+  const deletionDate = addDays(new Date(), 30);
+  const deletionDateStr = deletionDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+  await db.collection('members').doc(memberDocId).update({
+    scheduledDeletionDate: deletionDateStr,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  logger.info(`Scheduled deletion for member ${memberDocId} on ${deletionDateStr}`);
+  return { success: true, scheduledDeletionDate: deletionDateStr };
+}
+
 export const scheduleAccountDeletion = onCall<{ memberDocId: string }, Promise<{ success: boolean; scheduledDeletionDate: string }>>(
   { cors: allowedOrigins },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Must be authenticated.');
-    }
-
-    const memberDocId = request.data.memberDocId;
-    if (!memberDocId) {
-      throw new HttpsError('invalid-argument', 'memberDocId is required.');
-    }
-
-    const db = admin.firestore();
-    const memberSnap = await db.collection('members').doc(memberDocId).get();
-
-    if (!memberSnap.exists) {
-      throw new HttpsError('not-found', 'Member not found.');
-    }
-
-    const member = memberSnap.data() as Member;
-    const userEmail = request.auth.token.email;
-
-    // Auth check: caller must be in member.emails or admin
-    const isAdmin = request.auth.token.email ? await checkIsAdmin(request.auth.token.email) : false;
-    const isOwner = member.emails && userEmail && member.emails.includes(userEmail);
-
-    if (!isAdmin && !isOwner) {
-      throw new HttpsError('permission-denied', 'You do not have permission to delete this account.');
-    }
-
-    const deletionDate = addDays(new Date(), 30);
-    const deletionDateStr = deletionDate.toISOString().split('T')[0]; // YYYY-MM-DD
-
-    await db.collection('members').doc(memberDocId).update({
-      scheduledDeletionDate: deletionDateStr,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    logger.info(`Scheduled deletion for member ${memberDocId} on ${deletionDateStr}`);
-    return { success: true, scheduledDeletionDate: deletionDateStr };
-  }
+  (request) => scheduleAccountDeletionHandler(request),
 );
+
+export async function cancelAccountDeletionHandler(
+  request: CallableRequest<{ memberDocId: string }>,
+): Promise<{ success: boolean }> {
+  if (!request.auth || !request.auth.token.email) {
+    throw new HttpsError('unauthenticated', 'Must be authenticated.');
+  }
+
+  const memberDocId = request.data?.memberDocId;
+  if (!memberDocId) {
+    throw new HttpsError('invalid-argument', 'memberDocId is required.');
+  }
+
+  const userEmail = request.auth.token.email;
+  const isAdmin = await checkIsAdmin(userEmail);
+
+  if (!isAdmin) {
+    throw new HttpsError(
+      'permission-denied',
+      'Only administrators can cancel account deletion.',
+    );
+  }
+
+  const db = admin.firestore();
+  const memberSnap = await db.collection('members').doc(memberDocId).get();
+
+  if (!memberSnap.exists) {
+    throw new HttpsError('not-found', 'Member not found.');
+  }
+
+  await db.collection('members').doc(memberDocId).update({
+    scheduledDeletionDate: '',
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  logger.info(`Cancelled deletion for member ${memberDocId}`);
+  return { success: true };
+}
 
 export const cancelAccountDeletion = onCall<{ memberDocId: string }, Promise<{ success: boolean }>>(
   { cors: allowedOrigins },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Must be authenticated.');
-    }
-
-    const memberDocId = request.data.memberDocId;
-    if (!memberDocId) {
-      throw new HttpsError('invalid-argument', 'memberDocId is required.');
-    }
-
-    const db = admin.firestore();
-    const memberSnap = await db.collection('members').doc(memberDocId).get();
-
-    if (!memberSnap.exists) {
-      throw new HttpsError('not-found', 'Member not found.');
-    }
-
-    const member = memberSnap.data() as Member;
-    const userEmail = request.auth.token.email;
-
-    const isAdmin = request.auth.token.email ? await checkIsAdmin(request.auth.token.email) : false;
-    const isOwner = member.emails && userEmail && member.emails.includes(userEmail);
-
-    if (!isAdmin && !isOwner) {
-      throw new HttpsError('permission-denied', 'You do not have permission to cancel deletion.');
-    }
-
-    await db.collection('members').doc(memberDocId).update({
-      scheduledDeletionDate: '',
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    logger.info(`Cancelled deletion for member ${memberDocId}`);
-    return { success: true };
-  }
+  (request) => cancelAccountDeletionHandler(request),
 );
 
 async function checkIsAdmin(email: string): Promise<boolean> {
   const db = admin.firestore();
-  const aclDoc = await db.collection('acl').doc(email).get();
+  const aclDoc = await db.collection('acl').doc(email.toLowerCase().trim()).get();
   if (!aclDoc.exists) return false;
   return aclDoc.data()?.isAdmin === true;
 }

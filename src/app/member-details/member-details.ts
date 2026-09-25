@@ -1485,47 +1485,24 @@ export class MemberDetailsComponent {
   async deleteMember($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
+    if (!this.userIsAdmin()) {
+      return;
+    }
     const member = this.editableMember();
 
-    if (this.userIsAdmin()) {
-      if (
-        confirm(
-          `Are you sure you want to IMMEDIATELY delete ${member.name}? (This is an admin action)`,
-        )
-      ) {
-        this.asyncError.set(null);
-        if (member.docId) {
-          try {
-            await this.membersService.deleteMember(member.docId);
-            this.close.emit();
-          } catch (e: unknown) {
-            console.error(e);
-            this.asyncError.set(e as Error);
-          }
-        }
-      }
-    } else {
-      if (
-        confirm(
-          `Are you sure you want to schedule your account for deletion in 30 days?`,
-        )
-      ) {
-        this.asyncError.set(null);
-        if (member.docId) {
-          try {
-            const res = await this.membersService.scheduleAccountDeletion(
-              member.docId,
-            );
-            if (res.success) {
-              this.memberFormModel.update((m) => ({
-                ...m,
-                scheduledDeletionDate: res.scheduledDeletionDate,
-              }));
-            }
-          } catch (e: unknown) {
-            console.error(e);
-            this.asyncError.set(e as Error);
-          }
+    if (
+      confirm(
+        `Are you sure you want to IMMEDIATELY delete ${member.name}? (This is an admin action)`,
+      )
+    ) {
+      this.asyncError.set(null);
+      if (member.docId) {
+        try {
+          await this.membersService.deleteMember(member.docId);
+          this.close.emit();
+        } catch (e: unknown) {
+          console.error(e);
+          this.asyncError.set(e as Error);
         }
       }
     }
@@ -1534,6 +1511,9 @@ export class MemberDetailsComponent {
   async cancelDeletion($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
+    if (!this.userIsAdmin()) {
+      return;
+    }
     const member = this.editableMember();
     this.asyncError.set(null);
     if (member.docId) {

@@ -48,6 +48,9 @@ describe('MemberDetailsComponent', () => {
     dataManagerServiceMock = {
       updateMember: vi.fn(),
       addMember: vi.fn(),
+      deleteMember: vi.fn(),
+      scheduleAccountDeletion: vi.fn(),
+      cancelAccountDeletion: vi.fn(),
       createNextMemberId: vi.fn(),
       createNextInstructorId: vi.fn(),
       getMemberVideoGrants: vi.fn().mockResolvedValue([]),
@@ -736,6 +739,80 @@ describe('MemberDetailsComponent', () => {
       expect(nestedTable?.textContent).toContain('Spinning Hands Part 2');
       expect(nestedTable?.textContent).toContain('15m');
       expect(nestedTable?.textContent).toContain('25m');
+    });
+  });
+
+  describe('Account deletion restrictions', () => {
+    it('does not display delete button for non-admin users', async () => {
+      firebaseStateServiceMock.user.set({
+        isAdmin: false,
+        member: mockMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'test@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+      fixture.componentRef.setInput('member', mockMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const deleteButton = el.querySelector('.delete-button');
+      expect(deleteButton).toBeNull();
+    });
+
+    it('displays delete button for admin users', async () => {
+      firebaseStateServiceMock.user.set({
+        isAdmin: true,
+        member: mockMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'admin@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+      fixture.componentRef.setInput('member', mockMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const deleteButton = el.querySelector('.delete-button');
+      expect(deleteButton).toBeTruthy();
+      expect(deleteButton?.textContent).toContain('Delete (Admin)');
+    });
+
+    it('does not delete member when deleteMember is called by non-admin', async () => {
+      firebaseStateServiceMock.user.set({
+        isAdmin: false,
+        member: mockMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'test@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+      fixture.componentRef.setInput('member', mockMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const event = new MouseEvent('click');
+      await component.deleteMember(event);
+
+      expect(dataManagerServiceMock.deleteMember).not.toHaveBeenCalled();
+    });
+
+    it('deletes member when deleteMember is confirmed by admin', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      firebaseStateServiceMock.user.set({
+        isAdmin: true,
+        member: mockMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'admin@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+      fixture.componentRef.setInput('member', mockMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const event = new MouseEvent('click');
+      await component.deleteMember(event);
+
+      expect(dataManagerServiceMock.deleteMember).toHaveBeenCalledWith('test-id');
     });
   });
 });
