@@ -743,7 +743,14 @@ describe('MemberDetailsComponent', () => {
   });
 
   describe('Account deletion restrictions', () => {
-    it('does not display delete button for non-admin users', async () => {
+    const otherMember: Member = {
+      ...mockMember,
+      docId: 'other-id',
+      name: 'Other Member',
+      emails: ['other@example.com'],
+    };
+
+    it('displays Schedule Deletion button for non-admin editing own profile', async () => {
       firebaseStateServiceMock.user.set({
         isAdmin: false,
         member: mockMember,
@@ -757,15 +764,33 @@ describe('MemberDetailsComponent', () => {
 
       const el = fixture.nativeElement as HTMLElement;
       const deleteButton = el.querySelector('.delete-button');
+      expect(deleteButton).toBeTruthy();
+      expect(deleteButton?.textContent).toContain('Schedule Deletion');
+    });
+
+    it('does not display any deletion button for non-admin editing someone else', async () => {
+      firebaseStateServiceMock.user.set({
+        isAdmin: false,
+        member: mockMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'test@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+      fixture.componentRef.setInput('member', otherMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const deleteButton = el.querySelector('.delete-button');
       expect(deleteButton).toBeNull();
     });
 
-    it('displays delete button for admin users', async () => {
+    it('displays Schedule Deletion button for admin editing their own profile', async () => {
       firebaseStateServiceMock.user.set({
         isAdmin: true,
         member: mockMember,
         schoolsManaged: [],
-        firebaseUser: { email: 'admin@example.com' } as User,
+        firebaseUser: { email: 'test@example.com' } as User,
         memberProfiles: [],
       } as UserDetails);
       fixture.componentRef.setInput('member', mockMember);
@@ -775,10 +800,34 @@ describe('MemberDetailsComponent', () => {
       const el = fixture.nativeElement as HTMLElement;
       const deleteButton = el.querySelector('.delete-button');
       expect(deleteButton).toBeTruthy();
+      expect(deleteButton?.textContent).toContain('Schedule Deletion');
+    });
+
+    it('displays Delete (Admin) button for admin editing someone else', async () => {
+      firebaseStateServiceMock.user.set({
+        isAdmin: true,
+        member: mockMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'test@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+      fixture.componentRef.setInput('member', otherMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const deleteButton = el.querySelector('.delete-button');
+      expect(deleteButton).toBeTruthy();
       expect(deleteButton?.textContent).toContain('Delete (Admin)');
     });
 
-    it('does not delete member when deleteMember is called by non-admin', async () => {
+    it('calls scheduleAccountDeletion and NOT deleteMember when member schedules own deletion', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      (dataManagerServiceMock.scheduleAccountDeletion as any).mockResolvedValue({
+        success: true,
+        scheduledDeletionDate: '2026-10-25',
+      });
+
       firebaseStateServiceMock.user.set({
         isAdmin: false,
         member: mockMember,
@@ -794,25 +843,27 @@ describe('MemberDetailsComponent', () => {
       await component.deleteMember(event);
 
       expect(dataManagerServiceMock.deleteMember).not.toHaveBeenCalled();
+      expect(dataManagerServiceMock.scheduleAccountDeletion).toHaveBeenCalledWith('test-id');
     });
 
-    it('deletes member when deleteMember is confirmed by admin', async () => {
+    it('calls deleteMember when admin deletes another member', async () => {
       vi.spyOn(window, 'confirm').mockReturnValue(true);
       firebaseStateServiceMock.user.set({
         isAdmin: true,
         member: mockMember,
         schoolsManaged: [],
-        firebaseUser: { email: 'admin@example.com' } as User,
+        firebaseUser: { email: 'test@example.com' } as User,
         memberProfiles: [],
       } as UserDetails);
-      fixture.componentRef.setInput('member', mockMember);
+      fixture.componentRef.setInput('member', otherMember);
       fixture.detectChanges();
       await fixture.whenStable();
 
       const event = new MouseEvent('click');
       await component.deleteMember(event);
 
-      expect(dataManagerServiceMock.deleteMember).toHaveBeenCalledWith('test-id');
+      expect(dataManagerServiceMock.deleteMember).toHaveBeenCalledWith('other-id');
+      expect(dataManagerServiceMock.scheduleAccountDeletion).not.toHaveBeenCalled();
     });
   });
 });

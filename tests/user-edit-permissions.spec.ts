@@ -547,4 +547,68 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
       );
     });
   });
+
+  // =====================================================================
+  // Member Deletion Security Rules
+  // =====================================================================
+  describe('Member Deletion Permissions', () => {
+    it('should DENY a member from deleting their own member document', async () => {
+      const db = testEnv
+        .authenticatedContext('brett_uid', { email: 'brett@example.com' })
+        .firestore();
+      await assertFails(
+        db.collection('members').doc(BRETT.member.docId).delete(),
+      );
+    });
+
+    it('should DENY a member from deleting another member document', async () => {
+      const db = testEnv
+        .authenticatedContext('brett_uid', { email: 'brett@example.com' })
+        .firestore();
+      await assertFails(
+        db.collection('members').doc(MOI.member.docId).delete(),
+      );
+    });
+
+    it('should DENY an admin from deleting their OWN member document', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await db.collection('acl').doc('admin@example.com').set({
+          isAdmin: true,
+          memberDocIds: ['admin-doc-id'],
+        });
+        await db.collection('members').doc('admin-doc-id').set({
+          name: 'Admin Member',
+          emails: ['admin@example.com'],
+          lastUpdated: '2026-02-25T00:00:00.000Z',
+        });
+      });
+
+      const adminDb = testEnv
+        .authenticatedContext('admin_uid', { email: 'admin@example.com' })
+        .firestore();
+
+      await assertFails(
+        adminDb.collection('members').doc('admin-doc-id').delete(),
+      );
+    });
+
+    it('should ALLOW an admin to delete ANOTHER member document', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await db.collection('acl').doc('admin@example.com').set({
+          isAdmin: true,
+          memberDocIds: [],
+        });
+      });
+
+      const adminDb = testEnv
+        .authenticatedContext('admin_uid', { email: 'admin@example.com' })
+        .firestore();
+
+      await assertSucceeds(
+        adminDb.collection('members').doc(BRETT.member.docId).delete(),
+      );
+    });
+  });
 });

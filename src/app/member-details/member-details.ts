@@ -529,6 +529,19 @@ export class MemberDetailsComponent {
     () => this.routingService.matchedPatternId() === Views.MyProfile,
   );
 
+  /** True when the user is editing their own profile (by route, docId, or matching email). */
+  isEditingSelf = computed(() => {
+    if (this.isOwnProfile()) return true;
+    const currentMember = this.editableMember();
+    const user = this.firebaseState.user();
+    if (!user || !currentMember) return false;
+    if (currentMember.docId && user.member?.docId === currentMember.docId) return true;
+    if (user.memberProfiles?.some((p) => p.docId === currentMember.docId)) return true;
+    const userEmail = user.firebaseUser?.email?.toLowerCase().trim();
+    if (userEmail && currentMember.emails?.some((e) => e.toLowerCase().trim() === userEmail)) return true;
+    return false;
+  });
+
   /** Primary email for filtering orders / events. */
   memberPrimaryEmail = computed(() => {
     const emails = this.editableMember().emails;
@@ -1485,11 +1498,37 @@ export class MemberDetailsComponent {
   async deleteMember($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
-    if (!this.userIsAdmin()) {
-      return;
-    }
     const member = this.editableMember();
 
+    // Members cannot delete their own account directly; they can only mark it for deletion.
+    if (this.isEditingSelf() || !this.userIsAdmin()) {
+      if (
+        confirm(
+          `Are you sure you want to schedule your account for deletion in 30 days?`,
+        )
+      ) {
+        this.asyncError.set(null);
+        if (member.docId) {
+          try {
+            const res = await this.membersService.scheduleAccountDeletion(
+              member.docId,
+            );
+            if (res.success) {
+              this.memberFormModel.update((m) => ({
+                ...m,
+                scheduledDeletionDate: res.scheduledDeletionDate,
+              }));
+            }
+          } catch (e: unknown) {
+            console.error(e);
+            this.asyncError.set(e as Error);
+          }
+        }
+      }
+      return;
+    }
+
+    // Administrators deleting another member's account:
     if (
       confirm(
         `Are you sure you want to IMMEDIATELY delete ${member.name}? (This is an admin action)`,
@@ -1511,9 +1550,6 @@ export class MemberDetailsComponent {
   async cancelDeletion($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
-    if (!this.userIsAdmin()) {
-      return;
-    }
     const member = this.editableMember();
     this.asyncError.set(null);
     if (member.docId) {
