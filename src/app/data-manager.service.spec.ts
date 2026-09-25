@@ -5,7 +5,7 @@ import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { getDocs, query, where, collection, onSnapshot, writeBatch } from 'firebase/firestore';
+import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
@@ -84,6 +84,7 @@ describe('DataManagerService - searchEvents', () => {
 
     service = TestBed.inject(DataManagerService);
     vi.mocked(getDocs).mockClear();
+    vi.mocked(deleteDoc).mockClear();
   });
 
   afterEach(async () => {
@@ -552,6 +553,7 @@ describe('DataManagerService - searchEvents', () => {
       const syncService = TestBed.inject(IncrementalSyncService);
       vi.mocked(syncService.upsertCachedEntry).mockClear();
       vi.mocked(syncService.deleteCachedEntry).mockClear();
+      vi.mocked(deleteDoc).mockClear();
 
       vi.mocked(firebaseState.user).mockReturnValue({
         member: {
@@ -587,7 +589,7 @@ describe('DataManagerService - searchEvents', () => {
 
       await (service as any).persistMemberLocally(reassignedStudent);
 
-      // Must be deleted from myStudents
+      // Must be deleted from myStudents in-memory set
       expect(service.myStudents.get('student_1')).toBeUndefined();
       // Must be deleted from instructor cache
       expect(syncService.deleteCachedEntry).toHaveBeenCalledWith(
@@ -595,6 +597,25 @@ describe('DataManagerService - searchEvents', () => {
         'docId',
         'student_1',
       );
+      // Regression check: must NEVER call remote deleteDoc to delete the member from Firestore!
+      expect(deleteDoc).not.toHaveBeenCalled();
+    });
+
+    it('safeguards myStudents so delete() never deletes a member document from remote Firestore', async () => {
+      vi.mocked(deleteDoc).mockClear();
+      service.myStudents.upsert({
+        ...initMember(),
+        docId: 'student_safe_1',
+        name: 'Safe Student',
+      });
+      expect(service.myStudents.get('student_safe_1')).toBeDefined();
+
+      await service.myStudents.delete('student_safe_1');
+
+      // Local state is cleared
+      expect(service.myStudents.get('student_safe_1')).toBeUndefined();
+      // Remote Firestore document was NOT deleted!
+      expect(deleteDoc).not.toHaveBeenCalled();
     });
   });
 
