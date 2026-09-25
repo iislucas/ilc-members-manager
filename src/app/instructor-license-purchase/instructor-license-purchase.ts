@@ -25,8 +25,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { InstructorLicenseType } from '../../../functions/src/data-model/curriculum';
-import { MembershipType } from '../../../functions/src/data-model/members';
+import { MembershipType, hasActiveMembership, isLifeInstructor } from '../../../functions/src/data-model/members';
 import {
   CheckoutSessionSummary,
   StripeProductPrice,
@@ -147,11 +146,7 @@ export class InstructorLicensePurchaseComponent {
   }
 
   isActiveMember = computed(() => {
-    const m = this.user()?.member;
-    if (!m) return false;
-    if (m.membershipType === MembershipType.Life) return true;
-    const expires = m.currentMembershipExpires;
-    return !!expires && expires >= this.today();
+    return hasActiveMembership(this.user()?.member, this.today());
   });
 
   studentLevelNum = computed<number>(() => {
@@ -189,11 +184,7 @@ export class InstructorLicensePurchaseComponent {
   });
 
   isLifeInstructor = computed(() => {
-    const m = this.user()?.member;
-    return (
-      m?.instructorLicenseType === InstructorLicenseType.Life ||
-      m?.instructorLicenseExpires === '9999-12-31'
-    );
+    return isLifeInstructor(this.user()?.member);
   });
 
   isInstructorTier = computed(() => {

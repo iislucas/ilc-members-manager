@@ -2,10 +2,9 @@ import { environment } from './environment/environment';
 import * as admin from 'firebase-admin';
 import {
   Member,
-  MembershipType,
-  hasActiveMembership as hasActiveMembershipModel,
-  hasActiveInstructorLicense,
 } from './data-model/members';
+export * from './data-model/member-status';
+
 import { School } from './data-model/schools';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -60,15 +59,7 @@ export async function getMemberByEmail(
   throw new HttpsError('not-found', 'Member not found');
 }
 
-export { hasActiveInstructorLicense };
 
-// Whether a member has an active (non-expired) membership today. Life
-// memberships are always active; Annual memberships are active while
-// currentMembershipExpires is today or later. Mirrors the expiry check used
-// for event proposals and the client-side member-tags logic.
-export function hasActiveMembership(member: Member): boolean {
-  return hasActiveMembershipModel(member);
-}
 
 // The Firestore member doc IDs a login email is allowed to manage, read from
 // the ACL document. Mirrors the `getUserMemberDocIds()` notion used by the

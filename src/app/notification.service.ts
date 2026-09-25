@@ -46,6 +46,8 @@ import {
   Member,
   MembershipType,
   PushSubscriptionDoc,
+  hasActiveMembership,
+  hasActiveInstructorLicense,
 } from '../../functions/src/data-model/members';
 import {
   MemberNotification,
@@ -692,23 +694,13 @@ export class NotificationService implements OnDestroy {
   // members-area blog posts). Mirrors the access gate used by the members-area
   // blog component so notifications never link to content they can't read.
   private isActiveMember(member: Member): boolean {
-    if (member.membershipType === MembershipType.Life) return true;
-    if (
-      member.membershipType === MembershipType.Inactive ||
-      member.membershipType === MembershipType.Deceased
-    ) {
-      return false;
-    }
-    if (!member.currentMembershipExpires) return false;
-    return new Date(member.currentMembershipExpires) > new Date();
+    return hasActiveMembership(member);
   }
 
   // Whether this member is an active, licensed instructor (and so should see
   // instructors-area blog posts).
   private isActiveInstructor(member: Member): boolean {
-    if (!member.instructorId) return false;
-    const today = new Date().toISOString().split('T')[0];
-    return getInstructorExpiryStatus(member, today) === ExpiryStatus.Valid;
+    return hasActiveInstructorLicense(member);
   }
 
   // Surfaces up to the latest few blog posts (per accessible feed) the member

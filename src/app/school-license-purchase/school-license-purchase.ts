@@ -27,7 +27,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { MembershipType } from '../../../functions/src/data-model/members';
+import { MembershipType, hasActiveMembership } from '../../../functions/src/data-model/members';
 import { School } from '../../../functions/src/data-model/schools';
 import {
   CheckoutSessionSummary,
@@ -215,11 +215,7 @@ export class SchoolLicensePurchaseComponent {
   }
 
   isActiveMember = computed(() => {
-    const m = this.user()?.member;
-    if (!m) return false;
-    if (m.membershipType === MembershipType.Life) return true;
-    const expires = m.currentMembershipExpires;
-    return !!expires && expires >= this.today();
+    return hasActiveMembership(this.user()?.member, this.today());
   });
 
   // Schools owned/managed by this member

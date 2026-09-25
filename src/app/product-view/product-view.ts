@@ -49,6 +49,9 @@ import {
   hasActiveInstructorLicense,
   hasActiveMembership,
   MembershipType,
+  getAttendeeRoleForStatus,
+  isLifeMember,
+  isRegistrationAllowed,
 } from '../../../functions/src/data-model/members';
 import { environment } from '../../environments/environment';
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
@@ -150,18 +153,10 @@ export class ProductViewComponent implements OnInit {
 
   // Determine user's eligible default role strictly from active license/membership status
   userRole = computed<AttendeeRole>(() => {
-    const u = this.user();
-    if (!u?.member) return AttendeeRole.NonMember;
-    if (hasActiveInstructorLicense(u.member)) {
-      return AttendeeRole.Instructor;
-    }
-    if (hasActiveMembership(u.member)) {
-      return AttendeeRole.Member;
-    }
-    return AttendeeRole.NonMember;
+    return getAttendeeRoleForStatus(this.user());
   });
 
-  isLifeMember = computed(() => this.user()?.member?.membershipType === MembershipType.Life);
+  isLifeMember = computed(() => isLifeMember(this.user()?.member));
 
   // Preselected and locked attendee status based on verified identity
   selectedRole = computed<AttendeeRole>(() => {
@@ -201,10 +196,9 @@ export class ProductViewComponent implements OnInit {
   isRoleEligible = computed(() => {
     const p = this.product();
     if (!p) return false;
-    const role = this.selectedRole();
-    if (role === AttendeeRole.Instructor) return Boolean(p.allowInstructors || p.allowMembers);
-    if (role === AttendeeRole.Member) return Boolean(p.allowMembers);
-    return Boolean(p.allowNonMembers);
+    const u = this.user();
+    if (u?.isAdmin) return true;
+    return isRegistrationAllowed(p, this.selectedRole());
   });
 
   // Early-bird calculations

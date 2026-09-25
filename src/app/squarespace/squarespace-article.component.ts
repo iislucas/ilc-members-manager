@@ -15,7 +15,12 @@ import { RoutingService } from '../routing.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { IconComponent } from '../icons/icon.component';
 import { CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
-import { MembershipType } from '../../../functions/src/data-model/members';
+import {
+    MembershipType,
+    hasActiveMembership,
+    satisfiesMemberStatusLevel,
+    MemberStatusLevel,
+} from '../../../functions/src/data-model/members';
 import { ProcessedBlogEntry, normalizeCategory, isDraftPost } from './squarespace-content.component';
 import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
 
@@ -131,26 +136,7 @@ export class SquarespaceArticleComponent implements OnDestroy {
     }
 
     private isActiveMember(): boolean {
-        const user = this.firebaseService.user();
-        if (!user) return false;
-        const member = user.member;
-
-        const nonExpiringTypes: MembershipType[] = [
-            MembershipType.Life,
-        ];
-        if (nonExpiringTypes.includes(member.membershipType)) {
-            return true;
-        }
-
-        if (
-            member.membershipType === MembershipType.Inactive ||
-            member.membershipType === MembershipType.Deceased
-        ) {
-            return false;
-        }
-
-        if (!member.currentMembershipExpires) return false;
-        return new Date(member.currentMembershipExpires) > new Date();
+        return hasActiveMembership(this.firebaseService.user()?.member);
     }
 
     public checkAccessAndSubscribe(collectionName: string) {
@@ -167,12 +153,17 @@ export class SquarespaceArticleComponent implements OnDestroy {
             return;
         }
 
+        if (user.isAdmin) {
+            this.subscribeToCollection(collectionName);
+            return;
+        }
+
         const isMemberArea = collectionName === 'members-post';
         const isInstructorArea = collectionName === 'instructors-post';
 
         if (isMemberArea) {
-            if (!this.isActiveMember()) {
-                if (!user.member.currentMembershipExpires || user.member.currentMembershipExpires && new Date(user.member.currentMembershipExpires) < new Date()) {
+            if (!satisfiesMemberStatusLevel(user, MemberStatusLevel.ActiveMember)) {
+                if (!user.member?.currentMembershipExpires || (user.member?.currentMembershipExpires && new Date(user.member.currentMembershipExpires) < new Date())) {
                     this.error.set('Your membership has expired. Please renew your membership to access this content.');
                 } else {
                     this.error.set('You must be an active member to view this content.');
@@ -180,11 +171,11 @@ export class SquarespaceArticleComponent implements OnDestroy {
                 return;
             }
         } else if (isInstructorArea) {
-            if (!user.member.instructorId) {
+            if (!user.member?.instructorId) {
                 this.error.set('You must be an instructor to view this content.');
                 return;
             }
-            if (user.member.instructorLicenseExpires && new Date(user.member.instructorLicenseExpires) < new Date()) {
+            if (!satisfiesMemberStatusLevel(user, MemberStatusLevel.ActiveInstructor)) {
                 this.error.set('Your instructor license has expired. Please renew your instructor license to access this content.');
                 return;
             }
