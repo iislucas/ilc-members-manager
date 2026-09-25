@@ -3,6 +3,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins, assertAdmin } from './common';
 import { ACL } from './data-model/system';
+import { refreshACLAdminStatus } from './on-member-update';
 
 export interface SetAdminPrivilegeRequest {
   email: string;
@@ -80,7 +81,27 @@ export async function setAdminPrivilegeHelper(
   const aclSnap = await aclRef.get();
 
   if (aclSnap.exists) {
-    await aclRef.update({ isAdmin: true });
+    const aclData = aclSnap.data() as ACL;
+    const currentMemberDocIds = aclData.memberDocIds || [];
+    if (currentMemberDocIds.length === 0) {
+      const memberMatches = await db
+        .collection('members')
+        .where('emails', 'array-contains', targetEmail)
+        .get();
+      if (!memberMatches.empty) {
+        const foundDocIds = memberMatches.docs.map((doc) => doc.id);
+        await aclRef.update({
+          isAdmin: true,
+          memberDocIds: foundDocIds,
+          notYetLinkedToMember: false,
+        });
+        await refreshACLAdminStatus(targetEmail);
+      } else {
+        await aclRef.update({ isAdmin: true });
+      }
+    } else {
+      await aclRef.update({ isAdmin: true });
+    }
   } else {
     // If no ACL exists yet, find any existing member profiles with this email
     const memberMatches = await db
@@ -100,6 +121,9 @@ export async function setAdminPrivilegeHelper(
       notYetLinkedToMember: memberDocIds.length === 0,
     };
     await aclRef.set(newAcl);
+    if (memberDocIds.length > 0) {
+      await refreshACLAdminStatus(targetEmail);
+    }
   }
 
   logger.info('Administrator privilege granted', {
