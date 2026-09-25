@@ -171,3 +171,321 @@ describe('assertAdmin and assertAdminOrSchoolManager', () => {
     await expect(assertAdminOrSchoolManager(makeReq('student@example.com'))).rejects.toThrowError(HttpsError);
   });
 });
+
+describe('recordTombstone', () => {
+  it('records tombstone with docId, collection, and actor metadata', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const subColMock = vi.fn().mockReturnValue({ doc: docMock });
+    const sysDocMock = vi.fn().mockReturnValue({ collection: subColMock });
+    const dbMock = {
+      collection: vi.fn().mockReturnValue({ doc: sysDocMock }),
+    } as any;
+
+    const { recordTombstone } = await import('./common.js');
+    await recordTombstone(dbMock, 'members', 'mem-123', {
+      email: 'admin@example.com',
+      name: 'Admin User',
+      uid: 'uid-admin',
+    });
+
+    expect(dbMock.collection).toHaveBeenCalledWith('system');
+    expect(sysDocMock).toHaveBeenCalledWith('deletions');
+    expect(subColMock).toHaveBeenCalledWith('members');
+    expect(docMock).toHaveBeenCalledWith('mem-123');
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        docId: 'mem-123',
+        collection: 'members',
+        deletedBy: 'admin@example.com',
+        deletedByName: 'Admin User',
+        deletedByUid: 'uid-admin',
+      }),
+      { merge: true },
+    );
+  });
+
+  it('records tombstone when actor has only email', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const subColMock = vi.fn().mockReturnValue({ doc: docMock });
+    const sysDocMock = vi.fn().mockReturnValue({ collection: subColMock });
+    const dbMock = {
+      collection: vi.fn().mockReturnValue({ doc: sysDocMock }),
+    } as any;
+
+    const { recordTombstone } = await import('./common.js');
+    await recordTombstone(dbMock, 'schools', 'sch-999', { email: 'superadmin@example.com' });
+
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        docId: 'sch-999',
+        collection: 'schools',
+        deletedBy: 'superadmin@example.com',
+      }),
+      { merge: true },
+    );
+  });
+
+  it('records tombstone for cascaded deletion with source doc info and no email', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const subColMock = vi.fn().mockReturnValue({ doc: docMock });
+    const sysDocMock = vi.fn().mockReturnValue({ collection: subColMock });
+    const dbMock = {
+      collection: vi.fn().mockReturnValue({ doc: sysDocMock }),
+    } as any;
+
+    const { recordTombstone } = await import('./common.js');
+    const { DeletionTriggerKind, CascadeCase } = await import('./data-model/deletion-logs.js');
+
+    await recordTombstone(dbMock, 'instructors', 'inst-42', {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+      sourceCollection: 'members',
+      sourceDocId: 'mem-42',
+      sourceName: 'Pietro Roselli',
+    });
+
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        docId: 'inst-42',
+        collection: 'instructors',
+        triggerKind: DeletionTriggerKind.Cascaded,
+        cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+        sourceCollection: 'members',
+        sourceDocId: 'mem-42',
+        sourceName: 'Pietro Roselli',
+        deletedBy: 'cascaded:members/mem-42',
+        deletedByName: 'Cascaded from Pietro Roselli (member_deleted_to_instructor_profile)',
+      }),
+      { merge: true },
+    );
+  });
+});
+
+describe('sanitizeForFirestore', () => {
+  it('strips undefined fields while preserving Firestore Timestamp instances', async () => {
+    const { sanitizeForFirestore } = await import('./common.js');
+    const admin = await import('firebase-admin');
+
+    const ts = admin.firestore.Timestamp.fromDate(new Date('2026-01-15T12:00:00Z'));
+    const input = {
+      name: 'Test Member',
+      undefinedField: undefined,
+      lastUpdated: ts,
+      nested: {
+        keep: 'yes',
+        remove: undefined,
+        nestedTs: ts,
+      },
+      list: ['item1', undefined, 'item2'],
+    };
+
+    const sanitized = sanitizeForFirestore(input);
+
+    expect(sanitized.name).toBe('Test Member');
+    expect('undefinedField' in sanitized).toBe(false);
+    expect(sanitized.lastUpdated).toBe(ts);
+    expect(sanitized.lastUpdated instanceof admin.firestore.Timestamp).toBe(true);
+    expect(sanitized.nested.keep).toBe('yes');
+    expect('remove' in sanitized.nested).toBe(false);
+    expect(sanitized.nested.nestedTs).toBe(ts);
+    expect(sanitized.list).toEqual(['item1', 'item2']);
+  });
+
+  it('converts serialized timestamp objects {_seconds, _nanoseconds} to native Timestamps', async () => {
+    const { sanitizeForFirestore } = await import('./common.js');
+    const admin = await import('firebase-admin');
+
+    const serializedTs = { _seconds: 1700000000, _nanoseconds: 500000000 };
+    const input = {
+      lastUpdated: serializedTs,
+    };
+
+    const sanitized = sanitizeForFirestore(input);
+    expect(sanitized.lastUpdated instanceof admin.firestore.Timestamp).toBe(true);
+    expect((sanitized.lastUpdated as unknown as admin.firestore.Timestamp).seconds).toBe(1700000000);
+    expect((sanitized.lastUpdated as unknown as admin.firestore.Timestamp).nanoseconds).toBe(500000000);
+  });
+});
+
+describe('recordDeletionLog', () => {
+  it('saves full snapshot and actor metadata to deletion_logs, preserving Timestamps and removing undefined', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const colMock = vi.fn().mockReturnValue({ doc: docMock });
+    const dbMock = {
+      collection: colMock,
+    } as any;
+
+    const admin = await import('firebase-admin');
+    const ts = admin.firestore.Timestamp.now();
+    const sampleMember = {
+      name: 'Pietro Roselli',
+      memberId: 'IT32',
+      membershipType: 'Life',
+      lastUpdated: ts,
+      undefinedField: undefined,
+    };
+
+    const { recordDeletionLog } = await import('./common.js');
+    const { DeletionSource } = await import('./data-model/deletion-logs.js');
+    const logId = await recordDeletionLog(
+      dbMock,
+      'members',
+      'mem-it32',
+      sampleMember,
+      {
+        email: 'admin@example.com',
+        name: 'Admin User',
+        uid: 'uid-1',
+      },
+      DeletionSource.CloudFunctionTrigger,
+    );
+
+    expect(logId).toBeDefined();
+    expect(colMock).toHaveBeenCalledWith('deletion_logs');
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionName: 'members',
+        docId: 'mem-it32',
+        deletedBy: 'admin@example.com',
+        deletedByName: 'Admin User',
+        deletedByUid: 'uid-1',
+        source: DeletionSource.CloudFunctionTrigger,
+        data: expect.objectContaining({
+          name: 'Pietro Roselli',
+          memberId: 'IT32',
+          membershipType: 'Life',
+          lastUpdated: ts,
+        }),
+      }),
+    );
+    // Ensure undefined field was removed
+    const callArg = setMock.mock.calls[0][0];
+    expect('undefinedField' in callArg.data).toBe(false);
+    expect(callArg.data.lastUpdated instanceof admin.firestore.Timestamp).toBe(true);
+  });
+
+  it('records cascaded deletion log with full MECE trigger details and data snapshot', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ set: setMock });
+    const colMock = vi.fn().mockReturnValue({ doc: docMock });
+    const dbMock = {
+      collection: colMock,
+    } as any;
+
+    const { recordDeletionLog } = await import('./common.js');
+    const { DeletionSource, DeletionTriggerKind, CascadeCase } = await import('./data-model/deletion-logs.js');
+    type CascadedDeletionTrigger = import('./data-model/deletion-logs.js').CascadedDeletionTrigger;
+
+    const cascadedTrigger: CascadedDeletionTrigger = {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+      sourceCollection: 'members',
+      sourceDocId: 'mem-100',
+      sourceName: 'Pietro Roselli',
+    };
+
+    const instProfile = {
+      name: 'Pietro Roselli',
+      level: 'Instructor Level 2',
+      published: true,
+    };
+
+    const logId = await recordDeletionLog(
+      dbMock,
+      'instructors',
+      'inst-100',
+      instProfile,
+      cascadedTrigger,
+      DeletionSource.CloudFunctionTrigger,
+    );
+
+    expect(logId).toBeDefined();
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionName: 'instructors',
+        docId: 'inst-100',
+        deletedBy: 'cascaded:members/mem-100',
+        deletedByName: 'Cascaded from Pietro Roselli (member_deleted_to_instructor_profile)',
+        source: DeletionSource.CloudFunctionTrigger,
+        trigger: cascadedTrigger,
+        data: instProfile,
+      }),
+    );
+  });
+});
+
+describe('normalizeDeletionTrigger and describeDeletionTrigger', () => {
+  it('normalizes legacy DeletionLogActor to DirectUser trigger', async () => {
+    const { normalizeDeletionTrigger } = await import('./common.js');
+    const { DeletionTriggerKind, describeDeletionTrigger } = await import('./data-model/deletion-logs.js');
+
+    const actor = { email: 'admin@ilc.com', name: 'Admin', uid: 'u123' };
+    const trigger = normalizeDeletionTrigger(actor);
+
+    expect(trigger).toEqual({
+      kind: DeletionTriggerKind.DirectUser,
+      email: 'admin@ilc.com',
+      name: 'Admin',
+      uid: 'u123',
+    });
+
+    const desc = describeDeletionTrigger(trigger);
+    expect(desc.deletedBy).toBe('admin@ilc.com');
+    expect(desc.deletedByName).toBe('Admin');
+    expect(desc.deletedByUid).toBe('u123');
+  });
+
+  it('normalizes CascadedDeletionTrigger without mutation', async () => {
+    const { normalizeDeletionTrigger } = await import('./common.js');
+    const { DeletionTriggerKind, CascadeCase, describeDeletionTrigger } = await import('./data-model/deletion-logs.js');
+    type CascadedDeletionTrigger = import('./data-model/deletion-logs.js').CascadedDeletionTrigger;
+
+    const cascaded: CascadedDeletionTrigger = {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.MemberDeletedToAcl,
+      sourceCollection: 'members',
+      sourceDocId: 'mem-abc',
+      sourceName: 'John Doe',
+    };
+    const trigger = normalizeDeletionTrigger(cascaded);
+    expect(trigger).toBe(cascaded);
+
+    const desc = describeDeletionTrigger(trigger);
+    expect(desc.deletedBy).toBe('cascaded:members/mem-abc');
+    expect(desc.deletedByName).toBe('Cascaded from John Doe (member_deleted_to_acl)');
+    expect(desc.deletedByUid).toBeUndefined();
+  });
+
+  it('describes SystemLifecycle and AdminScript triggers', async () => {
+    const { DeletionTriggerKind, describeDeletionTrigger } = await import('./data-model/deletion-logs.js');
+
+    const sysDesc = describeDeletionTrigger({
+      kind: DeletionTriggerKind.SystemLifecycle,
+      processName: 'ttl_prune',
+      reason: 'Expired session',
+    });
+    expect(sysDesc.deletedBy).toBe('system:ttl_prune');
+    expect(sysDesc.deletedByName).toBe('Expired session');
+
+    const scriptDescWithOp = describeDeletionTrigger({
+      kind: DeletionTriggerKind.AdminScript,
+      scriptName: 'fix-tombstones',
+      operator: 'superadmin',
+    });
+    expect(scriptDescWithOp.deletedBy).toBe('superadmin');
+    expect(scriptDescWithOp.deletedByName).toBe('Script: fix-tombstones');
+
+    const scriptDescNoOp = describeDeletionTrigger({
+      kind: DeletionTriggerKind.AdminScript,
+      scriptName: 'fix-tombstones',
+    });
+    expect(scriptDescNoOp.deletedBy).toBe('script:fix-tombstones');
+    expect(scriptDescNoOp.deletedByName).toBe('Script: fix-tombstones');
+  });
+});
+
+

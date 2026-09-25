@@ -21,6 +21,8 @@ import {
 } from '../data-model/vod';
 import { getMember, getMemberByEmail } from './members';
 import { ActionContext, ActionResult } from './types';
+import { recordDeletionLog, recordTombstone } from '../common';
+import { DeletionSource, DeletionLogActor } from '../data-model/deletion-logs';
 
 /** Parameters for creating or registering a video catalog item. */
 export interface CreateVideoInput {
@@ -489,6 +491,21 @@ export async function deleteVideo(
     ctx.logger?.(`[DRY-RUN] Deleted video ${videoId} ("${video.title}")`);
     return { success: true, dryRun: true };
   }
+
+  const actor: DeletionLogActor = {
+    email: ctx.actor?.email || 'admin_script',
+    name: ctx.actor?.name,
+    uid: ctx.actor?.memberDocId,
+  };
+  await recordDeletionLog(
+    ctx.db,
+    FirestoreCollection.Videos,
+    videoId,
+    video,
+    actor,
+    DeletionSource.AdminScript,
+  );
+  await recordTombstone(ctx.db, FirestoreCollection.Videos, videoId, actor);
 
   await ctx.db.collection(FirestoreCollection.Videos).doc(videoId).delete();
   ctx.logger?.(`Deleted video "${video.title}" (${videoId})`);

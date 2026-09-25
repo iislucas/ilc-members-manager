@@ -19,7 +19,14 @@ import { createMemberNotification } from './notifications';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
 import { ensureCountersAreAtLeast } from './counters';
-import { FirestoreUpdate, recordTombstone } from './common';
+import { FirestoreUpdate, recordTombstone, recordDeletionLog } from './common';
+import {
+  DeletionSource,
+  DeletionLogActor,
+  DeletionTriggerKind,
+  CascadeCase,
+  CascadedDeletionTrigger,
+} from './data-model/deletion-logs';
 import * as logger from 'firebase-functions/logger';
 import { environment } from './environment/environment.js';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
@@ -210,6 +217,22 @@ export async function refreshACLAdminStatus(email: string) {
     if (data.isAdmin === true) {
       return;
     }
+    const trigger: CascadedDeletionTrigger = {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.MemberDeletedToAcl,
+      sourceCollection: 'members',
+      sourceDocId: email,
+      sourceName: email,
+    };
+    await recordDeletionLog(
+      getDb(),
+      'acl',
+      email,
+      data,
+      trigger,
+      DeletionSource.CloudFunctionTrigger,
+    );
+    await recordTombstone(getDb(), 'acl', email, trigger);
     await aclRef.delete();
     return;
   }
@@ -285,7 +308,14 @@ async function mirrorGradingsForSifuChange(
     if (cleanPrevSifu) {
       const assessors = [grading.gradingInstructorId, ...gradingManagerIdsOf(grading)];
       if (!assessors.includes(cleanPrevSifu)) {
-        await removeGradingFromInstructor(grading.docId, cleanPrevSifu);
+        const trigger: CascadedDeletionTrigger = {
+          kind: DeletionTriggerKind.Cascaded,
+          cascadeCase: CascadeCase.MemberInstructorChanged,
+          sourceCollection: 'members',
+          sourceDocId: memberDocId,
+          sourceName: grading.studentName || memberDocId,
+        };
+        await removeGradingFromInstructor(grading.docId, cleanPrevSifu, trigger);
       }
     }
     if (cleanCurrSifu) {
@@ -529,12 +559,53 @@ export const onMemberDeleted = onDocumentDeleted(
     const member = snap.data() as Member;
     member.docId = snap.id;
 
+    // Check if the deletion tombstone already has actor information written by the client
+    let actorInfo: DeletionLogActor = { email: 'unknown' };
+    try {
+      const existingTombstone = await getDb()
+        .collection('system')
+        .doc('deletions')
+        .collection('members')
+        .doc(snap.id)
+        .get();
+      if (existingTombstone.exists) {
+        const tData = existingTombstone.data();
+        if (tData?.deletedBy) {
+          actorInfo = {
+            email: tData.deletedBy,
+            name: tData.deletedByName || '',
+            uid: tData.deletedByUid || '',
+          };
+        }
+      }
+    } catch (e) {
+      logger.warn(`Could not read existing tombstone for actor info: ${e}`);
+    }
+
+    // 1. Audit log full document data snapshot to /deletion_logs
+    await recordDeletionLog(
+      getDb(),
+      'members',
+      snap.id,
+      member,
+      actorInfo,
+      DeletionSource.CloudFunctionTrigger,
+    );
+
+    // 2. Cascade mirrors and permissions
     await updateMemberViewForSchoolAndInstrucor(snap.id, undefined, member);
     await updateInstructorPublicProfile({ previous: member, member: undefined });
     await updateACL({ previous: member, member: undefined });
-    await recordTombstone(getDb(), 'members', snap.id);
+    await recordTombstone(getDb(), 'members', snap.id, actorInfo);
     if (member.instructorId) {
-      await recordTombstone(getDb(), 'instructors', snap.id);
+      await recordTombstone(getDb(), 'instructors', snap.id, {
+        kind: DeletionTriggerKind.Cascaded,
+        cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+        sourceCollection: 'members',
+        sourceDocId: snap.id,
+        sourceName: member.name,
+        initiatingUserEmail: actorInfo.email && actorInfo.email !== 'unknown' ? actorInfo.email : undefined,
+      });
     }
   },
 );

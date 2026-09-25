@@ -76,4 +76,25 @@ describe('GradingEditComponent', () => {
   it('should show edit controls for admin users', () => {
     expect(component.canEdit()).toBe(true);
   });
+
+  describe('Deletion Confirmation Modal', () => {
+    it('opens confirm modal when delete button is clicked', () => {
+      const event = new MouseEvent('click');
+      component.deleteGrading(event);
+      expect(component.showDeleteConfirmModal()).toBe(true);
+    });
+
+    it('calls deleteGrading on dataService when confirmed and emits close', async () => {
+      const deleteSpy = vi.spyOn(mockDataManagerService, 'deleteGrading').mockResolvedValue(undefined);
+      const closeSpy = vi.fn();
+      component.close.subscribe(closeSpy);
+
+      component.showDeleteConfirmModal.set(true);
+      await component.confirmDeleteGrading();
+
+      expect(deleteSpy).toHaveBeenCalledWith('test-grading');
+      expect(component.showDeleteConfirmModal()).toBe(false);
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

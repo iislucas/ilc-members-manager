@@ -62,6 +62,7 @@ describe('SchoolEditComponent', () => {
 
     dataManagerServiceMock = {
       setSchool: vi.fn().mockResolvedValue(undefined),
+      deleteSchool: vi.fn().mockResolvedValue(undefined),
       createNextSchoolId: vi.fn(),
       countMembersWithSchoolId: vi.fn().mockResolvedValue(0),
       members: new SearchableSet<'docId', Member>(['name'], 'docId', []),
@@ -598,6 +599,30 @@ describe('SchoolEditComponent', () => {
         fixture.nativeElement.querySelector('button[type="submit"]');
       expect(saveButton).toBeTruthy();
       expect(saveButton!.disabled).toBe(false);
+    });
+  });
+
+  describe('Deletion Confirmation Modal', () => {
+    beforeEach(async () => {
+      await setupComponent(adminUser);
+    });
+
+    it('opens confirm modal when delete button is clicked', () => {
+      const event = new MouseEvent('click');
+      component.deleteSchool(event);
+      expect(component.showDeleteConfirmModal()).toBe(true);
+    });
+
+    it('calls deleteSchool on membersService when confirmed and navigates back', async () => {
+      const deleteSpy = vi.spyOn(component.membersService, 'deleteSchool').mockResolvedValue(undefined);
+      const navSpy = vi.spyOn(component as any, 'navigateBack').mockImplementation(() => {});
+
+      component.showDeleteConfirmModal.set(true);
+      await component.confirmDeleteSchool();
+
+      expect(deleteSpy).toHaveBeenCalledWith('school-doc-id', expect.any(Function));
+      expect(component.showDeleteConfirmModal()).toBe(false);
+      expect(navSpy).toHaveBeenCalled();
     });
   });
 });

@@ -29,6 +29,7 @@ import {
   limit,
   writeBatch,
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { FirestoreCollection } from '../../functions/src/data-model/collections';
 import {
   MailQueueDoc,
@@ -2195,9 +2196,55 @@ export class DataManagerService {
     }
   }
 
+  /**
+   * Writes a tombstone to /system/deletions/{collection}/{id} with the acting user's
+   * identity before deletion, allowing Cloud Functions triggers and audit logs to capture
+   * who performed the deletion.
+   */
+  private async recordDeletionTombstone(
+    collectionName: string,
+    id: string,
+  ): Promise<void> {
+    try {
+      let deletedBy = 'unknown';
+      let deletedByName = '';
+      let deletedByUid = '';
+      try {
+        const authUser = getAuth().currentUser;
+        if (authUser) {
+          deletedBy = authUser.email || authUser.displayName || authUser.uid;
+          deletedByName = authUser.displayName || '';
+          deletedByUid = authUser.uid;
+        }
+      } catch {
+        // Auth might not be initialized in test environment
+      }
+
+      const tombstoneRef = doc(this.db, `system/deletions/${collectionName}`, id);
+      await setDoc(
+        tombstoneRef,
+        {
+          deletedAt: serverTimestamp(),
+          docId: id,
+          collection: collectionName,
+          deletedBy,
+          deletedByName,
+          deletedByUid,
+        },
+        { merge: true },
+      );
+    } catch (err) {
+      console.warn(
+        `[DataManager] Failed to record tombstone for ${collectionName}/${id}:`,
+        err,
+      );
+    }
+  }
+
   async deleteMember(emailId: string): Promise<void> {
     const docRef = doc(this.db, 'members', emailId);
     const existing = this.members.get(emailId);
+    await this.recordDeletionTombstone('members', emailId);
     await deleteDoc(docRef);
     await this.removeMemberLocally(emailId, existing?.primarySchoolId);
   }
@@ -2328,6 +2375,7 @@ export class DataManagerService {
       }
     }
     if (onProgress) onProgress('Deleting school...');
+    await this.recordDeletionTombstone('schools', id);
     await deleteDoc(doc(this.db, 'schools', id));
     const school = this.schools.entries().find(s => s.docId === id || s.schoolId === id);
     if (school) {
@@ -2437,6 +2485,7 @@ export class DataManagerService {
   }
 
   async deleteGrading(id: string): Promise<void> {
+    await this.recordDeletionTombstone('gradings', id);
     await deleteDoc(doc(this.db, 'gradings', id));
     this.gradings.delete(id);
     this.myGradings.delete(id);

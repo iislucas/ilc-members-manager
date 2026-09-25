@@ -1,5 +1,6 @@
-import { FsTimestamp, GenericFsDoc, normalizeLastUpdated } from './base';
+import { FsTimestamp, GenericFsDoc } from './base';
 import { Member } from './members';
+import { DeletionTriggerKind, CascadeCase } from './deletion-logs';
 
 // ==================================================================
 // # Counters
@@ -21,20 +22,31 @@ export type Counters = {
 export type Tombstone = {
   docId: string;
   collection: string;
-  deletedAt: string; // ISO timestamp
-};
-
-export type TombstoneFsDoc = Omit<Tombstone, 'deletedAt'> & {
   deletedAt: FsTimestamp;
+  deletedBy: string; // Email, source document reference, or system identifier
+  deletedByName?: string; // Display name or cascade description
+  deletedByUid?: string; // Firebase Auth UID of the actor if authenticated
+  triggerKind?: DeletionTriggerKind;
+  cascadeCase?: CascadeCase;
+  sourceCollection?: string;
+  sourceDocId?: string;
+  sourceName?: string;
 };
 
 export function firestoreDocToTombstone(doc: GenericFsDoc): Tombstone {
-  const docData = doc.data() as TombstoneFsDoc & { collection?: string };
-  const deletedAt = normalizeLastUpdated(docData.deletedAt);
+  const docData = (doc.data() || {}) as Partial<Tombstone> & { collection?: string };
   return {
     docId: doc.id,
     collection: docData.collection || '',
-    deletedAt,
+    deletedAt: docData.deletedAt as FsTimestamp,
+    deletedBy: docData.deletedBy || '',
+    deletedByName: docData.deletedByName || '',
+    deletedByUid: docData.deletedByUid || '',
+    triggerKind: docData.triggerKind,
+    cascadeCase: docData.cascadeCase,
+    sourceCollection: docData.sourceCollection || '',
+    sourceDocId: docData.sourceDocId || '',
+    sourceName: docData.sourceName || '',
   };
 }
 
@@ -70,8 +82,6 @@ export type ACL = {
   // Whether this ACL entry is for a guest or unlinked account.
   notYetLinkedToMember?: boolean;
 };
-
-export type ACLFsDoc = ACL;
 
 // ==================================================================
 // # Statistics
