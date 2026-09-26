@@ -642,32 +642,39 @@
     }
   }
 
+  .listing-chip,
   .published-pill {
     display: inline-flex;
     align-items: center;
-    padding: 2px 7px;
-    border-radius: 10px;
+    justify-content: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 9999px;
     font-size: 0.72rem;
     font-weight: 600;
-    background: #f4f4f5;
-    color: v.$text-muted;
-    border: 1px solid v.$border-color-light;
+    line-height: 1;
+    background: v.$theme-chip-bg-color;
+    color: v.$text-secondary;
+    border: 1px solid v.$theme-chip-border-color;
     cursor: pointer;
     width: fit-content;
     transition: all 0.15s ease;
     user-select: none;
+    white-space: nowrap;
 
     &.published,
     &.listed {
-      background: #e0f2fe;
-      color: #0369a1;
-      border-color: #bae6fd;
+      background: v.$theme-tag-bg-color;
+      color: v.$highlight-tag-text;
+      border-color: v.$theme-tag-border-color;
     }
 
-    &.unlisted {
-      background: #f4f4f5;
-      color: #71717a;
-      border-color: #e4e4e7;
+    &.unlisted,
+    &.unpublished,
+    &.draft {
+      background: v.$theme-chip-bg-color;
+      color: v.$text-secondary;
+      border-color: v.$theme-chip-border-color;
     }
 
     &:hover {
@@ -941,21 +948,24 @@
           .status-chip {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             font-size: 0.72rem;
-            padding: 2px 7px;
-            border-radius: 4px;
+            padding: 3px 8px;
+            border-radius: 9999px;
             font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
 
             &.listed {
-              background: #e0f2fe;
-              color: #0369a1;
-              border: 1px solid #bae6fd;
+              background: v.$theme-tag-bg-color;
+              color: v.$highlight-tag-text;
+              border: 1px solid v.$theme-tag-border-color;
             }
 
             &.unlisted {
-              background: #f4f4f5;
-              color: v.$text-muted;
-              border: 1px solid v.$border-color-light;
+              background: v.$theme-chip-bg-color;
+              color: v.$text-secondary;
+              border: 1px solid v.$theme-chip-border-color;
             }
 
             &.featured {
@@ -2034,6 +2044,13 @@
       .autocomplete-container {
         flex: 1;
         min-width: 0;
+        position: relative;
+        overflow: visible;
+
+        app-autocomplete {
+          display: block;
+          width: 100%;
+        }
       }
 
       .add-to-series-btn {

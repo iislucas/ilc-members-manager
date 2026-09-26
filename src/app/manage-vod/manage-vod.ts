@@ -68,6 +68,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   selectedStatus = computed(() => this.viewSignals.urlParams.status() || 'all');
   selectedFeatured = computed(() => this.viewSignals.urlParams.featured() || 'all');
   selectedAccessTier = computed(() => this.viewSignals.urlParams.accessTier() || 'all');
+  selectedListing = computed(() => this.viewSignals.urlParams.listing() || 'all');
   selectedYear = computed(() => this.viewSignals.urlParams.year() || 'all');
   selectedVideoIdParam = computed(() => this.viewSignals.urlParams.videoId() || '');
   editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
@@ -348,6 +349,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   filteredVideos = computed<VideoItem[]>(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const status = this.selectedStatus();
+    const listing = this.selectedListing();
     const featured = this.selectedFeatured();
     const accessTier = this.selectedAccessTier();
     const tagFilter = this.selectedTagFilter().toLowerCase().trim();
@@ -355,6 +357,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     let items = this.dataService.videos.entries();
 
     if (q) {
+      const isSearchUnlisted = q === 'unlisted' || q === 'unpublished';
+      const isSearchListed = q === 'listed' || q === 'published';
       items = items.filter(
         (v) =>
           v.title.toLowerCase().includes(q) ||
@@ -363,6 +367,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           (v.recordedDate && v.recordedDate.toLowerCase().includes(q)) ||
           (v.location && v.location.toLowerCase().includes(q)) ||
           (v.featured && ('featured'.includes(q) || 'spotlight'.includes(q))) ||
+          (isSearchUnlisted && !v.isPublished) ||
+          (isSearchListed && v.isPublished) ||
           (v.tags && v.tags.some((t) => t.toLowerCase().includes(q))),
       );
     }
@@ -396,6 +402,14 @@ export class ManageVodComponent implements OnInit, OnDestroy {
         items = items.filter((v) => Boolean(v.featured));
       } else if (featured === 'not_featured') {
         items = items.filter((v) => !v.featured);
+      }
+    }
+
+    if (listing !== 'all') {
+      if (listing === 'listed') {
+        items = items.filter((v) => Boolean(v.isPublished));
+      } else if (listing === 'unlisted') {
+        items = items.filter((v) => !v.isPublished);
       }
     }
 
@@ -436,8 +450,10 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     }
 
     if (status !== 'all') {
-      if (status === 'draft') {
+      if (status === 'draft' || status === 'unlisted') {
         items = items.filter((v) => !v.isPublished);
+      } else if (status === 'listed') {
+        items = items.filter((v) => Boolean(v.isPublished));
       } else {
         items = items.filter((v) => v.vodStatus === status);
       }
@@ -453,10 +469,14 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     const q = this.searchQuery().trim().toLowerCase();
     const tagFilter = this.selectedTagFilter().trim().toLowerCase();
     const status = this.selectedStatus();
+    const listing = this.selectedListing();
+    const accessTier = this.selectedAccessTier();
     const seriesFilter = this.selectedSeriesFilter();
     const year = this.selectedYear();
 
     if (q) {
+      const isSearchUnlisted = q === 'unlisted' || q === 'unpublished';
+      const isSearchListed = q === 'listed' || q === 'published';
       list = list.filter(
         (s) =>
           s.title.toLowerCase().includes(q) ||
@@ -464,6 +484,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           (s.instructorName && s.instructorName.toLowerCase().includes(q)) ||
           (s.recordedDate && s.recordedDate.toLowerCase().includes(q)) ||
           (s.location && s.location.toLowerCase().includes(q)) ||
+          (isSearchUnlisted && !s.isPublished) ||
+          (isSearchListed && s.isPublished) ||
           (s.tags && s.tags.some((t) => t.toLowerCase().includes(q))) ||
           s.videos.some(
             (v) =>
@@ -494,8 +516,67 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (status === 'draft') {
+    if (listing !== 'all') {
+      if (listing === 'listed') {
+        list = list.filter((s) => Boolean(s.isPublished));
+      } else if (listing === 'unlisted') {
+        list = list.filter((s) => !s.isPublished);
+      }
+    }
+
+    if (accessTier !== 'all') {
+      list = list.filter((s) => {
+        const matchesTier = (t: VodAccessTier[], at?: VodAccessTier, isBuyable?: boolean, priceCents?: number) => {
+          switch (accessTier) {
+            case 'class_library':
+            case VodAccessTier.ClassVideoSubscribers:
+              return t.includes(VodAccessTier.ClassVideoSubscribers) || at === VodAccessTier.ClassVideoSubscribers;
+            case 'members':
+            case VodAccessTier.MembersOnly:
+              return t.includes(VodAccessTier.MembersOnly) || at === VodAccessTier.MembersOnly;
+            case 'instructors':
+            case VodAccessTier.InstructorsOnly:
+              return t.includes(VodAccessTier.InstructorsOnly) || at === VodAccessTier.InstructorsOnly;
+            case 'public':
+            case VodAccessTier.Public:
+              return t.includes(VodAccessTier.Public) || at === VodAccessTier.Public;
+            case 'direct_purchase':
+            case VodAccessTier.DirectPurchase:
+              return (
+                t.includes(VodAccessTier.DirectPurchase) ||
+                at === VodAccessTier.DirectPurchase ||
+                Boolean(isBuyable) ||
+                Boolean(priceCents && priceCents > 0)
+              );
+            case 'admin_only':
+            case VodAccessTier.AdminOnly:
+              return t.includes(VodAccessTier.AdminOnly) || at === VodAccessTier.AdminOnly;
+            default:
+              return true;
+          }
+        };
+
+        const sTiers = Array.isArray(s.accessTiers) && s.accessTiers.length > 0
+          ? s.accessTiers
+          : (s.accessTier ? [s.accessTier] : []);
+
+        if (matchesTier(sTiers, s.accessTier, Boolean(s.stripePriceId || s.priceCents), s.priceCents)) {
+          return true;
+        }
+
+        return s.videos.some((v) => {
+          const vTiers = Array.isArray(v.accessTiers) && v.accessTiers.length > 0
+            ? v.accessTiers
+            : (v.accessTier ? [v.accessTier] : []);
+          return matchesTier(vTiers, v.accessTier, v.isBuyable, v.priceCents);
+        });
+      });
+    }
+
+    if (status === 'draft' || status === 'unlisted') {
       list = list.filter((s) => !s.isPublished);
+    } else if (status === 'listed') {
+      list = list.filter((s) => Boolean(s.isPublished));
     } else if (status === 'ready') {
       list = list.filter((s) => s.videos.every((v) => v.vodStatus === VodStatus.Ready));
     }
@@ -671,6 +752,10 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.viewSignals.urlParams.accessTier.set(tier === 'all' ? '' : tier);
   }
 
+  setListingFilter(listing: string): void {
+    this.viewSignals.urlParams.listing.set(listing === 'all' ? '' : listing);
+  }
+
   setYearFilter(year: string): void {
     this.viewSignals.urlParams.year.set(year === 'all' ? '' : year);
   }
@@ -680,6 +765,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.viewSignals.urlParams.status.set('');
     this.viewSignals.urlParams.featured.set('');
     this.viewSignals.urlParams.accessTier.set('');
+    this.viewSignals.urlParams.listing.set('');
     this.viewSignals.urlParams.year.set('');
     this.selectedSeriesFilter.set('all');
     this.selectedTagFilter.set('');

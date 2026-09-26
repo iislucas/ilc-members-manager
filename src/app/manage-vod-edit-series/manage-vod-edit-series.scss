@@ -147,21 +147,26 @@
 .series-edit-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .series-section {
-  padding: 1.5rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  border: none;
+  background: transparent;
+
+  &:not(:first-child) {
+    padding-top: 2rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
 
   .section-header {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
-    padding-bottom: 0.85rem;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 
     app-icon {
       color: v.$heading-accent-color;
@@ -470,27 +475,107 @@
   }
 }
 
+.upload-date-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.25rem 0 0.5rem 0;
+
+  .filter-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+
+    label {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: v.$text-secondary;
+      white-space: nowrap;
+    }
+
+    .filter-select,
+    .filter-date-input {
+      padding: 0.4rem 0.65rem;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      color: v.$text-primary;
+      background: #ffffff;
+      height: 36px;
+      box-sizing: border-box;
+
+      &:focus {
+        outline: none;
+        border-color: v.$heading-accent-color;
+        box-shadow: 0 0 0 2px rgba(v.$heading-accent-color, 0.12);
+      }
+    }
+  }
+
+  .filter-count-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: v.$text-secondary;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+  }
+}
+
 .add-video-controls-row {
   display: flex;
   gap: 0.75rem;
-  align-items: flex-start;
+  align-items: center; // Baseline / vertical-center aligned with the input box
   position: relative;
   overflow: visible;
+  width: 100%;
 
   .autocomplete-container {
     flex: 1;
     min-width: 0;
     position: relative;
     overflow: visible;
+
+    app-autocomplete {
+      display: block;
+      width: 100%;
+
+      input {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 38px;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        color: v.$text-primary;
+        background: #ffffff;
+        box-sizing: border-box;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+        &:focus {
+          outline: none;
+          border-color: v.$heading-accent-color;
+          box-shadow: 0 0 0 3px rgba(v.$heading-accent-color, 0.15);
+        }
+      }
+    }
   }
 
   .add-btn {
     white-space: nowrap;
     flex-shrink: 0;
-    height: 40px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.4rem;
+    height: 38px;
+    padding: 0 1.15rem;
+    box-sizing: border-box;
   }
 
   @media (max-width: 600px) {
@@ -526,7 +611,9 @@
   justify-content: flex-end;
   gap: 0.75rem;
   align-items: center;
-  padding: 1rem 0;
+  padding: 1.5rem 0 1rem 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08); // Subtle separator before sticky/bottom actions
 
   .save-btn {
     display: inline-flex;

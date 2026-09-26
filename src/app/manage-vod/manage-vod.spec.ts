@@ -49,6 +49,7 @@ describe('ManageVodComponent', () => {
           status: WritableSignal<string | null>;
           featured: WritableSignal<string | null>;
           accessTier: WritableSignal<string | null>;
+          listing: WritableSignal<string | null>;
           year: WritableSignal<string | null>;
           instructorId: WritableSignal<string | null>;
           videoId: WritableSignal<string | null>;
@@ -177,6 +178,7 @@ describe('ManageVodComponent', () => {
             status: signal(null),
             featured: signal(null),
             accessTier: signal(null),
+            listing: signal(null),
             year: signal(null),
             instructorId: signal(null),
             videoId: signal(null),
@@ -1029,6 +1031,76 @@ describe('ManageVodComponent', () => {
           ]),
         }),
       );
+    });
+  });
+
+  describe('Listing and Access Search & Filter Options', () => {
+    it('should filter videos and series by listing filter (listed vs unlisted)', () => {
+      // Listed filter
+      component.setListingFilter('listed');
+      expect(component.selectedListing()).toBe('listed');
+      expect(component.filteredVideos().every((v) => v.isPublished)).toBe(true);
+      expect(component.filteredSeries().every((s) => s.isPublished)).toBe(true);
+
+      // Unlisted filter
+      component.setListingFilter('unlisted');
+      expect(component.selectedListing()).toBe('unlisted');
+      expect(component.filteredVideos().every((v) => !v.isPublished)).toBe(true);
+      expect(component.filteredSeries().every((s) => !s.isPublished)).toBe(true);
+
+      // Reset
+      component.setListingFilter('all');
+      expect(component.filteredVideos().length).toBe(3);
+    });
+
+    it('should search listed and unlisted videos and series via free-text search query', () => {
+      component.setSearchQuery('unlisted');
+      expect(component.filteredVideos().map((v) => v.docId)).toContain('v2');
+      expect(component.filteredVideos().map((v) => v.docId)).not.toContain('v1');
+
+      component.setSearchQuery('listed');
+      expect(component.filteredVideos().map((v) => v.docId)).toContain('v1');
+      expect(component.filteredVideos().map((v) => v.docId)).not.toContain('v2');
+
+      component.setSearchQuery('');
+    });
+
+    it('should reset listing filter when clearAllFilters is called', () => {
+      component.setListingFilter('unlisted');
+      expect(component.selectedListing()).toBe('unlisted');
+
+      component.clearAllFilters();
+      expect(component.selectedListing()).toBe('all');
+    });
+
+    it('should filter videos and series by aligned access tier options', () => {
+      // Public / Free Access
+      component.setAccessTierFilter('public');
+      expect(component.filteredVideos().some((v) => v.docId === 'v1')).toBe(true);
+      expect(component.filteredVideos().some((v) => v.docId === 'v2')).toBe(false);
+
+      // Class Video Library
+      component.setAccessTierFilter('class_library');
+      expect(component.filteredVideos().some((v) => v.docId === 'v3')).toBe(true);
+      expect(component.filteredVideos().some((v) => v.docId === 'v1')).toBe(false);
+
+      // Direct Purchase
+      component.setAccessTierFilter('direct_purchase');
+      expect(component.filteredVideos().some((v) => v.docId === 'v2')).toBe(true);
+
+      // Reset
+      component.setAccessTierFilter('all');
+    });
+
+    it('should render listing-chip class with listed and unlisted styles', () => {
+      component.setViewMode('all_videos');
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      const chips = compiled.querySelectorAll('.listing-chip');
+      expect(chips.length).toBeGreaterThan(0);
+      expect(compiled.querySelector('.listing-chip.listed')).toBeTruthy();
+      expect(compiled.querySelector('.listing-chip.unlisted')).toBeTruthy();
     });
   });
 });

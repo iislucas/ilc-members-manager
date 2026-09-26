@@ -191,13 +191,31 @@
           [ngModel]="selectedAccessTier()"
           (ngModelChange)="setAccessTierFilter($event)"
         >
-          <option value="all">All Permissions</option>
-          <option value="class_library">Class Video Library</option>
-          <option value="members">Members Only</option>
-          <option value="instructors">Instructors Only</option>
-          <option value="public">Public / Free</option>
-          <option value="direct_purchase">Direct Purchase / Paid</option>
-          <option value="admin_only">Admin Only</option>
+          <option value="all">All Access</option>
+          <optgroup label="Free Access">
+            <option value="public">Public</option>
+            <option value="members">Members</option>
+            <option value="instructors">Instructors</option>
+            <option value="admin_only">Admin</option>
+          </optgroup>
+          <optgroup label="Subscriptions &amp; Purchases">
+            <option value="class_library">Class Video Library</option>
+            <option value="direct_purchase">Direct Purchase / Paid</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Listing Filter -->
+      <div class="filter-item">
+        <label>Listing:</label>
+        <select
+          class="filter-select"
+          [ngModel]="selectedListing()"
+          (ngModelChange)="setListingFilter($event)"
+        >
+          <option value="all">All (Listed &amp; Unlisted)</option>
+          <option value="listed">Listed</option>
+          <option value="unlisted">Unlisted</option>
         </select>
       </div>
 
@@ -229,12 +247,12 @@
           <option value="transcoding">Transcoding</option>
           <option value="queued">Queued</option>
           <option value="failed">Failed</option>
-          <option value="draft">Drafts (Unpublished)</option>
+          <option value="draft">Drafts / Unlisted</option>
         </select>
       </div>
 
       <!-- Active Filters Reset -->
-      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all' || selectedSeriesFilter() !== 'all' || selectedYear() !== 'all') {
+      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedListing() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all' || selectedSeriesFilter() !== 'all' || selectedYear() !== 'all') {
         <button
           type="button"
           class="subtle-btn clear-all-btn"
@@ -391,7 +409,7 @@
                   </span>
                 }
                 <span
-                  class="published-pill"
+                  class="listing-chip published-pill clickable"
                   [class.published]="video.isPublished"
                   [class.listed]="video.isPublished"
                   [class.unlisted]="!video.isPublished"
@@ -531,7 +549,7 @@
             <div class="series-title-row">
               <h4>{{ series.title }}</h4>
               <span
-                class="published-pill"
+                class="listing-chip published-pill clickable"
                 [class.published]="series.isPublished"
                 [class.listed]="series.isPublished"
                 [class.unlisted]="!series.isPublished"
@@ -788,7 +806,7 @@
                 <span class="status-badge" [class]="getStatusClass(d.vodStatus)">
                   {{ d.vodStatus }}
                 </span>
-                <span class="status-chip" [class.listed]="d.isPublished" [class.unlisted]="!d.isPublished">
+                <span class="listing-chip status-chip" [class.listed]="d.isPublished" [class.unlisted]="!d.isPublished">
                   {{ d.isPublished ? 'Listed' : 'Unlisted' }}
                 </span>
                 <span class="status-chip" [class.featured]="d.featured" [class.standard]="!d.featured">

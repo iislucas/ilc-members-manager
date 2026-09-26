@@ -36,7 +36,7 @@
         </div>
       </div>
       <div class="banner-actions">
-        <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+        <a class="primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
           <app-icon name="video_library"></app-icon>
           <span>Return to Manage VOD</span>
         </a>
@@ -55,7 +55,7 @@
       <app-icon name="collections" width="48px" height="48px"></app-icon>
       <h3>Series Not Found</h3>
       <p>Could not find a video series with ID <code>{{ seriesId() }}</code>.</p>
-      <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+      <a class="primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
         <span>Go to Manage VOD</span>
       </a>
     </div>
@@ -63,7 +63,7 @@
     <!-- Main Form Grid -->
     <div class="series-edit-content">
       <!-- Section 1: Series Details & Pricing -->
-      <section class="series-section card">
+      <section class="series-section">
         <div class="section-header">
           <app-icon name="edit"></app-icon>
           <div>
@@ -194,7 +194,7 @@
       </section>
 
       <!-- Section 2: Episodes & Sequence Ordering -->
-      <section class="series-section card">
+      <section class="series-section">
         <div class="section-header">
           <app-icon name="video_library"></app-icon>
           <div>
@@ -212,7 +212,7 @@
           } @else {
             <div class="episodes-list">
               @for (vid of seriesVideos(); track vid.docId; let idx = $index) {
-                <div class="episode-item card">
+                <div class="episode-item">
                   <span class="part-badge">Part {{ idx + 1 }}</span>
                   <div class="episode-info">
                     <span class="episode-title">{{ vid.title }}</span>
@@ -281,7 +281,7 @@
       </section>
 
       <!-- Section 3: Add Video to Series -->
-      <section class="series-section card add-video-section">
+      <section class="series-section add-video-section">
         <div class="section-header">
           <app-icon name="add"></app-icon>
           <div>
@@ -294,6 +294,41 @@
         </div>
 
         <div class="section-body">
+          <!-- Upload Date Filter -->
+          <div class="upload-date-filter-row">
+            <div class="filter-item">
+              <label for="uploadDateFilter">Filter uploaded:</label>
+              <select
+                id="uploadDateFilter"
+                class="filter-select"
+                [ngModel]="uploadDateFilterOption()"
+                (ngModelChange)="setUploadDateFilterOption($event)"
+              >
+                <option value="1_month">Past month (Default)</option>
+                <option value="3_months">Past 3 months</option>
+                <option value="6_months">Past 6 months</option>
+                <option value="1_year">Past 1 year</option>
+                <option value="all">All time</option>
+                <option value="custom">Specific date...</option>
+              </select>
+            </div>
+            @if (uploadDateFilterOption() === 'custom') {
+              <div class="filter-item custom-date-item">
+                <label for="customUploadDate">Uploaded after:</label>
+                <input
+                  id="customUploadDate"
+                  type="date"
+                  class="filter-date-input"
+                  [ngModel]="customUploadDate()"
+                  (ngModelChange)="setCustomUploadDate($event)"
+                />
+              </div>
+            }
+            <span class="filter-count-badge">
+              {{ availableVideosCount() }} video{{ availableVideosCount() === 1 ? '' : 's' }} available
+            </span>
+          </div>
+
           <div class="add-video-controls-row">
             <div class="autocomplete-container">
               <app-autocomplete
@@ -308,7 +343,7 @@
             </div>
             <button
               type="button"
-              class="primary-btn add-btn"
+              class="primary-button add-btn"
               [disabled]="!selectedVideoToAdd()"
               (click)="addSelectedVideoToSeries()"
             >
@@ -331,28 +366,25 @@
 
       <!-- Section 4: Sticky / Bottom Action Bar -->
       <div class="series-actions-bar">
-        <button
-          type="button"
-          class="subtle-btn"
-          [disabled]="isSaving()"
-          (click)="cancel()"
-        >
-          <span>Cancel</span>
-        </button>
-        <button
-          type="button"
-          class="primary-btn save-btn"
-          [disabled]="isSaving()"
-          (click)="saveSeriesChanges()"
-        >
-          @if (isSaving()) {
-            <app-spinner></app-spinner>
-            <span>Saving Changes...</span>
-          } @else {
+        @if (isSaving()) {
+          <app-spinner>Saving Changes...</app-spinner>
+        } @else {
+          <button
+            type="button"
+            class="subtle-button"
+            (click)="cancel()"
+          >
+            <span>Cancel</span>
+          </button>
+          <button
+            type="button"
+            class="primary-button save-btn"
+            (click)="saveSeriesChanges()"
+          >
             <app-icon name="save"></app-icon>
             <span>Save Series Changes</span>
-          }
-        </button>
+          </button>
+        }
       </div>
     </div>
   }

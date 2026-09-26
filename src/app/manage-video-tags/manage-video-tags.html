@@ -201,17 +201,16 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="subtle-btn" [disabled]="isSaving()" (click)="closeAddModal()">
-            Cancel
-          </button>
-          <button type="button" class="primary-btn" [disabled]="isSaving()" (click)="saveNewTag()">
-            @if (isSaving()) {
-              <app-spinner size="14px"></app-spinner>
-              <span>Saving...</span>
-            } @else {
+          @if (isSaving()) {
+            <app-spinner>Saving...</app-spinner>
+          } @else {
+            <button type="button" class="subtle-btn" (click)="closeAddModal()">
+              Cancel
+            </button>
+            <button type="button" class="primary-btn" (click)="saveNewTag()">
               <span>Create Tag</span>
-            }
-          </button>
+            </button>
+          }
         </div>
       </div>
     </div>
@@ -270,17 +269,16 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="subtle-btn" [disabled]="isSaving()" (click)="closeEditModal()">
-            Cancel
-          </button>
-          <button type="button" class="primary-btn" [disabled]="isSaving()" (click)="saveTagEdits()">
-            @if (isSaving()) {
-              <app-spinner size="14px"></app-spinner>
-              <span>Saving...</span>
-            } @else {
+          @if (isSaving()) {
+            <app-spinner>Saving...</app-spinner>
+          } @else {
+            <button type="button" class="subtle-btn" (click)="closeEditModal()">
+              Cancel
+            </button>
+            <button type="button" class="primary-btn" (click)="saveTagEdits()">
               <span>Save Changes</span>
-            }
-          </button>
+            </button>
+          }
         </div>
       </div>
     </div>
@@ -307,17 +305,16 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="subtle-btn" [disabled]="isSaving()" (click)="cancelDelete()">
-            Cancel
-          </button>
-          <button type="button" class="danger-btn" [disabled]="isSaving()" (click)="executeDelete()">
-            @if (isSaving()) {
-              <app-spinner size="14px"></app-spinner>
-              <span>Deleting...</span>
-            } @else {
+          @if (isSaving()) {
+            <app-spinner>Deleting...</app-spinner>
+          } @else {
+            <button type="button" class="subtle-btn" (click)="cancelDelete()">
+              Cancel
+            </button>
+            <button type="button" class="danger-btn" (click)="executeDelete()">
               <span>Confirm Delete</span>
-            }
-          </button>
+            </button>
+          }
         </div>
       </div>
     </div>

@@ -62,6 +62,10 @@ export class ManageVodEditSeriesComponent {
   // Search & Add Video
   selectedVideoToAdd = signal<VideoItem | null>(null);
   addVideoSearchTerm = signal<string>('');
+  uploadDateFilterOption = signal<'1_month' | '3_months' | '6_months' | '1_year' | 'all' | 'custom'>('1_month');
+  customUploadDate = signal<string>('');
+  availableVideosCount = signal<number>(0);
+
   availableVideosForSeries = new SearchableSet<
     'docId',
     VideoItem
@@ -94,6 +98,10 @@ export class ManageVodEditSeriesComponent {
       }
       if (v.instructorName) {
         parts.push(`(${v.instructorName})`);
+      }
+      const dateStr = v.recordedDate || (v.createdAt ? v.createdAt.slice(0, 10) : '');
+      if (dateStr) {
+        parts.push(`[${dateStr}]`);
       }
       if (v.durationSeconds) {
         parts.push(`- ${this.formatDuration(v.durationSeconds)}`);
@@ -134,13 +142,66 @@ export class ManageVodEditSeriesComponent {
       this.addVideoSearchTerm.set('');
     });
 
-    // Keep availableVideosForSeries up-to-date, excluding currently attached videos
+    // Keep availableVideosForSeries up-to-date, excluding currently attached videos and applying upload date filter
     effect(() => {
       const currentDocIds = new Set(this.seriesVideos().map((v) => v.docId));
       const all = this.dataService.videos.entries();
-      const available = all.filter((v) => !currentDocIds.has(v.docId));
+      const cutoff = this.getUploadCutoffDate(this.uploadDateFilterOption(), this.customUploadDate());
+      const available = all.filter((v) => !currentDocIds.has(v.docId) && this.matchesUploadCutoff(v, cutoff));
       this.availableVideosForSeries.setEntries(available);
+      this.availableVideosCount.set(available.length);
     });
+  }
+
+  getUploadCutoffDate(option: string, customDateStr?: string): Date | null {
+    const now = new Date();
+    switch (option) {
+      case '1_month': {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - 1);
+        return d;
+      }
+      case '3_months': {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - 3);
+        return d;
+      }
+      case '6_months': {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - 6);
+        return d;
+      }
+      case '1_year': {
+        const d = new Date(now);
+        d.setFullYear(d.getFullYear() - 1);
+        return d;
+      }
+      case 'custom': {
+        if (!customDateStr) return null;
+        const d = new Date(customDateStr);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      case 'all':
+      default:
+        return null;
+    }
+  }
+
+  matchesUploadCutoff(v: VideoItem, cutoff: Date | null): boolean {
+    if (!cutoff) return true;
+    const raw = v.createdAt || v.publishedAt || v.lastUpdated || v.recordedDate;
+    if (!raw) return true; // Keep items with no timestamp metadata
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return true;
+    return d.getTime() >= cutoff.getTime();
+  }
+
+  setUploadDateFilterOption(option: '1_month' | '3_months' | '6_months' | '1_year' | 'all' | 'custom'): void {
+    this.uploadDateFilterOption.set(option);
+  }
+
+  setCustomUploadDate(dateStr: string): void {
+    this.customUploadDate.set(dateStr);
   }
 
   getFreeAccessTier(series: VideoSeries): VodAccessTier {

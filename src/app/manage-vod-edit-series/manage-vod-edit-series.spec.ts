@@ -223,4 +223,88 @@ describe('ManageVodEditSeriesComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.not-found-state')).toBeTruthy();
   });
+
+  it('should use standard primary-button and subtle-button styles and never put spinner inside button', () => {
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const addBtn = compiled.querySelector('.add-btn');
+    expect(addBtn).toBeTruthy();
+    expect(addBtn?.classList.contains('primary-button')).toBe(true);
+
+    const cancelBtn = compiled.querySelector('.series-actions-bar .subtle-button');
+    expect(cancelBtn).toBeTruthy();
+
+    const saveBtn = compiled.querySelector('.series-actions-bar .save-btn');
+    expect(saveBtn).toBeTruthy();
+    expect(saveBtn?.classList.contains('primary-button')).toBe(true);
+
+    // Verify when isSaving is true, spinner replaces button and no button contains app-spinner
+    component.isSaving.set(true);
+    fixture.detectChanges();
+
+    const spinnerInButton = compiled.querySelector('button app-spinner');
+    expect(spinnerInButton).toBeNull();
+
+    const standaloneSpinner = compiled.querySelector('.series-actions-bar app-spinner');
+    expect(standaloneSpinner).toBeTruthy();
+  });
+
+  it('should remove dark card outlines from sections and use subtle section layout', () => {
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const sections = compiled.querySelectorAll('.series-section');
+    expect(sections.length).toBe(3);
+    for (const section of Array.from(sections)) {
+      expect(section.classList.contains('card')).toBe(false);
+    }
+  });
+
+  it('should filter available videos by upload date defaulting to 1 month', () => {
+    const now = Date.now();
+    const recentDate = new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(); // 5 days ago
+    const oldDate = new Date(now - 60 * 24 * 60 * 60 * 1000).toISOString(); // 60 days ago
+
+    const testVideos: VideoItem[] = [
+      ...sampleVideos,
+      {
+        ...sampleVideos[2],
+        docId: 'v-recent',
+        title: 'Recent Upload',
+        createdAt: recentDate,
+      },
+      {
+        ...sampleVideos[2],
+        docId: 'v-old',
+        title: 'Old Upload',
+        createdAt: oldDate,
+      },
+    ];
+
+    mockDataService.videos.entries.set(testVideos);
+    TestBed.flushEffects();
+
+    // Default filter is 1_month
+    expect(component.uploadDateFilterOption()).toBe('1_month');
+    let availableIds = component.availableVideosForSeries.entries().map((v) => v.docId);
+    expect(availableIds).toContain('v-recent');
+    expect(availableIds).not.toContain('v-old');
+
+    // Change filter to all time
+    component.setUploadDateFilterOption('all');
+    TestBed.flushEffects();
+    availableIds = component.availableVideosForSeries.entries().map((v) => v.docId);
+    expect(availableIds).toContain('v-recent');
+    expect(availableIds).toContain('v-old');
+
+    // Change filter to custom date between recent and old
+    const midwayDate = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    component.setUploadDateFilterOption('custom');
+    component.setCustomUploadDate(midwayDate);
+    TestBed.flushEffects();
+    availableIds = component.availableVideosForSeries.entries().map((v) => v.docId);
+    expect(availableIds).toContain('v-recent');
+    expect(availableIds).not.toContain('v-old');
+  });
 });
