@@ -586,15 +586,14 @@
           </div>
 
           <div class="series-actions-col">
-            <button
-              type="button"
+            <a
               class="primary-btn"
-              (click)="openSeriesModal(series)"
+              [href]="routingService.hrefForView(Views.ManageVodEditSeries, { seriesId: series.seriesId })"
               title="Edit series title, bundle price, and reorder parts"
             >
               <app-icon name="edit"></app-icon>
               <span>Edit Series &amp; Parts</span>
-            </button>
+            </a>
             <button
               type="button"
               class="secondary-btn"

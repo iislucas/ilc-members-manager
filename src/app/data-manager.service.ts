@@ -56,7 +56,7 @@ import { School, initSchool, SchoolFsDoc, firestoreDocToSchool } from '../../fun
 import { Counters } from '../../functions/src/data-model/system';
 import { VideoItem, VideoSeries, groupVideosIntoSeries, getVideoSeriesGroupingKey, firestoreDocToVideoItem, initVideoItem, VideoGrant, firestoreDocToVideoGrant, VideoProgress, firestoreDocToVideoProgress, VodStatus, VodAccessTier, VideoGrantKind, SystemTagsDoc, SystemVideoTagsDoc, VideoTagMeta, initVideoTagMeta, TagItem, VideoTimeRange, MemberVideoTimeRanges, firestoreDocToMemberVideoTimeRanges, MemberVideoTimeRangesFsDoc } from '../../functions/src/data-model/vod';
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
-import { FirebaseStateService, UserDetails } from './firebase-state.service';
+import { FirebaseStateService, LoginStatus, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
@@ -548,6 +548,9 @@ export class DataManagerService {
 
     // System listeners reactive to auth status (counters, email-templates, mail-settings, videos)
     effect(() => {
+      if (this.firebaseService.loginStatus?.() === LoginStatus.FirebaseLoadingStatus) {
+        return;
+      }
       const user = this.firebaseService.user();
       this.updateCountersSync(user);
       this.updateEmailTemplatesSync(user);

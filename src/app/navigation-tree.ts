@@ -296,6 +296,7 @@ export class NavigationTreeService {
       view === Views.ManageMaterials ||
       view === Views.ManageVod ||
       view === Views.ManageVodUpload ||
+      view === Views.ManageVodEditSeries ||
       view === Views.ManageVideoTags ||
       view === Views.Statistics ||
       view === Views.ImportExport ||
@@ -483,6 +484,7 @@ export class NavigationTreeService {
       case Views.VideoView:
         return [this.node(Views.Videos, 'Video on Demand')];
       case Views.ManageVodUpload:
+      case Views.ManageVodEditSeries:
       case Views.ManageVideoTags:
         return [this.node(Views.ManageVod, 'Manage VOD')];
 
@@ -783,6 +785,8 @@ export class NavigationTreeService {
         return 'Manage VOD';
       case Views.ManageVodUpload:
         return 'Upload VOD & Series';
+      case Views.ManageVodEditSeries:
+        return 'Edit Video Series';
       case Views.ManageVideoTags:
         return 'Video Tags';
       case Views.Login:

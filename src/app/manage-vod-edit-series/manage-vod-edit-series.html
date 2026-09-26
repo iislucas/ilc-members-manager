@@ -1,0 +1,359 @@
+<div class="manage-vod-edit-series-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-nav">
+      <a class="subtle-button back-link" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+        <app-icon name="arrow_back"></app-icon>
+        <span>Back to Manage VOD</span>
+      </a>
+    </div>
+    <div class="header-titles">
+      <h2>Edit Video Series &amp; Parts</h2>
+      <p class="subtitle">
+        Configure series metadata, access tiers, single bundle purchase pricing, and episode sequence ordering.
+      </p>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  @if (errorMessage()) {
+    <div class="error-container">
+      <app-icon name="error"></app-icon>
+      <span class="error-message">{{ errorMessage() }}</span>
+      <button type="button" class="icon-only-button" (click)="errorMessage.set(null)">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="success-banner card">
+      <div class="banner-header">
+        <app-icon name="check" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>Changes Saved</h3>
+          <p>{{ successMessage() }}</p>
+        </div>
+      </div>
+      <div class="banner-actions">
+        <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+          <app-icon name="video_library"></app-icon>
+          <span>Return to Manage VOD</span>
+        </a>
+      </div>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (dataService.videos.loading() && !series()) {
+    <div class="loading-state card">
+      <app-spinner>Loading video series details...</app-spinner>
+    </div>
+  } @else if (!series()) {
+    <!-- Not Found State -->
+    <div class="not-found-state card">
+      <app-icon name="collections" width="48px" height="48px"></app-icon>
+      <h3>Series Not Found</h3>
+      <p>Could not find a video series with ID <code>{{ seriesId() }}</code>.</p>
+      <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+        <span>Go to Manage VOD</span>
+      </a>
+    </div>
+  } @else {
+    <!-- Main Form Grid -->
+    <div class="series-edit-content">
+      <!-- Section 1: Series Details & Pricing -->
+      <section class="series-section card">
+        <div class="section-header">
+          <app-icon name="edit"></app-icon>
+          <div>
+            <h3>Series Information &amp; Access</h3>
+            <p>Define the title, description, who can stream it for free, and optional bundle purchase pricing.</p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <!-- Series ID (Readonly badge) -->
+          <div class="form-group series-id-row">
+            <span class="series-id-label">Series ID:</span>
+            <code class="series-id-val">{{ seriesId() }}</code>
+          </div>
+
+          <!-- Series Title -->
+          <div class="form-group">
+            <label for="seriesTitle">Series Title <span class="required">*</span></label>
+            <input
+              id="seriesTitle"
+              type="text"
+              class="form-input"
+              [ngModel]="seriesTitle()"
+              (ngModelChange)="seriesTitle.set($event)"
+              placeholder="e.g. Masterclass 2026: Offering Hands"
+            />
+          </div>
+
+          <!-- Series Description -->
+          <div class="form-group">
+            <label for="seriesDesc">Series Description</label>
+            <textarea
+              id="seriesDesc"
+              rows="3"
+              class="form-textarea"
+              [ngModel]="seriesDescription()"
+              (ngModelChange)="seriesDescription.set($event)"
+              placeholder="Overview of this series collection, syllabus, and concepts taught..."
+            ></textarea>
+          </div>
+
+          <!-- Free Access Tier -->
+          <div class="form-group free-access-group">
+            <label class="section-heading-label">Who can view it for free</label>
+            <p class="section-description">
+              Select who has free streaming access to this series. Instructors are members, and members are part of the public:
+            </p>
+            <select
+              class="form-select free-access-select"
+              [ngModel]="seriesFreeAccessTier()"
+              (ngModelChange)="seriesFreeAccessTier.set($event)"
+            >
+              @for (opt of freeAccessTierOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }} &mdash; {{ opt.description }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Class Video Subscription (Shown Separately) -->
+          <div class="form-group class-subscription-box">
+            <label class="checkbox-label class-sub-toggle">
+              <input
+                type="checkbox"
+                [ngModel]="seriesHasClassSub()"
+                (ngModelChange)="seriesHasClassSub.set($event)"
+              />
+              <span class="checkbox-label-text">Class Video Subscribers</span>
+            </label>
+            <p class="checkbox-hint">Active class video library subscribers have streaming access to this series.</p>
+          </div>
+
+          <!-- Series Direct Purchase Option -->
+          <div class="form-group buyable-box">
+            <label class="checkbox-label buyable-toggle">
+              <input
+                type="checkbox"
+                [ngModel]="seriesIsBuyable()"
+                (ngModelChange)="seriesIsBuyable.set($event)"
+              />
+              <span class="buyable-label-text">Available for Direct Series Bundle Purchase</span>
+            </label>
+            <p class="buyable-hint">
+              Allows users without the above memberships to purchase permanent streaming access to all episodes in this series.
+            </p>
+
+            @if (seriesIsBuyable()) {
+              <div class="form-row buyable-inputs">
+                <div class="form-group">
+                  <label>Bundle Purchase Price ($ USD) <span class="required">*</span></label>
+                  <input
+                    type="number"
+                    step="0.50"
+                    min="0.50"
+                    class="form-input"
+                    [ngModel]="seriesPriceDollars()"
+                    (ngModelChange)="seriesPriceDollars.set($event)"
+                    placeholder="49.99"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Stripe Price ID (Optional)</label>
+                  <input
+                    type="text"
+                    class="form-input"
+                    [ngModel]="seriesStripePriceId()"
+                    (ngModelChange)="seriesStripePriceId.set($event)"
+                    placeholder="price_1N..."
+                  />
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Catalog Visibility -->
+          <div class="form-group visibility-box">
+            <label class="section-heading-label">Series Catalog Visibility</label>
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="seriesIsPublished()"
+                (ngModelChange)="seriesIsPublished.set($event)"
+              />
+              <span>Listed in Public / Member Catalog</span>
+            </label>
+            <p class="checkbox-hint">When unchecked, this series is hidden from catalog listings and accessible only to administrators.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Episodes & Sequence Ordering -->
+      <section class="series-section card">
+        <div class="section-header">
+          <app-icon name="video_library"></app-icon>
+          <div>
+            <h3>Episodes &amp; Sequence Ordering</h3>
+            <p>Reorder episodes using the up/down arrows. Each episode's sequence number will be updated accordingly.</p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          @if (seriesVideos().length === 0) {
+            <div class="empty-episodes-notice">
+              <app-icon name="info"></app-icon>
+              <p>There are currently no episodes in this series. Use the video selector below to add videos.</p>
+            </div>
+          } @else {
+            <div class="episodes-list">
+              @for (vid of seriesVideos(); track vid.docId; let idx = $index) {
+                <div class="episode-item card">
+                  <span class="part-badge">Part {{ idx + 1 }}</span>
+                  <div class="episode-info">
+                    <span class="episode-title">{{ vid.title }}</span>
+                    <div class="episode-meta">
+                      <span class="meta-duration">
+                        <app-icon name="schedule"></app-icon>
+                        <span>{{ formatDuration(vid.durationSeconds) }}</span>
+                      </span>
+                      @if (vid.vodStatus === 'ready') {
+                        <span class="status-pill ready">Ready</span>
+                      } @else {
+                        <span class="status-pill processing">{{ vid.vodStatus }}</span>
+                      }
+                      @if (vid.recordedDate) {
+                        <span class="meta-date">
+                          <app-icon name="calendar_today"></app-icon>
+                          <span>{{ vid.recordedDate }}</span>
+                        </span>
+                      }
+                    </div>
+                  </div>
+
+                  <div class="episode-actions">
+                    <button
+                      type="button"
+                      class="icon-only-button"
+                      [disabled]="idx === 0"
+                      (click)="moveSeriesVideoUp(idx)"
+                      title="Move Up"
+                    >
+                      <app-icon name="arrow_upward"></app-icon>
+                    </button>
+                    <button
+                      type="button"
+                      class="icon-only-button"
+                      [disabled]="idx === seriesVideos().length - 1"
+                      (click)="moveSeriesVideoDown(idx)"
+                      title="Move Down"
+                    >
+                      <app-icon name="arrow_downward"></app-icon>
+                    </button>
+                    @if (vid.vodStatus === 'ready') {
+                      <a
+                        class="icon-only-button play-link"
+                        [href]="getVideoHref(vid)"
+                        target="_blank"
+                        title="Watch video"
+                      >
+                        <app-icon name="play_arrow"></app-icon>
+                      </a>
+                    }
+                    <button
+                      type="button"
+                      class="icon-only-button remove-episode-btn"
+                      (click)="removeSeriesVideo(idx)"
+                      title="Remove from series"
+                    >
+                      <app-icon name="delete"></app-icon>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Section 3: Add Video to Series -->
+      <section class="series-section card add-video-section">
+        <div class="section-header">
+          <app-icon name="add"></app-icon>
+          <div>
+            <h3>Add Video to this Series</h3>
+            <p>
+              Search by title, instructor, or tags to add any standalone video or episode into this series.
+              Videos already in this series are excluded from suggestions.
+            </p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <div class="add-video-controls-row">
+            <div class="autocomplete-container">
+              <app-autocomplete
+                [searchableSet]="availableVideosForSeries"
+                [displayFns]="seriesAddVideoDisplayFns"
+                [inputBoxIsChip]="false"
+                [initSearchTerm]="addVideoSearchTerm()"
+                placeholder="Search by title, instructor name, tags, or docId..."
+                (itemSelected)="onVideoSelectedToAdd($event)"
+                (textUpdated)="onVideoSearchTextChange($event)"
+              ></app-autocomplete>
+            </div>
+            <button
+              type="button"
+              class="primary-btn add-btn"
+              [disabled]="!selectedVideoToAdd()"
+              (click)="addSelectedVideoToSeries()"
+            >
+              <app-icon name="add"></app-icon>
+              <span>Add to Series</span>
+            </button>
+          </div>
+
+          @if (selectedVideoToAdd(); as selected) {
+            <div class="selected-video-notice">
+              <app-icon name="check_circle"></app-icon>
+              <span class="notice-text">
+                Selected: <strong>{{ selected.title }}</strong> ({{ formatDuration(selected.durationSeconds) }})
+                &mdash; Click "Add to Series" to append as Part {{ seriesVideos().length + 1 }}.
+              </span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Section 4: Sticky / Bottom Action Bar -->
+      <div class="series-actions-bar">
+        <button
+          type="button"
+          class="subtle-btn"
+          [disabled]="isSaving()"
+          (click)="cancel()"
+        >
+          <span>Cancel</span>
+        </button>
+        <button
+          type="button"
+          class="primary-btn save-btn"
+          [disabled]="isSaving()"
+          (click)="saveSeriesChanges()"
+        >
+          @if (isSaving()) {
+            <app-spinner></app-spinner>
+            <span>Saving Changes...</span>
+          } @else {
+            <app-icon name="save"></app-icon>
+            <span>Save Series Changes</span>
+          }
+        </button>
+      </div>
+    </div>
+  }
+</div>
