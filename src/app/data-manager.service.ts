@@ -548,10 +548,7 @@ export class DataManagerService {
 
     // System listeners reactive to auth status (counters, email-templates, mail-settings, videos)
     effect(() => {
-      const status = typeof this.firebaseService.loginStatus === 'function'
-        ? this.firebaseService.loginStatus()
-        : null;
-      if (status === LoginStatus.FirebaseLoadingStatus) {
+      if (this.firebaseService.loginStatus?.() === LoginStatus.FirebaseLoadingStatus) {
         return;
       }
       const user = this.firebaseService.user();
