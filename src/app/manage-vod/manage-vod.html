@@ -343,13 +343,11 @@
             <!-- Who Can View (Access Tier & Price) -->
             <td>
               <div class="tier-info">
-                <span
-                  class="tier-pill"
-                  [class.free]="getFreeAccessTier(video) === VodAccessTier.Public"
-                  [class.admin-only]="getFreeAccessTier(video) === VodAccessTier.AdminOnly"
-                >
-                  {{ getFreeAccessLabel(video) }}
-                </span>
+                @if (hasFreeAccess(video)) {
+                  <span class="tier-pill free">
+                    {{ getFreeAccessLabel(video) }}
+                  </span>
+                }
                 @if (hasClassSubscription(video)) {
                   <span class="tier-pill class-sub">Class Video Subscribers</span>
                 }
@@ -392,8 +390,15 @@
                     No renditions
                   </span>
                 }
-                <span class="published-pill" [class.published]="video.isPublished" (click)="togglePublished(video)" title="Click to toggle listed/hidden">
-                  {{ video.isPublished ? 'Listed' : 'Hidden' }}
+                <span
+                  class="published-pill"
+                  [class.published]="video.isPublished"
+                  [class.listed]="video.isPublished"
+                  [class.unlisted]="!video.isPublished"
+                  (click)="togglePublished(video)"
+                  title="Click to toggle listed/unlisted in catalog"
+                >
+                  {{ video.isPublished ? 'Listed' : 'Unlisted' }}
                 </span>
               </div>
             </td>
@@ -433,14 +438,14 @@
                         <span>Edit Metadata</span>
                       </button>
 
-                      <!-- Toggle Listed / Hidden -->
+                      <!-- Toggle Listed / Unlisted -->
                       <button
                         type="button"
                         class="menu-item"
                         (click)="togglePublished(video); closeMenu()"
                       >
                         <app-icon [name]="video.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
-                        <span>{{ video.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
+                        <span>{{ video.isPublished ? 'Unlist from Catalog' : 'List in Catalog' }}</span>
                       </button>
 
                       <!-- Pipeline & Transcoder Details (Drawer) -->
@@ -528,18 +533,20 @@
               <span
                 class="published-pill"
                 [class.published]="series.isPublished"
+                [class.listed]="series.isPublished"
+                [class.unlisted]="!series.isPublished"
                 (click)="toggleSeriesPublished(series)"
-                title="Click to toggle listed/hidden in catalog"
+                title="Click to toggle listed/unlisted in catalog"
               >
-                {{ series.isPublished ? 'Listed' : 'Hidden' }}
+                {{ series.isPublished ? 'Listed' : 'Unlisted' }}
               </span>
-              <span
-                class="tier-pill"
-                [class.free]="getFreeAccessTier(series) === VodAccessTier.Public"
-                [class.admin-only]="getFreeAccessTier(series) === VodAccessTier.AdminOnly"
-              >
-                {{ getFreeAccessLabel(series) }}
-              </span>
+              @if (hasFreeAccess(series)) {
+                <span
+                  class="tier-pill free"
+                >
+                  {{ getFreeAccessLabel(series) }}
+                </span>
+              }
               @if (hasClassSubscription(series)) {
                 <span class="tier-pill class-sub">Class Video Subscribers</span>
               }
@@ -711,7 +718,7 @@
                     (click)="togglePublished(d); closeMenu()"
                   >
                     <app-icon [name]="d.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
-                    <span>{{ d.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
+                    <span>{{ d.isPublished ? 'Unlist from Catalog' : 'List in Catalog' }}</span>
                   </button>
 
                   <button

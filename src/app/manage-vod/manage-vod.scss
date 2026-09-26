@@ -655,11 +655,19 @@
     cursor: pointer;
     width: fit-content;
     transition: all 0.15s ease;
+    user-select: none;
 
-    &.published {
+    &.published,
+    &.listed {
       background: #e0f2fe;
       color: #0369a1;
       border-color: #bae6fd;
+    }
+
+    &.unlisted {
+      background: #f4f4f5;
+      color: #71717a;
+      border-color: #e4e4e7;
     }
 
     &:hover {
