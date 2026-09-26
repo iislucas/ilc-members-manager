@@ -12,7 +12,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { assertAdmin, allowedOrigins, hasActiveMembership, hasActiveInstructorLicense } from './common';
+import { assertAdmin, allowedOrigins, hasActiveMembership, isActiveInstructor } from './common';
 import { InstructorLicenseType } from './data-model/curriculum';
 import { Member, MembershipType } from './data-model/members';
 import { SquareSpaceOrder, OrderKind } from './data-model/orders';
@@ -71,7 +71,7 @@ export function computeStatisticsFromMembers(
 
   for (const member of members) {
     if (hasActiveMembership(member, todayIso)) activeMembers++;
-    if (hasActiveInstructorLicense(member, todayIso)) activeInstructors++;
+    if (isActiveInstructor(member, todayIso)) activeInstructors++;
 
     incrementHistogram(membershipTypeHistogram, member.membershipType);
     incrementHistogram(studentLevelHistogram, member.studentLevel);

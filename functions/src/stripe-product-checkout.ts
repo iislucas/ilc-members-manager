@@ -10,7 +10,7 @@ import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins, getMemberByEmail, hasActiveMembership, hasActiveInstructorLicense, isRegistrationAllowed } from './common';
+import { allowedOrigins, getMemberByEmail, hasActiveMembership, hasActiveInstructorLicense, isActiveInstructor, isRegistrationAllowed } from './common';
 import { environment } from './environment/environment';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
 import {
@@ -128,10 +128,10 @@ export const createProductCheckoutSession = onCall<
     }
   } else if (role === AttendeeRole.Instructor) {
     if (hasSpecialRolePrice(product, AttendeeRole.Instructor)) {
-      if (!authEmail || !member || !hasActiveInstructorLicense(member)) {
+      if (!authEmail || !member || !isActiveInstructor(member)) {
         throw new HttpsError(
           'permission-denied',
-          'Active authenticated instructor license is required to register at the instructor rate.',
+          'Active authenticated instructor license and membership are required to register at the instructor rate.',
         );
       }
     } else if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
@@ -1034,10 +1034,10 @@ export const registerEventInPerson = onCall<
     }
   } else if (role === AttendeeRole.Instructor) {
     if (hasSpecialRolePrice(product, AttendeeRole.Instructor)) {
-      if (!authEmail || !member || !hasActiveInstructorLicense(member)) {
+      if (!authEmail || !member || !isActiveInstructor(member)) {
         throw new HttpsError(
           'permission-denied',
-          'Active authenticated instructor license is required to register at the instructor rate.',
+          'Active authenticated instructor license and membership are required to register at the instructor rate.',
         );
       }
     } else if (hasSpecialRolePrice(product, AttendeeRole.Member)) {

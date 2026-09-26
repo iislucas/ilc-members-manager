@@ -5,7 +5,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { FindInstructorsService } from '../find-instructors.service';
-import { ExpiryStatus } from '../../../functions/src/data-model/members';
+import { ExpiryStatus, hasActiveMembership } from '../../../functions/src/data-model/members';
 import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags';
 
 @Component({
@@ -105,8 +105,9 @@ export class NavigationMenuComponent {
     const m = this.user()?.member;
     if (!m) return { hasAccess: false, expired: false, date: '', isInstructor: false };
     const status = getInstructorExpiryStatus(m, this.today());
+    const memberActive = hasActiveMembership(m, this.today());
     return {
-      hasAccess: !!m.instructorId && status === ExpiryStatus.Valid,
+      hasAccess: !!m.instructorId && status === ExpiryStatus.Valid && memberActive,
       expired: !!m.instructorId && (status === ExpiryStatus.Expired || status === ExpiryStatus.Recent),
       date: m.instructorLicenseExpires,
       isInstructor: !!m.instructorId

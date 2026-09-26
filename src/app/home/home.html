@@ -131,7 +131,9 @@
               [href]="
                 iStatus.hasAccess
                   ? routingService.hrefForView(Views.InstructorsArea)
-                  : routingService.hrefForView(Views.InstructorLicensePurchase)
+                  : iStatus.membershipExpired
+                    ? routingService.hrefForView(Views.BecomeAMember)
+                    : routingService.hrefForView(Views.InstructorLicensePurchase)
               "
             >
               <div class="icon-container">
@@ -142,14 +144,18 @@
                   {{
                     iStatus.hasAccess
                       ? "Instructors Area"
-                      : "Renew Instructor & Group Leader License"
+                      : iStatus.membershipExpired
+                        ? "Renew Membership for Instructor Access"
+                        : "Renew Instructor & Group Leader License"
                   }}
                 </h2>
                 <p>Content and resources for active instructors</p>
                 @if (!iStatus.hasAccess) {
                   <div class="no-access-container">
                     <span class="info-message">
-                      @if (iStatus.expired) {
+                      @if (iStatus.membershipExpired) {
+                        Active membership required
+                      } @else if (iStatus.expired) {
                         Expired:
                         {{ iStatus.date || "(unknown last expiration date)" }}
                       } @else {

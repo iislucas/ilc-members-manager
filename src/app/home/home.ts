@@ -6,7 +6,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { NotificationsListComponent } from '../notifications-list/notifications-list';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
-import { ExpiryStatus } from '../../../functions/src/data-model/members';
+import { ExpiryStatus, hasActiveMembership } from '../../../functions/src/data-model/members';
 import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags';
 
 export type HomeTab = 'learn' | 'practice' | 'me' | 'admin';
@@ -107,11 +107,14 @@ export class HomeComponent {
 
   protected instructorStatus = computed(() => {
     const m = this.user()?.member;
-    if (!m) return { hasAccess: false, expired: false, date: '', isInstructor: false };
+    if (!m) return { hasAccess: false, expired: false, membershipExpired: false, date: '', isInstructor: false };
     const status = getInstructorExpiryStatus(m, this.today());
+    const memberActive = hasActiveMembership(m, this.today());
+    const licenseValid = status === ExpiryStatus.Valid;
     return {
-      hasAccess: !!m.instructorId && status === ExpiryStatus.Valid,
+      hasAccess: !!m.instructorId && licenseValid && memberActive,
       expired: !!m.instructorId && (status === ExpiryStatus.Expired || status === ExpiryStatus.Recent),
+      membershipExpired: !!m.instructorId && licenseValid && !memberActive,
       date: m.instructorLicenseExpires,
       isInstructor: !!m.instructorId
     };

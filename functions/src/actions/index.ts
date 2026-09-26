@@ -20,6 +20,7 @@ export {
   MembershipType,
   hasActiveMembership,
   hasActiveInstructorLicense,
+  isActiveInstructor,
 } from '../data-model/members';
 export {
   School,

@@ -582,6 +582,29 @@ describe('ProductViewComponent', () => {
 
       expect(component.userRole()).toBe(AttendeeRole.Instructor);
     });
+
+    it('sets role to NonMember if user has an active instructor license but expired membership', () => {
+      mockFirebaseState.user.set({
+        email: 'active-inst-expired-mem@example.com',
+        isAdmin: false,
+        isFullMember: false,
+        isInstructor: true,
+        member: {
+          docId: 'mem-inst-expired-mem',
+          memberId: 'US500',
+          instructorId: '15',
+          instructorLicenseExpires: '2999-01-01', // active license
+          membershipType: MembershipType.Annual,
+          currentMembershipExpires: '2020-01-01', // expired membership!
+          name: 'Instructor Expired Membership',
+          emails: ['active-inst-expired-mem@example.com'],
+        } as any,
+      });
+
+      // Because being considered an active instructor requires active membership,
+      // an instructor whose membership has expired is not considered an active instructor.
+      expect(component.userRole()).toBe(AttendeeRole.NonMember);
+    });
   });
 
   describe('events without special member or instructor pricing', () => {
