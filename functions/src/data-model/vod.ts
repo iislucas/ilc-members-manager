@@ -620,3 +620,63 @@ export function firestoreDocToMemberVideoTimeRanges(doc: GenericFsDoc): MemberVi
   };
 }
 
+/**
+ * Resolves the hierarchical free access tier for a video item or series based on member status hierarchy:
+ * 1. Public: anyone can view for free.
+ * 2. MembersOnly: active members & instructors can view for free.
+ * 3. InstructorsOnly: licensed instructors can view for free.
+ * 4. AdminOnly: no free access (only admins can view without purchase/subscription).
+ */
+export function getVodFreeAccessTier(item: {
+  accessTiers?: VodAccessTier[];
+  accessTier?: VodAccessTier;
+}): VodAccessTier {
+  const tiers = Array.isArray(item.accessTiers) && item.accessTiers.length > 0
+    ? item.accessTiers
+    : (item.accessTier ? [item.accessTier] : [VodAccessTier.MembersOnly]);
+
+  if (tiers.includes(VodAccessTier.Public)) {
+    return VodAccessTier.Public;
+  }
+  if (tiers.includes(VodAccessTier.MembersOnly)) {
+    return VodAccessTier.MembersOnly;
+  }
+  if (tiers.includes(VodAccessTier.InstructorsOnly)) {
+    return VodAccessTier.InstructorsOnly;
+  }
+  if (tiers.includes(VodAccessTier.AdminOnly)) {
+    return VodAccessTier.AdminOnly;
+  }
+  return VodAccessTier.AdminOnly;
+}
+
+/**
+ * Checks whether class video subscribers have streaming access to the item or series.
+ */
+export function hasClassVideoSubscriberAccess(item: {
+  accessTiers?: VodAccessTier[];
+  accessTier?: VodAccessTier;
+}): boolean {
+  if (Array.isArray(item.accessTiers) && item.accessTiers.includes(VodAccessTier.ClassVideoSubscribers)) {
+    return true;
+  }
+  return item.accessTier === VodAccessTier.ClassVideoSubscribers;
+}
+
+/**
+ * Formats the human-readable display label for a free access tier chip.
+ */
+export function getVodFreeAccessLabel(tier: VodAccessTier): string {
+  switch (tier) {
+    case VodAccessTier.Public:
+      return 'Public';
+    case VodAccessTier.MembersOnly:
+      return 'Members';
+    case VodAccessTier.InstructorsOnly:
+      return 'Instructors';
+    case VodAccessTier.AdminOnly:
+    default:
+      return 'Admin only';
+  }
+}
+

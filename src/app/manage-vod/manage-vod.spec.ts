@@ -736,8 +736,8 @@ describe('ManageVodComponent', () => {
           description: 'Updated Description',
           priceCents: 2999,
           stripePriceId: 'price_series_1',
-          accessTier: VodAccessTier.MembersOnly,
-          accessTiers: [VodAccessTier.MembersOnly, VodAccessTier.InstructorsOnly, VodAccessTier.DirectPurchase],
+          accessTier: VodAccessTier.InstructorsOnly,
+          accessTiers: [VodAccessTier.InstructorsOnly, VodAccessTier.DirectPurchase],
           isPublished: true,
         },
         ['v1', 'v2'],
@@ -789,6 +789,136 @@ describe('ManageVodComponent', () => {
       const lastCallArg = (mockDataService.updateVideoMetadata as ReturnType<typeof vi.fn>).mock.calls.at(-1)[1];
       expect('stripePriceId' in lastCallArg).toBe(false);
       expect('priceCents' in lastCallArg).toBe(false);
+    });
+  });
+
+  describe('Free Access & Class Subscription Chips & Selection', () => {
+    it('should resolve free access tiers correctly following member hierarchy', () => {
+      const publicItem = { accessTiers: [VodAccessTier.Public] };
+      expect(component.getFreeAccessTier(publicItem)).toBe(VodAccessTier.Public);
+      expect(component.getFreeAccessLabel(publicItem)).toBe('Public');
+
+      const memberItem = { accessTiers: [VodAccessTier.MembersOnly] };
+      expect(component.getFreeAccessTier(memberItem)).toBe(VodAccessTier.MembersOnly);
+      expect(component.getFreeAccessLabel(memberItem)).toBe('Members');
+
+      const instructorItem = { accessTiers: [VodAccessTier.InstructorsOnly] };
+      expect(component.getFreeAccessTier(instructorItem)).toBe(VodAccessTier.InstructorsOnly);
+      expect(component.getFreeAccessLabel(instructorItem)).toBe('Instructors');
+
+      const adminItem = { accessTiers: [VodAccessTier.AdminOnly] };
+      expect(component.getFreeAccessTier(adminItem)).toBe(VodAccessTier.AdminOnly);
+      expect(component.getFreeAccessLabel(adminItem)).toBe('Admin only');
+
+      const paidOnlyItem = { accessTiers: [VodAccessTier.DirectPurchase] };
+      expect(component.getFreeAccessTier(paidOnlyItem)).toBe(VodAccessTier.AdminOnly);
+      expect(component.getFreeAccessLabel(paidOnlyItem)).toBe('Admin only');
+    });
+
+    it('should check class video subscriber access independently', () => {
+      const withClassSub = { accessTiers: [VodAccessTier.MembersOnly, VodAccessTier.ClassVideoSubscribers] };
+      expect(component.hasClassSubscription(withClassSub)).toBe(true);
+
+      const withoutClassSub = { accessTiers: [VodAccessTier.MembersOnly] };
+      expect(component.hasClassSubscription(withoutClassSub)).toBe(false);
+    });
+
+    it('should toggle series published status via toggleSeriesPublished', async () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      await component.toggleSeriesPublished(series);
+
+      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
+        'series-1',
+        { isPublished: false },
+        ['v1', 'v2'],
+      );
+    });
+
+    it('should render showing/not showing status chip and free access chip in series card', () => {
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      const seriesCard = compiled.querySelector('.series-manage-card');
+      expect(seriesCard).toBeTruthy();
+
+      const publishedPill = seriesCard?.querySelector('.published-pill');
+      expect(publishedPill).toBeTruthy();
+      expect(publishedPill?.textContent?.trim()).toBe('Listed');
+
+      const freePills = seriesCard?.querySelectorAll('.tier-pill');
+      expect(freePills?.length).toBeGreaterThan(0);
+      const freeLabel = freePills?.[0]?.textContent?.trim();
+      expect(['Public', 'Members', 'Instructors', 'Admin only']).toContain(freeLabel);
+    });
+
+    it('should render free access chip and class subscriber chip in video listing table', () => {
+      component.setViewMode('all_videos');
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      const tableRows = compiled.querySelectorAll('.vod-table tbody tr');
+      expect(tableRows.length).toBeGreaterThan(0);
+
+      const firstRowTiers = tableRows[0].querySelector('.tier-info');
+      expect(firstRowTiers).toBeTruthy();
+      const freeChip = firstRowTiers?.querySelector('.tier-pill');
+      expect(freeChip).toBeTruthy();
+    });
+
+    it('should display "Who can view it for free" heading in Edit Series and Edit Video modals', () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      component.openSeriesModal(series);
+      fixture.detectChanges();
+      let compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Who can view it for free');
+
+      component.closeSeriesModal();
+      const video = mockDataService.videos.entries()[0];
+      component.openEditModal(video);
+      fixture.detectChanges();
+      compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Who can view it for free');
+    });
+
+    it('should save series with updated free access tier and separate class subscription', async () => {
+      const series = mockDataService.getVideoSeriesList()[0];
+      component.openSeriesModal(series);
+
+      component.editingSeriesFreeAccessTier.set(VodAccessTier.Public);
+      component.editingSeriesHasClassSub.set(true);
+      component.editingSeriesIsBuyable.set(false);
+
+      await component.saveSeriesChanges();
+
+      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
+        'series-1',
+        expect.objectContaining({
+          accessTier: VodAccessTier.Public,
+          accessTiers: [VodAccessTier.Public, VodAccessTier.ClassVideoSubscribers],
+        }),
+        ['v1', 'v2'],
+      );
+    });
+
+    it('should save standalone video with updated free access tier and separate class subscription', async () => {
+      const video = mockDataService.videos.entries()[1]; // v2
+      component.openEditModal(video);
+
+      component.editFreeAccessTier.set(VodAccessTier.InstructorsOnly);
+      component.editHasClassSub.set(true);
+
+      await component.saveVideoChanges();
+
+      expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith(
+        'v2',
+        expect.objectContaining({
+          accessTier: VodAccessTier.InstructorsOnly,
+          accessTiers: expect.arrayContaining([
+            VodAccessTier.InstructorsOnly,
+            VodAccessTier.ClassVideoSubscribers,
+          ]),
+        }),
+      );
     });
   });
 });
