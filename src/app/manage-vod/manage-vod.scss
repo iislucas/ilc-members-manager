@@ -1992,6 +1992,73 @@
       .item-reorder-actions {
         display: flex;
         gap: 2px;
+
+        .remove-episode-btn {
+          color: #ef4444;
+          &:hover {
+            background-color: #fee2e2;
+            color: #b91c1c;
+          }
+        }
+      }
+    }
+  }
+
+  .add-video-to-series-section {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #e2e8f0;
+
+    .section-subheading-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: v.$text-primary;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+
+    .add-video-controls-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 0.5rem;
+
+      .autocomplete-container {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .add-to-series-btn {
+        white-space: nowrap;
+        padding: 0.5rem 0.85rem;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
+
+    .selected-video-notice {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.65rem;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: #1e40af;
+
+      .sel-warn {
+        color: #b45309;
+        font-style: italic;
       }
     }
   }

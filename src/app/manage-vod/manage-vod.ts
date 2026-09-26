@@ -73,6 +73,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
   grantVideoIdParam = computed(() => this.viewSignals.urlParams.grantVideoId() || '');
   grantSeriesIdParam = computed(() => this.viewSignals.urlParams.grantSeriesId() || '');
+  editSeriesIdParam = computed(() => this.viewSignals.urlParams.editSeriesId() || '');
   tabParam = computed(() => this.viewSignals.urlParams.tab() || 'series_collections');
   selectedTagFilter = signal<string>('');
   selectedTagSearchTerm = signal<string>('');
@@ -141,6 +142,30 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   editingSeriesStripePriceId = signal<string>('');
   editingSeriesIsPublished = signal<boolean>(true);
   isSavingSeries = signal<boolean>(false);
+
+  // Series Add Video Autocomplete State
+  availableVideosForSeries = new SearchableSet<'docId', VideoItem>(
+    ['title', 'description', 'instructorName', 'tags', 'docId'],
+    'docId',
+  );
+  selectedVideoToAdd = signal<VideoItem | null>(null);
+  addVideoSearchTerm = signal<string>('');
+
+  seriesAddVideoDisplayFns: DisplayFns<VideoItem> = {
+    toChipId: (v) => v.docId,
+    toName: (v) => {
+      const parts = [v.title];
+      if (v.seriesTitle) {
+        parts.push(`[In Series: ${v.seriesTitle}]`);
+      } else {
+        parts.push('[Standalone]');
+      }
+      if (v.instructorName) {
+        parts.push(`(${v.instructorName})`);
+      }
+      return parts.join(' ');
+    },
+  };
 
   editingVideoInSeries = computed(() => {
     const seriesId = this.editSeriesId().trim();
@@ -596,6 +621,31 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           this.closeGrantModal(false);
         }
       }
+    });
+
+    effect(() => {
+      const eSid = this.editSeriesIdParam();
+      if (eSid) {
+        if (this.editingSeries()?.seriesId !== eSid) {
+          const s = this.allSeries().find((item) => item.seriesId === eSid);
+          if (s) {
+            this.openSeriesModal(s, false);
+          }
+        }
+      } else {
+        if (this.editingSeries()) {
+          this.closeSeriesModal(false);
+        }
+      }
+    });
+
+    effect(() => {
+      const currentSeries = this.editingSeries();
+      if (!currentSeries) return;
+      const currentDocIds = new Set(this.editingSeriesVideos().map((v) => v.docId));
+      const all = this.dataService.videos.entries();
+      const available = all.filter((v) => !currentDocIds.has(v.docId));
+      this.availableVideosForSeries.setEntries(available);
     });
   }
 
@@ -1088,13 +1138,16 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     );
     if (series) {
       this.closeEditModal(false);
-      this.openSeriesModal(series);
+      this.openSeriesModal(series, true);
     }
   }
 
   // --- Series Modal Management ---
-  openSeriesModal(series: VideoSeries): void {
+  openSeriesModal(series: VideoSeries, updateUrl: boolean = true): void {
     this.closeMenu();
+    if (updateUrl) {
+      this.viewSignals.urlParams.editSeriesId.set(series.seriesId);
+    }
     this.editingSeries.set(series);
     this.editingSeriesVideos.set([...series.videos]);
     this.editingSeriesTitle.set(series.title);
@@ -1123,6 +1176,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     );
     this.editingSeriesStripePriceId.set(series.stripePriceId || '');
     this.editingSeriesIsPublished.set(series.isPublished !== false);
+    this.selectedVideoToAdd.set(null);
+    this.addVideoSearchTerm.set('');
   }
 
   toggleSeriesAccessTier(tier: VodAccessTier): void {
@@ -1155,9 +1210,42 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     return this.editingSeriesFreeAccessTier() === tier;
   }
 
-  closeSeriesModal(): void {
+  closeSeriesModal(updateUrl: boolean = true): void {
     this.editingSeries.set(null);
     this.editingSeriesVideos.set([]);
+    this.selectedVideoToAdd.set(null);
+    this.addVideoSearchTerm.set('');
+    if (updateUrl) {
+      this.viewSignals.urlParams.editSeriesId.set('');
+    }
+  }
+
+  onVideoSelectedToAdd(video: VideoItem): void {
+    this.selectedVideoToAdd.set(video);
+  }
+
+  onVideoSearchTextChange(text: string): void {
+    this.addVideoSearchTerm.set(text);
+    if (!text.trim()) {
+      this.selectedVideoToAdd.set(null);
+    }
+  }
+
+  addSelectedVideoToSeries(): void {
+    const video = this.selectedVideoToAdd();
+    if (!video) return;
+    if (this.editingSeriesVideos().some((v) => v.docId === video.docId)) {
+      this.selectedVideoToAdd.set(null);
+      this.addVideoSearchTerm.set('');
+      return;
+    }
+    this.editingSeriesVideos.update((list) => [...list, video]);
+    this.selectedVideoToAdd.set(null);
+    this.addVideoSearchTerm.set('');
+  }
+
+  removeSeriesVideo(index: number): void {
+    this.editingSeriesVideos.update((list) => list.filter((_, idx) => idx !== index));
   }
 
   moveSeriesVideoUp(index: number): void {

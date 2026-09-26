@@ -307,7 +307,7 @@ export const initPathPatterns = {
   [Views.VideoView]: addUrlParams(pathPattern`videos/${pv('videoId')}`, []),
   [Views.ManageVod]: addUrlParams(pathPattern`manage-vod`, [
     'q', 'status', 'featured', 'accessTier', 'year', 'instructorId', 'videoId', 'editVideoId',
-    'grantVideoId', 'grantSeriesId', { name: 'tab', default: 'series_collections' },
+    'grantVideoId', 'grantSeriesId', 'editSeriesId', { name: 'tab', default: 'series_collections' },
   ]),
   [Views.ManageVodUpload]: pathPattern`manage-vod/upload`,
   [Views.ManageVideoTags]: pathPattern`manage-video-tags`,

@@ -3469,7 +3469,39 @@ export class DataManagerService {
       ? orderedVideoIds
       : targetVideos.map((v) => v.docId);
 
+    const removedVideos = targetVideos.filter(
+      (v) => !videoIdsToProcess.includes(v.docId) && (v.seriesId === seriesId || v.forVodPageId === seriesId),
+    );
+
     const updatedVideosList: VideoItem[] = [];
+
+    for (const rem of removedVideos) {
+      const remRef = doc(this.db, 'videos', rem.docId);
+      batch.update(remRef, {
+        seriesId: deleteField(),
+        seriesTitle: deleteField(),
+        forVodSeriesTitle: deleteField(),
+        seriesDescription: deleteField(),
+        seriesPartIndex: deleteField(),
+        seriesPriceCents: deleteField(),
+        seriesStripeProductId: deleteField(),
+        seriesStripePriceId: deleteField(),
+        lastUpdated: serverTimestamp(),
+      });
+      const unlinked: VideoItem = {
+        ...rem,
+        seriesId: '',
+        seriesTitle: '',
+        forVodSeriesTitle: '',
+        seriesDescription: '',
+        seriesPartIndex: undefined,
+        seriesPriceCents: undefined,
+        seriesStripeProductId: '',
+        seriesStripePriceId: '',
+        lastUpdated: nowIso,
+      };
+      updatedVideosList.push(unlinked);
+    }
 
     for (let i = 0; i < videoIdsToProcess.length; i++) {
       const vId = videoIdsToProcess[i];
