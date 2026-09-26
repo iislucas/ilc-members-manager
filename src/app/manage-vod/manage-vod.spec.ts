@@ -70,6 +70,7 @@ describe('ManageVodComponent', () => {
         title: 'Sample Video 1',
         vodStatus: VodStatus.Ready,
         accessTier: VodAccessTier.Public,
+        accessTiers: [VodAccessTier.Public],
         isPublished: true,
         featured: true,
         durationSeconds: 3600,
@@ -83,6 +84,7 @@ describe('ManageVodComponent', () => {
         title: 'Sample Video 2',
         vodStatus: VodStatus.Transcoding,
         accessTier: VodAccessTier.DirectPurchase,
+        accessTiers: [VodAccessTier.DirectPurchase],
         priceCents: 1500,
         isPublished: false,
         featured: false,
@@ -97,6 +99,7 @@ describe('ManageVodComponent', () => {
         title: 'Saturday Class Stream',
         vodStatus: VodStatus.Ready,
         accessTier: VodAccessTier.ClassVideoSubscribers,
+        accessTiers: [VodAccessTier.ClassVideoSubscribers],
         isPublished: true,
         featured: false,
         durationSeconds: 5400,
@@ -115,6 +118,8 @@ describe('ManageVodComponent', () => {
       videoCount: 2,
       totalDurationSeconds: 5400,
       videos: [sampleVideos[0], sampleVideos[1]],
+      accessTier: VodAccessTier.MembersOnly,
+      accessTiers: [VodAccessTier.MembersOnly],
       isPublished: true,
     };
 
@@ -360,7 +365,7 @@ describe('ManageVodComponent', () => {
     const video = mockDataService.videos.entries()[0];
     component.openEditModal(video);
 
-    expect(component.isAccessTierSelected(VodAccessTier.MembersOnly)).toBe(true);
+    expect(component.isAccessTierSelected(VodAccessTier.Public)).toBe(true);
     component.toggleAccessTier(VodAccessTier.InstructorsOnly);
     expect(component.isAccessTierSelected(VodAccessTier.InstructorsOnly)).toBe(true);
 
@@ -881,10 +886,16 @@ describe('ManageVodComponent', () => {
       const adminItem = { accessTiers: [VodAccessTier.AdminOnly] };
       expect(component.getFreeAccessTier(adminItem)).toBe(VodAccessTier.AdminOnly);
       expect(component.getFreeAccessLabel(adminItem)).toBe('Admin only');
+      expect(component.hasFreeAccess(adminItem)).toBe(false);
 
       const paidOnlyItem = { accessTiers: [VodAccessTier.DirectPurchase] };
       expect(component.getFreeAccessTier(paidOnlyItem)).toBe(VodAccessTier.AdminOnly);
       expect(component.getFreeAccessLabel(paidOnlyItem)).toBe('Admin only');
+      expect(component.hasFreeAccess(paidOnlyItem)).toBe(false);
+
+      expect(component.hasFreeAccess(publicItem)).toBe(true);
+      expect(component.hasFreeAccess(memberItem)).toBe(true);
+      expect(component.hasFreeAccess(instructorItem)).toBe(true);
     });
 
     it('should check class video subscriber access independently', () => {
@@ -906,7 +917,7 @@ describe('ManageVodComponent', () => {
       );
     });
 
-    it('should render showing/not showing status chip and free access chip in series card', () => {
+    it('should render Listed/Unlisted chip and free access chip in series card, omitting Admin only chip', () => {
       fixture.detectChanges();
       const compiled = fixture.nativeElement as HTMLElement;
 
@@ -916,25 +927,52 @@ describe('ManageVodComponent', () => {
       const publishedPill = seriesCard?.querySelector('.published-pill');
       expect(publishedPill).toBeTruthy();
       expect(publishedPill?.textContent?.trim()).toBe('Listed');
+      expect(publishedPill?.classList.contains('listed')).toBe(true);
 
-      const freePills = seriesCard?.querySelectorAll('.tier-pill');
-      expect(freePills?.length).toBeGreaterThan(0);
-      const freeLabel = freePills?.[0]?.textContent?.trim();
-      expect(['Public', 'Members', 'Instructors', 'Admin only']).toContain(freeLabel);
+      const freePills = seriesCard?.querySelectorAll('.tier-pill.free');
+      expect(freePills?.length).toBe(1);
+      expect(freePills?.[0]?.textContent?.trim()).toBe('Members');
+
+      // Admin only chip must not be rendered
+      const adminOnlyPill = seriesCard?.querySelector('.tier-pill.admin-only');
+      expect(adminOnlyPill).toBeNull();
+      expect(seriesCard?.textContent).not.toContain('Admin only');
     });
 
-    it('should render free access chip and class subscriber chip in video listing table', () => {
+    it('should render free access chip, class subscriber chip, and Listed/Unlisted pill without Admin only chip in video table', () => {
       component.setViewMode('all_videos');
       fixture.detectChanges();
       const compiled = fixture.nativeElement as HTMLElement;
 
       const tableRows = compiled.querySelectorAll('.vod-table tbody tr');
-      expect(tableRows.length).toBeGreaterThan(0);
+      expect(tableRows.length).toBeGreaterThanOrEqual(3);
 
-      const firstRowTiers = tableRows[0].querySelector('.tier-info');
-      expect(firstRowTiers).toBeTruthy();
-      const freeChip = firstRowTiers?.querySelector('.tier-pill');
-      expect(freeChip).toBeTruthy();
+      // Row 0: v3 (ClassVideoSubscribers, Listed, lastUpdated 2026-01-03)
+      const row0Tiers = tableRows[0].querySelector('.tier-info');
+      expect(row0Tiers?.querySelector('.tier-pill.free')).toBeNull();
+      expect(row0Tiers?.querySelector('.tier-pill.admin-only')).toBeNull();
+      expect(row0Tiers?.textContent).not.toContain('Admin only');
+      expect(row0Tiers?.querySelector('.tier-pill.class-sub')?.textContent?.trim()).toBe('Class Video Subscribers');
+      const row0PubPill = tableRows[0].querySelector('.published-pill');
+      expect(row0PubPill?.textContent?.trim()).toBe('Listed');
+
+      // Row 1: v2 (DirectPurchase, Unlisted, lastUpdated 2026-01-02) - should NOT render Admin only chip
+      const row1Tiers = tableRows[1].querySelector('.tier-info');
+      expect(row1Tiers?.querySelector('.tier-pill.free')).toBeNull();
+      expect(row1Tiers?.querySelector('.tier-pill.admin-only')).toBeNull();
+      expect(row1Tiers?.textContent).not.toContain('Admin only');
+      expect(row1Tiers?.querySelector('.tier-pill.paid')?.textContent?.trim()).toBe('Buy ($15.00)');
+      const row1PubPill = tableRows[1].querySelector('.published-pill');
+      expect(row1PubPill?.textContent?.trim()).toBe('Unlisted');
+      expect(row1PubPill?.classList.contains('unlisted')).toBe(true);
+
+      // Row 2: v1 (Public, Listed, lastUpdated 2026-01-01)
+      const row2Tiers = tableRows[2].querySelector('.tier-info');
+      expect(row2Tiers?.querySelector('.tier-pill.free')?.textContent?.trim()).toBe('Public');
+      expect(row2Tiers?.querySelector('.tier-pill.admin-only')).toBeNull();
+      expect(row2Tiers?.textContent).not.toContain('Admin only');
+      const row2PubPill = tableRows[2].querySelector('.published-pill');
+      expect(row2PubPill?.textContent?.trim()).toBe('Listed');
     });
 
     it('should display "Who can view it for free" heading in Edit Series and Edit Video modals', () => {

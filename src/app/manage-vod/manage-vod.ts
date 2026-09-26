@@ -1356,6 +1356,10 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     return getVodFreeAccessTier(item);
   }
 
+  hasFreeAccess(item: { accessTiers?: VodAccessTier[]; accessTier?: VodAccessTier }): boolean {
+    return getVodFreeAccessTier(item) !== VodAccessTier.AdminOnly;
+  }
+
   getFreeAccessLabel(item: { accessTiers?: VodAccessTier[]; accessTier?: VodAccessTier }): string {
     const tier = getVodFreeAccessTier(item);
     return getVodFreeAccessLabel(tier);
