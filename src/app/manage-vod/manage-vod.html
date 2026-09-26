@@ -635,29 +635,43 @@
           </div>
           @for (vid of series.videos; track vid.docId; let pIdx = $index) {
             <div class="episode-row">
-              <span class="part-number-pill">Part {{ vid.seriesPartIndex || (pIdx + 1) }}</span>
-              <span class="episode-title">{{ vid.title }}</span>
-              <span class="episode-duration">{{ formatDuration(vid.durationSeconds) }}</span>
-              <span class="episode-status">
-                @if (vid.vodStatus === 'ready') {
-                  <span class="status-badge ready">Ready</span>
-                } @else {
-                  <span class="status-badge processing">{{ vid.vodStatus }}</span>
-                }
-              </span>
-              <div class="episode-actions">
-                <button type="button" class="icon-only-button" (click)="openEditModal(vid)" title="Edit episode metadata">
-                  <app-icon name="edit"></app-icon>
-                </button>
-                <button type="button" class="icon-only-button" (click)="openDrawer(vid)" title="View transcoding pipeline">
-                  <app-icon name="info"></app-icon>
-                </button>
-                @if (vid.vodStatus === 'ready') {
-                  <a class="icon-only-button play-link" [href]="getVideoHref(vid)" target="_blank" title="Watch episode">
-                    <app-icon name="play_arrow"></app-icon>
-                  </a>
-                }
+              <div class="episode-main">
+                <span class="part-number-pill">Part {{ vid.seriesPartIndex || (pIdx + 1) }}</span>
+                <span class="episode-title">{{ vid.title }}</span>
               </div>
+              <div class="episode-meta-row">
+                <div class="episode-meta-info">
+                  <span class="episode-duration">
+                    <app-icon name="schedule" class="episode-dur-icon"></app-icon>
+                    <span>{{ formatDuration(vid.durationSeconds) }}</span>
+                  </span>
+                  <span class="episode-status">
+                    @if (vid.vodStatus === 'ready') {
+                      <span class="status-badge ready">Ready</span>
+                    } @else {
+                      <span class="status-badge processing">{{ vid.vodStatus }}</span>
+                    }
+                  </span>
+                </div>
+                <div class="episode-actions">
+                  <button type="button" class="icon-only-button" (click)="openEditModal(vid)" title="Edit episode metadata">
+                    <app-icon name="edit"></app-icon>
+                  </button>
+                  <button type="button" class="icon-only-button" (click)="openDrawer(vid)" title="View transcoding pipeline">
+                    <app-icon name="info"></app-icon>
+                  </button>
+                  @if (vid.vodStatus === 'ready') {
+                    <a class="icon-only-button play-link" [href]="getVideoHref(vid)" target="_blank" title="Watch episode">
+                      <app-icon name="play_arrow"></app-icon>
+                    </a>
+                  }
+                </div>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-series-episodes">
+              <app-icon name="info"></app-icon>
+              <span>No videos currently attached to this series.</span>
             </div>
           }
         </div>
