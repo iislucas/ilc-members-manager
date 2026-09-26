@@ -178,6 +178,7 @@ describe('ManageVodComponent', () => {
             editVideoId: signal(null),
             grantVideoId: signal<string | null>(null),
             grantSeriesId: signal<string | null>(null),
+            editSeriesId: signal<string | null>(null),
             tab: signal<string | null>(null),
           },
         },
@@ -789,6 +790,77 @@ describe('ManageVodComponent', () => {
       const lastCallArg = (mockDataService.updateVideoMetadata as ReturnType<typeof vi.fn>).mock.calls.at(-1)[1];
       expect('stripePriceId' in lastCallArg).toBe(false);
       expect('priceCents' in lastCallArg).toBe(false);
+    });
+
+    it('should sync editSeriesId in URL parameters when opening and closing series modal', () => {
+      const s = mockDataService.getVideoSeriesList()[0];
+      component.openSeriesModal(s);
+      expect(mockRoutingService.signals.manageVod.urlParams.editSeriesId()).toBe('series-1');
+
+      component.closeSeriesModal();
+      expect(mockRoutingService.signals.manageVod.urlParams.editSeriesId()).toBe('');
+      expect(component.editingSeries()).toBeNull();
+    });
+
+    it('should auto-open series modal when editSeriesId URL param is present on deep link', async () => {
+      mockRoutingService.signals.manageVod.urlParams.editSeriesId.set('series-1');
+      TestBed.flushEffects();
+
+      expect(component.editingSeries()).toBeTruthy();
+      expect(component.editingSeries()?.seriesId).toBe('series-1');
+      expect(component.editingSeriesVideos().length).toBe(2);
+    });
+
+    it('should populate availableVideosForSeries excluding current series episodes', () => {
+      const s = mockDataService.getVideoSeriesList()[0]; // has v1, v2
+      component.openSeriesModal(s);
+      TestBed.flushEffects();
+
+      const available = component.availableVideosForSeries.entries();
+      // v3 is in mockVideos (total 3 videos), so v1 and v2 should be excluded, v3 available
+      expect(available.some((v) => v.docId === 'v1')).toBe(false);
+      expect(available.some((v) => v.docId === 'v2')).toBe(false);
+      expect(available.some((v) => v.docId === 'v3')).toBe(true);
+    });
+
+    it('should add video to series using autocomplete selection and addSelectedVideoToSeries', async () => {
+      const s = mockDataService.getVideoSeriesList()[0]; // has v1, v2
+      component.openSeriesModal(s);
+      TestBed.flushEffects();
+
+      const videoToAdd = mockDataService.videos.entries().find((v) => v.docId === 'v3')!;
+      component.onVideoSelectedToAdd(videoToAdd);
+      expect(component.selectedVideoToAdd()?.docId).toBe('v3');
+
+      component.addSelectedVideoToSeries();
+      expect(component.editingSeriesVideos().map((v) => v.docId)).toEqual(['v1', 'v2', 'v3']);
+      expect(component.selectedVideoToAdd()).toBeNull();
+      expect(component.addVideoSearchTerm()).toBe('');
+
+      // Saving should persist all 3 videos
+      await component.saveSeriesChanges();
+      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
+        'series-1',
+        expect.any(Object),
+        ['v1', 'v2', 'v3'],
+      );
+    });
+
+    it('should remove video from series using removeSeriesVideo', async () => {
+      const s = mockDataService.getVideoSeriesList()[0]; // has v1, v2
+      component.openSeriesModal(s);
+
+      // Remove the first video (v1)
+      component.removeSeriesVideo(0);
+      expect(component.editingSeriesVideos().map((v) => v.docId)).toEqual(['v2']);
+
+      // Saving should persist only v2
+      await component.saveSeriesChanges();
+      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
+        'series-1',
+        expect.any(Object),
+        ['v2'],
+      );
     });
   });
 

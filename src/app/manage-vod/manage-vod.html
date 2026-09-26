@@ -1334,14 +1334,53 @@
                     </button>
                     <button
                       type="button"
-                      class="icon-only-button"
-                      [disabled]="idx === editingSeriesVideos().length - 1"
-                      (click)="moveSeriesVideoDown(idx)"
-                      title="Move Down"
+                      class="icon-only-button remove-episode-btn"
+                      (click)="removeSeriesVideo(idx)"
+                      title="Remove from series"
                     >
-                      <app-icon name="arrow_downward"></app-icon>
+                      <app-icon name="close"></app-icon>
                     </button>
                   </div>
+                </div>
+              }
+            </div>
+
+            <!-- Add Video to Series Autocomplete -->
+            <div class="add-video-to-series-section">
+              <label class="section-subheading-label">Add Video to this Series</label>
+              <p class="section-description">Choose an existing video from the catalog to append to this series:</p>
+              <div class="add-video-controls-row">
+                <div class="autocomplete-container">
+                  <app-autocomplete
+                    [searchableSet]="availableVideosForSeries"
+                    [displayFns]="seriesAddVideoDisplayFns"
+                    [inputBoxIsChip]="false"
+                    [initSearchTerm]="addVideoSearchTerm()"
+                    placeholder="Search by title, docId, or instructor..."
+                    (itemSelected)="onVideoSelectedToAdd($event)"
+                    (textUpdated)="onVideoSearchTextChange($event)"
+                  ></app-autocomplete>
+                </div>
+                <button
+                  type="button"
+                  class="primary-btn add-to-series-btn"
+                  [disabled]="!selectedVideoToAdd()"
+                  (click)="addSelectedVideoToSeries()"
+                  title="Append selected video to series"
+                >
+                  <app-icon name="add"></app-icon>
+                  <span>Add Video</span>
+                </button>
+              </div>
+              @if (selectedVideoToAdd(); as sel) {
+                <div class="selected-video-notice">
+                  <span class="sel-label">Selected to add:</span>
+                  <span class="sel-title"><strong>{{ sel.title }}</strong></span>
+                  @if (sel.seriesTitle) {
+                    <span class="sel-warn">
+                      (Currently in series "{{ sel.seriesTitle }}")
+                    </span>
+                  }
                 </div>
               }
             </div>
