@@ -111,8 +111,8 @@ export class IncrementalSyncService {
         return;
       }
 
-      // Populate memory if targetSet is still in loading state
-      if (Array.isArray(cachedBundle.entries) && targetSet.loading()) {
+      // Populate memory if targetSet is still in loading state, or if targetSet is empty
+      if (Array.isArray(cachedBundle.entries) && (targetSet.loading() || targetSet.entries().length === 0)) {
         const filtered = additionalFilter
           ? cachedBundle.entries.filter(additionalFilter)
           : cachedBundle.entries;
@@ -163,10 +163,8 @@ export class IncrementalSyncService {
 
       // If no updates and no deletions and cache has no invalid entries, cache is already up-to-date!
       if (deltaSnap.empty && tombstones.length === 0 && !hasInvalidCachedEntries) {
-        if (targetSet.loading()) {
-          const initialSorted = sortFn ? [...cachedBundle.entries].sort(sortFn) : cachedBundle.entries;
-          targetSet.setEntries(initialSorted);
-        }
+        const initialSorted = sortFn ? [...cachedBundle.entries].sort(sortFn) : cachedBundle.entries;
+        targetSet.setEntries(initialSorted);
         return;
       }
 
