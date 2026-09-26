@@ -581,10 +581,14 @@
   @media (max-width: 600px) {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.6rem;
 
     .add-btn {
-      width: 100%;
-      justify-content: center;
+      width: auto;
+      align-self: flex-end;
+      padding: 0 0.85rem;
+      font-size: 0.9rem;
+      height: 36px;
     }
   }
 }
