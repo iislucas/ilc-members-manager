@@ -3,6 +3,13 @@ import { FieldValue } from 'firebase-admin/firestore';
 import * as logger from 'firebase-functions/logger';
 import { InstructorLicenseType } from './data-model/curriculum';
 import { InstructorPublicDataFsDoc, Member } from './data-model/members';
+import { recordTombstone, recordDeletionLog } from './common';
+import {
+  DeletionSource,
+  DeletionTriggerKind,
+  CascadeCase,
+  CascadedDeletionTrigger,
+} from './data-model/deletion-logs';
 
 const db = admin.firestore();
 
@@ -81,10 +88,28 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
       await instructorRef.set(instructor);
     } else {
       // If they were an instructor and now are not, we should delete the public record.
-      // We check if the record exists first? Or just delete it.
-      // `delete()` is idempotent if it doesn't exist.
       if (member.docId) {
-        await db.collection('instructors').doc(member.docId).delete();
+        const instRef = db.collection('instructors').doc(member.docId);
+        const instSnap = await instRef.get();
+        if (instSnap.exists) {
+          const trigger: CascadedDeletionTrigger = {
+            kind: DeletionTriggerKind.Cascaded,
+            cascadeCase: CascadeCase.InstructorLicenseRevoked,
+            sourceCollection: 'members',
+            sourceDocId: member.docId,
+            sourceName: member.name,
+          };
+          await recordDeletionLog(
+            db,
+            'instructors',
+            member.docId,
+            instSnap.data() as InstructorPublicDataFsDoc,
+            trigger,
+            DeletionSource.CloudFunctionTrigger,
+          );
+          await recordTombstone(db, 'instructors', member.docId, trigger);
+        }
+        await instRef.delete();
       }
     }
   } else if (update.previous) {
@@ -94,7 +119,27 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
       logger.info(
         `Removing instructor public data for deleted member ${prev.docId}`,
       );
-      await db.collection('instructors').doc(prev.docId).delete();
+      const instRef = db.collection('instructors').doc(prev.docId);
+      const instSnap = await instRef.get();
+      if (instSnap.exists) {
+        const trigger: CascadedDeletionTrigger = {
+          kind: DeletionTriggerKind.Cascaded,
+          cascadeCase: CascadeCase.MemberDeletedToInstructorProfile,
+          sourceCollection: 'members',
+          sourceDocId: prev.docId,
+          sourceName: prev.name,
+        };
+        await recordDeletionLog(
+          db,
+          'instructors',
+          prev.docId,
+          instSnap.data() as InstructorPublicDataFsDoc,
+          trigger,
+          DeletionSource.CloudFunctionTrigger,
+        );
+        await recordTombstone(db, 'instructors', prev.docId, trigger);
+      }
+      await instRef.delete();
     }
   }
 }

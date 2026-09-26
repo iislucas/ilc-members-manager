@@ -10,12 +10,19 @@ import * as admin from 'firebase-admin';
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
 import { StudentLevel } from './data-model/curriculum';
-import { Grading, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model/gradings';
+import { Grading, GradingFsDoc, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model/gradings';
 import { NotificationKind, MemberNotification } from './data-model/notifications';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
-import { recordTombstone } from './common';
+import {
+  DeletionSource,
+  DeletionLogActor,
+  DeletionTriggerKind,
+  CascadeCase,
+  CascadedDeletionTrigger,
+} from './data-model/deletion-logs';
 import { Member } from './data-model/members';
+import { recordTombstone, recordDeletionLog } from './common';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
 import * as logger from 'firebase-functions/logger';
 
@@ -212,6 +219,7 @@ export async function mirrorGradingToInstructor(
 export async function removeGradingFromInstructor(
   gradingDocId: string,
   instructorId: string,
+  trigger?: CascadedDeletionTrigger,
 ): Promise<void> {
   const instructorMemberDocId = await findInstructorMemberDocId(instructorId);
   if (!instructorMemberDocId) {
@@ -225,6 +233,23 @@ export async function removeGradingFromInstructor(
     .doc(instructorMemberDocId)
     .collection('gradings')
     .doc(gradingDocId);
+  const snap = await ref.get();
+  if (snap.exists) {
+    const effectiveTrigger: CascadedDeletionTrigger = trigger || {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.GradingDeleted,
+      sourceCollection: 'gradings',
+      sourceDocId: gradingDocId,
+    };
+    await recordDeletionLog(
+      db,
+      `instructors_${instructorMemberDocId}_gradings`,
+      gradingDocId,
+      snap.data() as GradingFsDoc,
+      effectiveTrigger,
+      DeletionSource.CloudFunctionTrigger,
+    );
+  }
   await ref.delete();
 }
 
@@ -251,12 +276,30 @@ async function mirrorGradingToSchool(
 async function removeGradingFromSchool(
   gradingDocId: string,
   schoolId: string,
+  trigger?: CascadedDeletionTrigger,
 ): Promise<void> {
   const ref = db
     .collection('schools')
     .doc(schoolId)
     .collection('gradings')
     .doc(gradingDocId);
+  const snap = await ref.get();
+  if (snap.exists) {
+    const effectiveTrigger: CascadedDeletionTrigger = trigger || {
+      kind: DeletionTriggerKind.Cascaded,
+      cascadeCase: CascadeCase.GradingDeleted,
+      sourceCollection: 'gradings',
+      sourceDocId: gradingDocId,
+    };
+    await recordDeletionLog(
+      db,
+      `schools_${schoolId}_gradings`,
+      gradingDocId,
+      snap.data() as GradingFsDoc,
+      effectiveTrigger,
+      DeletionSource.CloudFunctionTrigger,
+    );
+  }
   await ref.delete();
 }
 
@@ -457,8 +500,16 @@ async function removeGradingFromAllInstructors(
     primaryInstructor
   ].filter((id) => id && id !== '') as string[]);
 
+  const trigger: CascadedDeletionTrigger = {
+    kind: DeletionTriggerKind.Cascaded,
+    cascadeCase: CascadeCase.GradingDeleted,
+    sourceCollection: 'gradings',
+    sourceDocId: gradingDocId,
+    sourceName: grading.studentName ? `${grading.studentName} (${grading.level})` : grading.level,
+  };
+
   for (const instructorId of instructorIds) {
-    await removeGradingFromInstructor(gradingDocId, instructorId);
+    await removeGradingFromInstructor(gradingDocId, instructorId, trigger);
   }
 }
 
@@ -783,7 +834,14 @@ export const onGradingUpdated = onDocumentUpdated(
     // Remove from instructors no longer associated
     for (const id of previousInstructorIds) {
       if (!currentInstructorIds.has(id)) {
-        await removeGradingFromInstructor(gradingDocId, id);
+        const trigger: CascadedDeletionTrigger = {
+          kind: DeletionTriggerKind.Cascaded,
+          cascadeCase: CascadeCase.GradingInstructorChanged,
+          sourceCollection: 'gradings',
+          sourceDocId: gradingDocId,
+          sourceName: grading.studentName ? `${grading.studentName} (${grading.level})` : grading.level,
+        };
+        await removeGradingFromInstructor(gradingDocId, id, trigger);
       }
     }
     // Mirror to all current instructors (update the cached copy)
@@ -857,7 +915,14 @@ export const onGradingUpdated = onDocumentUpdated(
 
     // Handle school change
     if (previous.schoolId && previous.schoolId !== grading.schoolId) {
-      await removeGradingFromSchool(gradingDocId, previous.schoolId);
+      const trigger: CascadedDeletionTrigger = {
+        kind: DeletionTriggerKind.Cascaded,
+        cascadeCase: CascadeCase.GradingSchoolChanged,
+        sourceCollection: 'gradings',
+        sourceDocId: gradingDocId,
+        sourceName: grading.studentName ? `${grading.studentName} (${grading.level})` : grading.level,
+      };
+      await removeGradingFromSchool(gradingDocId, previous.schoolId, trigger);
     }
     if (grading.schoolId) {
       await mirrorGradingToSchool(gradingDocId, grading, grading.schoolId);
@@ -1399,7 +1464,14 @@ export const onGradingDeleted = onDocumentDeleted(
 
     // Remove from school if set
     if (grading.schoolId) {
-      await removeGradingFromSchool(gradingDocId, grading.schoolId);
+      const trigger: CascadedDeletionTrigger = {
+        kind: DeletionTriggerKind.Cascaded,
+        cascadeCase: CascadeCase.GradingDeleted,
+        sourceCollection: 'gradings',
+        sourceDocId: gradingDocId,
+        sourceName: grading.studentName ? `${grading.studentName} (${grading.level})` : grading.level,
+      };
+      await removeGradingFromSchool(gradingDocId, grading.schoolId, trigger);
     }
 
     // Remove grading from the student's gradingDocIds
@@ -1433,8 +1505,41 @@ export const onGradingDeleted = onDocumentDeleted(
       await cancelAndDismissGradingNotifications(memberDocId, gradingDocId);
     }
 
-    await recordTombstone(db, 'gradings', gradingDocId);
+    let actorInfo: DeletionLogActor = { email: 'unknown' };
+    try {
+      const existingTombstone = await db
+        .collection('system')
+        .doc('deletions')
+        .collection('gradings')
+        .doc(gradingDocId)
+        .get();
+      if (existingTombstone.exists) {
+        const tData = existingTombstone.data();
+        if (tData?.deletedBy) {
+          actorInfo = {
+            email: tData.deletedBy,
+            name: tData.deletedByName || '',
+            uid: tData.deletedByUid || '',
+          };
+        }
+      }
+    } catch (e) {
+      logger.warn(`Could not read existing grading tombstone: ${e}`);
+    }
 
-    logger.info(`Grading ${gradingDocId} deleted and mirrors removed.`);
+    // 1. Audit log full document data snapshot to /deletion_logs
+    await recordDeletionLog(
+      db,
+      'gradings',
+      gradingDocId,
+      snap.data() as GradingFsDoc,
+      actorInfo,
+      DeletionSource.CloudFunctionTrigger,
+    );
+
+    // 2. Tombstone
+    await recordTombstone(db, 'gradings', gradingDocId, actorInfo);
+
+    logger.info(`Grading ${gradingDocId} deleted, audit logged, and mirrors removed.`);
   },
 );

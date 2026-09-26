@@ -16,6 +16,7 @@ import {
   QueryConstraint,
   serverTimestamp,
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { GenericFsDoc } from '../../functions/src/data-model/base';
 import { SearchableSet, SearchOptions } from './searchable-set';
 import { IncrementalSyncService } from './incremental-sync.service';
@@ -261,23 +262,45 @@ export class SyncedCollection<
 
     const isOffline = Boolean(this.networkState?.isOffline?.());
     if (!isOffline) {
-      await deleteDoc(docRef);
-
       try {
+        let deletedBy = 'unknown';
+        let deletedByName = '';
+        let deletedByUid = '';
+        try {
+          const authUser = getAuth().currentUser;
+          if (authUser) {
+            deletedBy = authUser.email || authUser.displayName || authUser.uid;
+            deletedByName = authUser.displayName || '';
+            deletedByUid = authUser.uid;
+          }
+        } catch {
+          // Auth may not be initialized in test environment
+        }
+
         const simpleName =
           this.config.collectionPath.split('/').pop() ||
           this.config.collectionPath;
         const tombstoneRef = doc(this.db, `system/deletions/${simpleName}`, id);
-        await setDoc(tombstoneRef, {
-          deletedAt: serverTimestamp(),
-          docId: id,
-        });
+        await setDoc(
+          tombstoneRef,
+          {
+            deletedAt: serverTimestamp(),
+            docId: id,
+            collection: simpleName,
+            deletedBy,
+            deletedByName,
+            deletedByUid,
+          },
+          { merge: true },
+        );
       } catch (err) {
         console.warn(
           `[SyncedCollection] Failed to record tombstone for ${this.config.collectionPath}/${id}:`,
           err,
         );
       }
+
+      await deleteDoc(docRef);
     }
 
     super.delete(id);

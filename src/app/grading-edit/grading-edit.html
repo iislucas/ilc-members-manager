@@ -384,4 +384,14 @@
       </div>
     </div>
   </form>
+
+  <app-confirm-delete-modal
+    [isOpen]="showDeleteConfirmModal()"
+    [entityName]="editableGrading().studentName || form.studentMemberId().value()"
+    [entityIdentifier]="form.level().value() + (grading().docId ? ' (' + grading().docId + ')' : '')"
+    entityType="Grading"
+    warningMessage="This action will permanently delete this grading record and update the student status accordingly. A pre-deletion snapshot is saved to audit logs."
+    (confirmed)="confirmDeleteGrading()"
+    (cancelled)="showDeleteConfirmModal.set(false)"
+  ></app-confirm-delete-modal>
 </div>

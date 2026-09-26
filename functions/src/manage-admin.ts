@@ -1,9 +1,10 @@
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins, assertAdmin } from './common';
+import { allowedOrigins, assertAdmin, recordDeletionLog, recordTombstone } from './common';
 import { ACL } from './data-model/system';
 import { refreshACLAdminStatus } from './on-member-update';
+import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
 
 export interface SetAdminPrivilegeRequest {
   email: string;
@@ -58,6 +59,19 @@ export async function setAdminPrivilegeHelper(
       const aclData = aclSnap.data() as ACL;
       if (!aclData.memberDocIds || aclData.memberDocIds.length === 0) {
         // Detached standalone admin revoked -> clean up doc
+        const actor: DeletionLogActor = {
+          email: callerEmail,
+          uid: request.auth?.uid,
+        };
+        await recordDeletionLog(
+          db,
+          'acl',
+          targetEmail,
+          aclData,
+          actor,
+          DeletionSource.ClientAction,
+        );
+        await recordTombstone(db, 'acl', targetEmail, actor);
         await aclRef.delete();
       } else {
         await aclRef.update({ isAdmin: false });

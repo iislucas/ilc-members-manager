@@ -29,7 +29,14 @@ import { FirestoreCollection, FirestoreSubcollection } from './data-model/collec
 import { Member } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { VideoGrant, VideoGrantKind } from './data-model/vod';
-import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone } from './common';
+import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone, recordDeletionLog } from './common';
+import {
+  DeletionSource,
+  DeletionLogActor,
+  DeletionTriggerKind,
+  CascadeCase,
+  CascadedDeletionTrigger,
+} from './data-model/deletion-logs';
 import { createMemberNotification } from './notifications';
 import { contentChanged } from './content-cache';
 
@@ -435,12 +442,30 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   // Remove from targets no longer associated
   for (const docId of previousTargets) {
     if (!currentTargets.has(docId)) {
-      await db
+      const targetRef = db
         .collection(FirestoreCollection.Members)
         .doc(docId)
         .collection(FirestoreSubcollection.Events)
-        .doc(event.params.docId)
-        .delete();
+        .doc(event.params.docId);
+      const targetSnap = await targetRef.get();
+      if (targetSnap.exists) {
+        const trigger: CascadedDeletionTrigger = {
+          kind: DeletionTriggerKind.Cascaded,
+          cascadeCase: CascadeCase.EventManagerChanged,
+          sourceCollection: FirestoreCollection.Events,
+          sourceDocId: event.params.docId,
+          sourceName: after.title,
+        };
+        await recordDeletionLog(
+          db,
+          `members_${docId}_events`,
+          event.params.docId,
+          targetSnap.data() as IlcEvent,
+          trigger,
+          DeletionSource.CloudFunctionTrigger,
+        );
+      }
+      await targetRef.delete();
       logger.info(`Removed mirrored event ${event.params.docId} from member ${docId} subcollection.`);
     }
   }
@@ -750,6 +775,24 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
       .doc(docId)
       .collection(FirestoreSubcollection.Events)
       .doc(eventDocId);
+    const targetSnap = await ref.get();
+    if (targetSnap.exists) {
+      const trigger: CascadedDeletionTrigger = {
+        kind: DeletionTriggerKind.Cascaded,
+        cascadeCase: CascadeCase.EventDeletedToMemberView,
+        sourceCollection: FirestoreCollection.Events,
+        sourceDocId: eventDocId,
+        sourceName: eventData.title,
+      };
+      await recordDeletionLog(
+        admin.firestore(),
+        `members_${docId}_events`,
+        eventDocId,
+        targetSnap.data() as IlcEvent,
+        trigger,
+        DeletionSource.CloudFunctionTrigger,
+      );
+    }
     await ref.delete();
     logger.info(`Removed mirrored event ${eventDocId} from member ${docId} subcollection.`);
   }
@@ -766,5 +809,41 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
     logger.warn(`Failed to clean up storage for event ${eventDocId}:`, err);
   }
 
-  await recordTombstone(admin.firestore(), FirestoreCollection.Events, eventDocId);
+  let actorInfo: DeletionLogActor = {
+    email: eventData.ownerEmails?.[0] || 'unknown',
+  };
+  try {
+    const existingTombstone = await admin
+      .firestore()
+      .collection('system')
+      .doc('deletions')
+      .collection(FirestoreCollection.Events)
+      .doc(eventDocId)
+      .get();
+    if (existingTombstone.exists) {
+      const tData = existingTombstone.data();
+      if (tData?.deletedBy) {
+        actorInfo = {
+          email: tData.deletedBy,
+          name: tData.deletedByName || '',
+          uid: tData.deletedByUid || '',
+        };
+      }
+    }
+  } catch (e) {
+    logger.warn(`Could not read existing event tombstone: ${e}`);
+  }
+
+  // 1. Audit log full document data snapshot to /deletion_logs
+  await recordDeletionLog(
+    admin.firestore(),
+    FirestoreCollection.Events,
+    eventDocId,
+    eventData,
+    actorInfo,
+    DeletionSource.CloudFunctionTrigger,
+  );
+
+  // 2. Tombstone
+  await recordTombstone(admin.firestore(), FirestoreCollection.Events, eventDocId, actorInfo);
 });
