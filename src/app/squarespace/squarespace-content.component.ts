@@ -358,7 +358,11 @@ export class SquarespaceContentComponent implements OnDestroy {
                 return;
             }
             if (!satisfiesMemberStatusLevel(ctx, MemberStatusLevel.ActiveInstructor)) {
-                this.error.set('Your instructor license has expired. Please renew your instructor license to access this content.');
+                if (!hasActiveMembership(user.member)) {
+                    this.error.set('Your membership has expired. Active membership is required to access instructor content. Please renew your membership.');
+                } else {
+                    this.error.set('Your instructor license has expired. Please renew your instructor license to access this content.');
+                }
                 return;
             }
         }

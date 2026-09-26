@@ -48,6 +48,7 @@ import {
   PushSubscriptionDoc,
   hasActiveMembership,
   hasActiveInstructorLicense,
+  isActiveInstructor,
 } from '../../functions/src/data-model/members';
 import {
   MemberNotification,
@@ -700,7 +701,7 @@ export class NotificationService implements OnDestroy {
   // Whether this member is an active, licensed instructor (and so should see
   // instructors-area blog posts).
   private isActiveInstructor(member: Member): boolean {
-    return hasActiveInstructorLicense(member);
+    return isActiveInstructor(member);
   }
 
   // Surfaces up to the latest few blog posts (per accessible feed) the member

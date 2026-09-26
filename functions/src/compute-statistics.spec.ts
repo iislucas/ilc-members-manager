@@ -94,10 +94,17 @@ describe('computeStatisticsFromMembers', () => {
         instructorId: 'I-003',
         instructorLicenseType: InstructorLicenseType.Life,
       }),
+      makeMember({
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2025-01-01', // expired membership
+        instructorId: 'I-004',
+        instructorLicenseType: InstructorLicenseType.Annual,
+        instructorLicenseExpires: '2026-12-31', // active license, but expired membership
+      }),
     ];
 
     const result = computeStatisticsFromMembers(members, today);
-    expect(result.activeInstructors).toBe(2); // I-001 and I-003
+    expect(result.activeInstructors).toBe(2); // I-001 and I-003 (I-004 excluded due to expired membership)
   });
 
   it('should build membership type histogram', () => {

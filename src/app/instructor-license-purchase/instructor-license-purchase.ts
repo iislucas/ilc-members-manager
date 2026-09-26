@@ -228,6 +228,13 @@ export class InstructorLicensePurchaseComponent {
     return !!exp && exp >= this.today();
   });
 
+  hasLicenseButExpiredMembership = computed(() => {
+    return (
+      (this.isLifeInstructor() || this.isLicenseActive()) &&
+      !this.isActiveMember()
+    );
+  });
+
   hasActiveSubscription = computed(() => {
     const m = this.user()?.member;
     if (!m) return false;
@@ -250,12 +257,12 @@ export class InstructorLicensePurchaseComponent {
 
   productOptionDescription = computed<string>(() => {
     if (this.isGroupLeaderTier()) {
-      return 'Provides an official Group Leader License for 1 full year. Automatically transitions to an Instructor License once you grade Application Level 1.';
+      return 'Provides an official Group Leader License for 1 full year. Automatically transitions to an Instructor License once you grade Application Level 1. Note: Active association membership is also required to maintain active status.';
     }
     if (this.isInstructorTier()) {
-      return 'Extends your instructor license for 1 full year from your current expiration date (or starting today if new/expired).';
+      return 'Extends your instructor license for 1 full year from your current expiration date (or starting today if new/expired). Note: Active association membership is also required to maintain active status.';
     }
-    return 'Extends your license for 1 full year from your current expiration date (or starting today if new/expired).';
+    return 'Extends your license for 1 full year from your current expiration date (or starting today if new/expired). Note: Active association membership is also required to maintain active status.';
   });
 
   checkoutButtonText = computed<string>(() => {

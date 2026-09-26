@@ -75,7 +75,44 @@
   }
 
   <!-- Active License / Subscription Banner (if active) -->
-  @if (isLifeInstructor()) {
+  @if (hasLicenseButExpiredMembership()) {
+    <div class="current-membership-banner card warning">
+      <div class="banner-header">
+        <app-icon name="warning" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>Active Membership Required for Instructor Status</h3>
+          <p>
+            You hold an official
+            <strong
+              >{{
+                isLifeInstructor()
+                  ? "Lifetime Instructor License"
+                  : (isGroupLeaderTier() ? "Group Leader" : "Instructor") + " License"
+              }}</strong
+            >@if (isLicenseActive() && !isLifeInstructor()) { (valid through
+            <strong>{{ licenseExpires() }}</strong
+            >) }, but your association membership has expired.
+          </p>
+          <p class="warning-explanation">
+            To be considered an active instructor or group leader in the Chin
+            Family I Liq Chuan Association (including directory listings,
+            leading events, and certifying students), you must maintain both an
+            active license and an active association membership.
+          </p>
+        </div>
+      </div>
+
+      <div class="portal-homepage-action">
+        <a
+          [href]="routingService.hrefForView(Views.BecomeAMember)"
+          class="button auth-action-btn"
+        >
+          <app-icon name="link"></app-icon>
+          <span>Renew Association Membership</span>
+        </a>
+      </div>
+    </div>
+  } @else if (isLifeInstructor()) {
     <div class="current-membership-banner card life-member">
       <div class="banner-header">
         <app-icon name="check" width="24px" height="24px"></app-icon>
@@ -167,6 +204,22 @@
 
   <!-- Details of what is offered / Value of License -->
   <div class="intro-info-section">
+    <div class="dual-requirement-notice">
+      <div class="notice-title">
+        <app-icon name="warning" width="20px" height="20px"></app-icon>
+        <strong>Dual Requirement for Active Instructor Status</strong>
+      </div>
+      <p>
+        Being recognized as an active instructor or group leader within the
+        Chin Family I Liq Chuan Association requires maintaining
+        <strong>both</strong> an active instructor license and an active
+        association membership. An active membership is required to purchase or
+        renew a license, be listed in the public instructor directory, lead
+        official workshops and events, and prepare or certify students for
+        examinations.
+      </p>
+    </div>
+
     <p class="intro-description">
       Our Instructor License authorizes the individual to lead events and
       gradings. In addition, Licensed Instructors may be hired to lead
@@ -313,8 +366,10 @@
           <div>
             <h3>Active Membership Required</h3>
             <p>
-              An active I Liq Chuan membership is required to obtain or maintain
-              an instructor or group leader license.
+              An active I Liq Chuan membership is required to obtain or renew
+              an instructor or group leader license. Being recognized as an active
+              instructor requires maintaining both an active license and active
+              association membership.
             </p>
             <a
               class="button auth-action-btn"

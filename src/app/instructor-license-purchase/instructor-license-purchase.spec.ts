@@ -304,4 +304,79 @@ describe('InstructorLicensePurchaseComponent', () => {
     expect(element.textContent).not.toContain('3. Annual');
     expect(element.querySelector('.pay-btn')).toBeNull();
   });
+
+  it('should render dual requirement notice for active instructor status in the intro section', async () => {
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Dual Requirement for Active Instructor Status');
+    expect(element.textContent).toContain(
+      'Being recognized as an active instructor or group leader within the Chin Family I Liq Chuan Association requires maintaining both an active instructor license and an active association membership.',
+    );
+  });
+
+  it('should display warning banner when active annual license holder has expired membership', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleMember,
+        instructorLicenseExpires: '2028-01-01',
+        currentMembershipExpires: '2020-01-01',
+      },
+    });
+    await createComponent();
+
+    expect(component.isLicenseActive()).toBe(true);
+    expect(component.isActiveMember()).toBe(false);
+    expect(component.hasLicenseButExpiredMembership()).toBe(true);
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Active Membership Required for Instructor Status');
+    expect(element.textContent).toContain('valid through 2028-01-01');
+    expect(element.textContent).toContain('but your association membership has expired');
+    expect(element.textContent).toContain('Renew Association Membership');
+  });
+
+  it('should display warning banner when lifetime instructor has expired membership', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleMember,
+        instructorLicenseType: 'Life' as any,
+        instructorLicenseExpires: '9999-12-31',
+        currentMembershipExpires: '2020-01-01',
+      },
+    });
+    await createComponent();
+
+    expect(component.isLifeInstructor()).toBe(true);
+    expect(component.isActiveMember()).toBe(false);
+    expect(component.hasLicenseButExpiredMembership()).toBe(true);
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Active Membership Required for Instructor Status');
+    expect(element.textContent).toContain('Lifetime Instructor License');
+    expect(element.textContent).toContain('Renew Association Membership');
+  });
+
+  it('should display Step 2 active membership required notice when expired instructor has expired membership', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleMember,
+        instructorLicenseExpires: '2020-01-01',
+        currentMembershipExpires: '2020-01-01',
+      },
+    });
+    await createComponent();
+
+    expect(component.isLicenseActive()).toBe(false);
+    expect(component.isActiveMember()).toBe(false);
+    expect(component.hasLicenseButExpiredMembership()).toBe(false);
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain(
+      'An active I Liq Chuan membership is required to obtain or renew an instructor or group leader license. Being recognized as an active instructor requires maintaining both an active license and active association membership.',
+    );
+    expect(element.textContent).toContain('Become a Member / Renew');
+  });
 });

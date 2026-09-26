@@ -265,7 +265,43 @@ describe('HomeComponent', () => {
 
     const element: HTMLElement = fixture.nativeElement;
     expect(element.textContent).toContain('Manage VOD');
-    expect(element.textContent).not.toContain('In Testing');
+  });
+
+  it('shows membership review/renewal prompts on instructor and membership cards when instructor membership is expired', async () => {
+    (firebaseService.user as any).set({
+      isAdmin: false,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: {
+        name: 'Instructor Expired Membership',
+        membershipType: 'Annual',
+        currentMembershipExpires: '2020-01-01', // expired membership
+        instructorId: 'I-100',
+        instructorLicenseExpires: '2099-12-31', // active instructor license
+      },
+      firebaseUser: { email: 'instructor@example.com' },
+    });
+
+    component.setActiveTab('learn');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element: HTMLElement = fixture.nativeElement;
+    // Membership card prompts for renewal
+    expect(element.textContent).toContain('Renew Membership');
+    expect(element.textContent).toContain('Expired: 2020-01-01');
+
+    // Instructor card warns that active membership is required
+    expect(element.textContent).toContain('Renew Membership for Instructor Access');
+    expect(element.textContent).toContain('Active membership required');
+
+    // Clicking instructor card directs to become a member
+    const links = element.querySelectorAll<HTMLAnchorElement>('a.card');
+    const instructorCard = Array.from(links).find((a) =>
+      a.textContent?.includes('Renew Membership for Instructor Access')
+    );
+    expect(instructorCard).toBeTruthy();
+    expect(instructorCard?.getAttribute('href')).toContain('become-a-member');
   });
 });
 

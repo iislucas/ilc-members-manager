@@ -8,6 +8,7 @@ import {
   isRegistrationAllowedForContext,
   hasActiveMembership,
   hasActiveInstructorLicense,
+  isActiveInstructor,
   isLifeMember,
   isLifeInstructor,
   toMemberStatusContext,
@@ -67,27 +68,39 @@ describe('Member Status & Hierarchy Library', () => {
     instructorId: 'INST-002',
     instructorLicenseType: InstructorLicenseType.Life,
     instructorLicenseExpires: '9999-12-31',
+    membershipType: MembershipType.Life,
+    currentMembershipExpires: '',
+  };
+  const activeLifeInstructor = toMemberStatusContext({ member: activeLifeInstructorRecord });
+
+  const instructorWithExpiredMembershipRecord: MemberStatusFields = {
+    instructorId: 'INST-100',
+    instructorLicenseExpires: future,
+    instructorLicenseType: InstructorLicenseType.Annual,
     membershipType: MembershipType.Annual,
     currentMembershipExpires: past,
   };
-  const activeLifeInstructor = toMemberStatusContext({ member: activeLifeInstructorRecord });
+  const instructorWithExpiredMembership = toMemberStatusContext({ member: instructorWithExpiredMembershipRecord });
 
   const adminUser = toMemberStatusContext({ isAdmin: true });
 
   describe('Invariant: Every Active Instructor is an Active Member', () => {
-    it('returns true for hasActiveMembership when user has an active instructor license even if membership is expired', () => {
-      const instructorWithExpiredMembership: MemberStatusFields = {
-        instructorId: 'INST-100',
-        instructorLicenseExpires: future,
-        instructorLicenseType: InstructorLicenseType.Annual,
-        membershipType: MembershipType.Annual,
-        currentMembershipExpires: past,
-      };
-      expect(hasActiveInstructorLicense(instructorWithExpiredMembership, today)).toBe(true);
-      expect(hasActiveMembership(instructorWithExpiredMembership, today)).toBe(true);
+    it('requires active membership to be considered an active instructor (expired membership drops to Account level)', () => {
+      // The instructor license credential itself is valid...
+      expect(hasActiveInstructorLicense(instructorWithExpiredMembershipRecord, today)).toBe(true);
+      // ...but membership has expired!
+      expect(hasActiveMembership(instructorWithExpiredMembershipRecord, today)).toBe(false);
+      // Therefore being considered an active instructor requires active membership:
+      expect(isActiveInstructor(instructorWithExpiredMembershipRecord, today)).toBe(false);
+
+      // In hierarchy, they drop to Account level (Level 2), so they see they need to review/renew membership
+      expect(getMemberStatusLevel(instructorWithExpiredMembership, today)).toBe(MemberStatusLevel.Account);
+      expect(satisfiesMemberStatusLevel(instructorWithExpiredMembership, MemberStatusLevel.ActiveInstructor, today)).toBe(false);
+      expect(satisfiesMemberStatusLevel(instructorWithExpiredMembership, MemberStatusLevel.ActiveMember, today)).toBe(false);
+      expect(getAttendeeRoleForStatus(instructorWithExpiredMembership, today)).toBe(AttendeeRole.NonMember);
     });
 
-    it('returns true for hasActiveMembership when user has a Life instructor license even if membership is Inactive', () => {
+    it('does not grant active membership to Life instructors with Inactive membership', () => {
       const lifeInstructorWithInactiveMembership: MemberStatusFields = {
         instructorId: 'INST-101',
         instructorLicenseType: InstructorLicenseType.Life,
@@ -96,7 +109,14 @@ describe('Member Status & Hierarchy Library', () => {
         currentMembershipExpires: '',
       };
       expect(hasActiveInstructorLicense(lifeInstructorWithInactiveMembership, today)).toBe(true);
-      expect(hasActiveMembership(lifeInstructorWithInactiveMembership, today)).toBe(true);
+      expect(hasActiveMembership(lifeInstructorWithInactiveMembership, today)).toBe(false);
+      expect(isActiveInstructor(lifeInstructorWithInactiveMembership, today)).toBe(false);
+    });
+
+    it('confirms active instructor status when both license and membership are active', () => {
+      expect(hasActiveInstructorLicense(activeInstructorRecord, today)).toBe(true);
+      expect(hasActiveMembership(activeInstructorRecord, today)).toBe(true);
+      expect(isActiveInstructor(activeInstructorRecord, today)).toBe(true);
     });
   });
 
@@ -109,6 +129,7 @@ describe('Member Status & Hierarchy Library', () => {
     it('resolves Account (2) for authenticated users without active membership', () => {
       expect(getMemberStatusLevel(accountUser, today)).toBe(MemberStatusLevel.Account);
       expect(getMemberStatusLevel(expiredMember, today)).toBe(MemberStatusLevel.Account);
+      expect(getMemberStatusLevel(instructorWithExpiredMembership, today)).toBe(MemberStatusLevel.Account);
     });
 
     it('resolves ActiveMember (3) for Annual and Life active members', () => {
@@ -116,7 +137,7 @@ describe('Member Status & Hierarchy Library', () => {
       expect(getMemberStatusLevel(activeLifeMember, today)).toBe(MemberStatusLevel.ActiveMember);
     });
 
-    it('resolves ActiveInstructor (4) for active licensed instructors', () => {
+    it('resolves ActiveInstructor (4) for active licensed instructors with active membership', () => {
       expect(getMemberStatusLevel(activeInstructor, today)).toBe(MemberStatusLevel.ActiveInstructor);
       expect(getMemberStatusLevel(activeLifeInstructor, today)).toBe(MemberStatusLevel.ActiveInstructor);
     });

@@ -315,7 +315,7 @@ describe('role authorization verification logic', () => {
     member: { hasActiveMembership: boolean; hasActiveLicense: boolean } | undefined,
   ): { allowed: boolean; error?: string } {
     if (!product.allowNonMembers) {
-      if (!member || (!member.hasActiveMembership && !member.hasActiveLicense)) {
+      if (!member || !member.hasActiveMembership) {
         return { allowed: false, error: 'Active membership is required to register for this event.' };
       }
     }
@@ -328,11 +328,11 @@ describe('role authorization verification logic', () => {
       }
     } else if (role === AttendeeRole.Instructor) {
       if (hasSpecialRolePrice(product, AttendeeRole.Instructor)) {
-        if (!member || !member.hasActiveLicense) {
-          return { allowed: false, error: 'Active instructor license is required to register at the instructor rate.' };
+        if (!member || !member.hasActiveLicense || !member.hasActiveMembership) {
+          return { allowed: false, error: 'Active instructor license and membership are required to register at the instructor rate.' };
         }
       } else if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
-        if (!member || (!member.hasActiveMembership && !member.hasActiveLicense)) {
+        if (!member || !member.hasActiveMembership) {
           return { allowed: false, error: 'Active membership is required to register at the member rate.' };
         }
       }
@@ -370,7 +370,22 @@ describe('role authorization verification logic', () => {
     const member = { hasActiveMembership: true, hasActiveLicense: false };
     const res = verifyRoleAuth(product, AttendeeRole.Instructor, member);
     expect(res.allowed).toBe(false);
-    expect(res.error).toBe('Active instructor license is required to register at the instructor rate.');
+    expect(res.error).toBe('Active instructor license and membership are required to register at the instructor rate.');
+  });
+
+  it('rejects registration when an instructor has active license but expired membership on an event with special instructor price', () => {
+    const product: Product = {
+      ...initProduct(),
+      docId: 'event_with_instructor_price',
+      allowNonMembers: true,
+      hasMemberPrice: true,
+      hasInstructorPrice: true,
+    };
+
+    const member = { hasActiveMembership: false, hasActiveLicense: true };
+    const res = verifyRoleAuth(product, AttendeeRole.Instructor, member);
+    expect(res.allowed).toBe(false);
+    expect(res.error).toBe('Active instructor license and membership are required to register at the instructor rate.');
   });
 
   it('allows registration when an instructor has expired license but active membership on event with only member discount', () => {

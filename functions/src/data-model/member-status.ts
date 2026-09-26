@@ -114,19 +114,17 @@ export function hasActiveInstructorLicense(
 /**
  * Whether the member's ILC membership is active right now.
  *
- * Invariant: Every Active Instructor is an Active Member.
  * Life members always are, Annual members are up to and including `currentMembershipExpires`,
- * and any other type (Inactive, Deceased, NotYetAMember) is inactive unless they hold
- * an active instructor license.
+ * and any other type (Inactive, Deceased, NotYetAMember) is inactive.
+ * Holding an instructor license does NOT grant active membership; instructors must also
+ * maintain an active membership.
  *
  * `today` is a YYYY-MM-DD string comparing lexicographically with stored dates.
  */
 export function hasActiveMembership(
-  member: MemberStatusFields,
+  member: MembershipFields,
   today: string = new Date().toISOString().split('T')[0],
 ): boolean {
-  // Core Invariant: Every Active Instructor is an Active Member
-  if (hasActiveInstructorLicense(member, today)) return true;
   if (member.membershipType === MembershipType.Life) return true;
   if (member.membershipType !== MembershipType.Annual) return false;
   const expires = member.currentMembershipExpires;
@@ -134,13 +132,34 @@ export function hasActiveMembership(
 }
 
 /**
+ * Whether the member is considered an active instructor right now.
+ *
+ * Core Invariant: Being considered an active instructor requires them to also
+ * have active membership in addition to an active instructor license (Level 4 implies Level 3).
+ * An instructor whose membership has expired must review/renew their membership and is
+ * not considered an active instructor until renewed.
+ */
+export function isActiveInstructor(
+  member: MemberStatusFields,
+  today: string = new Date().toISOString().split('T')[0],
+): boolean {
+  return hasActiveInstructorLicense(member, today) && hasActiveMembership(member, today);
+}
+
+/**
  * Resolves the 4-level member status for a given concrete MemberStatusContext.
+ *
+ * Invariants:
+ * - ActiveInstructor (4): requires active instructor license AND active membership.
+ * - ActiveMember (3): requires active membership.
+ * - Account (2): authenticated user with an account.
+ * - Public (1): unauthenticated / anonymous user.
  */
 export function getMemberStatusLevel(
   context: MemberStatusContext,
   today: string = new Date().toISOString().split('T')[0],
 ): MemberStatusLevel {
-  if (context.member && hasActiveInstructorLicense(context.member, today)) {
+  if (context.member && isActiveInstructor(context.member, today)) {
     return MemberStatusLevel.ActiveInstructor;
   }
   if (context.member && hasActiveMembership(context.member, today)) {
@@ -244,7 +263,7 @@ export function isRegistrationAllowedForContext(
  * already recorded as Inactive or Deceased has nothing to change.
  */
 export function canMarkMembershipInactive(
-  member: MemberStatusFields,
+  member: MembershipFields,
   today: string = new Date().toISOString().split('T')[0],
 ): boolean {
   if (
