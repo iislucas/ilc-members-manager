@@ -343,9 +343,19 @@
             <!-- Who Can View (Access Tier & Price) -->
             <td>
               <div class="tier-info">
-                <span class="tier-pill" [class.free]="video.accessTier === VodAccessTier.Public || (video.accessTiers && video.accessTiers.includes(VodAccessTier.Public))">
-                  {{ getAccessTiersSummary(video) }}
+                <span
+                  class="tier-pill"
+                  [class.free]="getFreeAccessTier(video) === VodAccessTier.Public"
+                  [class.admin-only]="getFreeAccessTier(video) === VodAccessTier.AdminOnly"
+                >
+                  {{ getFreeAccessLabel(video) }}
                 </span>
+                @if (hasClassSubscription(video)) {
+                  <span class="tier-pill class-sub">Class Video Subscribers</span>
+                }
+                @if (isVideoBuyable(video)) {
+                  <span class="tier-pill paid">Buy ({{ getBuyPriceLabel(video) }})</span>
+                }
               </div>
             </td>
 
@@ -515,10 +525,26 @@
           <div class="series-info-col">
             <div class="series-title-row">
               <h4>{{ series.title }}</h4>
+              <span
+                class="published-pill"
+                [class.published]="series.isPublished"
+                (click)="toggleSeriesPublished(series)"
+                title="Click to toggle listed/hidden in catalog"
+              >
+                {{ series.isPublished ? 'Listed' : 'Hidden' }}
+              </span>
+              <span
+                class="tier-pill"
+                [class.free]="getFreeAccessTier(series) === VodAccessTier.Public"
+                [class.admin-only]="getFreeAccessTier(series) === VodAccessTier.AdminOnly"
+              >
+                {{ getFreeAccessLabel(series) }}
+              </span>
+              @if (hasClassSubscription(series)) {
+                <span class="tier-pill class-sub">Class Video Subscribers</span>
+              }
               @if (series.priceCents && series.priceCents > 0) {
                 <span class="series-price-badge">${{ (series.priceCents / 100).toFixed(2) }} Bundle</span>
-              } @else {
-                <span class="series-free-badge">Included in Membership</span>
               }
             </div>
             @if (series.description) {
@@ -931,9 +957,21 @@
             <h5>Audience & Access Level</h5>
             <div class="access-info-card">
               <div class="access-row">
-                <span class="access-label">Who Can Stream:</span>
-                <span class="access-val bold">{{ getAccessTiersSummary(d) }}</span>
+                <span class="access-label">Free Access:</span>
+                <span class="access-val bold">{{ getFreeAccessLabel(d) }}</span>
               </div>
+              @if (hasClassSubscription(d)) {
+                <div class="access-row">
+                  <span class="access-label">Class Subscription:</span>
+                  <span class="access-val bold">Enabled (Class Video Subscribers)</span>
+                </div>
+              }
+              @if (isVideoBuyable(d)) {
+                <div class="access-row">
+                  <span class="access-label">Direct Purchase:</span>
+                  <span class="access-val bold">Available ({{ getBuyPriceLabel(d) }})</span>
+                </div>
+              }
               @if (d.tags && d.tags.length) {
                 <div class="drawer-tags-row">
                   <span class="access-label">Search Tags:</span>
@@ -1014,25 +1052,32 @@
               </button>
             </div>
           } @else {
-            <!-- Access Tiers (Multi-select) -->
-            <div class="form-group access-tiers-group">
-              <label class="section-heading-label">Who Can View (Allowed Access Methods)</label>
-              <p class="section-description">Select which groups have automatic streaming access:</p>
-              <div class="tiers-checkbox-grid">
-                @for (t of availableAccessTiers; track t.value) {
-                  <label class="tier-card-option" [class.checked]="isAccessTierSelected(t.value)">
-                    <input
-                      type="checkbox"
-                      [checked]="isAccessTierSelected(t.value)"
-                      (change)="toggleAccessTier(t.value)"
-                    />
-                    <div class="tier-card-content">
-                      <span class="tier-title">{{ t.label }}</span>
-                      <span class="tier-desc">{{ t.description }}</span>
-                    </div>
-                  </label>
+            <!-- Who can view it for free -->
+            <div class="form-group free-access-group">
+              <label class="section-heading-label">Who can view it for free</label>
+              <p class="section-description">Select who has free streaming access. Instructors are members, and members are part of the public:</p>
+              <select
+                class="form-select free-access-select"
+                [ngModel]="editFreeAccessTier()"
+                (ngModelChange)="editFreeAccessTier.set($event)"
+              >
+                @for (opt of freeAccessTierOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }} &mdash; {{ opt.description }}</option>
                 }
-              </div>
+              </select>
+            </div>
+
+            <!-- Class Video Subscription (Shown Separately) -->
+            <div class="form-group class-subscription-box">
+              <label class="checkbox-label class-sub-toggle">
+                <input
+                  type="checkbox"
+                  [ngModel]="editHasClassSub()"
+                  (ngModelChange)="editHasClassSub.set($event)"
+                />
+                <span class="checkbox-label-text">Class Video Subscribers</span>
+              </label>
+              <p class="checkbox-hint">Active class video library subscribers have streaming access.</p>
             </div>
 
             <!-- One-off VOD Purchase Option -->
@@ -1187,25 +1232,32 @@
             ></textarea>
           </div>
 
-          <!-- Access Tiers (Multi-select) -->
-          <div class="form-group access-tiers-group">
-            <label class="section-heading-label">Who Can View (Allowed Access Methods)</label>
-            <p class="section-description">Select which groups have streaming access to this series:</p>
-            <div class="tiers-checkbox-grid">
-              @for (t of availableAccessTiers; track t.value) {
-                <label class="tier-card-option" [class.checked]="isSeriesAccessTierSelected(t.value)">
-                  <input
-                    type="checkbox"
-                    [checked]="isSeriesAccessTierSelected(t.value)"
-                    (change)="toggleSeriesAccessTier(t.value)"
-                  />
-                  <div class="tier-card-content">
-                    <span class="tier-title">{{ t.label }}</span>
-                    <span class="tier-desc">{{ t.description }}</span>
-                  </div>
-                </label>
+          <!-- Who can view it for free -->
+          <div class="form-group free-access-group">
+            <label class="section-heading-label">Who can view it for free</label>
+            <p class="section-description">Select who has free streaming access to this series. Instructors are members, and members are part of the public:</p>
+            <select
+              class="form-select free-access-select"
+              [ngModel]="editingSeriesFreeAccessTier()"
+              (ngModelChange)="editingSeriesFreeAccessTier.set($event)"
+            >
+              @for (opt of freeAccessTierOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }} &mdash; {{ opt.description }}</option>
               }
-            </div>
+            </select>
+          </div>
+
+          <!-- Class Video Subscription (Shown Separately) -->
+          <div class="form-group class-subscription-box">
+            <label class="checkbox-label class-sub-toggle">
+              <input
+                type="checkbox"
+                [ngModel]="editingSeriesHasClassSub()"
+                (ngModelChange)="editingSeriesHasClassSub.set($event)"
+              />
+              <span class="checkbox-label-text">Class Video Subscribers</span>
+            </label>
+            <p class="checkbox-hint">Active class video library subscribers have streaming access to this series.</p>
           </div>
 
           <!-- Series Direct Purchase Option -->

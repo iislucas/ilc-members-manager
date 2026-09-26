@@ -17,7 +17,16 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { VideoItem, VideoSeries, VodStatus, VodAccessTier, TagItem } from '../../../functions/src/data-model/vod';
+import {
+  VideoItem,
+  VideoSeries,
+  VodStatus,
+  VodAccessTier,
+  TagItem,
+  getVodFreeAccessTier,
+  hasClassVideoSubscriberAccess,
+  getVodFreeAccessLabel,
+} from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -125,6 +134,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   editingSeriesTitle = signal<string>('');
   editingSeriesDescription = signal<string>('');
   editingSeriesPriceDollars = signal<number | null>(null);
+  editingSeriesFreeAccessTier = signal<VodAccessTier>(VodAccessTier.MembersOnly);
+  editingSeriesHasClassSub = signal<boolean>(false);
   editingSeriesAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
   editingSeriesIsBuyable = signal<boolean>(false);
   editingSeriesStripePriceId = signal<string>('');
@@ -265,10 +276,19 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   isSaving = signal(false);
   editRecordedDate = signal<string>('');
   editTags = signal<string[]>([]);
+  editFreeAccessTier = signal<VodAccessTier>(VodAccessTier.MembersOnly);
+  editHasClassSub = signal<boolean>(false);
   editAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
   editIsBuyable = signal<boolean>(false);
   editStripePriceId = signal<string>('');
   priceDollars = signal<number | null>(null);
+
+  readonly freeAccessTierOptions = [
+    { value: VodAccessTier.Public, label: 'Public', description: 'Free to everyone (visitors & unauthenticated)' },
+    { value: VodAccessTier.MembersOnly, label: 'Members', description: 'Active members & licensed instructors' },
+    { value: VodAccessTier.InstructorsOnly, label: 'Instructors', description: 'Licensed instructors only' },
+    { value: VodAccessTier.AdminOnly, label: 'Admin only', description: 'No free access (administrators only)' },
+  ];
 
   readonly availableAccessTiers = [
     { value: VodAccessTier.Public, label: 'Public (Free to everyone)', description: 'Accessible to all visitors without logging in' },
@@ -915,6 +935,11 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     );
     this.editApplyToEntireSeries.set(false);
 
+    const freeTier = this.getFreeAccessTier(video);
+    const hasClassSub = this.hasClassSubscription(video);
+    this.editFreeAccessTier.set(freeTier);
+    this.editHasClassSub.set(hasClassSub);
+
     const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
       ? video.accessTiers.filter((t) => t !== VodAccessTier.DirectPurchase)
       : (video.accessTier && video.accessTier !== VodAccessTier.DirectPurchase ? [video.accessTier] : [VodAccessTier.MembersOnly]);
@@ -942,6 +967,17 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   }
 
   toggleAccessTier(tier: VodAccessTier): void {
+    if (tier === VodAccessTier.ClassVideoSubscribers) {
+      this.editHasClassSub.set(!this.editHasClassSub());
+    } else if (tier === VodAccessTier.DirectPurchase) {
+      this.editIsBuyable.set(!this.editIsBuyable());
+    } else {
+      if (this.editFreeAccessTier() === tier) {
+        this.editFreeAccessTier.set(VodAccessTier.AdminOnly);
+      } else {
+        this.editFreeAccessTier.set(tier);
+      }
+    }
     const current = this.editAccessTiers();
     if (current.includes(tier)) {
       this.editAccessTiers.set(current.filter((t) => t !== tier));
@@ -951,7 +987,13 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   }
 
   isAccessTierSelected(tier: VodAccessTier): boolean {
-    return this.editAccessTiers().includes(tier);
+    if (tier === VodAccessTier.ClassVideoSubscribers) {
+      return this.editHasClassSub();
+    }
+    if (tier === VodAccessTier.DirectPurchase) {
+      return this.editIsBuyable();
+    }
+    return this.editFreeAccessTier() === tier;
   }
 
   async saveVideoChanges(): Promise<void> {
@@ -982,7 +1024,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
         patch.seriesPartIndex = seriesPartIndex !== null ? seriesPartIndex : undefined;
         patch.isPublished = v.isPublished;
       } else {
-        const tiers = this.editAccessTiers();
+        const freeTier = this.editFreeAccessTier();
+        const hasClassSub = this.editHasClassSub();
         const isBuyable = this.editIsBuyable();
         const price = this.priceDollars();
         const priceCents = isBuyable && price ? Math.round(price * 100) : undefined;
@@ -990,11 +1033,25 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           ? this.editStripePriceId().trim()
           : undefined;
 
-        const finalTiers = isBuyable
-          ? Array.from(new Set([...tiers, VodAccessTier.DirectPurchase]))
-          : (tiers.length > 0 ? tiers.filter((t) => t !== VodAccessTier.DirectPurchase) : [VodAccessTier.MembersOnly]);
+        const finalTiers: VodAccessTier[] = [];
+        if (freeTier !== VodAccessTier.AdminOnly) {
+          finalTiers.push(freeTier);
+        }
+        if (hasClassSub) {
+          finalTiers.push(VodAccessTier.ClassVideoSubscribers);
+        }
+        if (isBuyable) {
+          finalTiers.push(VodAccessTier.DirectPurchase);
+        }
+        if (finalTiers.length === 0) {
+          finalTiers.push(VodAccessTier.AdminOnly);
+        }
 
-        patch.accessTier = tiers[0] || (isBuyable ? VodAccessTier.DirectPurchase : VodAccessTier.MembersOnly);
+        const primaryTier = freeTier !== VodAccessTier.AdminOnly
+          ? freeTier
+          : (hasClassSub ? VodAccessTier.ClassVideoSubscribers : (isBuyable ? VodAccessTier.DirectPurchase : VodAccessTier.AdminOnly));
+
+        patch.accessTier = primaryTier;
         patch.accessTiers = finalTiers;
         patch.isBuyable = isBuyable;
         patch.isPublished = v.isPublished;
@@ -1047,6 +1104,11 @@ export class ManageVodComponent implements OnInit, OnDestroy {
         ? series.priceCents / 100
         : null,
     );
+    const freeTier = this.getFreeAccessTier(series);
+    const hasClassSub = this.hasClassSubscription(series);
+    this.editingSeriesFreeAccessTier.set(freeTier);
+    this.editingSeriesHasClassSub.set(hasClassSub);
+
     const tiers = Array.isArray(series.accessTiers) && series.accessTiers.length > 0
       ? series.accessTiers.filter((t) => t !== VodAccessTier.DirectPurchase)
       : (series.accessTier && series.accessTier !== VodAccessTier.DirectPurchase ? [series.accessTier] : [VodAccessTier.MembersOnly]);
@@ -1064,6 +1126,17 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   }
 
   toggleSeriesAccessTier(tier: VodAccessTier): void {
+    if (tier === VodAccessTier.ClassVideoSubscribers) {
+      this.editingSeriesHasClassSub.set(!this.editingSeriesHasClassSub());
+    } else if (tier === VodAccessTier.DirectPurchase) {
+      this.editingSeriesIsBuyable.set(!this.editingSeriesIsBuyable());
+    } else {
+      if (this.editingSeriesFreeAccessTier() === tier) {
+        this.editingSeriesFreeAccessTier.set(VodAccessTier.AdminOnly);
+      } else {
+        this.editingSeriesFreeAccessTier.set(tier);
+      }
+    }
     const current = this.editingSeriesAccessTiers();
     if (current.includes(tier)) {
       this.editingSeriesAccessTiers.set(current.filter((t) => t !== tier));
@@ -1073,7 +1146,13 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   }
 
   isSeriesAccessTierSelected(tier: VodAccessTier): boolean {
-    return this.editingSeriesAccessTiers().includes(tier);
+    if (tier === VodAccessTier.ClassVideoSubscribers) {
+      return this.editingSeriesHasClassSub();
+    }
+    if (tier === VodAccessTier.DirectPurchase) {
+      return this.editingSeriesIsBuyable();
+    }
+    return this.editingSeriesFreeAccessTier() === tier;
   }
 
   closeSeriesModal(): void {
@@ -1110,18 +1189,33 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.isSavingSeries.set(true);
     try {
       const orderedIds = this.editingSeriesVideos().map((v) => v.docId);
+      const freeTier = this.editingSeriesFreeAccessTier();
+      const hasClassSub = this.editingSeriesHasClassSub();
       const isBuyable = this.editingSeriesIsBuyable();
       const price = this.editingSeriesPriceDollars();
       const priceCents = isBuyable && price !== null && price > 0
         ? Math.round(price * 100)
         : 0;
       const stripePriceId = isBuyable ? this.editingSeriesStripePriceId().trim() : '';
-      const tiers = this.editingSeriesAccessTiers();
       const isPublished = this.editingSeriesIsPublished();
 
-      const finalTiers = isBuyable
-        ? Array.from(new Set([...tiers, VodAccessTier.DirectPurchase]))
-        : (tiers.length > 0 ? tiers.filter((t) => t !== VodAccessTier.DirectPurchase) : [VodAccessTier.MembersOnly]);
+      const finalTiers: VodAccessTier[] = [];
+      if (freeTier !== VodAccessTier.AdminOnly) {
+        finalTiers.push(freeTier);
+      }
+      if (hasClassSub) {
+        finalTiers.push(VodAccessTier.ClassVideoSubscribers);
+      }
+      if (isBuyable) {
+        finalTiers.push(VodAccessTier.DirectPurchase);
+      }
+      if (finalTiers.length === 0) {
+        finalTiers.push(VodAccessTier.AdminOnly);
+      }
+
+      const primaryTier = freeTier !== VodAccessTier.AdminOnly
+        ? freeTier
+        : (hasClassSub ? VodAccessTier.ClassVideoSubscribers : (isBuyable ? VodAccessTier.DirectPurchase : VodAccessTier.AdminOnly));
 
       await this.dataService.updateVideoSeries(
         s.seriesId,
@@ -1130,7 +1224,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           description: this.editingSeriesDescription().trim(),
           priceCents,
           stripePriceId,
-          accessTier: tiers[0] || (isBuyable ? VodAccessTier.DirectPurchase : VodAccessTier.MembersOnly),
+          accessTier: primaryTier,
           accessTiers: finalTiers,
           isPublished,
         },
@@ -1150,6 +1244,52 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     } finally {
       this.isSavingSeries.set(false);
     }
+  }
+
+  async toggleSeriesPublished(series: VideoSeries): Promise<void> {
+    try {
+      const newPublished = !series.isPublished;
+      const orderedIds = series.videos.map((v) => v.docId);
+      await this.dataService.updateVideoSeries(
+        series.seriesId,
+        {
+          isPublished: newPublished,
+        },
+        orderedIds,
+      );
+    } catch (err: unknown) {
+      console.error('Error toggling series publication status:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to update publication status.';
+      alert(msg);
+    }
+  }
+
+  getFreeAccessTier(item: { accessTiers?: VodAccessTier[]; accessTier?: VodAccessTier }): VodAccessTier {
+    return getVodFreeAccessTier(item);
+  }
+
+  getFreeAccessLabel(item: { accessTiers?: VodAccessTier[]; accessTier?: VodAccessTier }): string {
+    const tier = getVodFreeAccessTier(item);
+    return getVodFreeAccessLabel(tier);
+  }
+
+  hasClassSubscription(item: { accessTiers?: VodAccessTier[]; accessTier?: VodAccessTier }): boolean {
+    return hasClassVideoSubscriberAccess(item);
+  }
+
+  isVideoBuyable(video: VideoItem): boolean {
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : []);
+    return Boolean(
+      video.isBuyable ||
+      tiers.includes(VodAccessTier.DirectPurchase) ||
+      (video.priceCents && video.priceCents > 0),
+    );
+  }
+
+  getBuyPriceLabel(video: VideoItem): string {
+    return video.priceCents ? `$${(video.priceCents / 100).toFixed(2)}` : 'Paid';
   }
 
   async retryTranscoding(video: VideoItem): Promise<void> {

@@ -545,9 +545,21 @@
       width: fit-content;
 
       &.free {
-        background: #f1f5f9;
-        color: v.$text-secondary;
-        border-color: v.$border-color-light;
+        background: #ecfdf5;
+        color: #065f46;
+        border-color: #a7f3d0;
+      }
+
+      &.admin-only {
+        background: #f4f4f5;
+        color: #71717a;
+        border-color: #e4e4e7;
+      }
+
+      &.class-sub {
+        background: #ede9fe;
+        color: #5b21b6;
+        border-color: #ddd6fe;
       }
 
       &.paid {
@@ -1495,6 +1507,68 @@
       }
     }
 
+    .free-access-group {
+      .section-heading-label {
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: v.$text-primary;
+        margin-bottom: 2px;
+      }
+
+      .section-description {
+        font-size: 0.8rem;
+        color: v.$text-secondary;
+        margin: 0 0 8px 0;
+      }
+
+      select.free-access-select {
+        width: 100%;
+        background-color: #ffffff;
+        cursor: pointer;
+        padding: 8px 12px;
+        border: 1px solid v.$border-color-light;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+
+        &:focus {
+          outline: none;
+          border-color: v.$heading-accent-color;
+        }
+      }
+    }
+
+    .class-subscription-box {
+      background: #f8fafc;
+      border: 1px solid v.$border-color-light;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: v.$text-primary;
+        cursor: pointer;
+
+        input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+          accent-color: v.$heading-accent-color;
+        }
+      }
+
+      .checkbox-hint {
+        margin: 4px 0 0 24px;
+        font-size: 0.78rem;
+        color: v.$text-secondary;
+      }
+    }
+
     .buyable-box {
       background: #f8fafc;
       border: 1px solid v.$border-color-light;
@@ -1693,8 +1767,8 @@
 
         .series-title-row {
           display: flex;
-          align-items: baseline;
-          gap: 0.75rem;
+          align-items: center;
+          gap: 0.5rem;
           flex-wrap: wrap;
 
           h4 {
@@ -1713,14 +1787,41 @@
             font-weight: 700;
           }
 
-          .series-free-badge {
-            background: #f4f4f5;
-            color: v.$text-secondary;
-            border: 1px solid v.$border-color-light;
-            padding: 2px 8px;
+          .tier-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
             border-radius: 12px;
             font-size: 0.78rem;
             font-weight: 600;
+            background: #f1f5f9;
+            color: v.$text-secondary;
+            border: 1px solid v.$border-color-light;
+            width: fit-content;
+
+            &.free {
+              background: #ecfdf5;
+              color: #065f46;
+              border-color: #a7f3d0;
+            }
+
+            &.admin-only {
+              background: #f4f4f5;
+              color: #71717a;
+              border-color: #e4e4e7;
+            }
+
+            &.class-sub {
+              background: #ede9fe;
+              color: #5b21b6;
+              border-color: #ddd6fe;
+            }
+
+            &.paid {
+              background: #fee2e2;
+              color: #991b1b;
+              border-color: #fca5a5;
+            }
           }
         }
 
