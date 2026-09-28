@@ -14,6 +14,13 @@ import { initMailSettings } from '../../../functions/src/data-model/mail';
 import { SearchableSet } from '../searchable-set';
 import { signal, WritableSignal, computed } from '@angular/core';
 
+vi.mock('firebase/storage', () => ({
+  getStorage: vi.fn().mockReturnValue({}),
+  ref: vi.fn().mockReturnValue({}),
+  uploadBytes: vi.fn().mockResolvedValue({}),
+  getDownloadURL: vi.fn().mockResolvedValue('https://storage.googleapis.com/thumb_new.jpg'),
+}));
+
 describe('ManageVodComponent', () => {
   let component: ManageVodComponent;
   let fixture: ComponentFixture<ManageVodComponent>;
@@ -40,6 +47,7 @@ describe('ManageVodComponent', () => {
   };
   let mockFirebaseState: {
     user: WritableSignal<{ isAdmin: boolean; member: { docId: string } } | null>;
+    app: any;
   };
   let mockRoutingService: {
     signals: {
@@ -56,6 +64,8 @@ describe('ManageVodComponent', () => {
           editVideoId: WritableSignal<string | null>;
           grantVideoId: WritableSignal<string | null>;
           grantSeriesId: WritableSignal<string | null>;
+          viewGrantsSeriesId: WritableSignal<string | null>;
+          editSeriesId: WritableSignal<string | null>;
           tab: WritableSignal<string | null>;
         };
       };
@@ -168,6 +178,7 @@ describe('ManageVodComponent', () => {
 
     mockFirebaseState = {
       user: signal({ isAdmin: true, member: { docId: 'admin1' } }),
+      app: {},
     };
 
     mockRoutingService = {
@@ -185,6 +196,7 @@ describe('ManageVodComponent', () => {
             editVideoId: signal(null),
             grantVideoId: signal<string | null>(null),
             grantSeriesId: signal<string | null>(null),
+            viewGrantsSeriesId: signal<string | null>(null),
             editSeriesId: signal<string | null>(null),
             tab: signal<string | null>(null),
           },
@@ -617,6 +629,36 @@ describe('ManageVodComponent', () => {
     await fixture.whenStable();
 
     expect(component.grantingSeries()?.seriesId).toBe('series-1');
+  });
+
+  it('should open and close the view grants modal for a series and sync URL params', () => {
+    const series = component.allSeries()[0];
+    component.openViewGrantsModal(series);
+    expect(component.viewingGrantsSeries()).toEqual(series);
+    expect(mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId()).toBe(series.seriesId);
+
+    component.closeViewGrantsModal();
+    expect(component.viewingGrantsSeries()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId()).toBe('');
+  });
+
+  it('should open view grants modal when viewGrantsSeriesId URL param is present on deep link', async () => {
+    mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId.set('series-1');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.viewingGrantsSeries()?.seriesId).toBe('series-1');
+  });
+
+  it('should transition from view grants modal to grant modal via onGrantRequestedFromViewGrants', () => {
+    const series = component.allSeries()[0];
+    component.openViewGrantsModal(series);
+    expect(component.viewingGrantsSeries()).toEqual(series);
+
+    component.onGrantRequestedFromViewGrants(series);
+    expect(component.viewingGrantsSeries()).toBeNull();
+    expect(component.grantingSeries()).toEqual(series);
+    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe(series.seriesId);
   });
 
   describe('Series Autocomplete Filter', () => {
@@ -1101,6 +1143,35 @@ describe('ManageVodComponent', () => {
       expect(chips.length).toBeGreaterThan(0);
       expect(compiled.querySelector('.listing-chip.listed')).toBeTruthy();
       expect(compiled.querySelector('.listing-chip.unlisted')).toBeTruthy();
+    });
+  });
+
+  describe('Thumbnail Customization', () => {
+    it('should open and close the thumbnail customization modal for a video', () => {
+      const video = mockDataService.videos.entries()[0];
+      component.openThumbnailModalForVideo(video);
+      expect(component.thumbnailModalVideo()).toBe(video);
+
+      component.closeThumbnailModal();
+      expect(component.thumbnailModalVideo()).toBeNull();
+    });
+
+    it('should upload thumbnail to Cloud Storage and update metadata when thumbnail is selected', async () => {
+      const video = mockDataService.videos.entries()[0];
+      component.openThumbnailModalForVideo(video);
+
+      const newBlob = new Blob(['thumb-bytes'], { type: 'image/jpeg' });
+      await component.onVideoThumbnailSelected({
+        blob: newBlob,
+        previewUrl: 'blob:mock-url',
+        width: 1280,
+        height: 720,
+      });
+
+      expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', {
+        thumbnailUrl: 'https://storage.googleapis.com/thumb_new.jpg',
+      });
+      expect(component.thumbnailModalVideo()).toBeNull();
     });
   });
 });

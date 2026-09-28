@@ -1,0 +1,216 @@
+@if (isOpen()) {
+  <div class="modal-backdrop" (click)="close()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="header-title-group">
+          <app-icon name="image" class="header-icon"></app-icon>
+          <h3>{{ title() }}</h3>
+        </div>
+        <button type="button" class="close-btn" (click)="close()" title="Close">
+          <app-icon name="close"></app-icon>
+        </button>
+      </div>
+
+      <!-- Mode Tabs -->
+      <div class="modal-tabs">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="activeTab() === 'video_frame'"
+          (click)="activeTab.set('video_frame')"
+        >
+          <app-icon name="videocam"></app-icon>
+          <span>Pick Frame from Video</span>
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="activeTab() === 'upload_image'"
+          (click)="activeTab.set('upload_image')"
+        >
+          <app-icon name="upload_file"></app-icon>
+          <span>Upload Image</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        @if (activeTab() === 'video_frame') {
+          <div class="video-scrubber-section">
+            <div class="video-container">
+              <video
+                #videoEl
+                playsinline
+                muted
+                crossorigin="anonymous"
+                (loadedmetadata)="onVideoMetadataLoaded()"
+                (timeupdate)="onTimeUpdate()"
+                (play)="isPlaying.set(true)"
+                (pause)="isPlaying.set(false)"
+                (error)="onVideoError($event)"
+              ></video>
+
+              @if (isLoadingVideo()) {
+                <div class="video-overlay loading-overlay">
+                  <app-spinner>Loading video frames...</app-spinner>
+                </div>
+              }
+            </div>
+
+            @if (videoError()) {
+              <div class="video-error-box">
+                <app-icon name="warning" class="error-icon"></app-icon>
+                <div class="error-text">
+                  <p>{{ videoError() }}</p>
+                  <label class="select-file-btn">
+                    <input
+                      type="file"
+                      accept="video/*"
+                      (change)="onSelectLocalVideoFile($event)"
+                      hidden
+                    />
+                    <app-icon name="upload_file"></app-icon>
+                    <span>Choose Local Video File</span>
+                  </label>
+                </div>
+              </div>
+            }
+
+            <!-- Scrubber Controls -->
+            <div class="scrub-controls-bar">
+              <div class="scrub-row">
+                <button
+                  type="button"
+                  class="play-toggle-btn"
+                  (click)="togglePlay()"
+                  [title]="isPlaying() ? 'Pause' : 'Play'"
+                >
+                  <app-icon [name]="isPlaying() ? 'pause' : 'play_arrow'"></app-icon>
+                </button>
+
+                <input
+                  type="range"
+                  class="timeline-slider"
+                  min="0"
+                  [max]="videoDuration() || 100"
+                  step="0.05"
+                  [value]="currentVideoTime()"
+                  (input)="onSliderInput($event)"
+                />
+
+                <span class="time-display">
+                  {{ formatTime(currentVideoTime()) }} / {{ formatTime(videoDuration()) }}
+                </span>
+              </div>
+
+              <!-- Fine-grain Step Buttons -->
+              <div class="step-buttons-row">
+                <div class="step-group">
+                  <span class="step-label">Nudge:</span>
+                  <button type="button" class="step-btn" (click)="nudge(-5)" title="Step back 5s">-5s</button>
+                  <button type="button" class="step-btn" (click)="nudge(-1)" title="Step back 1s">-1s</button>
+                  <button type="button" class="step-btn frame-step" (click)="nudge(-0.1)" title="Step back 1 frame">-0.1s</button>
+                  <button type="button" class="step-btn frame-step" (click)="nudge(0.1)" title="Step forward 1 frame">+0.1s</button>
+                  <button type="button" class="step-btn" (click)="nudge(1)" title="Step forward 1s">+1s</button>
+                  <button type="button" class="step-btn" (click)="nudge(5)" title="Step forward 5s">+5s</button>
+                </div>
+
+                <div class="capture-action-wrapper">
+                  @if (isProcessing()) {
+                    <app-spinner>Capturing frame...</app-spinner>
+                  } @else {
+                    <button
+                      type="button"
+                      class="primary-btn capture-btn"
+                      (click)="captureCurrentFrame()"
+                    >
+                      <app-icon name="image"></app-icon>
+                      <span>Capture This Frame</span>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Option to select local video file if not attached -->
+              @if (!videoFile() && !chosenLocalVideoFile()) {
+                <div class="local-source-helper">
+                  <span>Having trouble loading stream?</span>
+                  <label class="link-label">
+                    <input
+                      type="file"
+                      accept="video/*"
+                      (change)="onSelectLocalVideoFile($event)"
+                      hidden
+                    />
+                    Pick video file from disk
+                  </label>
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <!-- Upload Image Section -->
+          <div
+            class="upload-dropzone"
+            [class.dragging]="isDraggingImage()"
+            (dragover)="onImageDragOver($event)"
+            (dragleave)="onImageDragLeave($event)"
+            (drop)="onImageDrop($event)"
+            (click)="imageFileInput.click()"
+          >
+            <input
+              #imageFileInput
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              (change)="onImageInputChange($event)"
+              hidden
+            />
+            <app-icon name="cloud_upload" class="dropzone-icon"></app-icon>
+            <h4>Choose or drag an image here</h4>
+            <p>PNG, JPG, or WebP. Aspect ratio will be preserved.</p>
+            <button type="button" class="secondary-btn select-img-btn" (click)="$event.stopPropagation(); imageFileInput.click()">
+              <app-icon name="image"></app-icon>
+              <span>Browse Image File</span>
+            </button>
+          </div>
+        }
+
+        <!-- Selected Preview Section -->
+        @if (capturedPreviewUrl()) {
+          <div class="preview-card">
+            <div class="preview-header">
+              <span class="preview-title">Selected Thumbnail</span>
+              @if (capturedDimensions(); as dim) {
+                <span class="badge aspect-badge">
+                  {{ dim.w }} × {{ dim.h }} ({{ aspectRatioText() }})
+                </span>
+              }
+            </div>
+            <div class="preview-image-box">
+              <img [src]="capturedPreviewUrl()" alt="Thumbnail preview" class="preview-image" />
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="secondary-btn" (click)="close()">
+          Cancel
+        </button>
+
+        @if (isProcessing()) {
+          <app-spinner>Processing...</app-spinner>
+        } @else {
+          <button
+            type="button"
+            class="primary-btn"
+            [disabled]="!capturedBlob()"
+            (click)="applyThumbnail()"
+          >
+            <app-icon name="check"></app-icon>
+            <span>Use This Thumbnail</span>
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

@@ -615,6 +615,15 @@
             <button
               type="button"
               class="secondary-btn"
+              (click)="openViewGrantsModal(series, $event)"
+              title="View who has purchased or been granted access to this series"
+            >
+              <app-icon name="group"></app-icon>
+              <span>Purchases &amp; Grants</span>
+            </button>
+            <button
+              type="button"
+              class="secondary-btn"
               (click)="openGrantSeriesModal(series, $event)"
               title="Grant or gift access to all videos in this series"
             >
@@ -806,13 +815,24 @@
 
           <!-- Preview & Quick Summary -->
           <div class="drawer-preview-card">
-            @if (d.thumbnailUrl) {
-              <img [src]="d.thumbnailUrl" [alt]="d.title" class="drawer-thumb" />
-            } @else {
-              <div class="drawer-thumb-placeholder">
-                <app-icon name="video_library"></app-icon>
-              </div>
-            }
+            <div class="drawer-thumb-wrapper">
+              @if (d.thumbnailUrl) {
+                <img [src]="d.thumbnailUrl" [alt]="d.title" class="drawer-thumb" />
+              } @else {
+                <div class="drawer-thumb-placeholder">
+                  <app-icon name="video_library"></app-icon>
+                </div>
+              }
+              <button
+                type="button"
+                class="drawer-change-thumb-btn"
+                (click)="openThumbnailModalForVideo(d)"
+                title="Change thumbnail"
+              >
+                <app-icon name="image"></app-icon>
+                <span>Change Thumbnail</span>
+              </button>
+            </div>
             <div class="drawer-preview-meta">
               <h4>{{ d.title }}</h4>
               <p class="drawer-instructor">{{ d.instructorName || 'Featured Instructor' }}</p>
@@ -1056,6 +1076,38 @@
           <div class="form-group">
             <label>Description</label>
             <textarea rows="3" [(ngModel)]="edit.description"></textarea>
+          </div>
+
+          <!-- Thumbnail Poster -->
+          <div class="form-group thumbnail-edit-section">
+            <label class="section-heading-label">Thumbnail Poster</label>
+            <div class="thumb-edit-row">
+              <div class="thumb-preview-wrapper">
+                @if (edit.thumbnailUrl) {
+                  <img [src]="edit.thumbnailUrl" [alt]="edit.title" class="thumb-preview-img" />
+                } @else {
+                  <div class="thumb-placeholder-box">
+                    <app-icon name="live_tv"></app-icon>
+                    <span>No thumbnail</span>
+                  </div>
+                }
+              </div>
+              <div class="thumb-actions">
+                @if (isSavingThumbnail()) {
+                  <app-spinner>Saving thumbnail...</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="secondary-btn change-thumb-btn"
+                    (click)="openThumbnailModalForVideo(edit)"
+                  >
+                    <app-icon name="image"></app-icon>
+                    <span>Change Thumbnail</span>
+                  </button>
+                }
+                <p class="thumb-hint">Pick any frame from the video or upload a custom image.</p>
+              </div>
+            </div>
           </div>
 
           <!-- Recording Date -->
@@ -1453,5 +1505,24 @@
       (granted)="onAccessGranted($event)"
     ></app-grant-vod-modal>
   }
+
+  <!-- Series Access & Purchases Modal -->
+  @if (viewingGrantsSeries()) {
+    <app-series-grants-modal
+      [series]="viewingGrantsSeries()"
+      (closed)="closeViewGrantsModal()"
+      (grantRequested)="onGrantRequestedFromViewGrants($event)"
+    ></app-series-grants-modal>
+  }
+
+  <!-- Thumbnail Customization Modal -->
+  <app-thumbnail-editor-modal
+    [isOpen]="thumbnailModalVideo() !== null"
+    [title]="'Change Thumbnail — ' + (thumbnailModalVideo()?.title || '')"
+    [videoUrl]="thumbnailModalVideo()?.manifestUrl || null"
+    [initialThumbnailUrl]="thumbnailModalVideo()?.thumbnailUrl || null"
+    (thumbnailSelected)="onVideoThumbnailSelected($event)"
+    (closed)="closeThumbnailModal()"
+  ></app-thumbnail-editor-modal>
 </div>
 

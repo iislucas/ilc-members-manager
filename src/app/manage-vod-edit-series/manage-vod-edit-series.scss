@@ -18,6 +18,11 @@
 
   .header-nav {
     margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 
     .back-link {
       display: inline-flex;
@@ -33,6 +38,26 @@
       &:hover {
         color: v.$text-primary;
         background: rgba(0, 0, 0, 0.05);
+      }
+    }
+
+    .view-grants-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.88rem;
+      font-weight: 500;
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      background: white;
+      border: 1px solid #cbd5e1;
+      color: v.$text-primary;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
       }
     }
   }

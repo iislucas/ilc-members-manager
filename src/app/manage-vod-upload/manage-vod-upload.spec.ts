@@ -395,4 +395,25 @@ describe('ManageVodUploadComponent', () => {
       expect(btn.querySelector('app-spinner')).toBeNull();
     });
   });
+
+  it('should open thumbnail modal for entry and update preview on selection', async () => {
+    const file1 = new File(['fake-1'], 'first.mp4', { type: 'video/mp4' });
+    await component.addFiles([file1]);
+    const entry = component.fileEntries()[0];
+
+    component.openThumbnailModalForEntry(entry);
+    expect(component.editingThumbnailEntry()).toBe(entry);
+
+    const newThumbBlob = new Blob(['custom-thumb'], { type: 'image/jpeg' });
+    component.onEntryThumbnailSelected({
+      blob: newThumbBlob,
+      previewUrl: 'blob:custom-thumb-url',
+      width: 1280,
+      height: 720,
+    });
+
+    expect(component.fileEntries()[0].previewBlob).toBe(newThumbBlob);
+    expect(component.fileEntries()[0].previewUrl).toBe('blob:custom-thumb-url');
+    expect(component.editingThumbnailEntry()).toBeNull();
+  });
 });

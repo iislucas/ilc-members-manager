@@ -1,0 +1,390 @@
+<!-- series-grants-modal.html -->
+<div class="modal-backdrop" (click)="close()">
+  <div class="modal-dialog grants-modal-dialog" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="header-title-group">
+        <app-icon name="group" class="header-icon"></app-icon>
+        <div class="title-details">
+          <h3>Series Access &amp; Purchases</h3>
+          <p class="subtitle">
+            <span class="series-name">{{ series()?.title }}</span>
+            <span class="dot-sep">&bull;</span>
+            <span>{{ series()?.videoCount || series()?.videos?.length || 0 }} Videos</span>
+            @if (series()?.priceCents && series()?.priceCents! > 0) {
+              <span class="dot-sep">&bull;</span>
+              <span class="bundle-price">${{ (series()?.priceCents! / 100).toFixed(2) }} Bundle</span>
+            }
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="icon-only-button close-btn"
+        (click)="close()"
+        title="Close dialog"
+      >
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="modal-body">
+      @if (errorMessage()) {
+        <div class="alert-banner error-banner">
+          <app-icon name="error"></app-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <!-- Summary Stats Banner -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">{{ summaryStats().totalCount }}</div>
+          <div class="stat-label">Total Recipients</div>
+        </div>
+        <div class="stat-card highlight-purchase">
+          <div class="stat-number">{{ summaryStats().purchasedCount }}</div>
+          <div class="stat-label">
+            <span>Purchased</span>
+            @if (summaryStats().totalRevenueDollars !== '0.00') {
+              <span class="stat-sub">(${{ summaryStats().totalRevenueDollars }})</span>
+            }
+          </div>
+        </div>
+        <div class="stat-card highlight-gift">
+          <div class="stat-number">{{ summaryStats().giftedCount }}</div>
+          <div class="stat-label">Gifted</div>
+        </div>
+        <div class="stat-card highlight-admin">
+          <div class="stat-number">{{ summaryStats().adminGrantedCount }}</div>
+          <div class="stat-label">Admin Granted</div>
+        </div>
+        <div class="stat-card highlight-scope">
+          <div class="stat-number">{{ summaryStats().fullSeriesCount }}</div>
+          <div class="stat-label">Full Series Access</div>
+        </div>
+      </div>
+
+      <!-- Controls & Filter Toolbar -->
+      <div class="grants-toolbar">
+        <div class="search-box">
+          <app-icon name="search"></app-icon>
+          <input
+            type="text"
+            placeholder="Search by member name, ID, email, gift sender..."
+            [ngModel]="searchTerm()"
+            (ngModelChange)="searchTerm.set($event)"
+          />
+          @if (searchTerm()) {
+            <button
+              type="button"
+              class="icon-only-button clear-search-btn"
+              (click)="searchTerm.set('')"
+              title="Clear search"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
+          }
+        </div>
+
+        <div class="toolbar-filters">
+          <div class="filter-item">
+            <label>Origin:</label>
+            <select
+              [ngModel]="grantKindFilter()"
+              (ngModelChange)="grantKindFilter.set($event)"
+            >
+              <option value="all">All Origins</option>
+              <option [value]="VideoGrantKind.StripePurchase">Purchased</option>
+              <option [value]="VideoGrantKind.GiftPurchase">Gifted</option>
+              <option [value]="VideoGrantKind.AdminGrant">Admin Grant</option>
+              <option [value]="VideoGrantKind.Complimentary">Complimentary</option>
+              <option [value]="VideoGrantKind.EventAttendance">Event Attendee</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label>Scope:</label>
+            <select
+              [ngModel]="accessScopeFilter()"
+              (ngModelChange)="accessScopeFilter.set($event)"
+            >
+              <option value="all">All Access</option>
+              <option value="full">Full Series Only</option>
+              <option value="partial">Partial Episodes Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button
+            type="button"
+            class="secondary-btn copy-btn"
+            (click)="copyAllEmails()"
+            [disabled]="filteredRecipients().length === 0"
+            title="Copy all recipient email addresses to clipboard"
+          >
+            @if (copiedEmailsToast()) {
+              <app-icon name="check" class="success-icon"></app-icon>
+              <span>Copied Emails!</span>
+            } @else {
+              <app-icon name="content_copy"></app-icon>
+              <span>Copy Emails</span>
+            }
+          </button>
+
+          <button
+            type="button"
+            class="primary-btn grant-btn"
+            (click)="openGrantModal()"
+            title="Grant or gift this series to another person"
+          >
+            <app-icon name="card_giftcard"></app-icon>
+            <span>+ Grant / Gift</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      @if (isLoading()) {
+        <div class="loading-state">
+          <app-spinner>Loading series access and purchase records...</app-spinner>
+        </div>
+      } @else if (filteredRecipients().length === 0) {
+        <!-- Empty State -->
+        <div class="empty-state">
+          @if (searchTerm() || grantKindFilter() !== 'all' || accessScopeFilter() !== 'all') {
+            <app-icon name="person_search" class="empty-icon"></app-icon>
+            <h4>No matching recipients</h4>
+            <p>No one matches your current search or filter criteria.</p>
+            <button
+              type="button"
+              class="secondary-btn"
+              (click)="searchTerm.set(''); grantKindFilter.set('all'); accessScopeFilter.set('all')"
+            >
+              Clear Filters
+            </button>
+          } @else {
+            <app-icon name="group" class="empty-icon"></app-icon>
+            <h4>No access records found</h4>
+            <p>No one has purchased, been gifted, or been granted access to this series yet.</p>
+            <button
+              type="button"
+              class="primary-btn"
+              (click)="openGrantModal()"
+            >
+              <app-icon name="card_giftcard"></app-icon>
+              <span>Grant Access Now</span>
+            </button>
+          }
+        </div>
+      } @else {
+        <!-- Recipients List / Table -->
+        <div class="recipients-table-container">
+          <table class="recipients-table">
+            <thead>
+              <tr>
+                <th class="col-recipient">Recipient</th>
+                <th class="col-scope">Series Access</th>
+                <th class="col-origin">Origin / Details</th>
+                <th class="col-date">Granted / Purchased</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of filteredRecipients(); track r.recipientKey) {
+                <tr class="recipient-row">
+                  <!-- Recipient column -->
+                  <td class="col-recipient">
+                    <div class="recipient-cell">
+                      <div class="recipient-avatar">
+                        <app-icon name="person"></app-icon>
+                      </div>
+                      <div class="recipient-info">
+                        <div class="recipient-name-row">
+                          @if (r.memberDocId) {
+                            <a
+                              class="member-link"
+                              [href]="routingService.hrefForView(Views.ManageMemberView, { memberId: r.memberDocId || r.memberId || '' })"
+                              target="_blank"
+                              title="Open member details in new tab"
+                            >
+                              @if (r.memberId) {
+                                <span class="member-id-pill">({{ r.memberId }})</span>
+                              }
+                              <span class="name-text">{{ r.memberName }}</span>
+                              <app-icon name="launch" class="launch-icon"></app-icon>
+                            </a>
+                          } @else {
+                            <span class="name-text">{{ r.memberName }}</span>
+                            <span class="non-member-pill">Non-Member</span>
+                          }
+                        </div>
+                        <div class="recipient-email">{{ r.memberEmail }}</div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Scope column -->
+                  <td class="col-scope">
+                    @if (r.hasFullSeries) {
+                      <span class="scope-pill full-access" title="Has access to all videos in this series">
+                        <app-icon name="check_circle"></app-icon>
+                        <span>Full Series ({{ r.totalSeriesVideoCount }} Videos)</span>
+                      </span>
+                    } @else {
+                      <div class="partial-access-group">
+                        <span class="scope-pill partial-access" title="Has access to some episodes in this series">
+                          <span>{{ r.grantedVideoCount }} of {{ r.totalSeriesVideoCount }} Videos</span>
+                        </span>
+                        @if (r.grantedVideoTitles.length > 0) {
+                          <div class="partial-titles-list">
+                            @for (t of r.grantedVideoTitles; track t) {
+                              <span class="title-tag">{{ t }}</span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </td>
+
+                  <!-- Origin column -->
+                  <td class="col-origin">
+                    <div class="origin-cell">
+                      <span class="origin-badge" [class]="getGrantKindBadgeClass(r.primaryGrantKind)">
+                        {{ getGrantKindLabel(r.primaryGrantKind) }}
+                      </span>
+
+                      @if (r.amountPaidCents && r.amountPaidCents > 0) {
+                        <span class="amount-paid">${{ (r.amountPaidCents / 100).toFixed(2) }}</span>
+                      }
+
+                      @if (r.isGift) {
+                        <div class="gift-meta">
+                          <span class="gift-from">
+                            From: <strong>{{ r.giftedByName || 'A Friend' }}</strong>
+                            @if (r.giftedByEmail) {
+                              <span class="gift-email">({{ r.giftedByEmail }})</span>
+                            }
+                          </span>
+                          @if (r.giftMessage) {
+                            <blockquote class="gift-msg">"{{ r.giftMessage }}"</blockquote>
+                          }
+                        </div>
+                      }
+
+                      @if (r.orderDocId) {
+                        <a
+                          class="order-link"
+                          [href]="routingService.hrefForView(Views.ManageOrders, { q: r.orderDocId, searchField: 'orderId' })"
+                          target="_blank"
+                          title="View order in Manage Orders"
+                        >
+                          <app-icon name="receipt_long"></app-icon>
+                          <span>Order Details</span>
+                        </a>
+                      }
+
+                      @if (r.notes) {
+                        <div class="grant-notes" title="{{ r.notes }}">
+                          <span class="notes-prefix">Note:</span> {{ r.notes }}
+                        </div>
+                      }
+
+                      @if (r.expiresAt) {
+                        <div class="expiry-note">
+                          Expires: {{ formatDate(r.expiresAt) }}
+                        </div>
+                      }
+                    </div>
+                  </td>
+
+                  <!-- Granted date column -->
+                  <td class="col-date">
+                    <span class="date-text">{{ formatDate(r.latestGrantedAt) }}</span>
+                  </td>
+
+                  <!-- Actions column -->
+                  <td class="col-actions">
+                    <div class="action-btn-group">
+                      @if (r.memberDocId) {
+                        <a
+                          class="icon-action-btn view-member-btn"
+                          [href]="routingService.hrefForView(Views.ManageMemberView, { memberId: r.memberDocId || r.memberId || '' })"
+                          target="_blank"
+                          title="View member profile"
+                        >
+                          <app-icon name="person"></app-icon>
+                        </a>
+                      }
+                      <button
+                        type="button"
+                        class="icon-action-btn revoke-btn"
+                        (click)="promptRevoke(r)"
+                        title="Revoke access to this series for this recipient"
+                      >
+                        <app-icon name="delete"></app-icon>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="modal-footer">
+      <div class="footer-info">
+        <span>Showing {{ filteredRecipients().length }} of {{ recipients().length }} recipients</span>
+      </div>
+      <button type="button" class="secondary-btn" (click)="close()">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Revoke Confirmation Dialog -->
+@if (revokeConfirmRecipient()) {
+  <div class="modal-backdrop revoke-confirm-backdrop" (click)="cancelRevoke()">
+    <div class="revoke-dialog card" (click)="$event.stopPropagation()">
+      <div class="revoke-header">
+        <app-icon name="warning" class="warning-icon"></app-icon>
+        <h4>Revoke Series Access?</h4>
+      </div>
+      <p class="revoke-message">
+        Are you sure you want to revoke access to <strong>{{ series()?.title }}</strong> for
+        <strong>{{ revokeConfirmRecipient()?.memberName }}</strong>
+        ({{ revokeConfirmRecipient()?.memberEmail }})?
+      </p>
+      <p class="revoke-subtext">
+        This will remove {{ revokeConfirmRecipient()?.grants?.length }} access grant(s) for this series.
+      </p>
+      <div class="revoke-actions">
+        <button
+          type="button"
+          class="secondary-btn"
+          (click)="cancelRevoke()"
+          [disabled]="isRevoking()"
+        >
+          Cancel
+        </button>
+        @if (isRevoking()) {
+          <app-spinner>Revoking...</app-spinner>
+        } @else {
+          <button
+            type="button"
+            class="danger-btn"
+            (click)="confirmRevoke(revokeConfirmRecipient()!)"
+          >
+            Revoke Access
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

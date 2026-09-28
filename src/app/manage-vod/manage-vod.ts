@@ -37,6 +37,12 @@ import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete'
 import { SearchableSet } from '../searchable-set';
 import { TagInputComponent } from '../tag-input/tag-input';
 import { GrantVodModalComponent } from '../grant-vod-modal/grant-vod-modal';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import {
+  ThumbnailEditorModalComponent,
+  ThumbnailSelectedEvent,
+} from '../thumbnail-editor-modal/thumbnail-editor-modal';
+import { SeriesGrantsModalComponent } from '../series-grants-modal/series-grants-modal';
 
 @Component({
   selector: 'app-manage-vod',
@@ -49,6 +55,8 @@ import { GrantVodModalComponent } from '../grant-vod-modal/grant-vod-modal';
     AutocompleteComponent,
     TagInputComponent,
     GrantVodModalComponent,
+    ThumbnailEditorModalComponent,
+    SeriesGrantsModalComponent,
   ],
   templateUrl: './manage-vod.html',
   styleUrl: './manage-vod.scss',
@@ -74,6 +82,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
   grantVideoIdParam = computed(() => this.viewSignals.urlParams.grantVideoId() || '');
   grantSeriesIdParam = computed(() => this.viewSignals.urlParams.grantSeriesId() || '');
+  viewGrantsSeriesIdParam = computed(() => this.viewSignals.urlParams.viewGrantsSeriesId() || '');
   editSeriesIdParam = computed(() => this.viewSignals.urlParams.editSeriesId() || '');
   tabParam = computed(() => this.viewSignals.urlParams.tab() || 'series_collections');
   selectedTagFilter = signal<string>('');
@@ -229,6 +238,30 @@ export class ManageVodComponent implements OnInit, OnDestroy {
 
   onAccessGranted(result: { targetId: string; recipientEmail: string; grantedCount: number }): void {
     console.info('VOD access granted successfully:', result);
+  }
+
+  // View Series Grants & Purchases Modal state
+  viewingGrantsSeries = signal<VideoSeries | null>(null);
+
+  openViewGrantsModal(series: VideoSeries, event?: Event, updateUrl: boolean = true): void {
+    if (event) event.stopPropagation();
+    this.closeMenu();
+    if (updateUrl) {
+      this.viewSignals.urlParams.viewGrantsSeriesId.set(series.seriesId);
+    }
+    this.viewingGrantsSeries.set(series);
+  }
+
+  closeViewGrantsModal(updateUrl: boolean = true): void {
+    this.viewingGrantsSeries.set(null);
+    if (updateUrl) {
+      this.viewSignals.urlParams.viewGrantsSeriesId.set('');
+    }
+  }
+
+  onGrantRequestedFromViewGrants(series: VideoSeries): void {
+    this.closeViewGrantsModal();
+    this.openGrantSeriesModal(series);
   }
 
   isDeleting(videoId?: string): boolean {
@@ -700,6 +733,22 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       } else if (!this.grantVideoIdParam()) {
         if (this.grantingSeries()) {
           this.closeGrantModal(false);
+        }
+      }
+    });
+
+    effect(() => {
+      const vgSid = this.viewGrantsSeriesIdParam();
+      if (vgSid) {
+        if (this.viewingGrantsSeries()?.seriesId !== vgSid) {
+          const s = this.allSeries().find((item) => item.seriesId === vgSid);
+          if (s) {
+            this.openViewGrantsModal(s, undefined, false);
+          }
+        }
+      } else {
+        if (this.viewingGrantsSeries()) {
+          this.closeViewGrantsModal(false);
         }
       }
     });
@@ -1214,6 +1263,50 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       alert(msg);
     } finally {
       this.isSaving.set(false);
+    }
+  }
+
+  // --- Thumbnail Customization Modal State ---
+  thumbnailModalVideo = signal<VideoItem | null>(null);
+  isSavingThumbnail = signal<boolean>(false);
+
+  openThumbnailModalForVideo(video: VideoItem): void {
+    this.thumbnailModalVideo.set(video);
+  }
+
+  closeThumbnailModal(): void {
+    this.thumbnailModalVideo.set(null);
+  }
+
+  async onVideoThumbnailSelected(result: ThumbnailSelectedEvent): Promise<void> {
+    const video = this.thumbnailModalVideo();
+    if (!video) return;
+
+    this.isSavingThumbnail.set(true);
+    try {
+      const storage = getStorage(this.firebaseState.app);
+      const storagePath = `vod/${video.docId}/preview_${Date.now()}.jpg`;
+      const previewRef = ref(storage, storagePath);
+      await uploadBytes(previewRef, result.blob, { contentType: 'image/jpeg' });
+      const newUrl = await getDownloadURL(previewRef);
+
+      await this.dataService.updateVideoMetadata(video.docId, {
+        thumbnailUrl: newUrl,
+      });
+
+      if (this.editingVideo()?.docId === video.docId) {
+        this.editingVideo.update((v) => (v ? { ...v, thumbnailUrl: newUrl } : null));
+      }
+      if (this.drawerVideo()?.docId === video.docId) {
+        this.drawerVideo.update((v) => (v ? { ...v, thumbnailUrl: newUrl } : null));
+      }
+
+      this.closeThumbnailModal();
+    } catch (err: unknown) {
+      console.error('Failed to update video thumbnail:', err);
+      alert('Failed to update thumbnail: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      this.isSavingThumbnail.set(false);
     }
   }
 
