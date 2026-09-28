@@ -657,6 +657,9 @@ export class DataManagerService {
       return;
     }
 
+    const cacheKey = `my_orders_${memberDocId}`;
+    void this.syncService.loadCachedData(cacheKey, this.myOrders);
+
     const ordersSubcollection = collection(
       this.db,
       'members',
@@ -670,6 +673,7 @@ export class DataManagerService {
       (snapshot) => {
         const orders = snapshot.docs.map(firestoreDocToMemberOrder);
         this.myOrders.setEntries(orders);
+        void this.syncService.saveCachedBundle(cacheKey, orders);
       },
       (error) => {
         console.error('Error listening to member orders:', error);
@@ -689,6 +693,9 @@ export class DataManagerService {
       return;
     }
 
+    const cacheKey = `my_video_grants_${memberDocId}`;
+    void this.syncService.loadCachedData(cacheKey, this.myVideoGrants);
+
     const grantsSubcollection = collection(
       this.db,
       'members',
@@ -701,6 +708,7 @@ export class DataManagerService {
       (snapshot) => {
         const grants = snapshot.docs.map(firestoreDocToVideoGrant);
         this.myVideoGrants.setEntries(grants);
+        void this.syncService.saveCachedBundle(cacheKey, grants);
       },
       (error) => {
         console.error('Error listening to member video grants:', error);

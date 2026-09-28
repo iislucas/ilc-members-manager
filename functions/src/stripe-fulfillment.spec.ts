@@ -174,6 +174,16 @@ describe('stripe-fulfillment', () => {
             }),
           };
         }
+        if (colName === 'videos') {
+          return {
+            where: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              limit: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              }),
+            }),
+          };
+        }
         return {};
       }),
     };
@@ -1814,6 +1824,84 @@ describe('stripe-fulfillment', () => {
             replacements: expect.objectContaining({
               videoTitle: 'Level 3 Complete Masterclass (Gift for Kung Fu Friend)',
             }),
+          }),
+        );
+      });
+
+      it('expands all series episodes and grants access to each episode when a series is purchased', async () => {
+        const order: StripeOrder = {
+          docId: 'order_series_1',
+          lastUpdated: '2026-05-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_series_1',
+          checkoutSessionId: 'cs_series_1',
+          created: '2026-05-15T00:00:00Z',
+          customerEmail: 'sam@example.com',
+          amountTotal: 6000,
+          currency: 'usd',
+          mode: StripeCheckoutMode.Payment,
+          metadata: {
+            memberDocId: 'mem_123',
+            seriesId: 'series_fundamentals',
+            orderType: 'vod',
+          },
+          lineItems: [
+            {
+              description: 'Fundamentals 3-Part Series',
+              quantity: 1,
+              amountTotal: 6000,
+              currency: 'usd',
+              priceId: 'price_series_1',
+              productId: 'prod_series_fundamentals',
+            },
+          ],
+        };
+
+        const ep1Doc = { id: 'ep_1', data: () => ({ title: 'Part 1', seriesId: 'series_fundamentals' }) };
+        const ep2Doc = { id: 'ep_2', data: () => ({ title: 'Part 2', seriesId: 'series_fundamentals' }) };
+
+        const origCol = mockDb.collection;
+        mockDb.collection = vi.fn((colName: string) => {
+          if (colName === 'videos') {
+            return {
+              where: vi.fn((field: string, op: string, val: string) => ({
+                get: vi.fn().mockResolvedValue({
+                  empty: false,
+                  docs: field === 'seriesId' && val === 'series_fundamentals' ? [ep1Doc, ep2Doc] : [],
+                }),
+                limit: vi.fn().mockReturnValue({
+                  get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+                }),
+              })),
+            };
+          }
+          return origCol(colName);
+        });
+
+        await fulfillStripeOrder(mockDb, sampleMember, order, 'order_series_1');
+
+        // Series ID itself is granted
+        expect(mockMemberVideoGrantsSet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            docId: 'series_fundamentals',
+            videoId: 'series_fundamentals',
+            memberDocId: 'mem_123',
+          }),
+        );
+        // Both episodes are also granted
+        expect(mockMemberVideoGrantsSet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            docId: 'ep_1',
+            videoId: 'ep_1',
+            memberDocId: 'mem_123',
+          }),
+        );
+        expect(mockMemberVideoGrantsSet).toHaveBeenCalledWith(
+          expect.objectContaining({
+            docId: 'ep_2',
+            videoId: 'ep_2',
+            memberDocId: 'mem_123',
           }),
         );
       });
