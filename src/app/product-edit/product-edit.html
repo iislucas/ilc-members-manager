@@ -362,7 +362,7 @@
                 <div class="video-inputs-row">
                   <input
                     type="text"
-                    placeholder="VOD Video ID (optional)"
+                    placeholder="VOD Video ID or Series ID (optional)"
                     [value]="productModel().recordedVideoId || ''"
                     (input)="updateRecordedVideoId($any($event.target).value)"
                   />
@@ -375,7 +375,7 @@
                 </div>
                 <span class="field-hint"
                   >Attendees registered with video access will automatically be
-                  granted access when provided.</span
+                  granted access (including all parts of a series) when provided.</span
                 >
               </div>
             }

@@ -151,6 +151,13 @@ export class EventViewComponent implements OnInit {
     const prod = this.product();
     const vid = ev?.recordedVideoId || prod?.recordedVideoId;
     if (vid) {
+      // If vid is a series ID, route to the first episode in that series
+      const allVideos = this.dataService.videos.entries();
+      const seriesVideos = allVideos.filter((v) => v.seriesId === vid || v.forVodPageId === vid);
+      if (seriesVideos.length > 0) {
+        const sorted = [...seriesVideos].sort((a, b) => (a.seriesPartIndex || 0) - (b.seriesPartIndex || 0));
+        return this.routingService.hrefForView(Views.VideoView, { videoId: sorted[0].docId });
+      }
       return this.routingService.hrefForView(Views.VideoView, { videoId: vid });
     }
     return ev?.recordedVideoUrl || prod?.recordedVideoUrl || null;

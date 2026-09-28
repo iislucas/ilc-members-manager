@@ -40,6 +40,7 @@ import { sendTransactionalEmail } from './email-dispatcher.js';
 import { TransactionalEmailKey } from './data-model/mail';
 
 import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
+import { resolveEventVideoGrantTargets } from './proposed-events';
 
 function unixSecondsToDateString(seconds: number | null | undefined): string {
   if (!seconds) return '';
@@ -1075,44 +1076,64 @@ export async function fulfillEventRegistration(
         }
 
         // 2. Provision video grant if video is available right now
-        if (hasVideoAccess && recordedVideoId && memberDocId) {
-          const grant: VideoGrant = {
-            docId: recordedVideoId,
-            videoId: recordedVideoId,
-            memberDocId,
-            memberEmail: email,
-            grantKind: VideoGrantKind.StripePurchase,
-            orderDocId,
-            stripeSessionId: order.checkoutSessionId,
-            amountPaidCents,
-            grantedAt: new Date().toISOString(),
-          };
-          await db
-            .collection(FirestoreCollection.Members)
-            .doc(memberDocId)
-            .collection(FirestoreSubcollection.VideoGrants)
-            .doc(recordedVideoId)
-            .set(grant);
-          await db
-            .collection(FirestoreCollection.VideoGrants)
-            .doc(`${memberDocId}_${recordedVideoId}`)
-            .set(grant);
+        if (hasVideoAccess && recordedVideoId && (memberDocId || email)) {
+          const { targetDocIds, primaryWatchVideoId } = await resolveEventVideoGrantTargets(
+            db,
+            recordedVideoId,
+          );
+
+          for (const targetId of targetDocIds) {
+            const grant: VideoGrant = {
+              docId: targetId,
+              videoId: targetId,
+              memberDocId: memberDocId || '',
+              memberEmail: email,
+              grantKind: VideoGrantKind.StripePurchase,
+              orderDocId,
+              stripeSessionId: order.checkoutSessionId,
+              amountPaidCents,
+              grantedAt: new Date().toISOString(),
+            };
+
+            if (memberDocId) {
+              await db
+                .collection(FirestoreCollection.Members)
+                .doc(memberDocId)
+                .collection(FirestoreSubcollection.VideoGrants)
+                .doc(targetId)
+                .set(grant, { merge: true });
+              await db
+                .collection(FirestoreCollection.VideoGrants)
+                .doc(`${memberDocId}_${targetId}`)
+                .set(grant, { merge: true });
+            } else if (email) {
+              const cleanEmail = email.replace(/[^a-zA-Z0-9@._-]/g, '_');
+              await db
+                .collection(FirestoreCollection.VideoGrants)
+                .doc(`${cleanEmail}_${targetId}`)
+                .set(grant, { merge: true });
+            }
+          }
+
           logger.info('Auto-provisioned VideoGrant for event registration', {
             memberDocId,
             recordedVideoId,
+            targetCount: targetDocIds.length,
             eventDocId,
           });
 
-          await createMemberNotification(db, memberDocId, {
-            kind: NotificationKind.EventVideoAvailable,
-            markdown: `The class video recording for **[${eventTitle}](/events/${eventDocId})** is ready! You can [watch it now](/videos/${encodeURIComponent(recordedVideoId)}).`,
-            createdAt: new Date().toISOString(),
-            dismissed: false,
-            data: {
-              eventId: eventDocId,
-              videoId: recordedVideoId,
-            },
-          });
+          if (memberDocId) {
+            await createMemberNotification(db, memberDocId, {
+              kind: NotificationKind.EventVideoAvailable,
+              markdown: `The class video recording for **[${eventTitle}](/events/${eventDocId})** is ready! You can [watch it now](/videos/${encodeURIComponent(primaryWatchVideoId)}).`,
+              createdAt: new Date().toISOString(),
+              dismissed: false,
+              data: {
+                eventId: eventDocId,
+                videoId: primaryWatchVideoId,
+              },
+            });
+          }
         }
       }
     } catch (err) {

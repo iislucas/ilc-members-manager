@@ -56,6 +56,9 @@ describe('EventViewComponent', () => {
     instructors: {
       get: vi.fn().mockReturnValue(undefined),
     },
+    videos: {
+      entries: signal([]),
+    },
   };
 
   const mockRoutingService = {
@@ -123,6 +126,18 @@ describe('EventViewComponent', () => {
     expect(component.registerUrl()).toBe('/events/event-1/register');
     expect(component.videoWatchUrl()).toBe('/videos/video-123');
     expect(component.registrationsUrl()).toBe('/events/event-1/registrations');
+  });
+
+  it('should resolve series ID in recordedVideoId to the first episode video URL', async () => {
+    (mockDataManagerService.videos.entries as any).set([
+      { docId: 'ep-2', seriesId: 'series-test', seriesPartIndex: 2 } as any,
+      { docId: 'ep-1', seriesId: 'series-test', seriesPartIndex: 1 } as any,
+    ]);
+    component.event.set({
+      ...mockEvent,
+      recordedVideoId: 'series-test',
+    });
+    expect(component.videoWatchUrl()).toBe('/videos/ep-1');
   });
 
   it('should allow owner and manager to manage event registrations', async () => {
