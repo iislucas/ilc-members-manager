@@ -525,4 +525,106 @@ describe('VideosCatalogComponent', () => {
       expect(toggleBtn).toBeNull();
     });
   });
+
+  describe('Purchased series and episode access', () => {
+    const part1: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v-p1',
+      title: 'Masterclass Part 1',
+      seriesId: 'series-masterclass',
+      seriesTitle: 'Complete Masterclass',
+      seriesPartIndex: 1,
+      accessTier: VodAccessTier.DirectPurchase,
+      isPublished: true,
+      isBuyable: true,
+      priceCents: 2000,
+    };
+    const part2: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v-p2',
+      title: 'Masterclass Part 2',
+      seriesId: 'series-masterclass',
+      seriesTitle: 'Complete Masterclass',
+      seriesPartIndex: 2,
+      accessTier: VodAccessTier.DirectPurchase,
+      isPublished: true,
+      isBuyable: true,
+      priceCents: 2000,
+    };
+    const part3: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v-p3',
+      title: 'Masterclass Part 3',
+      seriesId: 'series-masterclass',
+      seriesTitle: 'Complete Masterclass',
+      seriesPartIndex: 3,
+      accessTier: VodAccessTier.DirectPurchase,
+      isPublished: true,
+      isBuyable: true,
+      priceCents: 2000,
+    };
+
+    beforeEach(() => {
+      mockFirebaseState.user.set({
+        docId: 'user-1',
+        member: { docId: 'm-1' },
+      });
+      mockDataService.videos.entries.set([part1, part2, part3]);
+    });
+
+    it('should grant access to video if seriesId or forVodPageId is granted', () => {
+      // Granting the series ID gives access to constituent video
+      mockDataService.myVideoGrants.entries.set([
+        { docId: 'grant-s', videoId: 'series-masterclass', memberDocId: 'm-1' },
+      ]);
+      expect(component.userHasAccess(part1)).toBe(true);
+      expect(component.isPurchasedVideo(part1)).toBe(true);
+
+      // Video with forVodPageId
+      const vodPageVideo: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-page-item',
+        title: 'VOD Page Item',
+        forVodPageId: 'vod-page-123',
+        accessTier: VodAccessTier.DirectPurchase,
+        isPublished: true,
+      };
+      mockDataService.myVideoGrants.entries.set([
+        { docId: 'grant-page', videoId: 'vod-page-123', memberDocId: 'm-1' },
+      ]);
+      expect(component.userHasAccess(vodPageVideo)).toBe(true);
+      expect(component.isPurchasedVideo(vodPageVideo)).toBe(true);
+    });
+
+    it('should show partial badge and route to purchased episode when 1 part of series is bought', () => {
+      // User only purchased Part 2
+      mockDataService.myVideoGrants.entries.set([
+        { docId: 'grant-p2', videoId: 'v-p2', memberDocId: 'm-1' },
+      ]);
+
+      const entries = component.filteredCatalogEntries();
+      expect(entries.length).toBe(1);
+      const seriesEntry = entries[0];
+      expect(seriesEntry.kind).toBe('series');
+      expect(seriesEntry.isPurchased).toBe(true);
+      expect(component.entryHasAccess(seriesEntry)).toBe(true);
+      expect(component.getEntryPurchasedBadgeLabel(seriesEntry)).toBe('1 of 3 Purchased');
+
+      // Routing to entry routes directly to Part 2
+      mockRoutingService.hrefForView.mockImplementation((view, params) => `/videos/${params.videoId}`);
+      expect(component.getEntryHref(seriesEntry)).toBe('/videos/v-p2');
+    });
+
+    it('should show full Purchased badge when entire series is bought', () => {
+      // User purchased whole series
+      mockDataService.myVideoGrants.entries.set([
+        { docId: 'grant-series', videoId: 'series-masterclass', memberDocId: 'm-1' },
+      ]);
+
+      const entries = component.filteredCatalogEntries();
+      const seriesEntry = entries[0];
+      expect(seriesEntry.isPurchased).toBe(true);
+      expect(component.getEntryPurchasedBadgeLabel(seriesEntry)).toBe('Purchased');
+    });
+  });
 });

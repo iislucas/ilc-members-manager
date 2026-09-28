@@ -85,6 +85,24 @@ export class IncrementalSyncService {
   }
 
   /**
+   * Persists a bundle of entries to IndexedDB cache under cacheKey with the provided or current timestamp.
+   */
+  async saveCachedBundle<T>(
+    cacheKey: string,
+    entries: T[],
+    lastSyncTimestamp?: string,
+  ): Promise<void> {
+    try {
+      await this.idb.set(cacheKey, {
+        entries,
+        lastSyncTimestamp: lastSyncTimestamp || new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn(`[IncrementalSync] Error saving cache for ${cacheKey}:`, err);
+    }
+  }
+
+  /**
    * Performs an incremental delta sync from Firestore, merges updates/deletions,
    * updates the SearchableSet in memory, and persists back to IndexedDB.
    */

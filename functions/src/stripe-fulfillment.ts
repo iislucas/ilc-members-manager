@@ -29,7 +29,7 @@ import { Member, MemberUpdates, MemberSubscriptionItem, MembershipType, firestor
 import { NotificationKind } from './data-model/notifications';
 import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderType, StripeOrderLineItem, StripeCheckoutMode, OrderStatus, OrderKind } from './data-model/orders';
 import { initSchool, School } from './data-model/schools';
-import { VideoGrant, VideoGrantKind } from './data-model/vod';
+import { VideoGrant, VideoGrantKind, firestoreDocToVideoItem } from './data-model/vod';
 import { canonicalizeGradingLevel } from './level-utils';
 import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
@@ -1459,11 +1459,53 @@ export async function fulfillStripeOrder(
         order.metadata?.['gradingLevel'] || '',
       );
     } else if (category === OrderItemCategory.Vod || order.metadata?.['videoId'] || order.metadata?.['seriesId']) {
-      const videoId = (order.metadata?.['videoId'] || item.productId || '').replace(/^prod_/, '');
-      const seriesId = (order.metadata?.['seriesId'] || '').replace(/^prod_/, '');
+      let videoId = (order.metadata?.['videoId'] || '').replace(/^prod_/, '');
+      let seriesId = (order.metadata?.['seriesId'] || '').replace(/^prod_/, '');
+
+      if (!videoId && !seriesId && item.productId) {
+        const prodId = item.productId;
+        try {
+          const [prodSnap, seriesProdSnap] = await Promise.all([
+            db.collection(FirestoreCollection.Videos).where('stripeProductId', '==', prodId).limit(1).get(),
+            db.collection(FirestoreCollection.Videos).where('seriesStripeProductId', '==', prodId).limit(1).get(),
+          ]);
+          if (!prodSnap.empty) {
+            videoId = prodSnap.docs[0].id;
+          } else if (!seriesProdSnap.empty) {
+            const v = firestoreDocToVideoItem(seriesProdSnap.docs[0]);
+            seriesId = v.seriesId || v.forVodPageId || seriesProdSnap.docs[0].id;
+          } else {
+            videoId = prodId.replace(/^prod_/, '');
+          }
+        } catch (err) {
+          logger.warn('Failed to query videos for stripeProductId:', { prodId, err });
+          videoId = prodId.replace(/^prod_/, '');
+        }
+      }
+
+      // If targetType was explicitly passed as series, ensure seriesId is populated
+      if (order.metadata?.['targetType'] === 'series' && videoId && !seriesId) {
+        seriesId = videoId;
+      }
+
       const grantTargetIds = new Set<string>();
-      if (videoId) grantTargetIds.add(videoId);
-      if (seriesId) grantTargetIds.add(seriesId);
+      if (videoId) {
+        grantTargetIds.add(videoId);
+      }
+      if (seriesId) {
+        grantTargetIds.add(seriesId);
+        try {
+          const [bySeriesId, byVodPageId] = await Promise.all([
+            db.collection(FirestoreCollection.Videos).where('seriesId', '==', seriesId).get(),
+            db.collection(FirestoreCollection.Videos).where('forVodPageId', '==', seriesId).get(),
+          ]);
+          for (const doc of [...bySeriesId.docs, ...byVodPageId.docs]) {
+            grantTargetIds.add(doc.id);
+          }
+        } catch (err) {
+          logger.warn('Failed to expand series episodes for seriesId:', { seriesId, err });
+        }
+      }
 
       const isGift = order.metadata?.['isGift'] === 'true';
       const recipientEmail = (order.metadata?.['recipientEmail'] || '').trim().toLowerCase();
