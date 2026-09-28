@@ -736,6 +736,7 @@ export class ManageVodUploadComponent implements OnInit {
       const vodConfig: Partial<VideoItem> = {
         title: entry.title || entry.file.name,
         description: entry.description || (mode === 'existing_series' ? (existingSeries?.description || '') : this.seriesDescription()),
+        durationSeconds: entry.durationSeconds || 0,
         tags: mode === 'existing_series' ? (existingSeries?.tags || []) : this.tags(),
         accessTiers: accessTiersToUse,
         accessTier: primaryTier,

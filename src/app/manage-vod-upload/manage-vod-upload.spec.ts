@@ -270,6 +270,7 @@ describe('ManageVodUploadComponent', () => {
   it('should execute resumable upload and trigger transcodeVideoForVod', async () => {
     const file1 = new File(['fake-1'], 'episode_1.mp4', { type: 'video/mp4' });
     await component.addFiles([file1]);
+    component.fileEntries()[0].durationSeconds = 120;
 
     component.seriesTitle.set('Test Series Title');
     component.seriesPriceDollars.set(39.99);
@@ -285,6 +286,7 @@ describe('ManageVodUploadComponent', () => {
         seriesTitle: 'Test Series Title',
         seriesPriceCents: 3999,
         seriesPartIndex: 1,
+        durationSeconds: 120,
         isBuyable: true,
       }),
     );
