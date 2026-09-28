@@ -461,7 +461,7 @@
               [class.item-paused]="entry.status === 'paused'"
             >
               <!-- Thumbnail Preview -->
-              <div class="entry-thumbnail-wrapper">
+              <div class="entry-thumbnail-wrapper" (click)="openThumbnailModalForEntry(entry)">
                 @if (entry.previewUrl) {
                   <img [src]="entry.previewUrl" [alt]="entry.title" class="entry-thumbnail" />
                 } @else {
@@ -472,6 +472,15 @@
                 @if (entry.durationSeconds > 0) {
                   <span class="entry-duration-tag">{{ formatDuration(entry.durationSeconds) }}</span>
                 }
+                <button
+                  type="button"
+                  class="change-thumb-btn"
+                  (click)="$event.stopPropagation(); openThumbnailModalForEntry(entry)"
+                  title="Change thumbnail frame or upload image"
+                >
+                  <app-icon name="image"></app-icon>
+                  <span>Change</span>
+                </button>
               </div>
 
               <!-- Content & Metadata -->
@@ -696,3 +705,13 @@
     </div>
   </div>
 </div>
+
+<app-thumbnail-editor-modal
+  [isOpen]="editingThumbnailEntry() !== null"
+  [title]="'Change Thumbnail — ' + (editingThumbnailEntry()?.title || '')"
+  [videoFile]="editingThumbnailEntry()?.file || null"
+  [initialThumbnailUrl]="editingThumbnailEntry()?.previewUrl || null"
+  (thumbnailSelected)="onEntryThumbnailSelected($event)"
+  (closed)="closeThumbnailModal()"
+></app-thumbnail-editor-modal>
+

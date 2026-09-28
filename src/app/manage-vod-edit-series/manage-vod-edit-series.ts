@@ -14,6 +14,8 @@ import {
   VodStatus,
 } from '../../../functions/src/data-model/vod';
 
+import { SeriesGrantsModalComponent } from '../series-grants-modal/series-grants-modal';
+
 @Component({
   selector: 'app-manage-vod-edit-series',
   standalone: true,
@@ -22,6 +24,7 @@ import {
     IconComponent,
     SpinnerComponent,
     AutocompleteComponent,
+    SeriesGrantsModalComponent,
   ],
   templateUrl: './manage-vod-edit-series.html',
   styleUrl: './manage-vod-edit-series.scss',
@@ -79,6 +82,17 @@ export class ManageVodEditSeriesComponent {
   isSaving = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+
+  // Series Grants & Purchases Modal
+  viewingGrants = signal<boolean>(false);
+
+  openViewGrantsModal(): void {
+    this.viewingGrants.set(true);
+  }
+
+  closeViewGrantsModal(): void {
+    this.viewingGrants.set(false);
+  }
 
   readonly freeAccessTierOptions = [
     { value: VodAccessTier.Public, label: 'Public', description: 'Free to everyone (visitors & unauthenticated)' },

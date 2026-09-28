@@ -6,6 +6,17 @@
         <app-icon name="arrow_back"></app-icon>
         <span>Back to Manage VOD</span>
       </a>
+      @if (series()) {
+        <button
+          type="button"
+          class="secondary-button view-grants-btn"
+          (click)="openViewGrantsModal()"
+          title="View who has purchased or been granted access to this series"
+        >
+          <app-icon name="group"></app-icon>
+          <span>Purchases &amp; Access</span>
+        </button>
+      }
     </div>
     <div class="header-titles">
       <h2>Edit Video Series &amp; Parts</h2>
@@ -387,5 +398,13 @@
         }
       </div>
     </div>
+  }
+
+  <!-- Series Access & Purchases Modal -->
+  @if (viewingGrants() && series()) {
+    <app-series-grants-modal
+      [series]="series()"
+      (closed)="closeViewGrantsModal()"
+    ></app-series-grants-modal>
   }
 </div>

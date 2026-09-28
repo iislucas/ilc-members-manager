@@ -307,4 +307,12 @@ describe('ManageVodEditSeriesComponent', () => {
     expect(availableIds).toContain('v-recent');
     expect(availableIds).not.toContain('v-old');
   });
+
+  it('should toggle viewingGrants modal open and closed', () => {
+    expect(component.viewingGrants()).toBe(false);
+    component.openViewGrantsModal();
+    expect(component.viewingGrants()).toBe(true);
+    component.closeViewGrantsModal();
+    expect(component.viewingGrants()).toBe(false);
+  });
 });

@@ -31,7 +31,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { FirestoreCollection } from '../../functions/src/data-model/collections';
+import { FirestoreCollection, FirestoreSubcollection } from '../../functions/src/data-model/collections';
 import {
   MailQueueDoc,
   MailSettings,
@@ -3922,6 +3922,69 @@ export class DataManagerService {
     const grantsRef = collection(this.db, 'members', memberDocId, 'videoGrants');
     const snap = await getDocs(grantsRef);
     return snap.docs.map(firestoreDocToVideoGrant);
+  }
+
+  /**
+   * Retrieves all VideoGrant records for a series (matching seriesId or any constituent video IDs)
+   * from the global /video_grants collection (admin only).
+   */
+  async getSeriesGrants(targetIds: string[]): Promise<VideoGrant[]> {
+    if (!targetIds || targetIds.length === 0) return [];
+    const uniqueIds = Array.from(new Set(targetIds.filter(Boolean)));
+    if (uniqueIds.length === 0) return [];
+
+    const CHUNK_SIZE = 30; // Firestore 'in' query supports up to 30 items
+    const chunks: string[][] = [];
+    for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+      chunks.push(uniqueIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    const videoGrantsCol = collection(this.db, FirestoreCollection.VideoGrants);
+    const resultMap = new Map<string, VideoGrant>();
+
+    for (const chunk of chunks) {
+      const q = query(videoGrantsCol, where('videoId', 'in', chunk));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        const grant = firestoreDocToVideoGrant(d);
+        resultMap.set(grant.docId || d.id, grant);
+      }
+    }
+
+    return Array.from(resultMap.values());
+  }
+
+  /**
+   * Revokes a video or series grant from a recipient across both /video_grants and /members/{id}/videoGrants.
+   */
+  async revokeVideoGrant(grant: VideoGrant): Promise<void> {
+    const batch = writeBatch(this.db);
+
+    // 1. Delete from global /video_grants
+    const globalKey = grant.memberDocId
+      ? `${grant.memberDocId}_${grant.videoId}`
+      : `${grant.memberEmail}_${grant.videoId}`;
+    const globalDocRef = doc(this.db, FirestoreCollection.VideoGrants, globalKey);
+    batch.delete(globalDocRef);
+
+    if (grant.docId && grant.docId !== globalKey) {
+      const altDocRef = doc(this.db, FirestoreCollection.VideoGrants, grant.docId);
+      batch.delete(altDocRef);
+    }
+
+    // 2. Delete from member subcollection /members/{memberDocId}/videoGrants/{videoId}
+    if (grant.memberDocId) {
+      const memberGrantRef = doc(
+        this.db,
+        FirestoreCollection.Members,
+        grant.memberDocId,
+        FirestoreSubcollection.VideoGrants,
+        grant.videoId,
+      );
+      batch.delete(memberGrantRef);
+    }
+
+    await batch.commit();
   }
 
   /**
