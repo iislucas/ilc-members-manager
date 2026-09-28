@@ -44,6 +44,7 @@ export interface TranscodeVideoRequest {
     eventTitle?: string;
     recordedDate?: string;
     location?: string;
+    durationSeconds?: number;
     resolutions?: string[];
   };
 }
@@ -148,7 +149,10 @@ export const transcodeVideoForVod = onCall(
       spriteIntervalSeconds: 5,
       spriteWidth: 160,
       spriteHeight: 90,
-      durationSeconds: existingVideo.durationSeconds || 0,
+      durationSeconds:
+        typeof config.durationSeconds === 'number' && config.durationSeconds > 0
+          ? config.durationSeconds
+          : (existingVideo.durationSeconds || 0),
       resolutions: targetResolutions,
       originalSize: uploadItem.size || 0,
       createdAt: existingVideo.createdAt || nowIso,
