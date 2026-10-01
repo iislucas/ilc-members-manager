@@ -25,6 +25,7 @@ import {
   CreateCustomerPortalSessionRequest,
   CreateCustomerPortalSessionResult,
   CreateProductCheckoutSessionRequest,
+  CreateVodCheckoutSessionRequest,
   GetCheckoutSessionRequest,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
@@ -98,6 +99,23 @@ export class StripeService {
       CreateProductCheckoutSessionRequest,
       CreateCheckoutSessionResult
     >(this.functions, 'createProductCheckoutSession');
+    const result = await fn(request);
+    return result.data;
+  }
+
+  /**
+   * Create a dynamic Stripe Checkout Session for a Video on Demand (VOD) item or series.
+   */
+  async createVodCheckoutSession(
+    request: CreateVodCheckoutSessionRequest,
+  ): Promise<CreateCheckoutSessionResult> {
+    if (this.networkState.isOffline()) {
+      throw new Error('You are currently offline. Please connect to the internet to complete purchase.');
+    }
+    const fn = httpsCallable<
+      CreateVodCheckoutSessionRequest,
+      CreateCheckoutSessionResult
+    >(this.functions, 'createVodCheckoutSession');
     const result = await fn(request);
     return result.data;
   }

@@ -117,6 +117,27 @@ export interface CreateCheckoutSessionRequest {
   giftMessage?: string;
 }
 
+export interface CreateVodCheckoutSessionRequest {
+  /** Optional video document ID if purchasing a single video. */
+  videoId?: string;
+  /** Optional series ID if purchasing a full series collection. */
+  seriesId?: string;
+  /** The app origin to return the buyer to, e.g. `https://app.iliqchuan.com`. */
+  origin: string;
+  /** Optional custom success return URL. Must match an allowed origin. */
+  successUrl?: string;
+  /** Optional custom cancel return URL. Must match an allowed origin. */
+  cancelUrl?: string;
+  /** Whether this purchase is a gift for another person. */
+  isGift?: boolean;
+  /** Recipient email when buying as a gift. */
+  recipientEmail?: string;
+  /** Optional recipient name when buying as a gift. */
+  recipientName?: string;
+  /** Optional gift message for the recipient. */
+  giftMessage?: string;
+}
+
 export interface CreateCheckoutSessionResult {
   /** The hosted Stripe Checkout URL to redirect the buyer to. */
   checkoutUrl: string;

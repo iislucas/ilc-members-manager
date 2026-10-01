@@ -249,15 +249,23 @@ export class VideoViewComponent implements OnInit {
     const v = this.video();
     if (!v) return false;
     const session = this.sessionState();
-    return Boolean(this.isBuyable(v) && (session?.stripePriceId || v.stripePriceId));
+    return Boolean(
+      this.isBuyable(v) &&
+      (session?.stripePriceId || v.stripePriceId || (v.priceCents && v.priceCents > 0)),
+    );
   });
 
   canGiftSeries = computed(() => {
     const s = this.series();
     if (!s) return false;
     const session = this.sessionState();
-    const v = this.video();
-    return Boolean(s.stripePriceId || session?.seriesStripePriceId || v?.seriesStripePriceId || s.priceCents);
+    return Boolean(
+      s.stripePriceId ||
+      session?.seriesStripePriceId ||
+      v?.seriesStripePriceId ||
+      (s.priceCents && s.priceCents > 0) ||
+      (v?.seriesPriceCents && v.seriesPriceCents > 0),
+    );
   });
 
   private lastLoadedVideoId: string | null = null;
@@ -445,9 +453,7 @@ export class VideoViewComponent implements OnInit {
 
   async startPurchase(asGift = false): Promise<void> {
     const v = this.video();
-    const session = this.sessionState();
-    const priceId = session?.stripePriceId || v?.stripePriceId;
-    if (!priceId) {
+    if (!v || (!this.isBuyable(v) && !(v.priceCents && v.priceCents > 0))) {
       alert('This video is not currently available for individual purchase.');
       return;
     }
@@ -465,29 +471,22 @@ export class VideoViewComponent implements OnInit {
     this.isPurchasing.set(true);
     try {
       const origin = window.location.origin;
-      const checkout = await this.stripeService.createCheckoutSession(
-        priceId,
+      const checkout = await this.stripeService.createVodCheckoutSession({
+        videoId: v.docId,
         origin,
-        1,
-        {
-          metadata: {
-            videoId: v?.docId || '',
-            orderType: 'vod',
-          },
-          isGift: isGiftEffective,
-          recipientEmail: isGiftEffective ? this.giftRecipientEmail().trim() : undefined,
-          recipientName:
-            isGiftEffective && this.giftRecipientName().trim()
-              ? this.giftRecipientName().trim()
-              : undefined,
-          giftMessage:
-            isGiftEffective && this.giftMessage().trim()
-              ? this.giftMessage().trim()
-              : undefined,
-          successUrl: `${origin}/videos/${v?.docId}`,
-          cancelUrl: `${origin}/videos/${v?.docId}`,
-        },
-      );
+        isGift: isGiftEffective,
+        recipientEmail: isGiftEffective ? this.giftRecipientEmail().trim() : undefined,
+        recipientName:
+          isGiftEffective && this.giftRecipientName().trim()
+            ? this.giftRecipientName().trim()
+            : undefined,
+        giftMessage:
+          isGiftEffective && this.giftMessage().trim()
+            ? this.giftMessage().trim()
+            : undefined,
+        successUrl: `${origin}/videos/${v.docId}?purchase_success=true`,
+        cancelUrl: `${origin}/videos/${v.docId}`,
+      });
       if (checkout.checkoutUrl) {
         window.location.href = checkout.checkoutUrl;
       } else {
@@ -508,15 +507,8 @@ export class VideoViewComponent implements OnInit {
   async startSeriesPurchase(asGift = false): Promise<void> {
     const s = this.series();
     const v = this.video();
-    const session = this.sessionState();
-    if (!s) return;
-    const priceId =
-      s.stripePriceId ||
-      session?.seriesStripePriceId ||
-      v?.seriesStripePriceId ||
-      v?.stripePriceId;
-    if (!priceId) {
-      alert('This series is not currently configured with a Stripe price.');
+    if (!s || (!s.priceCents && !(v?.seriesPriceCents && v.seriesPriceCents > 0))) {
+      alert('This series is not currently available for purchase.');
       return;
     }
 
@@ -533,30 +525,23 @@ export class VideoViewComponent implements OnInit {
     this.isPurchasing.set(true);
     try {
       const origin = window.location.origin;
-      const checkout = await this.stripeService.createCheckoutSession(
-        priceId,
+      const checkout = await this.stripeService.createVodCheckoutSession({
+        seriesId: s.seriesId,
+        videoId: v?.docId || undefined,
         origin,
-        1,
-        {
-          metadata: {
-            seriesId: s.seriesId,
-            videoId: v?.docId || '',
-            orderType: 'vod',
-          },
-          isGift: isGiftEffective,
-          recipientEmail: isGiftEffective ? this.giftRecipientEmail().trim() : undefined,
-          recipientName:
-            isGiftEffective && this.giftRecipientName().trim()
-              ? this.giftRecipientName().trim()
-              : undefined,
-          giftMessage:
-            isGiftEffective && this.giftMessage().trim()
-              ? this.giftMessage().trim()
-              : undefined,
-          successUrl: `${origin}/videos/${v?.docId}`,
-          cancelUrl: `${origin}/videos/${v?.docId}`,
-        },
-      );
+        isGift: isGiftEffective,
+        recipientEmail: isGiftEffective ? this.giftRecipientEmail().trim() : undefined,
+        recipientName:
+          isGiftEffective && this.giftRecipientName().trim()
+            ? this.giftRecipientName().trim()
+            : undefined,
+        giftMessage:
+          isGiftEffective && this.giftMessage().trim()
+            ? this.giftMessage().trim()
+            : undefined,
+        successUrl: `${origin}/videos/${v?.docId || ''}?purchase_success=true`,
+        cancelUrl: `${origin}/videos/${v?.docId || ''}`,
+      });
       if (checkout.checkoutUrl) {
         window.location.href = checkout.checkoutUrl;
       } else {
