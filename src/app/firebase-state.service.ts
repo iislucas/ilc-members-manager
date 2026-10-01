@@ -32,6 +32,7 @@ import { firestoreDocToMember, initMember, Member } from '../../functions/src/da
 import { CheckEmailStatusResult, FetchUserDetailsResult } from '../../functions/src/data-model/system';
 import { IdbStorageService } from './idb-storage.service';
 import { NetworkStateService } from './network-state.service';
+import { RoutingService } from './routing.service';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
@@ -106,6 +107,7 @@ export class FirebaseStateService {
   private auth: Auth;
   private idb = inject(IdbStorageService);
   private networkState = inject(NetworkStateService);
+  private routingService = inject(RoutingService, { optional: true });
 
   public loginStatus = signal<LoginStatus>(LoginStatus.FirebaseLoadingStatus);
   public loggedIn: WritableSignal<Promise<UserDetails>>;
@@ -596,6 +598,7 @@ export class FirebaseStateService {
       await this.idb.delete(LAST_ACTIVE_USER_UID_KEY);
       this.user.set(null);
       this.loginStatus.set(LoginStatus.SignedOut);
+      this.routingService?.navigateTo('', { clearUrlParams: true });
       await signOut(this.auth);
       return { success: true };
     } catch (exception: unknown) {

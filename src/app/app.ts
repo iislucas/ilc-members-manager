@@ -359,6 +359,7 @@ export class App {
 
   public async logout() {
     this.dismissMessages();
+    this.routingService.navigateTo('', { clearUrlParams: true });
     const result = await this.firebaseService.logout();
     if (!result.success) {
       console.warn(result.errorCode);

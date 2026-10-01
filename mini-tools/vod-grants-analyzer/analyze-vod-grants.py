@@ -273,6 +273,7 @@ ITEM_MAPPING = {
     "21 Form - Part 2": ("vod_series", "21 Form - Part 2"),
     "7/29 Basic Exercise 21 Form Class": ("vod_series", "7/29 Basic Exercise 21 Form Class"),
     "Breaking Bridge": ("vod_series", "Breaking Bridge"),
+    "Complementary Energies": ("vod_series", "Complementary Eneriges"),
     "Complementary Eneriges": ("vod_series", "Complementary Eneriges"),
     "How to Gain Inner Strength": ("vod_series", "How to Gain Inner Strength"),
     "One Point of Rotation": ("vod_series", "One Point of Rotation"),
@@ -296,6 +297,7 @@ ITEM_MAPPING = {
     "ny-usa-save-the-date-class-with-gm-sam-f-s-chin-2-export.csv": ("vod_series", "Functions of Basic Exercises"),
     "ny-usa-save-the-date-class-with-gm-sam-f-s-chin-export.csv": ("vod_series", "Catching the Moment"),
     "queens-ny-how-to-gain-inner-strength-through-the-butterfly-form-export.csv": ("vod_series", "How to Gain Inner Strength"),
+    "new-york-usa-complementary-energies-with-gm-sam-f-s-chin-export.csv": ("vod_series", "Complementary Eneriges"),
 
     # --- Subscription Products (Skipped - Expired legacy subscriptions) ---
     "Video Library Subscriber": ("skipped_subscription", "Class Video Library (Skipped)"),
@@ -649,7 +651,7 @@ for ef in sorted(glob.glob(os.path.join(VOD_DIR, "*-export*.csv"))):
                         "customer_name": name,
                         "item_raw": fname, # file name mapped to series
                         "ticket_name": ticket,
-                        "date": "", # event date extracted if needed
+                        "date": (r.get("Date") or "").strip(),
                         "amount": paid,
                         "payment_method": "",
                         "status": "completed",

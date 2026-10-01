@@ -99,6 +99,15 @@ describe('FirebaseStateService', () => {
     expect(logoutSpy).toHaveBeenCalled();
   });
 
+  it('resets URL path on logout when routingService is injected', async () => {
+    const mockRoutingService = {
+      navigateTo: vi.fn(),
+    };
+    (service as any).routingService = mockRoutingService;
+    await service.logout();
+    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('', { clearUrlParams: true });
+  });
+
   it('recovers user details from cache on network error in fetchUserDetails', async () => {
     const idb = TestBed.inject(IdbStorageService);
     const mockUser = { uid: 'u123', email: 'test@example.com' } as User;
