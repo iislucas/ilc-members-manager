@@ -259,8 +259,13 @@ export class VideoViewComponent implements OnInit {
     const s = this.series();
     if (!s) return false;
     const session = this.sessionState();
-    const v = this.video();
-    return Boolean(s.stripePriceId || session?.seriesStripePriceId || v?.seriesStripePriceId || s.priceCents);
+    return Boolean(
+      s.stripePriceId ||
+      session?.seriesStripePriceId ||
+      v?.seriesStripePriceId ||
+      (s.priceCents && s.priceCents > 0) ||
+      (v?.seriesPriceCents && v.seriesPriceCents > 0),
+    );
   });
 
   private lastLoadedVideoId: string | null = null;

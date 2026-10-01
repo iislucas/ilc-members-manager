@@ -303,7 +303,7 @@ export const createVodCheckoutSession = onCall<
       product_data: {
         name: productName,
         description: productDescription.slice(0, 500) || undefined,
-        images: thumbnailUrl ? [thumbnailUrl] : undefined,
+        images: thumbnailUrl && /^https?:\/\//i.test(thumbnailUrl) ? [thumbnailUrl] : undefined,
         metadata: {
           source: 'vod_catalog',
           orderType: 'vod',
