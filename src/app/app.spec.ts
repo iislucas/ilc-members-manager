@@ -93,7 +93,17 @@ describe('App', () => {
     app.routingService.matchedPatternId.set(Views.Home);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.title')?.textContent).toContain('ILC Portal');
+    expect(compiled.querySelector('.breadcrumb-parents')?.textContent).toContain('ILC Portal');
+    expect(compiled.querySelector('.title')?.textContent).toContain('Read & Watch');
+  });
+
+  it('should reset URL path to homepage on logout', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    app.routingService.matchedPatternId.set(Views.ManageMembers);
+    const navigateSpy = vi.spyOn(app.routingService, 'navigateTo');
+    await app.logout();
+    expect(navigateSpy).toHaveBeenCalledWith('', { clearUrlParams: true });
   });
 
   it('should keep the sign-in box mounted while a sign-in is in flight', async () => {

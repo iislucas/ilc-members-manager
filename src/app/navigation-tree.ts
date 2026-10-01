@@ -151,6 +151,14 @@ export class NavigationTreeService {
     return false;
   });
 
+  public homeTabLabel = computed(() => {
+    const tab = this.routing.signals[Views.Home].urlParams.tab();
+    if (tab === 'practice') return 'Train';
+    if (tab === 'me') return 'Me';
+    if (tab === 'admin' && this.firebaseState.user()?.isAdmin) return 'Admin';
+    return 'Read & Watch';
+  });
+
   /** Full breadcrumb trail: app root, ancestors, current page. */
   public breadcrumbs = computed<BreadcrumbNode[]>(() => {
     const view = this.currentView();
@@ -164,7 +172,7 @@ export class NavigationTreeService {
       if (!isLoggedIn) {
         return [appRoot, { label: 'Welcome' }];
       }
-      return [appRoot];
+      return [appRoot, { label: this.currentTitle() }];
     }
     if (view === Views.Login) {
       return [appRoot, { label: 'Welcome' }];
@@ -483,10 +491,52 @@ export class NavigationTreeService {
       }
       case Views.VideoView:
         return [this.node(Views.Videos, 'Video on Demand')];
+      case Views.Videos: {
+        const tab = this.routing.signals[Views.Videos].urlParams.tab();
+        if (tab === 'my-videos') {
+          return [{ label: 'Video on Demand', url: '/videos' }];
+        }
+        return [];
+      }
       case Views.ManageVodUpload:
       case Views.ManageVodEditSeries:
       case Views.ManageVideoTags:
         return [this.node(Views.ManageVod, 'Manage VOD')];
+      case Views.ManageVod: {
+        const tab = this.routing.signals[Views.ManageVod].urlParams.tab();
+        if (tab === 'all_videos') {
+          return [{ label: 'Manage VOD', url: '/manage-vod' }];
+        }
+        return [];
+      }
+      case Views.Settings: {
+        const tab = this.routing.signals[Views.Settings].urlParams.tab();
+        if (tab && tab !== 'admins' && SETTINGS_TAB_LABELS[tab]) {
+          return [{ label: 'Settings', url: '/settings' }];
+        }
+        return [];
+      }
+      case Views.ImportExport: {
+        const tab = this.routing.signals[Views.ImportExport].urlParams.tab();
+        if (tab && tab !== 'members' && IMPORT_EXPORT_TAB_LABELS[tab]) {
+          return [{ label: 'Import/Export', url: '/import-export' }];
+        }
+        return [];
+      }
+      case Views.MemberGradings: {
+        const tab = this.routing.signals[Views.MemberGradings].urlParams.tab();
+        if (tab === 'students' || tab === 'examined') {
+          return [{ label: 'Gradings', url: '/my-gradings' }];
+        }
+        return [];
+      }
+      case Views.AppNotificationSettings: {
+        const tab = this.routing.signals[Views.AppNotificationSettings].urlParams.tab();
+        if (tab && tab !== 'settings' && APP_NOTIF_TAB_LABELS[tab]) {
+          return [{ label: 'App Notification Settings', url: '/app-notifications' }];
+        }
+        return [];
+      }
 
       default:
         return [];
@@ -673,10 +723,15 @@ export class NavigationTreeService {
           ? `Students of ${instructor.name} [${instructorId}]`
           : `Students of ${instructorId}`;
       }
-      case Views.ImportExport:
+      case Views.ImportExport: {
+        const tab = this.routing.signals[Views.ImportExport].urlParams.tab();
+        if (tab && tab !== 'members' && IMPORT_EXPORT_TAB_LABELS[tab]) {
+          return IMPORT_EXPORT_TAB_LABELS[tab];
+        }
         return 'Import/Export';
+      }
       case Views.Home:
-        return 'Home';
+        return this.homeTabLabel();
       case Views.MyProfile:
         return 'Profile';
       case Views.MyStudents:
@@ -697,6 +752,9 @@ export class NavigationTreeService {
       case Views.ManageGradings:
         return 'Gradings';
       case Views.MemberGradings: {
+        const tab = this.routing.signals[Views.MemberGradings].urlParams.tab();
+        if (tab === 'students') return 'Student Gradings';
+        if (tab === 'examined') return 'Assessed Gradings';
         const member = this.firebaseState.user()?.member;
         if (member) {
           return `Gradings: (${member.memberId || 'No ID'}) ${member.name}`;
@@ -707,10 +765,20 @@ export class NavigationTreeService {
         return 'Orders';
       case Views.GradingView:
         return this.loadedGradingTitle() || 'Grading Details';
-      case Views.Settings:
+      case Views.Settings: {
+        const tab = this.routing.signals[Views.Settings].urlParams.tab();
+        if (tab && tab !== 'admins' && SETTINGS_TAB_LABELS[tab]) {
+          return SETTINGS_TAB_LABELS[tab];
+        }
         return 'Settings';
-      case Views.AppNotificationSettings:
+      }
+      case Views.AppNotificationSettings: {
+        const tab = this.routing.signals[Views.AppNotificationSettings].urlParams.tab();
+        if (tab && tab !== 'settings' && APP_NOTIF_TAB_LABELS[tab]) {
+          return APP_NOTIF_TAB_LABELS[tab];
+        }
         return 'App Notification Settings';
+      }
       case Views.UserNotificationSettings:
         return 'Notification Settings';
       case Views.Notifications:
@@ -777,12 +845,22 @@ export class NavigationTreeService {
         return 'Uploads';
       case Views.ManageMaterials:
         return 'Materials';
-      case Views.Videos:
+      case Views.Videos: {
+        const tab = this.routing.signals[Views.Videos].urlParams.tab();
+        if (tab === 'my-videos') {
+          return 'My Library';
+        }
         return 'Video on Demand';
+      }
       case Views.VideoView:
         return this.loadedVideoTitle() || 'Watch Video';
-      case Views.ManageVod:
+      case Views.ManageVod: {
+        const tab = this.routing.signals[Views.ManageVod].urlParams.tab();
+        if (tab === 'all_videos') {
+          return 'All Videos';
+        }
         return 'Manage VOD';
+      }
       case Views.ManageVodUpload:
         return 'Upload VOD & Series';
       case Views.ManageVodEditSeries:
@@ -866,6 +944,32 @@ const POST_EDIT_PARENT: {
   [Views.ArticlesPostEdit]: Views.ArticlesPost,
   [Views.MembersAreaPostEdit]: Views.MembersAreaPost,
   [Views.InstructorsAreaPostEdit]: Views.InstructorsAreaPost,
+};
+
+const SETTINGS_TAB_LABELS: Record<string, string> = {
+  admins: 'Admins',
+  counters: 'Counters',
+  'country-codes': 'Country Codes',
+  backups: 'Backups',
+  'content-cache': 'Content Cache',
+  resources: 'Resources',
+  'local-cache': 'Local Cache',
+  'app-version': 'Version & Updates',
+};
+
+const IMPORT_EXPORT_TAB_LABELS: Record<string, string> = {
+  members: 'Members',
+  schools: 'Schools',
+  orders: 'Orders',
+};
+
+const APP_NOTIF_TAB_LABELS: Record<string, string> = {
+  settings: 'Settings',
+  logs: 'Delivery Logs',
+  system: 'System Notifications',
+  account: 'Account Notifications',
+  purchase: 'Purchase Notifications',
+  onboarding: 'Onboarding Notifications',
 };
 
 /** Add (or replace) one query parameter on an already-built href. */
