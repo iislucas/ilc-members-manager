@@ -167,6 +167,9 @@ export function categorizeLineItem(
   if (metaType === 'school' || metaType === 'school_license') {
     return OrderItemCategory.SchoolLicense;
   }
+  if (metaType === 'vod') {
+    return OrderItemCategory.Vod;
+  }
 
   const desc = (item.description || '').toLowerCase();
   const prod = (item.productId ?? '').toLowerCase();
