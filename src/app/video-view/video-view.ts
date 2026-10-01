@@ -259,6 +259,7 @@ export class VideoViewComponent implements OnInit {
     const s = this.series();
     if (!s) return false;
     const session = this.sessionState();
+    const v = this.video();
     return Boolean(
       s.stripePriceId ||
       session?.seriesStripePriceId ||
