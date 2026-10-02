@@ -283,8 +283,10 @@ export class NotificationService implements OnDestroy {
     effect(() => {
       const user = this.firebaseService.user();
       const loginStatus = this.firebaseService.loginStatus();
+      const isAuthReady = this.firebaseService.isAuthReady?.() ?? true;
       if (
         loginStatus === LoginStatus.SignedIn &&
+        isAuthReady &&
         user &&
         user.member &&
         user.member.docId

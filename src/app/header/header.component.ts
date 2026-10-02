@@ -10,6 +10,7 @@ import { NavigationTreeService } from '../navigation-tree';
 import { FirebaseStateService } from '../firebase-state.service';
 import { NetworkStateService } from '../network-state.service';
 import { ActionQueueService } from '../action-queue.service';
+import { IncrementalSyncService } from '../incremental-sync.service';
 import { OfflineBannerComponent } from '../offline-banner/offline-banner.component';
 import { Views } from '../app.config';
 
@@ -40,6 +41,7 @@ export class HeaderComponent {
   firebaseService = inject(FirebaseStateService);
   networkState = inject(NetworkStateService);
   actionQueue = inject(ActionQueueService);
+  incrementalSync = inject(IncrementalSyncService);
 
   breadcrumbs = input<Breadcrumb[]>([]);
   abbreviateParents = input<boolean>(true);
@@ -49,6 +51,13 @@ export class HeaderComponent {
 
   isHome = this.navTree.isHome;
   upNode = this.navTree.upNode;
+
+  isSyncing = computed(() =>
+    (this.firebaseService.isAuthSyncing?.() ?? false) ||
+    this.networkState.isReconnecting() ||
+    this.actionQueue.isSyncing() ||
+    this.incrementalSync.isSyncing()
+  );
 
   hasParentCrumbs = computed(() => this.breadcrumbs().length > 1);
   displayParentCrumbs = signal<Breadcrumb[]>([]);

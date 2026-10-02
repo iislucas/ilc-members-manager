@@ -14,14 +14,19 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { FindInstructorsService } from '../find-instructors.service';
 import { NetworkStateService } from '../network-state.service';
 import { ActionQueueService } from '../action-queue.service';
+import { IncrementalSyncService } from '../incremental-sync.service';
 
 describe('HeaderComponent', () => {
   let isHomeSig: ReturnType<typeof signal<boolean>>;
   let upNodeSig: ReturnType<typeof signal<NavNode | null>>;
+  let isIncrementalSyncingSig: ReturnType<typeof signal<boolean>>;
+  let isAuthSyncingSig: ReturnType<typeof signal<boolean>>;
 
   beforeEach(async () => {
     isHomeSig = signal(true);
     upNodeSig = signal(null);
+    isIncrementalSyncingSig = signal(false);
+    isAuthSyncingSig = signal(false);
 
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
@@ -40,7 +45,15 @@ describe('HeaderComponent', () => {
           useValue: {
             user: signal(null),
             loginStatus: signal(0),
+            isAuthReady: signal(true),
+            isAuthSyncing: isAuthSyncingSig,
             logout: vi.fn(),
+          },
+        },
+        {
+          provide: IncrementalSyncService,
+          useValue: {
+            isSyncing: isIncrementalSyncingSig,
           },
         },
         {
@@ -251,5 +264,24 @@ describe('HeaderComponent', () => {
 
     const banner = container?.querySelector('app-offline-banner');
     expect(banner).toBeTruthy();
+  });
+
+  it('renders header-sync-bar when isSyncing is true', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    fixture.componentRef.setInput('isLoggedIn', true);
+    isAuthSyncingSig.set(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    let syncBar = compiled.querySelector('.header-sync-bar');
+    expect(syncBar).toBeTruthy();
+
+    isAuthSyncingSig.set(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    syncBar = compiled.querySelector('.header-sync-bar');
+    expect(syncBar).toBeNull();
   });
 });

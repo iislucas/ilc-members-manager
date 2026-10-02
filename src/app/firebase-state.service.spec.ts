@@ -132,5 +132,15 @@ describe('FirebaseStateService', () => {
     expect(service.user()).toBeTruthy();
     expect(service.user()?.member.name).toBe('Test User');
     expect(service.loginStatus()).toBe('SignedIn');
+    expect(service.isAuthReady()).toBe(true);
+    expect(service.isAuthSyncing()).toBe(false);
+  });
+
+  it('sets isAuthReady and isAuthSyncing to false on logout', async () => {
+    service.isAuthReady.set(true);
+    service.isAuthSyncing.set(true);
+    await service.logout();
+    expect(service.isAuthReady()).toBe(false);
+    expect(service.isAuthSyncing()).toBe(false);
   });
 });

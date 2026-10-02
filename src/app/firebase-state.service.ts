@@ -121,6 +121,22 @@ export class FirebaseStateService {
   public unverifiedUser = signal<User | null>(null);
   public verificationEmailSent = signal<boolean>(false);
   public verificationError = signal<string | null>(null);
+
+  /**
+   * Indicates whether live Firebase Auth has completed initialization and settled.
+   * True when a live verified User token is active (or in offline mode with a restored session).
+   * Guarding authenticated Firestore queries with isAuthReady prevents transient
+   * "FirebaseError: Missing or insufficient permissions" race conditions on startup.
+   */
+  public isAuthReady = signal<boolean>(false);
+
+  /**
+   * Indicates whether authentication/session synchronization is in progress.
+   * Starts true on initial app load, stays true while verifying live auth or restoring profile,
+   * and becomes false once auth state has settled.
+   */
+  public isAuthSyncing = signal<boolean>(true);
+
   private db: Firestore;
   private unsubscribeFromMember: Unsubscribe | null = null;
 
@@ -182,10 +198,22 @@ export class FirebaseStateService {
           this.loginStatus.set(LoginStatus.SignedIn);
           if (typeof navigator !== 'undefined' && !navigator.onLine) {
             this.networkState.markOffline();
+            this.isAuthReady.set(true);
+            this.isAuthSyncing.set(false);
           }
         }
       }
     });
+
+    if (typeof this.auth.authStateReady === 'function') {
+      this.auth.authStateReady().then(() => {
+        if (!this.auth.currentUser && !this.user()) {
+          this.isAuthSyncing.set(false);
+        }
+      }).catch(() => {
+        this.isAuthSyncing.set(false);
+      });
+    }
 
     onAuthStateChanged(this.auth, async (user) => {
       if (this.unsubscribeFromMember) {
@@ -197,6 +225,8 @@ export class FirebaseStateService {
         // If offline and we already have a cached user session, preserve it!
         if (this.networkState.isOffline() && this.user()) {
           console.log('FirebaseStateService: onAuthStateChanged received null user while offline; preserving local session.');
+          this.isAuthReady.set(true);
+          this.isAuthSyncing.set(false);
           return;
         }
 
@@ -205,6 +235,8 @@ export class FirebaseStateService {
         this.user.set(null);
         this.unverifiedUser.set(null);
         this.loginStatus.set(LoginStatus.SignedOut);
+        this.isAuthReady.set(false);
+        this.isAuthSyncing.set(false);
         this.loggedIn.set(
           new Promise<UserDetails>((resolve, reject) => {
             this.loggedInResolverFn = resolve;
@@ -218,6 +250,8 @@ export class FirebaseStateService {
         this.user.set(null);
         this.unverifiedUser.set(user);
         this.loginStatus.set(LoginStatus.NeedsEmailVerification);
+        this.isAuthReady.set(false);
+        this.isAuthSyncing.set(false);
         return;
       }
 
@@ -234,6 +268,8 @@ export class FirebaseStateService {
           firebaseUser: user,
         });
         this.setupMemberSnapshotListener();
+        this.isAuthReady.set(true);
+        this.isAuthSyncing.set(false);
         return;
       }
 
@@ -258,6 +294,8 @@ export class FirebaseStateService {
         console.warn('Logging out because getUserDetails failed with auth/permission error:', error);
         this.loginStatus.set(LoginStatus.SignedOut);
         this.loginError.set((error as Error).message);
+        this.isAuthReady.set(false);
+        this.isAuthSyncing.set(false);
         this.logout();
         return;
       }
@@ -282,11 +320,15 @@ export class FirebaseStateService {
         this.user.set(userDetails);
         this.loggedInResolverFn(userDetails);
         this.loginStatus.set(LoginStatus.SignedIn);
+        this.isAuthReady.set(true);
+        this.isAuthSyncing.set(false);
         return;
       }
 
       this.loginStatus.set(LoginStatus.SignedOut);
       this.loginError.set((error as Error).message);
+      this.isAuthReady.set(false);
+      this.isAuthSyncing.set(false);
       return;
     }
 
@@ -305,6 +347,8 @@ export class FirebaseStateService {
       this.loginError.set(`We could not find your profile linked to that email address. ` +
         `Might you have used a different email address previously? ` +
         `Please contact ${environment.adminEmail} if you continue to have problems.`);
+      this.isAuthReady.set(false);
+      this.isAuthSyncing.set(false);
       console.warn('Logging out because no member profiles were found.');
       this.logout();
       return;
@@ -321,6 +365,8 @@ export class FirebaseStateService {
     this.loggedInResolverFn(userDetails);
     this.loginStatus.set(LoginStatus.SignedIn);
     this.networkState.markOnline();
+    this.isAuthReady.set(true);
+    this.isAuthSyncing.set(false);
 
     // Cache user details to IndexedDB for offline resilience
     const cacheObj: CachedUserDetails = {
@@ -655,6 +701,8 @@ export class FirebaseStateService {
       await this.idb.delete(LAST_ACTIVE_USER_UID_KEY);
       this.user.set(null);
       this.loginStatus.set(LoginStatus.SignedOut);
+      this.isAuthReady.set(false);
+      this.isAuthSyncing.set(false);
       this.routingService?.navigateTo('', { clearUrlParams: true });
       await signOut(this.auth);
       return { success: true };
@@ -714,6 +762,8 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
     loginStatus: signal(LoginStatus.SignedOut),
     loggedIn: signal(Promise.resolve({} as UserDetails)),
     loginError: signal(null),
+    isAuthReady: signal(true),
+    isAuthSyncing: signal(false),
     loginWithGoogle: (): Promise<AuthOperationResult> =>
       Promise.resolve({
         success: true,

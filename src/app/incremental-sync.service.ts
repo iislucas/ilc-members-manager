@@ -9,7 +9,7 @@
  * 4. Automatic cache persistence and in-memory signal updates.
  */
 
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal, computed } from '@angular/core';
 import {
   collection,
   getDocs,
@@ -60,6 +60,9 @@ export class IncrementalSyncService {
   private db = getFirestore(this.app);
   private idb = inject(IdbStorageService);
 
+  public activeSyncs = signal<number>(0);
+  public isSyncing = computed(() => this.activeSyncs() > 0);
+
   /**
    * Immediately loads any cached collection from IndexedDB into the target SearchableSet.
    * Returns true if cached data was found and loaded.
@@ -109,6 +112,7 @@ export class IncrementalSyncService {
   async syncCollection<ID extends string, T extends { [key in ID]: string }>(
     config: SyncCollectionConfig<ID, T>,
   ): Promise<void> {
+    this.activeSyncs.update((n) => n + 1);
     const {
       cacheKey,
       collectionPath,
@@ -241,6 +245,8 @@ export class IncrementalSyncService {
       } else {
         targetSet.setError(err instanceof Error ? err.message : String(err));
       }
+    } finally {
+      this.activeSyncs.update((n) => Math.max(0, n - 1));
     }
   }
 
