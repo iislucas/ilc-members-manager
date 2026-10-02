@@ -5,6 +5,8 @@ import {
   BACKUP_COLLECTIONS,
   BACKUP_SUBCOLLECTION_GROUPS,
   BACKUP_MIXED_COLLECTIONS,
+  BACKUP_RETENTION_DAYS,
+  cleanupOldBackups,
   performBackup,
 } from './backup';
 import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
@@ -61,6 +63,7 @@ describe('backup system', () => {
       vi.spyOn(admin, 'storage').mockReturnValue({
         bucket: vi.fn().mockReturnValue({
           file: mockBucketFile,
+          getFiles: vi.fn().mockResolvedValue([[]]),
         }),
       } as any);
 
@@ -210,6 +213,73 @@ describe('backup system', () => {
       mockFileSave.mockRejectedValue(new Error('Storage failure'));
 
       await expect(performBackup()).rejects.toThrow('Database backup failed.');
+    });
+  });
+
+  describe('cleanupOldBackups', () => {
+    it('has BACKUP_RETENTION_DAYS set to 180', () => {
+      expect(BACKUP_RETENTION_DAYS).toBe(180);
+    });
+
+    it('deletes backup files older than 180 days and retains newer ones', async () => {
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+
+      const mockDeleteOld = vi.fn().mockResolvedValue([]);
+      const mockDeleteRecent = vi.fn().mockResolvedValue([]);
+      const mockDeleteNonBackup = vi.fn().mockResolvedValue([]);
+
+      const oldFile = {
+        name: 'backups/backup-2025-01-01T00:00:00.000Z.json',
+        getMetadata: vi.fn().mockResolvedValue([{ timeCreated: new Date(now - 190 * dayMs).toISOString() }]),
+        delete: mockDeleteOld,
+      };
+
+      const recentFile = {
+        name: 'backups/backup-2026-09-01T00:00:00.000Z.json',
+        getMetadata: vi.fn().mockResolvedValue([{ timeCreated: new Date(now - 30 * dayMs).toISOString() }]),
+        delete: mockDeleteRecent,
+      };
+
+      const nonBackupFile = {
+        name: 'backups/some-other-file.txt',
+        getMetadata: vi.fn().mockResolvedValue([{ timeCreated: new Date(now - 200 * dayMs).toISOString() }]),
+        delete: mockDeleteNonBackup,
+      };
+
+      const mockBucket = {
+        getFiles: vi.fn().mockResolvedValue([[oldFile, recentFile, nonBackupFile]]),
+      } as any;
+
+      const deleted = await cleanupOldBackups(mockBucket, 180);
+
+      expect(deleted).toEqual(['backups/backup-2025-01-01T00:00:00.000Z.json']);
+      expect(mockDeleteOld).toHaveBeenCalledTimes(1);
+      expect(mockDeleteRecent).not.toHaveBeenCalled();
+      expect(mockDeleteNonBackup).not.toHaveBeenCalled();
+    });
+
+    it('falls back to filename timestamp if metadata timeCreated is missing', async () => {
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+
+      const mockDelete = vi.fn().mockResolvedValue([]);
+      const oldTimestamp = new Date(now - 200 * dayMs).toISOString();
+
+      const oldFileNoMeta = {
+        name: `backups/backup-${oldTimestamp}.json`,
+        getMetadata: vi.fn().mockResolvedValue([{}]),
+        delete: mockDelete,
+      };
+
+      const mockBucket = {
+        getFiles: vi.fn().mockResolvedValue([[oldFileNoMeta]]),
+      } as any;
+
+      const deleted = await cleanupOldBackups(mockBucket, 180);
+
+      expect(deleted).toEqual([`backups/backup-${oldTimestamp}.json`]);
+      expect(mockDelete).toHaveBeenCalledTimes(1);
     });
   });
 });

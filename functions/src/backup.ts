@@ -140,11 +140,72 @@ export async function performBackup(): Promise<string> {
     });
 
     logger.info('Database backup completed successfully.');
+
+    try {
+      await cleanupOldBackups(bucket);
+    } catch (cleanupError) {
+      logger.warn('Failed to cleanup old backups:', cleanupError);
+    }
+
     return fileName;
   } catch (error) {
     logger.error('Error performing database backup:', error);
     throw new Error('Database backup failed.');
   }
+}
+
+export const BACKUP_RETENTION_DAYS = 180;
+
+export type StorageBucket = ReturnType<ReturnType<typeof admin.storage>['bucket']>;
+
+/**
+ * Deletes backup files from Cloud Storage that are older than maxAgeDays (default: 180 days).
+ * Returns the list of deleted file names.
+ */
+export async function cleanupOldBackups(
+  bucket?: StorageBucket,
+  maxAgeDays: number = BACKUP_RETENTION_DAYS,
+): Promise<string[]> {
+  const targetBucket = bucket || admin.storage().bucket();
+  const cutoffTime = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  logger.info(
+    `Cleaning up backups older than ${maxAgeDays} days (cutoff: ${new Date(cutoffTime).toISOString()})...`,
+  );
+
+  const [files] = await targetBucket.getFiles({ prefix: 'backups/' });
+  const backupFiles = files.filter(
+    (f) => f.name.startsWith('backups/backup-') && f.name.endsWith('.json'),
+  );
+
+  const deletedFiles: string[] = [];
+
+  for (const file of backupFiles) {
+    try {
+      const [metadata] = await file.getMetadata();
+      let createdTime = metadata.timeCreated
+        ? new Date(String(metadata.timeCreated)).getTime()
+        : 0;
+      if (!createdTime || isNaN(createdTime)) {
+        const match = file.name.match(/^backups\/backup-(.+)\.json$/);
+        if (match) {
+          createdTime = new Date(match[1]).getTime();
+        }
+      }
+
+      if (createdTime && !isNaN(createdTime) && createdTime < cutoffTime) {
+        logger.info(
+          `Deleting expired backup file: ${file.name} (created: ${new Date(createdTime).toISOString()})`,
+        );
+        await file.delete();
+        deletedFiles.push(file.name);
+      }
+    } catch (err) {
+      logger.warn(`Failed to inspect or delete backup file ${file.name}:`, err);
+    }
+  }
+
+  logger.info(`Cleanup completed. Deleted ${deletedFiles.length} expired backup file(s).`);
+  return deletedFiles;
 }
 
 /**
