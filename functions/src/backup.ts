@@ -6,15 +6,16 @@ import { assertAdmin, allowedOrigins } from './common';
 import { BlogPostSourceKind, blogPostSourceKind, isDraftPost } from './data-model/content-cache';
 import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 
-// Top-level collections holding authored (non-derived) data.
+// Top-level collections holding authored and content data.
 //
 // Deliberately excluded, because every document is regenerable:
 //   'instructors'      — public projection of /members, rebuilt by
 //                        updateInstructorPublicProfile on member writes.
 //   'mail'             — transient send queue for the Trigger Email extension.
 //
-// The blog-post collections are partly cached and partly authored; see
-// BACKUP_MIXED_COLLECTIONS below.
+// All blog-post and article collections (articles-post, members-post, instructors-post,
+// news-post) are fully backed up, preserving authored articles, drafts, and
+// Squarespace-synced content for complete, self-contained database snapshots.
 export const BACKUP_COLLECTIONS: string[] = [
   FirestoreCollection.Members,
   FirestoreCollection.Schools,
@@ -28,6 +29,8 @@ export const BACKUP_COLLECTIONS: string[] = [
   FirestoreCollection.VideoGrants,
   FirestoreCollection.Statistics,
   FirestoreCollection.ArticlesPost,
+  FirestoreCollection.MembersPost,
+  FirestoreCollection.InstructorsPost,
   FirestoreCollection.NewsPost,
   FirestoreCollection.DeletionLogs,
 ];
@@ -53,26 +56,14 @@ export const BACKUP_SUBCOLLECTION_GROUPS: string[] = [
   FirestoreSubcollection.VideoTimeRanges,
 ];
 
-// Collections where cached and authored documents coexist. The blog-post
-// collections are refilled from Squarespace by the content-cache sync, but
-// that sync only prunes posts from its own source, so posts written from
-// anywhere else are durable, authored data and must be backed up.
-//
-// A post is regenerable precisely when it came from the source that syncs the
-// collection, since that sync will rewrite it. Reading the kind through
-// blogPostSourceKind keeps this decision identical to the sync's own.
-//
-// In addition, any draft article or post (isDraft: true or status: 'draft')
-// is ALWAYS preserved and backed up regardless of source kind. Drafts are
-// authored in-progress content that only exists in Firestore and cannot be
-// regenerated from an external blog feed.
+// Collections where cached and authored documents coexist.
+// Currently empty because members-post and instructors-post are now backed up
+// in full via BACKUP_COLLECTIONS, ensuring all Squarespace posts and drafts
+// are preserved in every backup.
 export const BACKUP_MIXED_COLLECTIONS: {
   name: string;
   cachedFrom: BlogPostSourceKind;
-}[] = [
-  { name: FirestoreCollection.MembersPost, cachedFrom: BlogPostSourceKind.Squarespace },
-  { name: FirestoreCollection.InstructorsPost, cachedFrom: BlogPostSourceKind.Squarespace },
-];
+}[] = [];
 
 /**
  * Common logic to perform the database backup to Cloud Storage.

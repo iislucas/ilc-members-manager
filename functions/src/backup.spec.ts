@@ -24,6 +24,8 @@ describe('backup system', () => {
     expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.VideoGrants);
     expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.Statistics);
     expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.ArticlesPost);
+    expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.MembersPost);
+    expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.InstructorsPost);
     expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.NewsPost);
   });
 
@@ -194,9 +196,10 @@ describe('backup system', () => {
         },
       ]);
 
-      // Check mixed collections preserve authored AND draft posts while filtering out cached non-draft squarespace docs
+      // Check members-post preserves ALL posts including cached Squarespace ones, authored ones, and drafts
       expect(parsed.data).toHaveProperty('members-post');
       expect(parsed.data['members-post']).toEqual([
+        { id: 'post_cached', kind: BlogPostSourceKind.Squarespace, title: 'Cached Post', isDraft: false },
         { id: 'post_authored', kind: BlogPostSourceKind.FirebaseSourced, title: 'App Post' },
         { id: 'post_draft_squarespace_kind', kind: BlogPostSourceKind.Squarespace, title: 'Draft Overriding Squarespace', isDraft: true },
         { id: 'post_draft_unspecified_kind', title: 'Draft Without Kind', status: 'draft' },
