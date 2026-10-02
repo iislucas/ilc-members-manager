@@ -24,6 +24,7 @@ describe('backup system', () => {
     expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.VideoGrants);
     expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.Statistics);
     expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.ArticlesPost);
+    expect(BACKUP_COLLECTIONS).toContain(FirestoreCollection.NewsPost);
   });
 
   it('should include all required authored subcollections in BACKUP_SUBCOLLECTION_GROUPS', () => {
@@ -76,17 +77,40 @@ describe('backup system', () => {
                   ],
                 };
               }
-              if (col === FirestoreCollection.MembersPost) {
+              if (col === FirestoreCollection.ArticlesPost) {
                 return {
                   size: 2,
                   docs: [
                     {
+                      id: 'article_published',
+                      data: () => ({ title: 'Published Guide', isDraft: false, status: 'published' }),
+                    },
+                    {
+                      id: 'article_draft',
+                      data: () => ({ title: 'Draft Philosophy Essay', isDraft: true, status: 'draft' }),
+                    },
+                  ],
+                };
+              }
+              if (col === FirestoreCollection.MembersPost) {
+                return {
+                  size: 4,
+                  docs: [
+                    {
                       id: 'post_cached',
-                      data: () => ({ kind: BlogPostSourceKind.Squarespace, title: 'Cached Post' }),
+                      data: () => ({ kind: BlogPostSourceKind.Squarespace, title: 'Cached Post', isDraft: false }),
                     },
                     {
                       id: 'post_authored',
                       data: () => ({ kind: BlogPostSourceKind.FirebaseSourced, title: 'App Post' }),
+                    },
+                    {
+                      id: 'post_draft_squarespace_kind',
+                      data: () => ({ kind: BlogPostSourceKind.Squarespace, title: 'Draft Overriding Squarespace', isDraft: true }),
+                    },
+                    {
+                      id: 'post_draft_unspecified_kind',
+                      data: () => ({ title: 'Draft Without Kind', status: 'draft' }),
                     },
                   ],
                 };
@@ -128,7 +152,7 @@ describe('backup system', () => {
       } as any);
     });
 
-    it('performs backup including products and registrations with full paths', async () => {
+    it('performs backup including products, registrations, and draft articles', async () => {
       const fileName = await performBackup();
 
       expect(fileName).toMatch(/^backups\/backup-.*\.json$/);
@@ -142,6 +166,13 @@ describe('backup system', () => {
       expect(parsed.data).toHaveProperty('products');
       expect(parsed.data.products).toEqual([
         { id: 'prod_workshop_1', title: 'Intensive Workshop', price: 150 },
+      ]);
+
+      // Check articles-post (includes both published and draft articles)
+      expect(parsed.data).toHaveProperty('articles-post');
+      expect(parsed.data['articles-post']).toEqual([
+        { id: 'article_published', title: 'Published Guide', isDraft: false, status: 'published' },
+        { id: 'article_draft', title: 'Draft Philosophy Essay', isDraft: true, status: 'draft' },
       ]);
 
       // Check registrations
@@ -163,10 +194,12 @@ describe('backup system', () => {
         },
       ]);
 
-      // Check mixed collections filter out cached squarespace docs
+      // Check mixed collections preserve authored AND draft posts while filtering out cached non-draft squarespace docs
       expect(parsed.data).toHaveProperty('members-post');
       expect(parsed.data['members-post']).toEqual([
         { id: 'post_authored', kind: BlogPostSourceKind.FirebaseSourced, title: 'App Post' },
+        { id: 'post_draft_squarespace_kind', kind: BlogPostSourceKind.Squarespace, title: 'Draft Overriding Squarespace', isDraft: true },
+        { id: 'post_draft_unspecified_kind', title: 'Draft Without Kind', status: 'draft' },
       ]);
     });
 

@@ -3,7 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
-import { BlogPostSourceKind, blogPostSourceKind } from './data-model/content-cache';
+import { BlogPostSourceKind, blogPostSourceKind, isDraftPost } from './data-model/content-cache';
 import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 
 // Top-level collections holding authored (non-derived) data.
@@ -28,6 +28,7 @@ export const BACKUP_COLLECTIONS: string[] = [
   FirestoreCollection.VideoGrants,
   FirestoreCollection.Statistics,
   FirestoreCollection.ArticlesPost,
+  FirestoreCollection.NewsPost,
   FirestoreCollection.DeletionLogs,
 ];
 
@@ -60,6 +61,11 @@ export const BACKUP_SUBCOLLECTION_GROUPS: string[] = [
 // A post is regenerable precisely when it came from the source that syncs the
 // collection, since that sync will rewrite it. Reading the kind through
 // blogPostSourceKind keeps this decision identical to the sync's own.
+//
+// In addition, any draft article or post (isDraft: true or status: 'draft')
+// is ALWAYS preserved and backed up regardless of source kind. Drafts are
+// authored in-progress content that only exists in Firestore and cannot be
+// regenerated from an external blog feed.
 export const BACKUP_MIXED_COLLECTIONS: {
   name: string;
   cachedFrom: BlogPostSourceKind;
@@ -108,7 +114,15 @@ export async function performBackup(): Promise<string> {
       logger.info(`Fetching authored documents from: ${name}`);
       const snapshot = await db.collection(name).get();
       const records = snapshot.docs
-        .filter((doc) => blogPostSourceKind(doc.data()) !== cachedFrom)
+        .filter((doc) => {
+          const data = doc.data();
+          // Always preserve draft articles/posts regardless of source kind;
+          // drafts are authored in-progress content and never regenerable from cache.
+          if (isDraftPost(data)) {
+            return true;
+          }
+          return blogPostSourceKind(data) !== cachedFrom;
+        })
         .map((doc) => ({
           id: doc.id,
           ...doc.data(),
