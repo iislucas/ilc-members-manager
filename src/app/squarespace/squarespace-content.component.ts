@@ -184,6 +184,11 @@ export class SquarespaceContentComponent implements OnDestroy {
         return this.postsLoading();
     });
 
+    readonly draftCount = computed<number>(() => {
+        if (!this.firebaseService.isAdmin()) return 0;
+        return this.blogEntries().filter((e) => isDraftPost(e)).length;
+    });
+
     private postsLoading = signal(true);
 
     filteredEntries = computed(() => {

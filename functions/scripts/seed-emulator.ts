@@ -165,7 +165,7 @@ async function main(): Promise<void> {
       const email = entry['id'] as string;
       if (!email || !email.includes('@')) continue;
       try {
-        await admin.auth().createUser({ email, password: TEST_PASSWORD });
+        await admin.auth().createUser({ email, password: TEST_PASSWORD, emailVerified: true });
         created++;
       } catch (err: unknown) {
         // 'email-already-exists' means we already seeded; skip silently.
