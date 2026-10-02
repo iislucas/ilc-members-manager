@@ -1116,6 +1116,21 @@
                                   </div>
                                 }
 
+                                <div class="series-mobile-meta">
+                                  <span class="meta-item">
+                                    <span class="meta-label">Target ID:</span>
+                                    <code>{{ row.seriesId || row.id }}</code>
+                                  </span>
+                                  <span class="meta-item">
+                                    <span class="meta-label">Kind:</span>
+                                    <span class="meta-value">{{ row.grantKind }}</span>
+                                  </span>
+                                  <span class="meta-item">
+                                    <span class="meta-label">Date:</span>
+                                    <span class="meta-value">{{ formatGrantDate(row.latestGrantedAt) }}</span>
+                                  </span>
+                                </div>
+
                                 <div class="nested-table-wrapper">
                                   <table class="nested-videos-table">
                                     <thead>
@@ -1170,6 +1185,13 @@
                                                   >{{ item.notes }}</span
                                                 >
                                               }
+                                              <span class="nested-mobile-duration">
+                                                {{
+                                                  formatDuration(
+                                                    item.durationSeconds
+                                                  )
+                                                }}
+                                              </span>
                                             </div>
                                           </td>
                                           <td class="nested-col-id">
