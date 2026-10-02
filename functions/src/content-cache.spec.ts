@@ -5,7 +5,7 @@ import {
   mapToCachedBlogPost,
   contentChanged,
 } from './content-cache';
-import { BlogPostSourceKind, blogPostSourceKind } from './data-model/content-cache';
+import { BlogPostSourceKind, blogPostSourceKind, isDraftPost, BlogPostStatus } from './data-model/content-cache';
 import {
   squarespaceBaseUrl,
   memberBlogItem,
@@ -336,3 +336,27 @@ describe('mapToCachedBlogPost source kind', () => {
     expect(post.kind).toBe(BlogPostSourceKind.Squarespace);
   });
 });
+
+describe('isDraftPost', () => {
+  it('returns true when isDraft is true', () => {
+    expect(isDraftPost({ isDraft: true })).toBe(true);
+    expect(isDraftPost({ isDraft: 'true' as any })).toBe(true);
+  });
+
+  it('returns true when status is BlogPostStatus.Draft or "draft"', () => {
+    expect(isDraftPost({ status: BlogPostStatus.Draft })).toBe(true);
+    expect(isDraftPost({ status: 'draft' as any })).toBe(true);
+  });
+
+  it('returns true when draft field is true', () => {
+    expect(isDraftPost({ draft: true } as any)).toBe(true);
+  });
+
+  it('returns false for published posts and defaults', () => {
+    expect(isDraftPost({ isDraft: false, status: BlogPostStatus.Published })).toBe(false);
+    expect(isDraftPost({})).toBe(false);
+    expect(isDraftPost(null)).toBe(false);
+    expect(isDraftPost(undefined)).toBe(false);
+  });
+});
+
