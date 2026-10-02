@@ -107,14 +107,28 @@
             </article>
             } @empty {
             <div class="empty-content-warning">
+                @if (firebaseService.isAdmin() && draftCount() > 0 && selectedCategory() !== 'Drafts') {
+                <p>No published articles in this category yet, but <strong>{{ draftCount() }} draft{{ draftCount() === 1 ? '' : 's' }}</strong> are awaiting review in the Drafts tab.</p>
+                <div class="empty-admin-action" style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                    <button type="button" class="button" (click)="selectCategory('Drafts')">
+                        <app-icon name="visibility"></app-icon>
+                        <span>View Drafts ({{ draftCount() }})</span>
+                    </button>
+                    <a class="button primary-button create-article-btn" [href]="newArticleHref()">
+                        <app-icon name="add"></app-icon>
+                        <span>Create Article</span>
+                    </a>
+                </div>
+                } @else {
                 <p>No articles found.</p>
                 @if (firebaseService.isAdmin()) {
                 <div class="empty-admin-action">
-                    <a class="primary-button create-article-btn" [href]="newArticleHref()">
+                    <a class="button primary-button create-article-btn" [href]="newArticleHref()">
                         <app-icon name="add"></app-icon>
                         <span>Create First Article</span>
                     </a>
                 </div>
+                }
                 }
             </div>
             }
@@ -123,14 +137,28 @@
         <div class="content" [innerHTML]="fallbackContent()"></div>
         } @else {
         <div class="empty-content-warning">
+            @if (firebaseService.isAdmin() && draftCount() > 0 && selectedCategory() !== 'Drafts') {
+            <p>No published articles yet, but <strong>{{ draftCount() }} draft{{ draftCount() === 1 ? '' : 's' }}</strong> are awaiting review in the Drafts tab.</p>
+            <div class="empty-admin-action" style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                <button type="button" class="button" (click)="selectCategory('Drafts')">
+                    <app-icon name="visibility"></app-icon>
+                    <span>View Drafts ({{ draftCount() }})</span>
+                </button>
+                <a class="button primary-button create-article-btn" [href]="newArticleHref()">
+                    <app-icon name="add"></app-icon>
+                    <span>Create Article</span>
+                </a>
+            </div>
+            } @else {
             <p>No articles found.</p>
             @if (firebaseService.isAdmin()) {
             <div class="empty-admin-action">
-                <a class="primary-button create-article-btn" [href]="newArticleHref()">
+                <a class="button primary-button create-article-btn" [href]="newArticleHref()">
                     <app-icon name="add"></app-icon>
                     <span>Create First Article</span>
                 </a>
             </div>
+            }
             }
         </div>
         }

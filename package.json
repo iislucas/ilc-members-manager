@@ -15,7 +15,7 @@
     "deploy:hosting": "pnpm run build && firebase deploy --only hosting",
     "deploy:rules": "firebase deploy --only firestore:rules,storage",
     "deploy": "pnpm run build:all && firebase deploy",
-    "emulator:start": "firebase emulators:start --only auth,firestore,functions,storage",
+    "emulator:start": "firebase emulators:start --project ilc-paris-class-tracker --only auth,firestore,functions,storage",
     "export:anonymized": "pnpm --prefix functions exec ts-node scripts/export-anonymized-data.ts --project ilc-paris-class-tracker",
     "mcp": "ng mcp",
     "ng": "ng",

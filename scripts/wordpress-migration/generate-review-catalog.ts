@@ -226,6 +226,21 @@ async function main() {
     const isStub = a.char_count < 60 || isTrailerStub || isVeryShort;
     const isUtility = UTILITY_SLUGS.has(cleanSlug);
     const isShortcodeOnly = a.content_html.trim().startsWith('[') && a.content_html.trim().endsWith(']') && a.content_html.length < 100;
+    const catsLower = (a.categories || []).map((c) => c.toLowerCase());
+    const tagsLower = (a.tags || []).map((t) => t.toLowerCase());
+    const isZoomCategoryOrTag = catsLower.some((c) => c.includes('zoom')) || tagsLower.some((t) => t.includes('zoom'));
+    const isZoomMeetingInvite = /zoom\.us\/j\//i.test(a.content_html || '') || /inviting you to a scheduled zoom meeting/i.test(a.content_html || '');
+    const isClassCancellationOrZoomNotice =
+      isZoomCategoryOrTag ||
+      isZoomMeetingInvite ||
+      /no\s+(members\s+)?(zoom\s+)?class/i.test(a.title) ||
+      /no\s+(members\s+)?session/i.test(a.title) ||
+      /class\s+cancel/i.test(a.title) ||
+      /zoom\s+session.*resumes/i.test(a.title) ||
+      /no-class/i.test(cleanSlug) ||
+      /no-session/i.test(cleanSlug) ||
+      /no-members-session/i.test(cleanSlug) ||
+      /zoom-class/i.test(cleanSlug);
 
     const { collection, targetCategories } = deriveTargetCollection(a);
 
@@ -254,7 +269,7 @@ async function main() {
 
     if (match) {
       auditStatus = 'ALREADY_IMPORTED';
-    } else if (isStub || isUtility || isShortcodeOnly) {
+    } else if (isStub || isUtility || isShortcodeOnly || isClassCancellationOrZoomNotice) {
       auditStatus = 'UTILITY_OR_STUB';
     } else {
       auditStatus = 'CANDIDATE_FOR_IMPORT';

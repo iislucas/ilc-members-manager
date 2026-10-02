@@ -6,25 +6,25 @@
 
 | Category | Total | Description |
 | :--- | :--- | :--- |
-| **Candidates for Draft Import** | **337** | New articles to import into Firestore as drafts (zero collision with existing docs) |
-| — *Wiki Articles (`yada_wiki`)* | 135 | Core knowledgebase & philosophical essays |
-| — *Standard Blog Posts (`post`)* | 193 | Historical announcements, event summaries, student blogs |
+| **Candidates for Draft Import** | **145** | New articles to import into Firestore as drafts (zero collision with existing docs) |
+| — *Wiki Articles (`yada_wiki`)* | 134 | Core knowledgebase & philosophical essays |
+| — *Standard Blog Posts (`post`)* | 2 | Historical announcements, event summaries, student blogs |
 | — *Standard Pages (`page`)* | 9 | Evergreen informational and system pages |
 | **Already Imported (Skipped)** | **42** | Exact matches already present in Firestore (protected from overwrite) |
-| **Excluded Utility / Stubs** | **172** | Empty stubs, WooCommerce cart/checkout/shop pages, or dead utility forms |
+| **Excluded Utility / Stubs** | **364** | Empty stubs, WooCommerce cart/checkout/shop pages, or dead utility forms |
 | **Total Evaluated** | **551** | Full database inventory |
 
 ### Target Collection Routing Breakdown for Candidates
 
 | Collection | Count | Description |
 | :--- | :--- | :--- |
-| `articles-post` (Public Articles) | 291 | Public articles, Sifu Says, philosophy, forms & training, history |
+| `articles-post` (Public Articles) | 134 | Public articles, Sifu Says, philosophy, forms & training, history |
 | `members-post` (Members Only) | 2 | Curriculum, syllabus updates, training guides |
-| `instructors-post` (Instructors Area) | 44 | Instructor resources, licensing, affiliate guides |
+| `instructors-post` (Instructors Area) | 9 | Instructor resources, licensing, affiliate guides |
 
 ---
 
-## 2. Candidates for Draft Import (Wiki Articles: 135)
+## 2. Candidates for Draft Import (Wiki Articles: 134)
 
 These articles represent the previously missing wiki content from `yada_wiki`:
 
@@ -66,7 +66,6 @@ These articles represent the previously missing wiki content from `yada_wiki`:
 | `36672` | **How do you 'Go' about learning?** | `weiqi-learning-progression` | `articles-post` | General, News | 770 | 2 | 2022-03-31 |
 | `35792` | **Instructor Joshua Craig Workshops in Germany Jan - Feb 2022** | `2022jan-instructor-joshua-craig-workshops-in-germany` | `instructors-post` | Workshop Announcements | 147 | 1 | 2022-01-27 |
 | `35651` | **2022 Intensive Retreat** | `2022-kung-fu-intensive-retreat` | `articles-post` | News | 67 | 2 | 2022-01-21 |
-| `35435` | **Zoom session with Grandmaster Sam Chin resumes for the New Year** | `zoom-session-resumes-for-the-new-year` | `articles-post` | News | 43 | 1 | 2022-01-08 |
 | `35014` | **Workshops & Events Around the World - November / December 2021** | `workshops-events-2021-nov-dec` | `articles-post` | News | 154 | 1 | 2021-12-06 |
 | `34620` | **Level 9 - The Level of Mastery** | `level9_mastery` | `articles-post` | News, Essays | 577 | 5 | 2021-10-31 |
 | `34605` | **Events and Members Around the World October / November** | `events-and-members-around-the-world-october-november` | `articles-post` | News | 454 | 4 | 2021-10-31 |
@@ -168,205 +167,14 @@ These articles represent the previously missing wiki content from `yada_wiki`:
 
 ---
 
-## 3. Candidates for Draft Import (Standard Posts & Pages: 202)
+## 3. Candidates for Draft Import (Standard Posts & Pages: 11)
 
 | WP ID | Type | Title | Slug | Target Collection | Categories | Words | Media | Date |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `61751` | `post` | **February 28th, 2026 : Martial Art of Awareness with Katya Shestakova** | `february-28th-2026-martial-art-of-awareness-with-katya-shestakova` | `articles-post` | Members Only, Zoom Sessions | 46 | 0 | 2026-02-22 |
 | `61754` | `post` | **Important Update: New Website and Management Portal Launch** | `important-update-new-website-and-management-portal-launch` | `instructors-post` | Instructor Content | 454 | 0 | 2026-02-20 |
-| `61517` | `post` | **February 14th + 21st, 2026 : No Class** | `february-14th-21st-2026-no-class` | `articles-post` | Members Only, Zoom Sessions | 109 | 0 | 2026-02-07 |
-| `61511` | `post` | **February 7th, 2026 : Martial Art of Awareness with Katya Shestakova** | `february-7th-2026-martial-art-of-awareness-with-katya-shestakova` | `articles-post` | Members Only, Zoom Sessions | 86 | 0 | 2026-01-31 |
-| `61486` | `post` | **January 31st, 2026 : Giving the Right Energy with Master Ashe Higgs** | `january-31st-2026-martial-art-of-awareness-with-master-ashe-higgs` | `articles-post` | Members Only, Zoom Sessions | 54 | 0 | 2026-01-30 |
-| `61350` | `post` | **January 24th, 2026 : Footwork to Change Angles with Instructor Jeffrey Wong** | `january-24th-2026-martial-art-of-awareness-with-instructor-jeffrey-wong` | `instructors-post` | Members Only, Zoom Sessions | 44 | 0 | 2026-01-21 |
-| `61215` | `post` | **January 17th, 2026 : Martial Art of Awareness with Inst. Katya Shestakova** | `january-17th-2026-martial-art-of-awareness-with-inst-katya-shestakova` | `articles-post` | Members Only, Zoom Sessions | 48 | 0 | 2026-01-10 |
-| `61190` | `post` | **January 10th, 2026 : 2 to 1 (part 2) with Inst. Lipyeow Lim** | `january-10th-2026-martial-art-of-awareness-with-inst-lipyeow-lim` | `articles-post` | Members Only, Zoom Sessions | 48 | 0 | 2026-01-08 |
 | `61113` | `page` | **Video on Demand** | `video-on-demand` | `articles-post` | Wiki & Guides | 69 | 0 | 2026-01-02 |
-| `61094` | `post` | **January 3rd, 2026 : Martial Art of Awareness with Inst. LipYeow Lim** | `january-3rd-2026-martial-art-of-awareness-with-inst-lipyeow-lim` | `articles-post` | Members Only, Zoom Sessions | 47 | 0 | 2026-01-01 |
-| `61013` | `post` | **December 27th, 2025 : No Class** | `december-27th-2025-no-class` | `articles-post` | Members Only, Zoom Sessions | 54 | 0 | 2025-12-23 |
-| `60976` | `post` | **December 20th, 2025 : Martial Art of Awareness with Inst. Katya Shestakova** | `december-20th-2025-martial-art-of-awareness-with-inst-katya-shestakova` | `articles-post` | Members Only, Zoom Sessions | 45 | 0 | 2025-12-18 |
-| `60924` | `post` | **December 13th, 2025 : No Members Zoom Class This Week** | `december-13th-2025-no-members-zoom-class-this-week` | `articles-post` | Members Only, Zoom Sessions | 31 | 0 | 2025-12-12 |
-| `60817` | `post` | **December 6th, 2025 : Martial Art of Awareness with Inst. Katya Shestakova** | `december-6th-2025-martial-art-of-awareness-with-inst-katya-shestakova` | `articles-post` | Members Only, Zoom Sessions | 45 | 0 | 2025-12-03 |
-| `60779` | `post` | **November 29th, 2025 : No Class** | `november-29th-2025-no-class` | `articles-post` | Members Only, Zoom Sessions | 56 | 0 | 2025-11-29 |
-| `60697` | `post` | **November 21st, 2025 : Five Elements (Earth) with Master Ashe Higgs** | `november-21st-2025-martial-art-of-awareness-with-master-ashe-higgs` | `articles-post` | Members Only, Zoom Sessions | 46 | 0 | 2025-11-21 |
-| `60630` | `post` | **November 15th, 2025 : Martial Art of Awareness with Instructor Lan Tran** | `november-15th-2025-martial-art-of-awareness-with-instructor-lan-tran` | `instructors-post` | Members Only, Zoom Sessions | 62 | 9 | 2025-11-14 |
-| `60484` | `post` | **November 8th, 2025 : Structural Alignment with Instructor Lan Tran **Time Change**** | `november-8th-2025-martial-art-of-awareness-with-instructor-lan-tran-time-change` | `instructors-post` | Members Only, Zoom Sessions | 129 | 9 | 2025-11-03 |
-| `60480` | `post` | **November 1st, 2025 : Martial Art of Awareness with Instructor Katya Shestakova** | `november-1st-2025-martial-art-of-awareness-with-instructor-katya-shestakova` | `instructors-post` | Members Only, Zoom Sessions | 65 | 9 | 2025-10-30 |
-| `60369` | `post` | **October 25th, 2025 : "Recognize 6Dir/3D & Rotate in 3 Planes" with Inst. Jeffrey Wong** | `october-25th-2025-martial-art-of-awareness-with-inst-jeffrey-wong` | `articles-post` | Members Only, Zoom Sessions | 61 | 1 | 2025-10-19 |
-| `60366` | `post` | **UPDATE - October 18th, 2025 : CANCELLED** | `october-18th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 41 | 0 | 2025-10-18 |
-| `60296` | `post` | **October 11th, 2025 : No Members Zoom Class This Week** | `october-11th-2025-no-members-zoom-class-this-week` | `articles-post` | Members Only, Zoom Sessions | 36 | 0 | 2025-10-10 |
-| `60196` | `post` | **October 4th, 2025 : "Guard Center, Use Center" with Instructor Jeffrey Wong** | `october-4th-2025-guard-center-use-center-with-instructor-jeffrey-wong` | `instructors-post` | Members Only, Zoom Sessions | 61 | 0 | 2025-09-30 |
-| `59628` | `post` | **September 27th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `september-27th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 64 | 9 | 2025-09-21 |
-| `59625` | `post` | **September 20th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `september-20th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 59 | 9 | 2025-09-14 |
-| `59621` | `post` | **September 13th, 2025 : Footwork Combinations with Instructor Jeffrey Wong** | `september-13th-2025-martial-art-of-awareness-with-master-rich-kelly` | `instructors-post` | Members Only, Zoom Sessions | 68 | 9 | 2025-09-07 |
-| `59618` | `post` | **September 6th, 2025 : No Class [UPDATE]** | `september-6th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 79 | 9 | 2025-08-31 |
-| `59614` | `post` | **August 30th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `august-30th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 59 | 9 | 2025-08-24 |
-| `59612` | `post` | **August 23rd, 2026 : Martial Art of Awareness with Master Rich Kelly** | `august-23rd-2026-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 65 | 9 | 2025-08-16 |
-| `59601` | `post` | **August 16th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `august-16th-2026-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 66 | 9 | 2025-08-15 |
-| `59499` | `post` | **August 9th, 2025 : Special class by GM Sam F.S. Chin continues...** | `august-9th-2025-special-class-by-gm-sam-f-s-chin-continues` | `articles-post` | Members Only, Zoom Sessions | 64 | 9 | 2025-08-08 |
-| `59403` | `post` | **August 2nd, 2025 : Special class with GM Sam F.S. Chin** | `august-2nd-2025-special-class-with-gm-sam-f-s-chin` | `articles-post` | Members Only, Zoom Sessions | 81 | 9 | 2025-08-01 |
-| `59025` | `post` | **July 26th, 2025 : Martial of Awareness with Master Rich Kelly** | `july-26th-2025-martial-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 58 | 9 | 2025-07-20 |
-| `59022` | `post` | **July 19th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `july-19th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 58 | 9 | 2025-07-13 |
-| `59019` | `post` | **July 12th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `july-12th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 58 | 9 | 2025-07-11 |
-| `58852` | `post` | **June 28th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `june-28th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 60 | 0 | 2025-06-28 |
-| `58526` | `post` | **June 21st, 2025 : Martial Art of Awareness with Master Rich Kelly** | `june-21st-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2025-06-17 |
-| `58523` | `post` | **June 14th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `june-14th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2025-06-09 |
-| `58517` | `post` | **June 7th, 2025 : QiGong with Instructor Dima Siomau** | `58517-2` | `instructors-post` | Members Only, Zoom Sessions | 62 | 9 | 2025-06-06 |
-| `58376` | `post` | **May 31st, 2025 : Martial Art of Awareness with Master Rich Kelly** | `may-31st-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2025-05-27 |
-| `58373` | `post` | **May 24th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `may-24th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2025-05-24 |
-| `58210` | `post` | **May 17th, 2025 : No class** | `may-17th-2025-no-class` | `articles-post` | Members Only, Zoom Sessions | 31 | 0 | 2025-05-16 |
-| `58103` | `post` | **May 10th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `may-10th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2025-05-09 |
-| `58025` | `post` | **May 3rd, 2025 : No Class** | `may-3rd-2025-no-class` | `articles-post` | Members Only, Zoom Sessions | 40 | 1 | 2025-05-03 |
-| `57882` | `post` | **April 26th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `april-26th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2025-04-25 |
-| `57751` | `post` | **April 19th, 2025 : No Class** | `april-19th-2025-no-class` | `articles-post` | Members Only, Zoom Sessions | 24 | 0 | 2025-04-18 |
-| `57560` | `post` | **April 12th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `april-12th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2025-04-11 |
-| `57243` | `post` | **April 5th, 2025 : No Class** | `april-5th-2025-martial-art-of-awareness-with-jeffrey-wong` | `articles-post` | Members Only, Zoom Sessions | 29 | 9 | 2025-04-02 |
 | `57448` | `page` | **Front Page [test]** | `page-57448` | `articles-post` | Wiki & Guides | 83 | 2 | 2025-04-02 |
-| `57014` | `post` | **March 29th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `march-29th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2025-03-26 |
-| `57011` | `post` | **March 22nd, 2025 : No Class** | `march-22nd-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 51 | 9 | 2025-03-19 |
-| `57008` | `post` | **March 15th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `march-15th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2025-03-13 |
-| `57004` | `post` | **March 8th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `march-8th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2025-03-01 |
-| `56889` | `post` | **March 1st, 2025 : Concave / Convex Part 2 with Inst. Jeffrey Wong** | `march-1st-2025-martial-art-of-awareness-with-inst-jeffrey-wong-topic-tba` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2025-02-24 |
-| `56885` | `post` | **February 22nd, 2025 : Observing Concave/Convex Through Each Student Level with Inst. Jeffrey Wong** | `february-22nd-2025-observing-concave-convex-through-each-student-level-with-inst-jeffrey-wong` | `articles-post` | Members Only, Zoom Sessions | 60 | 9 | 2025-02-21 |
-| `56764` | `post` | **February 15th, 2025 : No Class** | `february-15th-2025-no-class` | `articles-post` | Members Only, Zoom Sessions | 24 | 0 | 2025-02-11 |
-| `56054` | `post` | **February 8th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `januray-8th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 53 | 9 | 2025-02-03 |
-| `56060` | `post` | **February 1st, 2025 : Martial Art of Awareness with Inst. Katya Shestakova** | `february-1st-2025-martial-art-of-awareness-with-inst-katya-shestakova` | `articles-post` | Members Only, Zoom Sessions | 60 | 9 | 2025-01-26 |
-| `56057` | `post` | **January 25th, 2025 : Martial Art of Awareness with Inst. Katya Shestakova** | `january-25th-2025-martial-art-of-awareness-with-inst-katya-shestakova` | `articles-post` | Members Only, Zoom Sessions | 60 | 9 | 2025-01-19 |
-| `56051` | `post` | **January 18th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `january-18th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 53 | 9 | 2025-01-12 |
-| `56048` | `post` | **January 11th, 2025 : Martial Art of Awareness with Master Rich Kelly** | `january-11th-2025-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 53 | 9 | 2025-01-05 |
-| `56031` | `post` | **January 4th, 2025 : Joint Circles by Inst. Jeffrey Wong** | `january-4th-2025-joint-circles-by-inst-jeffrey-wong` | `articles-post` | Members Only, Zoom Sessions | 40 | 0 | 2025-01-01 |
-| `56042` | `post` | **December 21st, 2024 : Martial Art of Awareness with Master Rich Kely** | `december-21st-2024-martial-art-of-awareness-with-master-rich-kely` | `articles-post` | Members Only, Zoom Sessions | 53 | 9 | 2024-12-15 |
-| `56028` | `post` | **December 14th, 2024 : Tiger's Back & Bear's Waist by Inst. Jeffrey Wong** | `december-21st-2024-tigers-back-bears-waist-by-inst-jeffrey-wong` | `articles-post` | Members Only, Zoom Sessions | 43 | 0 | 2024-12-12 |
-| `55883` | `post` | **December 7th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `december-7th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 58 | 9 | 2024-12-05 |
-| `55707` | `post` | **November 23rd, 2024 : Martial Art of Awareness with Master Rich Kelly** | `november-23rd-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2024-11-22 |
-| `55631` | `post` | **November 16th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `november-16th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-11-15 |
-| `55577` | `post` | **November 9th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `november-9th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 55 | 9 | 2024-11-09 |
-| `55368` | `post` | **October 26th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `october-26th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-10-25 |
-| `55268` | `post` | **October 19th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `october-19th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2024-10-19 |
 | `55200` | `page` | **Volunteer with Chin Family I Liq Chuan** | `page-55200` | `articles-post` | Wiki & Guides | 241 | 0 | 2024-10-14 |
-| `55071` | `post` | **October 5th, 2024 : Basic Exercises Through the Prism of 6 Physical Points with Instructor Katya Shestakova** | `october-5th-2024-martial-art-of-awareness-with-master-rich-kelly` | `instructors-post` | Members Only, Zoom Sessions | 67 | 9 | 2024-10-03 |
-| `55032` | `post` | **September 28th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `september-28th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2024-09-27 |
-| `54909` | `post` | **September 21st, 2024 : Martial Art of Awareness with Master Rich Kelly** | `september-21st-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 68 | 9 | 2024-09-20 |
-| `54853` | `post` | **September 14th, 2024 : How to Train with the Right Reference with Inst. Katya Shestakova** | `september-14th-2024-how-to-train-with-the-right-reference-with-inst-katya-shestakova` | `articles-post` | Members Only, Zoom Sessions | 64 | 9 | 2024-09-13 |
-| `54695` | `post` | **September 7th, 2024 : How to Practice Partner Drills Solo with Instructor Jeffrey Wong** | `september-7th-2024-how-to-practice-partner-drills-solo-with-instructor-jeffrey-wong` | `instructors-post` | Members Only, Zoom Sessions | 63 | 9 | 2024-09-02 |
-| `54692` | `post` | **August 31st, 2024 : Martial Art of Awareness with Master Rich Kelly** | `august-31st-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-08-24 |
-| `54688` | `post` | **August 24th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `august-24th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-08-23 |
-| `54610` | `post` | **August 17th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `august-17th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-08-17 |
-| `54491` | `post` | **August 10th, 2024 : No Online Class** | `august-10th-2024-no-online-class` | `articles-post` | Members Only, Zoom Sessions | 14 | 0 | 2024-08-04 |
-| `54423` | `post` | **August 3rd, 2024 : Mechanics and Applications of Hip Rolls with Inst. Jeffrey Wong** | `august-3rd-2024-no-class` | `articles-post` | Members Only, Zoom Sessions | 60 | 9 | 2024-07-29 |
-| `54420` | `post` | **July 27th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `july-27th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-07-26 |
-| `54284` | `post` | **July 20th, 2024 : No Class - Join GM Sam F.S. Chin at this "How to Gain Inner Strength" class** | `july-20th-2024-no-class-join-gm-sam-f-s-chin-at-this-how-to-gain-inner-strength-class` | `articles-post` | Members Only, Zoom Sessions | 132 | 0 | 2024-07-15 |
-| `54243` | `post` | **July 13th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `july-13th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-07-13 |
-| `54105` | `post` | **June 29th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `june-29th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2024-06-28 |
-| `54003` | `post` | **June 22nd, 2024 : Five Elements Mechanics with Instructor Jeff Wong** | `june-22nd-2024-five-elements-mechanics-with-instructor-jeff-wong` | `instructors-post` | Members Only, Zoom Sessions | 60 | 9 | 2024-06-20 |
-| `53905` | `post` | **June 15th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `june-15th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2024-06-15 |
-| `53855` | `post` | **June 8th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `june-8th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-06-07 |
-| `53768` | `post` | **June 1st, 2024 : Spinning Hands Entry and Power Generation with Instructor Jeffrey Wong** | `53768-2` | `instructors-post` | Members Only, Zoom Sessions | 59 | 9 | 2024-05-31 |
-| `53702` | `post` | **May 25th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `may-25th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 56 | 9 | 2024-05-24 |
-| `53640` | `post` | **May 18th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `may-18th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-05-18 |
-| `53491` | `post` | **May 11th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `may-11th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 59 | 9 | 2024-05-10 |
-| `53301` | `post` | **April 27th, 2024 : I Liq Chuan 21 Form with Master Rich Kelly** | `april-27th-2024-i-liq-chuan-21-form-with-master-rich-kelly` | `articles-post` | Forms & Training | 55 | 9 | 2024-04-26 |
-| `53089` | `post` | **April 20th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `53089-2` | `articles-post` | Members Only, Zoom Sessions | 59 | 9 | 2024-04-16 |
-| `53086` | `post` | **April 13th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `april-13th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 56 | 9 | 2024-04-08 |
-| `53066` | `post` | **April 6th, 2024 : Understanding and Applying 45/90 Degrees with Inst. Jeffrey Wong** | `april-6th-2024-understanding-and-applying-45-90-degrees-with-inst-jeffrey-wong` | `articles-post` | Members Only, Zoom Sessions | 59 | 9 | 2024-04-01 |
-| `52616` | `post` | **March 30th, 2024 : How to Generate Soft Power with Inst. Jeffrey Wong** | `march-30th-2024-how-to-generate-soft-power-with-inst-jeffrey-wong` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2024-03-25 |
-| `52613` | `post` | **March 23rd, 2024 : Martial Art of Awareness with Master Rich Kelly** | `march-23rd-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-03-18 |
-| `52610` | `post` | **March 16th, 2024 : No Class** | `march-16th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 37 | 9 | 2024-03-10 |
-| `52619` | `post` | **March 9th, 2024 : Martial Art of Awareness with Master Rich Kelly (CHECK DAYLIGHT SAVING TIME DIF.!)** | `march-9th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 92 | 9 | 2024-03-05 |
-| `52608` | `post` | **March 2nd, 2024 : How to Learn in a Workshop Setting with Instructor Jeffrey Wong** | `march-2nd-2024-how-to-learn-in-a-workshop-setting-with-instructor-jeffrey-wong` | `instructors-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-03-01 |
-| `52500` | `post` | **February 23rd, 2024 : Martial Art of Awareness with Master Rich Kelly** | `february-23rd-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 56 | 9 | 2024-02-23 |
-| `52272` | `post` | **February 3rd, 2024 : Martial Art of Awareness with Master Hsin Chin** | `february-3rd-2024-martial-art-of-awareness-with-master-hsin-chin-2` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-02-03 |
-| `52118` | `post` | **January 27th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `january-27th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2024-01-27 |
-| `52052` | `post` | **January 20th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `january-20th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 60 | 9 | 2024-01-20 |
-| `51683` | `post` | **January 13th, 2024 : Martial Art of Awareness with Instructor Jeffrey Wong** | `january-13th-2024-martial-art-of-awareness-with-instructor-jeffrey-wong` | `instructors-post` | Members Only, Zoom Sessions | 62 | 9 | 2024-01-09 |
-| `51651` | `post` | **January 6th, 2024 : Martial Art of Awareness with Instructor Jeffrey Wong** | `january-6th-2024-martial-art-of-awareness-with-master-rich-kelly` | `instructors-post` | Members Only, Zoom Sessions | 62 | 9 | 2024-01-05 |
-| `51522` | `post` | **December 23rd, 2023 : Martial Art of Awareness with Gatekeeper GM Sam F.S. Chin** | `december-23rd-2023-martial-art-of-awareness-with-gatekeeper-gm-sam-f-s-chin` | `articles-post` | Members Only, Zoom Sessions | 64 | 9 | 2023-12-22 |
-| `51287` | `post` | **December 2nd, 2023 : Martial Art of Awareness with GM Sam Chin** | `december-2nd-2023-martial-art-of-awareness-with-gm-sam-chin` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2023-12-02 |
-| `51115` | `post` | **November 18th, 2023 : No Class** | `november-18th-2023-no-session` | `articles-post` | Members Only, Zoom Sessions | 40 | 0 | 2023-11-17 |
-| `51066` | `post` | **November 11th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `november-11th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2023-11-10 |
-| `50912` | `post` | **October 28th, 2023 : Butterly Form Transition Points for Continuous Energy Flow with Inst. Jeffrey Wong** | `october-28th-2023-butterly-form-transition-points-for-continuous-energy-flow-with-inst-jeffrey-wong-2` | `articles-post` | Forms & Training | 67 | 9 | 2023-10-27 |
-| `50815` | `post` | **October 21st, 2023 : Martial Art of Awareness with Master Rich Kelly** | `october-21st-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 37 | 0 | 2023-10-21 |
-| `50751` | `post` | **October 14, 2023 : Saturday Session with Master Rich Kelly** | `october-14-2023-saturday-session-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 59 | 9 | 2023-10-13 |
-| `50540` | `post` | **September 30th, 2024 : Martial Art of Awareness with Master Rich Kelly** | `september-30th-2024-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 48 | 9 | 2023-09-23 |
-| `50543` | `post` | **September 23rd, 2023 : Martial Art of Awareness with GM Sam F.S. Chin** | `september-23rd-2023-martial-art-of-awareness-with-gm-sam-f-s-chin` | `articles-post` | Members Only, Zoom Sessions | 62 | 9 | 2023-09-20 |
-| `50384` | `post` | **September 2nd, 2023 : Martial Art of Awareness with GM Sam Chin** | `september-2nd-2023-martial-art-of-awareness-with-gm-sam-chin` | `articles-post` | Members Only, Zoom Sessions | 41 | 0 | 2023-09-02 |
-| `50270` | `post` | **August 19th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `august-19th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 44 | 0 | 2023-08-18 |
-| `50210` | `post` | **August 12, 2023 : No Member Session** | `august-12-2023-no-member-session` | `articles-post` | Members Only, Zoom Sessions | 34 | 0 | 2023-08-11 |
-| `50148` | `post` | **August 5th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `august-5th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2023-08-04 |
-| `49973` | `post` | **July 29th, 2023 : No Members Session** | `july-29th-2023-no-members-session` | `articles-post` | Members Only, Zoom Sessions | 62 | 0 | 2023-07-24 |
-| `49954` | `post` | **July 22nd, 2023 : NSEW and Concave/Convex with Master Rich Kelly** | `july-22nd-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2023-07-22 |
-| `49898` | `post` | **July 15th, 2023 : Spinning Hands Live Broadcast** | `july-15th-2023-spinning-hands-live-broadcast` | `articles-post` | Forms & Training | 58 | 9 | 2023-07-15 |
-| `49820` | `post` | **July 8th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `july-8th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 59 | 9 | 2023-07-07 |
-| `49747` | `post` | **July 1st, 2023 : Throwing Hands Incorporating Stepping with Inst. Jeffrey Wong** | `july-1st-2023-throwing-hands-incorporating-stepping-with-inst-jeffrey-wong` | `articles-post` | Members Only, Zoom Sessions | 59 | 9 | 2023-07-01 |
-| `49715` | `post` | **June 24th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `june-24th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 9 | 2023-06-24 |
-| `49664` | `post` | **June 17th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `june-17th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 44 | 0 | 2023-06-17 |
-| `49624` | `post` | **June 10th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `june-10th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 1 | 2023-06-10 |
-| `49559` | `post` | **June 3rd, 2023 : Martial Art of Awareness with Master Hsin Chin** | `june-4th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 42 | 0 | 2023-06-03 |
-| `49462` | `post` | **May 20th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `may-20th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 61 | 1 | 2023-05-19 |
-| `49340` | `post` | **May 13th, 2023 : Martial Art of Awareness Saturday Class with GM Sam F.S. Chin** | `may-13th-2023-martial-art-of-awareness-saturday-class-with-gm-sam-f-s-chin` | `articles-post` | Members Only, Zoom Sessions | 70 | 0 | 2023-05-12 |
-| `49252` | `post` | **May 6th, 2023 : 21 Form - Transition Points for Continuous Energy Flow with Jeffrey Wong** | `may-6th-2023-21-form-transition-points-for-continuous-energy-flow` | `articles-post` | Forms & Training | 46 | 0 | 2023-05-05 |
-| `41456` | `post` | **April 29th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `april-29th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 42 | 0 | 2023-04-23 |
-| `41453` | `post` | **April 22nd, 2023 : Martial Art of Awareness with Master Ashe Higgs** | `april-22nd-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 44 | 0 | 2023-04-15 |
-| `40484` | `post` | **April 15th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `april-15th-2023-martial-art-of-awareness` | `articles-post` | Members Only, Zoom Sessions | 42 | 0 | 2023-04-14 |
-| `39856` | `post` | **April 8th, 2023 : Martial Art of Awareness with Lan Tran** | `april-8th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 49 | 0 | 2023-04-03 |
-| `39807` | `post` | **April 1st, 2023 : Martial Art of Awareness with Master Rich Kelly** | `april-1st-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 44 | 0 | 2023-03-28 |
-| `39805` | `post` | **March 25th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `march-25th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 44 | 0 | 2023-03-24 |
-| `39716` | `post` | **March 18th, 2023 : Martial Art of Awareness with Master Rich Kelly** | `march-18th-2023-martial-art-of-awareness-with-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 78 | 0 | 2023-03-15 |
-| `39680` | `post` | **March 11th, 2023 : Martial Art of Awareness by Master Rich Kelly** | `march-11th-2023-martial-art-of-awareness-by-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 44 | 0 | 2023-03-10 |
-| `39618` | `post` | **March 4th, 2023 : Martial Art of Awareness by Master Rich Kelly** | `march-4th-2023-martial-art-of-awareness-by-master-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 44 | 0 | 2023-03-03 |
-| `39324` | `post` | **February 25th, 2023 : Martial Art of Awareness Class by Inst. Ashe Higgs** | `february-25th-2023-martial-art-of-awareness-class-by-inst-ashe-higgs` | `articles-post` | Members Only, Zoom Sessions | 45 | 0 | 2023-02-19 |
-| `39322` | `post` | **February 18th, 2023 : No Class** | `february-18th-2023-no-class` | `articles-post` | Members Only, Zoom Sessions | 29 | 0 | 2023-02-13 |
-| `39319` | `post` | **February 11, 2023 : Martial Art of Awareness Class by Inst. Rich Kelly** | `february-11-2023-martial-art-of-awareness-class-by-inst-rich-kelly` | `articles-post` | Forms & Training | 41 | 0 | 2023-02-10 |
-| `39156` | `post` | **February 4th, 2023 : Martial Art of Awareness Class by Inst. Rich Kelly** | `february-4th-2023-martial-art-of-awareness-class-by-inst-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 43 | 0 | 2023-01-29 |
-| `39150` | `post` | **January 28th, 2023 : Martial Art of Awareness Class by Inst. Richard Kelly** | `january-28th-2023-martial-art-of-awareness-class-by-inst-richard-kelly` | `articles-post` | Members Only, Zoom Sessions | 43 | 0 | 2023-01-22 |
-| `39144` | `post` | **January 21st, 2023 : Martial Art of Awareness Class by Inst. Rich Kelly** | `january-21st-2023-martial-art-of-awareness-class-by-inst-rich-kelly` | `articles-post` | Members Only, Zoom Sessions | 43 | 0 | 2023-01-15 |
-| `39138` | `post` | **January 14th, 2023 : Martial Art of Awareness Class by Instructor Rich Kelly** | `january-14th-2023-martial-art-of-awareness-class-by-senior-instructor-rich-kelly` | `instructors-post` | Members Only, Zoom Sessions | 43 | 0 | 2023-01-13 |
-| `39104` | `post` | **January 7th, 2023 : How to Train and Refine the 21 Form** | `january-7th-2023-how-to-train-and-refine-the-21-form` | `articles-post` | Forms & Training | 44 | 0 | 2023-01-06 |
-| `39069` | `post` | **December 24th + December 31st, 2022 : No Session** | `december-24th-december-31st-2022-no-session` | `articles-post` | Members Only, Zoom Sessions | 32 | 0 | 2022-12-30 |
-| `38979` | `post` | **December 17th, 2022 : 8 Cycles of Spinning Hands (Part 2)** | `december-17th-2022-8-cycles-of-spinning-hands-part-2` | `articles-post` | Forms & Training | 47 | 0 | 2022-12-16 |
-| `38792` | `post` | **December 3rd, 2022 : Eight Cycles of Spinning Hands (Solo & Partner)** | `december-3rd-2022-tba` | `articles-post` | Forms & Training | 42 | 0 | 2022-12-02 |
-| `38689` | `post` | **November 19th, 2022 : Stepping, Kicking and the Qualities of 'Occupying the Space'** | `november-19th-2022-topic-tba` | `articles-post` | Members Only, Zoom Sessions | 46 | 0 | 2022-11-18 |
-| `38629` | `post` | **November 12th, 2022 : Application of the 15 Basic Exercises : Part 3** | `november-12th-2022-application-of-the-15-basic-exercises-part-3` | `articles-post` | Members Only, Zoom Sessions | 79 | 0 | 2022-11-12 |
-| `38593` | `post` | **November 5th, 2022 : Applications of the 15 basic Exercises Part 2** | `38593-2` | `articles-post` | Members Only, Zoom Sessions | 84 | 0 | 2022-11-02 |
-| `38507` | `post` | **October 29th, 2022 : Licensed Instructor's Meetup** | `october-29th-2022-instructors-meetup` | `instructors-post` | Instructor Content, Zoom Sessions | 39 | 0 | 2022-10-27 |
-| `38416` | `post` | **October 22, 2022 : Applications of the 15 basic Exercises** | `october-22-2022-applications-of-the-15-basic-exercises` | `articles-post` | Members Only, Zoom Sessions | 42 | 0 | 2022-10-22 |
-| `38362` | `post` | **October 15th, 2022 : Recognizing and Coordinating the Hardware & Software** | `october-15th-2022-recognizing-and-coordinating-the-hardware-software-2` | `articles-post` | Members Only, Zoom Sessions | 43 | 0 | 2022-10-15 |
-| `38324` | `post` | **October 8th, 2022 : 13 Points as the "Present Points"** | `october-8th-2022-13-points-as-the-present-points-2` | `articles-post` | Members Only, Zoom Sessions | 42 | 0 | 2022-10-08 |
-| `38263` | `post` | **October 1st, 2022 Vertical Rolling** | `october-1st-2022-members-session-topic-tba` | `articles-post` | Members Only, Zoom Sessions | 38 | 0 | 2022-09-30 |
-| `38238` | `post` | **September 24th, 2022 Member's Session : The Sagittal Plane** | `september-24th-2022-members-session-topic-tba` | `articles-post` | Members Only, Zoom Sessions | 39 | 0 | 2022-09-23 |
-| `38199` | `post` | **September 17th, 2022 The Frontal Plane** | `september-17th-2022-the-frontal-plane-2` | `articles-post` | Members Only, Zoom Sessions | 108 | 0 | 2022-09-17 |
-| `38146` | `post` | **September 10th, 2022 : Complementary Energies** | `september-10th-2022-complimentary-energies` | `articles-post` | Members Only, Zoom Sessions | 38 | 0 | 2022-09-09 |
-| `38113` | `post` | **September 3rd, 2022 - Horizontal Plane** | `september-3rd-2022-horizontal-plane` | `articles-post` | Members Only, Zoom Sessions | 38 | 0 | 2022-09-02 |
-| `38037` | `post` | **August 27th, 2022 : Instructor's (Group Leaders) Gathering** | `august-27th-2022-instructors-group-leaders-gathering` | `instructors-post` | Instructor Content, Zoom Sessions | 40 | 0 | 2022-08-26 |
-| `37995` | `post` | **August 20th, 2022 : North, South, East, West** | `august-20th-2022-tba` | `articles-post` | Members Only, Zoom Sessions | 40 | 0 | 2022-08-19 |
-| `37958` | `post` | **August 13th, 2022 : Triangular Energy** | `august-13th-2022-triangular-energy` | `articles-post` | Members Only, Zoom Sessions | 42 | 0 | 2022-08-12 |
-| `37917` | `post` | **August 6th, 2022 - Ten Ten** | `august-6th-2022-tenten` | `articles-post` | Members Only, Zoom Sessions | 38 | 0 | 2022-08-05 |
-| `37865` | `post` | **July 23, 2022 Stance & Stepping** | `july-23-2022-stance-stepping` | `articles-post` | Members Only, Zoom Sessions | 39 | 0 | 2022-07-23 |
-| `37818` | `post` | **July 16th, 2022 Unification of the 5 Qualities** | `july-16th-2022-unification-of-the-5-qualities` | `articles-post` | Members Only, Zoom Sessions | 128 | 0 | 2022-07-16 |
-| `37754` | `post` | **July 9th, 2022 Mechanism of Movement : Condense / Expand** | `july-9th-2022-mechanism-of-movement-condense-expand` | `articles-post` | Members Only, Zoom Sessions | 43 | 0 | 2022-07-08 |
-| `37671` | `post` | **June 25th, 2022 Instructors Meetup** | `june-25th-2022-instructors-meetup` | `instructors-post` | Instructor Content, Zoom Sessions | 33 | 0 | 2022-06-23 |
-| `37570` | `post` | **June 18th, 2022 Mechanism of Movement : Open / Close  (part 2)** | `june-18th-2022-mechanisms-of-movement-tbd` | `articles-post` | Members Only, Zoom Sessions | 45 | 0 | 2022-06-12 |
-| `37550` | `post` | **June 11th, 2022 Mechanisms of movement :  Concave/Convex** | `june-11th-2022-mechanisms-of-movement-concave-convex` | `articles-post` | Members Only, Zoom Sessions | 118 | 0 | 2022-06-10 |
-| `37503` | `post` | **June 4th, 2022 Mechanisms of Movement : 3 Dimensions and 6 Directions** | `june-4th-2022-mechanisms-of-movement-3-dimensions-and-6-directions` | `articles-post` | Members Only, Zoom Sessions | 119 | 0 | 2022-06-03 |
-| `37457` | `post` | **May 28th, 2022 Instructors Meetup** | `may-28th-2022-instructors-meetup` | `instructors-post` | Members Only, Zoom Sessions | 38 | 0 | 2022-05-26 |
-| `37428` | `post` | **May 21st, 2022 Mechanisms of movement: Absorb/Project** | `may-21st-2022-mechanisms-of-movement-absorb-project` | `articles-post` | Members Only, Zoom Sessions | 113 | 0 | 2022-05-20 |
-| `37351` | `post` | **May 14th, 2022 Mechanisms of movement : Open / Close** | `may-14th-2022-mechanisms-of-movement-open-close` | `articles-post` | Members Only, Zoom Sessions | 41 | 0 | 2022-05-13 |
-| `37276` | `post` | **May 7th, 2022 The Spheres of Offense and Defense** | `may-7th-2022-the-spheres-of-offense-and-defense` | `articles-post` | Members Only, Zoom Sessions | 45 | 0 | 2022-05-06 |
-| `37126` | `post` | **April 30th, 2022 Grading Requirements : Instructor Level 2 - Part 6 (Butterfly Form)** | `april-30th-2022-grading-requirements-instructor-level-2-part-6-butterfly-form` | `instructors-post` | Members Only, Zoom Sessions | 47 | 0 | 2022-04-29 |
-| `37028` | `post` | **April 23rd, 2022 Grading Requirements : Instructor Level 2 - Part 5 (Butterfly Form)** | `4232022-grading-requirements-instructor-level-2-part-5-butterfly-form` | `instructors-post` | Members Only, Zoom Sessions | 47 | 0 | 2022-04-20 |
-| `36964` | `post` | **April 16th, 2022 Grading Requirements : Instructor Level 2 – Part 4 (Butterfly Form)** | `april-16th-2022-grading-requirements-instructor-level-2-part-4-butterfly-form` | `instructors-post` | Members Only, Zoom Sessions | 47 | 0 | 2022-04-16 |
-| `36856` | `post` | **April 9th, 2022 Grading Requirements : Instructor Level 2 - Part 3 (Butterfly Form)** | `april-9th-2022-grading-requirements-instructor-level-2-part-3-butterfly-form` | `instructors-post` | Members Only, Zoom Sessions | 47 | 0 | 2022-04-07 |
-| `36732` | `post` | **April 2, 2022 Grading Requirements : Instructor Level 2 - Part 2 (Butterfly Form)** | `april-2-2022-grading-requirements-instructor-level-2-part-2-butterfly-form` | `instructors-post` | Members Only, Zoom Sessions | 47 | 0 | 2022-04-01 |
-| `36265` | `post` | **Mar 26, 2022 Licensed Instructor's Gathering** | `mar-26-2022-licensed-instructors-gathering` | `instructors-post` | Instructor Content, Zoom Sessions | 39 | 0 | 2022-02-26 |
-| `36262` | `post` | **Mar 19, 2022 Grading Requirements : Instructor Level 2 - Part 1 (Butterfly Form)** | `mar-19-2022-grading-requirements-instructor-level-2-part-1-butterfly-form` | `instructors-post` | Members Only, Zoom Sessions | 47 | 0 | 2022-02-26 |
-| `36259` | `post` | **Mar 12, 2022 Grading Requirements - Instructor Level 1 - Part 12 (21 Form)** | `mar-12-2022-grading-requirements-instructor-level-1-part-12-21-form` | `instructors-post` | Members Only, Zoom Sessions | 47 | 0 | 2022-02-26 |
-| `36256` | `post` | **Mar 05, 2022 Grading Requirements : Instructor Level 1 - Part 11 (21 Form - #14)** | `mar-05-2022-grading-requirements-instructor-level-1-part-11-21-form` | `instructors-post` | Members Only, Zoom Sessions | 49 | 0 | 2022-02-26 |
-| `36016` | `post` | **Feb 26, 2022 Licensed Instructor's Gathering** | `feb-26-2022-licensed-instructors-gathering` | `instructors-post` | Instructor Content, Zoom Sessions | 48 | 0 | 2022-02-11 |
-| `36005` | `post` | **Feb 12, 2022 Grading Requirements : Instructor Level 1 - Part 10 (21 Form)** | `feb-12-2022-grading-requirements-instructor-level-1-part-10-21-form` | `instructors-post` | Members Only, Zoom Sessions | 47 | 0 | 2022-02-11 |
-| `35860` | `post` | **Jan 29, 2022 Licensed Instructor Gathering** | `jan-29-2022-licensed-instructor-gathering` | `instructors-post` | Instructor Content, Zoom Sessions | 51 | 0 | 2022-01-29 |
-| `35658` | `post` | **Feb 05, 2022 Grading Requirements : Instructor Level 1 - Part 9 (21 Form)** | `feb-05-2022-grading-requirements-instructor-level-1-part-9-ilc-form` | `instructors-post` | Members Only, Zoom Sessions | 44 | 0 | 2022-01-21 |
-| `35539` | `post` | **Jan 22, 2022 Grading Requirements : Instructor Level 1 - Part 8 (21 Form)** | `jan-22-2022-grading-requirements-instructor-level-1` | `instructors-post` | Members Only, Zoom Sessions | 43 | 0 | 2022-01-16 |
-| `35426` | `post` | **Jan 8, 2022 Grading Requirements : Instructor Level 1 - Part 6** | `jan-8-2022-grading-requirements-instructor-level-1-part-6` | `instructors-post` | Members Only, Zoom Sessions | 41 | 0 | 2022-01-08 |
-| `35421` | `post` | **Jan 15, 2022 Grading Requirements : Instructor Level 1 - Part 7** | `jan-15-2022-grading-requirements-instructor-level-1-part-7` | `instructors-post` | Members Only | 51 | 0 | 2022-01-08 |
 | `21369` | `page` | **Members Only Area** | `members-only-area` | `articles-post` | Wiki & Guides | 78 | 2 | 2020-04-12 |
 | `20819` | `page` | **Learn More** | `learn-more` | `articles-post` | Wiki & Guides | 39 | 2 | 2020-03-30 |
 | `8010` | `page` | **Instructors & Affiliates** | `instructors-affiliates` | `instructors-post` | Instructors | 25 | 0 | 2018-12-17 |
@@ -426,7 +234,7 @@ These articles represent the previously missing wiki content from `yada_wiki`:
 
 ---
 
-## 5. Excluded Utility Pages & Empty Stubs (172)
+## 5. Excluded Utility Pages & Empty Stubs (364)
 
 | WP ID | Type | Title | Slug | Reason |
 | :--- | :--- | :--- | :--- | :--- |
@@ -563,42 +371,234 @@ These articles represent the previously missing wiki content from `yada_wiki`:
 | `34779` | `page` | Password reset email sent | `password-reset-email-sent` | WooCommerce / Core Utility Page |
 | `34781` | `page` | New Password Saved! | `new-password-saved` | WooCommerce / Core Utility Page |
 | `35394` | `page` | Zoom Sessions | `members-online-session` | Stub / Under 60 characters of text |
+| `35421` | `post` | Jan 15, 2022 Grading Requirements : Instructor Level 1 - Part 7 | `jan-15-2022-grading-requirements-instructor-level-1-part-7` | Shortcode container only |
+| `35426` | `post` | Jan 8, 2022 Grading Requirements : Instructor Level 1 - Part 6 | `jan-8-2022-grading-requirements-instructor-level-1-part-6` | Shortcode container only |
+| `35435` | `yada_wiki` | Zoom session with Grandmaster Sam Chin resumes for the New Year | `zoom-session-resumes-for-the-new-year` | Shortcode container only |
+| `35539` | `post` | Jan 22, 2022 Grading Requirements : Instructor Level 1 - Part 8 (21 Form) | `jan-22-2022-grading-requirements-instructor-level-1` | Shortcode container only |
 | `35604` | `yada_wiki` | 2022 Intensive Retreat Registration Form | `2022-intensive-retreat-registration-form` | Stub / Under 60 characters of text |
 | `35642` | `page` | Annual Intensive Registration Form | `annual-intensive-registration-form` | Stub / Under 60 characters of text |
+| `35658` | `post` | Feb 05, 2022 Grading Requirements : Instructor Level 1 - Part 9 (21 Form) | `feb-05-2022-grading-requirements-instructor-level-1-part-9-ilc-form` | Shortcode container only |
+| `35860` | `post` | Jan 29, 2022 Licensed Instructor Gathering | `jan-29-2022-licensed-instructor-gathering` | Shortcode container only |
+| `36005` | `post` | Feb 12, 2022 Grading Requirements : Instructor Level 1 - Part 10 (21 Form) | `feb-12-2022-grading-requirements-instructor-level-1-part-10-21-form` | Shortcode container only |
+| `36016` | `post` | Feb 26, 2022 Licensed Instructor's Gathering | `feb-26-2022-licensed-instructors-gathering` | Shortcode container only |
 | `36022` | `post` | Feb 19, 2022 Intensive Retreat - No Session | `feb-19-2022-intensive-retreat-no-session` | Shortcode container only |
 | `36143` | `yada_wiki` | 2022 Martial Art of Awareness Intensive Retreat on "Continuity" Photos | `2022-martial-art-of-awareness-intensive-retreat-on-continuity-photos` | Stub / Under 60 characters of text |
+| `36256` | `post` | Mar 05, 2022 Grading Requirements : Instructor Level 1 - Part 11 (21 Form - #14) | `mar-05-2022-grading-requirements-instructor-level-1-part-11-21-form` | Shortcode container only |
+| `36259` | `post` | Mar 12, 2022 Grading Requirements - Instructor Level 1 - Part 12 (21 Form) | `mar-12-2022-grading-requirements-instructor-level-1-part-12-21-form` | Shortcode container only |
+| `36262` | `post` | Mar 19, 2022 Grading Requirements : Instructor Level 2 - Part 1 (Butterfly Form) | `mar-19-2022-grading-requirements-instructor-level-2-part-1-butterfly-form` | Shortcode container only |
+| `36265` | `post` | Mar 26, 2022 Licensed Instructor's Gathering | `mar-26-2022-licensed-instructors-gathering` | Shortcode container only |
+| `36732` | `post` | April 2, 2022 Grading Requirements : Instructor Level 2 - Part 2 (Butterfly Form) | `april-2-2022-grading-requirements-instructor-level-2-part-2-butterfly-form` | Shortcode container only |
+| `36856` | `post` | April 9th, 2022 Grading Requirements : Instructor Level 2 - Part 3 (Butterfly Form) | `april-9th-2022-grading-requirements-instructor-level-2-part-3-butterfly-form` | Shortcode container only |
+| `36964` | `post` | April 16th, 2022 Grading Requirements : Instructor Level 2 – Part 4 (Butterfly Form) | `april-16th-2022-grading-requirements-instructor-level-2-part-4-butterfly-form` | Shortcode container only |
+| `37028` | `post` | April 23rd, 2022 Grading Requirements : Instructor Level 2 - Part 5 (Butterfly Form) | `4232022-grading-requirements-instructor-level-2-part-5-butterfly-form` | Shortcode container only |
+| `37126` | `post` | April 30th, 2022 Grading Requirements : Instructor Level 2 - Part 6 (Butterfly Form) | `april-30th-2022-grading-requirements-instructor-level-2-part-6-butterfly-form` | Shortcode container only |
+| `37276` | `post` | May 7th, 2022 The Spheres of Offense and Defense | `may-7th-2022-the-spheres-of-offense-and-defense` | Shortcode container only |
+| `37351` | `post` | May 14th, 2022 Mechanisms of movement : Open / Close | `may-14th-2022-mechanisms-of-movement-open-close` | Shortcode container only |
+| `37428` | `post` | May 21st, 2022 Mechanisms of movement: Absorb/Project | `may-21st-2022-mechanisms-of-movement-absorb-project` | Shortcode container only |
+| `37457` | `post` | May 28th, 2022 Instructors Meetup | `may-28th-2022-instructors-meetup` | Shortcode container only |
+| `37503` | `post` | June 4th, 2022 Mechanisms of Movement : 3 Dimensions and 6 Directions | `june-4th-2022-mechanisms-of-movement-3-dimensions-and-6-directions` | Shortcode container only |
+| `37550` | `post` | June 11th, 2022 Mechanisms of movement :  Concave/Convex | `june-11th-2022-mechanisms-of-movement-concave-convex` | Shortcode container only |
+| `37570` | `post` | June 18th, 2022 Mechanism of Movement : Open / Close  (part 2) | `june-18th-2022-mechanisms-of-movement-tbd` | Shortcode container only |
+| `37671` | `post` | June 25th, 2022 Instructors Meetup | `june-25th-2022-instructors-meetup` | Shortcode container only |
 | `37712` | `post` | July 2nd, 2022 - NO SESSION | `july-2nd-2022-no-session` | Shortcode container only |
+| `37754` | `post` | July 9th, 2022 Mechanism of Movement : Condense / Expand | `july-9th-2022-mechanism-of-movement-condense-expand` | Shortcode container only |
+| `37818` | `post` | July 16th, 2022 Unification of the 5 Qualities | `july-16th-2022-unification-of-the-5-qualities` | Shortcode container only |
+| `37865` | `post` | July 23, 2022 Stance & Stepping | `july-23-2022-stance-stepping` | Shortcode container only |
 | `37885` | `post` | July 30th, 2022 NO SESSION | `july-30th-2022-no-session` | Shortcode container only |
+| `37917` | `post` | August 6th, 2022 - Ten Ten | `august-6th-2022-tenten` | Shortcode container only |
+| `37958` | `post` | August 13th, 2022 : Triangular Energy | `august-13th-2022-triangular-energy` | Shortcode container only |
+| `37995` | `post` | August 20th, 2022 : North, South, East, West | `august-20th-2022-tba` | Shortcode container only |
+| `38037` | `post` | August 27th, 2022 : Instructor's (Group Leaders) Gathering | `august-27th-2022-instructors-group-leaders-gathering` | Shortcode container only |
+| `38113` | `post` | September 3rd, 2022 - Horizontal Plane | `september-3rd-2022-horizontal-plane` | Shortcode container only |
+| `38146` | `post` | September 10th, 2022 : Complementary Energies | `september-10th-2022-complimentary-energies` | Shortcode container only |
+| `38199` | `post` | September 17th, 2022 The Frontal Plane | `september-17th-2022-the-frontal-plane-2` | Shortcode container only |
+| `38238` | `post` | September 24th, 2022 Member's Session : The Sagittal Plane | `september-24th-2022-members-session-topic-tba` | Shortcode container only |
+| `38263` | `post` | October 1st, 2022 Vertical Rolling | `october-1st-2022-members-session-topic-tba` | Shortcode container only |
+| `38324` | `post` | October 8th, 2022 : 13 Points as the "Present Points" | `october-8th-2022-13-points-as-the-present-points-2` | Shortcode container only |
+| `38362` | `post` | October 15th, 2022 : Recognizing and Coordinating the Hardware & Software | `october-15th-2022-recognizing-and-coordinating-the-hardware-software-2` | Shortcode container only |
+| `38416` | `post` | October 22, 2022 : Applications of the 15 basic Exercises | `october-22-2022-applications-of-the-15-basic-exercises` | Shortcode container only |
+| `38507` | `post` | October 29th, 2022 : Licensed Instructor's Meetup | `october-29th-2022-instructors-meetup` | Shortcode container only |
+| `38593` | `post` | November 5th, 2022 : Applications of the 15 basic Exercises Part 2 | `38593-2` | Shortcode container only |
+| `38629` | `post` | November 12th, 2022 : Application of the 15 Basic Exercises : Part 3 | `november-12th-2022-application-of-the-15-basic-exercises-part-3` | Shortcode container only |
 | `38657` | `page` | 2023 Annual Intensive Registration Form | `page-38657` | Stub / Under 60 characters of text |
 | `38659` | `post` | New York Annual Intensive 2023 | `new-york-annual-intensive-2023` | Stub / Under 60 characters of text |
+| `38689` | `post` | November 19th, 2022 : Stepping, Kicking and the Qualities of 'Occupying the Space' | `november-19th-2022-topic-tba` | Shortcode container only |
 | `38733` | `post` | November 26th, 2022 : No Meeting | `november-26th-2022-no-meeting` | Shortcode container only |
+| `38792` | `post` | December 3rd, 2022 : Eight Cycles of Spinning Hands (Solo & Partner) | `december-3rd-2022-tba` | Shortcode container only |
 | `38919` | `post` | December 10th, 2022 : No Session | `december-10th-2022-no-session` | Shortcode container only |
+| `38979` | `post` | December 17th, 2022 : 8 Cycles of Spinning Hands (Part 2) | `december-17th-2022-8-cycles-of-spinning-hands-part-2` | Shortcode container only |
+| `39069` | `post` | December 24th + December 31st, 2022 : No Session | `december-24th-december-31st-2022-no-session` | Shortcode container only |
+| `39104` | `post` | January 7th, 2023 : How to Train and Refine the 21 Form | `january-7th-2023-how-to-train-and-refine-the-21-form` | Shortcode container only |
+| `39138` | `post` | January 14th, 2023 : Martial Art of Awareness Class by Instructor Rich Kelly | `january-14th-2023-martial-art-of-awareness-class-by-senior-instructor-rich-kelly` | Shortcode container only |
+| `39144` | `post` | January 21st, 2023 : Martial Art of Awareness Class by Inst. Rich Kelly | `january-21st-2023-martial-art-of-awareness-class-by-inst-rich-kelly` | Shortcode container only |
+| `39150` | `post` | January 28th, 2023 : Martial Art of Awareness Class by Inst. Richard Kelly | `january-28th-2023-martial-art-of-awareness-class-by-inst-richard-kelly` | Shortcode container only |
+| `39156` | `post` | February 4th, 2023 : Martial Art of Awareness Class by Inst. Rich Kelly | `february-4th-2023-martial-art-of-awareness-class-by-inst-rich-kelly` | Shortcode container only |
+| `39319` | `post` | February 11, 2023 : Martial Art of Awareness Class by Inst. Rich Kelly | `february-11-2023-martial-art-of-awareness-class-by-inst-rich-kelly` | Shortcode container only |
+| `39322` | `post` | February 18th, 2023 : No Class | `february-18th-2023-no-class` | Shortcode container only |
+| `39324` | `post` | February 25th, 2023 : Martial Art of Awareness Class by Inst. Ashe Higgs | `february-25th-2023-martial-art-of-awareness-class-by-inst-ashe-higgs` | Shortcode container only |
 | `39354` | `yada_wiki` | 2023 Intensive Retreat Photos | `2023-intensive-retreat-photos` | Shortcode container only |
+| `39618` | `post` | March 4th, 2023 : Martial Art of Awareness by Master Rich Kelly | `march-4th-2023-martial-art-of-awareness-by-master-rich-kelly` | Shortcode container only |
+| `39680` | `post` | March 11th, 2023 : Martial Art of Awareness by Master Rich Kelly | `march-11th-2023-martial-art-of-awareness-by-master-rich-kelly` | Shortcode container only |
+| `39716` | `post` | March 18th, 2023 : Martial Art of Awareness with Master Rich Kelly | `march-18th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `39805` | `post` | March 25th, 2023 : Martial Art of Awareness with Master Rich Kelly | `march-25th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `39807` | `post` | April 1st, 2023 : Martial Art of Awareness with Master Rich Kelly | `april-1st-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `39856` | `post` | April 8th, 2023 : Martial Art of Awareness with Lan Tran | `april-8th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `39891` | `page` | Front Page [BACKUP] | `front-page-backup` | WooCommerce / Core Utility Page |
+| `40484` | `post` | April 15th, 2023 : Martial Art of Awareness with Master Rich Kelly | `april-15th-2023-martial-art-of-awareness` | Shortcode container only |
+| `41453` | `post` | April 22nd, 2023 : Martial Art of Awareness with Master Ashe Higgs | `april-22nd-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `41456` | `post` | April 29th, 2023 : Martial Art of Awareness with Master Rich Kelly | `april-29th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `49252` | `post` | May 6th, 2023 : 21 Form - Transition Points for Continuous Energy Flow with Jeffrey Wong | `may-6th-2023-21-form-transition-points-for-continuous-energy-flow` | Shortcode container only |
 | `49307` | `page` | Schools | `page-49307` | Stub / Under 60 characters of text |
+| `49340` | `post` | May 13th, 2023 : Martial Art of Awareness Saturday Class with GM Sam F.S. Chin | `may-13th-2023-martial-art-of-awareness-saturday-class-with-gm-sam-f-s-chin` | Shortcode container only |
+| `49462` | `post` | May 20th, 2023 : Martial Art of Awareness with Master Rich Kelly | `may-20th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `49559` | `post` | June 3rd, 2023 : Martial Art of Awareness with Master Hsin Chin | `june-4th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `49624` | `post` | June 10th, 2023 : Martial Art of Awareness with Master Rich Kelly | `june-10th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `49664` | `post` | June 17th, 2023 : Martial Art of Awareness with Master Rich Kelly | `june-17th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `49715` | `post` | June 24th, 2023 : Martial Art of Awareness with Master Rich Kelly | `june-24th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `49747` | `post` | July 1st, 2023 : Throwing Hands Incorporating Stepping with Inst. Jeffrey Wong | `july-1st-2023-throwing-hands-incorporating-stepping-with-inst-jeffrey-wong` | Shortcode container only |
+| `49820` | `post` | July 8th, 2023 : Martial Art of Awareness with Master Rich Kelly | `july-8th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `49898` | `post` | July 15th, 2023 : Spinning Hands Live Broadcast | `july-15th-2023-spinning-hands-live-broadcast` | Shortcode container only |
+| `49954` | `post` | July 22nd, 2023 : NSEW and Concave/Convex with Master Rich Kelly | `july-22nd-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `49973` | `post` | July 29th, 2023 : No Members Session | `july-29th-2023-no-members-session` | Shortcode container only |
+| `50148` | `post` | August 5th, 2023 : Martial Art of Awareness with Master Rich Kelly | `august-5th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `50210` | `post` | August 12, 2023 : No Member Session | `august-12-2023-no-member-session` | Shortcode container only |
+| `50270` | `post` | August 19th, 2023 : Martial Art of Awareness with Master Rich Kelly | `august-19th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `50351` | `post` | August 26th, 2023 : No Class | `august-26th-2023-no-class` | Shortcode container only |
+| `50384` | `post` | September 2nd, 2023 : Martial Art of Awareness with GM Sam Chin | `september-2nd-2023-martial-art-of-awareness-with-gm-sam-chin` | Shortcode container only |
 | `50442` | `post` | September 9th, 2023 : No Class | `september-9th-2023-no-class` | Shortcode container only |
 | `50459` | `post` | September 16th, 2023 : No Class | `september-16th-2023-no-class` | Shortcode container only |
+| `50540` | `post` | September 30th, 2024 : Martial Art of Awareness with Master Rich Kelly | `september-30th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `50543` | `post` | September 23rd, 2023 : Martial Art of Awareness with GM Sam F.S. Chin | `september-23rd-2023-martial-art-of-awareness-with-gm-sam-f-s-chin` | Shortcode container only |
 | `50690` | `post` | October 7th, 2023 : No Session Today | `october-7th-2023-no-session-today` | Shortcode container only |
+| `50751` | `post` | October 14, 2023 : Saturday Session with Master Rich Kelly | `october-14-2023-saturday-session-with-master-rich-kelly` | Shortcode container only |
+| `50815` | `post` | October 21st, 2023 : Martial Art of Awareness with Master Rich Kelly | `october-21st-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `50912` | `post` | October 28th, 2023 : Butterly Form Transition Points for Continuous Energy Flow with Inst. Jeffrey Wong | `october-28th-2023-butterly-form-transition-points-for-continuous-energy-flow-with-inst-jeffrey-wong-2` | Shortcode container only |
 | `50981` | `post` | November 4th, 2023 : No Class | `november-4th-2023-no-class` | Shortcode container only |
 | `51059` | `post` | 2024 NY Annual Intensive Retreat Registration | `2024-ny-annual-intensive-retreat-registration` | Stub / Under 60 characters of text |
+| `51066` | `post` | November 11th, 2023 : Martial Art of Awareness with Master Rich Kelly | `november-11th-2023-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `51115` | `post` | November 18th, 2023 : No Class | `november-18th-2023-no-session` | Shortcode container only |
 | `51119` | `post` | November 25th, 2023 : No class | `november-25th-2023-no-class` | Shortcode container only |
+| `51287` | `post` | December 2nd, 2023 : Martial Art of Awareness with GM Sam Chin | `december-2nd-2023-martial-art-of-awareness-with-gm-sam-chin` | Shortcode container only |
 | `51357` | `post` | December 9th, 2023 : No Session | `december-9th-2023-no-session` | Shortcode container only |
 | `51410` | `post` | December 16th, 2023 : No session | `december-16th-2023-no-session` | Shortcode container only |
 | `51431` | `page` | Donate | `donate` | WooCommerce / Core Utility Page |
+| `51522` | `post` | December 23rd, 2023 : Martial Art of Awareness with Gatekeeper GM Sam F.S. Chin | `december-23rd-2023-martial-art-of-awareness-with-gatekeeper-gm-sam-f-s-chin` | Shortcode container only |
 | `51533` | `post` | December 30th, 2023 : No Session | `december-30th-2023-no-session` | Shortcode container only |
+| `51651` | `post` | January 6th, 2024 : Martial Art of Awareness with Instructor Jeffrey Wong | `january-6th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `51683` | `post` | January 13th, 2024 : Martial Art of Awareness with Instructor Jeffrey Wong | `january-13th-2024-martial-art-of-awareness-with-instructor-jeffrey-wong` | Shortcode container only |
+| `52052` | `post` | January 20th, 2024 : Martial Art of Awareness with Master Rich Kelly | `january-20th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `52118` | `post` | January 27th, 2024 : Martial Art of Awareness with Master Rich Kelly | `january-27th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `52272` | `post` | February 3rd, 2024 : Martial Art of Awareness with Master Hsin Chin | `february-3rd-2024-martial-art-of-awareness-with-master-hsin-chin-2` | Shortcode container only |
 | `52306` | `post` | February 10th & 17th, 2024 : No Class | `february-10th-17th-2024-no-class` | Shortcode container only |
+| `52500` | `post` | February 23rd, 2024 : Martial Art of Awareness with Master Rich Kelly | `february-23rd-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `52608` | `post` | March 2nd, 2024 : How to Learn in a Workshop Setting with Instructor Jeffrey Wong | `march-2nd-2024-how-to-learn-in-a-workshop-setting-with-instructor-jeffrey-wong` | Shortcode container only |
+| `52610` | `post` | March 16th, 2024 : No Class | `march-16th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `52613` | `post` | March 23rd, 2024 : Martial Art of Awareness with Master Rich Kelly | `march-23rd-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `52616` | `post` | March 30th, 2024 : How to Generate Soft Power with Inst. Jeffrey Wong | `march-30th-2024-how-to-generate-soft-power-with-inst-jeffrey-wong` | Shortcode container only |
+| `52619` | `post` | March 9th, 2024 : Martial Art of Awareness with Master Rich Kelly (CHECK DAYLIGHT SAVING TIME DIF.!) | `march-9th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `53066` | `post` | April 6th, 2024 : Understanding and Applying 45/90 Degrees with Inst. Jeffrey Wong | `april-6th-2024-understanding-and-applying-45-90-degrees-with-inst-jeffrey-wong` | Shortcode container only |
+| `53086` | `post` | April 13th, 2024 : Martial Art of Awareness with Master Rich Kelly | `april-13th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `53089` | `post` | April 20th, 2024 : Martial Art of Awareness with Master Rich Kelly | `53089-2` | Shortcode container only |
+| `53301` | `post` | April 27th, 2024 : I Liq Chuan 21 Form with Master Rich Kelly | `april-27th-2024-i-liq-chuan-21-form-with-master-rich-kelly` | Shortcode container only |
 | `53365` | `post` | May 4th, 2024 : No Session | `may-4th-2024-no-session` | Shortcode container only |
+| `53491` | `post` | May 11th, 2024 : Martial Art of Awareness with Master Rich Kelly | `may-11th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `53640` | `post` | May 18th, 2024 : Martial Art of Awareness with Master Rich Kelly | `may-18th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `53702` | `post` | May 25th, 2024 : Martial Art of Awareness with Master Rich Kelly | `may-25th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `53768` | `post` | June 1st, 2024 : Spinning Hands Entry and Power Generation with Instructor Jeffrey Wong | `53768-2` | Shortcode container only |
+| `53855` | `post` | June 8th, 2024 : Martial Art of Awareness with Master Rich Kelly | `june-8th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `53905` | `post` | June 15th, 2024 : Martial Art of Awareness with Master Rich Kelly | `june-15th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `54003` | `post` | June 22nd, 2024 : Five Elements Mechanics with Instructor Jeff Wong | `june-22nd-2024-five-elements-mechanics-with-instructor-jeff-wong` | Shortcode container only |
+| `54105` | `post` | June 29th, 2024 : Martial Art of Awareness with Master Rich Kelly | `june-29th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `54141` | `post` | July 6th, 2024 - Celebrating Independence Day Weekend - No Class | `july-6th-2024-celebrating-independence-day-weekend-no-class` | Stub / Under 60 characters of text |
+| `54243` | `post` | July 13th, 2024 : Martial Art of Awareness with Master Rich Kelly | `july-13th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `54284` | `post` | July 20th, 2024 : No Class - Join GM Sam F.S. Chin at this "How to Gain Inner Strength" class | `july-20th-2024-no-class-join-gm-sam-f-s-chin-at-this-how-to-gain-inner-strength-class` | Shortcode container only |
+| `54420` | `post` | July 27th, 2024 : Martial Art of Awareness with Master Rich Kelly | `july-27th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `54423` | `post` | August 3rd, 2024 : Mechanics and Applications of Hip Rolls with Inst. Jeffrey Wong | `august-3rd-2024-no-class` | Shortcode container only |
+| `54491` | `post` | August 10th, 2024 : No Online Class | `august-10th-2024-no-online-class` | Shortcode container only |
+| `54610` | `post` | August 17th, 2024 : Martial Art of Awareness with Master Rich Kelly | `august-17th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `54688` | `post` | August 24th, 2024 : Martial Art of Awareness with Master Rich Kelly | `august-24th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `54692` | `post` | August 31st, 2024 : Martial Art of Awareness with Master Rich Kelly | `august-31st-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `54695` | `post` | September 7th, 2024 : How to Practice Partner Drills Solo with Instructor Jeffrey Wong | `september-7th-2024-how-to-practice-partner-drills-solo-with-instructor-jeffrey-wong` | Shortcode container only |
+| `54853` | `post` | September 14th, 2024 : How to Train with the Right Reference with Inst. Katya Shestakova | `september-14th-2024-how-to-train-with-the-right-reference-with-inst-katya-shestakova` | Shortcode container only |
+| `54909` | `post` | September 21st, 2024 : Martial Art of Awareness with Master Rich Kelly | `september-21st-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `54987` | `page` | 2025 International Intensive Retreat Registration | `2025-international-intensive-retreat-registration` | Stub / Under 60 characters of text |
+| `55032` | `post` | September 28th, 2024 : Martial Art of Awareness with Master Rich Kelly | `september-28th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `55071` | `post` | October 5th, 2024 : Basic Exercises Through the Prism of 6 Physical Points with Instructor Katya Shestakova | `october-5th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `55196` | `post` | October 12th, 2024 : No Class | `october-12th-2024-no-class` | Shortcode container only |
+| `55268` | `post` | October 19th, 2024 : Martial Art of Awareness with Master Rich Kelly | `october-19th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `55368` | `post` | October 26th, 2024 : Martial Art of Awareness with Master Rich Kelly | `october-26th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `55458` | `post` | November 2nd, 2024 : No Class | `november-2nd-2024-no-class` | Shortcode container only |
+| `55577` | `post` | November 9th, 2024 : Martial Art of Awareness with Master Rich Kelly | `november-9th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `55631` | `post` | November 16th, 2024 : Martial Art of Awareness with Master Rich Kelly | `november-16th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `55707` | `post` | November 23rd, 2024 : Martial Art of Awareness with Master Rich Kelly | `november-23rd-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `55718` | `post` | November 30th, 2024 : No Class | `november-30th-2024-no-class` | Shortcode container only |
+| `55883` | `post` | December 7th, 2024 : Martial Art of Awareness with Master Rich Kelly | `december-7th-2024-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `56028` | `post` | December 14th, 2024 : Tiger's Back & Bear's Waist by Inst. Jeffrey Wong | `december-21st-2024-tigers-back-bears-waist-by-inst-jeffrey-wong` | Shortcode container only |
+| `56031` | `post` | January 4th, 2025 : Joint Circles by Inst. Jeffrey Wong | `january-4th-2025-joint-circles-by-inst-jeffrey-wong` | Shortcode container only |
+| `56042` | `post` | December 21st, 2024 : Martial Art of Awareness with Master Rich Kely | `december-21st-2024-martial-art-of-awareness-with-master-rich-kely` | Shortcode container only |
 | `56045` | `post` | December 28th, 2024 : No Class | `december-28th-2024-no-class` | Shortcode container only |
+| `56048` | `post` | January 11th, 2025 : Martial Art of Awareness with Master Rich Kelly | `january-11th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `56051` | `post` | January 18th, 2025 : Martial Art of Awareness with Master Rich Kelly | `january-18th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `56054` | `post` | February 8th, 2025 : Martial Art of Awareness with Master Rich Kelly | `januray-8th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `56057` | `post` | January 25th, 2025 : Martial Art of Awareness with Inst. Katya Shestakova | `january-25th-2025-martial-art-of-awareness-with-inst-katya-shestakova` | Shortcode container only |
+| `56060` | `post` | February 1st, 2025 : Martial Art of Awareness with Inst. Katya Shestakova | `february-1st-2025-martial-art-of-awareness-with-inst-katya-shestakova` | Shortcode container only |
+| `56764` | `post` | February 15th, 2025 : No Class | `february-15th-2025-no-class` | Shortcode container only |
+| `56885` | `post` | February 22nd, 2025 : Observing Concave/Convex Through Each Student Level with Inst. Jeffrey Wong | `february-22nd-2025-observing-concave-convex-through-each-student-level-with-inst-jeffrey-wong` | Shortcode container only |
+| `56889` | `post` | March 1st, 2025 : Concave / Convex Part 2 with Inst. Jeffrey Wong | `march-1st-2025-martial-art-of-awareness-with-inst-jeffrey-wong-topic-tba` | Shortcode container only |
 | `56939` | `page` | Donation Confirmation | `donation-confirmation` | Stub / Under 60 characters of text |
 | `56940` | `page` | Donation Failed | `donation-failed` | WooCommerce / Core Utility Page |
 | `56941` | `page` | Donor Dashboard | `donor-dashboard` | Stub / Under 60 characters of text |
+| `57004` | `post` | March 8th, 2025 : Martial Art of Awareness with Master Rich Kelly | `march-8th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `57008` | `post` | March 15th, 2025 : Martial Art of Awareness with Master Rich Kelly | `march-15th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `57011` | `post` | March 22nd, 2025 : No Class | `march-22nd-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `57014` | `post` | March 29th, 2025 : Martial Art of Awareness with Master Rich Kelly | `march-29th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `57243` | `post` | April 5th, 2025 : No Class | `april-5th-2025-martial-art-of-awareness-with-jeffrey-wong` | Shortcode container only |
+| `57560` | `post` | April 12th, 2025 : Martial Art of Awareness with Master Rich Kelly | `april-12th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `57675` | `page` | Instructor and School Information Form | `instructor-and-school-information-form` | Stub / Under 60 characters of text |
+| `57751` | `post` | April 19th, 2025 : No Class | `april-19th-2025-no-class` | Shortcode container only |
+| `57882` | `post` | April 26th, 2025 : Martial Art of Awareness with Master Rich Kelly | `april-26th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `58025` | `post` | May 3rd, 2025 : No Class | `may-3rd-2025-no-class` | Shortcode container only |
+| `58103` | `post` | May 10th, 2025 : Martial Art of Awareness with Master Rich Kelly | `may-10th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `58210` | `post` | May 17th, 2025 : No class | `may-17th-2025-no-class` | Shortcode container only |
+| `58373` | `post` | May 24th, 2025 : Martial Art of Awareness with Master Rich Kelly | `may-24th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `58376` | `post` | May 31st, 2025 : Martial Art of Awareness with Master Rich Kelly | `may-31st-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `58517` | `post` | June 7th, 2025 : QiGong with Instructor Dima Siomau | `58517-2` | Shortcode container only |
+| `58523` | `post` | June 14th, 2025 : Martial Art of Awareness with Master Rich Kelly | `june-14th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `58526` | `post` | June 21st, 2025 : Martial Art of Awareness with Master Rich Kelly | `june-21st-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `58852` | `post` | June 28th, 2025 : Martial Art of Awareness with Master Rich Kelly | `june-28th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `58855` | `post` | July 5th, 2025 : No Class | `july-5th-2025-no-class` | Shortcode container only |
+| `59019` | `post` | July 12th, 2025 : Martial Art of Awareness with Master Rich Kelly | `july-12th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `59022` | `post` | July 19th, 2025 : Martial Art of Awareness with Master Rich Kelly | `july-19th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `59025` | `post` | July 26th, 2025 : Martial of Awareness with Master Rich Kelly | `july-26th-2025-martial-of-awareness-with-master-rich-kelly` | Shortcode container only |
 | `59228` | `page` | Gradings - OLD DNU | `gradings-old-dnu` | WooCommerce / Core Utility Page |
+| `59403` | `post` | August 2nd, 2025 : Special class with GM Sam F.S. Chin | `august-2nd-2025-special-class-with-gm-sam-f-s-chin` | Shortcode container only |
+| `59499` | `post` | August 9th, 2025 : Special class by GM Sam F.S. Chin continues... | `august-9th-2025-special-class-by-gm-sam-f-s-chin-continues` | Shortcode container only |
+| `59601` | `post` | August 16th, 2025 : Martial Art of Awareness with Master Rich Kelly | `august-16th-2026-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `59612` | `post` | August 23rd, 2026 : Martial Art of Awareness with Master Rich Kelly | `august-23rd-2026-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `59614` | `post` | August 30th, 2025 : Martial Art of Awareness with Master Rich Kelly | `august-30th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `59618` | `post` | September 6th, 2025 : No Class [UPDATE] | `september-6th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `59621` | `post` | September 13th, 2025 : Footwork Combinations with Instructor Jeffrey Wong | `september-13th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `59625` | `post` | September 20th, 2025 : Martial Art of Awareness with Master Rich Kelly | `september-20th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `59628` | `post` | September 27th, 2025 : Martial Art of Awareness with Master Rich Kelly | `september-27th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `60196` | `post` | October 4th, 2025 : "Guard Center, Use Center" with Instructor Jeffrey Wong | `october-4th-2025-guard-center-use-center-with-instructor-jeffrey-wong` | Shortcode container only |
+| `60296` | `post` | October 11th, 2025 : No Members Zoom Class This Week | `october-11th-2025-no-members-zoom-class-this-week` | Shortcode container only |
+| `60366` | `post` | UPDATE - October 18th, 2025 : CANCELLED | `october-18th-2025-martial-art-of-awareness-with-master-rich-kelly` | Shortcode container only |
+| `60369` | `post` | October 25th, 2025 : "Recognize 6Dir/3D & Rotate in 3 Planes" with Inst. Jeffrey Wong | `october-25th-2025-martial-art-of-awareness-with-inst-jeffrey-wong` | Shortcode container only |
+| `60480` | `post` | November 1st, 2025 : Martial Art of Awareness with Instructor Katya Shestakova | `november-1st-2025-martial-art-of-awareness-with-instructor-katya-shestakova` | Shortcode container only |
+| `60484` | `post` | November 8th, 2025 : Structural Alignment with Instructor Lan Tran **Time Change** | `november-8th-2025-martial-art-of-awareness-with-instructor-lan-tran-time-change` | Shortcode container only |
+| `60630` | `post` | November 15th, 2025 : Martial Art of Awareness with Instructor Lan Tran | `november-15th-2025-martial-art-of-awareness-with-instructor-lan-tran` | Shortcode container only |
+| `60697` | `post` | November 21st, 2025 : Five Elements (Earth) with Master Ashe Higgs | `november-21st-2025-martial-art-of-awareness-with-master-ashe-higgs` | Shortcode container only |
+| `60779` | `post` | November 29th, 2025 : No Class | `november-29th-2025-no-class` | Shortcode container only |
+| `60817` | `post` | December 6th, 2025 : Martial Art of Awareness with Inst. Katya Shestakova | `december-6th-2025-martial-art-of-awareness-with-inst-katya-shestakova` | Shortcode container only |
+| `60924` | `post` | December 13th, 2025 : No Members Zoom Class This Week | `december-13th-2025-no-members-zoom-class-this-week` | Shortcode container only |
 | `60930` | `page` | 2026 Registration | `2026-ny-intensive-registration` | Stub / Under 60 characters of text |
+| `60976` | `post` | December 20th, 2025 : Martial Art of Awareness with Inst. Katya Shestakova | `december-20th-2025-martial-art-of-awareness-with-inst-katya-shestakova` | Shortcode container only |
+| `61013` | `post` | December 27th, 2025 : No Class | `december-27th-2025-no-class` | Shortcode container only |
+| `61094` | `post` | January 3rd, 2026 : Martial Art of Awareness with Inst. LipYeow Lim | `january-3rd-2026-martial-art-of-awareness-with-inst-lipyeow-lim` | Shortcode container only |
+| `61190` | `post` | January 10th, 2026 : 2 to 1 (part 2) with Inst. Lipyeow Lim | `january-10th-2026-martial-art-of-awareness-with-inst-lipyeow-lim` | Shortcode container only |
+| `61215` | `post` | January 17th, 2026 : Martial Art of Awareness with Inst. Katya Shestakova | `january-17th-2026-martial-art-of-awareness-with-inst-katya-shestakova` | Shortcode container only |
+| `61350` | `post` | January 24th, 2026 : Footwork to Change Angles with Instructor Jeffrey Wong | `january-24th-2026-martial-art-of-awareness-with-instructor-jeffrey-wong` | Shortcode container only |
+| `61486` | `post` | January 31st, 2026 : Giving the Right Energy with Master Ashe Higgs | `january-31st-2026-martial-art-of-awareness-with-master-ashe-higgs` | Shortcode container only |
+| `61511` | `post` | February 7th, 2026 : Martial Art of Awareness with Katya Shestakova | `february-7th-2026-martial-art-of-awareness-with-katya-shestakova` | Shortcode container only |
+| `61517` | `post` | February 14th + 21st, 2026 : No Class | `february-14th-21st-2026-no-class` | Shortcode container only |
+| `61751` | `post` | February 28th, 2026 : Martial Art of Awareness with Katya Shestakova | `february-28th-2026-martial-art-of-awareness-with-katya-shestakova` | Shortcode container only |
