@@ -13,6 +13,9 @@ import {
   browserLocalPersistence,
   User,
   UserCredential,
+  AuthCredential,
+  linkWithCredential,
+  linkWithPopup,
   sendPasswordResetEmail,
   sendEmailVerification,
   AuthErrorCodes,
@@ -44,6 +47,7 @@ export type AuthOperationResult =
   | {
     success: false;
     errorCode: AuthErrorCodeStr;
+    pendingCredential?: AuthCredential;
   };
 
 export type LogoutResult =
@@ -479,10 +483,63 @@ export class FirebaseStateService {
       console.error('Google login failed:', error);
       console.error(error);
       this.loginStatus.set(LoginStatus.SignedOut);
+      let pendingCredential: AuthCredential | undefined;
+      try {
+        pendingCredential = (GoogleAuthProvider.credentialFromError(error as any) as AuthCredential) ?? undefined;
+      } catch {
+        // Ignore if error does not hold a credential
+      }
+      return {
+        success: false,
+        errorCode: error.code,
+        pendingCredential,
+      };
+    }
+  }
+
+  public async loginWithEmailAndLink(
+    pass: string,
+    email: string,
+    pendingCredential: AuthCredential,
+  ): Promise<AuthOperationResult> {
+    this.loginStatus.set(LoginStatus.LoggingIn);
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        this.auth,
+        email,
+        pass,
+      );
+      try {
+        await linkWithCredential(userCredential.user, pendingCredential);
+        console.log('FirebaseStateService: Successfully linked Google credential to account.');
+      } catch (linkErr: unknown) {
+        console.warn('FirebaseStateService: Failed to link Google credential:', linkErr);
+      }
+      return { success: true, userCredential };
+    } catch (exception: unknown) {
+      const error = exception as FirebaseAuthError;
+      console.error('Email login and link failed:', error);
+      this.loginStatus.set(LoginStatus.SignedOut);
       return {
         success: false,
         errorCode: error.code,
       };
+    }
+  }
+
+  public async linkGoogleAccount(): Promise<{ success: boolean; errorCode?: string }> {
+    const currentUser = this.auth.currentUser;
+    if (!currentUser) {
+      return { success: false, errorCode: 'auth/no-current-user' };
+    }
+    try {
+      await linkWithPopup(currentUser, new GoogleAuthProvider());
+      await this.fetchUserDetails(currentUser);
+      return { success: true };
+    } catch (exception: unknown) {
+      const error = exception as FirebaseAuthError;
+      console.warn('FirebaseStateService: linkGoogleAccount failed:', error);
+      return { success: false, errorCode: error.code };
     }
   }
 
@@ -662,6 +719,12 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
         success: true,
         userCredential: {} as UserCredential,
       }),
+    loginWithEmailAndLink: (): Promise<AuthOperationResult> =>
+      Promise.resolve({
+        success: true,
+        userCredential: {} as UserCredential,
+      }),
+    linkGoogleAccount: () => Promise.resolve({ success: true }),
     loginWithEmail: (): Promise<AuthOperationResult> =>
       Promise.resolve({
         success: true,

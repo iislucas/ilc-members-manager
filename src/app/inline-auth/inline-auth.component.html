@@ -219,6 +219,16 @@
       @case (InlineAuthStep.PasswordLogin) {
         <ng-container *ngTemplateOutlet="emailChip"></ng-container>
 
+        @if (pendingGoogleCredential()) {
+          <div class="account-link-notice">
+            <app-icon name="info" width="20px" height="20px"></app-icon>
+            <div class="notice-text">
+              An account already exists for <strong>{{ email() }}</strong> using a password.
+              Enter your password once to connect Google Sign-In.
+            </div>
+          </div>
+        }
+
         <div class="input-field">
           <label for="password-input">Password</label>
           <div class="password-input-row">
@@ -265,11 +275,20 @@
               (click)="loginWithEmail()"
               [disabled]="!password()"
             >
-              Sign In
+              {{ pendingGoogleCredential() ? "Sign In & Connect Google" : "Sign In" }}
             </button>
-            <!-- Unlike a password, Google is not always a route: it shows only
-                 when the account is known to have it. -->
-            @if (canUseGoogle()) {
+            @if (pendingGoogleCredential()) {
+              <button
+                type="button"
+                id="cancel-link-btn"
+                class="secondary-action"
+                (click)="cancelLinking()"
+              >
+                Cancel connecting Google
+              </button>
+            } @else if (canUseGoogle()) {
+              <!-- Unlike a password, Google is not always a route: it shows only
+                   when the account is known to have it. -->
               <button
                 type="button"
                 id="use-google-btn"
