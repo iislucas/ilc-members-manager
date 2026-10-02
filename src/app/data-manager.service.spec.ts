@@ -3,7 +3,7 @@ import { DataManagerService } from './data-manager.service';
 import { IncrementalSyncService } from './incremental-sync.service';
 import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
-import { FirebaseStateService } from './firebase-state.service';
+import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
 import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
@@ -60,8 +60,8 @@ describe('DataManagerService - searchEvents', () => {
     }, `test-app-${Math.random()}`);
 
     const mockFirebaseState = {
+      ...createFirebaseStateServiceMock(),
       app,
-      loggedIn: vi.fn().mockResolvedValue({ isAdmin: true, schoolsManaged: [] }),
       user: vi.fn().mockReturnValue(null),
       updateCachedMemberProfile: vi.fn().mockResolvedValue(undefined),
     };

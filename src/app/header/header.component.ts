@@ -53,7 +53,7 @@ export class HeaderComponent {
   upNode = this.navTree.upNode;
 
   isSyncing = computed(() =>
-    (this.firebaseService.isAuthSyncing?.() ?? false) ||
+    this.firebaseService.isAuthSyncing() ||
     this.networkState.isReconnecting() ||
     this.actionQueue.isSyncing() ||
     this.incrementalSync.isSyncing()

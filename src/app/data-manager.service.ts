@@ -528,7 +528,7 @@ export class DataManagerService {
 
     // 3. Reactively sync user-dependent collections whenever authenticated user changes
     effect(() => {
-      const isAuthReady = this.firebaseService.isAuthReady?.() ?? true;
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
       if (!isAuthReady && user) {
         return;
@@ -552,10 +552,10 @@ export class DataManagerService {
 
     // System listeners reactive to auth status (counters, email-templates, mail-settings, videos)
     effect(() => {
-      if (this.firebaseService.loginStatus?.() === LoginStatus.FirebaseLoadingStatus) {
+      if (this.firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus) {
         return;
       }
-      const isAuthReady = this.firebaseService.isAuthReady?.() ?? true;
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
       if (!isAuthReady && user) {
         return;
@@ -571,7 +571,7 @@ export class DataManagerService {
     // other snapshot. Reads the user + limit signals synchronously so the effect
     // re-runs on login/logout and on "Show more".
     effect(() => {
-      const isAuthReady = this.firebaseService.isAuthReady?.() ?? true;
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
       const queryLimit = this.gradingsQueryLimit();
       if (!isAuthReady && user) {
@@ -584,7 +584,7 @@ export class DataManagerService {
     // gradingDocIds list changes (e.g. when a new grading is created by a
     // Firebase trigger and the member doc is updated with arrayUnion).
     effect(() => {
-      const isAuthReady = this.firebaseService.isAuthReady?.() ?? true;
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
       if (!isAuthReady && user) {
         return;
@@ -610,7 +610,7 @@ export class DataManagerService {
 
     // Reactive effect for My Orders & Subscriptions
     effect(() => {
-      const isAuthReady = this.firebaseService.isAuthReady?.() ?? true;
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
       if (!isAuthReady && user) {
         return;
@@ -624,7 +624,7 @@ export class DataManagerService {
 
     // Reactive effect for My Video Grants
     effect(() => {
-      const isAuthReady = this.firebaseService.isAuthReady?.() ?? true;
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
       if (!isAuthReady && user) {
         return;
