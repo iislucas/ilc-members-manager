@@ -313,15 +313,15 @@ export class GradingListComponent {
   constructor() {
     effect(() => {
       const signals = this.gradingSignals();
-      const q = signals.urlParams.q?.() || '';
-      const docId = signals.urlParams.studentMemberDocId?.() || '';
-      const memId = signals.urlParams.studentMemberId?.() || '';
-      const instId = signals.urlParams.instructorId?.() || '';
-      const ordId = signals.urlParams.orderId?.() || '';
-      const start = signals.urlParams.startDate?.() || '';
-      const end = signals.urlParams.endDate?.() || '';
-      const status = signals.urlParams.status?.() || '';
-      const unpaid = signals.urlParams.unpaid?.() === 'true';
+      const q = signals.urlParams.q() || '';
+      const docId = signals.urlParams.studentMemberDocId() || '';
+      const memId = signals.urlParams.studentMemberId() || '';
+      const instId = signals.urlParams.instructorId() || '';
+      const ordId = signals.urlParams.orderId() || '';
+      const start = signals.urlParams.startDate() || '';
+      const end = signals.urlParams.endDate() || '';
+      const status = signals.urlParams.status() || '';
+      const unpaid = signals.urlParams.unpaid() === 'true';
 
       if (this.initialised) return;
       this.initialised = true;

@@ -35,6 +35,7 @@ describe('NotificationSettingsComponent', () => {
       updateLocalSettings: vi.fn(),
       enablePushOnThisDevice: vi.fn().mockResolvedValue(true),
       disablePushOnThisDevice: vi.fn().mockResolvedValue(undefined),
+      refreshPushDeviceState: vi.fn().mockResolvedValue(undefined),
     };
 
     mockFirebaseService = {

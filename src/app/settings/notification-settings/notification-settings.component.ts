@@ -39,7 +39,7 @@ export class NotificationSettingsComponent implements OnInit {
     // The service's push subscription stream only emits once at app startup, so
     // re-read the device's live subscription each time the panel is shown to keep
     // the per-device toggle in sync (e.g. after navigating away and back).
-    this.notificationService.refreshPushDeviceState?.();
+    this.notificationService.refreshPushDeviceState();
   }
 
   protected localSettings = this.notificationService.localSettings;

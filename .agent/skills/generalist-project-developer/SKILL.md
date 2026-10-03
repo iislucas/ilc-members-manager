@@ -133,6 +133,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
   (Use `@if` / `@for` / `@switch` for control flow)
 - Never use `*ngIf` / `*ngFor` – use `@if` / `@for` block syntax
 - Never create NgModules – all new code is standalone
+- **Never use defensive optional chaining or fallbacks on injected services/signals (`service.method?.()`, `service.signal?.() ?? fallback`, `collection?.entries?.() || []`)**: Injected dependencies are guaranteed to exist at runtime. Degrading production code with `?.()` or fallback defaults hides broken injection tokens, causes subtle logic bugs / race conditions (e.g. `isAuthReady?.() ?? true`), and corrupts production code to compensate for incomplete test mocks. Always call services and signals directly (`service.method()`, `service.signal()`), and update incomplete test mocks in the corresponding `.spec.ts`.
 
 ### Components
 
