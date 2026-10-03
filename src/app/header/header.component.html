@@ -99,6 +99,9 @@
         <a class="nav-sign-in-link" [href]="'/login?returnUrl=' + encodeCurrentUrl()">Sign In</a>
       }
     </div>
+    @if (isSyncing()) {
+      <div class="header-sync-bar" role="progressbar" aria-label="Syncing data"></div>
+    }
   </div>
   <app-offline-banner></app-offline-banner>
 </div>
