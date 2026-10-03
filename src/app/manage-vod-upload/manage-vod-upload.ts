@@ -34,6 +34,11 @@ import { TagInputComponent } from '../tag-input/tag-input';
 import { SearchableSet } from '../searchable-set';
 import { ResumableUploadService, UploadProgressUpdate } from './resumable-upload.service';
 import { NetworkStateService } from '../network-state.service';
+import { fitWithin } from '../utils';
+import {
+  ThumbnailEditorModalComponent,
+  ThumbnailSelectedEvent,
+} from '../thumbnail-editor-modal/thumbnail-editor-modal';
 
 export interface UploadFileEntry {
   id: string;
@@ -68,6 +73,7 @@ export interface UploadFileEntry {
     SpinnerComponent,
     AutocompleteComponent,
     TagInputComponent,
+    ThumbnailEditorModalComponent,
   ],
   templateUrl: './manage-vod-upload.html',
   styleUrl: './manage-vod-upload.scss',
@@ -459,6 +465,27 @@ export class ManageVodUploadComponent implements OnInit {
     this.fileEntries.update((entries) => [...entries, ...newEntries]);
   }
 
+  // Thumbnail Customization Modal State
+  editingThumbnailEntry = signal<UploadFileEntry | null>(null);
+
+  openThumbnailModalForEntry(entry: UploadFileEntry): void {
+    this.editingThumbnailEntry.set(entry);
+  }
+
+  closeThumbnailModal(): void {
+    this.editingThumbnailEntry.set(null);
+  }
+
+  onEntryThumbnailSelected(event: ThumbnailSelectedEvent): void {
+    const entry = this.editingThumbnailEntry();
+    if (!entry) return;
+
+    entry.previewBlob = event.blob;
+    entry.previewUrl = event.previewUrl;
+    this.fileEntries.update((list) => [...list]);
+    this.closeThumbnailModal();
+  }
+
   private extractVideoMetadata(entry: UploadFileEntry): void {
     const videoElem = document.createElement('video');
     videoElem.preload = 'metadata';
@@ -468,19 +495,29 @@ export class ManageVodUploadComponent implements OnInit {
     const fileUrl = URL.createObjectURL(entry.file);
     videoElem.src = fileUrl;
 
-    videoElem.onloadedmetadata = () => {
-      entry.durationSeconds = Math.round(videoElem.duration || 0);
-      videoElem.currentTime = Math.min(Math.max(1, videoElem.duration * 0.05), 10);
+    let isCleanedUp = false;
+    const cleanup = () => {
+      if (!isCleanedUp) {
+        isCleanedUp = true;
+        URL.revokeObjectURL(fileUrl);
+      }
     };
 
-    videoElem.onseeked = () => {
+    const captureFrame = () => {
+      if (entry.previewBlob) {
+        cleanup();
+        return;
+      }
       try {
+        const vw = videoElem.videoWidth || 640;
+        const vh = videoElem.videoHeight || 360;
+        const { w, h } = fitWithin(vw, vh, 1280);
         const canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 360;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(videoElem, 0, 0, w, h);
           canvas.toBlob(
             (blob) => {
               if (blob) {
@@ -488,20 +525,48 @@ export class ManageVodUploadComponent implements OnInit {
                 entry.previewUrl = URL.createObjectURL(blob);
                 this.fileEntries.update((list) => [...list]);
               }
-              URL.revokeObjectURL(fileUrl);
+              cleanup();
             },
             'image/jpeg',
-            0.85,
+            0.9,
           );
+        } else {
+          cleanup();
         }
-      } catch {
-        URL.revokeObjectURL(fileUrl);
+      } catch (err) {
+        console.warn('Initial thumbnail generation failed:', err);
+        cleanup();
       }
     };
 
-    videoElem.onerror = () => {
-      URL.revokeObjectURL(fileUrl);
+    videoElem.onloadedmetadata = () => {
+      entry.durationSeconds = Math.round(videoElem.duration || 0);
+      const targetTime =
+        Number.isFinite(videoElem.duration) && videoElem.duration > 0
+          ? Math.min(Math.max(0.5, videoElem.duration * 0.05), 5)
+          : 0;
+
+      if (Math.abs(videoElem.currentTime - targetTime) < 0.05) {
+        captureFrame();
+      } else {
+        videoElem.currentTime = targetTime;
+      }
     };
+
+    videoElem.onseeked = () => {
+      captureFrame();
+    };
+
+    videoElem.onerror = () => {
+      cleanup();
+    };
+
+    // Safety timeout in case seeked doesn't fire
+    setTimeout(() => {
+      if (!entry.previewBlob) {
+        captureFrame();
+      }
+    }, 4000);
   }
 
   removeFile(id: string): void {
@@ -736,6 +801,7 @@ export class ManageVodUploadComponent implements OnInit {
       const vodConfig: Partial<VideoItem> = {
         title: entry.title || entry.file.name,
         description: entry.description || (mode === 'existing_series' ? (existingSeries?.description || '') : this.seriesDescription()),
+        durationSeconds: entry.durationSeconds || 0,
         tags: mode === 'existing_series' ? (existingSeries?.tags || []) : this.tags(),
         accessTiers: accessTiersToUse,
         accessTier: primaryTier,

@@ -77,6 +77,23 @@ export enum BlogPostStatus {
   Draft = 'draft',
 }
 
+/**
+ * Checks whether a blog post or article is a draft.
+ * Handles both boolean `isDraft` and `status: BlogPostStatus.Draft` / `'draft'`.
+ */
+export function isDraftPost(
+  item: Partial<CachedBlogPost> | Partial<Record<string, unknown>> | undefined | null,
+): boolean {
+  if (!item) return false;
+  return Boolean(
+    item.isDraft === true ||
+      (item.isDraft as unknown) === 'true' ||
+      item.status === BlogPostStatus.Draft ||
+      (item.status as unknown) === 'draft' ||
+      (item as Record<string, unknown>)['draft'] === true,
+  );
+}
+
 export type CachedBlogPost = {
   id: string; // Item ID (Squarespace item ID or WP ID)
   urlId: string; // URL-friendly slug for routing

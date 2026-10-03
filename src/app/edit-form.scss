@@ -32,7 +32,7 @@ h3 {
 
 .form-section {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 10px 20px;
   align-items: start;
   margin-bottom: 20px;
@@ -113,7 +113,7 @@ h3 {
   }
 
   @media (max-width: 600px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.5em;
 
     label {
@@ -208,6 +208,9 @@ h3 {
   flex-wrap: wrap;
   gap: 10px;
   flex-grow: 1;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 
   &.bio-rhs {
     flex-direction: column;

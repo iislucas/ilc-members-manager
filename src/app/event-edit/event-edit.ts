@@ -187,10 +187,12 @@ function toFormModel(event: IlcEvent): EventFormModel {
   return model;
 }
 
+import { VodPreviewComponent } from '../vod-preview/vod-preview';
+
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, MarkdownViewer, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, ProductEditComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, MarkdownViewer, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, ProductEditComponent, VodPreviewComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

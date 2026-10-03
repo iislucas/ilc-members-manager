@@ -223,10 +223,11 @@ describe('processEventDigest', () => {
   it('skips digest generation if no members are opted in', async () => {
     const originalFrom = environment.email.from;
     environment.email.from = 'digest@iliqchuan.com';
+    const upcomingDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
     mockEventsQueryGet.mockResolvedValue({
       empty: false,
-      docs: [{ id: 'evt', data: () => ({ title: 'Event', startDate: '2026-10-01' }) }],
+      docs: [{ id: 'evt', data: () => ({ title: 'Event', startDate: upcomingDate, status: 'listed' }) }],
     });
 
     mockMembersQueryGet.mockResolvedValue({
@@ -272,6 +273,7 @@ describe('processEventDigest', () => {
   it('enqueues placeholder documents with status PAUSED when mail sending is PAUSED', async () => {
     const originalFrom = environment.email.from;
     environment.email.from = 'digest@iliqchuan.com';
+    const upcomingDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
     mockDb.doc = vi.fn().mockImplementation((path: string) => {
       if (path === 'system/mail-settings') {
@@ -292,7 +294,7 @@ describe('processEventDigest', () => {
           id: 'evt_1',
           data: () => ({
             title: 'Workshop',
-            startDate: '2026-10-01',
+            startDate: upcomingDate,
             status: 'listed',
           }),
         },

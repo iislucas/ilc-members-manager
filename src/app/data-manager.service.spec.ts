@@ -3,7 +3,7 @@ import { DataManagerService } from './data-manager.service';
 import { IncrementalSyncService } from './incremental-sync.service';
 import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
-import { FirebaseStateService } from './firebase-state.service';
+import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
 import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
@@ -60,8 +60,8 @@ describe('DataManagerService - searchEvents', () => {
     }, `test-app-${Math.random()}`);
 
     const mockFirebaseState = {
+      ...createFirebaseStateServiceMock(),
       app,
-      loggedIn: vi.fn().mockResolvedValue({ isAdmin: true, schoolsManaged: [] }),
       user: vi.fn().mockReturnValue(null),
       updateCachedMemberProfile: vi.fn().mockResolvedValue(undefined),
     };
@@ -832,6 +832,45 @@ describe('DataManagerService - searchEvents', () => {
         'docId',
         expect.objectContaining({ docId: 'v-tag-1', tags: ['new-tag', 'other-tag'] }),
       );
+    });
+
+    it('getSeriesGrants retrieves grants matching targetIds', async () => {
+      const getDocsMock = vi.mocked(getDocs);
+      const mockGrantDoc = {
+        id: 'mem_1_series_1',
+        data: () => ({
+          videoId: 'series_1',
+          memberDocId: 'mem_1',
+          memberEmail: 'alice@example.com',
+          grantKind: 'stripe_purchase',
+        }),
+      };
+      getDocsMock.mockResolvedValueOnce({ docs: [mockGrantDoc] } as never);
+
+      const res = await service.getSeriesGrants(['series_1', 'vid_1']);
+      expect(res.length).toBe(1);
+      expect(res[0].videoId).toBe('series_1');
+      expect(res[0].memberEmail).toBe('alice@example.com');
+    });
+
+    it('revokeVideoGrant deletes from both global video_grants and member subcollection', async () => {
+      const batchMock = {
+        delete: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      };
+      vi.mocked(writeBatch).mockReturnValue(batchMock as never);
+
+      await service.revokeVideoGrant({
+        docId: 'mem_1_vid_1',
+        videoId: 'vid_1',
+        memberDocId: 'mem_1',
+        memberEmail: 'alice@example.com',
+        grantKind: 'admin_grant' as never,
+        grantedAt: '2026-09-28T00:00:00Z',
+      });
+
+      expect(batchMock.delete).toHaveBeenCalledTimes(2);
+      expect(batchMock.commit).toHaveBeenCalledTimes(1);
     });
   });
 });

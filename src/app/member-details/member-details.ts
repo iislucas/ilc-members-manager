@@ -1212,6 +1212,10 @@ export class MemberDetailsComponent {
     let lastLoadedGrantsDocId: string | null = null;
     effect(async () => {
       const docId = this.member()?.docId;
+      const isAuthReady = this.firebaseState.isAuthReady();
+      if (!isAuthReady) {
+        return;
+      }
       if (docId === lastLoadedGrantsDocId) {
         return;
       }
@@ -1223,6 +1227,7 @@ export class MemberDetailsComponent {
           this.memberVideoGrants.set(grants);
         } catch (err) {
           console.error('Failed to load member video grants:', err);
+          lastLoadedGrantsDocId = null;
           this.memberVideoGrants.set([]);
         } finally {
           this.isLoadingVideoGrants.set(false);

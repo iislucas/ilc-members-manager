@@ -6,7 +6,7 @@ import { ProductService } from '../product.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService } from '../firebase-state.service';
-import { initProduct } from '../../../functions/src/data-model/events';
+import { AttendanceType, EventRegistrationStatus, initEventRegistration, initProduct } from '../../../functions/src/data-model/events';
 import { signal } from '@angular/core';
 
 describe('ProductEditComponent', () => {
@@ -17,10 +17,18 @@ describe('ProductEditComponent', () => {
     getProduct: vi.fn().mockResolvedValue(initProduct()),
     saveProduct: vi.fn().mockResolvedValue('new-prod-id'),
     deleteProduct: vi.fn().mockResolvedValue(undefined),
+    getEventRegistrations: vi.fn().mockResolvedValue([]),
   };
 
   const mockDataManagerService = {
     getEvents: vi.fn().mockResolvedValue([]),
+    saveProduct: vi.fn().mockResolvedValue('saved-product-123'),
+    deleteProduct: vi.fn().mockResolvedValue(undefined),
+    videos: {
+      entries: vi.fn().mockReturnValue([]),
+      get: vi.fn().mockReturnValue(undefined),
+    },
+    getVideoSeriesList: vi.fn().mockReturnValue([]),
   };
 
   const mockRoutingService = {
@@ -35,6 +43,7 @@ describe('ProductEditComponent', () => {
       set: vi.fn(),
     },
     hrefForView: vi.fn().mockReturnValue('/products/mock-id'),
+    navigateTo: vi.fn(),
   };
 
   const mockFirebaseState = {
@@ -252,5 +261,159 @@ describe('ProductEditComponent', () => {
     // Video delta
     component.updateVideoDeltaPrice('15.00');
     expect(component.getTier('non_member' as any, 'in_person' as any, true, 'standard' as any).price).toBe(120);
+  });
+
+  it('should populate vodOptionsSet from series and videos and allow selecting/unlinking', async () => {
+    component.productModel.update((m) => ({ ...m, allowVideo: true }));
+    fixture.detectChanges();
+
+    // Select an option
+    component.onVodOptionSelected({
+      id: 'series_spring_2026',
+      type: 'series',
+      title: 'Spring 2026 Workshop',
+      displayName: '[Series (3 parts)] Spring 2026 Workshop',
+    });
+
+    expect(component.productModel().recordedVideoId).toBe('series_spring_2026');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // Preview component should be rendered
+    const previewEl = fixture.nativeElement.querySelector('app-vod-preview');
+    expect(previewEl).toBeTruthy();
+
+    // Unlinking clears the recordedVideoId
+    component.updateRecordedVideoId('');
+    expect(component.productModel().recordedVideoId).toBe('');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('app-vod-preview')).toBeNull();
+  });
+
+  it('should calculate video access impact correctly for video-only vs included registrations', () => {
+    const regVideoOnly = {
+      ...initEventRegistration(),
+      docId: 'reg-1',
+      attendance: AttendanceType.VideoOnly,
+      hasVideoAccess: true,
+      status: EventRegistrationStatus.Paid,
+    };
+    const regInPersonWithVideo = {
+      ...initEventRegistration(),
+      docId: 'reg-2',
+      attendance: AttendanceType.InPerson,
+      hasVideoAccess: true,
+      status: EventRegistrationStatus.Paid,
+    };
+    const regInPersonNoVideo = {
+      ...initEventRegistration(),
+      docId: 'reg-3',
+      attendance: AttendanceType.InPerson,
+      hasVideoAccess: false,
+      status: EventRegistrationStatus.Paid,
+    };
+    const regCancelled = {
+      ...initEventRegistration(),
+      docId: 'reg-4',
+      attendance: AttendanceType.VideoOnly,
+      hasVideoAccess: true,
+      status: EventRegistrationStatus.Cancelled,
+    };
+
+    component.eventRegistrations.set([regVideoOnly, regInPersonWithVideo, regInPersonNoVideo, regCancelled]);
+
+    expect(component.attendeesWithVideoAccess().length).toBe(2);
+    expect(component.videoOnlyAttendeesCount()).toBe(1);
+    expect(component.includedVideoAttendeesCount()).toBe(1);
+  });
+
+  it('should prompt confirmation when saving with new or modified video and attendees have video access', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    component.initialRecordedVideoId.set('');
+
+    const reg = {
+      ...initEventRegistration(),
+      docId: 'reg-1',
+      attendance: AttendanceType.VideoOnly,
+      hasVideoAccess: true,
+      status: EventRegistrationStatus.Paid,
+    };
+    component.eventRegistrations.set([reg]);
+
+    component.productModel.update((m) => ({
+      ...m,
+      title: 'Spring Workshop 2026',
+      recordedVideoId: 'series_123',
+    }));
+
+    await component.saveProduct();
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.stringContaining('1 attendee(s)'),
+    );
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.stringContaining('1 video-only pre-order attendee(s)'),
+    );
+    expect(mockDataManagerService.saveProduct).toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
+  });
+
+  it('should abort saving if admin cancels the notification confirmation dialog', async () => {
+    mockDataManagerService.saveProduct.mockClear();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    component.initialRecordedVideoId.set('');
+
+    const reg = {
+      ...initEventRegistration(),
+      docId: 'reg-1',
+      attendance: AttendanceType.InPerson,
+      hasVideoAccess: true,
+      status: EventRegistrationStatus.Paid,
+    };
+    component.eventRegistrations.set([reg]);
+
+    component.productModel.update((m) => ({
+      ...m,
+      title: 'Spring Workshop 2026',
+      recordedVideoId: 'series_123',
+    }));
+
+    await component.saveProduct();
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
+  });
+
+  it('should not prompt confirmation when video recording is unchanged on save', async () => {
+    mockDataManagerService.saveProduct.mockClear();
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    component.initialRecordedVideoId.set('series_123');
+
+    const reg = {
+      ...initEventRegistration(),
+      docId: 'reg-1',
+      attendance: AttendanceType.VideoOnly,
+      hasVideoAccess: true,
+      status: EventRegistrationStatus.Paid,
+    };
+    component.eventRegistrations.set([reg]);
+
+    component.productModel.update((m) => ({
+      ...m,
+      title: 'Spring Workshop 2026',
+      recordedVideoId: 'series_123', // unchanged
+    }));
+
+    await component.saveProduct();
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(mockDataManagerService.saveProduct).toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
   });
 });

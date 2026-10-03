@@ -763,6 +763,15 @@ describe('MemberDetailsComponent', () => {
       expect(nestedTable?.textContent).toContain('Spinning Hands Part 2');
       expect(nestedTable?.textContent).toContain('15m');
       expect(nestedTable?.textContent).toContain('25m');
+
+      // Mobile metadata and duration elements should be present in DOM for responsive layout
+      const mobileMeta = el.querySelector('.series-mobile-meta');
+      expect(mobileMeta).toBeTruthy();
+      expect(mobileMeta?.textContent).toContain('series-spin');
+
+      const mobileDurations = el.querySelectorAll('.nested-mobile-duration');
+      expect(mobileDurations.length).toBe(2);
+      expect(mobileDurations[0].textContent).toContain('15m');
     });
   });
 

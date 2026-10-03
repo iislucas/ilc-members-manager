@@ -14,7 +14,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
-import { BlogPostStatus, CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
+import { BlogPostStatus, CachedBlogPost, initCachedBlogPost, isDraftPost } from '../../../functions/src/data-model/content-cache';
 import {
     MembershipType,
     ExpiryStatus,
@@ -56,9 +56,7 @@ export function categoryToTabLabel(cat: string): string {
     return cat;
 }
 
-export function isDraftPost(item: Partial<CachedBlogPost>): boolean {
-    return Boolean(item.isDraft || item.status === BlogPostStatus.Draft || (item.status as string) === 'draft');
-}
+export { isDraftPost };
 
 @Component({
     selector: 'app-squarespace-content',
@@ -182,6 +180,11 @@ export class SquarespaceContentComponent implements OnDestroy {
         if (this.error()) return false;
         if (!this.subscribed()) return true;
         return this.postsLoading();
+    });
+
+    readonly draftCount = computed<number>(() => {
+        if (!this.firebaseService.isAdmin()) return 0;
+        return this.blogEntries().filter((e) => isDraftPost(e)).length;
     });
 
     private postsLoading = signal(true);

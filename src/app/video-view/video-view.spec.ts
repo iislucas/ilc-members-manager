@@ -44,6 +44,7 @@ describe('VideoViewComponent', () => {
   };
   let mockStripeService: {
     createCheckoutSession: ReturnType<typeof vi.fn>;
+    createVodCheckoutSession: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -99,6 +100,7 @@ describe('VideoViewComponent', () => {
 
     mockStripeService = {
       createCheckoutSession: vi.fn().mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/test', sessionId: 'sess_1' }),
+      createVodCheckoutSession: vi.fn().mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/test', sessionId: 'sess_1' }),
     };
 
     await TestBed.configureTestingModule({
@@ -323,16 +325,10 @@ describe('VideoViewComponent', () => {
     component.video.set(ep1);
 
     await component.startSeriesPurchase();
-    expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
-      'price_series_1',
-      expect.any(String),
-      1,
+    expect(mockStripeService.createVodCheckoutSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        metadata: {
-          seriesId: 'series-1',
-          videoId: 'v100',
-          orderType: 'vod',
-        },
+        seriesId: 'series-1',
+        videoId: 'v100',
       }),
     );
   });
@@ -445,19 +441,13 @@ describe('VideoViewComponent', () => {
       await component.startPurchase();
 
       expect(component.giftValidationError()).toBeNull();
-      expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
-        'price_vod_100',
-        expect.any(String),
-        1,
+      expect(mockStripeService.createVodCheckoutSession).toHaveBeenCalledWith(
         expect.objectContaining({
+          videoId: 'v100',
           isGift: true,
           recipientEmail: 'friend@example.com',
           recipientName: 'Jane Doe',
           giftMessage: 'Enjoy learning ZXD!',
-          metadata: expect.objectContaining({
-            videoId: 'v100',
-            orderType: 'vod',
-          }),
         }),
       );
     });
@@ -498,19 +488,14 @@ describe('VideoViewComponent', () => {
       await component.startGiftModalPurchase();
 
       expect(component.giftValidationError()).toBeNull();
-      expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
-        'price_series_gift',
-        expect.any(String),
-        1,
+      expect(mockStripeService.createVodCheckoutSession).toHaveBeenCalledWith(
         expect.objectContaining({
+          seriesId: 'series-gift-1',
+          videoId: 'v100',
           isGift: true,
           recipientEmail: 'student@example.com',
           recipientName: 'Student Name',
           giftMessage: 'Congrats on grading!',
-          metadata: expect.objectContaining({
-            seriesId: 'series-gift-1',
-            orderType: 'vod',
-          }),
         }),
       );
     });
@@ -621,7 +606,7 @@ describe('VideoViewComponent', () => {
       });
       await component.loadVideo('v300');
 
-      mockStripeService.createCheckoutSession.mockRejectedValueOnce(
+      mockStripeService.createVodCheckoutSession.mockRejectedValueOnce(
         new Error('Email notifications are currently turned off. Gifts can only be sent to existing member accounts.'),
       );
 

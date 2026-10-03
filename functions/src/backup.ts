@@ -3,18 +3,19 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
-import { BlogPostSourceKind, blogPostSourceKind } from './data-model/content-cache';
+import { BlogPostSourceKind, blogPostSourceKind, isDraftPost } from './data-model/content-cache';
 import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 
-// Top-level collections holding authored (non-derived) data.
+// Top-level collections holding authored and content data.
 //
 // Deliberately excluded, because every document is regenerable:
 //   'instructors'      — public projection of /members, rebuilt by
 //                        updateInstructorPublicProfile on member writes.
 //   'mail'             — transient send queue for the Trigger Email extension.
 //
-// The blog-post collections are partly cached and partly authored; see
-// BACKUP_MIXED_COLLECTIONS below.
+// All blog-post and article collections (articles-post, members-post, instructors-post,
+// news-post) are fully backed up, preserving authored articles, drafts, and
+// Squarespace-synced content for complete, self-contained database snapshots.
 export const BACKUP_COLLECTIONS: string[] = [
   FirestoreCollection.Members,
   FirestoreCollection.Schools,
@@ -28,6 +29,9 @@ export const BACKUP_COLLECTIONS: string[] = [
   FirestoreCollection.VideoGrants,
   FirestoreCollection.Statistics,
   FirestoreCollection.ArticlesPost,
+  FirestoreCollection.MembersPost,
+  FirestoreCollection.InstructorsPost,
+  FirestoreCollection.NewsPost,
   FirestoreCollection.DeletionLogs,
 ];
 
@@ -52,21 +56,14 @@ export const BACKUP_SUBCOLLECTION_GROUPS: string[] = [
   FirestoreSubcollection.VideoTimeRanges,
 ];
 
-// Collections where cached and authored documents coexist. The blog-post
-// collections are refilled from Squarespace by the content-cache sync, but
-// that sync only prunes posts from its own source, so posts written from
-// anywhere else are durable, authored data and must be backed up.
-//
-// A post is regenerable precisely when it came from the source that syncs the
-// collection, since that sync will rewrite it. Reading the kind through
-// blogPostSourceKind keeps this decision identical to the sync's own.
+// Collections where cached and authored documents coexist.
+// Currently empty because members-post and instructors-post are now backed up
+// in full via BACKUP_COLLECTIONS, ensuring all Squarespace posts and drafts
+// are preserved in every backup.
 export const BACKUP_MIXED_COLLECTIONS: {
   name: string;
   cachedFrom: BlogPostSourceKind;
-}[] = [
-  { name: FirestoreCollection.MembersPost, cachedFrom: BlogPostSourceKind.Squarespace },
-  { name: FirestoreCollection.InstructorsPost, cachedFrom: BlogPostSourceKind.Squarespace },
-];
+}[] = [];
 
 /**
  * Common logic to perform the database backup to Cloud Storage.
@@ -108,7 +105,15 @@ export async function performBackup(): Promise<string> {
       logger.info(`Fetching authored documents from: ${name}`);
       const snapshot = await db.collection(name).get();
       const records = snapshot.docs
-        .filter((doc) => blogPostSourceKind(doc.data()) !== cachedFrom)
+        .filter((doc) => {
+          const data = doc.data();
+          // Always preserve draft articles/posts regardless of source kind;
+          // drafts are authored in-progress content and never regenerable from cache.
+          if (isDraftPost(data)) {
+            return true;
+          }
+          return blogPostSourceKind(data) !== cachedFrom;
+        })
         .map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -135,11 +140,72 @@ export async function performBackup(): Promise<string> {
     });
 
     logger.info('Database backup completed successfully.');
+
+    try {
+      await cleanupOldBackups(bucket);
+    } catch (cleanupError) {
+      logger.warn('Failed to cleanup old backups:', cleanupError);
+    }
+
     return fileName;
   } catch (error) {
     logger.error('Error performing database backup:', error);
     throw new Error('Database backup failed.');
   }
+}
+
+export const BACKUP_RETENTION_DAYS = 180;
+
+export type StorageBucket = ReturnType<ReturnType<typeof admin.storage>['bucket']>;
+
+/**
+ * Deletes backup files from Cloud Storage that are older than maxAgeDays (default: 180 days).
+ * Returns the list of deleted file names.
+ */
+export async function cleanupOldBackups(
+  bucket?: StorageBucket,
+  maxAgeDays: number = BACKUP_RETENTION_DAYS,
+): Promise<string[]> {
+  const targetBucket = bucket || admin.storage().bucket();
+  const cutoffTime = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  logger.info(
+    `Cleaning up backups older than ${maxAgeDays} days (cutoff: ${new Date(cutoffTime).toISOString()})...`,
+  );
+
+  const [files] = await targetBucket.getFiles({ prefix: 'backups/' });
+  const backupFiles = files.filter(
+    (f) => f.name.startsWith('backups/backup-') && f.name.endsWith('.json'),
+  );
+
+  const deletedFiles: string[] = [];
+
+  for (const file of backupFiles) {
+    try {
+      const [metadata] = await file.getMetadata();
+      let createdTime = metadata.timeCreated
+        ? new Date(String(metadata.timeCreated)).getTime()
+        : 0;
+      if (!createdTime || isNaN(createdTime)) {
+        const match = file.name.match(/^backups\/backup-(.+)\.json$/);
+        if (match) {
+          createdTime = new Date(match[1]).getTime();
+        }
+      }
+
+      if (createdTime && !isNaN(createdTime) && createdTime < cutoffTime) {
+        logger.info(
+          `Deleting expired backup file: ${file.name} (created: ${new Date(createdTime).toISOString()})`,
+        );
+        await file.delete();
+        deletedFiles.push(file.name);
+      }
+    } catch (err) {
+      logger.warn(`Failed to inspect or delete backup file ${file.name}:`, err);
+    }
+  }
+
+  logger.info(`Cleanup completed. Deleted ${deletedFiles.length} expired backup file(s).`);
+  return deletedFiles;
 }
 
 /**

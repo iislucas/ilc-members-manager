@@ -299,6 +299,11 @@ export class VideosCatalogComponent {
     return false;
   }
 
+  hasSeriesAccess(series: VideoSeries): boolean {
+    if (this.isPurchasedSeries(series)) return true;
+    return series.videos.some((v) => this.isPurchasedVideo(v) || this.userHasAccess(v));
+  }
+
   myPurchasedVideosCount = computed(() => {
     return this.filteredCatalogEntries().filter((e) => e.isPurchased).length;
   });
@@ -361,7 +366,7 @@ export class VideosCatalogComponent {
 
     // Add series collection entries
     for (const s of seriesList) {
-      const isPurchased = this.isPurchasedSeries(s);
+      const isPurchased = this.isPurchasedSeries(s) || this.hasSeriesAccess(s);
       entries.push({
         kind: 'series',
         id: s.seriesId,
@@ -652,8 +657,13 @@ export class VideosCatalogComponent {
     }
     if (user.isAdmin) return true;
 
-    // Check individual purchased video grant
-    if (this.myVideoGrantIds().has(video.docId)) {
+    // Check individual purchased video grant or series/vodPage grant
+    const grants = this.myVideoGrantIds();
+    if (
+      grants.has(video.docId) ||
+      (Boolean(video.seriesId) && grants.has(video.seriesId!)) ||
+      (Boolean(video.forVodPageId) && grants.has(video.forVodPageId!))
+    ) {
       return true;
     }
 
@@ -704,6 +714,14 @@ export class VideosCatalogComponent {
 
   // --- CatalogEntry Helpers ---
   getEntryHref(entry: CatalogEntry): string {
+    if (entry.kind === 'series' && entry.episodes && entry.episodes.length > 0) {
+      const accessibleEp = entry.episodes.find((v) => this.userHasAccess(v) || this.isPurchasedVideo(v));
+      if (accessibleEp) {
+        return this.routingService.hrefForView(Views.VideoView, {
+          videoId: accessibleEp.docId,
+        });
+      }
+    }
     return this.routingService.hrefForView(Views.VideoView, {
       videoId: entry.primaryVideoId,
     });
@@ -721,12 +739,25 @@ export class VideosCatalogComponent {
     if (entry.kind === 'single' && entry.video) {
       return this.userHasAccess(entry.video);
     }
-    if (entry.kind === 'series' && entry.episodes) {
-      return entry.episodes.every((v) => this.userHasAccess(v));
+    if (entry.kind === 'series') {
+      if (entry.series && this.hasSeriesAccess(entry.series)) return true;
+      if (entry.episodes && entry.episodes.some((v) => this.userHasAccess(v))) return true;
     }
     const user = this.firebaseState.user();
     if (user?.isAdmin) return true;
     return false;
+  }
+
+  getEntryPurchasedBadgeLabel(entry: CatalogEntry): string {
+    if (entry.kind === 'series' && entry.episodes && entry.episodes.length > 0) {
+      const accessibleCount = entry.episodes.filter(
+        (v) => this.userHasAccess(v) || this.isPurchasedVideo(v),
+      ).length;
+      if (accessibleCount > 0 && accessibleCount < entry.episodes.length) {
+        return `${accessibleCount} of ${entry.episodes.length} Purchased`;
+      }
+    }
+    return 'Purchased';
   }
 
   formatEntryDate(entry: CatalogEntry): string {

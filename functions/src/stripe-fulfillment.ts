@@ -29,7 +29,7 @@ import { Member, MemberUpdates, MemberSubscriptionItem, MembershipType, firestor
 import { NotificationKind } from './data-model/notifications';
 import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderType, StripeOrderLineItem, StripeCheckoutMode, OrderStatus, OrderKind } from './data-model/orders';
 import { initSchool, School } from './data-model/schools';
-import { VideoGrant, VideoGrantKind } from './data-model/vod';
+import { VideoGrant, VideoGrantKind, firestoreDocToVideoItem } from './data-model/vod';
 import { canonicalizeGradingLevel } from './level-utils';
 import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
@@ -40,6 +40,7 @@ import { sendTransactionalEmail } from './email-dispatcher.js';
 import { TransactionalEmailKey } from './data-model/mail';
 
 import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
+import { resolveEventVideoGrantTargets } from './proposed-events';
 
 function unixSecondsToDateString(seconds: number | null | undefined): string {
   if (!seconds) return '';
@@ -165,6 +166,9 @@ export function categorizeLineItem(
   }
   if (metaType === 'school' || metaType === 'school_license') {
     return OrderItemCategory.SchoolLicense;
+  }
+  if (metaType === 'vod') {
+    return OrderItemCategory.Vod;
   }
 
   const desc = (item.description || '').toLowerCase();
@@ -1075,44 +1079,64 @@ export async function fulfillEventRegistration(
         }
 
         // 2. Provision video grant if video is available right now
-        if (hasVideoAccess && recordedVideoId && memberDocId) {
-          const grant: VideoGrant = {
-            docId: recordedVideoId,
-            videoId: recordedVideoId,
-            memberDocId,
-            memberEmail: email,
-            grantKind: VideoGrantKind.StripePurchase,
-            orderDocId,
-            stripeSessionId: order.checkoutSessionId,
-            amountPaidCents,
-            grantedAt: new Date().toISOString(),
-          };
-          await db
-            .collection(FirestoreCollection.Members)
-            .doc(memberDocId)
-            .collection(FirestoreSubcollection.VideoGrants)
-            .doc(recordedVideoId)
-            .set(grant);
-          await db
-            .collection(FirestoreCollection.VideoGrants)
-            .doc(`${memberDocId}_${recordedVideoId}`)
-            .set(grant);
+        if (hasVideoAccess && recordedVideoId && (memberDocId || email)) {
+          const { targetDocIds, primaryWatchVideoId } = await resolveEventVideoGrantTargets(
+            db,
+            recordedVideoId,
+          );
+
+          for (const targetId of targetDocIds) {
+            const grant: VideoGrant = {
+              docId: targetId,
+              videoId: targetId,
+              memberDocId: memberDocId || '',
+              memberEmail: email,
+              grantKind: VideoGrantKind.StripePurchase,
+              orderDocId,
+              stripeSessionId: order.checkoutSessionId,
+              amountPaidCents,
+              grantedAt: new Date().toISOString(),
+            };
+
+            if (memberDocId) {
+              await db
+                .collection(FirestoreCollection.Members)
+                .doc(memberDocId)
+                .collection(FirestoreSubcollection.VideoGrants)
+                .doc(targetId)
+                .set(grant, { merge: true });
+              await db
+                .collection(FirestoreCollection.VideoGrants)
+                .doc(`${memberDocId}_${targetId}`)
+                .set(grant, { merge: true });
+            } else if (email) {
+              const cleanEmail = email.replace(/[^a-zA-Z0-9@._-]/g, '_');
+              await db
+                .collection(FirestoreCollection.VideoGrants)
+                .doc(`${cleanEmail}_${targetId}`)
+                .set(grant, { merge: true });
+            }
+          }
+
           logger.info('Auto-provisioned VideoGrant for event registration', {
             memberDocId,
             recordedVideoId,
+            targetCount: targetDocIds.length,
             eventDocId,
           });
 
-          await createMemberNotification(db, memberDocId, {
-            kind: NotificationKind.EventVideoAvailable,
-            markdown: `The class video recording for **[${eventTitle}](/events/${eventDocId})** is ready! You can [watch it now](/videos/${encodeURIComponent(recordedVideoId)}).`,
-            createdAt: new Date().toISOString(),
-            dismissed: false,
-            data: {
-              eventId: eventDocId,
-              videoId: recordedVideoId,
-            },
-          });
+          if (memberDocId) {
+            await createMemberNotification(db, memberDocId, {
+              kind: NotificationKind.EventVideoAvailable,
+              markdown: `The class video recording for **[${eventTitle}](/events/${eventDocId})** is ready! You can [watch it now](/videos/${encodeURIComponent(primaryWatchVideoId)}).`,
+              createdAt: new Date().toISOString(),
+              dismissed: false,
+              data: {
+                eventId: eventDocId,
+                videoId: primaryWatchVideoId,
+              },
+            });
+          }
         }
       }
     } catch (err) {
@@ -1438,11 +1462,53 @@ export async function fulfillStripeOrder(
         order.metadata?.['gradingLevel'] || '',
       );
     } else if (category === OrderItemCategory.Vod || order.metadata?.['videoId'] || order.metadata?.['seriesId']) {
-      const videoId = (order.metadata?.['videoId'] || item.productId || '').replace(/^prod_/, '');
-      const seriesId = (order.metadata?.['seriesId'] || '').replace(/^prod_/, '');
+      let videoId = (order.metadata?.['videoId'] || '').replace(/^prod_/, '');
+      let seriesId = (order.metadata?.['seriesId'] || '').replace(/^prod_/, '');
+
+      if (!videoId && !seriesId && item.productId) {
+        const prodId = item.productId;
+        try {
+          const [prodSnap, seriesProdSnap] = await Promise.all([
+            db.collection(FirestoreCollection.Videos).where('stripeProductId', '==', prodId).limit(1).get(),
+            db.collection(FirestoreCollection.Videos).where('seriesStripeProductId', '==', prodId).limit(1).get(),
+          ]);
+          if (!prodSnap.empty) {
+            videoId = prodSnap.docs[0].id;
+          } else if (!seriesProdSnap.empty) {
+            const v = firestoreDocToVideoItem(seriesProdSnap.docs[0]);
+            seriesId = v.seriesId || v.forVodPageId || seriesProdSnap.docs[0].id;
+          } else {
+            videoId = prodId.replace(/^prod_/, '');
+          }
+        } catch (err) {
+          logger.warn('Failed to query videos for stripeProductId:', { prodId, err });
+          videoId = prodId.replace(/^prod_/, '');
+        }
+      }
+
+      // If targetType was explicitly passed as series, ensure seriesId is populated
+      if (order.metadata?.['targetType'] === 'series' && videoId && !seriesId) {
+        seriesId = videoId;
+      }
+
       const grantTargetIds = new Set<string>();
-      if (videoId) grantTargetIds.add(videoId);
-      if (seriesId) grantTargetIds.add(seriesId);
+      if (videoId) {
+        grantTargetIds.add(videoId);
+      }
+      if (seriesId) {
+        grantTargetIds.add(seriesId);
+        try {
+          const [bySeriesId, byVodPageId] = await Promise.all([
+            db.collection(FirestoreCollection.Videos).where('seriesId', '==', seriesId).get(),
+            db.collection(FirestoreCollection.Videos).where('forVodPageId', '==', seriesId).get(),
+          ]);
+          for (const doc of [...bySeriesId.docs, ...byVodPageId.docs]) {
+            grantTargetIds.add(doc.id);
+          }
+        } catch (err) {
+          logger.warn('Failed to expand series episodes for seriesId:', { seriesId, err });
+        }
+      }
 
       const isGift = order.metadata?.['isGift'] === 'true';
       const recipientEmail = (order.metadata?.['recipientEmail'] || '').trim().toLowerCase();

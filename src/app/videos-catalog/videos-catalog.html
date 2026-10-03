@@ -415,7 +415,7 @@
                     <app-icon name="play_arrow"></app-icon>
                     <span>{{ entry.kind === 'series' ? 'Watch Series' : 'Watch Now' }}</span>
                   </span>
-                  <span class="access-tier-chip badge-purchased">Purchased</span>
+                  <span class="access-tier-chip badge-purchased">{{ getEntryPurchasedBadgeLabel(entry) }}</span>
                 } @else if (entry.accessTier === 'public') {
                   <span class="access-cta watch-free">
                     <app-icon name="play_arrow"></app-icon>

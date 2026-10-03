@@ -31,7 +31,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { FirestoreCollection } from '../../functions/src/data-model/collections';
+import { FirestoreCollection, FirestoreSubcollection } from '../../functions/src/data-model/collections';
 import {
   MailQueueDoc,
   MailSettings,
@@ -56,7 +56,7 @@ import { School, initSchool, SchoolFsDoc, firestoreDocToSchool } from '../../fun
 import { Counters } from '../../functions/src/data-model/system';
 import { VideoItem, VideoSeries, groupVideosIntoSeries, getVideoSeriesGroupingKey, firestoreDocToVideoItem, initVideoItem, VideoGrant, firestoreDocToVideoGrant, VideoProgress, firestoreDocToVideoProgress, VodStatus, VodAccessTier, VideoGrantKind, SystemTagsDoc, SystemVideoTagsDoc, VideoTagMeta, initVideoTagMeta, TagItem, VideoTimeRange, MemberVideoTimeRanges, firestoreDocToMemberVideoTimeRanges, MemberVideoTimeRangesFsDoc } from '../../functions/src/data-model/vod';
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
-import { FirebaseStateService, UserDetails } from './firebase-state.service';
+import { FirebaseStateService, LoginStatus, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
@@ -528,7 +528,11 @@ export class DataManagerService {
 
     // 3. Reactively sync user-dependent collections whenever authenticated user changes
     effect(() => {
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
+      if (!isAuthReady && user) {
+        return;
+      }
       if (user) {
         this.updateMembersSync(user);
         this.updateMyStudentsSync(user);
@@ -548,7 +552,14 @@ export class DataManagerService {
 
     // System listeners reactive to auth status (counters, email-templates, mail-settings, videos)
     effect(() => {
+      if (this.firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus) {
+        return;
+      }
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
+      if (!isAuthReady && user) {
+        return;
+      }
       this.updateCountersSync(user);
       this.updateEmailTemplatesSync(user);
       this.updateMailSettingsSync(user);
@@ -560,8 +571,12 @@ export class DataManagerService {
     // other snapshot. Reads the user + limit signals synchronously so the effect
     // re-runs on login/logout and on "Show more".
     effect(() => {
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
       const queryLimit = this.gradingsQueryLimit();
+      if (!isAuthReady && user) {
+        return;
+      }
       this.updateGradingsSync(user, queryLimit);
     });
 
@@ -569,7 +584,11 @@ export class DataManagerService {
     // gradingDocIds list changes (e.g. when a new grading is created by a
     // Firebase trigger and the member doc is updated with arrayUnion).
     effect(() => {
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
+      if (!isAuthReady && user) {
+        return;
+      }
       this.updateMyGradingsSync(user);
     });
 
@@ -591,7 +610,11 @@ export class DataManagerService {
 
     // Reactive effect for My Orders & Subscriptions
     effect(() => {
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
+      if (!isAuthReady && user) {
+        return;
+      }
       if (user?.member?.docId) {
         this.listenToMemberOrders(user.member.docId);
       } else {
@@ -601,7 +624,11 @@ export class DataManagerService {
 
     // Reactive effect for My Video Grants
     effect(() => {
+      const isAuthReady = this.firebaseService.isAuthReady();
       const user = this.firebaseService.user();
+      if (!isAuthReady && user) {
+        return;
+      }
       if (user?.member?.docId) {
         this.listenToMemberVideoGrants(user.member.docId);
       } else {
@@ -654,6 +681,9 @@ export class DataManagerService {
       return;
     }
 
+    const cacheKey = `my_orders_${memberDocId}`;
+    void this.syncService.loadCachedData(cacheKey, this.myOrders);
+
     const ordersSubcollection = collection(
       this.db,
       'members',
@@ -667,6 +697,7 @@ export class DataManagerService {
       (snapshot) => {
         const orders = snapshot.docs.map(firestoreDocToMemberOrder);
         this.myOrders.setEntries(orders);
+        void this.syncService.saveCachedBundle(cacheKey, orders);
       },
       (error) => {
         console.error('Error listening to member orders:', error);
@@ -686,6 +717,9 @@ export class DataManagerService {
       return;
     }
 
+    const cacheKey = `my_video_grants_${memberDocId}`;
+    void this.syncService.loadCachedData(cacheKey, this.myVideoGrants);
+
     const grantsSubcollection = collection(
       this.db,
       'members',
@@ -698,6 +732,7 @@ export class DataManagerService {
       (snapshot) => {
         const grants = snapshot.docs.map(firestoreDocToVideoGrant);
         this.myVideoGrants.setEntries(grants);
+        void this.syncService.saveCachedBundle(cacheKey, grants);
       },
       (error) => {
         console.error('Error listening to member video grants:', error);
@@ -3919,6 +3954,69 @@ export class DataManagerService {
     const grantsRef = collection(this.db, 'members', memberDocId, 'videoGrants');
     const snap = await getDocs(grantsRef);
     return snap.docs.map(firestoreDocToVideoGrant);
+  }
+
+  /**
+   * Retrieves all VideoGrant records for a series (matching seriesId or any constituent video IDs)
+   * from the global /video_grants collection (admin only).
+   */
+  async getSeriesGrants(targetIds: string[]): Promise<VideoGrant[]> {
+    if (!targetIds || targetIds.length === 0) return [];
+    const uniqueIds = Array.from(new Set(targetIds.filter(Boolean)));
+    if (uniqueIds.length === 0) return [];
+
+    const CHUNK_SIZE = 30; // Firestore 'in' query supports up to 30 items
+    const chunks: string[][] = [];
+    for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+      chunks.push(uniqueIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    const videoGrantsCol = collection(this.db, FirestoreCollection.VideoGrants);
+    const resultMap = new Map<string, VideoGrant>();
+
+    for (const chunk of chunks) {
+      const q = query(videoGrantsCol, where('videoId', 'in', chunk));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        const grant = firestoreDocToVideoGrant(d);
+        resultMap.set(grant.docId || d.id, grant);
+      }
+    }
+
+    return Array.from(resultMap.values());
+  }
+
+  /**
+   * Revokes a video or series grant from a recipient across both /video_grants and /members/{id}/videoGrants.
+   */
+  async revokeVideoGrant(grant: VideoGrant): Promise<void> {
+    const batch = writeBatch(this.db);
+
+    // 1. Delete from global /video_grants
+    const globalKey = grant.memberDocId
+      ? `${grant.memberDocId}_${grant.videoId}`
+      : `${grant.memberEmail}_${grant.videoId}`;
+    const globalDocRef = doc(this.db, FirestoreCollection.VideoGrants, globalKey);
+    batch.delete(globalDocRef);
+
+    if (grant.docId && grant.docId !== globalKey) {
+      const altDocRef = doc(this.db, FirestoreCollection.VideoGrants, grant.docId);
+      batch.delete(altDocRef);
+    }
+
+    // 2. Delete from member subcollection /members/{memberDocId}/videoGrants/{videoId}
+    if (grant.memberDocId) {
+      const memberGrantRef = doc(
+        this.db,
+        FirestoreCollection.Members,
+        grant.memberDocId,
+        FirestoreSubcollection.VideoGrants,
+        grant.videoId,
+      );
+      batch.delete(memberGrantRef);
+    }
+
+    await batch.commit();
   }
 
   /**

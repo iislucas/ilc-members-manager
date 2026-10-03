@@ -1,0 +1,90 @@
+@if (details(); as item) {
+  <div class="vod-preview-card" [class.is-series]="item.kind === 'series'">
+    <a
+      [href]="item.watchHref"
+      class="thumb-link"
+      target="_blank"
+      [title]="'Watch ' + item.title"
+    >
+      <div class="thumb-wrapper">
+        @if (item.thumbnailUrl) {
+          <img
+            [src]="item.thumbnailUrl"
+            [alt]="item.title"
+            class="thumb-img"
+            loading="lazy"
+          />
+        } @else {
+          <div class="thumb-placeholder">
+            <app-icon [name]="item.kind === 'series' ? 'collections' : 'play_circle'" />
+          </div>
+        }
+        @if (item.durationText) {
+          <span class="duration-pill">{{ item.durationText }}</span>
+        }
+        <div class="play-overlay">
+          <app-icon name="play_arrow" />
+        </div>
+      </div>
+    </a>
+
+    <div class="vod-content">
+      <div class="badges-row">
+        @if (item.kind === 'series') {
+          <span class="type-pill series-pill">
+            <app-icon name="collections" width="12px" height="12px" />
+            <span>Series &bull; {{ item.videoCount }} Parts</span>
+          </span>
+        } @else if (item.kind === 'video') {
+          <span class="type-pill video-pill">
+            <app-icon name="videocam" width="12px" height="12px" />
+            <span>Single Video</span>
+          </span>
+        } @else if (item.kind === 'external') {
+          <span class="type-pill external-pill">
+            <app-icon name="link" width="12px" height="12px" />
+            <span>External Link</span>
+          </span>
+        }
+        @if (item.formattedDate) {
+          <span class="meta-date">
+            <app-icon name="calendar_today" width="11px" height="11px" />
+            <span>{{ item.formattedDate }}</span>
+          </span>
+        }
+      </div>
+
+      <a
+        [href]="item.watchHref"
+        class="vod-title-link"
+        target="_blank"
+        [title]="item.title"
+      >
+        <span class="vod-title">{{ item.title }}</span>
+        <app-icon name="launch" width="13px" height="13px" />
+      </a>
+
+      <div class="footer-row">
+        <span class="id-tag" [title]="'Identifier: ' + item.id">
+          <span class="id-prefix">VOD:</span>
+          <code>{{ item.id }}</code>
+        </span>
+        <a [href]="item.watchHref" class="watch-btn" target="_blank">
+          <app-icon name="play_arrow" width="14px" height="14px" />
+          <span>{{ item.kind === 'series' ? 'Open Series' : 'Watch Video' }}</span>
+        </a>
+      </div>
+    </div>
+
+    @if (showUnlink()) {
+      <button
+        type="button"
+        class="icon-only-button unlink-btn"
+        (click)="unlink.emit()"
+        title="Unlink this video recording"
+      >
+        <app-icon name="close" />
+      </button>
+    }
+  </div>
+}

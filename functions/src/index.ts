@@ -84,6 +84,7 @@ export { deleteVideoFromCatalog } from './vod/delete-video';
 export { checkVodJobStatus } from './vod/check-vod-job-status';
 export { onTranscodeJobFinished } from './vod/on-transcode-finished';
 export { grantVideoAccess } from './vod/grant-video';
+export { createVodCheckoutSession } from './vod/create-vod-checkout-session';
 
 export {
   sendWeeklyEventDigest,

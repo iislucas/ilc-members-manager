@@ -14,6 +14,13 @@ import { initMailSettings } from '../../../functions/src/data-model/mail';
 import { SearchableSet } from '../searchable-set';
 import { signal, WritableSignal, computed } from '@angular/core';
 
+vi.mock('firebase/storage', () => ({
+  getStorage: vi.fn().mockReturnValue({}),
+  ref: vi.fn().mockReturnValue({}),
+  uploadBytes: vi.fn().mockResolvedValue({}),
+  getDownloadURL: vi.fn().mockResolvedValue('https://storage.googleapis.com/thumb_new.jpg'),
+}));
+
 describe('ManageVodComponent', () => {
   let component: ManageVodComponent;
   let fixture: ComponentFixture<ManageVodComponent>;
@@ -40,6 +47,7 @@ describe('ManageVodComponent', () => {
   };
   let mockFirebaseState: {
     user: WritableSignal<{ isAdmin: boolean; member: { docId: string } } | null>;
+    app: any;
   };
   let mockRoutingService: {
     signals: {
@@ -49,12 +57,15 @@ describe('ManageVodComponent', () => {
           status: WritableSignal<string | null>;
           featured: WritableSignal<string | null>;
           accessTier: WritableSignal<string | null>;
+          listing: WritableSignal<string | null>;
           year: WritableSignal<string | null>;
           instructorId: WritableSignal<string | null>;
           videoId: WritableSignal<string | null>;
           editVideoId: WritableSignal<string | null>;
           grantVideoId: WritableSignal<string | null>;
           grantSeriesId: WritableSignal<string | null>;
+          viewGrantsSeriesId: WritableSignal<string | null>;
+          editSeriesId: WritableSignal<string | null>;
           tab: WritableSignal<string | null>;
         };
       };
@@ -70,6 +81,7 @@ describe('ManageVodComponent', () => {
         title: 'Sample Video 1',
         vodStatus: VodStatus.Ready,
         accessTier: VodAccessTier.Public,
+        accessTiers: [VodAccessTier.Public],
         isPublished: true,
         featured: true,
         durationSeconds: 3600,
@@ -83,6 +95,7 @@ describe('ManageVodComponent', () => {
         title: 'Sample Video 2',
         vodStatus: VodStatus.Transcoding,
         accessTier: VodAccessTier.DirectPurchase,
+        accessTiers: [VodAccessTier.DirectPurchase],
         priceCents: 1500,
         isPublished: false,
         featured: false,
@@ -97,6 +110,7 @@ describe('ManageVodComponent', () => {
         title: 'Saturday Class Stream',
         vodStatus: VodStatus.Ready,
         accessTier: VodAccessTier.ClassVideoSubscribers,
+        accessTiers: [VodAccessTier.ClassVideoSubscribers],
         isPublished: true,
         featured: false,
         durationSeconds: 5400,
@@ -115,6 +129,8 @@ describe('ManageVodComponent', () => {
       videoCount: 2,
       totalDurationSeconds: 5400,
       videos: [sampleVideos[0], sampleVideos[1]],
+      accessTier: VodAccessTier.MembersOnly,
+      accessTiers: [VodAccessTier.MembersOnly],
       isPublished: true,
     };
 
@@ -162,6 +178,7 @@ describe('ManageVodComponent', () => {
 
     mockFirebaseState = {
       user: signal({ isAdmin: true, member: { docId: 'admin1' } }),
+      app: {},
     };
 
     mockRoutingService = {
@@ -172,12 +189,14 @@ describe('ManageVodComponent', () => {
             status: signal(null),
             featured: signal(null),
             accessTier: signal(null),
+            listing: signal(null),
             year: signal(null),
             instructorId: signal(null),
             videoId: signal(null),
             editVideoId: signal(null),
             grantVideoId: signal<string | null>(null),
             grantSeriesId: signal<string | null>(null),
+            viewGrantsSeriesId: signal<string | null>(null),
             editSeriesId: signal<string | null>(null),
             tab: signal<string | null>(null),
           },
@@ -360,7 +379,7 @@ describe('ManageVodComponent', () => {
     const video = mockDataService.videos.entries()[0];
     component.openEditModal(video);
 
-    expect(component.isAccessTierSelected(VodAccessTier.MembersOnly)).toBe(true);
+    expect(component.isAccessTierSelected(VodAccessTier.Public)).toBe(true);
     component.toggleAccessTier(VodAccessTier.InstructorsOnly);
     expect(component.isAccessTierSelected(VodAccessTier.InstructorsOnly)).toBe(true);
 
@@ -610,6 +629,36 @@ describe('ManageVodComponent', () => {
     await fixture.whenStable();
 
     expect(component.grantingSeries()?.seriesId).toBe('series-1');
+  });
+
+  it('should open and close the view grants modal for a series and sync URL params', () => {
+    const series = component.allSeries()[0];
+    component.openViewGrantsModal(series);
+    expect(component.viewingGrantsSeries()).toEqual(series);
+    expect(mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId()).toBe(series.seriesId);
+
+    component.closeViewGrantsModal();
+    expect(component.viewingGrantsSeries()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId()).toBe('');
+  });
+
+  it('should open view grants modal when viewGrantsSeriesId URL param is present on deep link', async () => {
+    mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId.set('series-1');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.viewingGrantsSeries()?.seriesId).toBe('series-1');
+  });
+
+  it('should transition from view grants modal to grant modal via onGrantRequestedFromViewGrants', () => {
+    const series = component.allSeries()[0];
+    component.openViewGrantsModal(series);
+    expect(component.viewingGrantsSeries()).toEqual(series);
+
+    component.onGrantRequestedFromViewGrants(series);
+    expect(component.viewingGrantsSeries()).toBeNull();
+    expect(component.grantingSeries()).toEqual(series);
+    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe(series.seriesId);
   });
 
   describe('Series Autocomplete Filter', () => {
@@ -881,10 +930,16 @@ describe('ManageVodComponent', () => {
       const adminItem = { accessTiers: [VodAccessTier.AdminOnly] };
       expect(component.getFreeAccessTier(adminItem)).toBe(VodAccessTier.AdminOnly);
       expect(component.getFreeAccessLabel(adminItem)).toBe('Admin only');
+      expect(component.hasFreeAccess(adminItem)).toBe(false);
 
       const paidOnlyItem = { accessTiers: [VodAccessTier.DirectPurchase] };
       expect(component.getFreeAccessTier(paidOnlyItem)).toBe(VodAccessTier.AdminOnly);
       expect(component.getFreeAccessLabel(paidOnlyItem)).toBe('Admin only');
+      expect(component.hasFreeAccess(paidOnlyItem)).toBe(false);
+
+      expect(component.hasFreeAccess(publicItem)).toBe(true);
+      expect(component.hasFreeAccess(memberItem)).toBe(true);
+      expect(component.hasFreeAccess(instructorItem)).toBe(true);
     });
 
     it('should check class video subscriber access independently', () => {
@@ -906,7 +961,7 @@ describe('ManageVodComponent', () => {
       );
     });
 
-    it('should render showing/not showing status chip and free access chip in series card', () => {
+    it('should render Listed/Unlisted chip and free access chip in series card, omitting Admin only chip', () => {
       fixture.detectChanges();
       const compiled = fixture.nativeElement as HTMLElement;
 
@@ -916,25 +971,52 @@ describe('ManageVodComponent', () => {
       const publishedPill = seriesCard?.querySelector('.published-pill');
       expect(publishedPill).toBeTruthy();
       expect(publishedPill?.textContent?.trim()).toBe('Listed');
+      expect(publishedPill?.classList.contains('listed')).toBe(true);
 
-      const freePills = seriesCard?.querySelectorAll('.tier-pill');
-      expect(freePills?.length).toBeGreaterThan(0);
-      const freeLabel = freePills?.[0]?.textContent?.trim();
-      expect(['Public', 'Members', 'Instructors', 'Admin only']).toContain(freeLabel);
+      const freePills = seriesCard?.querySelectorAll('.tier-pill.free');
+      expect(freePills?.length).toBe(1);
+      expect(freePills?.[0]?.textContent?.trim()).toBe('Members');
+
+      // Admin only chip must not be rendered
+      const adminOnlyPill = seriesCard?.querySelector('.tier-pill.admin-only');
+      expect(adminOnlyPill).toBeNull();
+      expect(seriesCard?.textContent).not.toContain('Admin only');
     });
 
-    it('should render free access chip and class subscriber chip in video listing table', () => {
+    it('should render free access chip, class subscriber chip, and Listed/Unlisted pill without Admin only chip in video table', () => {
       component.setViewMode('all_videos');
       fixture.detectChanges();
       const compiled = fixture.nativeElement as HTMLElement;
 
       const tableRows = compiled.querySelectorAll('.vod-table tbody tr');
-      expect(tableRows.length).toBeGreaterThan(0);
+      expect(tableRows.length).toBeGreaterThanOrEqual(3);
 
-      const firstRowTiers = tableRows[0].querySelector('.tier-info');
-      expect(firstRowTiers).toBeTruthy();
-      const freeChip = firstRowTiers?.querySelector('.tier-pill');
-      expect(freeChip).toBeTruthy();
+      // Row 0: v3 (ClassVideoSubscribers, Listed, lastUpdated 2026-01-03)
+      const row0Tiers = tableRows[0].querySelector('.tier-info');
+      expect(row0Tiers?.querySelector('.tier-pill.free')).toBeNull();
+      expect(row0Tiers?.querySelector('.tier-pill.admin-only')).toBeNull();
+      expect(row0Tiers?.textContent).not.toContain('Admin only');
+      expect(row0Tiers?.querySelector('.tier-pill.class-sub')?.textContent?.trim()).toBe('Class Video Subscribers');
+      const row0PubPill = tableRows[0].querySelector('.published-pill');
+      expect(row0PubPill?.textContent?.trim()).toBe('Listed');
+
+      // Row 1: v2 (DirectPurchase, Unlisted, lastUpdated 2026-01-02) - should NOT render Admin only chip
+      const row1Tiers = tableRows[1].querySelector('.tier-info');
+      expect(row1Tiers?.querySelector('.tier-pill.free')).toBeNull();
+      expect(row1Tiers?.querySelector('.tier-pill.admin-only')).toBeNull();
+      expect(row1Tiers?.textContent).not.toContain('Admin only');
+      expect(row1Tiers?.querySelector('.tier-pill.paid')?.textContent?.trim()).toBe('Buy ($15.00)');
+      const row1PubPill = tableRows[1].querySelector('.published-pill');
+      expect(row1PubPill?.textContent?.trim()).toBe('Unlisted');
+      expect(row1PubPill?.classList.contains('unlisted')).toBe(true);
+
+      // Row 2: v1 (Public, Listed, lastUpdated 2026-01-01)
+      const row2Tiers = tableRows[2].querySelector('.tier-info');
+      expect(row2Tiers?.querySelector('.tier-pill.free')?.textContent?.trim()).toBe('Public');
+      expect(row2Tiers?.querySelector('.tier-pill.admin-only')).toBeNull();
+      expect(row2Tiers?.textContent).not.toContain('Admin only');
+      const row2PubPill = tableRows[2].querySelector('.published-pill');
+      expect(row2PubPill?.textContent?.trim()).toBe('Listed');
     });
 
     it('should display "Who can view it for free" heading in Edit Series and Edit Video modals', () => {
@@ -991,6 +1073,105 @@ describe('ManageVodComponent', () => {
           ]),
         }),
       );
+    });
+  });
+
+  describe('Listing and Access Search & Filter Options', () => {
+    it('should filter videos and series by listing filter (listed vs unlisted)', () => {
+      // Listed filter
+      component.setListingFilter('listed');
+      expect(component.selectedListing()).toBe('listed');
+      expect(component.filteredVideos().every((v) => v.isPublished)).toBe(true);
+      expect(component.filteredSeries().every((s) => s.isPublished)).toBe(true);
+
+      // Unlisted filter
+      component.setListingFilter('unlisted');
+      expect(component.selectedListing()).toBe('unlisted');
+      expect(component.filteredVideos().every((v) => !v.isPublished)).toBe(true);
+      expect(component.filteredSeries().every((s) => !s.isPublished)).toBe(true);
+
+      // Reset
+      component.setListingFilter('all');
+      expect(component.filteredVideos().length).toBe(3);
+    });
+
+    it('should search listed and unlisted videos and series via free-text search query', () => {
+      component.setSearchQuery('unlisted');
+      expect(component.filteredVideos().map((v) => v.docId)).toContain('v2');
+      expect(component.filteredVideos().map((v) => v.docId)).not.toContain('v1');
+
+      component.setSearchQuery('listed');
+      expect(component.filteredVideos().map((v) => v.docId)).toContain('v1');
+      expect(component.filteredVideos().map((v) => v.docId)).not.toContain('v2');
+
+      component.setSearchQuery('');
+    });
+
+    it('should reset listing filter when clearAllFilters is called', () => {
+      component.setListingFilter('unlisted');
+      expect(component.selectedListing()).toBe('unlisted');
+
+      component.clearAllFilters();
+      expect(component.selectedListing()).toBe('all');
+    });
+
+    it('should filter videos and series by aligned access tier options', () => {
+      // Public / Free Access
+      component.setAccessTierFilter('public');
+      expect(component.filteredVideos().some((v) => v.docId === 'v1')).toBe(true);
+      expect(component.filteredVideos().some((v) => v.docId === 'v2')).toBe(false);
+
+      // Class Video Library
+      component.setAccessTierFilter('class_library');
+      expect(component.filteredVideos().some((v) => v.docId === 'v3')).toBe(true);
+      expect(component.filteredVideos().some((v) => v.docId === 'v1')).toBe(false);
+
+      // Direct Purchase
+      component.setAccessTierFilter('direct_purchase');
+      expect(component.filteredVideos().some((v) => v.docId === 'v2')).toBe(true);
+
+      // Reset
+      component.setAccessTierFilter('all');
+    });
+
+    it('should render listing-chip class with listed and unlisted styles', () => {
+      component.setViewMode('all_videos');
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      const chips = compiled.querySelectorAll('.listing-chip');
+      expect(chips.length).toBeGreaterThan(0);
+      expect(compiled.querySelector('.listing-chip.listed')).toBeTruthy();
+      expect(compiled.querySelector('.listing-chip.unlisted')).toBeTruthy();
+    });
+  });
+
+  describe('Thumbnail Customization', () => {
+    it('should open and close the thumbnail customization modal for a video', () => {
+      const video = mockDataService.videos.entries()[0];
+      component.openThumbnailModalForVideo(video);
+      expect(component.thumbnailModalVideo()).toBe(video);
+
+      component.closeThumbnailModal();
+      expect(component.thumbnailModalVideo()).toBeNull();
+    });
+
+    it('should upload thumbnail to Cloud Storage and update metadata when thumbnail is selected', async () => {
+      const video = mockDataService.videos.entries()[0];
+      component.openThumbnailModalForVideo(video);
+
+      const newBlob = new Blob(['thumb-bytes'], { type: 'image/jpeg' });
+      await component.onVideoThumbnailSelected({
+        blob: newBlob,
+        previewUrl: 'blob:mock-url',
+        width: 1280,
+        height: 720,
+      });
+
+      expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', {
+        thumbnailUrl: 'https://storage.googleapis.com/thumb_new.jpg',
+      });
+      expect(component.thumbnailModalVideo()).toBeNull();
     });
   });
 });

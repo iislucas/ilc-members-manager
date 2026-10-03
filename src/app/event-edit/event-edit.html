@@ -242,7 +242,7 @@
                           <div class="fulfillment-row">
                             <span class="fulfillment-label"><app-icon name="play_circle" /> <strong>Video Recording:</strong></span>
                             @if (prod.recordedVideoId || eventFormModel().recordedVideoId; as vid) {
-                              <span class="identifier-chip">VOD: {{ vid }}</span>
+                              <app-vod-preview [videoId]="vid"></app-vod-preview>
                             }
                             @if (prod.recordedVideoUrl || eventFormModel().recordedVideoUrl; as vurl) {
                               <a [href]="vurl" target="_blank" class="resource-link">{{ vurl }}</a>

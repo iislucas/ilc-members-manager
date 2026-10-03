@@ -10,13 +10,79 @@
  * a much clearer login UX.
  */
 
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
+import * as dns from 'dns';
 import { allowedOrigins } from './common';
 import { CheckEmailStatusResult } from './data-model/system';
 
-const GOOGLE_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
+export const GOOGLE_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
+
+export const GOOGLE_MX_SUFFIXES = [
+  'google.com',
+  'googlemail.com',
+  'smtp.goog',
+];
+
+interface DomainMxCacheEntry {
+  isGoogle: boolean;
+  expiresAt: number;
+}
+
+const domainMxCache = new Map<string, DomainMxCacheEntry>();
+export const DOMAIN_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const DNS_TIMEOUT_MS = 1500; // 1.5 seconds
+
+export function clearDomainMxCache(): void {
+  domainMxCache.clear();
+}
+
+/**
+ * Checks whether a domain is powered by Google (e.g. standard @gmail.com or
+ * custom Google Workspace with Google MX records).
+ */
+export async function isGoogleWorkspaceDomain(domain: string, timeoutMs = DNS_TIMEOUT_MS): Promise<boolean> {
+  const cleanDomain = domain.trim().toLowerCase();
+  if (!cleanDomain) return false;
+  if (GOOGLE_EMAIL_DOMAINS.includes(cleanDomain)) return true;
+
+  const now = Date.now();
+  const cached = domainMxCache.get(cleanDomain);
+  if (cached && cached.expiresAt > now) {
+    return cached.isGoogle;
+  }
+
+  try {
+    const resolvePromise = dns.promises.resolveMx(cleanDomain);
+    let timer: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<dns.MxRecord[]>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('DNS lookup timeout')), timeoutMs);
+    });
+
+    try {
+      const records = await Promise.race([resolvePromise, timeoutPromise]);
+      const isGoogle = records.some((r) => {
+        const exchange = (r.exchange || '').toLowerCase().trim();
+        return GOOGLE_MX_SUFFIXES.some((suffix) =>
+          exchange === suffix || exchange.endsWith('.' + suffix)
+        );
+      });
+
+      domainMxCache.set(cleanDomain, {
+        isGoogle,
+        expiresAt: now + DOMAIN_CACHE_TTL_MS,
+      });
+      return isGoogle;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  } catch (error) {
+    // If DNS query fails (e.g. NXDOMAIN, timeout, ENODATA), fail safe to false
+    logger.warn(`MX resolution failed for domain ${cleanDomain}:`, error);
+    return false;
+  }
+}
 
 // In-memory sliding-window rate limiter per client IP to hinder automated email enumeration
 const ipRequests = new Map<string, number[]>();
@@ -43,10 +109,9 @@ export function isCheckEmailRateLimited(ip: string, now = Date.now()): boolean {
   return false;
 }
 
-export const checkEmailStatus = onCall<
-  { email: string },
-  Promise<CheckEmailStatusResult>
->({ cors: allowedOrigins }, async (request) => {
+export async function checkEmailStatusHandler(
+  request: CallableRequest<{ email: string }>,
+): Promise<CheckEmailStatusResult> {
   const clientIp = request.rawRequest?.ip || 'unknown';
   if (isCheckEmailRateLimited(clientIp)) {
     logger.warn('checkEmailStatus: rate limit exceeded', { ip: clientIp });
@@ -105,9 +170,9 @@ export const checkEmailStatus = onCall<
     // User not found in Firebase Auth — expected for new members.
   }
 
-  // 3. Determine if the email is Google-managed.
+  // 3. Determine if the email is Google-managed (via known domains, Google Workspace MX, or provider).
   const domain = email.split('@')[1] || '';
-  const isGoogleDomain = GOOGLE_EMAIL_DOMAINS.includes(domain);
+  const isGoogleDomain = await isGoogleWorkspaceDomain(domain);
   const isGoogleManaged = isGoogleDomain || hasGoogleProvider;
 
   return {
@@ -117,4 +182,9 @@ export const checkEmailStatus = onCall<
     hasPasswordProvider,
     hasGoogleProvider,
   };
-});
+}
+
+export const checkEmailStatus = onCall<
+  { email: string },
+  Promise<CheckEmailStatusResult>
+>({ cors: allowedOrigins }, async (request) => checkEmailStatusHandler(request));

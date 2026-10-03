@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { htmlToMarkdown, looksLikeHtml } from './utils';
+import { htmlToMarkdown, looksLikeHtml, fitWithin, getAspectRatioLabel } from './utils';
 
 describe('utils', () => {
   describe('htmlToMarkdown', () => {
@@ -134,4 +134,48 @@ More details at the mini-site: [**Master Hsin C's workshop on Structure, Relaxat
       expect(looksLikeHtml('Pure text')).toBe(false);
     });
   });
+
+  describe('fitWithin', () => {
+    it('should scale 16:9 correctly without upscaling', () => {
+      const res = fitWithin(1920, 1080, 1280);
+      expect(res).toEqual({ w: 1280, h: 720 });
+    });
+
+    it('should scale 4:3 video preserving aspect ratio', () => {
+      const res = fitWithin(1440, 1080, 1280);
+      expect(res).toEqual({ w: 1280, h: 960 });
+    });
+
+    it('should scale vertical 9:16 video preserving aspect ratio', () => {
+      const res = fitWithin(1080, 1920, 1280);
+      expect(res).toEqual({ w: 720, h: 1280 });
+    });
+
+    it('should preserve dimensions if smaller than maxDim (no upscaling)', () => {
+      const res = fitWithin(640, 480, 1280);
+      expect(res).toEqual({ w: 640, h: 480 });
+    });
+
+    it('should handle zero or negative dimensions safely', () => {
+      const res = fitWithin(0, 0, 1280);
+      expect(res).toEqual({ w: 1280, h: 720 });
+    });
+  });
+
+  describe('getAspectRatioLabel', () => {
+    it('should identify standard aspect ratios', () => {
+      expect(getAspectRatioLabel(1920, 1080)).toBe('16:9');
+      expect(getAspectRatioLabel(1280, 720)).toBe('16:9');
+      expect(getAspectRatioLabel(1440, 1080)).toBe('4:3');
+      expect(getAspectRatioLabel(640, 480)).toBe('4:3');
+      expect(getAspectRatioLabel(1080, 1920)).toBe('9:16');
+      expect(getAspectRatioLabel(500, 500)).toBe('1:1');
+      expect(getAspectRatioLabel(2560, 1080)).toBe('21:9');
+    });
+
+    it('should return decimal ratio for non-standard aspect ratios', () => {
+      expect(getAspectRatioLabel(1000, 400)).toBe('2.50:1');
+    });
+  });
 });
+

@@ -20,6 +20,7 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthCredential } from 'firebase/auth';
 import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
 import {
   googleSignInErrorMessage,
@@ -214,6 +215,12 @@ export class InlineAuthComponent implements OnInit {
    * not signing up.
    */
   signupFoundExistingAccount = signal<boolean>(false);
+  /**
+   * Holds a pending Google credential when Google sign-in encounters an existing
+   * account created with a password (auth/account-exists-with-different-credential).
+   * Once the user confirms their password, this credential is automatically linked.
+   */
+  pendingGoogleCredential = signal<AuthCredential | null>(null);
 
   /**
    * Whether an auth account is known to exist: either a lookup said so, or the
@@ -337,6 +344,12 @@ export class InlineAuthComponent implements OnInit {
       const result = await this.firebaseService.loginWithGoogle();
       if (result.success) {
         this.rememberSuccessfulLogin('google');
+      } else if (
+        result.errorCode === 'auth/account-exists-with-different-credential' &&
+        result.pendingCredential
+      ) {
+        this.pendingGoogleCredential.set(result.pendingCredential);
+        this.step.set(InlineAuthStep.PasswordLogin);
       } else if (result.errorCode !== 'auth/cancelled-popup-request') {
         this.loginWithGoogleError.set(googleSignInErrorMessage(result.errorCode));
       }
@@ -355,9 +368,13 @@ export class InlineAuthComponent implements OnInit {
     this.pendingAuth.set({ creating: false, google: false });
     this.authLoading.set(true);
     try {
-      const result = await this.firebaseService.loginWithEmail(passVal, emailVal);
+      const pendingCredential = this.pendingGoogleCredential();
+      const result = pendingCredential
+        ? await this.firebaseService.loginWithEmailAndLink(passVal, emailVal, pendingCredential)
+        : await this.firebaseService.loginWithEmail(passVal, emailVal);
       if (result.success) {
-        this.rememberSuccessfulLogin('password');
+        this.rememberSuccessfulLogin(pendingCredential ? 'google' : 'password');
+        this.pendingGoogleCredential.set(null);
       } else {
         this.loginError.set(signInErrorMessage(result.errorCode));
         // A rejected password is the common case, and the reset link below is
@@ -441,7 +458,12 @@ export class InlineAuthComponent implements OnInit {
 
   useGoogleInstead(): void {
     this.dismissMessages();
+    this.pendingGoogleCredential.set(null);
     this.step.set(InlineAuthStep.GoogleSignin);
+  }
+
+  cancelLinking(): void {
+    this.pendingGoogleCredential.set(null);
   }
 
   /**
@@ -452,6 +474,7 @@ export class InlineAuthComponent implements OnInit {
     this.password.set('');
     this.emailStatus.set(null);
     this.signupFoundExistingAccount.set(false);
+    this.pendingGoogleCredential.set(null);
     this.remembered.set(null);
     this.signInFlow.clear();
     this.step.set(InlineAuthStep.Email);
@@ -466,6 +489,7 @@ export class InlineAuthComponent implements OnInit {
     this.password.set('');
     this.emailStatus.set(null);
     this.signupFoundExistingAccount.set(false);
+    this.pendingGoogleCredential.set(null);
     this.remembered.set(null);
     this.signInFlow.clear();
     this.step.set(InlineAuthStep.Email);

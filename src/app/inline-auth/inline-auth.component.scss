@@ -45,6 +45,23 @@
   }
 }
 
+.account-link-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: rgba($primary-color, 0.08);
+  border: 1px solid rgba($primary-color, 0.25);
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: $text-primary;
+  line-height: 1.4;
+
+  .notice-text {
+    flex: 1;
+  }
+}
+
 // The email as a control rather than a caption: it previously rendered as an
 // inert div styled to look like a field, and the only way to change it was a
 // "Use a different email" item buried in the overflow menu.

@@ -36,8 +36,13 @@ export async function getMemberByEmail(
   email: string,
   db: admin.firestore.Firestore,
 ): Promise<Member> {
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new HttpsError('invalid-argument', 'Valid email is required');
+  }
+
   // First, check the ACL collection which maps emails to member IDs
-  const aclRef = db.collection('acl').doc(email);
+  const aclRef = db.collection('acl').doc(normalizedEmail);
   const aclDoc = await aclRef.get();
 
   if (aclDoc.exists) {
@@ -56,15 +61,18 @@ export async function getMemberByEmail(
 
   // Fallback: Query the members collection directly
   // This is useful if the ACL hasn't been synced or for legacy support
-  const membersQuery = db
-    .collection('members')
-    .where('emails', 'array-contains', email)
-    .limit(1);
-  const membersSnapshot = await membersQuery.get();
+  const queryEmails = normalizedEmail === email ? [normalizedEmail] : [normalizedEmail, email];
+  for (const qEmail of queryEmails) {
+    const membersQuery = db
+      .collection('members')
+      .where('emails', 'array-contains', qEmail)
+      .limit(1);
+    const membersSnapshot = await membersQuery.get();
 
-  if (!membersSnapshot.empty) {
-    const doc = membersSnapshot.docs[0];
-    return { ...doc.data(), docId: doc.id } as Member;
+    if (!membersSnapshot.empty) {
+      const doc = membersSnapshot.docs[0];
+      return { ...doc.data(), docId: doc.id } as Member;
+    }
   }
 
   throw new HttpsError('not-found', 'Member not found');
@@ -79,7 +87,9 @@ export async function getUserMemberDocIds(
   email: string,
   db: admin.firestore.Firestore,
 ): Promise<string[]> {
-  const aclDoc = await db.collection('acl').doc(email).get();
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  if (!normalizedEmail) return [];
+  const aclDoc = await db.collection('acl').doc(normalizedEmail).get();
   if (!aclDoc.exists) return [];
   const acl = aclDoc.data() as { memberDocIds?: string[] };
   return acl.memberDocIds ?? [];
