@@ -699,7 +699,7 @@ export class MemberDetailsComponent {
       typeof this.membersService.getVideoSeriesList === 'function'
         ? this.membersService.getVideoSeriesList()
         : [];
-    const allVideos = this.membersService.videos?.entries?.() || [];
+    const allVideos = this.membersService.videos.entries();
 
     const videoMap = new Map<string, VideoItem>();
     for (const v of allVideos) {
@@ -946,7 +946,7 @@ export class MemberDetailsComponent {
       };
     }
 
-    const allVideos = this.membersService.videos?.entries?.() || [];
+    const allVideos = this.membersService.videos.entries();
     const matchedVideo = allVideos.find((v) => v.docId === targetId);
     if (matchedVideo) {
       const part = matchedVideo.seriesPartIndex
@@ -1195,7 +1195,7 @@ export class MemberDetailsComponent {
     let lastInstructorCheck: { orig?: string; current?: string } | null = null;
     effect(async () => {
       const orig = this.member()?.instructorId;
-      const current = this.form.instructorId?.()?.value?.();
+      const current = this.form.instructorId().value();
       if (lastInstructorCheck?.orig === orig && lastInstructorCheck?.current === current) {
         return;
       }
