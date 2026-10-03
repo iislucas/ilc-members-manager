@@ -98,23 +98,19 @@ export class VideosCatalogComponent {
     const m = this.mode();
     if (m === 'class_library') return true;
     if (m === 'vod') return false;
-    const match = typeof this.routingService?.matchedPatternId === 'function'
-      ? this.routingService.matchedPatternId()
-      : undefined;
+    const match = this.routingService.matchedPatternId();
     return match === Views.ClassVideoLibrary;
   });
 
   // Dynamic route signals dispatch
   private viewSignals = computed(() => {
-    const match = typeof this.routingService?.matchedPatternId === 'function'
-      ? this.routingService.matchedPatternId()
-      : undefined;
-    if (match === Views.ClassVideoLibrary && this.routingService?.signals?.[Views.ClassVideoLibrary]) {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.ClassVideoLibrary && this.routingService.signals[Views.ClassVideoLibrary]) {
       return this.routingService.signals[Views.ClassVideoLibrary];
     }
     return (
-      this.routingService?.signals?.[Views.Videos] ||
-      this.routingService?.signals?.[Views.ClassVideoLibrary] || {
+      this.routingService.signals[Views.Videos] ||
+      this.routingService.signals[Views.ClassVideoLibrary] || {
         urlParams: {
           tab: signal('all'),
           q: signal(''),
@@ -130,14 +126,14 @@ export class VideosCatalogComponent {
   // URL Parameter Signals
   activeTab = computed(() => {
     if (this.isClassLibrary()) return 'all';
-    return this.routingService?.signals?.[Views.Videos]?.urlParams?.tab?.() || 'all';
+    return this.routingService.signals[Views.Videos]?.urlParams?.tab() || 'all';
   });
 
-  searchQuery = computed(() => this.viewSignals()?.urlParams?.q?.() || '');
-  selectedTag = computed(() => this.viewSignals()?.urlParams?.tag?.() || '');
-  selectedInstructor = computed(() => this.viewSignals()?.urlParams?.instructorId?.() || '');
-  sortField = computed(() => this.viewSignals()?.urlParams?.sortBy?.() || 'recordedDate');
-  sortDirection = computed(() => this.viewSignals()?.urlParams?.sortDir?.() || 'desc');
+  searchQuery = computed(() => this.viewSignals()?.urlParams?.q() || '');
+  selectedTag = computed(() => this.viewSignals()?.urlParams?.tag() || '');
+  selectedInstructor = computed(() => this.viewSignals()?.urlParams?.instructorId() || '');
+  sortField = computed(() => this.viewSignals()?.urlParams?.sortBy() || 'recordedDate');
+  sortDirection = computed(() => this.viewSignals()?.urlParams?.sortDir() || 'desc');
 
   // Local state signals
   isLoading = signal(false);
@@ -145,7 +141,7 @@ export class VideosCatalogComponent {
   tagSearchInput = signal('');
   continueWatchingList = signal<VideoProgress[]>([]);
   myVideoGrantIds = computed<Set<string>>(() => {
-    const grants = this.dataService?.myVideoGrants?.entries?.() || [];
+    const grants = this.dataService.myVideoGrants.entries();
     const set = new Set<string>();
     for (const g of grants) {
       if (g.videoId) set.add(g.videoId);
@@ -187,7 +183,7 @@ export class VideosCatalogComponent {
   };
 
   getTagTooltip(tag: string): string {
-    const meta = this.dataService?.getTagMeta?.(tag);
+    const meta = this.dataService.getTagMeta(tag);
     if (meta?.description) {
       return `#${tag}: ${meta.description}`;
     }
@@ -204,7 +200,7 @@ export class VideosCatalogComponent {
   selectedInstructorDisplay = computed(() => {
     const id = this.selectedInstructor();
     if (!id) return this.instructorSearchInput();
-    const inst = (this.dataService?.instructors?.entries?.() || []).find(
+    const inst = this.dataService.instructors.entries().find(
       (i) => i.docId === id || i.instructorId === id,
     );
     return (
@@ -214,7 +210,7 @@ export class VideosCatalogComponent {
   });
 
   private getVideosList(): VideoItem[] {
-    return this.dataService?.videos?.entries?.() || [];
+    return this.dataService.videos.entries();
   }
 
   // Unique tags across relevant published videos

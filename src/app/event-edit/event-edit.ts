@@ -1441,7 +1441,7 @@ export class EventEditComponent implements OnInit {
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       };
 
-      if (this.networkState?.isOffline?.()) {
+      if (this.networkState.isOffline()) {
         const diff = computeObjectDiff<IlcEvent>(eventData, updatePayload, {
           ignoreKeys: ['docId', 'lastUpdated'],
         });

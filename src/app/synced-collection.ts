@@ -146,7 +146,7 @@ export class SyncedCollection<
       lastUpdated: nowIso,
     };
 
-    const isOffline = Boolean(this.networkState?.isOffline?.());
+    const isOffline = Boolean(this.networkState?.isOffline());
 
     if (isOffline) {
       if (this.actionQueue) {
@@ -200,7 +200,7 @@ export class SyncedCollection<
     const colRef = collection(this.db, this.config.collectionPath);
     const docRef = doc(colRef, id);
 
-    const isOffline = Boolean(this.networkState?.isOffline?.());
+    const isOffline = Boolean(this.networkState?.isOffline());
     let existing = this.get(id);
     if (!existing && !isOffline) {
       existing = await this.getById(id);
@@ -260,7 +260,7 @@ export class SyncedCollection<
     const colRef = collection(this.db, this.config.collectionPath);
     const docRef = doc(colRef, id);
 
-    const isOffline = Boolean(this.networkState?.isOffline?.());
+    const isOffline = Boolean(this.networkState?.isOffline());
     if (!isOffline) {
       try {
         let deletedBy = 'unknown';
