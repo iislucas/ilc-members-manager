@@ -18,6 +18,41 @@ This skill outlines the mandatory practices for developing Angular applications 
 > 4.  **Subscriptions**: Never manually `.subscribe()` in components. Use `toSignal()`, `async` pipe, or `rxResource`.
 > 5.  **Zone.js Patterns**: Avoid patterns that rely on Zone.js.
 > 6.  **Class-based Inputs/Outputs**: Never use `@Input()` or `@Output()`. Use `input()` and `output()`.
+> 7.  **Defensive Service / Signal Chaining**: Never use `service.method?.()`, `service.signal?.() ?? fallback`, or `collection?.entries?.() || []` to work around incomplete test mocks.
+
+---
+
+## Anti-Pattern: Defensive Calls on Injected Dependencies & Signals
+
+Injected services (`inject(Service)`) are guaranteed by Angular's dependency injection container to exist at runtime. Degrading production code with optional chaining (`?.()`) or fallback defaults (`?? true`, `|| []`) is strictly banned.
+
+### Why it is harmful
+1. **Masks DI and Runtime Bugs**: Adding `?.` masks broken injection tokens or missing providers that should fail fast during development.
+2. **Silent Failure & Logic Corruption**: Adding fallbacks like `isAuthReady?.() ?? true` causes catastrophic race conditions (e.g., executing authenticated queries before authentication initializes).
+3. **Pollutes Production Code for Incomplete Mocks**: When a unit test fails with `TypeError: service.method is not a function`, the bug is in the **test mock**, NOT the component! Adding `?.()` to production code to silence a broken test mock corrupts the architecture.
+
+### What to do instead
+```typescript
+// ❌ WRONG: Defensive calls and fallbacks on injected services or signals
+const isReady = this.firebaseService.isAuthReady?.() ?? true;
+this.notificationService.refreshPushDeviceState?.();
+const videos = this.membersService.videos?.entries?.() || [];
+
+// ✅ CORRECT: Direct, strongly typed access
+const isReady = this.firebaseService.isAuthReady();
+this.notificationService.refreshPushDeviceState();
+const videos = this.membersService.videos.entries();
+```
+
+If a unit test fails because a mock is missing a method or signal:
+```typescript
+// ❌ WRONG: Make production code use ?.()
+// ✅ CORRECT: Add the missing method or signal to the mock in the .spec.ts
+mockNotificationService = {
+  ...mockNotificationService,
+  refreshPushDeviceState: vi.fn().mockResolvedValue(undefined),
+};
+```
 
 ---
 

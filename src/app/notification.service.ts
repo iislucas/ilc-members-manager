@@ -20,7 +20,7 @@ import {
   writeBatch,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { FirebaseStateService } from './firebase-state.service';
+import { FirebaseStateService, LoginStatus } from './firebase-state.service';
 import {
   CachedBlogPost,
   initCachedBlogPost,
@@ -282,7 +282,15 @@ export class NotificationService implements OnDestroy {
     // Effect to react to changes in the authenticated user
     effect(() => {
       const user = this.firebaseService.user();
-      if (user && user.member && user.member.docId) {
+      const loginStatus = this.firebaseService.loginStatus();
+      const isAuthReady = this.firebaseService.isAuthReady();
+      if (
+        loginStatus === LoginStatus.SignedIn &&
+        isAuthReady &&
+        user &&
+        user.member &&
+        user.member.docId
+      ) {
         this.subscribeToNotifications(user.member.docId);
         // Catch the member up on any blog posts published since they were last
         // notified. Runs once per member per session.
@@ -324,7 +332,7 @@ export class NotificationService implements OnDestroy {
             console.error('Failed to register push subscription:', e),
           );
         }
-      } else {
+      } else if (loginStatus === LoginStatus.SignedOut) {
         this.unsubscribe();
         this.notifications.set([]);
         this.syncError.set(null);
@@ -1418,6 +1426,7 @@ export class NotificationService implements OnDestroy {
   private async syncNewUploadNotifications(member: Member): Promise<void> {
     if (this.newUploadsSyncedForMemberDocId === member.docId) return;
     this.newUploadsSyncedForMemberDocId = member.docId;
+    try {
 
     const notifCollection = collection(
       this.db,
@@ -1598,6 +1607,10 @@ export class NotificationService implements OnDestroy {
         }
       },
     );
+    } catch (e) {
+      this.newUploadsSyncedForMemberDocId = null;
+      throw e;
+    }
   }
 
   // Formats a human-readable date range description, e.g. "on 2026-08-11" or "between 2026-08-01 and 2026-08-05".

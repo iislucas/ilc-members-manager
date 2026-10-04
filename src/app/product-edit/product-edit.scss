@@ -297,14 +297,112 @@
     color: v.$text-muted;
   }
 
-  .video-inputs-row {
+  .linked-vod-wrapper {
+    margin-top: 0.25em;
+    margin-bottom: 0.5em;
+  }
+
+  .vod-autocomplete-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    margin-top: 0.25em;
+
+    .manual-vod-input {
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+      flex-wrap: wrap;
+
+      .manual-vod-label {
+        font-size: 0.85em;
+        color: v.$text-muted;
+      }
+
+      input {
+        flex: 1;
+        min-width: 180px;
+      }
+    }
+  }
+
+  .secondary-video-url {
+    margin-top: 0.75em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+
+    .sub-label {
+      font-size: 0.85em;
+      font-weight: 500;
+      color: v.$text-muted;
+    }
+  }
+
+  .video-notification-info {
     display: flex;
     gap: 0.75em;
-    flex-wrap: wrap;
+    padding: 0.85em 1em;
+    margin-top: 0.85em;
+    background: v.$theme-bg-color;
+    border: 1px solid v.$border-color-light;
+    border-radius: 8px;
+    transition: all 0.2s ease;
 
-    input {
+    .info-icon {
+      color: v.$text-muted;
+      display: flex;
+      align-items: flex-start;
+      padding-top: 2px;
+    }
+
+    .info-content {
       flex: 1;
-      min-width: 180px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3em;
+    }
+
+    .info-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+      font-size: 0.9em;
+      color: v.$text-primary;
+    }
+
+    .impact-badge {
+      font-size: 0.8em;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: v.$separator-color;
+      color: v.$text-muted;
+      font-weight: 600;
+
+      &.impact-badge-active {
+        background: rgba(v.$primary-color, 0.12);
+        color: v.$primary-color;
+      }
+    }
+
+    .info-desc {
+      font-size: 0.85em;
+      color: v.$text-muted;
+      line-height: 1.4;
+      margin: 0;
+
+      strong {
+        color: v.$text-primary;
+      }
+    }
+
+    &.has-recipients {
+      border-color: rgba(v.$primary-color, 0.3);
+      background: rgba(v.$primary-color, 0.03);
+
+      .info-icon {
+        color: v.$primary-color;
+      }
     }
   }
 }

@@ -71,8 +71,6 @@ describe('ManageVodUploadComponent', () => {
 
   let mockResumableService: {
     getStorageInstance: ReturnType<typeof vi.fn>;
-    getSavedSession: ReturnType<typeof vi.fn>;
-    saveSession: ReturnType<typeof vi.fn>;
     clearSession: ReturnType<typeof vi.fn>;
     uploadVideo: ReturnType<typeof vi.fn>;
   };
@@ -131,8 +129,6 @@ describe('ManageVodUploadComponent', () => {
     const taskInstance = new MockTask();
     mockResumableService = {
       getStorageInstance: vi.fn().mockReturnValue({ maxUploadRetryTime: 24 * 60 * 60 * 1000 }),
-      getSavedSession: vi.fn().mockReturnValue(null),
-      saveSession: vi.fn(),
       clearSession: vi.fn(),
       uploadVideo: vi.fn().mockImplementation((file, storagePath, uploadItemId, onProgress) => {
         onProgress({
@@ -199,23 +195,12 @@ describe('ManageVodUploadComponent', () => {
     expect(component.fileEntries()[1].partIndex).toBe(2);
   });
 
-  it('should detect existing resumable session when adding files', async () => {
-    mockResumableService.getSavedSession.mockReturnValueOnce({
-      uploadUrl: 'https://gcs.resumable.url',
-      storagePath: 'path/to/part_1.mp4',
-      uploadItemId: 'saved_item_id_1',
-      fileName: 'part_1.mp4',
-      fileSize: 100,
-      fileLastModified: 12345,
-      createdAt: Date.now(),
-    });
-
+  it('should assign unique uploadItemId when adding files', async () => {
     const file = new File(['fake'], 'part_1.mp4', { type: 'video/mp4' });
     await component.addFiles([file]);
 
     expect(component.fileEntries().length).toBe(1);
-    expect(component.fileEntries()[0].hasSavedSession).toBe(true);
-    expect(component.fileEntries()[0].uploadItemId).toBe('saved_item_id_1');
+    expect(component.fileEntries()[0].uploadItemId).toBeTruthy();
   });
 
   it('should allow reordering files up and down', async () => {
@@ -270,6 +255,7 @@ describe('ManageVodUploadComponent', () => {
   it('should execute resumable upload and trigger transcodeVideoForVod', async () => {
     const file1 = new File(['fake-1'], 'episode_1.mp4', { type: 'video/mp4' });
     await component.addFiles([file1]);
+    component.fileEntries()[0].durationSeconds = 120;
 
     component.seriesTitle.set('Test Series Title');
     component.seriesPriceDollars.set(39.99);
@@ -285,6 +271,7 @@ describe('ManageVodUploadComponent', () => {
         seriesTitle: 'Test Series Title',
         seriesPriceCents: 3999,
         seriesPartIndex: 1,
+        durationSeconds: 120,
         isBuyable: true,
       }),
     );
@@ -429,5 +416,26 @@ describe('ManageVodUploadComponent', () => {
         durationSeconds: 600,
       }),
     );
+  });
+
+  it('should open thumbnail modal for entry and update preview on selection', async () => {
+    const file1 = new File(['fake-1'], 'first.mp4', { type: 'video/mp4' });
+    await component.addFiles([file1]);
+    const entry = component.fileEntries()[0];
+
+    component.openThumbnailModalForEntry(entry);
+    expect(component.editingThumbnailEntry()).toBe(entry);
+
+    const newThumbBlob = new Blob(['custom-thumb'], { type: 'image/jpeg' });
+    component.onEntryThumbnailSelected({
+      blob: newThumbBlob,
+      previewUrl: 'blob:custom-thumb-url',
+      width: 1280,
+      height: 720,
+    });
+
+    expect(component.fileEntries()[0].previewBlob).toBe(newThumbBlob);
+    expect(component.fileEntries()[0].previewUrl).toBe('blob:custom-thumb-url');
+    expect(component.editingThumbnailEntry()).toBeNull();
   });
 });

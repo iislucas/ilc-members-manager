@@ -29,6 +29,7 @@ import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete'
 import { TagInputComponent } from '../tag-input/tag-input';
 import { SearchableSet } from '../searchable-set';
 import { makeThumbnail } from '../utils';
+import { ResumableUploadService } from '../manage-vod-upload/resumable-upload.service';
 
 export type MediaTypeFilter = 'all' | 'video' | 'image' | 'other';
 export type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc' | 'size_desc';
@@ -53,6 +54,7 @@ export class MyMaterialsComponent implements OnInit {
   public dataService = inject(DataManagerService);
   public firebaseState = inject(FirebaseStateService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  private resumableService = inject(ResumableUploadService);
 
   private viewSignals = this.routingService.signals[Views.MyMaterials];
 
@@ -64,6 +66,8 @@ export class MyMaterialsComponent implements OnInit {
   isUploading = signal(false);
   uploadCount = signal(0);
   uploadTotal = signal(0);
+  currentUploadPercent = signal(0);
+  currentUploadSpeed = signal('');
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
@@ -319,6 +323,8 @@ export class MyMaterialsComponent implements OnInit {
     this.successMessage.set(null);
     this.uploadCount.set(0);
     this.uploadTotal.set(files.length);
+    this.currentUploadPercent.set(0);
+    this.currentUploadSpeed.set('');
 
     const storage = getStorage(this.firebaseApp);
     const failures: string[] = [];
@@ -338,13 +344,28 @@ export class MyMaterialsComponent implements OnInit {
       const previewStoragePath = `members/${memberDocId}/materials/previews/${itemId}.jpg`;
 
       try {
-        // 1. Upload original
-        const originalRef = ref(storage, storagePath);
-        await uploadBytes(originalRef, file, {
-          contentType: file.type || 'application/octet-stream',
-          customMetadata: { name: file.name },
-        });
-        const url = await getDownloadURL(originalRef);
+        // 1. Upload original (use chunked resumable upload for videos and large files)
+        let url = '';
+        if (file.type.startsWith('video/') || file.size >= 5 * 1024 * 1024) {
+          const { promise } = this.resumableService.uploadVideo(
+            file,
+            storagePath,
+            itemId,
+            (update) => {
+              this.currentUploadPercent.set(update.progressPercent);
+              this.currentUploadSpeed.set(update.uploadSpeed);
+            },
+          );
+          const uploadRes = await promise;
+          url = uploadRes.downloadUrl;
+        } else {
+          const originalRef = ref(storage, storagePath);
+          await uploadBytes(originalRef, file, {
+            contentType: file.type || 'application/octet-stream',
+            customMetadata: { name: file.name },
+          });
+          url = await getDownloadURL(originalRef);
+        }
 
         // 2. Generate and upload preview thumbnail (best effort)
         let previewUrl = '';
@@ -389,6 +410,8 @@ export class MyMaterialsComponent implements OnInit {
         console.error(`Error uploading "${file.name}":`, err);
         failures.push(`${file.name}: ${msg}`);
       } finally {
+        this.currentUploadPercent.set(0);
+        this.currentUploadSpeed.set('');
         this.uploadCount.update((n) => n + 1);
       }
     }

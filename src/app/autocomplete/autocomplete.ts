@@ -28,6 +28,9 @@ export type DisplayFns<T> = {
   imports: [CommonModule],
   templateUrl: './autocomplete.html',
   styleUrl: './autocomplete.scss',
+  host: {
+    '(window:resize)': 'onWindowResize()',
+  },
 })
 export class AutocompleteComponent<ID extends string, T extends { [key in ID]: string } > {
   searchableSet = input.required<SearchableSet<ID, T>>();
@@ -49,7 +52,7 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
   private menu = viewChild<ElementRef<HTMLUListElement>>('menu');
 
   constructor() {
-    // Re-fit the menu to the viewport whenever it opens or its contents
+    // Re-fit the menu to the visible area whenever it opens or its contents
     // change. The measurement must happen after the DOM updates, so defer
     // it to the next animation frame.
     effect(() => {
@@ -62,19 +65,63 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
     });
   }
 
+  onWindowResize() {
+    if (this.showResults()) {
+      const el = this.menu()?.nativeElement;
+      if (el) {
+        this.fitMenuToViewport(el);
+      }
+    }
+  }
+
   private fitMenuToViewport(el: HTMLUListElement) {
     const margin = 16; // ~1em breathing room on each edge
     const vw = document.documentElement.clientWidth;
-    // Reset any prior shift so we measure the natural, left-anchored position.
+
+    // Reset styles so we measure the natural, left-anchored position and intrinsic width.
     el.style.left = '0px';
+    el.style.maxWidth = '';
+
+    // Determine the visible horizontal bounds from the viewport and any clipping ancestors (such as <main> with overflow-x: clip/hidden).
+    let minLeft = margin;
+    let maxRight = vw - margin;
+
+    let parent = el.parentElement;
+    while (parent && parent !== document.documentElement) {
+      const style = window.getComputedStyle(parent);
+      const overflowX = style.overflowX;
+      if (
+        overflowX === 'hidden' ||
+        overflowX === 'clip' ||
+        overflowX === 'auto' ||
+        overflowX === 'scroll'
+      ) {
+        const parentRect = parent.getBoundingClientRect();
+        minLeft = Math.max(minLeft, parentRect.left + margin);
+        maxRight = Math.min(maxRight, parentRect.right - margin);
+      }
+      parent = parent.parentElement;
+    }
+
+    if (maxRight < minLeft + 100) {
+      maxRight = Math.max(minLeft + 100, vw - margin);
+    }
+
     const rect = el.getBoundingClientRect();
-    const overflowRight = rect.right - (vw - margin);
+    const overflowRight = rect.right - maxRight;
+
+    let shift = 0;
     if (overflowRight > 0) {
-      // Shift left to bring the right edge inside the margin, but never push
-      // the left edge past the left margin.
-      const shift = Math.min(overflowRight, rect.left - margin);
+      // Shift left to bring the right edge inside maxRight, but never push past minLeft.
+      const maxShift = Math.max(0, rect.left - minLeft);
+      shift = Math.min(overflowRight, maxShift);
       el.style.left = `${-shift}px`;
     }
+
+    // Bound the maximum width to the available visible area so that content wraps.
+    const currentLeft = rect.left - shift;
+    const availableWidth = Math.max(100, Math.floor(maxRight - currentLeft));
+    el.style.maxWidth = `${availableWidth}px`;
   }
 
   filteredItems = computed(() => {
@@ -138,6 +185,12 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
 
   onFocus() {
     this.showResults.set(true);
+    requestAnimationFrame(() => {
+      const el = this.menu()?.nativeElement;
+      if (el) {
+        this.fitMenuToViewport(el);
+      }
+    });
   }
 
   chip(x: T): string {

@@ -642,24 +642,39 @@
     }
   }
 
+  .listing-chip,
   .published-pill {
     display: inline-flex;
     align-items: center;
-    padding: 2px 7px;
-    border-radius: 10px;
+    justify-content: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 9999px;
     font-size: 0.72rem;
     font-weight: 600;
-    background: #f4f4f5;
-    color: v.$text-muted;
-    border: 1px solid v.$border-color-light;
+    line-height: 1;
+    background: v.$theme-chip-bg-color;
+    color: v.$text-secondary;
+    border: 1px solid v.$theme-chip-border-color;
     cursor: pointer;
     width: fit-content;
     transition: all 0.15s ease;
+    user-select: none;
+    white-space: nowrap;
 
-    &.published {
-      background: #e0f2fe;
-      color: #0369a1;
-      border-color: #bae6fd;
+    &.published,
+    &.listed {
+      background: v.$theme-tag-bg-color;
+      color: v.$highlight-tag-text;
+      border-color: v.$theme-tag-border-color;
+    }
+
+    &.unlisted,
+    &.unpublished,
+    &.draft {
+      background: v.$theme-chip-bg-color;
+      color: v.$text-secondary;
+      border-color: v.$theme-chip-border-color;
     }
 
     &:hover {
@@ -887,22 +902,61 @@
       border: 1px solid v.$border-color-light;
       border-radius: 8px;
 
-      .drawer-thumb {
+      .drawer-thumb-wrapper {
+        position: relative;
         width: 120px;
         aspect-ratio: 16 / 9;
-        object-fit: cover;
-        border-radius: 4px;
-      }
+        flex-shrink: 0;
 
-      .drawer-thumb-placeholder {
-        width: 120px;
-        aspect-ratio: 16 / 9;
-        background: #18181b;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-        color: rgba(255, 255, 255, 0.4);
+        .drawer-thumb {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 4px;
+          display: block;
+        }
+
+        .drawer-thumb-placeholder {
+          width: 100%;
+          height: 100%;
+          background: #18181b;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .drawer-change-thumb-btn {
+          position: absolute;
+          bottom: 4px;
+          left: 4px;
+          right: 4px;
+          background: rgba(0, 0, 0, 0.75);
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          border-radius: 3px;
+          font-size: 0.65rem;
+          font-weight: 600;
+          padding: 2px 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 3px;
+          cursor: pointer;
+          opacity: 0.9;
+          transition: all 0.15s ease;
+
+          app-icon {
+            font-size: 0.75rem;
+          }
+
+          &:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.95);
+            border-color: #ffffff;
+          }
+        }
       }
 
       .drawer-preview-meta {
@@ -933,21 +987,24 @@
           .status-chip {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             font-size: 0.72rem;
-            padding: 2px 7px;
-            border-radius: 4px;
+            padding: 3px 8px;
+            border-radius: 9999px;
             font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
 
             &.listed {
-              background: #e0f2fe;
-              color: #0369a1;
-              border: 1px solid #bae6fd;
+              background: v.$theme-tag-bg-color;
+              color: v.$highlight-tag-text;
+              border: 1px solid v.$theme-tag-border-color;
             }
 
             &.unlisted {
-              background: #f4f4f5;
-              color: v.$text-muted;
-              border: 1px solid v.$border-color-light;
+              background: v.$theme-chip-bg-color;
+              color: v.$text-secondary;
+              border: 1px solid v.$theme-chip-border-color;
             }
 
             &.featured {
@@ -1402,6 +1459,65 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+
+    .thumbnail-edit-section {
+      .thumb-edit-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+
+        .thumb-preview-wrapper {
+          width: 140px;
+          aspect-ratio: 16 / 9;
+          background: #09090b;
+          border-radius: 6px;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid v.$border-color-light;
+          flex-shrink: 0;
+
+          .thumb-preview-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover;
+          }
+
+          .thumb-placeholder-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: v.$text-muted;
+            font-size: 0.75rem;
+
+            app-icon {
+              font-size: 1.5rem;
+            }
+          }
+        }
+
+        .thumb-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+
+          .change-thumb-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+          }
+
+          .thumb-hint {
+            margin: 0;
+            font-size: 0.8rem;
+            color: v.$text-muted;
+          }
+        }
+      }
+    }
 
     .form-group {
       display: flex;
@@ -1878,6 +1994,21 @@
         color: v.$text-secondary;
       }
 
+      .empty-series-episodes {
+        padding: 1.25rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: v.$text-muted;
+        font-size: 0.88rem;
+
+        app-icon {
+          font-size: 1.1rem;
+          color: #94a3b8;
+        }
+      }
+
       .episode-row {
         display: grid;
         grid-template-columns: 80px 1fr 100px 100px 100px;
@@ -1895,6 +2026,12 @@
           background: #fafafa;
         }
 
+        .episode-main,
+        .episode-meta-row,
+        .episode-meta-info {
+          display: contents;
+        }
+
         .part-number-pill {
           font-weight: 700;
           font-size: 0.75rem;
@@ -1904,22 +2041,203 @@
           border-radius: 4px;
           display: inline-block;
           text-align: center;
+          width: fit-content;
         }
 
         .episode-title {
           font-weight: 500;
           color: v.$text-primary;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .episode-duration {
           color: v.$text-secondary;
           font-size: 0.82rem;
+
+          .episode-dur-icon {
+            display: none;
+          }
+        }
+
+        .episode-status {
+          display: inline-flex;
+          align-items: center;
+
+          .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+
+            &.ready {
+              background: #dcfce7;
+              color: #15803d;
+            }
+
+            &.processing {
+              background: #fef3c7;
+              color: #b45309;
+            }
+          }
         }
 
         .episode-actions {
           display: flex;
           align-items: center;
           gap: 4px;
+
+          .icon-only-button {
+            padding: 4px;
+            border-radius: 6px;
+            color: v.$text-secondary;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
+
+            &:hover {
+              background: rgba(0, 0, 0, 0.06);
+              color: v.$text-primary;
+            }
+
+            &.play-link:hover {
+              background: #e0f2fe;
+              color: #0284c7;
+            }
+          }
+        }
+      }
+    }
+
+    @media (max-width: 680px) {
+      padding: 0.85rem;
+      gap: 0.75rem;
+
+      .series-card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+
+        .series-info-col {
+          .series-title-row {
+            h4 {
+              font-size: 1.05rem;
+            }
+          }
+
+          .series-meta-row {
+            flex-wrap: wrap;
+            gap: 0.25rem 0.5rem;
+          }
+        }
+
+        .series-actions-col {
+          display: flex;
+          width: 100%;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+
+          .primary-btn,
+          .secondary-btn {
+            flex: 1 1 130px;
+            justify-content: center;
+            padding: 6px 10px;
+            font-size: 0.82rem;
+          }
+        }
+      }
+
+      .series-episodes-table {
+        .episodes-header-row {
+          display: none;
+        }
+
+        .episode-row {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          padding: 0.75rem;
+
+          .episode-main {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+
+            .part-number-pill {
+              flex-shrink: 0;
+              font-size: 0.72rem;
+              padding: 2px 7px;
+            }
+
+            .episode-title {
+              flex: 1;
+              min-width: 0;
+              font-size: 0.92rem;
+              font-weight: 500;
+              color: v.$text-primary;
+              line-height: 1.35;
+              word-break: break-word;
+              white-space: normal;
+            }
+          }
+
+          .episode-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+
+            .episode-meta-info {
+              display: flex;
+              align-items: center;
+              gap: 0.65rem;
+
+              .episode-duration {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.3rem;
+                font-size: 0.8rem;
+                color: v.$text-secondary;
+
+                .episode-dur-icon {
+                  display: inline-flex;
+                  font-size: 0.9rem;
+                  width: 14px;
+                  height: 14px;
+                  color: v.$text-muted;
+                }
+              }
+
+              .episode-status {
+                display: inline-flex;
+                align-items: center;
+              }
+            }
+
+            .episode-actions {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+
+              .icon-only-button {
+                padding: 6px;
+                min-width: 32px;
+                min-height: 32px;
+
+                app-icon {
+                  font-size: 1.1rem;
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -2026,6 +2344,13 @@
       .autocomplete-container {
         flex: 1;
         min-width: 0;
+        position: relative;
+        overflow: visible;
+
+        app-autocomplete {
+          display: block;
+          width: 100%;
+        }
       }
 
       .add-to-series-btn {

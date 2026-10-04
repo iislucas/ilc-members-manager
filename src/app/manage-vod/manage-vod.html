@@ -191,13 +191,31 @@
           [ngModel]="selectedAccessTier()"
           (ngModelChange)="setAccessTierFilter($event)"
         >
-          <option value="all">All Permissions</option>
-          <option value="class_library">Class Video Library</option>
-          <option value="members">Members Only</option>
-          <option value="instructors">Instructors Only</option>
-          <option value="public">Public / Free</option>
-          <option value="direct_purchase">Direct Purchase / Paid</option>
-          <option value="admin_only">Admin Only</option>
+          <option value="all">All Access</option>
+          <optgroup label="Free Access">
+            <option value="public">Public</option>
+            <option value="members">Members</option>
+            <option value="instructors">Instructors</option>
+            <option value="admin_only">Admin</option>
+          </optgroup>
+          <optgroup label="Subscriptions &amp; Purchases">
+            <option value="class_library">Class Video Library</option>
+            <option value="direct_purchase">Direct Purchase / Paid</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Listing Filter -->
+      <div class="filter-item">
+        <label>Listing:</label>
+        <select
+          class="filter-select"
+          [ngModel]="selectedListing()"
+          (ngModelChange)="setListingFilter($event)"
+        >
+          <option value="all">All (Listed &amp; Unlisted)</option>
+          <option value="listed">Listed</option>
+          <option value="unlisted">Unlisted</option>
         </select>
       </div>
 
@@ -229,12 +247,12 @@
           <option value="transcoding">Transcoding</option>
           <option value="queued">Queued</option>
           <option value="failed">Failed</option>
-          <option value="draft">Drafts (Unpublished)</option>
+          <option value="draft">Drafts / Unlisted</option>
         </select>
       </div>
 
       <!-- Active Filters Reset -->
-      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all' || selectedSeriesFilter() !== 'all' || selectedYear() !== 'all') {
+      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedListing() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all' || selectedSeriesFilter() !== 'all' || selectedYear() !== 'all') {
         <button
           type="button"
           class="subtle-btn clear-all-btn"
@@ -343,13 +361,11 @@
             <!-- Who Can View (Access Tier & Price) -->
             <td>
               <div class="tier-info">
-                <span
-                  class="tier-pill"
-                  [class.free]="getFreeAccessTier(video) === VodAccessTier.Public"
-                  [class.admin-only]="getFreeAccessTier(video) === VodAccessTier.AdminOnly"
-                >
-                  {{ getFreeAccessLabel(video) }}
-                </span>
+                @if (hasFreeAccess(video)) {
+                  <span class="tier-pill free">
+                    {{ getFreeAccessLabel(video) }}
+                  </span>
+                }
                 @if (hasClassSubscription(video)) {
                   <span class="tier-pill class-sub">Class Video Subscribers</span>
                 }
@@ -392,8 +408,15 @@
                     No renditions
                   </span>
                 }
-                <span class="published-pill" [class.published]="video.isPublished" (click)="togglePublished(video)" title="Click to toggle listed/hidden">
-                  {{ video.isPublished ? 'Listed' : 'Hidden' }}
+                <span
+                  class="listing-chip published-pill clickable"
+                  [class.published]="video.isPublished"
+                  [class.listed]="video.isPublished"
+                  [class.unlisted]="!video.isPublished"
+                  (click)="togglePublished(video)"
+                  title="Click to toggle listed/unlisted in catalog"
+                >
+                  {{ video.isPublished ? 'Listed' : 'Unlisted' }}
                 </span>
               </div>
             </td>
@@ -433,14 +456,14 @@
                         <span>Edit Metadata</span>
                       </button>
 
-                      <!-- Toggle Listed / Hidden -->
+                      <!-- Toggle Listed / Unlisted -->
                       <button
                         type="button"
                         class="menu-item"
                         (click)="togglePublished(video); closeMenu()"
                       >
                         <app-icon [name]="video.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
-                        <span>{{ video.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
+                        <span>{{ video.isPublished ? 'Unlist from Catalog' : 'List in Catalog' }}</span>
                       </button>
 
                       <!-- Pipeline & Transcoder Details (Drawer) -->
@@ -526,20 +549,22 @@
             <div class="series-title-row">
               <h4>{{ series.title }}</h4>
               <span
-                class="published-pill"
+                class="listing-chip published-pill clickable"
                 [class.published]="series.isPublished"
+                [class.listed]="series.isPublished"
+                [class.unlisted]="!series.isPublished"
                 (click)="toggleSeriesPublished(series)"
-                title="Click to toggle listed/hidden in catalog"
+                title="Click to toggle listed/unlisted in catalog"
               >
-                {{ series.isPublished ? 'Listed' : 'Hidden' }}
+                {{ series.isPublished ? 'Listed' : 'Unlisted' }}
               </span>
-              <span
-                class="tier-pill"
-                [class.free]="getFreeAccessTier(series) === VodAccessTier.Public"
-                [class.admin-only]="getFreeAccessTier(series) === VodAccessTier.AdminOnly"
-              >
-                {{ getFreeAccessLabel(series) }}
-              </span>
+              @if (hasFreeAccess(series)) {
+                <span
+                  class="tier-pill free"
+                >
+                  {{ getFreeAccessLabel(series) }}
+                </span>
+              }
               @if (hasClassSubscription(series)) {
                 <span class="tier-pill class-sub">Class Video Subscribers</span>
               }
@@ -579,14 +604,22 @@
           </div>
 
           <div class="series-actions-col">
-            <button
-              type="button"
+            <a
               class="primary-btn"
-              (click)="openSeriesModal(series)"
+              [href]="routingService.hrefForView(Views.ManageVodEditSeries, { seriesId: series.seriesId })"
               title="Edit series title, bundle price, and reorder parts"
             >
               <app-icon name="edit"></app-icon>
               <span>Edit Series &amp; Parts</span>
+            </a>
+            <button
+              type="button"
+              class="secondary-btn"
+              (click)="openViewGrantsModal(series, $event)"
+              title="View who has purchased or been granted access to this series"
+            >
+              <app-icon name="group"></app-icon>
+              <span>Purchases &amp; Grants</span>
             </button>
             <button
               type="button"
@@ -611,29 +644,43 @@
           </div>
           @for (vid of series.videos; track vid.docId; let pIdx = $index) {
             <div class="episode-row">
-              <span class="part-number-pill">Part {{ vid.seriesPartIndex || (pIdx + 1) }}</span>
-              <span class="episode-title">{{ vid.title }}</span>
-              <span class="episode-duration">{{ formatDuration(vid.durationSeconds) }}</span>
-              <span class="episode-status">
-                @if (vid.vodStatus === 'ready') {
-                  <span class="status-badge ready">Ready</span>
-                } @else {
-                  <span class="status-badge processing">{{ vid.vodStatus }}</span>
-                }
-              </span>
-              <div class="episode-actions">
-                <button type="button" class="icon-only-button" (click)="openEditModal(vid)" title="Edit episode metadata">
-                  <app-icon name="edit"></app-icon>
-                </button>
-                <button type="button" class="icon-only-button" (click)="openDrawer(vid)" title="View transcoding pipeline">
-                  <app-icon name="info"></app-icon>
-                </button>
-                @if (vid.vodStatus === 'ready') {
-                  <a class="icon-only-button play-link" [href]="getVideoHref(vid)" target="_blank" title="Watch episode">
-                    <app-icon name="play_arrow"></app-icon>
-                  </a>
-                }
+              <div class="episode-main">
+                <span class="part-number-pill">Part {{ vid.seriesPartIndex || (pIdx + 1) }}</span>
+                <span class="episode-title">{{ vid.title }}</span>
               </div>
+              <div class="episode-meta-row">
+                <div class="episode-meta-info">
+                  <span class="episode-duration">
+                    <app-icon name="schedule" class="episode-dur-icon"></app-icon>
+                    <span>{{ formatDuration(vid.durationSeconds) }}</span>
+                  </span>
+                  <span class="episode-status">
+                    @if (vid.vodStatus === 'ready') {
+                      <span class="status-badge ready">Ready</span>
+                    } @else {
+                      <span class="status-badge processing">{{ vid.vodStatus }}</span>
+                    }
+                  </span>
+                </div>
+                <div class="episode-actions">
+                  <button type="button" class="icon-only-button" (click)="openEditModal(vid)" title="Edit episode metadata">
+                    <app-icon name="edit"></app-icon>
+                  </button>
+                  <button type="button" class="icon-only-button" (click)="openDrawer(vid)" title="View transcoding pipeline">
+                    <app-icon name="info"></app-icon>
+                  </button>
+                  @if (vid.vodStatus === 'ready') {
+                    <a class="icon-only-button play-link" [href]="getVideoHref(vid)" target="_blank" title="Watch episode">
+                      <app-icon name="play_arrow"></app-icon>
+                    </a>
+                  }
+                </div>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-series-episodes">
+              <app-icon name="info"></app-icon>
+              <span>No videos currently attached to this series.</span>
             </div>
           }
         </div>
@@ -711,7 +758,7 @@
                     (click)="togglePublished(d); closeMenu()"
                   >
                     <app-icon [name]="d.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
-                    <span>{{ d.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
+                    <span>{{ d.isPublished ? 'Unlist from Catalog' : 'List in Catalog' }}</span>
                   </button>
 
                   <button
@@ -768,13 +815,24 @@
 
           <!-- Preview & Quick Summary -->
           <div class="drawer-preview-card">
-            @if (d.thumbnailUrl) {
-              <img [src]="d.thumbnailUrl" [alt]="d.title" class="drawer-thumb" />
-            } @else {
-              <div class="drawer-thumb-placeholder">
-                <app-icon name="video_library"></app-icon>
-              </div>
-            }
+            <div class="drawer-thumb-wrapper">
+              @if (d.thumbnailUrl) {
+                <img [src]="d.thumbnailUrl" [alt]="d.title" class="drawer-thumb" />
+              } @else {
+                <div class="drawer-thumb-placeholder">
+                  <app-icon name="video_library"></app-icon>
+                </div>
+              }
+              <button
+                type="button"
+                class="drawer-change-thumb-btn"
+                (click)="openThumbnailModalForVideo(d)"
+                title="Change thumbnail"
+              >
+                <app-icon name="image"></app-icon>
+                <span>Change Thumbnail</span>
+              </button>
+            </div>
             <div class="drawer-preview-meta">
               <h4>{{ d.title }}</h4>
               <p class="drawer-instructor">{{ d.instructorName || 'Featured Instructor' }}</p>
@@ -782,7 +840,7 @@
                 <span class="status-badge" [class]="getStatusClass(d.vodStatus)">
                   {{ d.vodStatus }}
                 </span>
-                <span class="status-chip" [class.listed]="d.isPublished" [class.unlisted]="!d.isPublished">
+                <span class="listing-chip status-chip" [class.listed]="d.isPublished" [class.unlisted]="!d.isPublished">
                   {{ d.isPublished ? 'Listed' : 'Unlisted' }}
                 </span>
                 <span class="status-chip" [class.featured]="d.featured" [class.standard]="!d.featured">
@@ -1018,6 +1076,38 @@
           <div class="form-group">
             <label>Description</label>
             <textarea rows="3" [(ngModel)]="edit.description"></textarea>
+          </div>
+
+          <!-- Thumbnail Poster -->
+          <div class="form-group thumbnail-edit-section">
+            <label class="section-heading-label">Thumbnail Poster</label>
+            <div class="thumb-edit-row">
+              <div class="thumb-preview-wrapper">
+                @if (edit.thumbnailUrl) {
+                  <img [src]="edit.thumbnailUrl" [alt]="edit.title" class="thumb-preview-img" />
+                } @else {
+                  <div class="thumb-placeholder-box">
+                    <app-icon name="live_tv"></app-icon>
+                    <span>No thumbnail</span>
+                  </div>
+                }
+              </div>
+              <div class="thumb-actions">
+                @if (isSavingThumbnail()) {
+                  <app-spinner>Saving thumbnail...</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="secondary-btn change-thumb-btn"
+                    (click)="openThumbnailModalForVideo(edit)"
+                  >
+                    <app-icon name="image"></app-icon>
+                    <span>Change Thumbnail</span>
+                  </button>
+                }
+                <p class="thumb-hint">Pick any frame from the video or upload a custom image.</p>
+              </div>
+            </div>
           </div>
 
           <!-- Recording Date -->
@@ -1415,5 +1505,24 @@
       (granted)="onAccessGranted($event)"
     ></app-grant-vod-modal>
   }
+
+  <!-- Series Access & Purchases Modal -->
+  @if (viewingGrantsSeries()) {
+    <app-series-grants-modal
+      [series]="viewingGrantsSeries()"
+      (closed)="closeViewGrantsModal()"
+      (grantRequested)="onGrantRequestedFromViewGrants($event)"
+    ></app-series-grants-modal>
+  }
+
+  <!-- Thumbnail Customization Modal -->
+  <app-thumbnail-editor-modal
+    [isOpen]="thumbnailModalVideo() !== null"
+    [title]="'Change Thumbnail — ' + (thumbnailModalVideo()?.title || '')"
+    [videoUrl]="thumbnailModalVideo()?.manifestUrl || null"
+    [initialThumbnailUrl]="thumbnailModalVideo()?.thumbnailUrl || null"
+    (thumbnailSelected)="onVideoThumbnailSelected($event)"
+    (closed)="closeThumbnailModal()"
+  ></app-thumbnail-editor-modal>
 </div>
 

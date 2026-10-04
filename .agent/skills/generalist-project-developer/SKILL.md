@@ -133,6 +133,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
   (Use `@if` / `@for` / `@switch` for control flow)
 - Never use `*ngIf` / `*ngFor` – use `@if` / `@for` block syntax
 - Never create NgModules – all new code is standalone
+- **Never use defensive optional chaining or fallbacks on injected services/signals (`service.method?.()`, `service.signal?.() ?? fallback`, `collection?.entries?.() || []`)**: Injected dependencies are guaranteed to exist at runtime. Degrading production code with `?.()` or fallback defaults hides broken injection tokens, causes subtle logic bugs / race conditions (e.g. `isAuthReady?.() ?? true`), and corrupts production code to compensate for incomplete test mocks. Always call services and signals directly (`service.method()`, `service.signal()`), and update incomplete test mocks in the corresponding `.spec.ts`.
 
 ### Components
 
@@ -316,8 +317,14 @@ When implementing work defined by a plan in `docs/plans/`:
 - **Update canonical documentation**: Transcribe the permanent architectural patterns, data structures, and operational guides into the canonical documentation in `docs/` (e.g. `docs/architecture/`, `docs/data-types/`, or domain reference guides like `docs/<feature>.md`).
 - **Update status and references**: Update references in `STATUS.md`, `README.md`, or web links so they point to the canonical documentation instead of the deleted plan file.
 
+### 6. Git Branching & Deployment Strategy
+
+- **Default / Development Branch (`dev`)**: The active base branch for all ongoing development. All new feature/fix branches branch off `dev`. All Pull Requests must target `dev` as the base branch.
+- **Production / Deployment Branch (`main`)**: Reserved for production releases and live deployments (Firebase, GitHub Pages). Changes from `dev` are merged into `main` only when ready to deploy.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
 
 

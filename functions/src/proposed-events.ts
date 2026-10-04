@@ -417,6 +417,61 @@ export const submitProposedEvent = onCall(
   }
 );
 
+
+/**
+ * Resolves all video and series targets for an event's recordedVideoId.
+ * If recordedVideoId belongs to a series or is a seriesId, returns both the seriesId
+ * and all constituent episode IDs so attendees receive full series access.
+ */
+export async function resolveEventVideoGrantTargets(
+  db: admin.firestore.Firestore,
+  recordedVideoId: string,
+): Promise<{ targetDocIds: string[]; primaryWatchVideoId: string }> {
+  const targetDocIds = new Set<string>();
+  let primaryWatchVideoId = recordedVideoId || '';
+
+  if (!recordedVideoId) {
+    return { targetDocIds: [], primaryWatchVideoId: '' };
+  }
+
+  targetDocIds.add(recordedVideoId);
+
+  try {
+    const videoSnap = await db.collection(FirestoreCollection.Videos).doc(recordedVideoId).get();
+    if (videoSnap.exists) {
+      const videoData = videoSnap.data();
+      const sId = videoData?.seriesId || videoData?.forVodPageId;
+      if (sId) {
+        targetDocIds.add(sId);
+        const seriesVideosSnap = await db
+          .collection(FirestoreCollection.Videos)
+          .where('seriesId', '==', sId)
+          .get();
+        seriesVideosSnap.docs.forEach((d) => targetDocIds.add(d.id));
+      }
+    } else {
+      // Check if recordedVideoId is itself a seriesId
+      const seriesVideosSnap = await db
+        .collection(FirestoreCollection.Videos)
+        .where('seriesId', '==', recordedVideoId)
+        .get();
+      if (!seriesVideosSnap.empty) {
+        seriesVideosSnap.docs.forEach((d) => targetDocIds.add(d.id));
+        const sorted = seriesVideosSnap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }))
+          .sort((a: any, b: any) => (a.seriesPartIndex || 0) - (b.seriesPartIndex || 0));
+        if (sorted.length > 0) {
+          primaryWatchVideoId = sorted[0].id;
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to resolve series videos for recordedVideoId', { recordedVideoId, error: err });
+  }
+
+  return { targetDocIds: Array.from(targetDocIds), primaryWatchVideoId };
+}
+
 // Trigger: when an event in /events is updated, sync to Google Calendar
 // if it became 'listed' or was updated while 'listed'.
 export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event) => {
@@ -561,12 +616,15 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
     }
   }
 
-  // Check if video recording became available
+  // Check if video recording became available or changed
   const hadVideoBefore = Boolean(before.recordedVideoId || before.recordedVideoUrl);
   const hasVideoNow = Boolean(after.recordedVideoId || after.recordedVideoUrl);
+  const videoNewlyAddedOrChanged =
+    (!hadVideoBefore && hasVideoNow) ||
+    (before.recordedVideoId !== after.recordedVideoId && Boolean(after.recordedVideoId));
 
-  if (!hadVideoBefore && hasVideoNow) {
-    logger.info('Event video recording became available; provisioning grants and notifications', {
+  if (videoNewlyAddedOrChanged) {
+    logger.info('Event video recording became available or changed; provisioning grants and notifications', {
       eventId: event.params.docId,
       recordedVideoId: after.recordedVideoId,
       recordedVideoUrl: after.recordedVideoUrl,
@@ -580,52 +638,70 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
         .where('hasVideoAccess', '==', true)
         .get();
 
+      const { targetDocIds, primaryWatchVideoId } = await resolveEventVideoGrantTargets(
+        db,
+        after.recordedVideoId || '',
+      );
+
       for (const regDoc of regSnap.docs) {
         const reg = regDoc.data() as EventRegistration;
         const memberDocId = reg.memberDocId;
-        if (!memberDocId) continue;
+        const email = reg.email ? reg.email.trim().toLowerCase() : '';
 
-        if (after.recordedVideoId) {
-          const grant: VideoGrant = {
-            docId: after.recordedVideoId,
-            videoId: after.recordedVideoId,
-            memberDocId,
-            memberEmail: reg.email,
-            grantKind: VideoGrantKind.StripePurchase,
-            orderDocId: reg.orderDocId,
-            stripeSessionId: reg.stripeSessionId,
-            amountPaidCents: reg.amountPaidCents,
-            grantedAt: new Date().toISOString(),
-          };
-          await db
-            .collection(FirestoreCollection.Members)
-            .doc(memberDocId)
-            .collection(FirestoreSubcollection.VideoGrants)
-            .doc(after.recordedVideoId)
-            .set(grant);
-          await db
-            .collection(FirestoreCollection.VideoGrants)
-            .doc(`${memberDocId}_${after.recordedVideoId}`)
-            .set(grant);
+        if (targetDocIds.length > 0) {
+          for (const targetId of targetDocIds) {
+            const grant: VideoGrant = {
+              docId: targetId,
+              videoId: targetId,
+              memberDocId: memberDocId || '',
+              memberEmail: email,
+              grantKind: VideoGrantKind.StripePurchase,
+              orderDocId: reg.orderDocId || regDoc.id,
+              stripeSessionId: reg.stripeSessionId,
+              amountPaidCents: reg.amountPaidCents,
+              grantedAt: new Date().toISOString(),
+            };
+
+            if (memberDocId) {
+              await db
+                .collection(FirestoreCollection.Members)
+                .doc(memberDocId)
+                .collection(FirestoreSubcollection.VideoGrants)
+                .doc(targetId)
+                .set(grant, { merge: true });
+              await db
+                .collection(FirestoreCollection.VideoGrants)
+                .doc(`${memberDocId}_${targetId}`)
+                .set(grant, { merge: true });
+            } else if (email) {
+              const cleanEmail = email.replace(/[^a-zA-Z0-9@._-]/g, '_');
+              await db
+                .collection(FirestoreCollection.VideoGrants)
+                .doc(`${cleanEmail}_${targetId}`)
+                .set(grant, { merge: true });
+            }
+          }
         }
 
-        const watchLink = after.recordedVideoId
-          ? `/videos/${encodeURIComponent(after.recordedVideoId)}`
-          : (after.recordedVideoUrl || `/events/${encodeURIComponent(event.params.docId)}`);
-        const eventTitle = after.title || 'Event';
-        const message = `The video recording for **[${eventTitle}](/events/${event.params.docId})** is now ready! You can [watch it now](${watchLink}).`;
+        if (memberDocId) {
+          const watchLink = primaryWatchVideoId
+            ? `/videos/${encodeURIComponent(primaryWatchVideoId)}`
+            : (after.recordedVideoUrl || `/events/${encodeURIComponent(event.params.docId)}`);
+          const eventTitle = after.title || 'Event';
+          const message = `The video recording for **[${eventTitle}](/events/${event.params.docId})** is now ready! You can [watch it now](${watchLink}).`;
 
-        await createMemberNotification(db, memberDocId, {
-          kind: NotificationKind.EventVideoAvailable,
-          markdown: message,
-          createdAt: new Date().toISOString(),
-          dismissed: false,
-          data: {
-            eventId: event.params.docId,
-            videoId: after.recordedVideoId || '',
-            videoUrl: after.recordedVideoUrl || '',
-          },
-        });
+          await createMemberNotification(db, memberDocId, {
+            kind: NotificationKind.EventVideoAvailable,
+            markdown: message,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            data: {
+              eventId: event.params.docId,
+              videoId: primaryWatchVideoId || '',
+              videoUrl: after.recordedVideoUrl || '',
+            },
+          });
+        }
       }
     } catch (err) {
       logger.error('Failed to notify attendees of new event video recording', {

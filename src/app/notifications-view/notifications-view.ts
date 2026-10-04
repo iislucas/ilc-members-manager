@@ -95,7 +95,7 @@ export class NotificationsViewComponent implements OnDestroy {
 
   // Style filter (All / To do / FYI), derived from the `style` URL param.
   styleFilter = computed<'all' | 'action' | 'info'>(() => {
-    const param = this.routingService.signals[Views.Notifications].urlParams.style?.();
+    const param = this.routingService.signals[Views.Notifications].urlParams.style();
     if (param === 'action' || param === 'info') {
       return param;
     }

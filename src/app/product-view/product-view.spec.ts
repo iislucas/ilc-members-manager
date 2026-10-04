@@ -59,8 +59,8 @@ describe('ProductViewComponent', () => {
       docId: 'event-1',
       title: 'Autumn Kung Fu Workshop',
       productId: 'test-prod-1',
-      start: '2026-10-01T10:00:00Z',
-      end: '2026-10-02T16:00:00Z',
+      start: '2028-10-01T10:00:00Z',
+      end: '2028-10-02T16:00:00Z',
     }),
   };
 

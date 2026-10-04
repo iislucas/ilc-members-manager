@@ -213,12 +213,12 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 | Class | Purpose | When to Use |
 | --- | --- | --- |
 | _(no class)_ | Default button | Standard actions (Save, Submit) |
-| `.primary-button` | Official brand primary action (red `#950000`) | High-priority CTAs (Register & Pay, Checkout, Renew Now) |
+| `.primary-button` (alias: `.primary-btn`) | Official brand primary action (red `#950000`) | High-priority CTAs (Register & Pay, Checkout, Renew Now, Add to Series, Save Changes) |
 | `.icon-only-button` | Circular, transparent, icon-only | Dismiss, toggle, inline actions |
 | `.round-button` | Fully circular with padding | Floating actions |
-| `.delete-button` | Neutral by default, red on hover | Destructive actions |
+| `.delete-button` / `.danger-btn` | Neutral or red on hover/active | Destructive actions |
 | `.inline-link-button` | Looks like a dark text link (underlined) | Inline internal text references in sentences |
-| `.subtle-button` | Transparent with soft hover | Back/navigation, secondary actions |
+| `.subtle-button` (alias: `.subtle-btn`) | Transparent with soft hover | Back/navigation, secondary actions, Cancel |
 | `.outlined-button` | Subtle-button with dashed border | File upload triggers, optional selection inputs — use with an icon (e.g. `upload_file`) |
 | `.admin-button` | Transparent button with dashed red border | Administrative operation triggers (e.g. Create Article, toggle admin actions) |
 
@@ -424,6 +424,7 @@ Chips are **all globally defined in `styles.scss`**. Do not create new chip styl
 | `.tag-chip` | Custom member tags | `$theme-tag-bg-color` (monospace) |
 | `.identifier-chip` | IDs, status labels | `$theme-chip-bg-color` (monospace) |
 | `.email-chip` | Email addresses | `$theme-chip-bg-color` (monospace) |
+| `.listing-chip` / `.published-chip` | Catalog visibility status (Listed vs Unlisted/Draft) | `.listed`: `$theme-tag-bg-color` (`#e0f2fe`)<br>`.unlisted`: `$theme-chip-bg-color` (`#f4f4f5`) |
 | `.missing-identifier-chip` | Missing data placeholders | Dashed border, no fill |
 | `.dynamic-identifier-chip` | Editable/dynamic IDs | Dashed border |
 | `.active-tag-chip` + `.tag-clear-btn` | Active filter indicators with dismiss | Blue pill with clear (X) button |

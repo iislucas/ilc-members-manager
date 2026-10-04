@@ -98,23 +98,19 @@ export class VideosCatalogComponent {
     const m = this.mode();
     if (m === 'class_library') return true;
     if (m === 'vod') return false;
-    const match = typeof this.routingService?.matchedPatternId === 'function'
-      ? this.routingService.matchedPatternId()
-      : undefined;
+    const match = this.routingService.matchedPatternId();
     return match === Views.ClassVideoLibrary;
   });
 
   // Dynamic route signals dispatch
   private viewSignals = computed(() => {
-    const match = typeof this.routingService?.matchedPatternId === 'function'
-      ? this.routingService.matchedPatternId()
-      : undefined;
-    if (match === Views.ClassVideoLibrary && this.routingService?.signals?.[Views.ClassVideoLibrary]) {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.ClassVideoLibrary && this.routingService.signals[Views.ClassVideoLibrary]) {
       return this.routingService.signals[Views.ClassVideoLibrary];
     }
     return (
-      this.routingService?.signals?.[Views.Videos] ||
-      this.routingService?.signals?.[Views.ClassVideoLibrary] || {
+      this.routingService.signals[Views.Videos] ||
+      this.routingService.signals[Views.ClassVideoLibrary] || {
         urlParams: {
           tab: signal('all'),
           q: signal(''),
@@ -130,14 +126,14 @@ export class VideosCatalogComponent {
   // URL Parameter Signals
   activeTab = computed(() => {
     if (this.isClassLibrary()) return 'all';
-    return this.routingService?.signals?.[Views.Videos]?.urlParams?.tab?.() || 'all';
+    return this.routingService.signals[Views.Videos]?.urlParams?.tab() || 'all';
   });
 
-  searchQuery = computed(() => this.viewSignals()?.urlParams?.q?.() || '');
-  selectedTag = computed(() => this.viewSignals()?.urlParams?.tag?.() || '');
-  selectedInstructor = computed(() => this.viewSignals()?.urlParams?.instructorId?.() || '');
-  sortField = computed(() => this.viewSignals()?.urlParams?.sortBy?.() || 'recordedDate');
-  sortDirection = computed(() => this.viewSignals()?.urlParams?.sortDir?.() || 'desc');
+  searchQuery = computed(() => this.viewSignals()?.urlParams?.q() || '');
+  selectedTag = computed(() => this.viewSignals()?.urlParams?.tag() || '');
+  selectedInstructor = computed(() => this.viewSignals()?.urlParams?.instructorId() || '');
+  sortField = computed(() => this.viewSignals()?.urlParams?.sortBy() || 'recordedDate');
+  sortDirection = computed(() => this.viewSignals()?.urlParams?.sortDir() || 'desc');
 
   // Local state signals
   isLoading = signal(false);
@@ -145,7 +141,7 @@ export class VideosCatalogComponent {
   tagSearchInput = signal('');
   continueWatchingList = signal<VideoProgress[]>([]);
   myVideoGrantIds = computed<Set<string>>(() => {
-    const grants = this.dataService?.myVideoGrants?.entries?.() || [];
+    const grants = this.dataService.myVideoGrants.entries();
     const set = new Set<string>();
     for (const g of grants) {
       if (g.videoId) set.add(g.videoId);
@@ -187,7 +183,7 @@ export class VideosCatalogComponent {
   };
 
   getTagTooltip(tag: string): string {
-    const meta = this.dataService?.getTagMeta?.(tag);
+    const meta = this.dataService.getTagMeta(tag);
     if (meta?.description) {
       return `#${tag}: ${meta.description}`;
     }
@@ -204,7 +200,7 @@ export class VideosCatalogComponent {
   selectedInstructorDisplay = computed(() => {
     const id = this.selectedInstructor();
     if (!id) return this.instructorSearchInput();
-    const inst = (this.dataService?.instructors?.entries?.() || []).find(
+    const inst = this.dataService.instructors.entries().find(
       (i) => i.docId === id || i.instructorId === id,
     );
     return (
@@ -214,7 +210,7 @@ export class VideosCatalogComponent {
   });
 
   private getVideosList(): VideoItem[] {
-    return this.dataService?.videos?.entries?.() || [];
+    return this.dataService.videos.entries();
   }
 
   // Unique tags across relevant published videos
@@ -299,6 +295,11 @@ export class VideosCatalogComponent {
     return false;
   }
 
+  hasSeriesAccess(series: VideoSeries): boolean {
+    if (this.isPurchasedSeries(series)) return true;
+    return series.videos.some((v) => this.isPurchasedVideo(v) || this.userHasAccess(v));
+  }
+
   myPurchasedVideosCount = computed(() => {
     return this.filteredCatalogEntries().filter((e) => e.isPurchased).length;
   });
@@ -361,7 +362,7 @@ export class VideosCatalogComponent {
 
     // Add series collection entries
     for (const s of seriesList) {
-      const isPurchased = this.isPurchasedSeries(s);
+      const isPurchased = this.isPurchasedSeries(s) || this.hasSeriesAccess(s);
       entries.push({
         kind: 'series',
         id: s.seriesId,
@@ -652,8 +653,13 @@ export class VideosCatalogComponent {
     }
     if (user.isAdmin) return true;
 
-    // Check individual purchased video grant
-    if (this.myVideoGrantIds().has(video.docId)) {
+    // Check individual purchased video grant or series/vodPage grant
+    const grants = this.myVideoGrantIds();
+    if (
+      grants.has(video.docId) ||
+      (Boolean(video.seriesId) && grants.has(video.seriesId!)) ||
+      (Boolean(video.forVodPageId) && grants.has(video.forVodPageId!))
+    ) {
       return true;
     }
 
@@ -704,6 +710,14 @@ export class VideosCatalogComponent {
 
   // --- CatalogEntry Helpers ---
   getEntryHref(entry: CatalogEntry): string {
+    if (entry.kind === 'series' && entry.episodes && entry.episodes.length > 0) {
+      const accessibleEp = entry.episodes.find((v) => this.userHasAccess(v) || this.isPurchasedVideo(v));
+      if (accessibleEp) {
+        return this.routingService.hrefForView(Views.VideoView, {
+          videoId: accessibleEp.docId,
+        });
+      }
+    }
     return this.routingService.hrefForView(Views.VideoView, {
       videoId: entry.primaryVideoId,
     });
@@ -721,12 +735,25 @@ export class VideosCatalogComponent {
     if (entry.kind === 'single' && entry.video) {
       return this.userHasAccess(entry.video);
     }
-    if (entry.kind === 'series' && entry.episodes) {
-      return entry.episodes.every((v) => this.userHasAccess(v));
+    if (entry.kind === 'series') {
+      if (entry.series && this.hasSeriesAccess(entry.series)) return true;
+      if (entry.episodes && entry.episodes.some((v) => this.userHasAccess(v))) return true;
     }
     const user = this.firebaseState.user();
     if (user?.isAdmin) return true;
     return false;
+  }
+
+  getEntryPurchasedBadgeLabel(entry: CatalogEntry): string {
+    if (entry.kind === 'series' && entry.episodes && entry.episodes.length > 0) {
+      const accessibleCount = entry.episodes.filter(
+        (v) => this.userHasAccess(v) || this.isPurchasedVideo(v),
+      ).length;
+      if (accessibleCount > 0 && accessibleCount < entry.episodes.length) {
+        return `${accessibleCount} of ${entry.episodes.length} Purchased`;
+      }
+    }
+    return 'Purchased';
   }
 
   formatEntryDate(entry: CatalogEntry): string {

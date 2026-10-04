@@ -17,6 +17,7 @@ import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
 import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
 import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
 import { ProductEditComponent } from '../../product-edit/product-edit';
+import { VodPreviewComponent } from '../../vod-preview/vod-preview';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -25,7 +26,7 @@ import { NetworkStateService } from '../../network-state.service';
 @Component({
   selector: 'app-organise-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, InstructorSelectorComponent, MarkdownEditor, MarkdownViewer, ImageUploadPreviewComponent, ProductEditComponent],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, InstructorSelectorComponent, MarkdownEditor, MarkdownViewer, ImageUploadPreviewComponent, ProductEditComponent, VodPreviewComponent],
   templateUrl: './organise-event.html',
   styleUrl: './organise-event.scss'
 })

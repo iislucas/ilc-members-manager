@@ -200,6 +200,28 @@ export function getVideoSeriesGroupingKey(video: VideoItem): {
     };
   }
 
+  // Heuristic pattern extraction from title (prefix e.g. "Part 1: Offering Hands" or "Part 1 - Offering Hands")
+  const prefixPartMatch = rawTitle.match(/^(?:part|vol\.?|volume|episode|ep\.?)\s*(\d+|[ivx]+)\s*[:\-–]\s*(.*?)$/i);
+  if (prefixPartMatch && prefixPartMatch[2] && prefixPartMatch[2].trim().length >= 2) {
+    const baseTitle = prefixPartMatch[2].trim();
+    let detectedPart: number | undefined = undefined;
+    if (prefixPartMatch[1]) {
+      const parsed = parseInt(prefixPartMatch[1], 10);
+      if (!isNaN(parsed)) detectedPart = parsed;
+      else {
+        const romanMap: Record<string, number> = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10 };
+        detectedPart = romanMap[prefixPartMatch[1].toLowerCase()];
+      }
+    }
+
+    return {
+      key: `base_title:${baseTitle.toLowerCase()}`,
+      isExplicitSeries: false,
+      seriesTitle: baseTitle,
+      partIndex: typeof video.seriesPartIndex === 'number' ? video.seriesPartIndex : detectedPart,
+    };
+  }
+
   return {
     key: '',
     isExplicitSeries: false,

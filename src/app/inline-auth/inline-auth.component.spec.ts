@@ -983,4 +983,68 @@ describe('InlineAuthComponent', () => {
       expect(component.resendSuccess()).toContain('verification email has been sent');
     });
   });
+
+  describe('Google account linking on credential conflict', () => {
+    it('should transition to password step and display linking notice when Google encounters password account', async () => {
+      const mockCredential = { providerId: 'google.com' } as any;
+      vi.spyOn(mockService, 'loginWithGoogle').mockResolvedValue({
+        success: false,
+        errorCode: 'auth/account-exists-with-different-credential',
+        pendingCredential: mockCredential,
+      });
+
+      await createComponent();
+      component.email.set('yen@iliqchuan.com');
+      component.step.set(InlineAuthStep.GoogleSignin);
+      fixture.detectChanges();
+
+      await component.loginWithGoogle();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
+      expect(component.pendingGoogleCredential()).toBe(mockCredential);
+      expect(html().querySelector('.account-link-notice')).not.toBeNull();
+      expect(html().querySelector('#login-btn')?.textContent).toContain('Sign In & Connect Google');
+      expect(html().querySelector('#cancel-link-btn')).not.toBeNull();
+    });
+
+    it('should call loginWithEmailAndLink and remember google when password is submitted with pending credential', async () => {
+      const mockCredential = { providerId: 'google.com' } as any;
+      const linkSpy = vi.spyOn(mockService, 'loginWithEmailAndLink').mockResolvedValue({
+        success: true,
+        userCredential: {} as any,
+      });
+
+      await createComponent();
+      component.email.set('yen@iliqchuan.com');
+      component.password.set('secret123');
+      component.pendingGoogleCredential.set(mockCredential);
+      component.step.set(InlineAuthStep.PasswordLogin);
+      fixture.detectChanges();
+
+      await component.loginWithEmail();
+
+      expect(linkSpy).toHaveBeenCalledWith('secret123', 'yen@iliqchuan.com', mockCredential);
+      expect(component.pendingGoogleCredential()).toBeNull();
+      expect(readRemembered()?.method).toBe('google');
+    });
+
+    it('should allow user to cancel linking and revert to standard password login', async () => {
+      const mockCredential = { providerId: 'google.com' } as any;
+      await createComponent();
+      component.email.set('yen@iliqchuan.com');
+      component.pendingGoogleCredential.set(mockCredential);
+      component.step.set(InlineAuthStep.PasswordLogin);
+      fixture.detectChanges();
+
+      expect(html().querySelector('#cancel-link-btn')).not.toBeNull();
+
+      component.cancelLinking();
+      fixture.detectChanges();
+
+      expect(component.pendingGoogleCredential()).toBeNull();
+      expect(html().querySelector('.account-link-notice')).toBeNull();
+      expect(html().querySelector('#login-btn')?.textContent).toContain('Sign In');
+    });
+  });
 });

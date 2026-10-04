@@ -7,6 +7,7 @@ import {
   resolveEventContacts,
   sameContacts,
   deleteStorageFiles,
+  resolveEventVideoGrantTargets,
 } from './proposed-events';
 import { EventContact, EventStatus, initEventContact } from './data-model/events';
 import { Member, MembershipType } from './data-model/members';
@@ -215,3 +216,99 @@ describe('deleteStorageFiles', () => {
     expect(deletedPaths).toEqual(['events/evt123/doc.pdf']);
   });
 });
+
+describe('resolveEventVideoGrantTargets', () => {
+  it('returns empty array when recordedVideoId is empty', async () => {
+    const mockDb: any = {};
+    const res = await resolveEventVideoGrantTargets(mockDb, '');
+    expect(res).toEqual({ targetDocIds: [], primaryWatchVideoId: '' });
+  });
+
+  it('resolves standalone video without series', async () => {
+    const mockDb: any = {
+      collection: vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ title: 'Standalone Video' }),
+          }),
+        }),
+      }),
+    };
+
+    const res = await resolveEventVideoGrantTargets(mockDb, 'vid-123');
+    expect(res).toEqual({ targetDocIds: ['vid-123'], primaryWatchVideoId: 'vid-123' });
+  });
+
+  it('resolves seriesId and all sibling episode IDs when video belongs to a series', async () => {
+    const mockDb: any = {
+      collection: vi.fn().mockImplementation((colName: string) => {
+        if (colName === 'videos') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({
+                  title: 'Part 1',
+                  seriesId: 'series-xyz',
+                  seriesPartIndex: 1,
+                }),
+              }),
+            }),
+            where: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({
+                empty: false,
+                docs: [
+                  { id: 'vid-part-1', data: () => ({ seriesPartIndex: 1, title: 'Part 1' }) },
+                  { id: 'vid-part-2', data: () => ({ seriesPartIndex: 2, title: 'Part 2' }) },
+                ],
+              }),
+            }),
+          };
+        }
+        return {};
+      }),
+    };
+
+    const res = await resolveEventVideoGrantTargets(mockDb, 'vid-part-1');
+    expect(res.primaryWatchVideoId).toBe('vid-part-1');
+    expect(res.targetDocIds).toContain('vid-part-1');
+    expect(res.targetDocIds).toContain('series-xyz');
+    expect(res.targetDocIds).toContain('vid-part-2');
+    expect(res.targetDocIds.length).toBe(3);
+  });
+
+  it('resolves all episode IDs and selects first episode as primaryWatchVideoId when seriesId is passed directly', async () => {
+    const mockDb: any = {
+      collection: vi.fn().mockImplementation((colName: string) => {
+        if (colName === 'videos') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({
+                exists: false,
+              }),
+            }),
+            where: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({
+                empty: false,
+                docs: [
+                  { id: 'ep-2', data: () => ({ seriesPartIndex: 2, title: 'Part 2' }) },
+                  { id: 'ep-1', data: () => ({ seriesPartIndex: 1, title: 'Part 1' }) },
+                ],
+              }),
+            }),
+          };
+        }
+        return {};
+      }),
+    };
+
+    const res = await resolveEventVideoGrantTargets(mockDb, 'series-xyz');
+    expect(res.primaryWatchVideoId).toBe('ep-1');
+    expect(res.targetDocIds).toContain('series-xyz');
+    expect(res.targetDocIds).toContain('ep-1');
+    expect(res.targetDocIds).toContain('ep-2');
+    expect(res.targetDocIds.length).toBe(3);
+  });
+});
+

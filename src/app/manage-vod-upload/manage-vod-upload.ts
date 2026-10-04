@@ -34,7 +34,11 @@ import { TagInputComponent } from '../tag-input/tag-input';
 import { SearchableSet } from '../searchable-set';
 import { ResumableUploadService, UploadProgressUpdate } from './resumable-upload.service';
 import { NetworkStateService } from '../network-state.service';
-import { generateVideoSpriteSheet } from '../utils';
+import { generateVideoSpriteSheet, fitWithin } from '../utils';
+import {
+  ThumbnailEditorModalComponent,
+  ThumbnailSelectedEvent,
+} from '../thumbnail-editor-modal/thumbnail-editor-modal';
 
 export interface UploadFileEntry {
   id: string;
@@ -62,7 +66,6 @@ export interface UploadFileEntry {
   uploadItemId?: string;
   storagePath?: string;
   uploadTask?: UploadTask;
-  hasSavedSession?: boolean;
 }
 
 @Component({
@@ -75,6 +78,7 @@ export interface UploadFileEntry {
     SpinnerComponent,
     AutocompleteComponent,
     TagInputComponent,
+    ThumbnailEditorModalComponent,
   ],
   templateUrl: './manage-vod-upload.html',
   styleUrl: './manage-vod-upload.scss',
@@ -427,7 +431,7 @@ export class ManageVodUploadComponent implements OnInit {
         title = `Part ${partIndex}: ${cleanName}`;
       }
 
-      const savedSession = this.resumableService.getSavedSession(file);
+      const uploadItemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
       const entry: UploadFileEntry = {
         id,
@@ -440,15 +444,14 @@ export class ManageVodUploadComponent implements OnInit {
         previewBlob: null,
         status: 'idle',
         progressPercent: 0,
-        uploadItemId: savedSession?.uploadItemId,
-        storagePath: savedSession?.storagePath,
-        hasSavedSession: Boolean(savedSession),
+        uploadItemId,
+        storagePath: '',
       };
 
       newEntries.push(entry);
 
-      // Async preview & duration extraction in background
-      this.extractVideoMetadata(entry);
+      // Async preview & duration extraction via sequential queue
+      this.queueVideoMetadataExtraction(entry);
     }
 
     // Set series title default if not set
@@ -466,11 +469,52 @@ export class ManageVodUploadComponent implements OnInit {
     this.fileEntries.update((entries) => [...entries, ...newEntries]);
   }
 
-  private async extractVideoMetadata(entry: UploadFileEntry): Promise<void> {
+  // Thumbnail Customization Modal State
+  editingThumbnailEntry = signal<UploadFileEntry | null>(null);
+  openThumbnailModalForEntry(entry: UploadFileEntry): void {
+    this.editingThumbnailEntry.set(entry);
+  }
+
+  closeThumbnailModal(): void {
+    this.editingThumbnailEntry.set(null);
+  }
+
+  onEntryThumbnailSelected(event: ThumbnailSelectedEvent): void {
+    const entry = this.editingThumbnailEntry();
+    if (!entry) return;
+
+    entry.previewBlob = event.blob;
+    entry.previewUrl = event.previewUrl;
+    this.fileEntries.update((list) => [...list]);
+    this.closeThumbnailModal();
+  }
+
+  private metadataQueue: UploadFileEntry[] = [];
+  private isProcessingMetadataQueue = false;
+
+  private queueVideoMetadataExtraction(entry: UploadFileEntry): void {
+    this.metadataQueue.push(entry);
+    this.processNextMetadataItem();
+  }
+
+  private async processNextMetadataItem(): Promise<void> {
+    if (this.isProcessingMetadataQueue || this.metadataQueue.length === 0) return;
+    this.isProcessingMetadataQueue = true;
+    const entry = this.metadataQueue.shift();
+    if (entry) {
+      await this.extractVideoMetadataAsync(entry);
+    }
+    this.isProcessingMetadataQueue = false;
+    if (this.metadataQueue.length > 0) {
+      this.processNextMetadataItem();
+    }
+  }
+
+  private async extractVideoMetadataAsync(entry: UploadFileEntry): Promise<void> {
     try {
       const result = await generateVideoSpriteSheet(entry.file, { intervals: 25, columns: 5 });
       entry.durationSeconds = result.durationSeconds;
-      if (result.posterBlob) {
+      if (result.posterBlob && !entry.previewBlob) {
         entry.previewBlob = result.posterBlob;
         entry.previewUrl = URL.createObjectURL(result.posterBlob);
       }
@@ -481,54 +525,97 @@ export class ManageVodUploadComponent implements OnInit {
       entry.spriteFrameCount = result.frameCount;
       entry.spriteIntervalSeconds = result.intervalSeconds;
       this.fileEntries.update((list) => [...list]);
+      return;
     } catch {
-      this.extractFallbackVideoMetadata(entry);
+      // Fall back to basic preview extraction below if sprite sheet generation fails
     }
-  }
 
-  private extractFallbackVideoMetadata(entry: UploadFileEntry): void {
-    const videoElem = document.createElement('video');
-    videoElem.preload = 'metadata';
-    videoElem.muted = true;
-    videoElem.playsInline = true;
+    return new Promise<void>((resolve) => {
+      const videoElem = document.createElement('video');
+      videoElem.preload = 'metadata';
+      videoElem.muted = true;
+      videoElem.playsInline = true;
 
-    const fileUrl = URL.createObjectURL(entry.file);
-    videoElem.src = fileUrl;
+      const fileUrl = URL.createObjectURL(entry.file);
+      videoElem.src = fileUrl;
 
-    videoElem.onloadedmetadata = () => {
-      entry.durationSeconds = Math.round(videoElem.duration || 0);
-      videoElem.currentTime = Math.min(Math.max(1, videoElem.duration * 0.05), 10);
-    };
-
-    videoElem.onseeked = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 360;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                entry.previewBlob = blob;
-                entry.previewUrl = URL.createObjectURL(blob);
-                this.fileEntries.update((list) => [...list]);
-              }
-              URL.revokeObjectURL(fileUrl);
-            },
-            'image/jpeg',
-            0.85,
-          );
+      let isCleanedUp = false;
+      const cleanup = () => {
+        if (!isCleanedUp) {
+          isCleanedUp = true;
+          URL.revokeObjectURL(fileUrl);
+          videoElem.src = '';
+          resolve();
         }
-      } catch {
-        URL.revokeObjectURL(fileUrl);
-      }
-    };
+      };
 
-    videoElem.onerror = () => {
-      URL.revokeObjectURL(fileUrl);
-    };
+      const captureFrame = () => {
+        if (entry.previewBlob) {
+          cleanup();
+          return;
+        }
+        try {
+          const vw = videoElem.videoWidth || 640;
+          const vh = videoElem.videoHeight || 360;
+          const { w, h } = fitWithin(vw, vh, 1280);
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(videoElem, 0, 0, w, h);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  entry.previewBlob = blob;
+                  entry.previewUrl = URL.createObjectURL(blob);
+                  this.fileEntries.update((list) => [...list]);
+                }
+                cleanup();
+              },
+              'image/jpeg',
+              0.9,
+            );
+          } else {
+            cleanup();
+          }
+        } catch (err) {
+          console.warn('Initial thumbnail generation failed:', err);
+          cleanup();
+        }
+      };
+
+      videoElem.onloadedmetadata = () => {
+        entry.durationSeconds = Math.round(videoElem.duration || 0);
+        const targetTime =
+          Number.isFinite(videoElem.duration) && videoElem.duration > 0
+            ? Math.min(Math.max(0.5, videoElem.duration * 0.05), 5)
+            : 0;
+
+        if (Math.abs(videoElem.currentTime - targetTime) < 0.05) {
+          captureFrame();
+        } else {
+          videoElem.currentTime = targetTime;
+        }
+      };
+
+      videoElem.onseeked = () => {
+        captureFrame();
+      };
+
+      videoElem.onerror = () => {
+        cleanup();
+      };
+
+      // Safety timeout in case seeked doesn't fire
+      setTimeout(() => {
+        if (!entry.previewBlob) {
+          captureFrame();
+        } else {
+          cleanup();
+        }
+      }, 4000);
+    });
   }
 
   removeFile(id: string): void {
@@ -662,9 +749,7 @@ export class ManageVodUploadComponent implements OnInit {
 
     // 1. Maintain or assign uploadItemId and storage paths
     if (!entry.uploadItemId) {
-      const saved = this.resumableService.getSavedSession(entry.file);
-      entry.uploadItemId =
-        saved?.uploadItemId || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      entry.uploadItemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     }
 
     const originalStoragePath = `members/${adminDocId}/materials/originals/${entry.uploadItemId}/original`;
@@ -779,6 +864,7 @@ export class ManageVodUploadComponent implements OnInit {
       const vodConfig: Partial<VideoItem> = {
         title: entry.title || entry.file.name,
         description: entry.description || (mode === 'existing_series' ? (existingSeries?.description || '') : this.seriesDescription()),
+        durationSeconds: entry.durationSeconds || 0,
         tags: mode === 'existing_series' ? (existingSeries?.tags || []) : this.tags(),
         accessTiers: accessTiersToUse,
         accessTier: primaryTier,
@@ -807,7 +893,6 @@ export class ManageVodUploadComponent implements OnInit {
         spriteRowCount: entry.spriteRowCount || 5,
         spriteFrameCount: entry.spriteFrameCount || 25,
         spriteIntervalSeconds: entry.spriteIntervalSeconds,
-        durationSeconds: entry.durationSeconds,
       };
 
       const transcodeResult = await this.dataService.transcodeVideoForVod(
@@ -820,7 +905,6 @@ export class ManageVodUploadComponent implements OnInit {
       entry.status = 'done';
       entry.progressPercent = 100;
       entry.uploadTask = undefined;
-      entry.hasSavedSession = false;
       this.fileEntries.update((list) => [...list]);
     } catch (err: unknown) {
       console.error(`Failed uploading file "${entry.file.name}":`, err);

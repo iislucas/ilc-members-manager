@@ -9,7 +9,7 @@
  * 4. Automatic cache persistence and in-memory signal updates.
  */
 
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal, computed } from '@angular/core';
 import {
   collection,
   getDocs,
@@ -60,6 +60,9 @@ export class IncrementalSyncService {
   private db = getFirestore(this.app);
   private idb = inject(IdbStorageService);
 
+  public activeSyncs = signal<number>(0);
+  public isSyncing = computed(() => this.activeSyncs() > 0);
+
   /**
    * Immediately loads any cached collection from IndexedDB into the target SearchableSet.
    * Returns true if cached data was found and loaded.
@@ -85,12 +88,31 @@ export class IncrementalSyncService {
   }
 
   /**
+   * Persists a bundle of entries to IndexedDB cache under cacheKey with the provided or current timestamp.
+   */
+  async saveCachedBundle<T>(
+    cacheKey: string,
+    entries: T[],
+    lastSyncTimestamp?: string,
+  ): Promise<void> {
+    try {
+      await this.idb.set(cacheKey, {
+        entries,
+        lastSyncTimestamp: lastSyncTimestamp || new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn(`[IncrementalSync] Error saving cache for ${cacheKey}:`, err);
+    }
+  }
+
+  /**
    * Performs an incremental delta sync from Firestore, merges updates/deletions,
    * updates the SearchableSet in memory, and persists back to IndexedDB.
    */
   async syncCollection<ID extends string, T extends { [key in ID]: string }>(
     config: SyncCollectionConfig<ID, T>,
   ): Promise<void> {
+    this.activeSyncs.update((n) => n + 1);
     const {
       cacheKey,
       collectionPath,
@@ -111,8 +133,8 @@ export class IncrementalSyncService {
         return;
       }
 
-      // Populate memory if targetSet is still in loading state
-      if (Array.isArray(cachedBundle.entries) && targetSet.loading()) {
+      // Populate memory if targetSet is still in loading state, or if targetSet is empty
+      if (Array.isArray(cachedBundle.entries) && (targetSet.loading() || targetSet.entries().length === 0)) {
         const filtered = additionalFilter
           ? cachedBundle.entries.filter(additionalFilter)
           : cachedBundle.entries;
@@ -163,10 +185,8 @@ export class IncrementalSyncService {
 
       // If no updates and no deletions and cache has no invalid entries, cache is already up-to-date!
       if (deltaSnap.empty && tombstones.length === 0 && !hasInvalidCachedEntries) {
-        if (targetSet.loading()) {
-          const initialSorted = sortFn ? [...cachedBundle.entries].sort(sortFn) : cachedBundle.entries;
-          targetSet.setEntries(initialSorted);
-        }
+        const initialSorted = sortFn ? [...cachedBundle.entries].sort(sortFn) : cachedBundle.entries;
+        targetSet.setEntries(initialSorted);
         return;
       }
 
@@ -225,6 +245,8 @@ export class IncrementalSyncService {
       } else {
         targetSet.setError(err instanceof Error ? err.message : String(err));
       }
+    } finally {
+      this.activeSyncs.update((n) => Math.max(0, n - 1));
     }
   }
 

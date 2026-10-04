@@ -1,8 +1,21 @@
 @use "../../scss_variables" as *;
 @use "../../styles" as *;
 
+:host {
+  display: block;
+}
+
 .autocomplete-container {
   position: relative;
+  width: 100%;
+  display: flex;
+
+  input {
+    width: 100%;
+    max-width: 100%;
+    flex: 1;
+    box-sizing: border-box;
+  }
 }
 
 .results-list {
@@ -11,23 +24,35 @@
   list-style-type: none;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
   // Grow to fit the content rather than being capped at the input width,
-  // but never overflow the viewport. The exact max-width / left offset are
+  // but never overflow the viewport / visible area. The exact max-width and left offset are
   // refined in TS (fitMenuToViewport) once the menu is measured.
   width: max-content;
   min-width: 100%;
   max-width: calc(100vw - 2em);
   z-index: 1000;
-  max-height: 10em;
+  max-height: 12em;
   overflow-y: auto;
+  overflow-x: hidden;
 
   li {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: start;
     gap: 8px;
     padding: 8px;
     cursor: pointer;
+    box-sizing: border-box;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+
+    .identifier-chip {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
   }
 
   li:hover,

@@ -153,6 +153,14 @@ describe('NavigationTreeService', () => {
     expect(navTree.currentTitle()).toBe('Upload VOD & Series');
   });
 
+  it('puts Manage VOD Edit Series under Admin and Manage VOD in the navigation tree', () => {
+    goTo(Views.ManageVodEditSeries, { seriesId: 'series_123' });
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage VOD']);
+    expect(navTree.parent()?.url).toBe('/manage-vod');
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Admin', 'Manage VOD', 'Edit Video Series']);
+    expect(navTree.currentTitle()).toBe('Edit Video Series');
+  });
+
   it('links a member back to their list, scrolled to their row', () => {
     goTo(Views.ManageMemberView, { memberId: 'M42' });
     expect(navTree.parent()?.url).toBe('/members?jumpTo=M42');
@@ -228,11 +236,55 @@ describe('NavigationTreeService', () => {
     expect(navTree.parent()!.label).toBe(crumbs[crumbs.length - 2].label);
   });
 
-  it('shows only the root crumb on Home', () => {
+  it('updates breadcrumbs and title for tab-paths on Home', () => {
     goTo(Views.Home);
     expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
       'ILC Portal',
+      'Read & Watch',
     ]);
+    expect(navTree.currentTitle()).toBe('Read & Watch');
+
+    routing.signals[Views.Home].urlParams.tab.set('practice');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Train',
+    ]);
+    expect(navTree.currentTitle()).toBe('Train');
+
+    routing.signals[Views.Home].urlParams.tab.set('me');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Me',
+    ]);
+    expect(navTree.currentTitle()).toBe('Me');
+
+    routing.signals[Views.Home].urlParams.tab.set('admin');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Admin',
+    ]);
+    expect(navTree.currentTitle()).toBe('Admin');
+  });
+
+  it('updates breadcrumbs and title for tab-paths on Settings', () => {
+    goTo(Views.Settings);
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Admin', 'Settings']);
+    expect(navTree.currentTitle()).toBe('Settings');
+
+    routing.signals[Views.Settings].urlParams.tab.set('backups');
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Admin', 'Settings', 'Backups']);
+    expect(navTree.currentTitle()).toBe('Backups');
+    expect(navTree.parent()?.url).toBe('/settings');
+  });
+
+  it('updates breadcrumbs and title for tab-paths on Import/Export', () => {
+    goTo(Views.ImportExport);
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Admin', 'Import/Export']);
+
+    routing.signals[Views.ImportExport].urlParams.tab.set('schools');
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Admin', 'Import/Export', 'Schools']);
+    expect(navTree.currentTitle()).toBe('Schools');
+    expect(navTree.parent()?.url).toBe('/import-export');
   });
 
   it('identifies Home view as isHome, and sub-pages as not isHome', () => {

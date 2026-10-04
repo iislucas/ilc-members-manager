@@ -13,6 +13,9 @@ import {
   browserLocalPersistence,
   User,
   UserCredential,
+  AuthCredential,
+  linkWithCredential,
+  linkWithPopup,
   sendPasswordResetEmail,
   sendEmailVerification,
   AuthErrorCodes,
@@ -32,6 +35,7 @@ import { firestoreDocToMember, initMember, Member } from '../../functions/src/da
 import { CheckEmailStatusResult, FetchUserDetailsResult } from '../../functions/src/data-model/system';
 import { IdbStorageService } from './idb-storage.service';
 import { NetworkStateService } from './network-state.service';
+import { RoutingService } from './routing.service';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
@@ -43,6 +47,7 @@ export type AuthOperationResult =
   | {
     success: false;
     errorCode: AuthErrorCodeStr;
+    pendingCredential?: AuthCredential;
   };
 
 export type LogoutResult =
@@ -106,6 +111,7 @@ export class FirebaseStateService {
   private auth: Auth;
   private idb = inject(IdbStorageService);
   private networkState = inject(NetworkStateService);
+  private routingService = inject(RoutingService, { optional: true });
 
   public loginStatus = signal<LoginStatus>(LoginStatus.FirebaseLoadingStatus);
   public loggedIn: WritableSignal<Promise<UserDetails>>;
@@ -115,6 +121,22 @@ export class FirebaseStateService {
   public unverifiedUser = signal<User | null>(null);
   public verificationEmailSent = signal<boolean>(false);
   public verificationError = signal<string | null>(null);
+
+  /**
+   * Indicates whether live Firebase Auth has completed initialization and settled.
+   * True when a live verified User token is active (or in offline mode with a restored session).
+   * Guarding authenticated Firestore queries with isAuthReady prevents transient
+   * "FirebaseError: Missing or insufficient permissions" race conditions on startup.
+   */
+  public isAuthReady = signal<boolean>(false);
+
+  /**
+   * Indicates whether authentication/session synchronization is in progress.
+   * Starts true on initial app load, stays true while verifying live auth or restoring profile,
+   * and becomes false once auth state has settled.
+   */
+  public isAuthSyncing = signal<boolean>(true);
+
   private db: Firestore;
   private unsubscribeFromMember: Unsubscribe | null = null;
 
@@ -176,10 +198,22 @@ export class FirebaseStateService {
           this.loginStatus.set(LoginStatus.SignedIn);
           if (typeof navigator !== 'undefined' && !navigator.onLine) {
             this.networkState.markOffline();
+            this.isAuthReady.set(true);
+            this.isAuthSyncing.set(false);
           }
         }
       }
     });
+
+    if (typeof this.auth.authStateReady === 'function') {
+      this.auth.authStateReady().then(() => {
+        if (!this.auth.currentUser && !this.user()) {
+          this.isAuthSyncing.set(false);
+        }
+      }).catch(() => {
+        this.isAuthSyncing.set(false);
+      });
+    }
 
     onAuthStateChanged(this.auth, async (user) => {
       if (this.unsubscribeFromMember) {
@@ -191,6 +225,8 @@ export class FirebaseStateService {
         // If offline and we already have a cached user session, preserve it!
         if (this.networkState.isOffline() && this.user()) {
           console.log('FirebaseStateService: onAuthStateChanged received null user while offline; preserving local session.');
+          this.isAuthReady.set(true);
+          this.isAuthSyncing.set(false);
           return;
         }
 
@@ -199,6 +235,8 @@ export class FirebaseStateService {
         this.user.set(null);
         this.unverifiedUser.set(null);
         this.loginStatus.set(LoginStatus.SignedOut);
+        this.isAuthReady.set(false);
+        this.isAuthSyncing.set(false);
         this.loggedIn.set(
           new Promise<UserDetails>((resolve, reject) => {
             this.loggedInResolverFn = resolve;
@@ -212,6 +250,8 @@ export class FirebaseStateService {
         this.user.set(null);
         this.unverifiedUser.set(user);
         this.loginStatus.set(LoginStatus.NeedsEmailVerification);
+        this.isAuthReady.set(false);
+        this.isAuthSyncing.set(false);
         return;
       }
 
@@ -228,6 +268,8 @@ export class FirebaseStateService {
           firebaseUser: user,
         });
         this.setupMemberSnapshotListener();
+        this.isAuthReady.set(true);
+        this.isAuthSyncing.set(false);
         return;
       }
 
@@ -252,6 +294,8 @@ export class FirebaseStateService {
         console.warn('Logging out because getUserDetails failed with auth/permission error:', error);
         this.loginStatus.set(LoginStatus.SignedOut);
         this.loginError.set((error as Error).message);
+        this.isAuthReady.set(false);
+        this.isAuthSyncing.set(false);
         this.logout();
         return;
       }
@@ -276,11 +320,15 @@ export class FirebaseStateService {
         this.user.set(userDetails);
         this.loggedInResolverFn(userDetails);
         this.loginStatus.set(LoginStatus.SignedIn);
+        this.isAuthReady.set(true);
+        this.isAuthSyncing.set(false);
         return;
       }
 
       this.loginStatus.set(LoginStatus.SignedOut);
       this.loginError.set((error as Error).message);
+      this.isAuthReady.set(false);
+      this.isAuthSyncing.set(false);
       return;
     }
 
@@ -299,6 +347,8 @@ export class FirebaseStateService {
       this.loginError.set(`We could not find your profile linked to that email address. ` +
         `Might you have used a different email address previously? ` +
         `Please contact ${environment.adminEmail} if you continue to have problems.`);
+      this.isAuthReady.set(false);
+      this.isAuthSyncing.set(false);
       console.warn('Logging out because no member profiles were found.');
       this.logout();
       return;
@@ -315,6 +365,8 @@ export class FirebaseStateService {
     this.loggedInResolverFn(userDetails);
     this.loginStatus.set(LoginStatus.SignedIn);
     this.networkState.markOnline();
+    this.isAuthReady.set(true);
+    this.isAuthSyncing.set(false);
 
     // Cache user details to IndexedDB for offline resilience
     const cacheObj: CachedUserDetails = {
@@ -477,10 +529,63 @@ export class FirebaseStateService {
       console.error('Google login failed:', error);
       console.error(error);
       this.loginStatus.set(LoginStatus.SignedOut);
+      let pendingCredential: AuthCredential | undefined;
+      try {
+        pendingCredential = (GoogleAuthProvider.credentialFromError(error as any) as AuthCredential) ?? undefined;
+      } catch {
+        // Ignore if error does not hold a credential
+      }
+      return {
+        success: false,
+        errorCode: error.code,
+        pendingCredential,
+      };
+    }
+  }
+
+  public async loginWithEmailAndLink(
+    pass: string,
+    email: string,
+    pendingCredential: AuthCredential,
+  ): Promise<AuthOperationResult> {
+    this.loginStatus.set(LoginStatus.LoggingIn);
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        this.auth,
+        email,
+        pass,
+      );
+      try {
+        await linkWithCredential(userCredential.user, pendingCredential);
+        console.log('FirebaseStateService: Successfully linked Google credential to account.');
+      } catch (linkErr: unknown) {
+        console.warn('FirebaseStateService: Failed to link Google credential:', linkErr);
+      }
+      return { success: true, userCredential };
+    } catch (exception: unknown) {
+      const error = exception as FirebaseAuthError;
+      console.error('Email login and link failed:', error);
+      this.loginStatus.set(LoginStatus.SignedOut);
       return {
         success: false,
         errorCode: error.code,
       };
+    }
+  }
+
+  public async linkGoogleAccount(): Promise<{ success: boolean; errorCode?: string }> {
+    const currentUser = this.auth.currentUser;
+    if (!currentUser) {
+      return { success: false, errorCode: 'auth/no-current-user' };
+    }
+    try {
+      await linkWithPopup(currentUser, new GoogleAuthProvider());
+      await this.fetchUserDetails(currentUser);
+      return { success: true };
+    } catch (exception: unknown) {
+      const error = exception as FirebaseAuthError;
+      console.warn('FirebaseStateService: linkGoogleAccount failed:', error);
+      return { success: false, errorCode: error.code };
     }
   }
 
@@ -596,6 +701,9 @@ export class FirebaseStateService {
       await this.idb.delete(LAST_ACTIVE_USER_UID_KEY);
       this.user.set(null);
       this.loginStatus.set(LoginStatus.SignedOut);
+      this.isAuthReady.set(false);
+      this.isAuthSyncing.set(false);
+      this.routingService?.navigateTo('', { clearUrlParams: true });
       await signOut(this.auth);
       return { success: true };
     } catch (exception: unknown) {
@@ -654,11 +762,19 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
     loginStatus: signal(LoginStatus.SignedOut),
     loggedIn: signal(Promise.resolve({} as UserDetails)),
     loginError: signal(null),
+    isAuthReady: signal(true),
+    isAuthSyncing: signal(false),
     loginWithGoogle: (): Promise<AuthOperationResult> =>
       Promise.resolve({
         success: true,
         userCredential: {} as UserCredential,
       }),
+    loginWithEmailAndLink: (): Promise<AuthOperationResult> =>
+      Promise.resolve({
+        success: true,
+        userCredential: {} as UserCredential,
+      }),
+    linkGoogleAccount: () => Promise.resolve({ success: true }),
     loginWithEmail: (): Promise<AuthOperationResult> =>
       Promise.resolve({
         success: true,

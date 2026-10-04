@@ -9,6 +9,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   OnInit,
@@ -25,14 +26,42 @@ import { ProductService } from '../product.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
-import { AutocompleteComponent } from '../autocomplete/autocomplete';
+import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 import { SearchableSet } from '../searchable-set';
-import { AttendeeRole, AttendanceType, getPricingTierKey, getVideoDelta, IlcEvent, initProduct, PricingTierType, Product } from '../../../functions/src/data-model/events';
+import {
+  AttendeeRole,
+  AttendanceType,
+  EventRegistration,
+  EventRegistrationStatus,
+  getPricingTierKey,
+  getVideoDelta,
+  IlcEvent,
+  initProduct,
+  PricingTierType,
+  Product,
+} from '../../../functions/src/data-model/events';
+import { VodPreviewComponent } from '../vod-preview/vod-preview';
+
+export interface VodOptionItem {
+  id: string;
+  type: 'series' | 'video';
+  title: string;
+  seriesTitle?: string;
+  displayName: string;
+}
 
 @Component({
   selector: 'app-product-edit',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent, MarkdownEditor, AutocompleteComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    IconComponent,
+    SpinnerComponent,
+    MarkdownEditor,
+    AutocompleteComponent,
+    VodPreviewComponent,
+  ],
   templateUrl: './product-edit.html',
   styleUrl: './product-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -79,6 +108,7 @@ export class ProductEditComponent implements OnInit {
 
   // Form Model
   productModel = signal<Product>(initProduct());
+  initialRecordedVideoId = signal<string>('');
 
   // Special pricing columns
   hasMemberPrice = signal<boolean>(false);
@@ -96,6 +126,79 @@ export class ProductEditComponent implements OnInit {
     if (!id) return null;
     return this.eventsSearchableSet.get(id) || null;
   });
+
+  // VOD autocomplete search
+  vodOptionsSet = new SearchableSet<'id', VodOptionItem>(
+    ['title', 'seriesTitle', 'id', 'displayName'],
+    'id',
+  );
+  vodDisplayFns: DisplayFns<VodOptionItem> = {
+    toChipId: (v: VodOptionItem) => v.id,
+    toName: (v: VodOptionItem) => v.displayName,
+  };
+
+  // Event registrations & video access impact
+  eventRegistrations = signal<EventRegistration[]>([]);
+
+  attendeesWithVideoAccess = computed(() => {
+    return this.eventRegistrations().filter(
+      (r) => r.hasVideoAccess && r.status !== EventRegistrationStatus.Cancelled,
+    );
+  });
+
+  videoOnlyAttendeesCount = computed(() => {
+    return this.attendeesWithVideoAccess().filter(
+      (r) => r.attendance === AttendanceType.VideoOnly,
+    ).length;
+  });
+
+  includedVideoAttendeesCount = computed(() => {
+    return this.attendeesWithVideoAccess().filter(
+      (r) => r.attendance !== AttendanceType.VideoOnly,
+    ).length;
+  });
+
+  constructor() {
+    effect(() => {
+      const allVideos = this.dataService.videos?.entries ? (this.dataService.videos.entries() || []) : [];
+      const seriesList = typeof this.dataService.getVideoSeriesList === 'function'
+        ? this.dataService.getVideoSeriesList()
+        : [];
+
+      const items: VodOptionItem[] = [];
+      const seenIds = new Set<string>();
+
+      // 1. Series options
+      for (const s of seriesList) {
+        if (!s.seriesId || seenIds.has(s.seriesId)) continue;
+        seenIds.add(s.seriesId);
+        const count = s.videoCount || s.videos?.length || 1;
+        items.push({
+          id: s.seriesId,
+          type: 'series',
+          title: s.title || s.seriesId,
+          seriesTitle: s.title,
+          displayName: `[Series (${count} part${count === 1 ? '' : 's'})] ${s.title || s.seriesId} (${s.seriesId})`,
+        });
+      }
+
+      // 2. Individual videos
+      for (const v of allVideos) {
+        if (!v.docId || seenIds.has(v.docId)) continue;
+        seenIds.add(v.docId);
+        const prefix = v.seriesId ? `[Episode] ` : `[Video] `;
+        items.push({
+          id: v.docId,
+          type: 'video',
+          title: v.title || v.docId,
+          seriesTitle: v.seriesTitle,
+          displayName: `${prefix}${v.title || v.docId} (${v.docId})`,
+        });
+      }
+
+      this.vodOptionsSet.setEntries(items);
+    });
+  }
 
   // Audience: "anyone" (Anyone / Public >= Members >= Instructors), "members", "instructors"
   registrationAudience = computed<'anyone' | 'members' | 'instructors'>(() => {
@@ -201,6 +304,7 @@ export class ProductEditComponent implements OnInit {
 
       if (existing) {
         this.productModel.set(structuredClone(existing));
+        this.initialRecordedVideoId.set(existing.recordedVideoId || '');
         this.hasMemberPrice.set(Boolean(existing.hasMemberPrice ?? this.detectHasSpecialPrice(existing, AttendeeRole.Member)));
         this.hasInstructorPrice.set(Boolean(existing.hasInstructorPrice ?? this.detectHasSpecialPrice(existing, AttendeeRole.Instructor)));
         this.lateDeltaPrice.set(existing.lateDeltaPrice ?? 0);
@@ -237,14 +341,37 @@ export class ProductEditComponent implements OnInit {
           newProduct.recordedVideoUrl = this.embeddedRecordedVideoUrl();
         }
         this.productModel.set(newProduct);
+        this.initialRecordedVideoId.set(newProduct.recordedVideoId || '');
         this.hasMemberPrice.set(false);
         this.hasInstructorPrice.set(false);
+      }
+
+      // Load registrations to calculate video access impact
+      const eventIdToLoad = this.productModel().eventDocId || evId || '';
+      if (eventIdToLoad) {
+        await this.loadRegistrationsForEvent(eventIdToLoad);
       }
     } catch (err) {
       console.error('Error loading product data:', err);
       this.errorMessage.set('Failed to load data.');
     } finally {
       this.isLoading.set(false);
+    }
+  }
+
+  async loadRegistrationsForEvent(eventId: string) {
+    if (!eventId) {
+      this.eventRegistrations.set([]);
+      return;
+    }
+    try {
+      const regs = typeof this.productService.getEventRegistrations === 'function'
+        ? await this.productService.getEventRegistrations(eventId)
+        : [];
+      this.eventRegistrations.set(regs || []);
+    } catch (err) {
+      console.error('Error loading registrations for event:', err);
+      this.eventRegistrations.set([]);
     }
   }
 
@@ -255,6 +382,7 @@ export class ProductEditComponent implements OnInit {
       eventDocId: event.docId,
       title: m.title.trim() ? m.title : event.title,
     }));
+    this.loadRegistrationsForEvent(event.docId);
   }
 
   clearLinkedEvent() {
@@ -262,6 +390,12 @@ export class ProductEditComponent implements OnInit {
       ...m,
       eventDocId: '',
     }));
+    this.eventRegistrations.set([]);
+  }
+
+  onVodOptionSelected(item: VodOptionItem | null) {
+    if (!item) return;
+    this.updateRecordedVideoId(item.id);
   }
 
   setRegistrationAudience(choice: 'anyone' | 'members' | 'instructors') {
@@ -743,11 +877,32 @@ export class ProductEditComponent implements OnInit {
       }
     }
 
+    const currentVideoId = (finalModel.recordedVideoId || '').trim();
+    const previousVideoId = (this.initialRecordedVideoId() || '').trim();
+    const isVideoAddedOrChanged = Boolean(currentVideoId) && currentVideoId !== previousVideoId;
+    const recipientsCount = this.attendeesWithVideoAccess().length;
+
+    if (isVideoAddedOrChanged && recipientsCount > 0) {
+      const videoOnly = this.videoOnlyAttendeesCount();
+      const included = this.includedVideoAttendeesCount();
+      const confirmed = window.confirm(
+        `You are setting or changing the video recording for this event.\n\n` +
+        `This will automatically grant video access and send release notification emails to ${recipientsCount} attendee(s):\n` +
+        `• ${videoOnly} video-only pre-order attendee(s)\n` +
+        `• ${included} attendee(s) with video included in registration\n\n` +
+        `Are you sure you want to proceed?`,
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     this.isSaving.set(true);
     this.errorMessage.set(null);
 
     try {
       const savedDocId = await this.dataService.saveProduct(finalModel);
+      this.initialRecordedVideoId.set(finalModel.recordedVideoId || '');
       if (this.embedded()) {
         this.productSaved.emit(savedDocId);
       } else {

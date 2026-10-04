@@ -130,10 +130,22 @@ export * from './object-diff';
  * Computes target canvas dimensions that fit within `maxDim` on the longest
  * side while preserving the source aspect ratio. Never upscales.
  */
-function fitWithin(width: number, height: number, maxDim: number): { w: number; h: number } {
-  if (width <= 0 || height <= 0) return { w: maxDim, h: maxDim };
+export function fitWithin(width: number, height: number, maxDim: number): { w: number; h: number } {
+  if (width <= 0 || height <= 0) return { w: maxDim, h: Math.round((maxDim * 9) / 16) };
   const scale = Math.min(1, maxDim / Math.max(width, height));
   return { w: Math.max(1, Math.round(width * scale)), h: Math.max(1, Math.round(height * scale)) };
+}
+
+/** Returns human-readable aspect ratio text (e.g. "16:9", "4:3", "9:16", "1:1"). */
+export function getAspectRatioLabel(width: number, height: number): string {
+  if (!width || !height) return '';
+  const ratio = width / height;
+  if (Math.abs(ratio - 16 / 9) < 0.05) return '16:9';
+  if (Math.abs(ratio - 4 / 3) < 0.05) return '4:3';
+  if (Math.abs(ratio - 1) < 0.05) return '1:1';
+  if (Math.abs(ratio - 9 / 16) < 0.05) return '9:16';
+  if (Math.abs(ratio - 21 / 9) < 0.05) return '21:9';
+  return `${ratio.toFixed(2)}:1`;
 }
 
 /** Draws a source (image bitmap or video) onto a fresh canvas and returns a JPEG blob. */
@@ -142,6 +154,7 @@ async function drawToJpeg(
   srcWidth: number,
   srcHeight: number,
   maxDim: number,
+  quality = 0.85,
 ): Promise<Blob> {
   const { w, h } = fitWithin(srcWidth, srcHeight, maxDim);
   const canvas = document.createElement('canvas');
@@ -151,10 +164,89 @@ async function drawToJpeg(
   if (!ctx) throw new Error('Could not get 2D canvas context for thumbnail.');
   ctx.drawImage(source, 0, 0, w, h);
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.8),
+    canvas.toBlob((b) => resolve(b), 'image/jpeg', quality),
   );
   if (!blob) throw new Error('Failed to encode thumbnail to JPEG.');
   return blob;
+}
+
+/**
+ * Captures the current visible frame of an HTMLVideoElement and returns a scaled JPEG Blob
+ * preserving the video's native aspect ratio.
+ */
+export async function captureVideoFrame(
+  video: HTMLVideoElement,
+  maxDim = 1280,
+  quality = 0.9,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  const nativeWidth = video.videoWidth;
+  const nativeHeight = video.videoHeight;
+  if (!nativeWidth || !nativeHeight) {
+    throw new Error('Video frame dimensions are not available (videoWidth or videoHeight is 0).');
+  }
+  const { w, h } = fitWithin(nativeWidth, nativeHeight, maxDim);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get 2D canvas context for thumbnail.');
+  ctx.drawImage(video, 0, 0, w, h);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob((b) => resolve(b), 'image/jpeg', quality),
+  );
+  if (!blob) throw new Error('Failed to encode video frame to JPEG.');
+  return { blob, width: w, height: h };
+}
+
+/**
+ * Generates an aspect-preserving JPEG thumbnail from an image File or Blob.
+ */
+export async function createThumbnailFromImage(
+  fileOrBlob: Blob | File,
+  maxDim = 1280,
+  quality = 0.9,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  let width = 0;
+  let height = 0;
+  let source: CanvasImageSource;
+  let closeFn: (() => void) | undefined;
+
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(fileOrBlob);
+    width = bitmap.width;
+    height = bitmap.height;
+    source = bitmap;
+    closeFn = () => bitmap.close();
+  } else {
+    const url = URL.createObjectURL(fileOrBlob);
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load image for thumbnail.'));
+      img.src = url;
+    });
+    width = img.naturalWidth;
+    height = img.naturalHeight;
+    source = img;
+    closeFn = () => URL.revokeObjectURL(url);
+  }
+
+  try {
+    const { w, h } = fitWithin(width, height, maxDim);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get 2D canvas context for thumbnail.');
+    ctx.drawImage(source, 0, 0, w, h);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', quality),
+    );
+    if (!blob) throw new Error('Failed to encode thumbnail to JPEG.');
+    return { blob, width: w, height: h };
+  } finally {
+    closeFn?.();
+  }
 }
 
 /**
@@ -184,11 +276,18 @@ export async function makeVideoThumbnail(file: File, maxDim = 320): Promise<Blob
   video.src = url;
   try {
     await new Promise<void>((resolve, reject) => {
-      const onError = () => reject(new Error('Failed to load video for thumbnail.'));
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Video thumbnail extraction timed out.'));
+      }, 5000);
+      const onError = () => {
+        clearTimeout(timeoutId);
+        reject(new Error('Failed to load video for thumbnail.'));
+      };
       video.addEventListener('error', onError, { once: true });
       video.addEventListener(
         'loadeddata',
         () => {
+          clearTimeout(timeoutId);
           const target = Number.isFinite(video.duration)
             ? Math.min(1, video.duration / 2)
             : 0;

@@ -359,24 +359,72 @@
             @if (productModel().allowVideo) {
               <div class="form-field full-width">
                 <label>Video Recording for Attendees</label>
-                <div class="video-inputs-row">
-                  <input
-                    type="text"
-                    placeholder="VOD Video ID (optional)"
-                    [value]="productModel().recordedVideoId || ''"
-                    (input)="updateRecordedVideoId($any($event.target).value)"
-                  />
+
+                @if (productModel().recordedVideoId) {
+                  <div class="linked-vod-wrapper">
+                    <app-vod-preview
+                      [videoId]="productModel().recordedVideoId || ''"
+                      [showUnlink]="true"
+                      (unlink)="updateRecordedVideoId('')"
+                    />
+                  </div>
+                } @else {
+                  <div class="vod-autocomplete-wrapper">
+                    <app-autocomplete
+                      [searchableSet]="vodOptionsSet"
+                      [displayFns]="vodDisplayFns"
+                      placeholder="Search VOD series or videos by title or ID..."
+                      (itemSelected)="onVodOptionSelected($event)"
+                    />
+                    <div class="manual-vod-input">
+                      <span class="manual-vod-label">Or enter VOD ID manually:</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. series_123 or vid_456"
+                        [value]="productModel().recordedVideoId || ''"
+                        (input)="updateRecordedVideoId($any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+                }
+
+                <div class="secondary-video-url">
+                  <label class="sub-label">External Video URL (Optional fallback)</label>
                   <input
                     type="url"
-                    placeholder="or external Video URL (optional)"
+                    placeholder="https://vimeo.com/... or https://youtube.com/..."
                     [value]="productModel().recordedVideoUrl || ''"
                     (input)="updateRecordedVideoUrl($any($event.target).value)"
                   />
+                  <span class="field-hint"
+                    >For external recordings (Vimeo, YouTube unlisted, etc.) if not hosted on ILC VOD.</span
+                  >
                 </div>
-                <span class="field-hint"
-                  >Attendees registered with video access will automatically be
-                  granted access when provided.</span
-                >
+
+                <!-- Attendee Notification & Access Impact Info -->
+                <div class="video-notification-info" [class.has-recipients]="attendeesWithVideoAccess().length > 0">
+                  <div class="info-icon">
+                    <app-icon name="mail" width="18px" height="18px" />
+                  </div>
+                  <div class="info-content">
+                    <div class="info-header">
+                      <strong>Notification & Access Impact</strong>
+                      <span class="impact-badge" [class.impact-badge-active]="attendeesWithVideoAccess().length > 0">
+                        {{ attendeesWithVideoAccess().length }} attendee{{ attendeesWithVideoAccess().length === 1 ? '' : 's' }}
+                      </span>
+                    </div>
+                    <p class="info-desc">
+                      @if (attendeesWithVideoAccess().length > 0) {
+                        Saving a new or changed video recording will grant VOD access and send release notification emails to
+                        <strong>{{ attendeesWithVideoAccess().length }}</strong> attendee(s):
+                        <strong>{{ videoOnlyAttendeesCount() }}</strong> video-only pre-order{{ videoOnlyAttendeesCount() === 1 ? '' : 's' }}
+                        and <strong>{{ includedVideoAttendeesCount() }}</strong> with video included in registration.
+                      } @else {
+                        No registered attendees currently have video access for this event. No release emails will be sent.
+                      }
+                    </p>
+                  </div>
+                </div>
               </div>
             }
           </div>

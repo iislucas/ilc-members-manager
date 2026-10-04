@@ -649,6 +649,37 @@
       padding: 1px 4px;
       border-radius: 3px;
       font-family: monospace;
+      z-index: 1;
+    }
+
+    .change-thumb-btn {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      cursor: pointer;
+      opacity: 0.85;
+      transition: all 0.15s ease;
+      z-index: 2;
+
+      app-icon {
+        font-size: 0.85rem;
+      }
+
+      &:hover {
+        opacity: 1;
+        background: rgba(0, 0, 0, 0.95);
+        border-color: #ffffff;
+      }
     }
   }
 
@@ -757,18 +788,6 @@
   }
 }
 
-.session-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
-  font-size: 0.72rem;
-  font-weight: 500;
-  padding: 1px 6px;
-  border-radius: 9999px;
-}
 
 .entry-progress-bar-wrapper {
   margin-top: 0.25rem;

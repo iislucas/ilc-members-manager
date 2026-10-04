@@ -161,7 +161,10 @@ export const transcodeVideoForVod = onCall(
       spriteColumnCount: config.spriteColumnCount || existingVideo.spriteColumnCount || 5,
       spriteRowCount: config.spriteRowCount || existingVideo.spriteRowCount || 5,
       spriteFrameCount: config.spriteFrameCount || existingVideo.spriteFrameCount || 25,
-      durationSeconds: config.durationSeconds || existingVideo.durationSeconds || 0,
+      durationSeconds:
+        typeof config.durationSeconds === 'number' && config.durationSeconds > 0
+          ? config.durationSeconds
+          : (existingVideo.durationSeconds || 0),
       resolutions: targetResolutions,
       originalSize: uploadItem.size || 0,
       createdAt: existingVideo.createdAt || nowIso,

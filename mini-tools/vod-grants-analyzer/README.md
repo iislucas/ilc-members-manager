@@ -75,7 +75,7 @@ The analyzer ingests all files from `tmp/ILC VOD purchases/`:
 - `VIP_Customer_Access_List.xlsx`: Curated VIP access lists across all sheets (Main List, Subscriptions, DVD Purchases, Titles Not on OTT).
 - `gmail_early_customers.csv`: Early customer access links from Gmail.
 - `gmail_template_emails.csv`: Templated VIP access delivery emails from Gmail.
-- `*-export*.csv`: 12 Event export CSV files with approved attendee lists for specific workshop recordings.
+- `*-export*.csv`: 13 Event export CSV files with approved attendee lists for specific workshop recordings.
 
 ---
 

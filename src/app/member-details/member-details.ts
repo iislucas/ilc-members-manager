@@ -699,7 +699,7 @@ export class MemberDetailsComponent {
       typeof this.membersService.getVideoSeriesList === 'function'
         ? this.membersService.getVideoSeriesList()
         : [];
-    const allVideos = this.membersService.videos?.entries?.() || [];
+    const allVideos = this.membersService.videos.entries();
 
     const videoMap = new Map<string, VideoItem>();
     for (const v of allVideos) {
@@ -946,7 +946,7 @@ export class MemberDetailsComponent {
       };
     }
 
-    const allVideos = this.membersService.videos?.entries?.() || [];
+    const allVideos = this.membersService.videos.entries();
     const matchedVideo = allVideos.find((v) => v.docId === targetId);
     if (matchedVideo) {
       const part = matchedVideo.seriesPartIndex
@@ -1195,7 +1195,7 @@ export class MemberDetailsComponent {
     let lastInstructorCheck: { orig?: string; current?: string } | null = null;
     effect(async () => {
       const orig = this.member()?.instructorId;
-      const current = this.form.instructorId?.()?.value?.();
+      const current = this.form.instructorId().value();
       if (lastInstructorCheck?.orig === orig && lastInstructorCheck?.current === current) {
         return;
       }
@@ -1212,6 +1212,10 @@ export class MemberDetailsComponent {
     let lastLoadedGrantsDocId: string | null = null;
     effect(async () => {
       const docId = this.member()?.docId;
+      const isAuthReady = this.firebaseState.isAuthReady();
+      if (!isAuthReady) {
+        return;
+      }
       if (docId === lastLoadedGrantsDocId) {
         return;
       }
@@ -1223,6 +1227,7 @@ export class MemberDetailsComponent {
           this.memberVideoGrants.set(grants);
         } catch (err) {
           console.error('Failed to load member video grants:', err);
+          lastLoadedGrantsDocId = null;
           this.memberVideoGrants.set([]);
         } finally {
           this.isLoadingVideoGrants.set(false);
