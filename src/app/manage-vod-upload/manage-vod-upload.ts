@@ -592,7 +592,6 @@ export class ManageVodUploadComponent implements OnInit {
       }, 4000);
     });
   }
-  }
 
   removeFile(id: string): void {
     const entry = this.fileEntries().find((e) => e.id === id);
