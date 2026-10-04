@@ -60,7 +60,6 @@ export interface UploadFileEntry {
   uploadItemId?: string;
   storagePath?: string;
   uploadTask?: UploadTask;
-  hasSavedSession?: boolean;
 }
 
 @Component({
@@ -426,7 +425,7 @@ export class ManageVodUploadComponent implements OnInit {
         title = `Part ${partIndex}: ${cleanName}`;
       }
 
-      const savedSession = this.resumableService.getSavedSession(file);
+      const uploadItemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
       const entry: UploadFileEntry = {
         id,
@@ -439,15 +438,14 @@ export class ManageVodUploadComponent implements OnInit {
         previewBlob: null,
         status: 'idle',
         progressPercent: 0,
-        uploadItemId: savedSession?.uploadItemId,
-        storagePath: savedSession?.storagePath,
-        hasSavedSession: Boolean(savedSession),
+        uploadItemId,
+        storagePath: '',
       };
 
       newEntries.push(entry);
 
-      // Async preview & duration extraction in background
-      this.extractVideoMetadata(entry);
+      // Async preview & duration extraction via sequential queue
+      this.queueVideoMetadataExtraction(entry);
     }
 
     // Set series title default if not set
@@ -486,87 +484,114 @@ export class ManageVodUploadComponent implements OnInit {
     this.closeThumbnailModal();
   }
 
-  private extractVideoMetadata(entry: UploadFileEntry): void {
-    const videoElem = document.createElement('video');
-    videoElem.preload = 'metadata';
-    videoElem.muted = true;
-    videoElem.playsInline = true;
+  private metadataQueue: UploadFileEntry[] = [];
+  private isProcessingMetadataQueue = false;
 
-    const fileUrl = URL.createObjectURL(entry.file);
-    videoElem.src = fileUrl;
+  private queueVideoMetadataExtraction(entry: UploadFileEntry): void {
+    this.metadataQueue.push(entry);
+    this.processNextMetadataItem();
+  }
 
-    let isCleanedUp = false;
-    const cleanup = () => {
-      if (!isCleanedUp) {
-        isCleanedUp = true;
-        URL.revokeObjectURL(fileUrl);
-      }
-    };
+  private async processNextMetadataItem(): Promise<void> {
+    if (this.isProcessingMetadataQueue || this.metadataQueue.length === 0) return;
+    this.isProcessingMetadataQueue = true;
+    const entry = this.metadataQueue.shift();
+    if (entry) {
+      await this.extractVideoMetadataAsync(entry);
+    }
+    this.isProcessingMetadataQueue = false;
+    if (this.metadataQueue.length > 0) {
+      this.processNextMetadataItem();
+    }
+  }
 
-    const captureFrame = () => {
-      if (entry.previewBlob) {
+  private extractVideoMetadataAsync(entry: UploadFileEntry): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const videoElem = document.createElement('video');
+      videoElem.preload = 'metadata';
+      videoElem.muted = true;
+      videoElem.playsInline = true;
+
+      const fileUrl = URL.createObjectURL(entry.file);
+      videoElem.src = fileUrl;
+
+      let isCleanedUp = false;
+      const cleanup = () => {
+        if (!isCleanedUp) {
+          isCleanedUp = true;
+          URL.revokeObjectURL(fileUrl);
+          videoElem.src = '';
+          resolve();
+        }
+      };
+
+      const captureFrame = () => {
+        if (entry.previewBlob) {
+          cleanup();
+          return;
+        }
+        try {
+          const vw = videoElem.videoWidth || 640;
+          const vh = videoElem.videoHeight || 360;
+          const { w, h } = fitWithin(vw, vh, 1280);
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(videoElem, 0, 0, w, h);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  entry.previewBlob = blob;
+                  entry.previewUrl = URL.createObjectURL(blob);
+                  this.fileEntries.update((list) => [...list]);
+                }
+                cleanup();
+              },
+              'image/jpeg',
+              0.9,
+            );
+          } else {
+            cleanup();
+          }
+        } catch (err) {
+          console.warn('Initial thumbnail generation failed:', err);
+          cleanup();
+        }
+      };
+
+      videoElem.onloadedmetadata = () => {
+        entry.durationSeconds = Math.round(videoElem.duration || 0);
+        const targetTime =
+          Number.isFinite(videoElem.duration) && videoElem.duration > 0
+            ? Math.min(Math.max(0.5, videoElem.duration * 0.05), 5)
+            : 0;
+
+        if (Math.abs(videoElem.currentTime - targetTime) < 0.05) {
+          captureFrame();
+        } else {
+          videoElem.currentTime = targetTime;
+        }
+      };
+
+      videoElem.onseeked = () => {
+        captureFrame();
+      };
+
+      videoElem.onerror = () => {
         cleanup();
-        return;
-      }
-      try {
-        const vw = videoElem.videoWidth || 640;
-        const vh = videoElem.videoHeight || 360;
-        const { w, h } = fitWithin(vw, vh, 1280);
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(videoElem, 0, 0, w, h);
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                entry.previewBlob = blob;
-                entry.previewUrl = URL.createObjectURL(blob);
-                this.fileEntries.update((list) => [...list]);
-              }
-              cleanup();
-            },
-            'image/jpeg',
-            0.9,
-          );
+      };
+
+      // Safety timeout in case seeked doesn't fire
+      setTimeout(() => {
+        if (!entry.previewBlob) {
+          captureFrame();
         } else {
           cleanup();
         }
-      } catch (err) {
-        console.warn('Initial thumbnail generation failed:', err);
-        cleanup();
-      }
-    };
-
-    videoElem.onloadedmetadata = () => {
-      entry.durationSeconds = Math.round(videoElem.duration || 0);
-      const targetTime =
-        Number.isFinite(videoElem.duration) && videoElem.duration > 0
-          ? Math.min(Math.max(0.5, videoElem.duration * 0.05), 5)
-          : 0;
-
-      if (Math.abs(videoElem.currentTime - targetTime) < 0.05) {
-        captureFrame();
-      } else {
-        videoElem.currentTime = targetTime;
-      }
-    };
-
-    videoElem.onseeked = () => {
-      captureFrame();
-    };
-
-    videoElem.onerror = () => {
-      cleanup();
-    };
-
-    // Safety timeout in case seeked doesn't fire
-    setTimeout(() => {
-      if (!entry.previewBlob) {
-        captureFrame();
-      }
-    }, 4000);
+      }, 4000);
+    });
   }
 
   removeFile(id: string): void {
@@ -700,9 +725,7 @@ export class ManageVodUploadComponent implements OnInit {
 
     // 1. Maintain or assign uploadItemId and storage paths
     if (!entry.uploadItemId) {
-      const saved = this.resumableService.getSavedSession(entry.file);
-      entry.uploadItemId =
-        saved?.uploadItemId || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      entry.uploadItemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     }
 
     const originalStoragePath = `members/${adminDocId}/materials/originals/${entry.uploadItemId}/original`;
@@ -837,7 +860,6 @@ export class ManageVodUploadComponent implements OnInit {
       entry.status = 'done';
       entry.progressPercent = 100;
       entry.uploadTask = undefined;
-      entry.hasSavedSession = false;
       this.fileEntries.update((list) => [...list]);
     } catch (err: unknown) {
       console.error(`Failed uploading file "${entry.file.name}":`, err);
