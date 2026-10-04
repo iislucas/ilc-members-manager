@@ -38,6 +38,7 @@ interface CliOptions {
   limit: number;
   force: boolean;
   concurrency: number;
+  videoConcurrency: number;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -47,7 +48,8 @@ function parseArgs(argv: string[]): CliOptions {
     videoId: '',
     limit: 0,
     force: false,
-    concurrency: 5,
+    concurrency: 4,
+    videoConcurrency: 3,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -67,6 +69,9 @@ function parseArgs(argv: string[]): CliOptions {
       i += 1;
     } else if (arg === '--concurrency' && i + 1 < argv.length) {
       options.concurrency = parseInt(argv[i + 1]!, 10);
+      i += 1;
+    } else if (arg === '--videoConcurrency' && i + 1 < argv.length) {
+      options.videoConcurrency = parseInt(argv[i + 1]!, 10);
       i += 1;
     }
   }
@@ -385,8 +390,11 @@ async function main(): Promise<void> {
 
   let successCount = 0;
   let failCount = 0;
+  let completedCount = 0;
 
-  for (const { docRef, video } of targets) {
+  console.log(`Processing ${targets.length} videos with video concurrency ${args.videoConcurrency} and frame concurrency ${args.concurrency}...\n`);
+
+  await asyncPool(args.videoConcurrency, targets, async ({ docRef, video }) => {
     try {
       const ok = await processVideo(video, docRef, bucket, ffmpegBin, ffprobeBin, args);
       if (ok) {
@@ -397,8 +405,12 @@ async function main(): Promise<void> {
     } catch (err) {
       console.error(`❌ Failed to process video ${video.docId}:`, err);
       failCount++;
+    } finally {
+      completedCount++;
+      const pct = ((completedCount / targets.length) * 100).toFixed(1);
+      console.log(`\n>> Progress: [${completedCount}/${targets.length}] (${pct}%) — Succeeded: ${successCount}, Failed: ${failCount}`);
     }
-  }
+  });
 
   console.log(`\n==================================================`);
   console.log(`Backfill Complete!`);
