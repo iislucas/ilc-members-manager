@@ -705,6 +705,12 @@
   [title]="'Change Thumbnail — ' + (editingThumbnailEntry()?.title || '')"
   [videoFile]="editingThumbnailEntry()?.file || null"
   [initialThumbnailUrl]="editingThumbnailEntry()?.previewUrl || null"
+  [initialDurationSeconds]="editingThumbnailEntry()?.durationSeconds || null"
+  [spriteSheetUrl]="editingThumbnailEntry()?.spriteUrl || null"
+  [spriteIntervalSeconds]="editingThumbnailEntry()?.spriteIntervalSeconds || 5"
+  [spriteColumnCount]="editingThumbnailEntry()?.spriteColumnCount || 5"
+  [spriteRowCount]="editingThumbnailEntry()?.spriteRowCount || 5"
+  [spriteFrameCount]="editingThumbnailEntry()?.spriteFrameCount || 25"
   (thumbnailSelected)="onEntryThumbnailSelected($event)"
   (closed)="closeThumbnailModal()"
 ></app-thumbnail-editor-modal>

@@ -4,8 +4,9 @@
  * Allows admins to:
  * 1. Scrub through any frame in the video (via local file or HLS/video stream)
  *    with frame-accurate step buttons (-0.1s, +0.1s, -1s, +1s) and capture it.
- * 2. Upload a custom image file (JPG, PNG, WebP) with aspect-ratio preservation.
- * 3. Preview dimensions and aspect ratio (e.g. 16:9, 4:3, 9:16) before applying.
+ * 2. Click visual timeline snapshots or quick percentage jumps (10%, 25%, 50%, 75%).
+ * 3. Upload a custom image file (JPG, PNG, WebP) with aspect-ratio preservation.
+ * 4. Preview dimensions and aspect ratio (e.g. 16:9, 4:3, 9:16) before applying.
  */
 
 import {
@@ -28,6 +29,8 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import {
   fitWithin,
   captureVideoFrame,
+  captureSpriteFrame,
+  fixFirebaseHlsUrl,
   createThumbnailFromImage,
   getAspectRatioLabel,
 } from '../utils';
@@ -46,6 +49,9 @@ export interface ThumbnailSelectedEvent {
   templateUrl: './thumbnail-editor-modal.html',
   styleUrl: './thumbnail-editor-modal.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(window:keydown)': 'onWindowKeyDown($event)',
+  },
 })
 export class ThumbnailEditorModalComponent implements OnDestroy {
   @ViewChild('videoEl') videoRef?: ElementRef<HTMLVideoElement>;
@@ -58,6 +64,14 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
   initialThumbnailUrl = input<string | null>(null);
   videoFile = input<File | null>(null);
   videoUrl = input<string | null>(null);
+  initialDurationSeconds = input<number | null>(null);
+  spriteSheetUrl = input<string | null>(null);
+  spriteIntervalSeconds = input<number>(5);
+  spriteWidth = input<number>(160);
+  spriteHeight = input<number>(90);
+  spriteColumnCount = input<number>(5);
+  spriteRowCount = input<number>(5);
+  spriteFrameCount = input<number>(25);
 
   // Outputs
   thumbnailSelected = output<ThumbnailSelectedEvent>();
@@ -66,6 +80,7 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
   // State
   activeTab = signal<'video_frame' | 'upload_image'>('video_frame');
   isLoadingVideo = signal<boolean>(false);
+  isBuffering = signal<boolean>(false);
   isPlaying = signal<boolean>(false);
   currentVideoTime = signal<number>(0);
   videoDuration = signal<number>(0);
@@ -74,9 +89,70 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
   capturedBlob = signal<Blob | null>(null);
   capturedPreviewUrl = signal<string | null>(null);
   capturedDimensions = signal<{ w: number; h: number } | null>(null);
+  capturedAtTimestamp = signal<number | null>(null);
+
+  effectiveDuration = computed(() => {
+    const dur = this.videoDuration();
+    if (dur > 0 && Number.isFinite(dur)) return dur;
+    const init = this.initialDurationSeconds();
+    if (init && init > 0) return init;
+    return 0;
+  });
+
   aspectRatioText = computed(() => {
     const dim = this.capturedDimensions();
     return dim ? getAspectRatioLabel(dim.w, dim.h) : '';
+  });
+
+  quickJumpPresets = computed(() => {
+    const dur = this.effectiveDuration();
+    if (dur <= 0) {
+      return [
+        { label: 'Start', seconds: 0 },
+        { label: '10s', seconds: 10 },
+        { label: '30s', seconds: 30 },
+        { label: '1m', seconds: 60 },
+      ];
+    }
+    return [
+      { label: '10%', seconds: Math.round(dur * 0.1) },
+      { label: '25%', seconds: Math.round(dur * 0.25) },
+      { label: '50% (Mid)', seconds: Math.round(dur * 0.5) },
+      { label: '75%', seconds: Math.round(dur * 0.75) },
+      { label: '90%', seconds: Math.round(dur * 0.9) },
+    ];
+  });
+
+  timelineSnapshots = computed(() => {
+    const spriteUrl = this.spriteSheetUrl();
+    if (!spriteUrl) return [];
+
+    const dur = this.effectiveDuration();
+    if (dur <= 0) return [];
+
+    const interval = this.spriteIntervalSeconds() || 5;
+    const cols = this.spriteColumnCount() || 5;
+    const rows = this.spriteRowCount() || 5;
+    const spriteW = this.spriteWidth() || 160;
+    const spriteH = this.spriteHeight() || 90;
+    const maxFrames = this.spriteFrameCount() || cols * rows;
+
+    const samplePercentages = [0.08, 0.22, 0.38, 0.52, 0.68, 0.85];
+    return samplePercentages.map((pct) => {
+      const time = Math.round(dur * pct * 10) / 10;
+      const frameIndex = Math.min(maxFrames - 1, Math.max(0, Math.floor(time / interval)));
+      const col = frameIndex % cols;
+      const row = Math.floor(frameIndex / cols) % rows;
+      return {
+        time,
+        timeFormatted: this.formatTime(time),
+        pctLabel: `${Math.round(pct * 100)}%`,
+        bgX: -col * spriteW,
+        bgY: -row * spriteH,
+        spriteW,
+        spriteH,
+      };
+    });
   });
 
   chosenLocalVideoFile = signal<File | null>(null);
@@ -97,8 +173,12 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
         if (initUrl) {
           this.capturedPreviewUrl.set(initUrl);
         }
-        // Initialize video source after next macrotask
-        setTimeout(() => this.initializeVideo(), 50);
+        const initDur = this.initialDurationSeconds();
+        if (initDur && initDur > 0) {
+          this.videoDuration.set(initDur);
+        }
+        // Initialize video source on microtask
+        queueMicrotask(() => this.initializeVideo());
       } else {
         this.cleanupVideo();
       }
@@ -113,15 +193,45 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
     }
   }
 
+  onWindowKeyDown(event: KeyboardEvent): void {
+    if (!this.isOpen()) return;
+
+    // Do not intercept if user is typing in an input
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      this.close();
+      return;
+    }
+
+    if (this.activeTab() === 'video_frame') {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        this.togglePlay();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        this.nudge(event.shiftKey ? -5 : -1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        this.nudge(event.shiftKey ? 5 : 1);
+      }
+    }
+  }
+
   private resetState(): void {
     this.cleanupVideo();
     this.videoError.set(null);
     this.isLoadingVideo.set(false);
+    this.isBuffering.set(false);
     this.isPlaying.set(false);
     this.currentVideoTime.set(0);
-    this.videoDuration.set(0);
+    this.videoDuration.set(this.initialDurationSeconds() || 0);
     this.activeTab.set('video_frame');
     this.chosenLocalVideoFile.set(null);
+    this.capturedAtTimestamp.set(null);
     if (this.capturedObjectUrl) {
       URL.revokeObjectURL(this.capturedObjectUrl);
       this.capturedObjectUrl = null;
@@ -146,9 +256,19 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
     }
     const video = this.videoRef?.nativeElement;
     if (video) {
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
+      try {
+        if (typeof video.pause === 'function') {
+          video.pause();
+        }
+        if (typeof video.removeAttribute === 'function') {
+          video.removeAttribute('src');
+        }
+        if (typeof video.load === 'function') {
+          video.load();
+        }
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -174,16 +294,68 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
       this.isLoadingVideo.set(true);
       const isHls = url.includes('.m3u8');
       if (isHls && Hls.isSupported()) {
-        this.hls = new Hls({ enableWorker: true });
+        const rootUrl = url;
+        class FirebaseHlsCustomLoader extends (Hls.DefaultConfig.loader as any) {
+          constructor(cfg: any) {
+            super(cfg);
+            const origLoad = (this as any)['load'].bind(this);
+            (this as any)['load'] = (context: any, loadCfg: any, callbacks: any) => {
+              if (context?.url) {
+                context.url = fixFirebaseHlsUrl(context.url, rootUrl);
+              }
+              origLoad(context, loadCfg, callbacks);
+            };
+          }
+        }
+
+        this.hls = new Hls({
+          loader: FirebaseHlsCustomLoader as any,
+          enableWorker: true,
+          capLevelToPlayerSize: true,
+          lowLatencyMode: false,
+          maxBufferLength: 30,
+        });
+
         this.hls.loadSource(url);
         this.hls.attachMedia(video);
+
+        this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          this.isLoadingVideo.set(false);
+          this.isBuffering.set(false);
+        });
+
+        this.hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
+          if (data.details?.totalduration && data.details.totalduration > 0) {
+            this.videoDuration.set(data.details.totalduration);
+          }
+        });
+
         this.hls.on(Hls.Events.ERROR, (_, data) => {
           if (data.fatal) {
             console.warn('HLS stream fatal error:', data);
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                try {
+                  this.hls?.startLoad();
+                  return;
+                } catch {
+                  // Fall through
+                }
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                try {
+                  this.hls?.recoverMediaError();
+                  return;
+                } catch {
+                  // Fall through
+                }
+                break;
+            }
             this.videoError.set(
-              'Could not load remote stream. You can select the video file directly from your computer.',
+              'Could not load remote stream directly. You can pick an image or select the video file directly.',
             );
             this.isLoadingVideo.set(false);
+            this.isBuffering.set(false);
           }
         });
       } else {
@@ -193,7 +365,6 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
       return;
     }
 
-    // No source provided yet
     this.isLoadingVideo.set(false);
   }
 
@@ -201,19 +372,27 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
     const video = this.videoRef?.nativeElement;
     if (!video) return;
     this.isLoadingVideo.set(false);
-    this.videoDuration.set(video.duration || 0);
+    this.isBuffering.set(false);
 
-    // Initial nudge into video so we don't start on an empty black frame
-    const target = Number.isFinite(video.duration) && video.duration > 0
-      ? Math.min(Math.max(0.5, video.duration * 0.05), 5)
-      : 0;
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      this.videoDuration.set(video.duration);
+    }
 
+    const dur = this.effectiveDuration();
+    const target = dur > 0 ? Math.min(Math.max(0.5, dur * 0.05), 5) : 0;
     if (target > 0) {
       try {
         video.currentTime = target;
       } catch {
         // ignore
       }
+    }
+  }
+
+  onVideoDurationChange(): void {
+    const video = this.videoRef?.nativeElement;
+    if (video && Number.isFinite(video.duration) && video.duration > 0) {
+      this.videoDuration.set(video.duration);
     }
   }
 
@@ -227,8 +406,9 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
   onVideoError(event: Event): void {
     console.warn('Video element error in thumbnail editor:', event);
     this.isLoadingVideo.set(false);
+    this.isBuffering.set(false);
     this.videoError.set(
-      'Could not play video stream directly. You can select the local video file from your computer or upload an image.',
+      'Could not play video stream directly. You can select the local video file or upload an image.',
     );
   }
 
@@ -236,7 +416,10 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
     const video = this.videoRef?.nativeElement;
     if (!video) return;
     if (video.paused) {
-      video.play().catch(() => {});
+      const p = video.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {});
+      }
     } else {
       video.pause();
     }
@@ -245,8 +428,8 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
   seekTo(seconds: number): void {
     const video = this.videoRef?.nativeElement;
     if (!video) return;
-    const dur = this.videoDuration();
-    const clamped = Math.max(0, Math.min(dur || 0, seconds));
+    const dur = this.effectiveDuration();
+    const clamped = dur > 0 ? Math.max(0, Math.min(dur, seconds)) : Math.max(0, seconds);
     video.currentTime = clamped;
     this.currentVideoTime.set(clamped);
   }
@@ -268,7 +451,7 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
     if (!video) return;
 
     if (!video.videoWidth || !video.videoHeight) {
-      this.videoError.set('Video frame is not ready. Please wait for video to load.');
+      this.videoError.set('Video frame is not ready yet. Please wait for video to buffer.');
       return;
     }
 
@@ -278,20 +461,73 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
 
     try {
       const { blob, width, height } = await captureVideoFrame(video, 1280, 0.9);
-      if (this.capturedObjectUrl) {
-        URL.revokeObjectURL(this.capturedObjectUrl);
-      }
-      this.capturedObjectUrl = URL.createObjectURL(blob);
-      this.capturedBlob.set(blob);
-      this.capturedPreviewUrl.set(this.capturedObjectUrl);
-      this.capturedDimensions.set({ w: width, h: height });
+      this.setCapturedFrame(blob, width, height, video.currentTime);
     } catch (err: unknown) {
-      console.error('Capture frame failed:', err);
+      console.warn('Capture frame via canvas failed, testing sprite fallback:', err);
+      const spriteUrl = this.spriteSheetUrl();
+      if (spriteUrl) {
+        try {
+          const { blob, width, height } = await captureSpriteFrame(
+            spriteUrl,
+            video.currentTime,
+            this.spriteIntervalSeconds(),
+            this.spriteWidth(),
+            this.spriteHeight(),
+            this.spriteColumnCount(),
+            this.spriteRowCount(),
+          );
+          this.setCapturedFrame(blob, width, height, video.currentTime);
+          return;
+        } catch (sErr) {
+          console.warn('Sprite capture also failed:', sErr);
+        }
+      }
       this.videoError.set(
-        'Frame capture restricted by browser security (CORS) on remote stream. Please select the video file directly from your computer.',
+        'Frame capture restricted by browser security (CORS) on remote stream. Please upload an image directly.',
       );
     } finally {
       this.isProcessing.set(false);
+    }
+  }
+
+  async captureFromSnapshot(snapshotTime: number): Promise<void> {
+    this.seekTo(snapshotTime);
+    const spriteUrl = this.spriteSheetUrl();
+    if (spriteUrl) {
+      this.isProcessing.set(true);
+      this.videoError.set(null);
+      try {
+        const { blob, width, height } = await captureSpriteFrame(
+          spriteUrl,
+          snapshotTime,
+          this.spriteIntervalSeconds(),
+          this.spriteWidth(),
+          this.spriteHeight(),
+          this.spriteColumnCount(),
+          this.spriteRowCount(),
+        );
+        this.setCapturedFrame(blob, width, height, snapshotTime);
+      } catch (err) {
+        console.warn('Could not extract sprite frame directly:', err);
+        await this.captureCurrentFrame();
+      } finally {
+        this.isProcessing.set(false);
+      }
+    } else {
+      await this.captureCurrentFrame();
+    }
+  }
+
+  private setCapturedFrame(blob: Blob, width: number, height: number, timestamp?: number): void {
+    if (this.capturedObjectUrl) {
+      URL.revokeObjectURL(this.capturedObjectUrl);
+    }
+    this.capturedObjectUrl = URL.createObjectURL(blob);
+    this.capturedBlob.set(blob);
+    this.capturedPreviewUrl.set(this.capturedObjectUrl);
+    this.capturedDimensions.set({ w: width, h: height });
+    if (typeof timestamp === 'number') {
+      this.capturedAtTimestamp.set(timestamp);
     }
   }
 
@@ -341,13 +577,8 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
     this.isProcessing.set(true);
     try {
       const { blob, width, height } = await createThumbnailFromImage(file, 1280, 0.9);
-      if (this.capturedObjectUrl) {
-        URL.revokeObjectURL(this.capturedObjectUrl);
-      }
-      this.capturedObjectUrl = URL.createObjectURL(blob);
-      this.capturedBlob.set(blob);
-      this.capturedPreviewUrl.set(this.capturedObjectUrl);
-      this.capturedDimensions.set({ w: width, h: height });
+      this.setCapturedFrame(blob, width, height);
+      this.capturedAtTimestamp.set(null);
     } catch (err: unknown) {
       console.error('Error processing image:', err);
       alert('Failed to process image: ' + (err instanceof Error ? err.message : String(err)));
@@ -387,4 +618,3 @@ export class ThumbnailEditorModalComponent implements OnDestroy {
     return `${mm}:${ss}.${ms}`;
   }
 }
-

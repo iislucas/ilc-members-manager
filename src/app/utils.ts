@@ -489,3 +489,103 @@ export async function generateVideoSpriteSheet(
     }
   }
 }
+
+/**
+ * Rewrites relative HLS stream playlist and fragment URLs when hosted in Firebase Storage.
+ *
+ * In Firebase Storage, files are hosted at:
+ * `https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<url-encoded-path>?alt=media&token=<token>`
+ * Standard RFC-compliant URL resolution strips the encoded folder path when resolving relative
+ * child playlists (e.g. `hd.m3u8`) and fragment files (e.g. `segment_000.ts`), resolving them against `/o/`
+ * and dropping query parameters. This function restores the folder path, `alt=media`, and `token`.
+ */
+export function fixFirebaseHlsUrl(
+  requestUrl: string,
+  rootManifestUrl: string | null | undefined,
+): string {
+  if (!rootManifestUrl || !rootManifestUrl.includes('firebasestorage.googleapis.com')) {
+    return requestUrl;
+  }
+  let rootParsed: URL;
+  let reqParsed: URL;
+  try {
+    rootParsed = new URL(rootManifestUrl);
+    reqParsed = new URL(requestUrl, rootManifestUrl);
+  } catch {
+    return requestUrl;
+  }
+
+  // Root storage path is /v0/b/<bucket>/o/<encoded-path>
+  const rootMatch = rootParsed.pathname.match(/^(\/v0\/b\/[^/]+\/o\/)(.+)$/);
+  if (!rootMatch) return reqParsed.toString();
+
+  const prefix = rootMatch[1]; // e.g. "/v0/b/bucket/o/"
+  const rootDecodedPath = decodeURIComponent(rootMatch[2]);
+  const lastSlash = rootDecodedPath.lastIndexOf('/');
+  if (lastSlash === -1) return reqParsed.toString();
+  const folder = rootDecodedPath.substring(0, lastSlash + 1);
+
+  if (reqParsed.pathname.startsWith(prefix)) {
+    const rawReqPath = reqParsed.pathname.slice(prefix.length);
+    const decodedReqPath = decodeURIComponent(rawReqPath);
+    if (!decodedReqPath.startsWith(folder)) {
+      const fixedPath = folder + decodedReqPath;
+      reqParsed.pathname = prefix + encodeURIComponent(fixedPath);
+      if (!reqParsed.searchParams.has('alt') && rootParsed.searchParams.has('alt')) {
+        reqParsed.searchParams.set('alt', rootParsed.searchParams.get('alt')!);
+      }
+      if (!reqParsed.searchParams.has('token') && rootParsed.searchParams.has('token')) {
+        reqParsed.searchParams.set('token', rootParsed.searchParams.get('token')!);
+      }
+      return reqParsed.toString();
+    }
+  }
+  return reqParsed.toString();
+}
+
+/**
+ * Extracts a specific frame from a sprite sheet image at a given timestamp.
+ */
+export async function captureSpriteFrame(
+  spriteSheetUrl: string,
+  targetSeconds: number,
+  intervalSeconds: number,
+  frameWidth: number,
+  frameHeight: number,
+  columnCount: number,
+  rowCount: number,
+  maxDim = 1280,
+  quality = 0.9,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('Failed to load sprite sheet image.'));
+    img.src = spriteSheetUrl;
+  });
+
+  const interval = intervalSeconds > 0 ? intervalSeconds : 5;
+  const cols = columnCount > 0 ? columnCount : 5;
+  const rows = rowCount > 0 ? rowCount : 5;
+  const frameIndex = Math.max(0, Math.floor(targetSeconds / interval));
+  const col = frameIndex % cols;
+  const row = Math.floor(frameIndex / cols) % rows;
+  const sx = col * frameWidth;
+  const sy = row * frameHeight;
+
+  const { w, h } = fitWithin(frameWidth, frameHeight, maxDim);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get 2D canvas context for sprite frame extraction.');
+
+  ctx.drawImage(img, sx, sy, frameWidth, frameHeight, 0, 0, w, h);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob((b) => resolve(b), 'image/jpeg', quality),
+  );
+  if (!blob) throw new Error('Failed to encode sprite frame to JPEG.');
+  return { blob, width: w, height: h };
+}
+
