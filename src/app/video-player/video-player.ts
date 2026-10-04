@@ -309,19 +309,38 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       return {};
     }
     if (video.spriteSheetUrl) {
-      const interval = video.spriteIntervalSeconds || 5;
       const width = video.spriteWidth || 160;
       const height = video.spriteHeight || 90;
-      const frameIdx = Math.floor(time / interval);
-      const cols = 10;
+      const cols = video.spriteColumnCount || 5;
+      const frameCount =
+        video.spriteFrameCount ||
+        (video.spriteRowCount ? cols * video.spriteRowCount : 25);
+      const duration = this.effectiveDuration();
+
+      let frameIdx = 0;
+      if (duration > 0 && frameCount > 0) {
+        frameIdx = Math.min(
+          frameCount - 1,
+          Math.max(0, Math.floor((time / duration) * frameCount)),
+        );
+      } else if (video.spriteIntervalSeconds && video.spriteIntervalSeconds > 0) {
+        frameIdx = Math.max(0, Math.floor(time / video.spriteIntervalSeconds));
+        if (frameCount > 0) {
+          frameIdx = Math.min(frameCount - 1, frameIdx);
+        }
+      }
+
       const col = frameIdx % cols;
       const row = Math.floor(frameIdx / cols);
+      const totalRows = Math.ceil(frameCount / cols);
+
       return {
         'background-image': `url(${video.spriteSheetUrl})`,
         'background-position': `-${col * width}px -${row * height}px`,
+        'background-size': `${cols * width}px ${totalRows * height}px`,
         'background-repeat': 'no-repeat',
-        'width.px': width,
-        'height.px': height,
+        'width': `${width}px`,
+        'height': `${height}px`,
       };
     }
     const poster = this.posterUrl || video.thumbnailUrl;

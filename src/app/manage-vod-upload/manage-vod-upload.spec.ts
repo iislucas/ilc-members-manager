@@ -393,4 +393,41 @@ describe('ManageVodUploadComponent', () => {
       expect(btn.querySelector('app-spinner')).toBeNull();
     });
   });
+
+  it('should upload sprite sheet when available and pass sprite parameters to transcodeVideoForVod', async () => {
+    const file1 = new File(['fake-video-bytes'], 'seminar.mp4', { type: 'video/mp4' });
+    await component.addFiles([file1]);
+
+    const entry = component.fileEntries()[0];
+    entry.durationSeconds = 600;
+    entry.previewBlob = new Blob(['preview-jpg'], { type: 'image/jpeg' });
+    entry.spriteBlob = new Blob(['sprite-sheet-jpg'], { type: 'image/jpeg' });
+    entry.spriteColumnCount = 5;
+    entry.spriteRowCount = 5;
+    entry.spriteFrameCount = 25;
+    entry.spriteIntervalSeconds = 24;
+
+    component.seriesTitle.set('Seminar 2026');
+    await component.startUploadAndTranscode();
+
+    expect(mockDataService.createUploadItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        spriteSheetUrl: 'https://storage.googleapis.com/test-url',
+        spriteStoragePath: `vod/${entry.id}/spritesheet.jpg`,
+      }),
+    );
+
+    expect(mockDataService.transcodeVideoForVod).toHaveBeenCalledWith(
+      'upload_item_123',
+      'admin_doc_id',
+      expect.objectContaining({
+        spriteSheetUrl: 'https://storage.googleapis.com/test-url',
+        spriteColumnCount: 5,
+        spriteRowCount: 5,
+        spriteFrameCount: 25,
+        spriteIntervalSeconds: 24,
+        durationSeconds: 600,
+      }),
+    );
+  });
 });
