@@ -11,6 +11,8 @@ import {
   ref,
   uploadBytesResumable,
   getDownloadURL,
+  StorageReference,
+  UploadMetadata,
   UploadTask,
   UploadTaskSnapshot,
   StorageError,
@@ -79,40 +81,82 @@ export function getOptimalChunkMultiplier(fileSizeBytes: number): number {
   return 16;    // 4 MB chunks for smaller files
 }
 
-// Runtime dynamic access to internal SDK exports for session URL restoration
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let InternalUploadTask: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let InternalFbsBlob: any;
-try {
-  InternalUploadTask = (storageModule as Record<string, unknown>)['_UploadTask'];
-  InternalFbsBlob = (storageModule as Record<string, unknown>)['_FbsBlob'];
-} catch {
-  InternalUploadTask = undefined;
-  InternalFbsBlob = undefined;
+/**
+ * Internal representations of private Firebase Storage SDK classes and task properties.
+ * These are used to configure chunk multipliers and restore resumable upload sessions.
+ */
+export interface InternalUploadTaskInstance extends UploadTask {
+  _chunkMultiplier?: number;
+  _uploadUrl?: string;
+  _needToFetchStatus?: boolean;
+  _start?(): void;
 }
+
+export interface FbsBlobInstance {
+  size(): number;
+}
+
+export type ConstructableUploadTask = new (
+  reference: StorageReference,
+  blob: unknown,
+  metadata?: UploadMetadata | null,
+) => InternalUploadTaskInstance;
+
+export type ConstructableFbsBlob = new (
+  blob: Blob | Uint8Array | ArrayBuffer,
+) => FbsBlobInstance;
+
+interface StorageInternalExports {
+  _UploadTask?: ConstructableUploadTask;
+  _FbsBlob?: ConstructableFbsBlob;
+}
+
+// Runtime dynamic access to internal SDK exports for session URL restoration
+const internalStorage = storageModule as unknown as StorageInternalExports;
+const InternalUploadTask: ConstructableUploadTask | undefined =
+  typeof internalStorage._UploadTask === 'function' ? internalStorage._UploadTask : undefined;
+const InternalFbsBlob: ConstructableFbsBlob | undefined =
+  typeof internalStorage._FbsBlob === 'function' ? internalStorage._FbsBlob : undefined;
 
 let activeInitialResumeUrl: string | undefined;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const BaseUploadTask: any = typeof InternalUploadTask === 'function' ? InternalUploadTask : class {};
+const FallbackUploadTask = class {
+  _chunkMultiplier?: number;
+  _uploadUrl?: string;
+  _needToFetchStatus?: boolean;
+  _start?(): void {}
+};
+
+const BaseUploadTask: ConstructableUploadTask = (
+  typeof InternalUploadTask === 'function' ? InternalUploadTask : FallbackUploadTask
+) as unknown as ConstructableUploadTask;
 
 class PersistentUploadTask extends BaseUploadTask {
-  constructor(reference: unknown, blob: unknown, metadata: unknown, resumeUrl?: string, chunkMultiplier: number = 64) {
+  private initialResumeUrl?: string;
+
+  constructor(
+    reference: StorageReference,
+    blob: unknown,
+    metadata?: UploadMetadata | null,
+    resumeUrl?: string,
+    chunkMultiplier: number = 64,
+  ) {
     activeInitialResumeUrl = resumeUrl;
     super(reference, blob, metadata);
     activeInitialResumeUrl = undefined;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this as any)._chunkMultiplier = chunkMultiplier;
+    this.initialResumeUrl = resumeUrl;
+    this._chunkMultiplier = chunkMultiplier;
+    if (resumeUrl && !this._uploadUrl) {
+      this._uploadUrl = resumeUrl;
+      this._needToFetchStatus = true;
+    }
   }
 
-  _start(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (activeInitialResumeUrl && !(this as any)._uploadUrl) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this as any)._uploadUrl = activeInitialResumeUrl;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this as any)._needToFetchStatus = true;
+  override _start(): void {
+    const url = this.initialResumeUrl ?? activeInitialResumeUrl;
+    if (url && !this._uploadUrl) {
+      this._uploadUrl = url;
+      this._needToFetchStatus = true;
     }
     if (super._start) {
       super._start();
@@ -222,7 +266,7 @@ export class ResumableUploadService {
     const existingUploadUrl =
       savedSession && savedSession.storagePath === storagePath ? savedSession.uploadUrl : undefined;
 
-    const metadata = {
+    const metadata: UploadMetadata = {
       contentType: file.type || 'video/mp4',
       customMetadata: {
         name: file.name,
@@ -243,7 +287,7 @@ export class ResumableUploadService {
           metadata,
           existingUploadUrl,
           optimalMultiplier,
-        ) as unknown as UploadTask;
+        );
       } catch (err) {
         console.warn('Failed to initialize PersistentUploadTask, starting fresh resumable task:', err);
         this.clearSession(file);
@@ -253,10 +297,9 @@ export class ResumableUploadService {
       task = uploadBytesResumable(storageRef, file, metadata);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (task && (task as any)._chunkMultiplier !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (task as any)._chunkMultiplier = optimalMultiplier;
+    const internalTask = task as InternalUploadTaskInstance;
+    if (internalTask._chunkMultiplier !== undefined) {
+      internalTask._chunkMultiplier = optimalMultiplier;
     }
 
     let lastBytes = 0;
@@ -271,15 +314,15 @@ export class ResumableUploadService {
         'state_changed',
         (snapshot: UploadTaskSnapshot) => {
           // Keep chunk multiplier high so transient retries don't collapse chunk size back to 256 KB
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (typeof (task as any)._chunkMultiplier === 'number' && (task as any)._chunkMultiplier < optimalMultiplier) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (task as any)._chunkMultiplier = optimalMultiplier;
+          if (
+            typeof internalTask._chunkMultiplier === 'number' &&
+            internalTask._chunkMultiplier < optimalMultiplier
+          ) {
+            internalTask._chunkMultiplier = optimalMultiplier;
           }
 
           // Once GCS returns the uploadUrl, persist it so it can be resumed
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const currentUploadUrl = (task as any)._uploadUrl;
+          const currentUploadUrl = internalTask._uploadUrl;
           if (currentUploadUrl && !sessionSaved) {
             sessionSaved = true;
             this.saveSession(file, {

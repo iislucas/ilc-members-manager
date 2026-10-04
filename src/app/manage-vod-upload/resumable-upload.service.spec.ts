@@ -11,6 +11,7 @@ import {
   formatEta,
   getUploadSessionKey,
   getOptimalChunkMultiplier,
+  InternalUploadTaskInstance,
 } from './resumable-upload.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { signal } from '@angular/core';
@@ -32,8 +33,18 @@ vi.mock('firebase/storage', () => ({
   ref: vi.fn(() => ({})),
   uploadBytesResumable: vi.fn(() => mockTask),
   getDownloadURL: vi.fn().mockResolvedValue('https://download.url/test.mp4'),
-  _UploadTask: class {},
-  _FbsBlob: class {},
+  _UploadTask: class {
+    _start() {}
+    on = vi.fn();
+    pause = vi.fn();
+    resume = vi.fn();
+    cancel = vi.fn();
+  },
+  _FbsBlob: class {
+    size() {
+      return 100;
+    }
+  },
 }));
 
 describe('ResumableUploadService', () => {
@@ -161,10 +172,34 @@ describe('ResumableUploadService', () => {
 
       const taskWithProps = { ...mockTask, _chunkMultiplier: 1 };
       const storageModule = await import('firebase/storage');
-      vi.mocked(storageModule.uploadBytesResumable).mockReturnValueOnce(taskWithProps as never);
+      vi.mocked(storageModule.uploadBytesResumable).mockReturnValueOnce(
+        taskWithProps as unknown as import('firebase/storage').UploadTask,
+      );
 
       service.uploadVideo(largeFile, 'path/large.mp4', 'item_large', vi.fn());
       expect(taskWithProps._chunkMultiplier).toBe(128);
+    });
+
+    it('resumes upload using PersistentUploadTask when saved session exists', () => {
+      const file = new File(['saved-data'], 'resume.mp4', { type: 'video/mp4' });
+      service.saveSession(file, {
+        uploadUrl: 'https://gcs.resumable/session_123',
+        storagePath: 'videos/resume.mp4',
+        uploadItemId: 'item_resume',
+        fileName: file.name,
+        fileSize: file.size,
+        fileLastModified: file.lastModified,
+        createdAt: Date.now(),
+      });
+
+      const onProgress = vi.fn();
+      const result = service.uploadVideo(file, 'videos/resume.mp4', 'item_resume', onProgress);
+
+      const task = result.task as InternalUploadTaskInstance;
+      expect(task._chunkMultiplier).toBe(16);
+      task._start?.();
+      expect(task._uploadUrl).toBe('https://gcs.resumable/session_123');
+      expect(task._needToFetchStatus).toBe(true);
     });
   });
 });
