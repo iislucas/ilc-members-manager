@@ -58,6 +58,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 import { NetworkStateService } from '../network-state.service';
+import { ResumableUploadService } from '../manage-vod-upload/resumable-upload.service';
 import { ActionQueueService, QueuedActionKind } from '../action-queue.service';
 import { FirestoreCollection } from '../../../functions/src/data-model/collections';
 
@@ -207,6 +208,7 @@ export class EventEditComponent implements OnInit {
   protected productService = inject(ProductService);
   public networkState = inject(NetworkStateService);
   public actionQueue = inject(ActionQueueService);
+  private resumableService = inject(ResumableUploadService);
 
   products = signal<Product[]>([]);
   protected readonly Views = Views;
@@ -1206,13 +1208,25 @@ export class EventEditComponent implements OnInit {
       const previewStoragePath = `events/${eventDocId}/materials/previews/${folderKey}.jpg`;
 
       try {
-        const storage = getStorage(this.firebaseApp);
-        const original = this.originalRef(eventDocId, folderKey);
-        await uploadBytes(original, file, {
-          contentType: file.type || 'application/octet-stream',
-          customMetadata: { name: file.name },
-        });
-        const url = await getDownloadURL(original);
+        let url = '';
+        if (file.type.startsWith('video/') || file.size >= 5 * 1024 * 1024) {
+          const { promise } = this.resumableService.uploadVideo(
+            file,
+            storagePath,
+            folderKey,
+            () => {},
+          );
+          const uploadRes = await promise;
+          url = uploadRes.downloadUrl;
+        } else {
+          const storage = getStorage(this.firebaseApp);
+          const original = this.originalRef(eventDocId, folderKey);
+          await uploadBytes(original, file, {
+            contentType: file.type || 'application/octet-stream',
+            customMetadata: { name: file.name },
+          });
+          url = await getDownloadURL(original);
+        }
 
         // Best-effort preview; failure just means the UI shows an icon.
         let previewUrl: string | undefined;

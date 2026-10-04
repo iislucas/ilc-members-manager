@@ -71,8 +71,6 @@ describe('ManageVodUploadComponent', () => {
 
   let mockResumableService: {
     getStorageInstance: ReturnType<typeof vi.fn>;
-    getSavedSession: ReturnType<typeof vi.fn>;
-    saveSession: ReturnType<typeof vi.fn>;
     clearSession: ReturnType<typeof vi.fn>;
     uploadVideo: ReturnType<typeof vi.fn>;
   };
@@ -131,8 +129,6 @@ describe('ManageVodUploadComponent', () => {
     const taskInstance = new MockTask();
     mockResumableService = {
       getStorageInstance: vi.fn().mockReturnValue({ maxUploadRetryTime: 24 * 60 * 60 * 1000 }),
-      getSavedSession: vi.fn().mockReturnValue(null),
-      saveSession: vi.fn(),
       clearSession: vi.fn(),
       uploadVideo: vi.fn().mockImplementation((file, storagePath, uploadItemId, onProgress) => {
         onProgress({
@@ -199,23 +195,12 @@ describe('ManageVodUploadComponent', () => {
     expect(component.fileEntries()[1].partIndex).toBe(2);
   });
 
-  it('should detect existing resumable session when adding files', async () => {
-    mockResumableService.getSavedSession.mockReturnValueOnce({
-      uploadUrl: 'https://gcs.resumable.url',
-      storagePath: 'path/to/part_1.mp4',
-      uploadItemId: 'saved_item_id_1',
-      fileName: 'part_1.mp4',
-      fileSize: 100,
-      fileLastModified: 12345,
-      createdAt: Date.now(),
-    });
-
+  it('should assign unique uploadItemId when adding files', async () => {
     const file = new File(['fake'], 'part_1.mp4', { type: 'video/mp4' });
     await component.addFiles([file]);
 
     expect(component.fileEntries().length).toBe(1);
-    expect(component.fileEntries()[0].hasSavedSession).toBe(true);
-    expect(component.fileEntries()[0].uploadItemId).toBe('saved_item_id_1');
+    expect(component.fileEntries()[0].uploadItemId).toBeTruthy();
   });
 
   it('should allow reordering files up and down', async () => {
