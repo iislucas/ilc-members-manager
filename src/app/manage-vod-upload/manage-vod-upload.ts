@@ -465,7 +465,6 @@ export class ManageVodUploadComponent implements OnInit {
 
   // Thumbnail Customization Modal State
   editingThumbnailEntry = signal<UploadFileEntry | null>(null);
-
   openThumbnailModalForEntry(entry: UploadFileEntry): void {
     this.editingThumbnailEntry.set(entry);
   }
@@ -592,6 +591,7 @@ export class ManageVodUploadComponent implements OnInit {
         }
       }, 4000);
     });
+  }
   }
 
   removeFile(id: string): void {
