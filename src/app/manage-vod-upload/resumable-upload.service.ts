@@ -1,8 +1,8 @@
 /* resumable-upload.service.ts
  *
- * Resumable upload engine leveraging Google Cloud Storage Resumable Upload
- * protocol via Firebase Storage SDK. Supports pausing, resuming, chunked streaming,
- * real-time upload speed & ETA tracking, and cross-session persistence via localStorage.
+ * Resumable upload engine leveraging Firebase Cloud Storage SDK.
+ * Supports pausing, resuming, real-time upload speed & ETA tracking,
+ * UI-thread-friendly throttled progress updates, and extended retry limits.
  */
 
 import { Injectable, inject } from '@angular/core';
@@ -11,24 +11,12 @@ import {
   ref,
   uploadBytesResumable,
   getDownloadURL,
-  StorageReference,
   UploadMetadata,
   UploadTask,
   UploadTaskSnapshot,
   StorageError,
 } from 'firebase/storage';
-import * as storageModule from 'firebase/storage';
 import { FirebaseStateService } from '../firebase-state.service';
-
-export interface ResumableUploadSession {
-  uploadUrl: string;
-  storagePath: string;
-  uploadItemId: string;
-  fileName: string;
-  fileSize: number;
-  fileLastModified: number;
-  createdAt: number;
-}
 
 export interface UploadProgressUpdate {
   bytesTransferred: number;
@@ -59,111 +47,6 @@ export function formatEta(seconds: number): string {
   return `${h}h ${remM > 0 ? remM + 'm ' : ''}left`;
 }
 
-export function getUploadSessionKey(file: File): string {
-  return `ilc_resumable_upload_${file.name}_${file.size}_${file.lastModified}`;
-}
-
-/**
- * Calculates optimal chunk multiplier for Google Cloud Storage resumable upload.
- * Base chunk size in Firebase Storage is 256 KB.
- * Multiplier 64 = 16 MB.
- * Multiplier 128 = 32 MB.
- */
-export function getOptimalChunkMultiplier(fileSizeBytes: number): number {
-  const fileMb = fileSizeBytes / (1024 * 1024);
-  if (fileMb >= 200) {
-    return 128; // 32 MB chunks for files >= 200 MB
-  } else if (fileMb >= 30) {
-    return 64;  // 16 MB chunks for files >= 30 MB
-  } else if (fileMb >= 5) {
-    return 32;  // 8 MB chunks for files >= 5 MB
-  }
-  return 16;    // 4 MB chunks for smaller files
-}
-
-/**
- * Internal representations of private Firebase Storage SDK classes and task properties.
- * These are used to configure chunk multipliers and restore resumable upload sessions.
- */
-export interface InternalUploadTaskInstance extends UploadTask {
-  _chunkMultiplier?: number;
-  _uploadUrl?: string;
-  _needToFetchStatus?: boolean;
-  _start?(): void;
-}
-
-export interface FbsBlobInstance {
-  size(): number;
-}
-
-export type ConstructableUploadTask = new (
-  reference: StorageReference,
-  blob: unknown,
-  metadata?: UploadMetadata | null,
-) => InternalUploadTaskInstance;
-
-export type ConstructableFbsBlob = new (
-  blob: Blob | Uint8Array | ArrayBuffer,
-) => FbsBlobInstance;
-
-interface StorageInternalExports {
-  _UploadTask?: ConstructableUploadTask;
-  _FbsBlob?: ConstructableFbsBlob;
-}
-
-// Runtime dynamic access to internal SDK exports for session URL restoration
-const internalStorage = storageModule as unknown as StorageInternalExports;
-const InternalUploadTask: ConstructableUploadTask | undefined =
-  typeof internalStorage._UploadTask === 'function' ? internalStorage._UploadTask : undefined;
-const InternalFbsBlob: ConstructableFbsBlob | undefined =
-  typeof internalStorage._FbsBlob === 'function' ? internalStorage._FbsBlob : undefined;
-
-let activeInitialResumeUrl: string | undefined;
-
-const FallbackUploadTask = class {
-  _chunkMultiplier?: number;
-  _uploadUrl?: string;
-  _needToFetchStatus?: boolean;
-  _start?(): void {}
-};
-
-const BaseUploadTask: ConstructableUploadTask = (
-  typeof InternalUploadTask === 'function' ? InternalUploadTask : FallbackUploadTask
-) as unknown as ConstructableUploadTask;
-
-class PersistentUploadTask extends BaseUploadTask {
-  private initialResumeUrl?: string;
-
-  constructor(
-    reference: StorageReference,
-    blob: unknown,
-    metadata?: UploadMetadata | null,
-    resumeUrl?: string,
-    chunkMultiplier: number = 64,
-  ) {
-    activeInitialResumeUrl = resumeUrl;
-    super(reference, blob, metadata);
-    activeInitialResumeUrl = undefined;
-    this.initialResumeUrl = resumeUrl;
-    this._chunkMultiplier = chunkMultiplier;
-    if (resumeUrl && !this._uploadUrl) {
-      this._uploadUrl = resumeUrl;
-      this._needToFetchStatus = true;
-    }
-  }
-
-  override _start(): void {
-    const url = this.initialResumeUrl ?? activeInitialResumeUrl;
-    if (url && !this._uploadUrl) {
-      this._uploadUrl = url;
-      this._needToFetchStatus = true;
-    }
-    if (super._start) {
-      super._start();
-    }
-  }
-}
-
 @Injectable({
   providedIn: 'root',
 })
@@ -182,70 +65,14 @@ export class ResumableUploadService {
   }
 
   /**
-   * Retrieves a saved session from localStorage if available.
+   * Backward-compatibility helper for clearing any upload session state.
    */
-  getSavedSession(file: File): ResumableUploadSession | null {
-    try {
-      const key = getUploadSessionKey(file);
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
-      const session = JSON.parse(raw) as ResumableUploadSession;
-      // Validate session age (expire after 7 days)
-      if (Date.now() - session.createdAt > 7 * 24 * 60 * 60 * 1000) {
-        this.clearSession(file);
-        return null;
-      }
-      return session;
-    } catch {
-      return null;
-    }
+  clearSession(_file?: File): void {
+    // No-op in standard uploadBytesResumable mode
   }
 
   /**
-   * Saves an active upload session to localStorage.
-   */
-  saveSession(file: File, session: ResumableUploadSession): void {
-    try {
-      const key = getUploadSessionKey(file);
-      localStorage.setItem(key, JSON.stringify(session));
-    } catch (e) {
-      console.warn('Could not persist upload session to localStorage:', e);
-    }
-  }
-
-  /**
-   * Clears a saved upload session from localStorage.
-   */
-  clearSession(file: File): void {
-    try {
-      const key = getUploadSessionKey(file);
-      localStorage.removeItem(key);
-    } catch {
-      // Ignore localStorage errors
-    }
-  }
-
-  /**
-   * Clears session by storage path or uploadItemId.
-   */
-  clearSessionByPath(storagePath: string): void {
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('ilc_resumable_upload_')) {
-          const raw = localStorage.getItem(k);
-          if (raw && raw.includes(storagePath)) {
-            localStorage.removeItem(k);
-          }
-        }
-      }
-    } catch {
-      // Ignore
-    }
-  }
-
-  /**
-   * Starts or resumes a chunked video upload.
+   * Starts a resumable video upload via the official Firebase Storage SDK.
    *
    * @param file The video file to upload
    * @param storagePath Target path in Cloud Storage
@@ -262,10 +89,6 @@ export class ResumableUploadService {
     const storage = this.getStorageInstance();
     const storageRef = ref(storage, storagePath);
 
-    const savedSession = this.getSavedSession(file);
-    const existingUploadUrl =
-      savedSession && savedSession.storagePath === storagePath ? savedSession.uploadUrl : undefined;
-
     const metadata: UploadMetadata = {
       contentType: file.type || 'video/mp4',
       customMetadata: {
@@ -275,37 +98,11 @@ export class ResumableUploadService {
       },
     };
 
-    const optimalMultiplier = getOptimalChunkMultiplier(file.size);
-    let task: UploadTask;
-
-    // Use PersistentUploadTask if existing session url is present and constructors are available
-    if (existingUploadUrl && typeof InternalUploadTask === 'function' && typeof InternalFbsBlob === 'function') {
-      try {
-        task = new PersistentUploadTask(
-          storageRef,
-          new InternalFbsBlob(file),
-          metadata,
-          existingUploadUrl,
-          optimalMultiplier,
-        );
-      } catch (err) {
-        console.warn('Failed to initialize PersistentUploadTask, starting fresh resumable task:', err);
-        this.clearSession(file);
-        task = uploadBytesResumable(storageRef, file, metadata);
-      }
-    } else {
-      task = uploadBytesResumable(storageRef, file, metadata);
-    }
-
-    const internalTask = task as InternalUploadTaskInstance;
-    if (internalTask._chunkMultiplier !== undefined) {
-      internalTask._chunkMultiplier = optimalMultiplier;
-    }
+    const task = uploadBytesResumable(storageRef, file, metadata);
 
     let lastBytes = 0;
     let lastTime = Date.now();
     let smoothedSpeed = 0;
-    let sessionSaved = Boolean(existingUploadUrl);
     let lastEmitTime = 0;
     let lastReportedState = '';
 
@@ -313,29 +110,6 @@ export class ResumableUploadService {
       task.on(
         'state_changed',
         (snapshot: UploadTaskSnapshot) => {
-          // Keep chunk multiplier high so transient retries don't collapse chunk size back to 256 KB
-          if (
-            typeof internalTask._chunkMultiplier === 'number' &&
-            internalTask._chunkMultiplier < optimalMultiplier
-          ) {
-            internalTask._chunkMultiplier = optimalMultiplier;
-          }
-
-          // Once GCS returns the uploadUrl, persist it so it can be resumed
-          const currentUploadUrl = internalTask._uploadUrl;
-          if (currentUploadUrl && !sessionSaved) {
-            sessionSaved = true;
-            this.saveSession(file, {
-              uploadUrl: currentUploadUrl,
-              storagePath,
-              uploadItemId,
-              fileName: file.name,
-              fileSize: file.size,
-              fileLastModified: file.lastModified,
-              createdAt: Date.now(),
-            });
-          }
-
           const now = Date.now();
           const timeElapsed = (now - lastTime) / 1000;
 
@@ -373,10 +147,6 @@ export class ResumableUploadService {
           }
         },
         (error: StorageError) => {
-          // If resuming with a stale/expired upload URL failed, purge the session
-          if (existingUploadUrl && error.code === 'storage/unknown') {
-            this.clearSession(file);
-          }
           onProgress({
             bytesTransferred: lastBytes,
             totalBytes: file.size,
@@ -388,9 +158,6 @@ export class ResumableUploadService {
           reject(error);
         },
         async () => {
-          // Upload complete! Clean up the persisted resumable session
-          this.clearSession(file);
-
           try {
             const downloadUrl = await getDownloadURL(storageRef);
             onProgress({

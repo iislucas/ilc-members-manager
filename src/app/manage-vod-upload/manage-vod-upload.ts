@@ -60,7 +60,6 @@ export interface UploadFileEntry {
   uploadItemId?: string;
   storagePath?: string;
   uploadTask?: UploadTask;
-  hasSavedSession?: boolean;
 }
 
 @Component({
@@ -426,7 +425,7 @@ export class ManageVodUploadComponent implements OnInit {
         title = `Part ${partIndex}: ${cleanName}`;
       }
 
-      const savedSession = this.resumableService.getSavedSession(file);
+      const uploadItemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
       const entry: UploadFileEntry = {
         id,
@@ -439,9 +438,8 @@ export class ManageVodUploadComponent implements OnInit {
         previewBlob: null,
         status: 'idle',
         progressPercent: 0,
-        uploadItemId: savedSession?.uploadItemId,
-        storagePath: savedSession?.storagePath,
-        hasSavedSession: Boolean(savedSession),
+        uploadItemId,
+        storagePath: '',
       };
 
       newEntries.push(entry);
@@ -727,9 +725,7 @@ export class ManageVodUploadComponent implements OnInit {
 
     // 1. Maintain or assign uploadItemId and storage paths
     if (!entry.uploadItemId) {
-      const saved = this.resumableService.getSavedSession(entry.file);
-      entry.uploadItemId =
-        saved?.uploadItemId || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      entry.uploadItemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     }
 
     const originalStoragePath = `members/${adminDocId}/materials/originals/${entry.uploadItemId}/original`;
@@ -864,7 +860,6 @@ export class ManageVodUploadComponent implements OnInit {
       entry.status = 'done';
       entry.progressPercent = 100;
       entry.uploadTask = undefined;
-      entry.hasSavedSession = false;
       this.fileEntries.update((list) => [...list]);
     } catch (err: unknown) {
       console.error(`Failed uploading file "${entry.file.name}":`, err);

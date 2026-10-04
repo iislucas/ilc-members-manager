@@ -1,6 +1,6 @@
 /* resumable-upload.service.spec.ts
  *
- * Unit tests for ResumableUploadService.
+ * Unit tests for ResumableUploadService using official Firebase Storage SDK.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -9,12 +9,10 @@ import {
   ResumableUploadService,
   formatUploadSpeed,
   formatEta,
-  getUploadSessionKey,
-  getOptimalChunkMultiplier,
-  InternalUploadTaskInstance,
 } from './resumable-upload.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { signal } from '@angular/core';
+import type { UploadTaskSnapshot, StorageError } from 'firebase/storage';
 
 // Mock firebase/storage
 const mockTask = {
@@ -33,25 +31,13 @@ vi.mock('firebase/storage', () => ({
   ref: vi.fn(() => ({})),
   uploadBytesResumable: vi.fn(() => mockTask),
   getDownloadURL: vi.fn().mockResolvedValue('https://download.url/test.mp4'),
-  _UploadTask: class {
-    _start() {}
-    on = vi.fn();
-    pause = vi.fn();
-    resume = vi.fn();
-    cancel = vi.fn();
-  },
-  _FbsBlob: class {
-    size() {
-      return 100;
-    }
-  },
 }));
 
 describe('ResumableUploadService', () => {
   let service: ResumableUploadService;
 
   beforeEach(() => {
-    localStorage.clear();
+    vi.clearAllMocks();
     mockStorage.maxUploadRetryTime = 600000;
 
     TestBed.configureTestingModule({
@@ -85,57 +71,9 @@ describe('ResumableUploadService', () => {
       expect(formatEta(90)).toBe('1m 30s left');
       expect(formatEta(3665)).toBe('1h 1m left');
     });
-
-    it('generates consistent upload session keys', () => {
-      const file = new File(['data'], 'test.mp4', { type: 'video/mp4' });
-      const key = getUploadSessionKey(file);
-      expect(key).toContain('ilc_resumable_upload_test.mp4_4');
-    });
   });
 
-  describe('Session Storage', () => {
-    it('saves, retrieves, and clears upload sessions in localStorage', () => {
-      const file = new File(['content'], 'sample.mp4', { type: 'video/mp4' });
-      const session = {
-        uploadUrl: 'https://gcs.session/123',
-        storagePath: 'path/to/sample.mp4',
-        uploadItemId: 'item_123',
-        fileName: file.name,
-        fileSize: file.size,
-        fileLastModified: file.lastModified,
-        createdAt: Date.now(),
-      };
-
-      expect(service.getSavedSession(file)).toBeNull();
-
-      service.saveSession(file, session);
-      const retrieved = service.getSavedSession(file);
-      expect(retrieved).toBeTruthy();
-      expect(retrieved?.uploadUrl).toBe('https://gcs.session/123');
-
-      service.clearSession(file);
-      expect(service.getSavedSession(file)).toBeNull();
-    });
-
-    it('expires stale sessions older than 7 days', () => {
-      const file = new File(['content'], 'old.mp4', { type: 'video/mp4' });
-      const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
-      const session = {
-        uploadUrl: 'https://gcs.session/old',
-        storagePath: 'path/old.mp4',
-        uploadItemId: 'item_old',
-        fileName: file.name,
-        fileSize: file.size,
-        fileLastModified: file.lastModified,
-        createdAt: eightDaysAgo,
-      };
-
-      service.saveSession(file, session);
-      expect(service.getSavedSession(file)).toBeNull();
-    });
-  });
-
-  describe('Upload Configuration', () => {
+  describe('Upload Configuration & Execution', () => {
     it('sets maxUploadRetryTime to 24 hours on storage instance', () => {
       const storage = service.getStorageInstance();
       expect(storage.maxUploadRetryTime).toBe(24 * 60 * 60 * 1000);
@@ -155,51 +93,72 @@ describe('ResumableUploadService', () => {
       );
     });
 
-    it('calculates optimal chunk multipliers scaling with file size', () => {
-      // 2 MB -> 16 (4 MB chunks)
-      expect(getOptimalChunkMultiplier(2 * 1024 * 1024)).toBe(16);
-      // 10 MB -> 32 (8 MB chunks)
-      expect(getOptimalChunkMultiplier(10 * 1024 * 1024)).toBe(32);
-      // 50 MB -> 64 (16 MB chunks)
-      expect(getOptimalChunkMultiplier(50 * 1024 * 1024)).toBe(64);
-      // 500 MB -> 128 (32 MB chunks)
-      expect(getOptimalChunkMultiplier(500 * 1024 * 1024)).toBe(128);
-    });
+    it('emits throttled progress updates on state_changed', () => {
+      const file = new File(['video-bits'], 'video.mp4', { type: 'video/mp4' });
+      const onProgress = vi.fn();
 
-    it('sets initial chunk multiplier on task according to file size', async () => {
-      const largeFile = new File(['x'.repeat(100)], 'large.mp4', { type: 'video/mp4' });
-      Object.defineProperty(largeFile, 'size', { value: 300 * 1024 * 1024 });
+      service.uploadVideo(file, 'path/video.mp4', 'item_1', onProgress);
 
-      const taskWithProps = { ...mockTask, _chunkMultiplier: 1 };
-      const storageModule = await import('firebase/storage');
-      vi.mocked(storageModule.uploadBytesResumable).mockReturnValueOnce(
-        taskWithProps as unknown as import('firebase/storage').UploadTask,
-      );
+      const stateChangedCallback = vi.mocked(mockTask.on).mock.calls[0][1] as (
+        snapshot: Partial<UploadTaskSnapshot>,
+      ) => void;
 
-      service.uploadVideo(largeFile, 'path/large.mp4', 'item_large', vi.fn());
-      expect(taskWithProps._chunkMultiplier).toBe(128);
-    });
-
-    it('resumes upload using PersistentUploadTask when saved session exists', () => {
-      const file = new File(['saved-data'], 'resume.mp4', { type: 'video/mp4' });
-      service.saveSession(file, {
-        uploadUrl: 'https://gcs.resumable/session_123',
-        storagePath: 'videos/resume.mp4',
-        uploadItemId: 'item_resume',
-        fileName: file.name,
-        fileSize: file.size,
-        fileLastModified: file.lastModified,
-        createdAt: Date.now(),
+      stateChangedCallback({
+        bytesTransferred: 500,
+        totalBytes: 1000,
+        state: 'running',
       });
 
-      const onProgress = vi.fn();
-      const result = service.uploadVideo(file, 'videos/resume.mp4', 'item_resume', onProgress);
+      expect(onProgress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bytesTransferred: 500,
+          totalBytes: 1000,
+          progressPercent: 50,
+          state: 'running',
+        }),
+      );
+    });
 
-      const task = result.task as InternalUploadTaskInstance;
-      expect(task._chunkMultiplier).toBe(16);
-      task._start?.();
-      expect(task._uploadUrl).toBe('https://gcs.resumable/session_123');
-      expect(task._needToFetchStatus).toBe(true);
+    it('resolves promise with download URL on completion', async () => {
+      const file = new File(['video-bits'], 'video.mp4', { type: 'video/mp4' });
+      const onProgress = vi.fn();
+
+      const { promise } = service.uploadVideo(file, 'path/video.mp4', 'item_1', onProgress);
+
+      const completeCallback = vi.mocked(mockTask.on).mock.calls[0][3] as () => Promise<void>;
+      await completeCallback();
+
+      const result = await promise;
+      expect(result.downloadUrl).toBe('https://download.url/test.mp4');
+      expect(onProgress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          progressPercent: 100,
+          state: 'success',
+        }),
+      );
+    });
+
+    it('rejects promise on storage error', async () => {
+      const file = new File(['video-bits'], 'video.mp4', { type: 'video/mp4' });
+      const onProgress = vi.fn();
+
+      const { promise } = service.uploadVideo(file, 'path/video.mp4', 'item_1', onProgress);
+
+      const errorCallback = vi.mocked(mockTask.on).mock.calls[0][2] as (err: StorageError) => void;
+      const testError = { code: 'storage/canceled', message: 'User canceled' } as StorageError;
+      errorCallback(testError);
+
+      await expect(promise).rejects.toEqual(testError);
+      expect(onProgress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          progressPercent: 0,
+          state: 'error',
+        }),
+      );
+    });
+
+    it('clearSession executes without error', () => {
+      expect(() => service.clearSession()).not.toThrow();
     });
   });
 });
