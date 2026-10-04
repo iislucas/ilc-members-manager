@@ -321,10 +321,171 @@ export async function makeThumbnail(file: File, maxDim = 320): Promise<Blob> {
   throw new Error(`No preview generator for file type "${file.type}".`);
 }
 
-// export function deepObjEq(obj1: Object, obj2: Object) {
-//   const sortedKeys1 = Object.keys(obj1).sort();
-//   const jsonString1 = JSON.stringify(obj1, sortedKeys1);
-//   const sortedKeys2 = Object.keys(obj2).sort();
-//   const jsonString2 = JSON.stringify(obj2, sortedKeys2);
-//   return jsonString1 === jsonString2;
-// }
+/**
+ * Result returned by generateVideoSpriteSheet.
+ */
+export interface VideoSpriteSheetResult {
+  spriteBlob: Blob;
+  posterBlob?: Blob;
+  frameCount: number;
+  columnCount: number;
+  rowCount: number;
+  frameWidth: number;
+  frameHeight: number;
+  intervalSeconds: number;
+  durationSeconds: number;
+}
+
+export interface VideoSpriteSheetOptions {
+  intervals?: number; // Total number of frames, default 25
+  columns?: number; // Columns in grid, default 5
+  frameWidth?: number; // Width of each frame in px, default 160
+  frameHeight?: number; // Height of each frame in px, default 90
+  includePoster?: boolean; // Whether to extract a poster thumbnail, default true
+  posterWidth?: number; // Width of poster thumbnail in px, default 640
+  posterHeight?: number; // Height of poster thumbnail in px, default 360
+  quality?: number; // JPEG quality (0 to 1), default 0.8
+}
+
+/**
+ * Generates a composite sprite sheet of video thumbnail frames sampled at evenly
+ * distributed intervals across the video duration.
+ *
+ * Defaults to a 5x5 grid (25 frames, 160x90 per frame = 800x450 px composite image),
+ * which provides ~4% scrub bar resolution while generating in ~1s in browser canvas.
+ */
+export async function generateVideoSpriteSheet(
+  fileOrUrl: File | string,
+  options: VideoSpriteSheetOptions = {},
+): Promise<VideoSpriteSheetResult> {
+  const intervals = options.intervals ?? 25;
+  const columns = options.columns ?? 5;
+  const frameWidth = options.frameWidth ?? 160;
+  const frameHeight = options.frameHeight ?? 90;
+  const rows = Math.ceil(intervals / columns);
+  const totalFrames = intervals;
+  const quality = options.quality ?? 0.8;
+
+  const url = typeof fileOrUrl === 'string' ? fileOrUrl : URL.createObjectURL(fileOrUrl);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.crossOrigin = 'anonymous';
+  video.src = url;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const onError = () => reject(new Error('Failed to load video metadata for sprite sheet.'));
+      video.addEventListener('error', onError, { once: true });
+      if (video.readyState >= 1) {
+        resolve();
+      } else {
+        video.addEventListener('loadedmetadata', () => resolve(), { once: true });
+      }
+    });
+
+    const duration = video.duration;
+    if (!Number.isFinite(duration) || duration <= 0) {
+      throw new Error('Video duration is invalid or non-finite.');
+    }
+
+    const spriteCanvas = document.createElement('canvas');
+    spriteCanvas.width = columns * frameWidth;
+    spriteCanvas.height = rows * frameHeight;
+    const ctx = spriteCanvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to acquire 2D canvas context for sprite sheet.');
+    }
+
+    let posterBlob: Blob | undefined;
+    const posterCanvas = options.includePoster !== false ? document.createElement('canvas') : null;
+    if (posterCanvas) {
+      posterCanvas.width = options.posterWidth ?? 640;
+      posterCanvas.height = options.posterHeight ?? 360;
+    }
+
+    // Helper to seek and wait for seeked event with a safety timeout
+    const seekTo = (targetSec: number): Promise<void> => {
+      return new Promise<void>((resolve) => {
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const onSeeked = () => {
+          if (timer) clearTimeout(timer);
+          resolve();
+        };
+        timer = setTimeout(() => {
+          video.removeEventListener('seeked', onSeeked);
+          resolve();
+        }, 1500);
+        video.addEventListener('seeked', onSeeked, { once: true });
+        try {
+          video.currentTime = targetSec;
+        } catch {
+          if (timer) clearTimeout(timer);
+          resolve();
+        }
+      });
+    };
+
+    // Capture frames across intervals
+    const intervalSeconds = duration / totalFrames;
+    for (let i = 0; i < totalFrames; i++) {
+      const targetTime = Math.min(
+        Math.max(0, (i + 0.5) * intervalSeconds),
+        Math.max(0, duration - 0.1),
+      );
+      await seekTo(targetTime);
+
+      const col = i % columns;
+      const row = Math.floor(i / columns);
+      ctx.drawImage(video, col * frameWidth, row * frameHeight, frameWidth, frameHeight);
+
+      // Grab poster around ~5% into video or on first frame
+      if (posterCanvas && !posterBlob && (i === 0 || targetTime >= duration * 0.05)) {
+        const pCtx = posterCanvas.getContext('2d');
+        if (pCtx) {
+          pCtx.drawImage(video, 0, 0, posterCanvas.width, posterCanvas.height);
+          posterBlob = (await new Promise<Blob | null>((res) =>
+            posterCanvas.toBlob(res, 'image/jpeg', 0.85),
+          )) || undefined;
+        }
+      }
+    }
+
+    if (posterCanvas && !posterBlob) {
+      const pCtx = posterCanvas.getContext('2d');
+      if (pCtx) {
+        pCtx.drawImage(video, 0, 0, posterCanvas.width, posterCanvas.height);
+        posterBlob = (await new Promise<Blob | null>((res) =>
+          posterCanvas.toBlob(res, 'image/jpeg', 0.85),
+        )) || undefined;
+      }
+    }
+
+    const spriteBlob = await new Promise<Blob | null>((resolve) =>
+      spriteCanvas.toBlob(resolve, 'image/jpeg', quality),
+    );
+
+    if (!spriteBlob) {
+      throw new Error('Failed to encode sprite sheet canvas to JPEG.');
+    }
+
+    return {
+      spriteBlob,
+      posterBlob,
+      frameCount: totalFrames,
+      columnCount: columns,
+      rowCount: rows,
+      frameWidth,
+      frameHeight,
+      intervalSeconds,
+      durationSeconds: Math.round(duration),
+    };
+  } finally {
+    video.removeAttribute('src');
+    video.load();
+    if (typeof fileOrUrl !== 'string') {
+      URL.revokeObjectURL(url);
+    }
+  }
+}

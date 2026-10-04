@@ -95,6 +95,9 @@ export type VideoItem = {
   spriteIntervalSeconds: number; // e.g. 5
   spriteWidth: number; // 160 px
   spriteHeight: number; // 90 px
+  spriteColumnCount?: number; // Number of columns in sprite sheet (e.g. 5 or 10)
+  spriteRowCount?: number; // Number of rows in sprite sheet (e.g. 5 or 10)
+  spriteFrameCount?: number; // Total number of frames in sprite sheet (e.g. 25 or 100)
 
   // Video Metrics
   durationSeconds: number; // Total video length in seconds
@@ -408,6 +411,9 @@ export function initVideoItem(): VideoItem {
     spriteIntervalSeconds: 5,
     spriteWidth: 160,
     spriteHeight: 90,
+    spriteColumnCount: 5,
+    spriteRowCount: 5,
+    spriteFrameCount: 25,
     durationSeconds: 0,
     resolutions: [],
     originalSize: 0,
@@ -458,6 +464,9 @@ export function firestoreDocToVideoItem(doc: GenericFsDoc): VideoItem {
     vimeoSourceId: data.vimeoSourceId || '',
     vimeoLink: data.vimeoLink || '',
     vodStatus: data.vodStatus || VodStatus.None,
+    spriteColumnCount: typeof data.spriteColumnCount === 'number' ? data.spriteColumnCount : 5,
+    spriteRowCount: typeof data.spriteRowCount === 'number' ? data.spriteRowCount : 5,
+    spriteFrameCount: typeof data.spriteFrameCount === 'number' ? data.spriteFrameCount : 25,
     createdAt,
     lastUpdated,
   };
