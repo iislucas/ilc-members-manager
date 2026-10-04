@@ -10,6 +10,7 @@ import {
   formatUploadSpeed,
   formatEta,
   getUploadSessionKey,
+  getOptimalChunkMultiplier,
 } from './resumable-upload.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { signal } from '@angular/core';
@@ -141,6 +142,29 @@ describe('ResumableUploadService', () => {
         expect.any(Function),
         expect.any(Function),
       );
+    });
+
+    it('calculates optimal chunk multipliers scaling with file size', () => {
+      // 2 MB -> 16 (4 MB chunks)
+      expect(getOptimalChunkMultiplier(2 * 1024 * 1024)).toBe(16);
+      // 10 MB -> 32 (8 MB chunks)
+      expect(getOptimalChunkMultiplier(10 * 1024 * 1024)).toBe(32);
+      // 50 MB -> 64 (16 MB chunks)
+      expect(getOptimalChunkMultiplier(50 * 1024 * 1024)).toBe(64);
+      // 500 MB -> 128 (32 MB chunks)
+      expect(getOptimalChunkMultiplier(500 * 1024 * 1024)).toBe(128);
+    });
+
+    it('sets initial chunk multiplier on task according to file size', async () => {
+      const largeFile = new File(['x'.repeat(100)], 'large.mp4', { type: 'video/mp4' });
+      Object.defineProperty(largeFile, 'size', { value: 300 * 1024 * 1024 });
+
+      const taskWithProps = { ...mockTask, _chunkMultiplier: 1 };
+      const storageModule = await import('firebase/storage');
+      vi.mocked(storageModule.uploadBytesResumable).mockReturnValueOnce(taskWithProps as never);
+
+      service.uploadVideo(largeFile, 'path/large.mp4', 'item_large', vi.fn());
+      expect(taskWithProps._chunkMultiplier).toBe(128);
     });
   });
 });

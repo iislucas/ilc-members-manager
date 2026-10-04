@@ -162,7 +162,9 @@
 
     @if (isUploading()) {
       <div class="upload-progress-container">
-        <app-spinner>Uploading {{ uploadCount() }} of {{ uploadTotal() }} files...</app-spinner>
+        <app-spinner>
+          Uploading {{ uploadCount() + 1 }} of {{ uploadTotal() }} files@if (currentUploadPercent() > 0) { ({{ currentUploadPercent() }}%@if (currentUploadSpeed()) { &bull; {{ currentUploadSpeed() }}})}...
+        </app-spinner>
       </div>
     }
 

@@ -61,11 +61,36 @@ export function getUploadSessionKey(file: File): string {
   return `ilc_resumable_upload_${file.name}_${file.size}_${file.lastModified}`;
 }
 
+/**
+ * Calculates optimal chunk multiplier for Google Cloud Storage resumable upload.
+ * Base chunk size in Firebase Storage is 256 KB.
+ * Multiplier 64 = 16 MB.
+ * Multiplier 128 = 32 MB.
+ */
+export function getOptimalChunkMultiplier(fileSizeBytes: number): number {
+  const fileMb = fileSizeBytes / (1024 * 1024);
+  if (fileMb >= 200) {
+    return 128; // 32 MB chunks for files >= 200 MB
+  } else if (fileMb >= 30) {
+    return 64;  // 16 MB chunks for files >= 30 MB
+  } else if (fileMb >= 5) {
+    return 32;  // 8 MB chunks for files >= 5 MB
+  }
+  return 16;    // 4 MB chunks for smaller files
+}
+
 // Runtime dynamic access to internal SDK exports for session URL restoration
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const InternalUploadTask: any = (storageModule as Record<string, unknown>)['_UploadTask'];
+let InternalUploadTask: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const InternalFbsBlob: any = (storageModule as Record<string, unknown>)['_FbsBlob'];
+let InternalFbsBlob: any;
+try {
+  InternalUploadTask = (storageModule as Record<string, unknown>)['_UploadTask'];
+  InternalFbsBlob = (storageModule as Record<string, unknown>)['_FbsBlob'];
+} catch {
+  InternalUploadTask = undefined;
+  InternalFbsBlob = undefined;
+}
 
 let activeInitialResumeUrl: string | undefined;
 
@@ -73,10 +98,12 @@ let activeInitialResumeUrl: string | undefined;
 const BaseUploadTask: any = typeof InternalUploadTask === 'function' ? InternalUploadTask : class {};
 
 class PersistentUploadTask extends BaseUploadTask {
-  constructor(reference: unknown, blob: unknown, metadata: unknown, resumeUrl?: string) {
+  constructor(reference: unknown, blob: unknown, metadata: unknown, resumeUrl?: string, chunkMultiplier: number = 64) {
     activeInitialResumeUrl = resumeUrl;
     super(reference, blob, metadata);
     activeInitialResumeUrl = undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this as any)._chunkMultiplier = chunkMultiplier;
   }
 
   _start(): void {
@@ -204,6 +231,7 @@ export class ResumableUploadService {
       },
     };
 
+    const optimalMultiplier = getOptimalChunkMultiplier(file.size);
     let task: UploadTask;
 
     // Use PersistentUploadTask if existing session url is present and constructors are available
@@ -214,6 +242,7 @@ export class ResumableUploadService {
           new InternalFbsBlob(file),
           metadata,
           existingUploadUrl,
+          optimalMultiplier,
         ) as unknown as UploadTask;
       } catch (err) {
         console.warn('Failed to initialize PersistentUploadTask, starting fresh resumable task:', err);
@@ -224,15 +253,30 @@ export class ResumableUploadService {
       task = uploadBytesResumable(storageRef, file, metadata);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (task && (task as any)._chunkMultiplier !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (task as any)._chunkMultiplier = optimalMultiplier;
+    }
+
     let lastBytes = 0;
     let lastTime = Date.now();
     let smoothedSpeed = 0;
     let sessionSaved = Boolean(existingUploadUrl);
+    let lastEmitTime = 0;
+    let lastReportedState = '';
 
     const promise = new Promise<{ downloadUrl: string }>((resolve, reject) => {
       task.on(
         'state_changed',
         (snapshot: UploadTaskSnapshot) => {
+          // Keep chunk multiplier high so transient retries don't collapse chunk size back to 256 KB
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (typeof (task as any)._chunkMultiplier === 'number' && (task as any)._chunkMultiplier < optimalMultiplier) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (task as any)._chunkMultiplier = optimalMultiplier;
+          }
+
           // Once GCS returns the uploadUrl, persist it so it can be resumed
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const currentUploadUrl = (task as any)._uploadUrl;
@@ -264,15 +308,26 @@ export class ResumableUploadService {
           const pct = total > 0 ? Math.min(100, Math.round((snapshot.bytesTransferred / total) * 100)) : 0;
           const remainingBytes = Math.max(0, total - snapshot.bytesTransferred);
           const etaSeconds = smoothedSpeed > 0 ? remainingBytes / smoothedSpeed : 0;
+          const state = snapshot.state as 'running' | 'paused' | 'success' | 'error';
 
-          onProgress({
-            bytesTransferred: snapshot.bytesTransferred,
-            totalBytes: total,
-            progressPercent: pct,
-            uploadSpeed: formatUploadSpeed(smoothedSpeed),
-            eta: formatEta(etaSeconds),
-            state: snapshot.state as 'running' | 'paused' | 'success' | 'error',
-          });
+          // Throttle progress events to at most once per 200ms to eliminate UI thread thrashing
+          const shouldEmit =
+            state !== lastReportedState ||
+            pct === 100 ||
+            now - lastEmitTime >= 200;
+
+          if (shouldEmit) {
+            lastEmitTime = now;
+            lastReportedState = state;
+            onProgress({
+              bytesTransferred: snapshot.bytesTransferred,
+              totalBytes: total,
+              progressPercent: pct,
+              uploadSpeed: formatUploadSpeed(smoothedSpeed),
+              eta: formatEta(etaSeconds),
+              state,
+            });
+          }
         },
         (error: StorageError) => {
           // If resuming with a stale/expired upload URL failed, purge the session

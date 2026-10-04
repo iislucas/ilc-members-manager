@@ -7,6 +7,7 @@ import { FIREBASE_APP, ROUTING_CONFIG, initPathPatterns } from '../app.config';
 import { UploadItem, initUploadItem } from '../../../functions/src/data-model/materials';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { ResumableUploadService } from '../manage-vod-upload/resumable-upload.service';
 
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(),
@@ -25,9 +26,20 @@ vi.mock('firebase/storage', () => ({
   getStorage: vi.fn(),
   ref: vi.fn(),
   uploadBytes: vi.fn(),
+  uploadBytesResumable: vi.fn(),
   getDownloadURL: vi.fn().mockResolvedValue('https://storage/download'),
   deleteObject: vi.fn().mockResolvedValue(undefined),
+  _UploadTask: class {},
+  _FbsBlob: class {},
 }));
+
+vi.mock('../utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils')>();
+  return {
+    ...actual,
+    makeThumbnail: vi.fn().mockResolvedValue(new Blob(['fake-thumb'], { type: 'image/jpeg' })),
+  };
+});
 
 describe('MyMaterialsComponent', () => {
   let component: MyMaterialsComponent;
@@ -91,12 +103,32 @@ describe('MyMaterialsComponent', () => {
     }),
   };
 
+  const mockResumableService = {
+    uploadVideo: vi.fn().mockImplementation((file, storagePath, uploadItemId, onProgress) => {
+      if (onProgress) {
+        onProgress({
+          bytesTransferred: file.size,
+          totalBytes: file.size,
+          progressPercent: 100,
+          uploadSpeed: '12 MB/s',
+          eta: '',
+          state: 'success',
+        });
+      }
+      return {
+        task: {},
+        promise: Promise.resolve({ downloadUrl: 'https://storage/resumable-video.mp4' }),
+      };
+    }),
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [MyMaterialsComponent],
       providers: [
         { provide: DataManagerService, useValue: mockDataManagerService },
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
+        { provide: ResumableUploadService, useValue: mockResumableService },
         { provide: FIREBASE_APP, useValue: {} },
         { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
         RoutingService,
@@ -246,5 +278,23 @@ describe('MyMaterialsComponent', () => {
     expect(component.getEventHref(item)).toBe('/events/ev1');
     expect(component.getDateHref(item.date)).toBe('/events?q=2026-05-10');
     expect(component.getLocationHref(item.location)).toBe('/find-school?q=New+York');
+  });
+
+  it('should upload video files using ResumableUploadService and update materials', async () => {
+    await component.loadMaterials();
+    const videoFile = new File(['dummy-video-content'], 'test-video.mp4', { type: 'video/mp4' });
+
+    await component.uploadFiles([videoFile]);
+
+    expect(mockResumableService.uploadVideo).toHaveBeenCalled();
+    expect(mockDataManagerService.createUploadItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'test-video.mp4',
+        contentType: 'video/mp4',
+        url: 'https://storage/resumable-video.mp4',
+      }),
+    );
+    expect(component.materials().length).toBe(3);
+    expect(component.materials()[0].name).toBe('test-video.mp4');
   });
 });

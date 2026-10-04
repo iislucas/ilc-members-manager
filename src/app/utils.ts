@@ -276,11 +276,18 @@ export async function makeVideoThumbnail(file: File, maxDim = 320): Promise<Blob
   video.src = url;
   try {
     await new Promise<void>((resolve, reject) => {
-      const onError = () => reject(new Error('Failed to load video for thumbnail.'));
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Video thumbnail extraction timed out.'));
+      }, 5000);
+      const onError = () => {
+        clearTimeout(timeoutId);
+        reject(new Error('Failed to load video for thumbnail.'));
+      };
       video.addEventListener('error', onError, { once: true });
       video.addEventListener(
         'loadeddata',
         () => {
+          clearTimeout(timeoutId);
           const target = Number.isFinite(video.duration)
             ? Math.min(1, video.duration / 2)
             : 0;
