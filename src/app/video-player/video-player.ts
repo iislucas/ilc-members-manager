@@ -30,6 +30,7 @@ import Hls from 'hls.js';
 import { VideoItem } from '../../../functions/src/data-model/vod';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { fixFirebaseHlsUrl } from '../utils';
 
 export interface QualityLevel {
   id: number; // -1 for Auto, 0..N for explicit levels
@@ -77,7 +78,12 @@ export class CachedHlsFragmentLoader extends (Hls.DefaultConfig.loader as any) {
     super(config);
     const origLoad = (this as any)['load'].bind(this);
     (this as any)['load'] = async (context: any, cfg: any, callbacks: any) => {
-      const url = context.url;
+      let url = context.url;
+      const rootUrl = (config as any)?.rootManifestUrl || (config as any)?.url;
+      if (rootUrl && url) {
+        url = fixFirebaseHlsUrl(url, rootUrl);
+        context.url = url;
+      }
       const isSegment =
         url.includes('.ts') ||
         url.includes('.m4s') ||
@@ -621,7 +627,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     if (isHls && Hls.isSupported()) {
       this.streamingEngine.set('HLS.js');
+
+      class FirebaseHlsPlaylistLoader extends (Hls.DefaultConfig.loader as any) {
+        constructor(cfg: any) {
+          super(cfg);
+          const origLoad = (this as any)['load'].bind(this);
+          (this as any)['load'] = (context: any, loadCfg: any, callbacks: any) => {
+            if (context?.url) {
+              context.url = fixFirebaseHlsUrl(context.url, src);
+            }
+            origLoad(context, loadCfg, callbacks);
+          };
+        }
+      }
+
       this.hls = new Hls({
+        pLoader: FirebaseHlsPlaylistLoader as any,
         fLoader: CachedHlsFragmentLoader as any,
         capLevelToPlayerSize: true,
         autoStartLoad: true,
@@ -647,6 +668,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         levelLoadingTimeOut: 20000,
         levelLoadingMaxRetry: 6,
       });
+      (this.hls.config as any).rootManifestUrl = src;
 
       this.hls.loadSource(src);
       this.hls.attachMedia(video);

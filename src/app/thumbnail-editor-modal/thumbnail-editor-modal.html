@@ -6,7 +6,7 @@
           <app-icon name="image" class="header-icon"></app-icon>
           <h3>{{ title() }}</h3>
         </div>
-        <button type="button" class="close-btn" (click)="close()" title="Close">
+        <button type="button" class="close-btn" (click)="close()" title="Close (Esc)">
           <app-icon name="close"></app-icon>
         </button>
       </div>
@@ -34,26 +34,48 @@
       </div>
 
       <div class="modal-body">
-        @if (activeTab() === 'video_frame') {
+        <!-- Video Frame Scrubber Tab Pane (Kept in DOM via [hidden] to prevent recreation) -->
+        <div class="tab-pane" [hidden]="activeTab() !== 'video_frame'">
           <div class="video-scrubber-section">
-            <div class="video-container">
+            <div class="video-container" (click)="togglePlay()" title="Click to play or pause">
               <video
                 #videoEl
                 playsinline
                 muted
                 crossorigin="anonymous"
                 (loadedmetadata)="onVideoMetadataLoaded()"
+                (durationchange)="onVideoDurationChange()"
                 (timeupdate)="onTimeUpdate()"
                 (play)="isPlaying.set(true)"
                 (pause)="isPlaying.set(false)"
+                (waiting)="isBuffering.set(true)"
+                (playing)="isBuffering.set(false)"
+                (canplay)="isBuffering.set(false)"
                 (error)="onVideoError($event)"
               ></video>
 
               @if (isLoadingVideo()) {
-                <div class="video-overlay loading-overlay">
-                  <app-spinner>Loading video frames...</app-spinner>
+                <div class="video-overlay loading-overlay" (click)="$event.stopPropagation()">
+                  <app-spinner>Connecting to video stream...</app-spinner>
+                </div>
+              } @else if (isBuffering()) {
+                <div class="video-overlay buffering-overlay" (click)="$event.stopPropagation()">
+                  <app-spinner>Buffering...</app-spinner>
+                </div>
+              } @else if (!isPlaying()) {
+                <div class="center-play-badge">
+                  <app-icon name="play_arrow"></app-icon>
                 </div>
               }
+
+              <!-- Time overlay pill on video -->
+              <div class="time-overlay-badge" (click)="$event.stopPropagation()">
+                <span>{{ formatTime(currentVideoTime()) }}</span>
+                @if (effectiveDuration() > 0) {
+                  <span class="dur-slash">/</span>
+                  <span>{{ formatTime(effectiveDuration()) }}</span>
+                }
+              </div>
             </div>
 
             @if (videoError()) {
@@ -61,16 +83,68 @@
                 <app-icon name="warning" class="error-icon"></app-icon>
                 <div class="error-text">
                   <p>{{ videoError() }}</p>
-                  <label class="select-file-btn">
-                    <input
-                      type="file"
-                      accept="video/*"
-                      (change)="onSelectLocalVideoFile($event)"
-                      hidden
-                    />
-                    <app-icon name="upload_file"></app-icon>
-                    <span>Choose Local Video File</span>
-                  </label>
+                  <div class="error-actions">
+                    <button type="button" class="subtle-button retry-btn" (click)="initializeVideo()">
+                      <app-icon name="refresh"></app-icon>
+                      <span>Retry Stream</span>
+                    </button>
+                    <label class="select-file-btn">
+                      <input
+                        type="file"
+                        accept="video/*"
+                        (change)="onSelectLocalVideoFile($event)"
+                        hidden
+                      />
+                      <app-icon name="upload_file"></app-icon>
+                      <span>Pick Video File from Disk</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- Quick Jump Presets -->
+            <div class="quick-jump-bar">
+              <span class="jump-label">Jump:</span>
+              <div class="jump-pills">
+                @for (preset of quickJumpPresets(); track preset.label) {
+                  <button
+                    type="button"
+                    class="jump-pill"
+                    (click)="seekTo(preset.seconds)"
+                    [title]="'Jump to ' + preset.label"
+                  >
+                    {{ preset.label }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Visual Timeline Snapshots Strip (when sprite sheet is available) -->
+            @if (timelineSnapshots().length > 0) {
+              <div class="snapshots-strip-container">
+                <div class="strip-header">
+                  <span class="strip-title">Candidate Frame Previews</span>
+                  <span class="strip-hint">Click any frame to jump and select</span>
+                </div>
+                <div class="snapshots-row">
+                  @for (snap of timelineSnapshots(); track snap.time) {
+                    <button
+                      type="button"
+                      class="snapshot-card"
+                      (click)="captureFromSnapshot(snap.time)"
+                      [title]="'Use frame at ' + snap.timeFormatted"
+                    >
+                      <div
+                        class="snapshot-thumb"
+                        [style.width.px]="snap.spriteW"
+                        [style.height.px]="snap.spriteH"
+                        [style.background-image]="'url(' + spriteSheetUrl() + ')'"
+                        [style.background-position]="snap.bgX + 'px ' + snap.bgY + 'px'"
+                      ></div>
+                      <span class="snapshot-time">{{ snap.timeFormatted }}</span>
+                    </button>
+                  }
                 </div>
               </div>
             }
@@ -82,7 +156,7 @@
                   type="button"
                   class="play-toggle-btn"
                   (click)="togglePlay()"
-                  [title]="isPlaying() ? 'Pause' : 'Play'"
+                  [title]="isPlaying() ? 'Pause (Space)' : 'Play (Space)'"
                 >
                   <app-icon [name]="isPlaying() ? 'pause' : 'play_arrow'"></app-icon>
                 </button>
@@ -91,26 +165,26 @@
                   type="range"
                   class="timeline-slider"
                   min="0"
-                  [max]="videoDuration() || 100"
+                  [max]="effectiveDuration() || 100"
                   step="0.05"
                   [value]="currentVideoTime()"
                   (input)="onSliderInput($event)"
                 />
 
                 <span class="time-display">
-                  {{ formatTime(currentVideoTime()) }} / {{ formatTime(videoDuration()) }}
+                  {{ formatTime(currentVideoTime()) }} / {{ formatTime(effectiveDuration()) }}
                 </span>
               </div>
 
-              <!-- Fine-grain Step Buttons -->
+              <!-- Fine-grain Step Buttons & Capture CTA -->
               <div class="step-buttons-row">
                 <div class="step-group">
                   <span class="step-label">Nudge:</span>
                   <button type="button" class="step-btn" (click)="nudge(-5)" title="Step back 5s">-5s</button>
-                  <button type="button" class="step-btn" (click)="nudge(-1)" title="Step back 1s">-1s</button>
+                  <button type="button" class="step-btn" (click)="nudge(-1)" title="Step back 1s (←)">-1s</button>
                   <button type="button" class="step-btn frame-step" (click)="nudge(-0.1)" title="Step back 1 frame">-0.1s</button>
                   <button type="button" class="step-btn frame-step" (click)="nudge(0.1)" title="Step forward 1 frame">+0.1s</button>
-                  <button type="button" class="step-btn" (click)="nudge(1)" title="Step forward 1s">+1s</button>
+                  <button type="button" class="step-btn" (click)="nudge(1)" title="Step forward 1s (→)">+1s</button>
                   <button type="button" class="step-btn" (click)="nudge(5)" title="Step forward 5s">+5s</button>
                 </div>
 
@@ -120,7 +194,7 @@
                   } @else {
                     <button
                       type="button"
-                      class="primary-btn capture-btn"
+                      class="primary-button capture-btn"
                       (click)="captureCurrentFrame()"
                     >
                       <app-icon name="image"></app-icon>
@@ -129,26 +203,12 @@
                   }
                 </div>
               </div>
-
-              <!-- Option to select local video file if not attached -->
-              @if (!videoFile() && !chosenLocalVideoFile()) {
-                <div class="local-source-helper">
-                  <span>Having trouble loading stream?</span>
-                  <label class="link-label">
-                    <input
-                      type="file"
-                      accept="video/*"
-                      (change)="onSelectLocalVideoFile($event)"
-                      hidden
-                    />
-                    Pick video file from disk
-                  </label>
-                </div>
-              }
             </div>
           </div>
-        } @else {
-          <!-- Upload Image Section -->
+        </div>
+
+        <!-- Upload Image Tab Pane -->
+        <div class="tab-pane" [hidden]="activeTab() !== 'upload_image'">
           <div
             class="upload-dropzone"
             [class.dragging]="isDraggingImage()"
@@ -167,18 +227,32 @@
             <app-icon name="cloud_upload" class="dropzone-icon"></app-icon>
             <h4>Choose or drag an image here</h4>
             <p>PNG, JPG, or WebP. Aspect ratio will be preserved.</p>
-            <button type="button" class="secondary-btn select-img-btn" (click)="$event.stopPropagation(); imageFileInput.click()">
+            <button
+              type="button"
+              class="subtle-button select-img-btn"
+              (click)="$event.stopPropagation(); imageFileInput.click()"
+            >
               <app-icon name="image"></app-icon>
               <span>Browse Image File</span>
             </button>
           </div>
-        }
+        </div>
 
-        <!-- Selected Preview Section -->
+        <!-- Selected / Active Thumbnail Preview Section -->
         @if (capturedPreviewUrl()) {
           <div class="preview-card">
             <div class="preview-header">
-              <span class="preview-title">Selected Thumbnail</span>
+              <div class="preview-title-group">
+                <span class="preview-title">Selected Thumbnail Preview</span>
+                @if (capturedAtTimestamp() !== null) {
+                  <span class="badge captured-badge">
+                    <app-icon name="check"></app-icon>
+                    Frame at {{ formatTime(capturedAtTimestamp()!) }}
+                  </span>
+                } @else if (!capturedBlob() && initialThumbnailUrl()) {
+                  <span class="badge current-badge">Current Thumbnail</span>
+                }
+              </div>
               @if (capturedDimensions(); as dim) {
                 <span class="badge aspect-badge">
                   {{ dim.w }} × {{ dim.h }} ({{ aspectRatioText() }})
@@ -193,16 +267,16 @@
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="secondary-btn" (click)="close()">
+        <button type="button" class="subtle-button" (click)="close()">
           Cancel
         </button>
 
         @if (isProcessing()) {
-          <app-spinner>Processing...</app-spinner>
+          <app-spinner>Applying thumbnail...</app-spinner>
         } @else {
           <button
             type="button"
-            class="primary-btn"
+            class="primary-button apply-btn"
             [disabled]="!capturedBlob()"
             (click)="applyThumbnail()"
           >
