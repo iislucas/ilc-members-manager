@@ -960,16 +960,15 @@
 
       @if (userIsAdmin() && editableMember().docId) {
         <h3>VOD Video &amp; Series Grants</h3>
-        <label>Granted Items</label>
-        <div class="rhs">
+        <div class="vod-grants-container">
           @if (isLoadingVideoGrants()) {
-            <span class="muted-text"
-              ><app-spinner /> Loading video grants...</span
-            >
+            <div class="vod-grants-status muted-text">
+              <app-spinner /> Loading video grants...
+            </div>
           } @else if (memberVideoGrants().length === 0) {
-            <span class="muted-text"
-              >No VOD video or series grants for this member.</span
-            >
+            <div class="vod-grants-status muted-text">
+              No VOD video or series grants for this member.
+            </div>
           } @else {
             <div class="vod-grants-summary-box">
               <div class="vod-grants-header">

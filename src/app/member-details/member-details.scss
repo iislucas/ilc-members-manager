@@ -317,6 +317,20 @@ app-member-row-header {
   }
 }
 
+.vod-grants-container {
+  grid-column: 1 / -1;
+  width: 100%;
+
+  .vod-grants-status {
+    padding: 0.25rem 0.75rem;
+    color: v.$text-secondary;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+  }
+}
+
 .vod-grants-summary-box {
   width: 100%;
   max-width: 100%;
