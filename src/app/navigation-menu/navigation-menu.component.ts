@@ -48,7 +48,9 @@ export class NavigationMenuComponent {
       view === Views.Articles ||
       view === Views.ArticlesCategory ||
       view === Views.ArticlesPost ||
-      view === Views.ClassVideoLibrary
+      view === Views.ClassVideoLibrary ||
+      view === Views.Videos ||
+      view === Views.VideoView
     ) {
       return 'learn';
     }
@@ -163,6 +165,8 @@ export class NavigationMenuComponent {
       case Views.AppNotificationSettings: return 'App Notifications';
       case Views.UserNotificationSettings: return 'Notification Settings';
       case Views.ClassVideoLibrary: return 'Class Video Library';
+      case Views.Videos: return 'Video on Demand';
+      case Views.ManageVod: return 'Manage VOD';
       case Views.ManageOrders: return 'Orders';
       case Views.Statistics: return 'Statistics';
       case Views.EventsCalendar: return 'Events & Workshops';
