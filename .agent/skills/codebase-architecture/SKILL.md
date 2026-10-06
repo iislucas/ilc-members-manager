@@ -168,6 +168,11 @@ placeholder="Search..."
 - **No NgModules, CommonModule, NgIf, NgFor** — use `@if`, `@for`, standalone components
 - **Never `any` type** — use `unknown` or proper types
 
+### PWA & Service Worker Updates (Atomic Versioning)
+All application scripts (`*.js`, `*.css`) must be in the `app` asset group with `installMode: "prefetch"` in `ngsw-config.json`.
+- **Anti-Pattern (Lazy app scripts)**: Never move `/*.js` or `/*.css` into a `lazy` asset group. In Angular 21 with esbuild, initial entry bundles (`main-*.js`) and initial runtime chunks (`chunk-*.js`) sit flat in the root output. Marking `/*.js` as lazy causes the service worker to declare `VERSION_READY` prematurely when only `index.html` has been fetched, while critical entry bundles remain uncached. When the app reloads or wakes on laptop, uncached entry scripts race against network connectivity, resulting in a blank white screen.
+- **Atomic updates**: Prefetching ensures the service worker downloads, hashes, and caches the entire release in the background before signalling that an update is ready. Upon reload, all scripts load instantly from local Cache Storage with zero network dependency.
+
 ---
 
 ## Grading Component Map
