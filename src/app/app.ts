@@ -222,7 +222,15 @@ export class App {
       if (path.startsWith('/')) {
         path = path.substring(1);
       }
-      this.routingService.navigateTo(path);
+      const isBack =
+        anchor.classList.contains('header-back-btn') ||
+        anchor.classList.contains('back-link');
+      if (isBack) {
+        this.routingService.navigateTo(path, { isBackNavigation: true });
+      } else {
+        this.routingService.saveCurrentScrollPosition(linkPath);
+        this.routingService.navigateTo(path);
+      }
     }
   }
 
