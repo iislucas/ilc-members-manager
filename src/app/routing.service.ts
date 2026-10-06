@@ -314,6 +314,21 @@ export class RoutingService<T extends PathPatterns> {
     if (this.urlScrollCache.has(pathOnly)) {
       return this.urlScrollCache.get(pathOnly);
     }
+
+    // Try matching if the requested URL is a base route or sub-route of a saved URL
+    // e.g. /members-area vs /members-area/category/All
+    for (const [cachedUrl, state] of this.urlScrollCache.entries()) {
+      const cachedPathOnly = cachedUrl.split('?')[0];
+      if (
+        (pathOnly.startsWith(cachedPathOnly) || cachedPathOnly.startsWith(pathOnly)) &&
+        (pathOnly.startsWith('/members-area') ||
+          pathOnly.startsWith('/instructors-area') ||
+          pathOnly.startsWith('/articles'))
+      ) {
+        return state;
+      }
+    }
+
     try {
       if (typeof sessionStorage !== 'undefined') {
         const item = sessionStorage.getItem(`scroll_${key}`) || sessionStorage.getItem(`scroll_${pathOnly}`);

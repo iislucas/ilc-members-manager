@@ -57,9 +57,9 @@
             @for (entry of filteredEntries(); track entry.id) {
             <article class="blog-card">
                 @if (entry.assetUrl) {
-                <div class="blog-image">
+                <a class="blog-image" [href]="articleHref(entry)">
                     <img [src]="entry.assetUrl" [alt]="entry.title" (error)="onImageError($event)">
-                </div>
+                </a>
                 }
                 
                 <div class="blog-content">
@@ -77,7 +77,9 @@
                         <span class="blog-date">Posted: {{ (entry.publishOn || entry.addedOn) | date:'longDate' }}</span>
                     </div>
 
-                    <h2 class="sqs-title">{{ entry.title }}</h2>
+                    <h2 class="sqs-title">
+                        <a class="sqs-title-link" [href]="articleHref(entry)">{{ entry.title }}</a>
+                    </h2>
                     
                     @if (entry.excerpt) {
                     <div class="blog-excerpt" [innerHTML]="entry.safeExcerpt"></div>
@@ -92,10 +94,10 @@
                     }
 
                     <div class="read-more-container">
-                        <button class="subtle-button" (click)="navigateToArticle(entry)">
+                        <a class="subtle-button read-more-btn" [href]="articleHref(entry)">
                             Read more
                             <app-icon name="arrow_forward"></app-icon>
-                        </button>
+                        </a>
                         @if (firebaseService.isAdmin()) {
                         <a class="subtle-button edit-card-btn" [href]="editHrefFor(entry)">
                             <app-icon name="edit"></app-icon>

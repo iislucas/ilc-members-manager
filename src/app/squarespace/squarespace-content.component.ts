@@ -286,15 +286,31 @@ export class SquarespaceContentComponent implements OnDestroy {
         }
     }
 
-    navigateToArticle(entry: ProcessedBlogEntry) {
-        const collectionName = this.path();
-        if (collectionName === 'members-post') {
-            this.routingService.navigateTo('members-area/post/' + entry.urlId);
-        } else if (collectionName === 'instructors-post') {
-            this.routingService.navigateTo('instructors-area/post/' + entry.urlId);
-        } else if (collectionName === 'articles-post') {
-            this.routingService.navigateTo('articles/post/' + entry.urlId);
+    categoryHref(cat: string): string {
+        const urlSlug = cat === 'All' ? 'All' : categoryToTabLabel(cat);
+        const encodedCat = encodeURIComponent(urlSlug);
+        const coll = this.path();
+        if (coll === 'members-post') {
+            return `/members-area/category/${encodedCat}`;
+        } else if (coll === 'instructors-post') {
+            return `/instructors-area/category/${encodedCat}`;
         }
+        return `/articles/category/${encodedCat}`;
+    }
+
+    articleHref(entry: ProcessedBlogEntry): string {
+        const coll = this.path();
+        if (coll === 'members-post') {
+            return `/members-area/post/${entry.urlId}`;
+        } else if (coll === 'instructors-post') {
+            return `/instructors-area/post/${entry.urlId}`;
+        }
+        return `/articles/post/${entry.urlId}`;
+    }
+
+    navigateToArticle(entry: ProcessedBlogEntry) {
+        const href = this.articleHref(entry);
+        this.routingService.navigateTo(href.startsWith('/') ? href.substring(1) : href);
     }
 
     editHrefFor(entry: ProcessedBlogEntry): string {

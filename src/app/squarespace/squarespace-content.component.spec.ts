@@ -67,22 +67,14 @@ describe('SquarespaceContentComponent', () => {
         component = fixture.componentInstance;
     });
 
-    it('should navigate to members-area/post/id for members-post collection', () => {
+    it('should generate correct articleHref and categoryHref', () => {
         fixture.componentRef.setInput('path', 'members-post');
         fixture.detectChanges();
 
         const entry = { urlId: 'my-post' } as ProcessedBlogEntry;
-        component.navigateToArticle(entry);
-        expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('members-area/post/my-post');
-    });
-
-    it('should navigate to instructors-area/post/id for instructors-post collection', () => {
-        fixture.componentRef.setInput('path', 'instructors-post');
-        fixture.detectChanges();
-
-        const entry = { urlId: 'my-instr-post' } as ProcessedBlogEntry;
-        component.navigateToArticle(entry);
-        expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('instructors-area/post/my-instr-post');
+        expect(component.articleHref(entry)).toBe('/members-area/post/my-post');
+        expect(component.categoryHref('All')).toBe('/members-area/category/All');
+        expect(component.categoryHref('Article')).toBe('/members-area/category/Articles');
     });
 
     it('maps Learn to Article for tags and pluralizes tab labels', () => {
