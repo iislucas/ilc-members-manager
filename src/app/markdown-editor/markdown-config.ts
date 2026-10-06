@@ -4,7 +4,7 @@
  * and custom list rendering to distinguish '-' bullets from '*' bullets.
  */
 
-import { marked } from 'marked';
+import { marked, type Tokens } from 'marked';
 
 let isConfigured = false;
 
@@ -53,7 +53,7 @@ export function configureMarked(): void {
         ) {
           let body = '';
           for (const imgToken of nonWhitespaceTokens) {
-            body += this.image(imgToken as marked.Tokens.Image);
+            body += this.image(imgToken as Tokens.Image);
           }
           return `${body}\n`;
         }

@@ -162,8 +162,14 @@ export class EventListComponent implements OnDestroy {
     return '';
   });
 
-  // Link that clears the active filter (returns to the full events list).
-  protected clearFilterHref = '/events';
+  // Clears the active school or instructor filter and restores the full events list.
+  clearFilter(): void {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.EventsCalendar) {
+      this.routingService.signals[Views.EventsCalendar].urlParams.schoolId.set('');
+      this.routingService.signals[Views.EventsCalendar].urlParams.instructorId.set('');
+    }
+  }
 
   // This signal is bound to the search input field and updates on every keystroke.
   // It is seeded from the URL `q` param (if present) or `initialQuery` (for the
