@@ -597,6 +597,43 @@ input[type="checkbox"] {
 // ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
+//  Back Navigation Returned Item Highlight
+//  Applied temporarily to the card/row/element that the user navigated from
+//  when they return to the list via back navigation.
+// ----------------------------------------------------------------------------
+
+@keyframes nav-returned-pulse {
+  0% {
+    background-color: transparent;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  20%, 45% {
+    background-color: $row-highlight-bg;
+    outline: 2px solid $row-highlight-border;
+    outline-offset: 2px;
+    box-shadow: 0 0 12px rgba(149, 0, 0, 0.25);
+  }
+  100% {
+    background-color: transparent;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+}
+
+.nav-returned-highlight {
+  animation: nav-returned-pulse 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  border-radius: 4px;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    background-color: $row-highlight-bg;
+  }
+}
+
+
+// ----------------------------------------------------------------------------
 //  Selectable Card Links
 //  Applied to <a> elements used as card containers in list views. Allows
 //  text selection by drag (desktop) or long-press (mobile) while still

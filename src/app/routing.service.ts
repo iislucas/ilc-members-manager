@@ -387,32 +387,49 @@ export class RoutingService<T extends PathPatterns> {
 
     const startTime = performance.now();
 
+    const triggerElementHighlight = (element: HTMLElement) => {
+      element.classList.remove('nav-returned-highlight');
+      // Force reflow so re-adding the class triggers the animation if previously applied
+      void element.offsetWidth;
+      element.classList.add('nav-returned-highlight');
+      const onEnd = () => {
+        element.classList.remove('nav-returned-highlight');
+        element.removeEventListener('animationend', onEnd);
+      };
+      element.addEventListener('animationend', onEnd, { once: true });
+      // Fallback timeout in case animationend does not fire (e.g. reduced motion or detached)
+      setTimeout(() => element.classList.remove('nav-returned-highlight'), 2200);
+    };
+
+    const findTargetCard = (anchorUrl: string): HTMLElement | null => {
+      let cleanTarget = anchorUrl;
+      if (cleanTarget.startsWith('/')) cleanTarget = cleanTarget.substring(1);
+      const anchorEl = document.querySelector<HTMLElement>(
+        `a[href="${anchorUrl}"], a[href="/${cleanTarget}"], a[href="${cleanTarget}"]`
+      );
+      if (!anchorEl) return null;
+      return (
+        anchorEl.closest<HTMLElement>(
+          '.selectable-card, .instructor-card, .school-card, .event-card-link, tr, article, .member-card, .grading-card'
+        ) || anchorEl
+      );
+    };
+
     const attempt = () => {
       if (cancelled) return;
 
       // Priority 1: When orientation changed or when an anchor URL was recorded,
       // locate the card or anchor element corresponding to the detail page.
       if (targetAnchorUrl) {
-        let cleanTarget = targetAnchorUrl;
-        if (cleanTarget.startsWith('/')) cleanTarget = cleanTarget.substring(1);
-
-        const anchorEl = document.querySelector<HTMLElement>(
-          `a[href="${targetAnchorUrl}"], a[href="/${cleanTarget}"], a[href="${cleanTarget}"]`
-        );
-
-        if (anchorEl) {
-          const cardEl = anchorEl.closest<HTMLElement>(
-            '.selectable-card, .instructor-card, .school-card, .event-card-link, tr, article, .member-card, .grading-card'
-          ) || anchorEl;
-
-          if (cardEl && (cardEl.offsetHeight > 0 || cardEl.scrollHeight > 0)) {
-            if (!isSameWidth) {
-              if (typeof cardEl.scrollIntoView === 'function') {
-                cardEl.scrollIntoView({ behavior: 'instant', block: 'center' });
-              }
-              cleanup();
-              return;
+        const cardEl = findTargetCard(targetAnchorUrl);
+        if (cardEl && (cardEl.offsetHeight > 0 || cardEl.scrollHeight > 0)) {
+          if (!isSameWidth) {
+            if (typeof cardEl.scrollIntoView === 'function') {
+              cardEl.scrollIntoView({ behavior: 'instant', block: 'center' });
             }
+            triggerElementHighlight(cardEl);
+            cleanup();
+            return;
           }
         }
       }
@@ -426,6 +443,12 @@ export class RoutingService<T extends PathPatterns> {
         if (typeof window.scrollTo === 'function') {
           window.scrollTo({ top: targetY, left: saved.x, behavior: 'instant' });
         }
+        if (targetAnchorUrl) {
+          const cardEl = findTargetCard(targetAnchorUrl);
+          if (cardEl) {
+            triggerElementHighlight(cardEl);
+          }
+        }
         cleanup();
         return;
       }
@@ -435,18 +458,12 @@ export class RoutingService<T extends PathPatterns> {
         requestAnimationFrame(attempt);
       } else {
         if (targetAnchorUrl) {
-          let cleanTarget = targetAnchorUrl;
-          if (cleanTarget.startsWith('/')) cleanTarget = cleanTarget.substring(1);
-          const anchorEl = document.querySelector<HTMLElement>(
-            `a[href="${targetAnchorUrl}"], a[href="/${cleanTarget}"], a[href="${cleanTarget}"]`
-          );
-          if (anchorEl) {
-            const cardEl = anchorEl.closest<HTMLElement>(
-              '.selectable-card, .instructor-card, .school-card, .event-card-link, tr, article, .member-card, .grading-card'
-            ) || anchorEl;
+          const cardEl = findTargetCard(targetAnchorUrl);
+          if (cardEl) {
             if (typeof cardEl.scrollIntoView === 'function') {
               cardEl.scrollIntoView({ behavior: 'instant', block: 'center' });
             }
+            triggerElementHighlight(cardEl);
             cleanup();
             return;
           }

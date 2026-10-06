@@ -543,6 +543,7 @@ describe('RoutingService', () => {
       await new Promise((r) => requestAnimationFrame(r));
 
       expect(scrollIntoViewSpy).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }));
+      expect(card.classList.contains('nav-returned-highlight')).toBe(true);
 
       document.body.removeChild(card);
     });
