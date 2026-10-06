@@ -34,16 +34,39 @@ export class SearchableSet<
 
   uniqueEntries = computed(() => {
     const entries = this.entries();
-    const unique = [];
-    const duplicateIds = this.duplicateIds();
+    const map = new Map<string, T>();
     for (const entry of entries) {
       const id = entry[this.idField];
-      if (id && !duplicateIds.has(id)) {
-        unique.push(entry);
+      if (!id) continue;
+      const existing = map.get(id);
+      if (!existing) {
+        map.set(id, entry);
+      } else {
+        // If duplicate ID exists, keep the one with the latest lastUpdated timestamp.
+        const existingTime = this.getEntryTimestamp(existing);
+        const entryTime = this.getEntryTimestamp(entry);
+        if (entryTime >= existingTime) {
+          map.set(id, entry);
+        }
       }
     }
-    return unique;
+    return Array.from(map.values());
   });
+
+  private getEntryTimestamp(entry: T): number {
+    const raw =
+      (entry as Record<string, unknown>)['localUpdatedAt'] ??
+      (entry as Record<string, unknown>)['lastUpdated'];
+    if (!raw) return 0;
+    if (typeof (raw as { toDate?: () => Date }).toDate === 'function') {
+      return (raw as { toDate: () => Date }).toDate().getTime();
+    }
+    if (typeof (raw as { toMillis?: () => number }).toMillis === 'function') {
+      return (raw as { toMillis: () => number }).toMillis();
+    }
+    const parsed = new Date(raw as string | number).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+  }
 
   private duplicateIds = computed(() => {
     const entries = this.entries();

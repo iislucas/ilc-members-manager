@@ -71,6 +71,8 @@ describe('DataManagerService - searchEvents', () => {
       syncCollection: vi.fn().mockResolvedValue(undefined),
       upsertCachedEntry: vi.fn().mockResolvedValue(undefined),
       deleteCachedEntry: vi.fn().mockResolvedValue(undefined),
+      clearCache: vi.fn().mockResolvedValue(undefined),
+      clearAllCaches: vi.fn().mockResolvedValue(undefined),
     };
 
     TestBed.configureTestingModule({
@@ -232,6 +234,40 @@ describe('DataManagerService - searchEvents', () => {
       expect(inMemory).toBeDefined();
       expect(inMemory?.lastRenewalDate).toBe('2026-08-15');
       expect(inMemory?.currentMembershipExpires).toBe('2027-08-15');
+    });
+
+    it('computes diffs cleanly and records localUpdatedAt on updateMember', async () => {
+      const initialMember: Member = {
+        ...initMember(),
+        docId: 'mem_diff_test',
+        name: 'Existing Member',
+        studentLevel: 'Level 1',
+      };
+      service.members.setEntries([initialMember]);
+
+      const updatedMember: Member = {
+        ...initialMember,
+        studentLevel: 'Level 2',
+      };
+
+      await service.updateMember('mem_diff_test', updatedMember, initialMember);
+
+      const inMemory = service.members.get('mem_diff_test');
+      expect(inMemory).toBeDefined();
+      expect(inMemory?.studentLevel).toBe('Level 2');
+      expect((inMemory as Record<string, unknown>)['localUpdatedAt']).toBeDefined();
+    });
+
+    it('clearLocalCacheForCollection resets the corresponding in-memory collection', async () => {
+      const syncService = TestBed.inject(IncrementalSyncService);
+      const clearCacheSpy = vi.spyOn(syncService, 'clearCache').mockResolvedValue(undefined);
+
+      service.members.setEntries([{ ...initMember(), docId: 'm1' }]);
+      expect(service.members.entries().length).toBe(1);
+
+      await service.clearLocalCacheForCollection('members_admin_test');
+      expect(clearCacheSpy).toHaveBeenCalledWith('members_admin_test');
+      expect(service.members.entries().length).toBe(0);
     });
 
     it('enqueues only changed fields (delta) when updating a member while offline', async () => {

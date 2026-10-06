@@ -376,9 +376,21 @@ export class IncrementalSyncService {
           idx >= 0
             ? [...bundle.entries.slice(0, idx), entry, ...bundle.entries.slice(idx + 1)]
             : [...bundle.entries, entry];
+        // Only advance lastSyncTimestamp if this update came with a confirmed server timestamp
+        // (not a local optimistic update with localUpdatedAt), avoiding device clock skew.
+        let lastSyncTimestamp = bundle.lastSyncTimestamp;
+        const isLocalOptimistic = Boolean((entry as Record<string, unknown>)['localUpdatedAt']);
+        const entryLastUpdated = (entry as Record<string, unknown>)['lastUpdated'];
+        if (!isLocalOptimistic && entryLastUpdated && typeof entryLastUpdated === 'string') {
+          if (!lastSyncTimestamp || entryLastUpdated > lastSyncTimestamp) {
+            lastSyncTimestamp = entryLastUpdated;
+          }
+        }
+
         await this.idb.set(cacheKey, {
           ...bundle,
           entries,
+          lastSyncTimestamp,
         });
       }
     } catch (err) {

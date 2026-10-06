@@ -30,7 +30,7 @@ describe('SearchableSet', () => {
     expect(searchableSet.duplicateEntries().length).toBe(0);
   });
 
-  it('should identify and separate duplicate IDs', () => {
+  it('should identify duplicate IDs while keeping the latest entry in uniqueEntries', () => {
     const entries = [
       { id: '1', name: 'Alice' },
       { id: '2', name: 'Bob' },
@@ -40,17 +40,50 @@ describe('SearchableSet', () => {
 
     expect(searchableSet.entries().length).toBe(3);
 
-    // uniqueEntries should ONLY contain entries whose ID is NOT shared by any other entry
-    // Actually, based on my implementation:
-    // duplicateIds = Set('1')
-    // uniqueEntries = entries where !duplicateIds.has(id) -> only 'Bob' ('2')
-    expect(searchableSet.uniqueEntries().length).toBe(1);
-    expect(searchableSet.uniqueEntries()[0].id).toBe('2');
+    // uniqueEntries deduplicates by keeping the latest entry (in this case Alice Duplicate, which appeared later without timestamps)
+    expect(searchableSet.uniqueEntries().length).toBe(2);
+    const uniqueIds = searchableSet.uniqueEntries().map(e => e.id);
+    expect(uniqueIds).toContain('1');
+    expect(uniqueIds).toContain('2');
+    expect(searchableSet.uniqueEntries().find(e => e.id === '1')?.name).toBe('Alice Duplicate');
 
     // duplicateEntries should contain ALL entries sharing a duplicated ID
     expect(searchableSet.duplicateEntries().length).toBe(2);
     expect(searchableSet.duplicateEntries()[0].id).toBe('1');
     expect(searchableSet.duplicateEntries()[1].id).toBe('1');
+  });
+
+  it('should resolve duplicates by lastUpdated timestamp when available', () => {
+    interface VersionedTestEntry extends TestEntry {
+      lastUpdated?: string;
+      localUpdatedAt?: string;
+    }
+    const versionedSet = new SearchableSet<'id', VersionedTestEntry>(['name'], 'id');
+    const entries: VersionedTestEntry[] = [
+      { id: '1', name: 'Alice New', lastUpdated: '2026-03-01T12:00:00.000Z' },
+      { id: '1', name: 'Alice Old', lastUpdated: '2026-01-01T12:00:00.000Z' },
+      { id: '2', name: 'Bob', lastUpdated: '2026-02-01T12:00:00.000Z' },
+    ];
+    versionedSet.setEntries(entries);
+
+    expect(versionedSet.uniqueEntries().length).toBe(2);
+    expect(versionedSet.uniqueEntries().find(e => e.id === '1')?.name).toBe('Alice New');
+  });
+
+  it('should prioritize localUpdatedAt over lastUpdated for local optimistic edits', () => {
+    interface VersionedTestEntry extends TestEntry {
+      lastUpdated?: string;
+      localUpdatedAt?: string;
+    }
+    const versionedSet = new SearchableSet<'id', VersionedTestEntry>(['name'], 'id');
+    const entries: VersionedTestEntry[] = [
+      { id: '1', name: 'Alice Server', lastUpdated: '2026-03-01T12:00:00.000Z' },
+      { id: '1', name: 'Alice Local Edit', lastUpdated: '2026-03-01T12:00:00.000Z', localUpdatedAt: '2026-03-01T12:05:00.000Z' },
+    ];
+    versionedSet.setEntries(entries);
+
+    expect(versionedSet.uniqueEntries().length).toBe(1);
+    expect(versionedSet.uniqueEntries()[0].name).toBe('Alice Local Edit');
   });
 
   it('should return unique entries on empty search', () => {
@@ -62,8 +95,8 @@ describe('SearchableSet', () => {
     searchableSet.setEntries(entries);
 
     const results = searchableSet.search('');
-    expect(results.length).toBe(1);
-    expect(results[0].id).toBe('2');
+    expect(results.length).toBe(2);
+    expect(results.map(r => r.id).sort()).toEqual(['1', '2']);
   });
 
   it('Setting the entries should result in the set going from false to true', () => {
@@ -77,17 +110,18 @@ describe('SearchableSet', () => {
     expect(searchableSet.loaded()).toBe(true);
   });
 
-  it('should perform search only on unique entries', () => {
+  it('should perform search only on deduplicated unique entries', () => {
     const entries = [
-      { id: '1', name: 'Alice' },
+      { id: '1', name: 'Alice Original' },
       { id: '2', name: 'Bob' },
       { id: '1', name: 'Alice Duplicate' },
     ];
     searchableSet.setEntries(entries);
 
-    // Searching for 'Alice' should yield NOTHING because 'Alice' is a duplicate and thus excluded from search index
+    // Searching for 'Alice' matches the deduplicated unique record 'Alice Duplicate'
     const resultsAlice = searchableSet.search('Alice');
-    expect(resultsAlice.length).toBe(0);
+    expect(resultsAlice.length).toBe(1);
+    expect(resultsAlice[0].name).toBe('Alice Duplicate');
 
     // Searching for 'Bob' should work
     const resultsBob = searchableSet.search('Bob');
