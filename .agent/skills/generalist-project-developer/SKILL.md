@@ -270,6 +270,7 @@ Before implementing:
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
 - No error handling for impossible scenarios.
+- **One Robust Solution Over "Defense in Depth" Tangled Layers**: Avoid layering speculative fallbacks, retry loops, error interceptors, and defensive flags on top of each other. Stacking defensive layers creates tangled code, masks root causes, and introduces new failure modes and edge cases. Instead, diagnose the root cause and implement ONE clear, robust, principled solution where the failure state cannot happen by design.
 - If you write 200 lines and it could be 50, rewrite it.
 
 Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.

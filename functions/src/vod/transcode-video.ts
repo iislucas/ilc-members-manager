@@ -44,8 +44,16 @@ export interface TranscodeVideoRequest {
     eventTitle?: string;
     recordedDate?: string;
     location?: string;
-    durationSeconds?: number;
     resolutions?: string[];
+    thumbnailUrl?: string;
+    spriteSheetUrl?: string;
+    spriteIntervalSeconds?: number;
+    spriteWidth?: number;
+    spriteHeight?: number;
+    spriteColumnCount?: number;
+    spriteRowCount?: number;
+    spriteFrameCount?: number;
+    durationSeconds?: number;
   };
 }
 
@@ -146,9 +154,13 @@ export const transcodeVideoForVod = onCall(
       vodStatus: VodStatus.Queued,
       thumbnailUrl: uploadItem.previewUrl || existingVideo.thumbnailUrl || '',
       manifestUrl: existingVideo.manifestUrl || uploadItem.url || '',
-      spriteIntervalSeconds: 5,
-      spriteWidth: 160,
-      spriteHeight: 90,
+      spriteSheetUrl: config.spriteSheetUrl || uploadItem.spriteSheetUrl || existingVideo.spriteSheetUrl || '',
+      spriteIntervalSeconds: config.spriteIntervalSeconds || existingVideo.spriteIntervalSeconds || 5,
+      spriteWidth: config.spriteWidth || existingVideo.spriteWidth || 160,
+      spriteHeight: config.spriteHeight || existingVideo.spriteHeight || 90,
+      spriteColumnCount: config.spriteColumnCount || existingVideo.spriteColumnCount || 5,
+      spriteRowCount: config.spriteRowCount || existingVideo.spriteRowCount || 5,
+      spriteFrameCount: config.spriteFrameCount || existingVideo.spriteFrameCount || 25,
       durationSeconds:
         typeof config.durationSeconds === 'number' && config.durationSeconds > 0
           ? config.durationSeconds

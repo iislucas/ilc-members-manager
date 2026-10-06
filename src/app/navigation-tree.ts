@@ -455,27 +455,33 @@ export class NavigationTreeService {
       // --- Orders, articles, settings ---
       case Views.OrderView:
         return [this.node(Views.ManageOrders, 'Orders')];
-      case Views.MembersAreaPost:
-        return [{ label: 'Members Area', url: this.routing.hrefWithParams('/members-area') }];
-      case Views.InstructorsAreaPost:
+      case Views.MembersAreaPost: {
+        const cat = this.routing.signals[Views.MembersAreaCategory].pathVars.category() || 'All';
+        return [{ label: 'Members Area', url: `/members-area/category/${encodeURIComponent(cat)}` }];
+      }
+      case Views.InstructorsAreaPost: {
+        const cat = this.routing.signals[Views.InstructorsAreaCategory].pathVars.category() || 'All';
         return [
-          { label: 'Instructors Area', url: this.routing.hrefWithParams('/instructors-area') },
+          { label: 'Instructors Area', url: `/instructors-area/category/${encodeURIComponent(cat)}` },
         ];
-      case Views.ArticlesPost:
+      }
+      case Views.ArticlesPost: {
+        const cat = this.routing.signals[Views.ArticlesCategory].pathVars.category() || 'All';
         return [
-          { label: 'Articles & Guides', url: this.routing.hrefWithParams('/articles') },
+          { label: 'Articles & Guides', url: `/articles/category/${encodeURIComponent(cat)}` },
         ];
+      }
       case Views.MembersAreaPostNew:
         return [
-          { label: 'Members Area', url: this.routing.hrefWithParams('/members-area') },
+          { label: 'Members Area', url: '/members-area/category/All' },
         ];
       case Views.InstructorsAreaPostNew:
         return [
-          { label: 'Instructors Area', url: this.routing.hrefWithParams('/instructors-area') },
+          { label: 'Instructors Area', url: '/instructors-area/category/All' },
         ];
       case Views.ArticlesPostNew:
         return [
-          { label: 'Articles & Guides', url: this.routing.hrefWithParams('/articles') },
+          { label: 'Articles & Guides', url: '/articles/category/All' },
         ];
       case Views.MembersAreaPostEdit:
       case Views.InstructorsAreaPostEdit:

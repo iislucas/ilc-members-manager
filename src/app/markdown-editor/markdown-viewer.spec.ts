@@ -127,6 +127,41 @@ describe('MarkdownViewer', () => {
     expect(figure.querySelector('figcaption')).toBeNull();
   });
 
+  it('renders images with surrounding whitespace or newlines as <figure> with <figcaption>', async () => {
+    fixture.componentRef.setInput(
+      'markdown',
+      '   ![Photo](https://example.com/spaced.jpg "Centered caption with spaces")   \n'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    fixture.detectChanges();
+
+    const figure = fixture.nativeElement.querySelector('figure.image-figure');
+    expect(figure).toBeTruthy();
+    expect(figure.parentElement?.tagName.toLowerCase()).not.toBe('p');
+
+    const figcaption = figure.querySelector('figcaption.image-caption');
+    expect(figcaption).toBeTruthy();
+    expect(figcaption.textContent).toBe('Centered caption with spaces');
+  });
+
+  it('renders images adjacent to text as <figure> with <figcaption> consistently', async () => {
+    fixture.componentRef.setInput(
+      'markdown',
+      'Intro text\n![Instructor](https://example.com/instructor.jpg "Master Chin teaching")\nOutro text'
+    );
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    fixture.detectChanges();
+
+    const figure = fixture.nativeElement.querySelector('figure.image-figure');
+    expect(figure).toBeTruthy();
+
+    const figcaption = figure.querySelector('figcaption.image-caption');
+    expect(figcaption).toBeTruthy();
+    expect(figcaption.textContent).toBe('Master Chin teaching');
+  });
+
   it('sanitizes script tags and inline event handlers to prevent XSS', async () => {
     fixture.componentRef.setInput(
       'markdown',

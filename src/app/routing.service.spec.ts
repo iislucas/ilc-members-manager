@@ -57,6 +57,7 @@ describe('RoutingService', () => {
   beforeEach(() => {
     // Reset the URL to the root path before each test.
     window.history.replaceState(null, '', '/');
+    window.scrollTo = vi.fn();
   });
 
   it('should be created', async () => {
@@ -436,5 +437,142 @@ describe('RoutingService', () => {
     // Links generated for gradings on Manage Gradings page must not carry from=my-gradings
     const href = service.hrefForView(Views.GradingView, { gradingId: 'bx6DELDrgqSu8RRqDv3M' });
     expect(href).toBe('/gradings/bx6DELDrgqSu8RRqDv3M');
+  });
+
+  describe('Scroll Restoration & Position Memory', () => {
+    it('should save current scroll position and retrieve it', async () => {
+      await configureTestBed(testConfig);
+      setUrl('/find-an-instructor');
+      await fixture.whenStable();
+
+      Object.defineProperty(window, 'scrollY', { value: 750, configurable: true, writable: true });
+      Object.defineProperty(window, 'scrollX', { value: 0, configurable: true, writable: true });
+      Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true, writable: true });
+
+      service.saveCurrentScrollPosition('/instructors/INST-001');
+
+      const saved = service.getSavedScrollPosition('/find-an-instructor');
+      expect(saved).toBeDefined();
+      expect(saved?.y).toBe(750);
+      expect(saved?.viewportWidth).toBe(400);
+      expect(saved?.targetUrl).toBe('/instructors/INST-001');
+    });
+
+    it('should restore scroll position when navigating back via navigateTo with isBackNavigation', async () => {
+      await configureTestBed(testConfig);
+      setUrl('/find-an-instructor');
+      await fixture.whenStable();
+
+      Object.defineProperty(window, 'scrollY', { value: 800, configurable: true, writable: true });
+      Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true, writable: true });
+      service.saveCurrentScrollPosition('/instructors/INST-001');
+
+      const scrollToSpy = vi.spyOn(window, 'scrollTo');
+      service.navigateTo('/instructors/INST-001');
+      await fixture.whenStable();
+
+      expect(scrollToSpy).toHaveBeenCalledWith(0, 0);
+      scrollToSpy.mockClear();
+
+      Object.defineProperty(document.documentElement, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(document.documentElement, 'clientHeight', { value: 600, configurable: true });
+
+      service.navigateTo('/find-an-instructor', { isBackNavigation: true });
+      await fixture.whenStable();
+
+      await new Promise((r) => requestAnimationFrame(r));
+
+      expect(scrollToSpy).toHaveBeenCalledWith(expect.objectContaining({ top: 800 }));
+    });
+
+    it('should restore scroll position on popstate (browser back)', async () => {
+      await configureTestBed(testConfig);
+      setUrl('/find-an-instructor');
+      await fixture.whenStable();
+
+      Object.defineProperty(window, 'scrollY', { value: 1200, configurable: true, writable: true });
+      Object.defineProperty(window, 'innerWidth', { value: 500, configurable: true, writable: true });
+      service.saveCurrentScrollPosition('/instructors/INST-002');
+
+      service.navigateTo('/instructors/INST-002');
+      await fixture.whenStable();
+
+      const scrollToSpy = vi.spyOn(window, 'scrollTo');
+      scrollToSpy.mockClear();
+
+      Object.defineProperty(document.documentElement, 'scrollHeight', { value: 3000, configurable: true });
+      Object.defineProperty(document.documentElement, 'clientHeight', { value: 800, configurable: true });
+
+      setUrl('/find-an-instructor');
+      await fixture.whenStable();
+
+      await new Promise((r) => requestAnimationFrame(r));
+
+      expect(scrollToSpy).toHaveBeenCalledWith(expect.objectContaining({ top: 1200 }));
+    });
+
+    it('should scroll matching anchor card into view if orientation/width changed', async () => {
+      await configureTestBed(testConfig);
+      setUrl('/find-an-instructor');
+      await fixture.whenStable();
+
+      Object.defineProperty(window, 'scrollY', { value: 1500, configurable: true, writable: true });
+      Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true, writable: true });
+      service.saveCurrentScrollPosition('/instructors/INST-042');
+
+      const card = document.createElement('div');
+      card.className = 'instructor-card';
+      Object.defineProperty(card, 'offsetHeight', { value: 120, configurable: true });
+      const link = document.createElement('a');
+      link.setAttribute('href', '/instructors/INST-042');
+      card.appendChild(link);
+      document.body.appendChild(card);
+
+      const scrollIntoViewSpy = vi.fn();
+      card.scrollIntoView = scrollIntoViewSpy;
+
+      service.navigateTo('/instructors/INST-042');
+      await fixture.whenStable();
+
+      // Change orientation/width
+      Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true, writable: true });
+
+      service.navigateTo('/find-an-instructor', { isBackNavigation: true });
+      await fixture.whenStable();
+
+      await new Promise((r) => requestAnimationFrame(r));
+
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }));
+      expect(card.classList.contains('nav-returned-highlight')).toBe(true);
+
+      document.body.removeChild(card);
+    });
+
+    it('should cancel restoration if user interacts with wheel before restoration completes', async () => {
+      await configureTestBed(testConfig);
+      setUrl('/find-an-instructor');
+      await fixture.whenStable();
+
+      Object.defineProperty(window, 'scrollY', { value: 900, configurable: true, writable: true });
+      Object.defineProperty(window, 'innerWidth', { value: 500, configurable: true, writable: true });
+      service.saveCurrentScrollPosition();
+
+      Object.defineProperty(document.documentElement, 'scrollHeight', { value: 500, configurable: true });
+      Object.defineProperty(document.documentElement, 'clientHeight', { value: 500, configurable: true });
+
+      service.navigateTo('/instructors/INST-001');
+      await fixture.whenStable();
+
+      const scrollToSpy = vi.spyOn(window, 'scrollTo');
+      scrollToSpy.mockClear();
+
+      service.navigateTo('/find-an-instructor', { isBackNavigation: true });
+
+      window.dispatchEvent(new Event('wheel'));
+
+      await new Promise((r) => requestAnimationFrame(r));
+
+      expect(scrollToSpy).not.toHaveBeenCalledWith(expect.objectContaining({ top: 900 }));
+    });
   });
 });

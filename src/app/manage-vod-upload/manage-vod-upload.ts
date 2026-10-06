@@ -34,7 +34,7 @@ import { TagInputComponent } from '../tag-input/tag-input';
 import { SearchableSet } from '../searchable-set';
 import { ResumableUploadService, UploadProgressUpdate } from './resumable-upload.service';
 import { NetworkStateService } from '../network-state.service';
-import { fitWithin } from '../utils';
+import { generateVideoSpriteSheet, fitWithin } from '../utils';
 import {
   ThumbnailEditorModalComponent,
   ThumbnailSelectedEvent,
@@ -49,6 +49,12 @@ export interface UploadFileEntry {
   durationSeconds: number;
   previewUrl: string;
   previewBlob: Blob | null;
+  spriteBlob?: Blob | null;
+  spriteUrl?: string;
+  spriteColumnCount?: number;
+  spriteRowCount?: number;
+  spriteFrameCount?: number;
+  spriteIntervalSeconds?: number;
   status: 'idle' | 'uploading' | 'paused' | 'transcoding' | 'done' | 'error';
   progressPercent: number;
   bytesTransferred?: number;
@@ -504,7 +510,26 @@ export class ManageVodUploadComponent implements OnInit {
     }
   }
 
-  private extractVideoMetadataAsync(entry: UploadFileEntry): Promise<void> {
+  private async extractVideoMetadataAsync(entry: UploadFileEntry): Promise<void> {
+    try {
+      const result = await generateVideoSpriteSheet(entry.file, { intervals: 25, columns: 5 });
+      entry.durationSeconds = result.durationSeconds;
+      if (result.posterBlob && !entry.previewBlob) {
+        entry.previewBlob = result.posterBlob;
+        entry.previewUrl = URL.createObjectURL(result.posterBlob);
+      }
+      entry.spriteBlob = result.spriteBlob;
+      entry.spriteUrl = URL.createObjectURL(result.spriteBlob);
+      entry.spriteColumnCount = result.columnCount;
+      entry.spriteRowCount = result.rowCount;
+      entry.spriteFrameCount = result.frameCount;
+      entry.spriteIntervalSeconds = result.intervalSeconds;
+      this.fileEntries.update((list) => [...list]);
+      return;
+    } catch {
+      // Fall back to basic preview extraction below if sprite sheet generation fails
+    }
+
     return new Promise<void>((resolve) => {
       const videoElem = document.createElement('video');
       videoElem.preload = 'metadata';
@@ -774,6 +799,20 @@ export class ManageVodUploadComponent implements OnInit {
         }
       }
 
+      // 3.5. Upload sprite sheet if generated
+      let spriteSheetUrl = '';
+      const spriteStoragePath = `vod/${entry.id}/spritesheet.jpg`;
+      if (entry.spriteBlob) {
+        try {
+          const storage = this.resumableService.getStorageInstance();
+          const spriteRef = ref(storage, spriteStoragePath);
+          await uploadBytes(spriteRef, entry.spriteBlob, { contentType: 'image/jpeg' });
+          spriteSheetUrl = await getDownloadURL(spriteRef);
+        } catch (spriteErr) {
+          console.warn('Sprite sheet upload warning:', spriteErr);
+        }
+      }
+
       // 4. Create UploadItem record in Firestore
       const uploadItemPayload: Omit<UploadItem, 'docId'> = {
         memberDocId: adminDocId,
@@ -785,8 +824,10 @@ export class ManageVodUploadComponent implements OnInit {
         size: entry.file.size,
         url: originalUrl,
         previewUrl,
+        spriteSheetUrl,
         storagePath: originalStoragePath,
         previewStoragePath: previewUrl ? previewStoragePath : '',
+        spriteStoragePath: spriteSheetUrl ? spriteStoragePath : '',
         date: mode === 'existing_series' ? (existingSeries?.recordedDate || this.recordedDate()) : this.recordedDate(),
         location: mode === 'existing_series' ? (existingSeries?.location || '') : this.location(),
         eventDocId: mode === 'existing_series' ? (existingSeries?.eventDocId || '') : this.selectedEventDocId(),
@@ -847,6 +888,11 @@ export class ManageVodUploadComponent implements OnInit {
         featured: mode === 'existing_series' ? Boolean(existingSeries?.featured) : this.isFeatured(),
         resolutions: this.selectedResolutions(),
         thumbnailUrl: previewUrl,
+        spriteSheetUrl: spriteSheetUrl || undefined,
+        spriteColumnCount: entry.spriteColumnCount || 5,
+        spriteRowCount: entry.spriteRowCount || 5,
+        spriteFrameCount: entry.spriteFrameCount || 25,
+        spriteIntervalSeconds: entry.spriteIntervalSeconds,
       };
 
       const transcodeResult = await this.dataService.transcodeVideoForVod(

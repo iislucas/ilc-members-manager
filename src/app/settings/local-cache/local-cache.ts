@@ -187,7 +187,11 @@ export class LocalCacheSettingsComponent implements OnInit {
 
     this.isActionRunning.set(true);
     try {
-      await this.syncService.clearCache(key);
+      if (key === 'public_instructors') {
+        await this.syncService.clearCache(key);
+      } else {
+        await this.dataManager.clearLocalCacheForCollection(key);
+      }
       if (this.expandedKey() === key) {
         this.expandedKey.set(null);
         this.rawRecords.set([]);

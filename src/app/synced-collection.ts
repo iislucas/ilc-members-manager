@@ -144,6 +144,7 @@ export class SyncedCollection<
       ...item,
       [this.config.idField]: docId,
       lastUpdated: nowIso,
+      localUpdatedAt: nowIso,
     };
 
     const isOffline = Boolean(this.networkState?.isOffline());
@@ -233,11 +234,13 @@ export class SyncedCollection<
       });
     }
 
+    const nowIso = new Date().toISOString();
     const updatedItem = {
       ...(existing ?? {}),
       ...updates,
       [this.config.idField]: id,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: nowIso,
+      localUpdatedAt: nowIso,
     } as unknown as T;
 
     this.upsert(updatedItem);

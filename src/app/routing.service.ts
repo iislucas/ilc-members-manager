@@ -103,6 +103,13 @@ export type RoutingConfig<P extends PathPatterns> = {
   validPathPatterns: P;
 };
 
+export interface ScrollState {
+  x: number;
+  y: number;
+  viewportWidth: number;
+  targetUrl?: string;
+}
+
 // This Service manages two way binding between the URL and a set of siganls
 // derived from a PathPatterns routing configuration. You can call navigate, or
 // you can update the current signals; either way around the URL and the signals
@@ -131,6 +138,14 @@ export class RoutingService<T extends PathPatterns> {
     return this.signals[patternId];
   });
 
+  // In-memory cache for preserving scroll positions across navigations.
+  private urlScrollCache = new Map<string, ScrollState>();
+
+  // Flags to indicate return / popstate navigation.
+  private isBackNavigation = false;
+  private isPopStateNavigation = false;
+  private cancelPendingRestore: (() => void) | null = null;
+
   constructor(@Inject(ROUTING_CONFIG) private config: RoutingConfig<T>) {
     this.currentPath = signal('');
     this.currentQuery = signal('');
@@ -150,15 +165,29 @@ export class RoutingService<T extends PathPatterns> {
       this.signals[patternId as keyof T] = s;
     }
 
-    // TODO: consider doing some checking so that varMap matches exactly the
-    // possible values in the path.
-    //
-    // for (const patternId of Object.keys(config.validPathPatterns)) {
-    // validatePaths(this.paths, this.pathParamSignals);
-    // }
+    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+      try {
+        window.history.scrollRestoration = 'manual';
+      } catch {
+        // Ignore error if browser environment restricts modifying scrollRestoration
+      }
+    }
 
     // Respond to back/forward navigation.
-    window.addEventListener('popstate', () => this.handleUrlChange());
+    window.addEventListener('popstate', () => {
+      this.isPopStateNavigation = true;
+      try {
+        this.handleUrlChange();
+      } finally {
+        this.isPopStateNavigation = false;
+      }
+    });
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        this.saveCurrentScrollPosition();
+      });
+    }
 
     // Seed the signals from the initial URL.
     this.handleUrlChange();
@@ -233,6 +262,225 @@ export class RoutingService<T extends PathPatterns> {
     return queryString ? `?${queryString}` : '';
   }
 
+  private normalizeUrlKey(url: string): string {
+    let normalized = url.trim();
+    if (!normalized.startsWith('/')) {
+      normalized = `/${normalized}`;
+    }
+    return normalized.replace(/\/+/g, '/');
+  }
+
+  saveCurrentScrollPosition(targetUrl?: string) {
+    if (typeof window === 'undefined') return;
+    const currentUrl = this.normalizeUrlKey(this.currentUrlPart());
+    const state: ScrollState = {
+      x: window.scrollX,
+      y: window.scrollY,
+      viewportWidth: window.innerWidth,
+      targetUrl: targetUrl ? this.normalizeUrlKey(targetUrl) : undefined,
+    };
+    this.urlScrollCache.set(currentUrl, state);
+
+    if (this.urlScrollCache.size > 50) {
+      const oldestKey = this.urlScrollCache.keys().next().value;
+      if (oldestKey) {
+        this.urlScrollCache.delete(oldestKey);
+      }
+    }
+
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(`scroll_${currentUrl}`, JSON.stringify(state));
+      }
+    } catch {
+      // Ignore storage errors
+    }
+
+    try {
+      if (typeof window.history !== 'undefined' && window.history.replaceState) {
+        window.history.replaceState({ ...window.history.state, scrollPos: state }, '');
+      }
+    } catch {
+      // Ignore history state errors
+    }
+  }
+
+  getSavedScrollPosition(url: string): ScrollState | undefined {
+    const key = this.normalizeUrlKey(url);
+    if (this.urlScrollCache.has(key)) {
+      return this.urlScrollCache.get(key);
+    }
+    const pathOnly = this.normalizeUrlKey(url.split('?')[0]);
+    if (this.urlScrollCache.has(pathOnly)) {
+      return this.urlScrollCache.get(pathOnly);
+    }
+
+    // Try matching if the requested URL is a base route or sub-route of a saved URL
+    // e.g. /members-area vs /members-area/category/All
+    for (const [cachedUrl, state] of this.urlScrollCache.entries()) {
+      const cachedPathOnly = cachedUrl.split('?')[0];
+      if (
+        (pathOnly.startsWith(cachedPathOnly) || cachedPathOnly.startsWith(pathOnly)) &&
+        (pathOnly.startsWith('/members-area') ||
+          pathOnly.startsWith('/instructors-area') ||
+          pathOnly.startsWith('/articles'))
+      ) {
+        return state;
+      }
+    }
+
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        const item = sessionStorage.getItem(`scroll_${key}`) || sessionStorage.getItem(`scroll_${pathOnly}`);
+        if (item) {
+          return JSON.parse(item) as ScrollState;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return undefined;
+  }
+
+  private restoreScrollPosition(saved: ScrollState, maxWaitMs = 1500): void {
+    if (typeof window === 'undefined') return;
+
+    if (this.cancelPendingRestore) {
+      this.cancelPendingRestore();
+      this.cancelPendingRestore = null;
+    }
+
+    const targetY = saved.y;
+    const targetAnchorUrl = saved.targetUrl;
+    const savedWidth = saved.viewportWidth;
+    const isSameWidth = Math.abs(window.innerWidth - savedWidth) < 30;
+
+    if (targetY <= 0 && !targetAnchorUrl) {
+      if (typeof window.scrollTo === 'function') {
+        window.scrollTo(0, 0);
+      }
+      return;
+    }
+
+    let cancelled = false;
+
+    const onUserInteraction = () => {
+      cancelled = true;
+      cleanup();
+    };
+
+    const cleanup = () => {
+      window.removeEventListener('wheel', onUserInteraction);
+      window.removeEventListener('touchmove', onUserInteraction);
+      window.removeEventListener('keydown', onUserInteraction);
+      this.cancelPendingRestore = null;
+    };
+
+    this.cancelPendingRestore = () => {
+      cancelled = true;
+      cleanup();
+    };
+
+    window.addEventListener('wheel', onUserInteraction, { passive: true, once: true });
+    window.addEventListener('touchmove', onUserInteraction, { passive: true, once: true });
+    window.addEventListener('keydown', onUserInteraction, { passive: true, once: true });
+
+    const startTime = performance.now();
+
+    const triggerElementHighlight = (element: HTMLElement) => {
+      element.classList.remove('nav-returned-highlight');
+      // Force reflow so re-adding the class triggers the animation if previously applied
+      void element.offsetWidth;
+      element.classList.add('nav-returned-highlight');
+      const onEnd = () => {
+        element.classList.remove('nav-returned-highlight');
+        element.removeEventListener('animationend', onEnd);
+      };
+      element.addEventListener('animationend', onEnd, { once: true });
+      // Fallback timeout in case animationend does not fire (e.g. reduced motion or detached)
+      setTimeout(() => element.classList.remove('nav-returned-highlight'), 2200);
+    };
+
+    const findTargetCard = (anchorUrl: string): HTMLElement | null => {
+      let cleanTarget = anchorUrl;
+      if (cleanTarget.startsWith('/')) cleanTarget = cleanTarget.substring(1);
+      const anchorEl = document.querySelector<HTMLElement>(
+        `a[href="${anchorUrl}"], a[href="/${cleanTarget}"], a[href="${cleanTarget}"]`
+      );
+      if (!anchorEl) return null;
+      return (
+        anchorEl.closest<HTMLElement>(
+          '.selectable-card, .instructor-card, .school-card, .event-card-link, tr, article, .member-card, .grading-card'
+        ) || anchorEl
+      );
+    };
+
+    const attempt = () => {
+      if (cancelled) return;
+
+      // Priority 1: When orientation changed or when an anchor URL was recorded,
+      // locate the card or anchor element corresponding to the detail page.
+      if (targetAnchorUrl) {
+        const cardEl = findTargetCard(targetAnchorUrl);
+        if (cardEl && (cardEl.offsetHeight > 0 || cardEl.scrollHeight > 0)) {
+          if (!isSameWidth) {
+            if (typeof cardEl.scrollIntoView === 'function') {
+              cardEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+            }
+            triggerElementHighlight(cardEl);
+            cleanup();
+            return;
+          }
+        }
+      }
+
+      // Priority 2: If same width and document height can reach targetY, scroll directly
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = document.documentElement.clientHeight;
+      const maxScroll = Math.max(0, scrollHeight - clientHeight);
+
+      if (maxScroll >= targetY) {
+        if (typeof window.scrollTo === 'function') {
+          window.scrollTo({ top: targetY, left: saved.x, behavior: 'instant' });
+        }
+        if (targetAnchorUrl) {
+          const cardEl = findTargetCard(targetAnchorUrl);
+          if (cardEl) {
+            triggerElementHighlight(cardEl);
+          }
+        }
+        cleanup();
+        return;
+      }
+
+      // Priority 3: Retry if document is still rendering and expanding
+      if (performance.now() - startTime < maxWaitMs) {
+        requestAnimationFrame(attempt);
+      } else {
+        if (targetAnchorUrl) {
+          const cardEl = findTargetCard(targetAnchorUrl);
+          if (cardEl) {
+            if (typeof cardEl.scrollIntoView === 'function') {
+              cardEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+            }
+            triggerElementHighlight(cardEl);
+            cleanup();
+            return;
+          }
+        }
+
+        if (maxScroll > 0 && isSameWidth) {
+          if (typeof window.scrollTo === 'function') {
+            window.scrollTo({ top: Math.min(targetY, maxScroll), left: saved.x, behavior: 'instant' });
+          }
+        }
+        cleanup();
+      }
+    };
+
+    requestAnimationFrame(attempt);
+  }
+
   // Tracks the previous matched pattern so we can scroll to the top when the
   // user navigates to a different page, but not when only URL params change
   // within the same page.
@@ -272,7 +520,25 @@ export class RoutingService<T extends PathPatterns> {
           this.signals[match.patternId].urlParamDefaults,
         );
         if (patternChanged) {
-          window.scrollTo(0, 0);
+          const urlPartWithSlash = urlPart.startsWith('/') ? urlPart : `/${urlPart}`;
+          const savedScroll = this.getSavedScrollPosition(urlPartWithSlash);
+          const isReturning =
+            this.isBackNavigation ||
+            this.isPopStateNavigation ||
+            (savedScroll?.targetUrl &&
+              this.normalizeUrlKey(this.currentUrlPart()).startsWith(savedScroll.targetUrl));
+
+          if (isReturning && savedScroll) {
+            this.restoreScrollPosition(savedScroll);
+          } else {
+            if (this.cancelPendingRestore) {
+              this.cancelPendingRestore();
+              this.cancelPendingRestore = null;
+            }
+            if (typeof window.scrollTo === 'function') {
+              window.scrollTo(0, 0);
+            }
+          }
         }
       } else {
         this.previousPatternId = null;
@@ -286,14 +552,25 @@ export class RoutingService<T extends PathPatterns> {
     performUpdate();
   }
 
-  navigateTo(pathAndParams: string, options?: { clearUrlParams?: boolean }) {
+  navigateTo(
+    pathAndParams: string,
+    options?: { clearUrlParams?: boolean; isBackNavigation?: boolean },
+  ) {
+    if (!options?.isBackNavigation) {
+      this.saveCurrentScrollPosition(pathAndParams);
+    }
+    this.isBackNavigation = options?.isBackNavigation ?? false;
     const clearUrlParams = options?.clearUrlParams ?? false;
     const resolved = clearUrlParams ? pathAndParams : this.resolveUrlWithParams(pathAndParams);
     const url = resolved.startsWith('/') ? resolved : `/${resolved}`;
     // pushState creates a new history entry but does not emit a popstate event,
     // so we manually re-derive the signal state from the new URL.
-    window.history.pushState(null, '', url);
-    this.handleUrlChange();
+    try {
+      window.history.pushState(null, '', url);
+      this.handleUrlChange();
+    } finally {
+      this.isBackNavigation = false;
+    }
   }
 
   /**
@@ -302,7 +579,10 @@ export class RoutingService<T extends PathPatterns> {
    * navigation programmatically from code. Using standard <a> links is better
    * for accessibility and allows users to open links in new tabs.
    */
-  navigateToParts(parts: string[], options?: { clearUrlParams?: boolean }) {
+  navigateToParts(
+    parts: string[],
+    options?: { clearUrlParams?: boolean; isBackNavigation?: boolean },
+  ) {
     this.navigateTo(parts.join('/'), options);
   }
 

@@ -343,4 +343,82 @@ describe('VideoPlayerComponent', () => {
     expect(component.loopRangeStyle()).toBeNull();
     expect(cleared).toBe(true);
   });
+
+  describe('previewStyle', () => {
+    it('should fall back to poster image when spriteSheetUrl is not available', () => {
+      component.videoData = {
+        ...initVideoItem(),
+        thumbnailUrl: 'https://example.com/poster.jpg',
+      };
+      component.hoverTime.set(45);
+
+      const style = component.previewStyle() as Record<string, string>;
+      expect(style['background-image']).toBe('url(https://example.com/poster.jpg)');
+      expect(style['background-size']).toBe('cover');
+      expect(style['width']).toBe('140px');
+      expect(style['height']).toBe('78px');
+    });
+
+    it('should compute correct background offset for 5x5 sprite sheet across timeline', () => {
+      component.videoData = {
+        ...initVideoItem(),
+        durationSeconds: 100,
+        spriteSheetUrl: 'https://example.com/spritesheet.jpg',
+        spriteColumnCount: 5,
+        spriteRowCount: 5,
+        spriteFrameCount: 25,
+        spriteWidth: 160,
+        spriteHeight: 90,
+      };
+
+      // 1. Start of video (time = 0 -> frame 0 -> col 0, row 0)
+      component.hoverTime.set(0);
+      let style = component.previewStyle() as Record<string, string>;
+      expect(style['background-image']).toBe('url(https://example.com/spritesheet.jpg)');
+      expect(style['background-position']).toBe('-0px -0px');
+      expect(style['background-size']).toBe('800px 450px');
+      expect(style['width']).toBe('160px');
+      expect(style['height']).toBe('90px');
+
+      // 2. 25% of video (time = 25 -> (25/100)*25 = 6.25 -> frame 6 -> col 1, row 1)
+      component.hoverTime.set(25);
+      style = component.previewStyle() as Record<string, string>;
+      expect(style['background-position']).toBe(`-${1 * 160}px -${1 * 90}px`);
+
+      // 3. 50% of video (time = 50 -> (50/100)*25 = 12.5 -> frame 12 -> col 2, row 2)
+      component.hoverTime.set(50);
+      style = component.previewStyle() as Record<string, string>;
+      expect(style['background-position']).toBe(`-${2 * 160}px -${2 * 90}px`);
+
+      // 4. End boundary (time = 100 -> frame clamped to 24 -> col 4, row 4)
+      component.hoverTime.set(100);
+      style = component.previewStyle() as Record<string, string>;
+      expect(style['background-position']).toBe(`-${4 * 160}px -${4 * 90}px`);
+
+      // 5. Overflow safeguard (time = 150 -> frame clamped to 24)
+      component.hoverTime.set(150);
+      style = component.previewStyle() as Record<string, string>;
+      expect(style['background-position']).toBe(`-${4 * 160}px -${4 * 90}px`);
+    });
+
+    it('should support custom column counts (e.g. 10-column GCP Transcoder sheets)', () => {
+      component.videoData = {
+        ...initVideoItem(),
+        durationSeconds: 500,
+        spriteSheetUrl: 'https://example.com/gcp-sprite.jpg',
+        spriteColumnCount: 10,
+        spriteRowCount: 10,
+        spriteFrameCount: 100,
+        spriteWidth: 160,
+        spriteHeight: 90,
+      };
+
+      // Frame 15: col 5, row 1
+      // time = (15.5 / 100) * 500 = 77.5
+      component.hoverTime.set(77.5);
+      const style = component.previewStyle() as Record<string, string>;
+      expect(style['background-position']).toBe(`-${5 * 160}px -${1 * 90}px`);
+      expect(style['background-size']).toBe('1600px 900px');
+    });
+  });
 });

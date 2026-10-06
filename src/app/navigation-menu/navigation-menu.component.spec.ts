@@ -65,6 +65,15 @@ describe('NavigationMenuComponent', () => {
 
     component.routingService.matchedPatternId.set(Views.ManageMembers);
     expect(component.currentArea()).toBe('admin');
+
+    component.routingService.matchedPatternId.set(Views.Videos);
+    expect(component.currentArea()).toBe('learn');
+
+    component.routingService.matchedPatternId.set(Views.VideoView);
+    expect(component.currentArea()).toBe('learn');
+
+    component.routingService.matchedPatternId.set(Views.ManageVod);
+    expect(component.currentArea()).toBe('admin');
   });
 
   it('computes currentArea from Home tab parameter', () => {
@@ -178,5 +187,27 @@ describe('NavigationMenuComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Video on Demand');
+  });
+
+  it('shows Manage VOD menu item without In Testing badge for admin', async () => {
+    (firebaseService.user as any).set({
+      isAdmin: true,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: {
+        name: 'Admin Member',
+        membershipType: 'Life',
+      },
+      firebaseUser: { email: 'admin@example.com' },
+    });
+
+    component.selectedArea.set('admin');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Manage VOD');
+    expect(compiled.querySelector('.in-testing-tag')).toBeNull();
+    expect(compiled.textContent).not.toContain('In Testing');
   });
 });

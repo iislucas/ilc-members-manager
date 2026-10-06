@@ -26,6 +26,8 @@ export type UploadItem = {
   previewUrl: string; // Storage download URL (JPEG preview thumbnail)
   storagePath: string; // Cloud storage path of original
   previewStoragePath: string; // Cloud storage path of preview thumbnail
+  spriteSheetUrl?: string; // Storage download URL (composite hover scrub sprite sheet)
+  spriteStoragePath?: string; // Cloud storage path of sprite sheet
 
   // Organizing principles
   date: string; // YYYY-MM-DD (media / recording date)

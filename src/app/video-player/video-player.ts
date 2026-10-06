@@ -30,6 +30,7 @@ import Hls from 'hls.js';
 import { VideoItem } from '../../../functions/src/data-model/vod';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { fixFirebaseHlsUrl } from '../utils';
 
 export interface QualityLevel {
   id: number; // -1 for Auto, 0..N for explicit levels
@@ -77,7 +78,12 @@ export class CachedHlsFragmentLoader extends (Hls.DefaultConfig.loader as any) {
     super(config);
     const origLoad = (this as any)['load'].bind(this);
     (this as any)['load'] = async (context: any, cfg: any, callbacks: any) => {
-      const url = context.url;
+      let url = context.url;
+      const rootUrl = (config as any)?.rootManifestUrl || (config as any)?.url;
+      if (rootUrl && url) {
+        url = fixFirebaseHlsUrl(url, rootUrl);
+        context.url = url;
+      }
       const isSegment =
         url.includes('.ts') ||
         url.includes('.m4s') ||
@@ -309,19 +315,38 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       return {};
     }
     if (video.spriteSheetUrl) {
-      const interval = video.spriteIntervalSeconds || 5;
       const width = video.spriteWidth || 160;
       const height = video.spriteHeight || 90;
-      const frameIdx = Math.floor(time / interval);
-      const cols = 10;
+      const cols = video.spriteColumnCount || 5;
+      const frameCount =
+        video.spriteFrameCount ||
+        (video.spriteRowCount ? cols * video.spriteRowCount : 25);
+      const duration = this.effectiveDuration();
+
+      let frameIdx = 0;
+      if (duration > 0 && frameCount > 0) {
+        frameIdx = Math.min(
+          frameCount - 1,
+          Math.max(0, Math.floor((time / duration) * frameCount)),
+        );
+      } else if (video.spriteIntervalSeconds && video.spriteIntervalSeconds > 0) {
+        frameIdx = Math.max(0, Math.floor(time / video.spriteIntervalSeconds));
+        if (frameCount > 0) {
+          frameIdx = Math.min(frameCount - 1, frameIdx);
+        }
+      }
+
       const col = frameIdx % cols;
       const row = Math.floor(frameIdx / cols);
+      const totalRows = Math.ceil(frameCount / cols);
+
       return {
         'background-image': `url(${video.spriteSheetUrl})`,
         'background-position': `-${col * width}px -${row * height}px`,
+        'background-size': `${cols * width}px ${totalRows * height}px`,
         'background-repeat': 'no-repeat',
-        'width.px': width,
-        'height.px': height,
+        'width': `${width}px`,
+        'height': `${height}px`,
       };
     }
     const poster = this.posterUrl || video.thumbnailUrl;
@@ -602,7 +627,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     if (isHls && Hls.isSupported()) {
       this.streamingEngine.set('HLS.js');
+
+      class FirebaseHlsPlaylistLoader extends (Hls.DefaultConfig.loader as any) {
+        constructor(cfg: any) {
+          super(cfg);
+          const origLoad = (this as any)['load'].bind(this);
+          (this as any)['load'] = (context: any, loadCfg: any, callbacks: any) => {
+            if (context?.url) {
+              context.url = fixFirebaseHlsUrl(context.url, src);
+            }
+            origLoad(context, loadCfg, callbacks);
+          };
+        }
+      }
+
       this.hls = new Hls({
+        pLoader: FirebaseHlsPlaylistLoader as any,
         fLoader: CachedHlsFragmentLoader as any,
         capLevelToPlayerSize: true,
         autoStartLoad: true,
@@ -628,6 +668,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         levelLoadingTimeOut: 20000,
         levelLoadingMaxRetry: 6,
       });
+      (this.hls.config as any).rootManifestUrl = src;
 
       this.hls.loadSource(src);
       this.hls.attachMedia(video);

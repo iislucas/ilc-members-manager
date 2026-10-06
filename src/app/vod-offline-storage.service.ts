@@ -6,6 +6,7 @@
 
 import { Injectable, signal } from '@angular/core';
 import { VideoItem } from '../../functions/src/data-model/vod';
+import { fixFirebaseHlsUrl } from './utils';
 
 export interface OfflineDownloadProgress {
   videoId: string;
@@ -202,13 +203,12 @@ export class VodOfflineStorageService {
       );
 
       // Parse sub-playlists
-      const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
       const lines = masterText.split('\n').map((l) => l.trim());
       const subPlaylists: string[] = [];
 
       for (const line of lines) {
         if (line && !line.startsWith('#') && line.endsWith('.m3u8')) {
-          subPlaylists.push(line.startsWith('http') ? line : baseUrl + line);
+          subPlaylists.push(line.startsWith('http') ? line : fixFirebaseHlsUrl(line, url));
         }
       }
 
@@ -228,17 +228,16 @@ export class VodOfflineStorageService {
             },
           }),
         );
-        const subBaseUrl = targetPlaylistUrl.substring(0, targetPlaylistUrl.lastIndexOf('/') + 1);
         const subLines = subText.split('\n').map((l) => l.trim());
         for (const line of subLines) {
           if (line && !line.startsWith('#') && (line.endsWith('.ts') || line.endsWith('.m4s') || line.endsWith('.mp4'))) {
-            chunkUrls.push(line.startsWith('http') ? line : subBaseUrl + line);
+            chunkUrls.push(line.startsWith('http') ? line : fixFirebaseHlsUrl(line, targetPlaylistUrl));
           }
         }
       } else {
         for (const line of lines) {
           if (line && !line.startsWith('#') && (line.endsWith('.ts') || line.endsWith('.m4s') || line.endsWith('.mp4'))) {
-            chunkUrls.push(line.startsWith('http') ? line : baseUrl + line);
+            chunkUrls.push(line.startsWith('http') ? line : fixFirebaseHlsUrl(line, url));
           }
         }
       }

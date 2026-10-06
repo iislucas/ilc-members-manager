@@ -71,6 +71,7 @@ export type Member = {
   docId: string; // Firestore document ID, UNIQUE, auto-generated.
 
   lastUpdated: string; // ISO string: YYYY-MM-DD ; Converted from server Timestamp;
+  localUpdatedAt?: string; // Client-side timestamp for optimistic updates and conflict resolution
 
   /**
    * @deprecated Admin privilege is a property of the login email in `/acl/{email}`, not the member profile.

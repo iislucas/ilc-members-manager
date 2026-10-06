@@ -144,9 +144,7 @@ describe('MemberDetailsComponent', () => {
     expect(dataManagerServiceMock.updateMember).toHaveBeenCalledWith(
       mockMember.docId,
       expect.any(Object),
-      // Admins skip the diff optimization (oldMember is undefined) so that
-      // all initMember() defaults are written to Firestore.
-      undefined,
+      mockMember,
     );
   });
 
@@ -772,6 +770,24 @@ describe('MemberDetailsComponent', () => {
       const mobileDurations = el.querySelectorAll('.nested-mobile-duration');
       expect(mobileDurations.length).toBe(2);
       expect(mobileDurations[0].textContent).toContain('15m');
+
+      // The table and summary box should be within .vod-grants-container directly, without "Granted Items" label
+      expect(el.querySelector('.vod-grants-container')).toBeTruthy();
+      expect(el.textContent).not.toContain('Granted Items');
+    });
+
+    it('should display empty grants message directly under VOD section header without Granted Items label', async () => {
+      component.memberVideoGrants.set([]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const grantsContainer = el.querySelector('.vod-grants-container');
+      expect(grantsContainer).toBeTruthy();
+      expect(grantsContainer?.textContent).toContain(
+        'No VOD video or series grants for this member.'
+      );
+      expect(el.textContent).not.toContain('Granted Items');
     });
   });
 

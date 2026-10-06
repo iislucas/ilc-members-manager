@@ -4,7 +4,7 @@
  * and custom list rendering to distinguish '-' bullets from '*' bullets.
  */
 
-import { marked } from 'marked';
+import { marked, type Tokens } from 'marked';
 
 let isConfigured = false;
 
@@ -33,22 +33,29 @@ export function configureMarked(): void {
       image(token) {
         const src = token.href;
         const alt = token.text || '';
-        const title = token.title || '';
+        const title = (token.title || '').trim();
         const titleAttr = title ? ` title="${title}"` : '';
-        return `<img src="${src}" alt="${alt}"${titleAttr} />`;
+        const captionHtml = title
+          ? `<figcaption class="image-caption">${title}</figcaption>`
+          : '';
+        return `<figure class="image-figure"><img src="${src}" alt="${alt}"${titleAttr} />${captionHtml}</figure>`;
       },
       paragraph(token) {
-        // When a paragraph consists solely of a single image token, render it as a standalone <figure> without wrapping in <p>
-        if (token.tokens && token.tokens.length === 1 && token.tokens[0].type === 'image') {
-          const imgToken = token.tokens[0] as { href: string; text?: string; title?: string };
-          const src = imgToken.href;
-          const alt = imgToken.text || '';
-          const title = imgToken.title || '';
-          const titleAttr = title ? ` title="${title}"` : '';
-          const captionHtml = title
-            ? `<figcaption class="image-caption">${title}</figcaption>`
-            : '';
-          return `<figure class="image-figure"><img src="${src}" alt="${alt}"${titleAttr} />${captionHtml}</figure>\n`;
+        // When a paragraph consists solely of image(s) (ignoring surrounding whitespace),
+        // render them directly as standalone <figure> without wrapping in an outer <p>
+        const nonWhitespaceTokens = token.tokens?.filter(
+          (t) => !(t.type === 'text' && (!t.raw || t.raw.trim() === '')) && t.type !== 'space'
+        );
+        if (
+          nonWhitespaceTokens &&
+          nonWhitespaceTokens.length > 0 &&
+          nonWhitespaceTokens.every((t) => t.type === 'image')
+        ) {
+          let body = '';
+          for (const imgToken of nonWhitespaceTokens) {
+            body += this.image(imgToken as Tokens.Image);
+          }
+          return `${body}\n`;
         }
         return false;
       },
