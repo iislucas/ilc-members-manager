@@ -243,11 +243,23 @@ describe('IncrementalSyncService', () => {
     expect(bundle?.entries.length).toBe(1);
     expect(bundle?.entries[0].name).toBe('Alice Renamed');
 
-    // Insert new
-    await service.upsertCachedEntry('test_upsert', 'docId', { docId: '2', name: 'Bob' });
+    // Insert new with newer lastUpdated (server confirmed)
+    await service.upsertCachedEntry('test_upsert', 'docId', { docId: '2', name: 'Bob', lastUpdated: '2026-08-14T11:00:00.000Z' });
     bundle = await service.getCachedBundle<{ docId: string; name: string }>('test_upsert');
     expect(bundle?.entries.length).toBe(2);
     expect(bundle?.entries[1].name).toBe('Bob');
+    expect(bundle?.lastSyncTimestamp).toBe('2026-08-14T11:00:00.000Z');
+
+    // Local optimistic update with localUpdatedAt does NOT advance lastSyncTimestamp (avoids clock skew)
+    await service.upsertCachedEntry('test_upsert', 'docId', {
+      docId: '3',
+      name: 'Charlie',
+      lastUpdated: '2030-01-01T00:00:00.000Z',
+      localUpdatedAt: '2030-01-01T00:00:00.000Z',
+    });
+    bundle = await service.getCachedBundle<{ docId: string; name: string }>('test_upsert');
+    expect(bundle?.entries.length).toBe(3);
+    expect(bundle?.lastSyncTimestamp).toBe('2026-08-14T11:00:00.000Z');
   });
 
   it('deleteCachedEntry removes record from cache bundle', async () => {

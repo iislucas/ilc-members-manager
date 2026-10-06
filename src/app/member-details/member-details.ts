@@ -1459,17 +1459,11 @@ export class MemberDetailsComponent {
             }
           }
           try {
-            // For admins, skip the diff optimization (don't pass oldMember) so that
-            // all initMember() defaults get written to Firestore, backfilling any
-            // missing fields. Non-admins need the diff to stay within the Firestore
-            // rules' affectedKeys().hasOnly(...) constraint.
-            const oldMemberForDiff = this.userIsAdmin()
-              ? undefined
-              : this.member();
+            // Both admins and non-admins write efficient diffs to avoid overwriting concurrent updates
             await this.membersService.updateMember(
               member.docId,
               member,
-              oldMemberForDiff,
+              this.member(),
             );
           } catch (e) {
             console.error('Error updating member document:', e);

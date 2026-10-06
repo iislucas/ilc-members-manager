@@ -77,6 +77,7 @@ describe('LocalCacheSettingsComponent', () => {
       updateEventsSync: vi.fn().mockResolvedValue(undefined),
       forceRefreshAllData: vi.fn().mockResolvedValue(undefined),
       clearAllLocalCaches: vi.fn().mockResolvedValue(undefined),
+      clearLocalCacheForCollection: vi.fn().mockResolvedValue(undefined),
     };
 
     mockFindInstructors = {
@@ -167,6 +168,9 @@ describe('LocalCacheSettingsComponent', () => {
     await component.clearSingleCollection('public_instructors');
     expect(mockSyncService.clearCache).toHaveBeenCalledWith('public_instructors');
     expect(component.statusMessage()).toContain('Cleared cache');
+
+    await component.clearSingleCollection('members_admin_user_123');
+    expect(mockDataManager.clearLocalCacheForCollection).toHaveBeenCalledWith('members_admin_user_123');
   });
 
   it('should not clear single collection if cancelled', async () => {

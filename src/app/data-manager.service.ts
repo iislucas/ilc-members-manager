@@ -1890,7 +1890,7 @@ export class DataManagerService {
     }
   }
 
-  private async persistMemberLocally(member: Member): Promise<void> {
+  private async persistMemberLocally(member: Member, oldSchoolId?: string): Promise<void> {
     this.members.upsert(member);
     const user = this.firebaseService.user();
     const userInstructorId = user?.member?.instructorId
@@ -1923,6 +1923,11 @@ export class DataManagerService {
     if (member.primarySchoolId) {
       const schoolCacheKey = `school_members_${member.primarySchoolId}`;
       await this.syncService.upsertCachedEntry(schoolCacheKey, 'docId', member);
+    }
+    // If the member's school changed, remove from previous school's local cache
+    if (oldSchoolId && oldSchoolId !== member.primarySchoolId) {
+      const oldSchoolCacheKey = `school_members_${oldSchoolId}`;
+      await this.syncService.deleteCachedEntry(oldSchoolCacheKey, 'docId', member.docId);
     }
     if (typeof this.firebaseService.updateCachedMemberProfile === 'function') {
       await this.firebaseService.updateCachedMemberProfile(member);
@@ -2111,10 +2116,8 @@ export class DataManagerService {
       instructorId: newMember.instructorId ? newMember.instructorId.trim().toUpperCase() : newMember.instructorId,
       primaryInstructorId: newMember.primaryInstructorId ? newMember.primaryInstructorId.trim().toUpperCase() : newMember.primaryInstructorId,
     };
-    let originalMember = oldMember;
-    if (!originalMember) {
-      originalMember = this.members.get(cleanMember.docId);
-    }
+    const originalMember = oldMember ?? this.members.get(cleanMember.docId);
+    const oldSchoolId = originalMember?.primarySchoolId || this.members.get(cleanMember.docId)?.primarySchoolId;
 
     if (this.networkState.isOffline()) {
       const diff = computeObjectDiff<Member>(originalMember, cleanMember, {
@@ -2132,22 +2135,19 @@ export class DataManagerService {
         newState: diff.changedNewState,
         baselineSnapshot: originalMember ? structuredClone(originalMember) : undefined,
       });
+      const nowIso = new Date().toISOString();
       const updatedMember: Member = {
         ...cleanMember,
         docId: id,
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: nowIso,
+        localUpdatedAt: nowIso,
       };
-      await this.persistMemberLocally(updatedMember);
+      await this.persistMemberLocally(updatedMember, oldSchoolId);
       return;
     }
 
-    // If the member is found in the current list of members, only update the 
-    // fields that have changed. This is more efficient than updating the entire
-    // member document, and also it is necessary to stop small oddnesses in 
-    // the firestore database content (e.g. old field names, etc.) from breaking 
-    // member updates to themselves. By only asking to update fields that changed, 
-    // we avoid firestore rules from rejecting the update due to the presence of 
-    // fields that are not allowed.
+    // Only update the fields that have changed. This is efficient and ensures
+    // updates avoid firestore rules rejecting updates with unauthorized or untouched fields.
     if (originalMember) {
       const diff = computeObjectDiff<Member>(originalMember, cleanMember, {
         ignoreKeys: ['docId', 'lastUpdated'],
@@ -2158,7 +2158,7 @@ export class DataManagerService {
       };
       await setDoc(docRef, changes, { merge: true });
     } else {
-      // Fallback if no old member is found
+      // Fallback if no prior baseline member exists
       const memberWithNewTimestamp: MemberFsDoc = {
         ...cleanMember,
         lastUpdated: serverTimestamp() as Timestamp,
@@ -2168,12 +2168,14 @@ export class DataManagerService {
     }
 
     // Optimistically update in-memory SearchableSet and IndexedDB cache immediately!
+    const nowIso = new Date().toISOString();
     const updatedMember: Member = {
       ...cleanMember,
       docId: id,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: nowIso,
+      localUpdatedAt: nowIso,
     };
-    await this.persistMemberLocally(updatedMember);
+    await this.persistMemberLocally(updatedMember, oldSchoolId);
   }
 
   async updateMemberAndStudentInstructorIds(id: string, member: Member, oldInstructorId: string): Promise<void> {
@@ -4106,8 +4108,34 @@ export class DataManagerService {
     await setDoc(timeRangesRef, payload, { merge: true });
   }
 
+  async clearLocalCacheForCollection(key: string): Promise<void> {
+    await this.syncService.clearCache(key);
+    if (key.startsWith('members_admin_') || key.startsWith('school_members_')) {
+      this.members.setEntries([]);
+    } else if (key.startsWith('my_students_')) {
+      this.myStudents.setEntries([]);
+    } else if (key.startsWith('my_gradings_assessed_')) {
+      this.myGradingsAssessed.setEntries([]);
+    } else if (key === 'schools') {
+      this.schools.setEntries([]);
+    } else if (key === 'public_events') {
+      this.events.setEntries([]);
+    } else if (key === 'products') {
+      this.products.setEntries([]);
+    } else if (key === 'admin_orders') {
+      this.orders.setEntries([]);
+    }
+  }
+
   async clearAllLocalCaches(): Promise<void> {
     await this.syncService.clearAllCaches();
+    this.members.setEntries([]);
+    this.schools.setEntries([]);
+    this.events.setEntries([]);
+    this.products.setEntries([]);
+    this.myStudents.setEntries([]);
+    this.myGradingsAssessed.setEntries([]);
+    this.orders.setEntries([]);
   }
 
   async forceRefreshAllData(user: UserDetails): Promise<void> {
