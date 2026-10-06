@@ -9,16 +9,7 @@
         "files": [
           "/favicon.ico",
           "/index.html",
-          "/manifest.webmanifest"
-        ]
-      }
-    },
-    {
-      "name": "lazy-chunks",
-      "installMode": "lazy",
-      "updateMode": "prefetch",
-      "resources": {
-        "files": [
+          "/manifest.webmanifest",
           "/*.css",
           "/*.js"
         ]
