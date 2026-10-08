@@ -33,6 +33,16 @@
               <app-icon name="arrow_forward"></app-icon>
             </a>
           }
+          @if (isAdmin()) {
+            <a
+              class="nav-admin-edit-btn"
+              [href]="routingService.hrefForView(Views.ManageVodEditSeries, { seriesId: s.seriesId })"
+              title="Edit this series in admin console"
+            >
+              <app-icon name="edit"></app-icon>
+              <span>Edit series</span>
+            </a>
+          }
         </div>
       </div>
     }
@@ -522,6 +532,59 @@
       <!-- Main Column: Info, Instructor, Description, Chapters -->
       <div class="main-info-col">
         <div class="title-header">
+          <div class="title-and-actions-row">
+            <h1 class="video-title">{{ v.title }}</h1>
+            @if (isAdmin()) {
+              <div class="admin-menu-anchor">
+                <button
+                  type="button"
+                  class="icon-only-button admin-menu-btn"
+                  (click)="toggleAdminMenu()"
+                  [attr.aria-expanded]="adminMenuOpen()"
+                  aria-haspopup="true"
+                  aria-label="Admin options"
+                  title="Admin options"
+                >
+                  <app-icon name="more_vert" width="22px" height="22px"></app-icon>
+                </button>
+                @if (adminMenuOpen()) {
+                  <div class="menu-overlay transparent" (click)="closeAdminMenu()"></div>
+                  <div class="admin-dropdown-menu" role="menu">
+                    <a
+                      class="menu-item"
+                      role="menuitem"
+                      [href]="routingService.hrefForView(Views.ManageVodEditVideo, { videoId: v.docId })"
+                      (click)="closeAdminMenu()"
+                    >
+                      <app-icon name="edit"></app-icon>
+                      <span>Edit this Video</span>
+                    </a>
+                    @if (seriesIdForAdmin(); as sId) {
+                      <a
+                        class="menu-item"
+                        role="menuitem"
+                        [href]="routingService.hrefForView(Views.ManageVodEditSeries, { seriesId: sId })"
+                        (click)="closeAdminMenu()"
+                      >
+                        <app-icon name="collections"></app-icon>
+                        <span>Edit this series</span>
+                      </a>
+                    }
+                    <a
+                      class="menu-item"
+                      role="menuitem"
+                      [href]="routingService.hrefForView(Views.ManageVod, { tab: 'all_videos' })"
+                      (click)="closeAdminMenu()"
+                    >
+                      <app-icon name="video_library"></app-icon>
+                      <span>Manage VOD Catalog</span>
+                    </a>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
           <div class="badge-row">
             <span class="duration-badge">{{ formatDuration(v.durationSeconds) }}</span>
             @if (formatVideoDate(v); as vDate) {

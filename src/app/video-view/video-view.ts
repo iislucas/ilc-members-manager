@@ -82,10 +82,35 @@ export class VideoViewComponent implements OnInit {
   public stripeService = inject(StripeService);
   public offlineStorage = inject(VodOfflineStorageService);
 
+  readonly Views = Views;
+
   private viewSignals = this.routingService.signals[Views.VideoView];
 
   // Path Variable
   videoId = computed(() => this.viewSignals.pathVars.videoId());
+
+  // Admin Controls
+  isAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
+  adminMenuOpen = signal<boolean>(false);
+
+  seriesForAdmin = computed<VideoSeries | null>(() => {
+    const v = this.video();
+    if (!v) return null;
+    const directId = v.seriesId || v.forVodPageId;
+    const sList = this.dataService.getVideoSeriesList();
+    if (directId) {
+      const found = sList.find((s) => s.seriesId === directId);
+      if (found) return found;
+    }
+    return sList.find((s) => s.videos.some((item) => item.docId === v.docId)) || null;
+  });
+
+  seriesIdForAdmin = computed<string | null>(() => {
+    const s = this.seriesForAdmin();
+    if (s) return s.seriesId;
+    const v = this.video();
+    return v?.seriesId || v?.forVodPageId || null;
+  });
 
   // Outputs
   public titleLoaded = output<string>();
@@ -303,6 +328,7 @@ export class VideoViewComponent implements OnInit {
     this.currentPlayerTime.set(0);
     this.activeLoopRange.set(null);
     this.streamingStats.set(null);
+    this.adminMenuOpen.set(false);
     this.isGiftPurchase.set(false);
     this.isGiftModalOpen.set(false);
     this.giftValidationError.set(null);
@@ -603,6 +629,14 @@ export class VideoViewComponent implements OnInit {
       return `${hrs}h ${mins}m`;
     }
     return `${mins}m`;
+  }
+
+  toggleAdminMenu(): void {
+    this.adminMenuOpen.update((open) => !open);
+  }
+
+  closeAdminMenu(): void {
+    this.adminMenuOpen.set(false);
   }
 
   getVideoHref(video: VideoItem): string {

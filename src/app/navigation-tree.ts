@@ -305,6 +305,7 @@ export class NavigationTreeService {
       view === Views.ManageVod ||
       view === Views.ManageVodUpload ||
       view === Views.ManageVodEditSeries ||
+      view === Views.ManageVodEditVideo ||
       view === Views.ManageVideoTags ||
       view === Views.Statistics ||
       view === Views.ImportExport ||
@@ -506,6 +507,7 @@ export class NavigationTreeService {
       }
       case Views.ManageVodUpload:
       case Views.ManageVodEditSeries:
+      case Views.ManageVodEditVideo:
       case Views.ManageVideoTags:
         return [this.node(Views.ManageVod, 'Manage VOD')];
       case Views.ManageVod: {
@@ -871,6 +873,8 @@ export class NavigationTreeService {
         return 'Upload VOD & Series';
       case Views.ManageVodEditSeries:
         return 'Edit Video Series';
+      case Views.ManageVodEditVideo:
+        return 'Edit Video';
       case Views.ManageVideoTags:
         return 'Video Tags';
       case Views.Login:

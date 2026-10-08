@@ -962,6 +962,15 @@
             <div></div>
           }
         }
+        @case (Views.ManageVodEditVideo) {
+          @defer {
+            <app-manage-vod-edit-video></app-manage-vod-edit-video>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading video editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
         @case (Views.ManageVideoTags) {
           @defer {
             <app-manage-video-tags></app-manage-video-tags>

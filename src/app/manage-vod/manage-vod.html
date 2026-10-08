@@ -447,14 +447,14 @@
                       (click)="$event.stopPropagation()"
                     >
                       <!-- Edit Metadata -->
-                      <button
-                        type="button"
+                      <a
                         class="menu-item"
-                        (click)="openEditModal(video); closeMenu()"
+                        [href]="routingService.hrefForView(Views.ManageVodEditVideo, { videoId: video.docId })"
+                        (click)="closeMenu()"
                       >
                         <app-icon name="edit"></app-icon>
-                        <span>Edit Metadata</span>
-                      </button>
+                        <span>Edit Video &amp; Access</span>
+                      </a>
 
                       <!-- Toggle Listed / Unlisted -->
                       <button
@@ -663,9 +663,13 @@
                   </span>
                 </div>
                 <div class="episode-actions">
-                  <button type="button" class="icon-only-button" (click)="openEditModal(vid)" title="Edit episode metadata">
+                  <a
+                    class="icon-only-button"
+                    [href]="routingService.hrefForView(Views.ManageVodEditVideo, { videoId: vid.docId })"
+                    title="Edit episode metadata &amp; access"
+                  >
                     <app-icon name="edit"></app-icon>
-                  </button>
+                  </a>
                   <button type="button" class="icon-only-button" (click)="openDrawer(vid)" title="View transcoding pipeline">
                     <app-icon name="info"></app-icon>
                   </button>
@@ -716,15 +720,14 @@
         <div class="drawer-body">
           <!-- Drawer Quick Actions Bar (Watch, Edit, and Kebab) -->
           <div class="drawer-quick-actions">
-            <button
-              type="button"
+            <a
               class="drawer-action-btn"
-              (click)="openEditModal(d)"
+              [href]="routingService.hrefForView(Views.ManageVodEditVideo, { videoId: d.docId })"
               title="Edit Title, Description, Tags, Visibility, Access Tiers and Price"
             >
               <app-icon name="edit"></app-icon>
               <span>Edit Metadata</span>
-            </button>
+            </a>
 
             @if (d.vodStatus === 'ready') {
               <a
