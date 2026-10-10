@@ -1,4 +1,11 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+/* manage-vod-edit-video.ts
+ *
+ * Editable "Details" form for a single VOD video: metadata, thumbnail, access
+ * tiers & pricing, series linkage, and catalog visibility. Embedded as the
+ * Details tab of the admin video page (/manage-vod/video/:videoId?tab=details).
+ */
+
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { AppPathPatterns, Views } from '../app.config';
@@ -41,15 +48,16 @@ export class ManageVodEditVideoComponent {
   readonly VodAccessTier = VodAccessTier;
   readonly VodStatus = VodStatus;
 
-  private viewSignals = this.routingService.signals[Views.ManageVodEditVideo];
-  videoId = computed(() => this.viewSignals.pathVars.videoId() || '');
+  /** Firestore docId of the video being edited. */
+  videoId = input.required<string>();
 
   // Catalog video
   private fetchedDirectVideo = signal<VideoItem | null>(null);
   video = computed<VideoItem | null>(() => {
     const vId = this.videoId();
     if (!vId) return null;
-    return this.dataService.videos.get(vId) ?? this.fetchedDirectVideo() ?? null;
+    const fetched = this.fetchedDirectVideo();
+    return this.dataService.videos.get(vId) ?? (fetched?.docId === vId ? fetched : null);
   });
 
   // Track if form has been initialized with the current video
@@ -121,7 +129,7 @@ export class ManageVodEditVideoComponent {
     effect(() => {
       const vId = this.videoId();
       if (!vId) return;
-      if (!this.dataService.videos.get(vId) && !this.fetchedDirectVideo()) {
+      if (!this.dataService.videos.get(vId) && this.fetchedDirectVideo()?.docId !== vId) {
         this.dataService.getVideoById(vId).then((v) => {
           if (v) this.fetchedDirectVideo.set(v);
         }).catch((err) => {
@@ -184,15 +192,11 @@ export class ManageVodEditVideoComponent {
     return tiers.includes(VodAccessTier.ClassVideoSubscribers);
   }
 
-  getVideoHref(): string {
-    return this.routingService.hrefForView(Views.VideoView, { videoId: this.videoId() });
-  }
-
-  getSeriesHref(): string | null {
+  getSeriesHref(tab: 'overview' | 'details' = 'details'): string | null {
     const s = this.associatedSeries();
     const sId = s?.seriesId || this.seriesId().trim();
     if (!sId) return null;
-    return this.routingService.hrefForView(Views.ManageVodEditSeries, { seriesId: sId });
+    return this.routingService.hrefForView(Views.ManageVodSeries, { seriesId: sId }, { tab });
   }
 
   formatDuration(seconds?: number): string {
@@ -318,8 +322,7 @@ export class ManageVodEditVideoComponent {
 
       await this.dataService.updateVideoMetadata(v.docId, patch);
 
-      this.successMessage.set('Video metadata and settings updated successfully.');
-      this.routingService.navigateTo(this.routingService.hrefForView(Views.ManageVod, { tab: 'all_videos' }));
+      this.successMessage.set('Video details saved.');
     } catch (err: unknown) {
       this.errorMessage.set(err instanceof Error ? err.message : String(err));
     } finally {
@@ -327,7 +330,10 @@ export class ManageVodEditVideoComponent {
     }
   }
 
-  cancel(): void {
-    this.routingService.navigateTo(this.routingService.hrefForView(Views.ManageVod, { tab: 'all_videos' }));
+  /** Discard unsaved edits by re-populating the form from the stored video. */
+  discardChanges(): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.lastInitializedVideoId.set('');
   }
 }

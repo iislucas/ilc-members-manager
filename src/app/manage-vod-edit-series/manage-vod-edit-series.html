@@ -1,31 +1,4 @@
 <div class="manage-vod-edit-series-container">
-  <!-- Page Header -->
-  <div class="page-header">
-    <div class="header-nav">
-      <a class="subtle-button back-link" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
-        <app-icon name="arrow_back"></app-icon>
-        <span>Back to Manage VOD</span>
-      </a>
-      @if (series()) {
-        <button
-          type="button"
-          class="secondary-button view-grants-btn"
-          (click)="openViewGrantsModal()"
-          title="View who has purchased or been granted access to this series"
-        >
-          <app-icon name="group"></app-icon>
-          <span>Purchases &amp; Access</span>
-        </button>
-      }
-    </div>
-    <div class="header-titles">
-      <h2>Edit Video Series &amp; Parts</h2>
-      <p class="subtitle">
-        Configure series metadata, access tiers, single bundle purchase pricing, and episode sequence ordering.
-      </p>
-    </div>
-  </div>
-
   <!-- Messages -->
   @if (errorMessage()) {
     <div class="error-container">
@@ -45,12 +18,6 @@
           <h3>Changes Saved</h3>
           <p>{{ successMessage() }}</p>
         </div>
-      </div>
-      <div class="banner-actions">
-        <a class="primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
-          <app-icon name="video_library"></app-icon>
-          <span>Return to Manage VOD</span>
-        </a>
       </div>
     </div>
   }
@@ -383,9 +350,9 @@
           <button
             type="button"
             class="subtle-button"
-            (click)="cancel()"
+            (click)="discardChanges()"
           >
-            <span>Cancel</span>
+            <span>Discard Changes</span>
           </button>
           <button
             type="button"
@@ -400,11 +367,4 @@
     </div>
   }
 
-  <!-- Series Access & Purchases Modal -->
-  @if (viewingGrants() && series()) {
-    <app-series-grants-modal
-      [series]="series()"
-      (closed)="closeViewGrantsModal()"
-    ></app-series-grants-modal>
-  }
 </div>

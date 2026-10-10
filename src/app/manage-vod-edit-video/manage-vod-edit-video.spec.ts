@@ -61,6 +61,7 @@ describe('ManageVodEditVideoComponent', () => {
       seriesId: 'series_123',
       title: 'Complete Masterclass',
       description: 'Full series',
+      tags: [],
       videoCount: 1,
       totalDurationSeconds: 4200,
       videos: [sampleVideos[1]],
@@ -89,18 +90,6 @@ describe('ManageVodEditVideoComponent', () => {
 
     mockRoutingService = {
       signals: {
-        [Views.ManageVodEditVideo]: {
-          pathVars: {
-            videoId: signal('v1'),
-          },
-          urlParams: {},
-        },
-        [Views.ManageVodEditSeries]: {
-          pathVars: {
-            seriesId: signal(''),
-          },
-          urlParams: {},
-        },
         [Views.ManageVod]: {
           urlParams: {
             tab: signal('all_videos'),
@@ -112,9 +101,11 @@ describe('ManageVodEditVideoComponent', () => {
           },
         },
       },
-      hrefForView: vi.fn((view: string, params?: Record<string, string>) => {
+      hrefForView: vi.fn((view: string, params?: Record<string, string>, urlParams?: Record<string, string>) => {
+        if (view === Views.ManageVodSeries && params) {
+          return `/manage-vod/series/${params['seriesId']}?tab=${urlParams?.['tab'] ?? ''}`;
+        }
         if (params && params['videoId']) return `/videos/${params['videoId']}`;
-        if (params && params['seriesId']) return `/manage-vod/edit-series/${params['seriesId']}`;
         if (view === Views.ManageVod) {
           return params && params['tab'] ? `/manage-vod?tab=${params['tab']}` : '/manage-vod';
         }
@@ -134,6 +125,7 @@ describe('ManageVodEditVideoComponent', () => {
 
     fixture = TestBed.createComponent(ManageVodEditVideoComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('videoId', 'v1');
     fixture.detectChanges();
   });
 
@@ -153,14 +145,15 @@ describe('ManageVodEditVideoComponent', () => {
   });
 
   it('should recognize and populate series video metadata', () => {
-    mockRoutingService.signals[Views.ManageVodEditVideo].pathVars.videoId.set('v2');
+    fixture.componentRef.setInput('videoId', 'v2');
     fixture.detectChanges();
 
     expect(component.title()).toBe('Masterclass Part 1');
     expect(component.seriesTitle()).toBe('Complete Masterclass');
     expect(component.seriesPartIndex()).toBe(1);
     expect(component.isInSeries()).toBe(true);
-    expect(component.getSeriesHref()).toBe('/manage-vod/edit-series/series_123');
+    expect(component.getSeriesHref()).toBe('/manage-vod/series/series_123?tab=details');
+    expect(component.getSeriesHref('overview')).toBe('/manage-vod/series/series_123?tab=overview');
   });
 
   it('should validate title before saving', async () => {
@@ -171,7 +164,7 @@ describe('ManageVodEditVideoComponent', () => {
     expect(mockDataService.updateVideoMetadata).not.toHaveBeenCalled();
   });
 
-  it('should save standalone video changes and navigate back to Manage VOD', async () => {
+  it('should save standalone video changes and stay on the page', async () => {
     component.title.set('Updated Spinning Hands');
     component.recordedDate.set('2026-05-15');
     component.freeAccessTier.set(VodAccessTier.Public);
@@ -190,11 +183,12 @@ describe('ManageVodEditVideoComponent', () => {
       stripePriceId: 'price_spin_hands',
     }));
 
-    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-vod?tab=all_videos');
+    expect(component.successMessage()).toBe('Video details saved.');
+    expect(mockRoutingService.navigateTo).not.toHaveBeenCalled();
   });
 
   it('should save series video changes properly', async () => {
-    mockRoutingService.signals[Views.ManageVodEditVideo].pathVars.videoId.set('v2');
+    fixture.componentRef.setInput('videoId', 'v2');
     fixture.detectChanges();
 
     component.title.set('Masterclass Part 1 — Revised');
@@ -206,16 +200,15 @@ describe('ManageVodEditVideoComponent', () => {
       title: 'Masterclass Part 1 — Revised',
       seriesPartIndex: 2,
     }));
-
-    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-vod?tab=all_videos');
+    expect(component.successMessage()).toBe('Video details saved.');
   });
 
-  it('should navigate to manage vod on cancel', () => {
-    component.cancel();
-    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-vod?tab=all_videos');
-  });
-
-  it('should generate correct video playback URL', () => {
-    expect(component.getVideoHref()).toBe('/videos/v1');
+  it('should discard unsaved edits and repopulate the form', () => {
+    component.title.set('Unsaved title');
+    component.featured.set(true);
+    component.discardChanges();
+    TestBed.flushEffects();
+    expect(component.title()).toBe('Spinning Hands Practice');
+    expect(component.featured()).toBe(false);
   });
 });

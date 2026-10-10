@@ -953,20 +953,20 @@
         @case (Views.ManageVodUpload) {
           <app-manage-vod-upload></app-manage-vod-upload>
         }
-        @case (Views.ManageVodEditSeries) {
+        @case (Views.ManageVodVideo) {
           @defer {
-            <app-manage-vod-edit-series></app-manage-vod-edit-series>
+            <app-manage-vod-video-page></app-manage-vod-video-page>
           } @loading (minimum 150ms) {
-            <app-spinner class="view-loading">Loading series editor...</app-spinner>
+            <app-spinner class="view-loading">Loading video...</app-spinner>
           } @placeholder {
             <div></div>
           }
         }
-        @case (Views.ManageVodEditVideo) {
+        @case (Views.ManageVodSeries) {
           @defer {
-            <app-manage-vod-edit-video></app-manage-vod-edit-video>
+            <app-manage-vod-series-page></app-manage-vod-series-page>
           } @loading (minimum 150ms) {
-            <app-spinner class="view-loading">Loading video editor...</app-spinner>
+            <app-spinner class="view-loading">Loading series...</app-spinner>
           } @placeholder {
             <div></div>
           }

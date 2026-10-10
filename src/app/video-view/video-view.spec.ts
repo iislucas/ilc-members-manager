@@ -29,9 +29,10 @@ describe('VideoViewComponent', () => {
     videos: { entries: WritableSignal<VideoItem[]> };
     myVideoGrants: { entries: WritableSignal<VideoGrant[]> };
     mailSettings: WritableSignal<MailSettings>;
+    getVideoSeriesList: ReturnType<typeof vi.fn>;
   };
   let mockFirebaseState: {
-    user: WritableSignal<null>;
+    user: WritableSignal<{ isAdmin: boolean; member: { docId: string } } | null>;
   };
   let mockRoutingService: {
     signals: {
@@ -86,7 +87,7 @@ describe('VideoViewComponent', () => {
     };
 
     mockFirebaseState = {
-      user: signal(null),
+      user: signal<{ isAdmin: boolean; member: { docId: string } } | null>(null),
     };
 
     mockRoutingService = {
@@ -98,8 +99,8 @@ describe('VideoViewComponent', () => {
         },
       },
       hrefForView: vi.fn((view: string, params?: Record<string, string>) => {
-        if (view === Views.ManageVodEditVideo && params?.['videoId']) return `/manage-vod/edit-video/${params['videoId']}`;
-        if (view === Views.ManageVodEditSeries && params?.['seriesId']) return `/manage-vod/edit-series/${params['seriesId']}`;
+        if (view === Views.ManageVodVideo && params?.['videoId']) return `/manage-vod/video/${params['videoId']}`;
+        if (view === Views.ManageVodSeries && params?.['seriesId']) return `/manage-vod/series/${params['seriesId']}`;
         if (params && params['videoId']) return `/videos/${params['videoId']}`;
         return `/${view}`;
       }),
@@ -720,7 +721,7 @@ describe('VideoViewComponent', () => {
       expect(adminBtn).toBeTruthy();
     });
 
-    it('should toggle admin dropdown menu and show Edit this Video link', async () => {
+    it('should toggle admin dropdown menu and show Manage this video link', async () => {
       mockFirebaseState.user.set({ isAdmin: true, member: { docId: 'admin1' } });
       await component.ngOnInit();
       fixture.detectChanges();
@@ -736,12 +737,12 @@ describe('VideoViewComponent', () => {
       const dropdown = compiled.querySelector('.admin-dropdown-menu');
       expect(dropdown).toBeTruthy();
 
-      const editVideoLink = dropdown?.querySelector('a[href="/manage-vod/edit-video/v100"]');
+      const editVideoLink = dropdown?.querySelector('a[href="/manage-vod/video/v100"]');
       expect(editVideoLink).toBeTruthy();
-      expect(editVideoLink?.textContent).toContain('Edit this Video');
+      expect(editVideoLink?.textContent).toContain('Manage this video');
     });
 
-    it('should show Edit this series option when video is part of a series', async () => {
+    it('should show Manage this series option when video is part of a series', async () => {
       mockFirebaseState.user.set({ isAdmin: true, member: { docId: 'admin1' } });
 
       const seriesVideo = {
@@ -775,17 +776,17 @@ describe('VideoViewComponent', () => {
       fixture.detectChanges();
 
       const dropdown = compiled.querySelector('.admin-dropdown-menu');
-      const editSeriesLink = dropdown?.querySelector('a[href="/manage-vod/edit-series/series_xyz"]');
+      const editSeriesLink = dropdown?.querySelector('a[href="/manage-vod/series/series_xyz"]');
       expect(editSeriesLink).toBeTruthy();
-      expect(editSeriesLink?.textContent).toContain('Edit this series');
+      expect(editSeriesLink?.textContent).toContain('Manage this series');
 
       // Also check series nav controls has quick admin edit series link
       const seriesNavEditBtn = compiled.querySelector('.series-nav-controls .nav-admin-edit-btn');
       expect(seriesNavEditBtn).toBeTruthy();
-      expect(seriesNavEditBtn?.getAttribute('href')).toBe('/manage-vod/edit-series/series_xyz');
+      expect(seriesNavEditBtn?.getAttribute('href')).toBe('/manage-vod/series/series_xyz');
     });
 
-    it('should not show Edit this series option when video is not part of any series', async () => {
+    it('should not show Manage this series option when video is not part of any series', async () => {
       mockFirebaseState.user.set({ isAdmin: true, member: { docId: 'admin1' } });
       await component.ngOnInit();
       fixture.detectChanges();
@@ -796,7 +797,7 @@ describe('VideoViewComponent', () => {
       fixture.detectChanges();
 
       const dropdown = compiled.querySelector('.admin-dropdown-menu');
-      expect(dropdown?.textContent).not.toContain('Edit this series');
+      expect(dropdown?.textContent).not.toContain('Manage this series');
     });
   });
 });

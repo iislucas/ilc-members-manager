@@ -5,85 +5,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1.5rem 0 3.5rem;
-  max-width: 1000px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.page-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-
-  .header-nav {
-    margin-bottom: 0.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.95rem;
-      text-decoration: none;
-      color: v.$text-secondary;
-      padding: 0.35rem 0.65rem;
-      border-radius: 6px;
-      transition: background 0.15s ease, color 0.15s ease;
-
-      &:hover {
-        color: v.$text-primary;
-        background: rgba(0, 0, 0, 0.05);
-      }
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-
-      .secondary-button {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-size: 0.88rem;
-        font-weight: 500;
-        padding: 0.4rem 0.85rem;
-        border-radius: 6px;
-        background: white;
-        border: 1px solid #cbd5e1;
-        color: v.$text-primary;
-        text-decoration: none;
-        cursor: pointer;
-        transition: all 0.15s ease;
-
-        &:hover {
-          background: #f1f5f9;
-          border-color: #94a3b8;
-        }
-      }
-    }
-  }
-
-  .header-titles {
-    h2 {
-      margin: 0 0 0.25rem 0;
-      color: v.$text-primary;
-      font-size: 1.6rem;
-    }
-
-    .subtitle {
-      margin: 0;
-      color: v.$text-secondary;
-      font-size: 0.95rem;
-      line-height: 1.4;
-    }
-  }
+  padding-bottom: 1rem;
 }
 
 .error-container {
@@ -510,54 +432,6 @@
 
     &:hover {
       color: #166534;
-    }
-  }
-}
-
-.technical-details-section {
-  .tech-metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
-
-    .tech-metric {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-
-      .metric-label {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: v.$text-muted;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-      }
-
-      .metric-value {
-        font-size: 1rem;
-        font-weight: 600;
-        color: v.$text-primary;
-      }
-
-      .status-badge {
-        display: inline-flex;
-        align-self: flex-start;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: capitalize;
-
-        &.ready {
-          background: #dcfce7;
-          color: #166534;
-        }
-
-        &.processing {
-          background: #fef9c3;
-          color: #854d0e;
-        }
-      }
     }
   }
 }

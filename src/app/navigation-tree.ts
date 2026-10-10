@@ -23,6 +23,7 @@ import { AppPathPatterns, Views, PUBLIC_VIEWS } from './app.config';
 import { DataManagerService } from './data-manager.service';
 import { FirebaseStateService } from './firebase-state.service';
 import { FindInstructorsService } from './find-instructors.service';
+import { VideoSeries } from '../../functions/src/data-model/vod';
 
 /** A single item in the breadcrumbs trail. */
 export interface BreadcrumbNode {
@@ -304,8 +305,8 @@ export class NavigationTreeService {
       view === Views.ManageMaterials ||
       view === Views.ManageVod ||
       view === Views.ManageVodUpload ||
-      view === Views.ManageVodEditSeries ||
-      view === Views.ManageVodEditVideo ||
+      view === Views.ManageVodVideo ||
+      view === Views.ManageVodSeries ||
       view === Views.ManageVideoTags ||
       view === Views.Statistics ||
       view === Views.ImportExport ||
@@ -506,10 +507,19 @@ export class NavigationTreeService {
         return [];
       }
       case Views.ManageVodUpload:
-      case Views.ManageVodEditSeries:
-      case Views.ManageVodEditVideo:
+      case Views.ManageVodSeries:
       case Views.ManageVideoTags:
         return [this.node(Views.ManageVod, 'Manage VOD')];
+      case Views.ManageVodVideo: {
+        // Episodes sit under their series page; standalone videos directly under Manage VOD.
+        const series = this.manageVodVideoSeries();
+        return series
+          ? [
+              this.node(Views.ManageVod, 'Manage VOD'),
+              this.node(Views.ManageVodSeries, series.title, { seriesId: series.seriesId }),
+            ]
+          : [this.node(Views.ManageVod, 'Manage VOD')];
+      }
       case Views.ManageVod: {
         const tab = this.routing.signals[Views.ManageVod].urlParams.tab();
         if (tab === 'all_videos') {
@@ -663,6 +673,20 @@ export class NavigationTreeService {
   });
 
   /** An ancestor link, with the target's own URL params carried forward. */
+  /** The multi-part series containing the video shown on the ManageVodVideo page, if any. */
+  private manageVodVideoSeries(): VideoSeries | null {
+    const videoId = this.routing.signals[Views.ManageVodVideo].pathVars.videoId();
+    const video = this.dataService.videos.get(videoId);
+    if (!video) return null;
+    const list = this.dataService.getVideoSeriesList();
+    const directId = video.seriesId || video.forVodPageId;
+    return (
+      (directId ? list.find((s) => s.seriesId === directId) : undefined) ??
+      list.find((s) => s.videos.length > 1 && s.videos.some((v) => v.docId === videoId)) ??
+      null
+    );
+  }
+
   private node(view: Views, label: string, pathVars: PathVars = {}): NavNode {
     return { label, url: this.hrefFor(view, pathVars) };
   }
@@ -871,10 +895,14 @@ export class NavigationTreeService {
       }
       case Views.ManageVodUpload:
         return 'Upload VOD & Series';
-      case Views.ManageVodEditSeries:
-        return 'Edit Video Series';
-      case Views.ManageVodEditVideo:
-        return 'Edit Video';
+      case Views.ManageVodVideo: {
+        const videoId = this.routing.signals[Views.ManageVodVideo].pathVars.videoId();
+        return this.dataService.videos.get(videoId)?.title || 'Video';
+      }
+      case Views.ManageVodSeries: {
+        const seriesId = this.routing.signals[Views.ManageVodSeries].pathVars.seriesId();
+        return this.dataService.getVideoSeriesList().find((s) => s.seriesId === seriesId)?.title || 'Series';
+      }
       case Views.ManageVideoTags:
         return 'Video Tags';
       case Views.Login:

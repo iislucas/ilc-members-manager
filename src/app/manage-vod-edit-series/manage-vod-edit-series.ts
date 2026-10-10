@@ -1,4 +1,12 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+/* manage-vod-edit-series.ts
+ *
+ * Editable "Details" form for a VOD series: title/description, series-wide
+ * access tiers & bundle pricing, visibility, and episode membership/ordering.
+ * Embedded as the Details tab of the admin series page
+ * (/manage-vod/series/:seriesId?tab=details).
+ */
+
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Views } from '../app.config';
 import { RoutingService } from '../routing.service';
@@ -14,7 +22,6 @@ import {
   VodStatus,
 } from '../../../functions/src/data-model/vod';
 
-import { SeriesGrantsModalComponent } from '../series-grants-modal/series-grants-modal';
 
 @Component({
   selector: 'app-manage-vod-edit-series',
@@ -24,7 +31,6 @@ import { SeriesGrantsModalComponent } from '../series-grants-modal/series-grants
     IconComponent,
     SpinnerComponent,
     AutocompleteComponent,
-    SeriesGrantsModalComponent,
   ],
   templateUrl: './manage-vod-edit-series.html',
   styleUrl: './manage-vod-edit-series.scss',
@@ -37,8 +43,8 @@ export class ManageVodEditSeriesComponent {
   readonly VodAccessTier = VodAccessTier;
   readonly VodStatus = VodStatus;
 
-  private viewSignals = this.routingService.signals[Views.ManageVodEditSeries];
-  seriesId = computed(() => this.viewSignals.pathVars['seriesId']() || '');
+  /** Identifier of the series being edited. */
+  seriesId = input.required<string>();
 
   // Catalog data
   allSeries = computed(() => this.dataService.getVideoSeriesList());
@@ -82,17 +88,6 @@ export class ManageVodEditSeriesComponent {
   isSaving = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
-
-  // Series Grants & Purchases Modal
-  viewingGrants = signal<boolean>(false);
-
-  openViewGrantsModal(): void {
-    this.viewingGrants.set(true);
-  }
-
-  closeViewGrantsModal(): void {
-    this.viewingGrants.set(false);
-  }
 
   readonly freeAccessTierOptions = [
     { value: VodAccessTier.Public, label: 'Public', description: 'Free to everyone (visitors & unauthenticated)' },
@@ -357,8 +352,7 @@ export class ManageVodEditSeriesComponent {
         orderedIds,
       );
 
-      this.successMessage.set('Series updated successfully.');
-      this.routingService.navigateTo(this.routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' }));
+      this.successMessage.set('Series details saved.');
     } catch (err: unknown) {
       this.errorMessage.set(err instanceof Error ? err.message : String(err));
     } finally {
@@ -366,7 +360,10 @@ export class ManageVodEditSeriesComponent {
     }
   }
 
-  cancel(): void {
-    this.routingService.navigateTo(this.routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' }));
+  /** Discard unsaved edits by re-populating the form from the stored series. */
+  discardChanges(): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.lastInitializedSeriesId.set('');
   }
 }

@@ -305,9 +305,13 @@
               </td>
 
               <!-- Title, Instructor, Date & Tags -->
-              <td class="meta-cell" (click)="openDrawer(video)">
+              <td class="meta-cell" (click)="onMetaCellClick(video, $event)">
                 <div class="video-title-row">
-                  <span class="video-title">{{ video.title }}</span>
+                  <a
+                    class="video-title inline-link-button"
+                    [href]="routingService.hrefForView(Views.ManageVodVideo, { videoId: video.docId }, { tab: 'overview' })"
+                    title="Open video overview"
+                  >{{ video.title }}</a>
                   @if (video.seriesTitle) {
                     <span class="series-tag-badge">
                       {{ video.seriesTitle }} @if (video.seriesPartIndex) { &bull; Part {{ video.seriesPartIndex }} }
@@ -449,11 +453,21 @@
                       <!-- Edit Metadata -->
                       <a
                         class="menu-item"
-                        [href]="routingService.hrefForView(Views.ManageVodEditVideo, { videoId: video.docId })"
+                        [href]="routingService.hrefForView(Views.ManageVodVideo, { videoId: video.docId }, { tab: 'details' })"
                         (click)="closeMenu()"
                       >
                         <app-icon name="edit"></app-icon>
                         <span>Edit Video &amp; Access</span>
+                      </a>
+
+                      <!-- Who has access -->
+                      <a
+                        class="menu-item"
+                        [href]="routingService.hrefForView(Views.ManageVodVideo, { videoId: video.docId }, { tab: 'access' })"
+                        (click)="closeMenu()"
+                      >
+                        <app-icon name="group"></app-icon>
+                        <span>Who has access</span>
                       </a>
 
                       <!-- Toggle Listed / Unlisted -->
@@ -547,7 +561,13 @@
         <div class="series-card-header">
           <div class="series-info-col">
             <div class="series-title-row">
-              <h4>{{ series.title }}</h4>
+              <h4>
+                <a
+                  class="inline-link-button"
+                  [href]="routingService.hrefForView(Views.ManageVodSeries, { seriesId: series.seriesId }, { tab: 'overview' })"
+                  title="Open series overview"
+                >{{ series.title }}</a>
+              </h4>
               <span
                 class="listing-chip published-pill clickable"
                 [class.published]="series.isPublished"
@@ -606,21 +626,20 @@
           <div class="series-actions-col">
             <a
               class="primary-btn"
-              [href]="routingService.hrefForView(Views.ManageVodEditSeries, { seriesId: series.seriesId })"
+              [href]="routingService.hrefForView(Views.ManageVodSeries, { seriesId: series.seriesId }, { tab: 'details' })"
               title="Edit series title, bundle price, and reorder parts"
             >
               <app-icon name="edit"></app-icon>
-              <span>Edit Series &amp; Parts</span>
+              <span>Edit Series</span>
             </a>
-            <button
-              type="button"
+            <a
               class="secondary-btn"
-              (click)="openViewGrantsModal(series, $event)"
+              [href]="routingService.hrefForView(Views.ManageVodSeries, { seriesId: series.seriesId }, { tab: 'access' })"
               title="View who has purchased or been granted access to this series"
             >
               <app-icon name="group"></app-icon>
-              <span>Purchases &amp; Grants</span>
-            </button>
+              <span>Who has access</span>
+            </a>
             <button
               type="button"
               class="secondary-btn"
@@ -665,7 +684,7 @@
                 <div class="episode-actions">
                   <a
                     class="icon-only-button"
-                    [href]="routingService.hrefForView(Views.ManageVodEditVideo, { videoId: vid.docId })"
+                    [href]="routingService.hrefForView(Views.ManageVodVideo, { videoId: vid.docId }, { tab: 'details' })"
                     title="Edit episode metadata &amp; access"
                   >
                     <app-icon name="edit"></app-icon>
@@ -722,7 +741,7 @@
           <div class="drawer-quick-actions">
             <a
               class="drawer-action-btn"
-              [href]="routingService.hrefForView(Views.ManageVodEditVideo, { videoId: d.docId })"
+              [href]="routingService.hrefForView(Views.ManageVodVideo, { videoId: d.docId }, { tab: 'details' })"
               title="Edit Title, Description, Tags, Visibility, Access Tiers and Price"
             >
               <app-icon name="edit"></app-icon>
@@ -1057,448 +1076,6 @@
     </div>
   }
 
-  <!-- Edit Metadata Modal -->
-  @if (editingVideo(); as edit) {
-    <div class="modal-backdrop">
-      <div class="modal-dialog">
-        <div class="modal-header">
-          <h3>Edit VOD Metadata</h3>
-          <button type="button" class="icon-only-button" (click)="closeEditModal()" title="Close">
-            <app-icon name="close"></app-icon>
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <!-- Title -->
-          <div class="form-group">
-            <label>Title</label>
-            <input type="text" [(ngModel)]="edit.title" />
-          </div>
-
-          <!-- Description -->
-          <div class="form-group">
-            <label>Description</label>
-            <textarea rows="3" [(ngModel)]="edit.description"></textarea>
-          </div>
-
-          <!-- Thumbnail Poster -->
-          <div class="form-group thumbnail-edit-section">
-            <label class="section-heading-label">Thumbnail Poster</label>
-            <div class="thumb-edit-row">
-              <div class="thumb-preview-wrapper">
-                @if (edit.thumbnailUrl) {
-                  <img [src]="edit.thumbnailUrl" [alt]="edit.title" class="thumb-preview-img" />
-                } @else {
-                  <div class="thumb-placeholder-box">
-                    <app-icon name="live_tv"></app-icon>
-                    <span>No thumbnail</span>
-                  </div>
-                }
-              </div>
-              <div class="thumb-actions">
-                @if (isSavingThumbnail()) {
-                  <app-spinner>Saving thumbnail...</app-spinner>
-                } @else {
-                  <button
-                    type="button"
-                    class="secondary-btn change-thumb-btn"
-                    (click)="openThumbnailModalForVideo(edit)"
-                  >
-                    <app-icon name="image"></app-icon>
-                    <span>Change Thumbnail</span>
-                  </button>
-                }
-                <p class="thumb-hint">Pick any frame from the video or upload a custom image.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recording Date -->
-          <div class="form-group">
-            <label>Recording Date (YYYY-MM-DD)</label>
-            <input
-              type="date"
-              [ngModel]="editRecordedDate()"
-              (ngModelChange)="editRecordedDate.set($event)"
-            />
-          </div>
-
-          @if (editingVideoInSeries()) {
-            <!-- Series-Wide Access Notice -->
-            <div class="form-group series-access-notice card">
-              <div class="notice-header">
-                <app-icon name="collections"></app-icon>
-                <span class="notice-title">Series-Wide Access &amp; Pricing</span>
-              </div>
-              <p class="notice-desc">
-                This episode is Part {{ editSeriesPartIndex() || edit.seriesPartIndex || 1 }} of
-                <strong>{{ editSeriesTitle() || edit.seriesTitle || 'this series' }}</strong>.
-                Access permissions (who can stream), bundle purchase pricing, and Stripe configurations are set series-wide for all episodes.
-              </p>
-              <button
-                type="button"
-                class="secondary-btn edit-series-access-btn"
-                (click)="openSeriesFromVideoEdit(edit)"
-              >
-                <app-icon name="edit"></app-icon>
-                <span>Edit Series Access &amp; Settings</span>
-              </button>
-            </div>
-          } @else {
-            <!-- Who can view it for free -->
-            <div class="form-group free-access-group">
-              <label class="section-heading-label">Who can view it for free</label>
-              <p class="section-description">Select who has free streaming access. Instructors are members, and members are part of the public:</p>
-              <select
-                class="form-select free-access-select"
-                [ngModel]="editFreeAccessTier()"
-                (ngModelChange)="editFreeAccessTier.set($event)"
-              >
-                @for (opt of freeAccessTierOptions; track opt.value) {
-                  <option [value]="opt.value">{{ opt.label }} &mdash; {{ opt.description }}</option>
-                }
-              </select>
-            </div>
-
-            <!-- Class Video Subscription (Shown Separately) -->
-            <div class="form-group class-subscription-box">
-              <label class="checkbox-label class-sub-toggle">
-                <input
-                  type="checkbox"
-                  [ngModel]="editHasClassSub()"
-                  (ngModelChange)="editHasClassSub.set($event)"
-                />
-                <span class="checkbox-label-text">Class Video Subscribers</span>
-              </label>
-              <p class="checkbox-hint">Active class video library subscribers have streaming access.</p>
-            </div>
-
-            <!-- One-off VOD Purchase Option -->
-            <div class="form-group buyable-box">
-              <label class="checkbox-label buyable-toggle">
-                <input
-                  type="checkbox"
-                  [ngModel]="editIsBuyable()"
-                  (ngModelChange)="editIsBuyable.set($event)"
-                />
-                <span class="buyable-label-text">Available for Direct / One-Off VOD Purchase</span>
-              </label>
-              <p class="buyable-hint">Allows users without the above memberships or licenses to purchase individual lifetime streaming access.</p>
-
-              @if (editIsBuyable()) {
-                <div class="form-row buyable-inputs">
-                  <div class="form-group">
-                    <label>Purchase Price ($ USD) <span class="required">*</span></label>
-                    <input
-                      type="number"
-                      step="0.50"
-                      min="0.50"
-                      [ngModel]="priceDollars()"
-                      (ngModelChange)="priceDollars.set($event)"
-                      placeholder="15.00"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>Stripe Price ID (Optional)</label>
-                    <input
-                      type="text"
-                      [ngModel]="editStripePriceId()"
-                      (ngModelChange)="editStripePriceId.set($event)"
-                      placeholder="price_1N..."
-                    />
-                  </div>
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Tags -->
-          <div class="form-group">
-            <label>Tags</label>
-            <app-tag-input
-              [(tags)]="editTags"
-              placeholder="Search or add a tag (type #tag)..."
-            ></app-tag-input>
-          </div>
-
-          <!-- Video Series & Collection Configuration -->
-          <div class="form-group series-config-box">
-            <label class="section-heading-label">Video Series / Collection</label>
-            <p class="section-description">
-              @if (editingVideoInSeries()) {
-                Episode numbering and series linkage for this collection.
-              } @else {
-                Link this video as an episode of a multi-part series collection with bundle pricing.
-              }
-            </p>
-
-            <div class="form-row">
-              <div class="form-group flex-2">
-                <label>Series Title</label>
-                <input
-                  type="text"
-                  [ngModel]="editSeriesTitle()"
-                  (ngModelChange)="editSeriesTitle.set($event)"
-                  placeholder="e.g. Understanding Spacing"
-                />
-              </div>
-              <div class="form-group flex-1">
-                <label>Part #</label>
-                <input
-                  type="number"
-                  min="1"
-                  [ngModel]="editSeriesPartIndex()"
-                  (ngModelChange)="editSeriesPartIndex.set($event)"
-                  placeholder="1"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Catalog Visibility & Spotlight Status -->
-          <div class="form-group visibility-toggles-group">
-            <label class="section-heading-label">Catalog Visibility &amp; Spotlight</label>
-            <div class="toggles-row">
-              <label class="checkbox-label">
-                <input type="checkbox" [(ngModel)]="edit.isPublished" />
-                <span>Listed in Public / Member Catalog</span>
-              </label>
-
-              <label class="checkbox-label">
-                <input type="checkbox" [(ngModel)]="edit.featured" />
-                <span>Featured in Hero Spotlight</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          @if (isSaving()) {
-            <div class="publishing-progress-indicator">
-              <div class="inline-spinner"></div>
-              <span>Saving metadata changes...</span>
-            </div>
-          } @else {
-            <button type="button" class="subtle-button" (click)="closeEditModal()">
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="primary-btn"
-              (click)="saveVideoChanges()"
-            >
-              <span>Save Changes</span>
-            </button>
-          }
-        </div>
-      </div>
-    </div>
-  }
-
-  <!-- Edit Series Modal -->
-  @if (editingSeries(); as s) {
-    <div class="modal-backdrop">
-      <div class="modal-dialog series-edit-dialog">
-        <div class="modal-header">
-          <h3>Edit Video Series &amp; Parts</h3>
-          <button type="button" class="icon-only-button" (click)="closeSeriesModal()" title="Close">
-            <app-icon name="close"></app-icon>
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Series Collection Title <span class="required">*</span></label>
-            <input
-              type="text"
-              [ngModel]="editingSeriesTitle()"
-              (ngModelChange)="editingSeriesTitle.set($event)"
-            />
-          </div>
-
-          <div class="form-group">
-            <label>Series Overview / Description</label>
-            <textarea
-              rows="3"
-              [ngModel]="editingSeriesDescription()"
-              (ngModelChange)="editingSeriesDescription.set($event)"
-            ></textarea>
-          </div>
-
-          <!-- Who can view it for free -->
-          <div class="form-group free-access-group">
-            <label class="section-heading-label">Who can view it for free</label>
-            <p class="section-description">Select who has free streaming access to this series. Instructors are members, and members are part of the public:</p>
-            <select
-              class="form-select free-access-select"
-              [ngModel]="editingSeriesFreeAccessTier()"
-              (ngModelChange)="editingSeriesFreeAccessTier.set($event)"
-            >
-              @for (opt of freeAccessTierOptions; track opt.value) {
-                <option [value]="opt.value">{{ opt.label }} &mdash; {{ opt.description }}</option>
-              }
-            </select>
-          </div>
-
-          <!-- Class Video Subscription (Shown Separately) -->
-          <div class="form-group class-subscription-box">
-            <label class="checkbox-label class-sub-toggle">
-              <input
-                type="checkbox"
-                [ngModel]="editingSeriesHasClassSub()"
-                (ngModelChange)="editingSeriesHasClassSub.set($event)"
-              />
-              <span class="checkbox-label-text">Class Video Subscribers</span>
-            </label>
-            <p class="checkbox-hint">Active class video library subscribers have streaming access to this series.</p>
-          </div>
-
-          <!-- Series Direct Purchase Option -->
-          <div class="form-group buyable-box">
-            <label class="checkbox-label buyable-toggle">
-              <input
-                type="checkbox"
-                [ngModel]="editingSeriesIsBuyable()"
-                (ngModelChange)="editingSeriesIsBuyable.set($event)"
-              />
-              <span class="buyable-label-text">Available for Direct Series Bundle Purchase</span>
-            </label>
-            <p class="buyable-hint">Allows users without the above memberships to purchase permanent streaming access to all episodes in this series.</p>
-
-            @if (editingSeriesIsBuyable()) {
-              <div class="form-row buyable-inputs">
-                <div class="form-group">
-                  <label>Bundle Purchase Price ($ USD) <span class="required">*</span></label>
-                  <input
-                    type="number"
-                    step="0.50"
-                    min="0.50"
-                    [ngModel]="editingSeriesPriceDollars()"
-                    (ngModelChange)="editingSeriesPriceDollars.set($event)"
-                    placeholder="49.99"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Stripe Price ID (Optional)</label>
-                  <input
-                    type="text"
-                    [ngModel]="editingSeriesStripePriceId()"
-                    (ngModelChange)="editingSeriesStripePriceId.set($event)"
-                    placeholder="price_1N..."
-                  />
-                </div>
-              </div>
-            }
-          </div>
-
-          <!-- Series Catalog Visibility -->
-          <div class="form-group visibility-toggles-group">
-            <label class="section-heading-label">Series Catalog Visibility</label>
-            <div class="toggles-row">
-              <label class="checkbox-label">
-                <input
-                  type="checkbox"
-                  [ngModel]="editingSeriesIsPublished()"
-                  (ngModelChange)="editingSeriesIsPublished.set($event)"
-                />
-                <span>Listed in Public / Member Catalog</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Reorderable Episodes List -->
-          <div class="form-group">
-            <label class="section-heading-label">Episodes &amp; Sequence Ordering</label>
-            <div class="series-modal-episodes-list">
-              @for (vid of editingSeriesVideos(); track vid.docId; let idx = $index) {
-                <div class="series-modal-episode-item card">
-                  <span class="part-badge">Part {{ idx + 1 }}</span>
-                  <span class="item-title">{{ vid.title }}</span>
-                  <span class="item-duration">{{ formatDuration(vid.durationSeconds) }}</span>
-                  <div class="item-reorder-actions">
-                    <button
-                      type="button"
-                      class="icon-only-button"
-                      [disabled]="idx === 0"
-                      (click)="moveSeriesVideoUp(idx)"
-                      title="Move Up"
-                    >
-                      <app-icon name="arrow_upward"></app-icon>
-                    </button>
-                    <button
-                      type="button"
-                      class="icon-only-button remove-episode-btn"
-                      (click)="removeSeriesVideo(idx)"
-                      title="Remove from series"
-                    >
-                      <app-icon name="close"></app-icon>
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
-
-            <!-- Add Video to Series Autocomplete -->
-            <div class="add-video-to-series-section">
-              <label class="section-subheading-label">Add Video to this Series</label>
-              <p class="section-description">Choose an existing video from the catalog to append to this series:</p>
-              <div class="add-video-controls-row">
-                <div class="autocomplete-container">
-                  <app-autocomplete
-                    [searchableSet]="availableVideosForSeries"
-                    [displayFns]="seriesAddVideoDisplayFns"
-                    [inputBoxIsChip]="false"
-                    [initSearchTerm]="addVideoSearchTerm()"
-                    placeholder="Search by title, docId, or instructor..."
-                    (itemSelected)="onVideoSelectedToAdd($event)"
-                    (textUpdated)="onVideoSearchTextChange($event)"
-                  ></app-autocomplete>
-                </div>
-                <button
-                  type="button"
-                  class="primary-btn add-to-series-btn"
-                  [disabled]="!selectedVideoToAdd()"
-                  (click)="addSelectedVideoToSeries()"
-                  title="Append selected video to series"
-                >
-                  <app-icon name="add"></app-icon>
-                  <span>Add Video</span>
-                </button>
-              </div>
-              @if (selectedVideoToAdd(); as sel) {
-                <div class="selected-video-notice">
-                  <span class="sel-label">Selected to add:</span>
-                  <span class="sel-title"><strong>{{ sel.title }}</strong></span>
-                  @if (sel.seriesTitle) {
-                    <span class="sel-warn">
-                      (Currently in series "{{ sel.seriesTitle }}")
-                    </span>
-                  }
-                </div>
-              }
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          @if (isSavingSeries()) {
-            <div class="publishing-progress-indicator">
-              <div class="inline-spinner"></div>
-              <span>Updating series across all videos...</span>
-            </div>
-          } @else {
-            <button type="button" class="subtle-button" (click)="closeSeriesModal()">
-              Cancel
-            </button>
-            <button type="button" class="primary-btn" (click)="saveSeriesChanges()">
-              <span>Save Series Changes</span>
-            </button>
-          }
-        </div>
-      </div>
-    </div>
-  }
-
   <!-- Grant / Gift VOD Access Modal -->
   @if (grantingVideo() || grantingSeries()) {
     <app-grant-vod-modal
@@ -1507,15 +1084,6 @@
       (closed)="closeGrantModal()"
       (granted)="onAccessGranted($event)"
     ></app-grant-vod-modal>
-  }
-
-  <!-- Series Access & Purchases Modal -->
-  @if (viewingGrantsSeries()) {
-    <app-series-grants-modal
-      [series]="viewingGrantsSeries()"
-      (closed)="closeViewGrantsModal()"
-      (grantRequested)="onGrantRequestedFromViewGrants($event)"
-    ></app-series-grants-modal>
   }
 
   <!-- Thumbnail Customization Modal -->

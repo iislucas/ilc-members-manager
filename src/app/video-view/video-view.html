@@ -36,11 +36,11 @@
           @if (isAdmin()) {
             <a
               class="nav-admin-edit-btn"
-              [href]="routingService.hrefForView(Views.ManageVodEditSeries, { seriesId: s.seriesId })"
-              title="Edit this series in admin console"
+              [href]="routingService.hrefForView(Views.ManageVodSeries, { seriesId: s.seriesId }, { tab: 'overview' })"
+              title="Manage this series in the admin console"
             >
               <app-icon name="edit"></app-icon>
-              <span>Edit series</span>
+              <span>Manage series</span>
             </a>
           }
         </div>
@@ -553,21 +553,21 @@
                     <a
                       class="menu-item"
                       role="menuitem"
-                      [href]="routingService.hrefForView(Views.ManageVodEditVideo, { videoId: v.docId })"
+                      [href]="routingService.hrefForView(Views.ManageVodVideo, { videoId: v.docId }, { tab: 'overview' })"
                       (click)="closeAdminMenu()"
                     >
                       <app-icon name="edit"></app-icon>
-                      <span>Edit this Video</span>
+                      <span>Manage this video</span>
                     </a>
                     @if (seriesIdForAdmin(); as sId) {
                       <a
                         class="menu-item"
                         role="menuitem"
-                        [href]="routingService.hrefForView(Views.ManageVodEditSeries, { seriesId: sId })"
+                        [href]="routingService.hrefForView(Views.ManageVodSeries, { seriesId: sId }, { tab: 'overview' })"
                         (click)="closeAdminMenu()"
                       >
                         <app-icon name="collections"></app-icon>
-                        <span>Edit this series</span>
+                        <span>Manage this series</span>
                       </a>
                     }
                     <a
@@ -577,7 +577,7 @@
                       (click)="closeAdminMenu()"
                     >
                       <app-icon name="video_library"></app-icon>
-                      <span>Manage VOD Catalog</span>
+                      <span>Manage VOD catalog</span>
                     </a>
                   </div>
                 }

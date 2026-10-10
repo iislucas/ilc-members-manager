@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { SeriesGrantsModalComponent } from './series-grants-modal';
+import { VodAccessListComponent } from './vod-access-list';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { SearchableSet } from '../searchable-set';
@@ -14,9 +14,9 @@ import {
 import { initMember, Member } from '../../../functions/src/data-model/members';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-describe('SeriesGrantsModalComponent', () => {
-  let component: SeriesGrantsModalComponent;
-  let fixture: ComponentFixture<SeriesGrantsModalComponent>;
+describe('VodAccessListComponent', () => {
+  let component: VodAccessListComponent;
+  let fixture: ComponentFixture<VodAccessListComponent>;
   let mockDataManagerService: {
     members: SearchableSet<'docId', Member>;
     getSeriesGrants: ReturnType<typeof vi.fn>;
@@ -116,14 +116,14 @@ describe('SeriesGrantsModalComponent', () => {
     };
 
     await TestBed.configureTestingModule({
-      imports: [SeriesGrantsModalComponent],
+      imports: [VodAccessListComponent],
       providers: [
         { provide: DataManagerService, useValue: mockDataManagerService },
         { provide: RoutingService, useValue: mockRoutingService },
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(SeriesGrantsModalComponent);
+    fixture = TestBed.createComponent(VodAccessListComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('series', mockSeries);
     fixture.detectChanges();
@@ -236,18 +236,24 @@ describe('SeriesGrantsModalComponent', () => {
     expect(component.copiedEmailsToast()).toBe(true);
   });
 
-  it('should emit grantRequested when openGrantModal is called', () => {
-    const emitSpy = vi.fn();
-    component.grantRequested.subscribe(emitSpy);
+  it('should open and close the inline grant dialog', () => {
+    expect(component.grantModalOpen()).toBe(false);
     component.openGrantModal();
-    expect(emitSpy).toHaveBeenCalledWith(mockSeries);
+    expect(component.grantModalOpen()).toBe(true);
+    component.closeGrantModal();
+    expect(component.grantModalOpen()).toBe(false);
   });
 
-  it('should emit closed when close is called', () => {
-    const emitSpy = vi.fn();
-    component.closed.subscribe(emitSpy);
-    component.close();
-    expect(emitSpy).toHaveBeenCalled();
+  it('should reload grants after access is granted', async () => {
+    mockDataManagerService.getSeriesGrants.mockClear();
+    component.onAccessGranted();
+    await fixture.whenStable();
+    expect(mockDataManagerService.getSeriesGrants).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not be in video mode when given a series', () => {
+    expect(component.isVideoMode()).toBe(false);
+    expect(component.targetTitle()).toBe('Spinning Hands Series');
   });
 
   it('should prompt and execute revoke for a recipient', async () => {
@@ -294,5 +300,42 @@ describe('SeriesGrantsModalComponent', () => {
     const recipients = component.recipients();
     expect(recipients.length).toBe(1);
     expect(recipients[0].amountPaidCents).toBe(4999);
+  });
+
+  describe('single video mode', () => {
+    beforeEach(async () => {
+      mockDataManagerService.getSeriesGrants.mockClear();
+      fixture.componentRef.setInput('series', null);
+      fixture.componentRef.setInput('video', mockVideo1);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    it('should load grants for the video and its parent series', () => {
+      expect(component.isVideoMode()).toBe(true);
+      expect(component.targetTitle()).toBe('Episode 1: Fundamentals');
+      const ids = mockDataManagerService.getSeriesGrants.mock.calls[0][0] as string[];
+      expect(ids).toEqual(expect.arrayContaining(['series_spin', 'vid_1']));
+      expect(ids).not.toContain('vid_2');
+    });
+
+    it('should distinguish whole-series access from direct video access', () => {
+      const recipients = component.recipients();
+      const alice = recipients.find((r) => r.memberEmail === 'alice@example.com');
+      const bob = recipients.find((r) => r.memberEmail === 'bob@example.com');
+      expect(alice?.viaSeriesGrant).toBe(true);
+      expect(bob?.viaSeriesGrant).toBe(false);
+      // Alice and Charlie have series grants; Bob was gifted this episode directly.
+      expect(component.summaryStats().fullSeriesCount).toBe(2);
+    });
+
+    it('should render video-specific labels', () => {
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain('Access Via');
+      expect(el.textContent).toContain('This video');
+      expect(el.textContent).toContain('Whole series');
+      expect(el.textContent).not.toContain('Full Series Only');
+    });
   });
 });
