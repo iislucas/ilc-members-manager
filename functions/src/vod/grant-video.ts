@@ -17,6 +17,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
+import { normalizeEmail } from '../data-model/email';
 import { FirestoreCollection, FirestoreSubcollection } from '../data-model/collections';
 import {
   GRANT_MESSAGE_PLACEHOLDERS,
@@ -46,7 +47,7 @@ export const grantVideoAccess = onCall(
       throw new HttpsError('invalid-argument', 'targetId and targetType are required.');
     }
 
-    const recipientEmail = (data.recipientEmail || '').trim().toLowerCase();
+    const recipientEmail = normalizeEmail(data.recipientEmail);
     if (!recipientEmail || !recipientEmail.includes('@')) {
       throw new HttpsError('invalid-argument', 'A valid recipient email is required.');
     }
@@ -72,7 +73,7 @@ export const grantVideoAccess = onCall(
     const db = admin.firestore();
 
     // Resolve caller admin's member record (for grantedByMemberDocId).
-    const callerEmail = request.auth?.token.email?.toLowerCase();
+    const callerEmail = normalizeEmail(request.auth?.token.email);
     let adminMember: Member | null = null;
     if (callerEmail) {
       try {

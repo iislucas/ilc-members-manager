@@ -2152,5 +2152,400 @@ describe('Firestore Rules', () => {
       await assertSucceeds(adminDb.collection('video_grants').doc('grant-new').set(newGrant));
     });
   });
+
+  // Stored emails and /acl/{email} ids are normalised to lowercase, but the
+  // Firebase Auth token email may contain uppercase letters. The rules match
+  // on the lowercased token email, and (during the transition until the
+  // backfill has run) still accept the raw token email for legacy data.
+  describe('Case-insensitive email matching', () => {
+    const MIXED = 'Mixed.Case@Example.com'; // stored as mixed.case@example.com
+    const dbFor = (email: string) =>
+      testEnv
+        .authenticatedContext(`uid-${email.toLowerCase()}`, { email })
+        .firestore();
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+
+        // Admin whose ACL id is lowercase; logs in with a mixed-case email.
+        await setupAdmin(db, 'mixed.admin@example.com');
+        await db.collection('orders').doc('order-1').set({ total: 100 });
+
+        // Member + ACL keyed by lowercase email (ACL also lists instructorIds).
+        await setupMember(db, {
+          docId: 'FirestoreDocID-mixed',
+          memberId: 'MEM-MIX',
+          emails: ['mixed.case@example.com'],
+          primarySchoolId: 'hq',
+        } as Member);
+        await db.collection('acl').doc('mixed.case@example.com').set(
+          { instructorIds: ['INST-MIX'] },
+          { merge: true },
+        );
+        await db
+          .collection('members').doc('FirestoreDocID-mixed')
+          .collection('notifications').doc('n1')
+          .set({ markdown: 'hi', dismissed: false });
+        await db
+          .collection('members').doc('FirestoreDocID-mixed')
+          .collection('videoGrants').doc('vid-1')
+          .set({ videoId: 'vid-1' });
+
+        // Member matched only via the `emails` array (no ACL doc).
+        await db.collection('members').doc('FirestoreDocID-noacl').set({
+          docId: 'FirestoreDocID-noacl',
+          emails: ['mixed.noacl@example.com'],
+        });
+        await db
+          .collection('members').doc('FirestoreDocID-noacl')
+          .collection('notifications').doc('n1')
+          .set({ markdown: 'hi', dismissed: false });
+
+        // Event owned (via ACL memberDocIds) by the mixed-case member.
+        await db.collection('events').doc('ev-acl').set({
+          title: 'ACL-owned event',
+          ownerDocId: 'FirestoreDocID-mixed',
+          managerDocIds: [],
+          status: 'listed',
+        });
+        await db
+          .collection('events').doc('ev-acl')
+          .collection('registrations').doc('reg-1')
+          .set({ memberDocId: 'FirestoreDocID-student1', email: 'student1@ilc.com' });
+
+        // Event with owner/manager access only via email arrays (no ACLs).
+        await db.collection('events').doc('ev-emails').set({
+          title: 'Email-owned event',
+          ownerDocId: 'FirestoreDocID-nobody',
+          managerDocIds: [],
+          ownerEmails: ['email.owner@example.com'],
+          managerEmails: ['email.manager@example.com'],
+          status: 'listed',
+        });
+        await db
+          .collection('events').doc('ev-emails')
+          .collection('registrations').doc('reg-1')
+          .set({ memberDocId: 'FirestoreDocID-nobody', email: 'someone@else.com' });
+        // Registration readable by its registrant's (lowercase) email only.
+        await db
+          .collection('events').doc('ev-emails')
+          .collection('registrations').doc('reg-self')
+          .set({ memberDocId: 'FirestoreDocID-nobody', email: 'reg.self@example.com' });
+        // Registration / grant with an empty email must never match.
+        await db
+          .collection('events').doc('ev-emails')
+          .collection('registrations').doc('reg-empty')
+          .set({ memberDocId: 'FirestoreDocID-nobody', email: '' });
+
+        // Global video grants keyed by lowercase memberEmail.
+        await db.collection('video_grants').doc('video.user@example.com_vid-1').set({
+          memberEmail: 'video.user@example.com',
+          memberDocId: 'FirestoreDocID-nobody',
+          videoId: 'vid-1',
+        });
+        await db.collection('video_grants').doc('empty-grant').set({
+          memberEmail: '',
+          memberDocId: 'FirestoreDocID-nobody',
+          videoId: 'vid-1',
+        });
+
+        // Grading where the mixed-case user is the grading instructor via ACL.
+        await db.collection('gradings').doc('grading-mix').set({
+          gradingInstructorId: 'INST-MIX',
+          gradingManagerIds: [],
+          studentMemberDocId: 'FirestoreDocID-nobody',
+          schoolDocId: '',
+          status: 'pending',
+          lastUpdated: new Date(),
+        });
+      });
+    });
+
+    describe('mixed-case token vs lowercase stored data', () => {
+      it('should treat a mixed-case admin as admin via the lowercase ACL', async () => {
+        const db = dbFor('Mixed.Admin@Example.com');
+        await assertSucceeds(db.collection('orders').doc('order-1').get());
+        await assertSucceeds(db.collection('members').doc('FirestoreDocID-member1').get());
+      });
+
+      it('should allow reading own lowercase /acl doc (and deny the raw-case id when absent)', async () => {
+        const db = dbFor(MIXED);
+        await assertSucceeds(db.collection('acl').doc('mixed.case@example.com').get());
+        // The raw-case id is also "theirs" (transition support); reading a
+        // non-existent doc they own is allowed and simply returns no data.
+        await assertSucceeds(db.collection('acl').doc(MIXED).get());
+      });
+
+      it('should allow member read via the lowercase emails array (no ACL)', async () => {
+        const db = dbFor('Mixed.NoAcl@Example.com');
+        await assertSucceeds(db.collection('members').doc('FirestoreDocID-noacl').get());
+        await assertSucceeds(
+          db.collection('members').doc('FirestoreDocID-noacl')
+            .collection('notifications').doc('n1').get(),
+        );
+      });
+
+      it('should allow member read via lowercase ACL memberDocIds', async () => {
+        const db = dbFor(MIXED);
+        await assertSucceeds(db.collection('members').doc('FirestoreDocID-mixed').get());
+      });
+
+      it('should allow owner self-update keeping (or editing) the lowercase emails', async () => {
+        const db = dbFor('Mixed.NoAcl@Example.com');
+        await assertSucceeds(
+          db.collection('members').doc('FirestoreDocID-noacl').update({
+            phone: '123',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+        await assertSucceeds(
+          db.collection('members').doc('FirestoreDocID-noacl').update({
+            emails: ['mixed.noacl@example.com', 'second@example.com'],
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+        // Owner may not drop their own login email from the list.
+        await assertFails(
+          db.collection('members').doc('FirestoreDocID-noacl').update({
+            emails: ['second@example.com'],
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('should allow member subcollection access (notifications, videoGrants)', async () => {
+        const db = dbFor(MIXED);
+        const memberRef = db.collection('members').doc('FirestoreDocID-mixed');
+        await assertSucceeds(memberRef.collection('notifications').doc('n1').get());
+        await assertSucceeds(memberRef.collection('videoGrants').doc('vid-1').get());
+      });
+
+      it('should allow event owner registrations access via lowercase ACL memberDocIds', async () => {
+        const db = dbFor(MIXED);
+        await assertSucceeds(
+          db.collection('events').doc('ev-acl').collection('registrations').doc('reg-1').get(),
+        );
+      });
+
+      it('should allow event owner/manager registrations access via ownerEmails/managerEmails', async () => {
+        await assertSucceeds(
+          dbFor('Email.Owner@Example.com')
+            .collection('events').doc('ev-emails').collection('registrations').doc('reg-1').get(),
+        );
+        await assertSucceeds(
+          dbFor('EMAIL.MANAGER@EXAMPLE.COM')
+            .collection('events').doc('ev-emails').collection('registrations').doc('reg-1').get(),
+        );
+      });
+
+      it('should allow registration self-read by lowercase registration email', async () => {
+        const db = dbFor('Reg.Self@Example.com');
+        await assertSucceeds(
+          db.collection('events').doc('ev-emails').collection('registrations').doc('reg-self').get(),
+        );
+        // ...but not someone else's registration on the same event.
+        await assertFails(
+          db.collection('events').doc('ev-emails').collection('registrations').doc('reg-1').get(),
+        );
+      });
+
+      it('should allow /video_grants read by lowercase memberEmail', async () => {
+        const db = dbFor('Video.User@Example.com');
+        await assertSucceeds(
+          db.collection('video_grants').doc('video.user@example.com_vid-1').get(),
+        );
+      });
+
+      it('should treat a mixed-case instructor as grading manager via lowercase ACL instructorIds', async () => {
+        const db = dbFor(MIXED);
+        await assertSucceeds(db.collection('gradings').doc('grading-mix').get());
+        await assertSucceeds(
+          db.collection('gradings').doc('grading-mix').update({
+            notes: 'Accepted',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+    });
+
+    describe('transition: legacy mixed-case stored data', () => {
+      const LEGACY = 'Legacy.User@Example.com';
+
+      beforeEach(async () => {
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          const db = context.firestore();
+          // Legacy member doc with a mixed-case email and a raw-case ACL id
+          // (ACL links a different member doc so the ACL fallback is tested).
+          await db.collection('members').doc('FirestoreDocID-legacy').set({
+            docId: 'FirestoreDocID-legacy',
+            emails: [LEGACY],
+          });
+          await db.collection('members').doc('FirestoreDocID-legacy-acl').set({
+            docId: 'FirestoreDocID-legacy-acl',
+            emails: [],
+          });
+          await db
+            .collection('members').doc('FirestoreDocID-legacy-acl')
+            .collection('notifications').doc('n1')
+            .set({ markdown: 'hi', dismissed: false });
+          await db.collection('acl').doc(LEGACY).set({
+            memberDocIds: ['FirestoreDocID-legacy-acl'],
+            isAdmin: false,
+            schoolDocIds: [],
+          });
+          await setupAdmin(db, 'Legacy.Admin@Example.com');
+          await db.collection('events').doc('ev-legacy').set({
+            title: 'Legacy event',
+            ownerDocId: 'FirestoreDocID-nobody',
+            managerDocIds: [],
+            ownerEmails: [LEGACY],
+            managerEmails: [],
+            status: 'listed',
+          });
+          await db
+            .collection('events').doc('ev-legacy')
+            .collection('registrations').doc('reg-1')
+            .set({ memberDocId: 'FirestoreDocID-nobody', email: 'someone@else.com' });
+          await db
+            .collection('events').doc('ev-emails')
+            .collection('registrations').doc('reg-legacy')
+            .set({ memberDocId: 'FirestoreDocID-nobody', email: LEGACY });
+          await db.collection('video_grants').doc(`${LEGACY}_vid-1`).set({
+            memberEmail: LEGACY,
+            memberDocId: 'FirestoreDocID-nobody',
+            videoId: 'vid-1',
+          });
+        });
+      });
+
+      it('should still allow exact raw-email matches on legacy data', async () => {
+        const db = dbFor(LEGACY);
+        // emails array
+        await assertSucceeds(db.collection('members').doc('FirestoreDocID-legacy').get());
+        // raw-case ACL fallback (memberDocIds) incl. a subcollection
+        await assertSucceeds(db.collection('members').doc('FirestoreDocID-legacy-acl').get());
+        await assertSucceeds(
+          db.collection('members').doc('FirestoreDocID-legacy-acl')
+            .collection('notifications').doc('n1').get(),
+        );
+        // own raw-case ACL doc
+        await assertSucceeds(db.collection('acl').doc(LEGACY).get());
+        // ownerEmails, registration email, video_grants memberEmail
+        await assertSucceeds(
+          db.collection('events').doc('ev-legacy').collection('registrations').doc('reg-1').get(),
+        );
+        await assertSucceeds(
+          db.collection('events').doc('ev-emails').collection('registrations').doc('reg-legacy').get(),
+        );
+        await assertSucceeds(db.collection('video_grants').doc(`${LEGACY}_vid-1`).get());
+      });
+
+      it('should still treat a legacy raw-case admin ACL as admin', async () => {
+        const db = dbFor('Legacy.Admin@Example.com');
+        await assertSucceeds(db.collection('orders').doc('order-1').get());
+      });
+
+      it('should allow a legacy owner to normalise their emails to lowercase', async () => {
+        const db = dbFor(LEGACY);
+        await assertSucceeds(
+          db.collection('members').doc('FirestoreDocID-legacy').update({
+            emails: ['legacy.user@example.com'],
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('should prefer the canonical lowercase ACL over a stale raw-case ACL', async () => {
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await context.firestore().collection('acl').doc('legacy.admin@example.com').set({
+            isAdmin: false,
+            memberDocIds: [],
+            schoolDocIds: [],
+          });
+        });
+        const db = dbFor('Legacy.Admin@Example.com');
+        await assertFails(db.collection('orders').doc('order-1').get());
+      });
+    });
+
+    describe('negative cases', () => {
+      const OTHERS = ['Other.Person@Example.com', 'other.person@example.com'];
+
+      it('should deny a different user (any case) on every main path', async () => {
+        for (const email of OTHERS) {
+          const db = dbFor(email);
+          await assertFails(db.collection('orders').doc('order-1').get());
+          await assertFails(db.collection('acl').doc('mixed.case@example.com').get());
+          await assertFails(db.collection('members').doc('FirestoreDocID-mixed').get());
+          await assertFails(db.collection('members').doc('FirestoreDocID-noacl').get());
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-mixed')
+              .collection('notifications').doc('n1').get(),
+          );
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-mixed')
+              .collection('videoGrants').doc('vid-1').get(),
+          );
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-noacl').update({
+              phone: '000',
+              lastUpdated: serverTimestamp(),
+            }),
+          );
+          await assertFails(
+            db.collection('events').doc('ev-acl').collection('registrations').doc('reg-1').get(),
+          );
+          await assertFails(
+            db.collection('events').doc('ev-emails').collection('registrations').doc('reg-1').get(),
+          );
+          await assertFails(
+            db.collection('events').doc('ev-emails').collection('registrations').doc('reg-self').get(),
+          );
+          await assertFails(
+            db.collection('video_grants').doc('video.user@example.com_vid-1').get(),
+          );
+          await assertFails(db.collection('gradings').doc('grading-mix').get());
+        }
+      });
+
+      it('should deny unauthenticated access on the main paths', async () => {
+        const db = testEnv.unauthenticatedContext().firestore();
+        await assertFails(db.collection('orders').doc('order-1').get());
+        await assertFails(db.collection('acl').doc('mixed.case@example.com').get());
+        await assertFails(db.collection('members').doc('FirestoreDocID-mixed').get());
+        await assertFails(
+          db.collection('events').doc('ev-emails').collection('registrations').doc('reg-empty').get(),
+        );
+        await assertFails(db.collection('video_grants').doc('empty-grant').get());
+        await assertFails(db.collection('gradings').doc('grading-mix').get());
+      });
+
+      it('should deny tokens without an email claim (or an empty email) without error-allowing', async () => {
+        const noEmailDb = testEnv.authenticatedContext('no-email-user', {}).firestore();
+        const emptyEmailDb = testEnv
+          .authenticatedContext('empty-email-user', { email: '' })
+          .firestore();
+        for (const db of [noEmailDb, emptyEmailDb]) {
+          await assertFails(db.collection('orders').doc('order-1').get());
+          await assertFails(db.collection('acl').doc('mixed.case@example.com').get());
+          await assertFails(db.collection('members').doc('FirestoreDocID-mixed').get());
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-mixed')
+              .collection('notifications').doc('n1').get(),
+          );
+          await assertFails(
+            db.collection('events').doc('ev-emails').collection('registrations').doc('reg-1').get(),
+          );
+          await assertFails(
+            db.collection('events').doc('ev-emails').collection('registrations').doc('reg-empty').get(),
+          );
+          await assertFails(db.collection('video_grants').doc('empty-grant').get());
+          await assertFails(db.collection('gradings').doc('grading-mix').get());
+          await assertFails(db.collection('members-post').doc('post-1').get());
+        }
+      });
+    });
+  });
 });
 

@@ -46,6 +46,7 @@ import {
 } from '../../functions/src/data-model/mail';
 import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
 import { GenericFsDoc } from '../../functions/src/data-model/base';
+import { normalizeEmail, normalizeEmails } from '../../functions/src/data-model/email';
 import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
 import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent, Product, firestoreDocToProduct } from '../../functions/src/data-model/events';
 import { Grading, GradingFsDoc, firestoreDocToGrading } from '../../functions/src/data-model/gradings';
@@ -1019,8 +1020,11 @@ export class DataManagerService {
       const results = new Map<string, Order>();
 
       if (field === 'email' || field === 'customerEmail') {
-        const qCustomer = query(this.ordersCollection, where('customerEmail', '==', term));
-        const qEmail = query(this.ordersCollection, where('email', '==', term));
+        // Emails are stored normalised (lower-case); also match the raw term for
+        // orders written before the normalize-emails backfill.
+        const emailTerms = Array.from(new Set([normalizeEmail(term), term]));
+        const qCustomer = query(this.ordersCollection, where('customerEmail', 'in', emailTerms));
+        const qEmail = query(this.ordersCollection, where('email', 'in', emailTerms));
         const [snapC, snapE] = await Promise.all([getDocs(qCustomer), getDocs(qEmail)]);
         snapC.docs.forEach((docSnap) => {
           const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
@@ -1222,8 +1226,11 @@ export class DataManagerService {
 
       let results: IlcEvent[] = [];
       if (field === 'ownerEmails') {
-        const qOwner = query(this.eventsCollection, where('ownerEmails', 'array-contains', term));
-        const qManager = query(this.eventsCollection, where('managerEmails', 'array-contains', term));
+        // ownerEmails/managerEmails are stored normalised; also match the raw term
+        // for events written before the normalize-emails backfill.
+        const emailTerms = Array.from(new Set([normalizeEmail(term), term]));
+        const qOwner = query(this.eventsCollection, where('ownerEmails', 'array-contains-any', emailTerms));
+        const qManager = query(this.eventsCollection, where('managerEmails', 'array-contains-any', emailTerms));
         const [snapOwner, snapManager] = await Promise.all([
           getDocs(qOwner),
           getDocs(qManager),
@@ -2192,6 +2199,7 @@ export class DataManagerService {
       memberId: member.memberId ? member.memberId.trim().toUpperCase() : member.memberId,
       instructorId: member.instructorId ? member.instructorId.trim().toUpperCase() : member.instructorId,
       primaryInstructorId: member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : member.primaryInstructorId,
+      emails: normalizeEmails(member.emails),
     };
     const memberWithNewTimestamp: MemberFsDoc = {
       ...cleanMember,
@@ -2214,6 +2222,7 @@ export class DataManagerService {
       memberId: newMember.memberId ? newMember.memberId.trim().toUpperCase() : newMember.memberId,
       instructorId: newMember.instructorId ? newMember.instructorId.trim().toUpperCase() : newMember.instructorId,
       primaryInstructorId: newMember.primaryInstructorId ? newMember.primaryInstructorId.trim().toUpperCase() : newMember.primaryInstructorId,
+      emails: normalizeEmails(newMember.emails),
     };
     const originalMember = oldMember ?? this.members.get(cleanMember.docId);
     const oldSchoolId = originalMember?.primarySchoolId || this.members.get(cleanMember.docId)?.primarySchoolId;
@@ -2286,6 +2295,7 @@ export class DataManagerService {
       memberId: member.memberId ? member.memberId.trim().toUpperCase() : member.memberId,
       instructorId: cleanNewInstructorId,
       primaryInstructorId: member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : member.primaryInstructorId,
+      emails: normalizeEmails(member.emails),
     };
     const memberWithNewTimestamp: MemberFsDoc = {
       ...cleanMember,

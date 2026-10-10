@@ -13,6 +13,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins, getMemberByEmail } from '../common';
+import { normalizeEmail } from '../data-model/email';
 import { getStripeClient, stripeSecretKey } from '../stripe-common';
 import {
   CreateVodCheckoutSessionRequest,
@@ -164,7 +165,7 @@ export const createVodCheckoutSession = onCall<
   let memberId: string | undefined;
 
   const authEmail = request.auth?.token?.email
-    ? request.auth.token.email.toLowerCase().trim()
+    ? normalizeEmail(request.auth.token.email)
     : undefined;
 
   if (authEmail) {
@@ -240,7 +241,7 @@ export const createVodCheckoutSession = onCall<
   const giftMetadata: Record<string, string> = {};
 
   if (isGift) {
-    const recipientEmail = (data.recipientEmail || '').trim().toLowerCase();
+    const recipientEmail = normalizeEmail(data.recipientEmail);
     if (!recipientEmail || !recipientEmail.includes('@')) {
       throw new HttpsError(
         'invalid-argument',

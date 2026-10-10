@@ -19,6 +19,7 @@ import {
   describeDeletionTrigger,
 } from './data-model/deletion-logs';
 import { Tombstone } from './data-model/system';
+import { normalizeEmail } from './data-model/email';
 
 export const allowedOrigins = environment.domains;
 if (process.env.GCLOUD_PROJECT) {
@@ -36,7 +37,7 @@ export async function getMemberByEmail(
   email: string,
   db: admin.firestore.Firestore,
 ): Promise<Member> {
-  const normalizedEmail = (email || '').trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) {
     throw new HttpsError('invalid-argument', 'Valid email is required');
   }
@@ -87,7 +88,7 @@ export async function getUserMemberDocIds(
   email: string,
   db: admin.firestore.Firestore,
 ): Promise<string[]> {
-  const normalizedEmail = (email || '').trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return [];
   const aclDoc = await db.collection('acl').doc(normalizedEmail).get();
   if (!aclDoc.exists) return [];
@@ -117,7 +118,7 @@ export async function assertAdmin(
     );
   }
   const db = admin.firestore();
-  const email = request.auth.token.email.toLowerCase().trim();
+  const email = normalizeEmail(request.auth.token.email);
 
   // Canonical authorization check against /acl/{email}
   const aclSnap = await db.collection('acl').doc(email).get();
@@ -144,7 +145,7 @@ export async function assertAdminOrSchoolManager(
     );
   }
   const db = admin.firestore();
-  const email = request.auth.token.email.toLowerCase().trim();
+  const email = normalizeEmail(request.auth.token.email);
 
   // Check the ACL for admin or cached schoolDocIds
   const aclDoc = await db.collection('acl').doc(email).get();

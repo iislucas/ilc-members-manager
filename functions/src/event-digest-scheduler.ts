@@ -23,6 +23,7 @@ import {
 } from './data-model/mail';
 import { EventDigestFrequency } from './data-model/notifications';
 import { getUnsubscribeSecret, generateUnsubscribeToken } from './unsubscribe-token';
+import { normalizeEmail } from './data-model/email';
 
 export { resolveEventDates, formatEventDigestItemContext, EventDigestItemContext, EventDigestOverallContext };
 
@@ -168,7 +169,7 @@ export async function enqueueDigestBatch(
 
     const mailRef = db.collection(FirestoreCollection.Mail).doc();
     batch.set(mailRef, {
-      to: [recipientEmail.trim().toLowerCase()],
+      to: [normalizeEmail(recipientEmail)],
       from: options.fromAddress,
       replyTo: environment.email?.contact || options.fromAddress,
       status: options.isPaused ? MailDeliveryState.Paused : MailDeliveryState.Pending,

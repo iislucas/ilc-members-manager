@@ -5,6 +5,7 @@ import { allowedOrigins, assertAdmin, recordDeletionLog, recordTombstone } from 
 import { ACL } from './data-model/system';
 import { refreshACLAdminStatus } from './on-member-update';
 import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
+import { normalizeEmail } from './data-model/email';
 
 export interface SetAdminPrivilegeRequest {
   email: string;
@@ -22,14 +23,14 @@ export async function setAdminPrivilegeHelper(
 ): Promise<SetAdminPrivilegeResponse> {
   await assertAdmin(request);
 
-  const callerEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+  const callerEmail = normalizeEmail(request.auth?.token?.email);
   const rawEmail = request.data?.email;
 
   if (!rawEmail || typeof rawEmail !== 'string') {
     throw new HttpsError('invalid-argument', 'A valid email address is required.');
   }
 
-  const targetEmail = rawEmail.toLowerCase().trim();
+  const targetEmail = normalizeEmail(rawEmail);
   if (!targetEmail.includes('@') || targetEmail.length < 5) {
     throw new HttpsError('invalid-argument', 'Invalid email address format.');
   }

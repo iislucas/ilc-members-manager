@@ -39,6 +39,7 @@ import {
 } from './stripe-fulfillment';
 import { refreshStripeProductCache } from './stripe-products';
 import { StripeCacheSource } from './stripe-types';
+import { normalizeEmail } from './data-model/email';
 
 function unixSecondsToIso(seconds: number | null | undefined): string {
   return new Date((seconds ?? Math.floor(Date.now() / 1000)) * 1000).toISOString();
@@ -140,7 +141,7 @@ export function sessionToStripeOrder(
     mode: session.mode === 'subscription' ? StripeCheckoutMode.Subscription : StripeCheckoutMode.Payment,
     status: session.status ?? undefined,
     paymentStatus: (session.payment_status as StripePaymentStatus) ?? null,
-    customerEmail: session.customer_details?.email ?? undefined,
+    customerEmail: session.customer_details?.email ? normalizeEmail(session.customer_details.email) : undefined,
     customerName: session.customer_details?.name ?? undefined,
     billingAddress: address
       ? {
@@ -183,7 +184,7 @@ export function invoiceToStripeOrder(invoice: Stripe.Invoice): StripeOrder {
     mode: StripeCheckoutMode.Subscription,
     status: invoice.status ?? undefined,
     paymentStatus: invoice.status === 'paid' ? StripePaymentStatus.Paid : StripePaymentStatus.Unpaid,
-    customerEmail: invoice.customer_email ?? undefined,
+    customerEmail: invoice.customer_email ? normalizeEmail(invoice.customer_email) : undefined,
     customerName: invoice.customer_name ?? undefined,
     amountTotal: invoice.amount_paid,
     currency: invoice.currency,

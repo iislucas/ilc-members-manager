@@ -8,6 +8,7 @@ import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
 import { Member, MembershipType, firestoreDocToMember, initMember } from './data-model/members';
 import { FetchUserDetailsResult } from './data-model/system';
+import { normalizeEmail } from './data-model/email';
 
 export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
   if (!request.auth) {
@@ -28,7 +29,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
         'This service only works for users with an email address.',
       );
     }
-    const email = user.email.toLowerCase().trim();
+    const email = normalizeEmail(user.email);
 
     if (!user.emailVerified) {
       logger.info('User email is not verified, blocking profile fetch/linking', { email });

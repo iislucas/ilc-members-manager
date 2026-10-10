@@ -21,6 +21,9 @@ This document records the security architecture, authorization tiers, data acces
   - All administrative and elevated permissions are strictly bound to the actively authenticated session email (`request.auth.token.email`).
   - Contact aliases stored in `member.emails` are unverified document strings and must **never** be used to confer administrative privileges.
   - Adding an administrator's email to a member profile's `emails` array does not grant that member admin access. Furthermore, backend triggers (`onMemberUpdated`) actively prevent non-admin member profiles from attaching to or modifying administrator `/acl` records.
+- **Case-Insensitive Emails (normalisation invariant)**:
+  - Emails are stored trimmed and lower-cased everywhere (`/acl/{email}` ids, `member.emails`, event `ownerEmails`/`managerEmails`, registration `email`, video grant `memberEmail`). Code compares with `normalizeEmail()` ([`functions/src/data-model/email.ts`](../functions/src/data-model/email.ts)); rules compare with `request.auth.token.email.lower()` behind a `token.get('email', null) is string` guard.
+  - During the transition the rules also accept the raw token email where they did before. Matching is case-insensitive only; it grants no other new access. See [email-normalisation.md](email-normalisation.md) for the backfill and the required deploy order.
 
 ---
 

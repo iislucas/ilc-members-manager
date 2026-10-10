@@ -5,6 +5,7 @@ import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
 import { InstructorLicenseType } from './data-model/curriculum';
 import { Member, MembershipType } from './data-model/members';
+import { normalizeEmail, emailListIncludes } from './data-model/email';
 
 // Helper to add days to a date
 function addDays(date: Date, days: number): Date {
@@ -33,11 +34,10 @@ export async function scheduleAccountDeletionHandler(
   }
 
   const member = memberSnap.data() as Member;
-  const userEmail = request.auth.token.email.toLowerCase().trim();
+  const userEmail = normalizeEmail(request.auth.token.email);
   const isAdmin = await checkIsAdmin(userEmail);
   const isOwner = Boolean(
-    member.emails &&
-    member.emails.some((e) => e.toLowerCase().trim() === userEmail),
+    emailListIncludes(member.emails, userEmail),
   );
 
   if (!isAdmin && !isOwner) {
@@ -84,11 +84,10 @@ export async function cancelAccountDeletionHandler(
   }
 
   const member = memberSnap.data() as Member;
-  const userEmail = request.auth.token.email.toLowerCase().trim();
+  const userEmail = normalizeEmail(request.auth.token.email);
   const isAdmin = await checkIsAdmin(userEmail);
   const isOwner = Boolean(
-    member.emails &&
-    member.emails.some((e) => e.toLowerCase().trim() === userEmail),
+    emailListIncludes(member.emails, userEmail),
   );
 
   if (!isAdmin && !isOwner) {
@@ -114,7 +113,7 @@ export const cancelAccountDeletion = onCall<{ memberDocId: string }, Promise<{ s
 
 async function checkIsAdmin(email: string): Promise<boolean> {
   const db = admin.firestore();
-  const aclDoc = await db.collection('acl').doc(email.toLowerCase().trim()).get();
+  const aclDoc = await db.collection('acl').doc(normalizeEmail(email)).get();
   if (!aclDoc.exists) return false;
   return aclDoc.data()?.isAdmin === true;
 }

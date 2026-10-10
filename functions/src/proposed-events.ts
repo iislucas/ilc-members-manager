@@ -30,6 +30,7 @@ import { Member } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { VideoGrant, VideoGrantKind } from './data-model/vod';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone, recordDeletionLog } from './common';
+import { normalizeEmail, normalizeEmails } from './data-model/email';
 import {
   DeletionSource,
   DeletionLogActor,
@@ -250,7 +251,7 @@ export const submitProposedEvent = onCall(
       throw new HttpsError('permission-denied', error);
     }
 
-    const callerEmail = (request.auth.token.email || '').toLowerCase().trim();
+    const callerEmail = normalizeEmail(request.auth.token.email);
     const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
     const isAdmin = aclSnap.data()?.isAdmin === true;
 
@@ -264,9 +265,11 @@ export const submitProposedEvent = onCall(
     // Check limit of 3 proposed events only if submitting a proposed event.
     // Counted via managerEmails (the submitter is always a manager) so the limit
     // still applies when the submitter hands ownership of the event to someone else.
+    // managerEmails are stored normalised; the raw auth email is also matched for
+    // events written before the normalize-emails backfill.
     if (finalStatus === EventStatus.Proposed) {
       const proposedEventsQuery = await db.collection(FirestoreCollection.Events)
-        .where('managerEmails', 'array-contains', request.auth.token.email)
+        .where('managerEmails', 'array-contains-any', Array.from(new Set([callerEmail, request.auth.token.email])))
         .where('status', '==', EventStatus.Proposed)
         .get();
 
@@ -364,7 +367,7 @@ export const submitProposedEvent = onCall(
           const existingEventDocId = prodData.eventDocId || '';
           let isAuthorized = !existingEventDocId;
           if (existingEventDocId) {
-            const callerEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+            const callerEmail = normalizeEmail(request.auth?.token?.email);
             const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
             const isAdmin = aclSnap.data()?.isAdmin === true;
             if (isAdmin) {
@@ -543,12 +546,15 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   // Resolve emails if missing or if owner/managers changed. Done after
   // mirroring (above) so a membership change is never lost.
   const loadMember = memberLoader(db);
-  const ownerEmails = (await loadMember(after.ownerDocId))?.emails || [];
+  // Stored normalised (trimmed, lower-cased, de-duplicated) so security rules can
+  // match them against the lower-cased auth email.
+  const ownerEmails = normalizeEmails((await loadMember(after.ownerDocId))?.emails);
 
-  const managerEmails: string[] = [];
+  const rawManagerEmails: string[] = [];
   for (const id of (after.managerDocIds || [])) {
-    managerEmails.push(...((await loadMember(id))?.emails || []));
+    rawManagerEmails.push(...((await loadMember(id))?.emails || []));
   }
+  const managerEmails = normalizeEmails(rawManagerEmails);
 
   // Drop contacts who are no longer on the organising team and refresh the
   // display fields cached for the public event page.
@@ -646,7 +652,7 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
       for (const regDoc of regSnap.docs) {
         const reg = regDoc.data() as EventRegistration;
         const memberDocId = reg.memberDocId;
-        const email = reg.email ? reg.email.trim().toLowerCase() : '';
+        const email = normalizeEmail(reg.email);
 
         if (targetDocIds.length > 0) {
           for (const targetId of targetDocIds) {
@@ -819,14 +825,14 @@ export const onEventCreated = onDocumentCreated('/events/{docId}', async (event)
   const db = admin.firestore();
   
   const ownerDoc = await db.collection(FirestoreCollection.Members).doc(eventData.ownerDocId).get();
-  const ownerEmails = ownerDoc.data()?.emails || [];
+  const ownerEmails = normalizeEmails(ownerDoc.data()?.emails);
 
-  const managerEmails: string[] = [];
+  const rawManagerEmails: string[] = [];
   for (const id of (eventData.managerDocIds || [])) {
     const mgrDoc = await db.collection(FirestoreCollection.Members).doc(id).get();
-    const emails = mgrDoc.data()?.emails || [];
-    managerEmails.push(...emails);
+    rawManagerEmails.push(...(mgrDoc.data()?.emails || []));
   }
+  const managerEmails = normalizeEmails(rawManagerEmails);
 
   logger.info(`Enriching event ${snap.id} with emails.`);
   await snap.ref.update({

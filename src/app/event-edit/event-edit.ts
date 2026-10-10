@@ -61,6 +61,7 @@ import { NetworkStateService } from '../network-state.service';
 import { ResumableUploadService } from '../manage-vod-upload/resumable-upload.service';
 import { ActionQueueService, QueuedActionKind } from '../action-queue.service';
 import { FirestoreCollection } from '../../../functions/src/data-model/collections';
+import { normalizeEmail } from '../../../functions/src/data-model/email';
 
 // Fields used in the event form model.
 type EventFormModel = {
@@ -538,14 +539,14 @@ export class EventEditComponent implements OnInit {
       if (typeof this.dataService.events?.update === 'function') {
         await this.dataService.events.update(ev.docId, {
           status: newStatus,
-          updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+          updatedByEmail: normalizeEmail(this.firebaseState.user()?.firebaseUser.email),
         });
       } else {
         const docRef = doc(this.db, 'events', ev.docId);
         await updateDoc(docRef, {
           status: newStatus,
           lastUpdated: serverTimestamp(),
-          updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+          updatedByEmail: normalizeEmail(this.firebaseState.user()?.firebaseUser.email),
         });
       }
       // Update local state so chip and form model reflect the change.
@@ -1452,7 +1453,7 @@ export class EventEditComponent implements OnInit {
         heroImageOriginalUrl: formData.heroImageOriginalUrl,
         documents: formData.documents,
         lastUpdated: new Date().toISOString(),
-        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+        updatedByEmail: normalizeEmail(this.firebaseState.user()?.firebaseUser.email),
       };
 
       if (this.networkState.isOffline()) {
@@ -1492,7 +1493,7 @@ export class EventEditComponent implements OnInit {
         await updateDoc(docRef, {
           ...updatePayload,
           lastUpdated: serverTimestamp(),
-          updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+          updatedByEmail: normalizeEmail(this.firebaseState.user()?.firebaseUser.email),
         });
         if (typeof this.dataService.events?.update === 'function') {
           await this.dataService.events.update(eventData.docId, updatePayload);

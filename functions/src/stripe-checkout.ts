@@ -57,6 +57,7 @@ import * as admin from 'firebase-admin';
 import { getMemberByEmail } from './common';
 import { MailSettings, MailSendingStatus, TransactionalEmailKey, resolveNotificationStatus } from './data-model/mail';
 import { Member } from './data-model/members';
+import { normalizeEmail } from './data-model/email';
 
 export const createStripeCheckoutSession = onCall<
   CreateCheckoutSessionRequest,
@@ -166,7 +167,7 @@ export const createStripeCheckoutSession = onCall<
   const isGift = Boolean(request.data?.isGift);
   const giftMetadata: Record<string, string> = {};
   if (isGift) {
-    const recipientEmail = (request.data?.recipientEmail || '').trim().toLowerCase();
+    const recipientEmail = normalizeEmail(request.data?.recipientEmail);
     if (!recipientEmail || !recipientEmail.includes('@')) {
       throw new HttpsError('invalid-argument', 'A valid recipient email is required when purchasing as a gift.');
     }
