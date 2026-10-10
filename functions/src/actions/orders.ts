@@ -15,6 +15,7 @@ import {
 } from '../data-model/orders';
 import { clearOrderProcessingState } from '../squarespace-orders';
 import { ActionContext, ActionResult } from './types';
+import { normalizeEmail } from '../data-model/email';
 
 /** Options for listing/querying orders. */
 export interface OrderListOptions {
@@ -97,7 +98,7 @@ export async function listOrders(
   let orders = snap.docs.map(firestoreDocToOrder);
 
   if (options?.customerEmail) {
-    const cleanEmail = options.customerEmail.toLowerCase().trim();
+    const cleanEmail = normalizeEmail(options.customerEmail);
     orders = orders.filter((o) => {
       const email = 'customerEmail' in o ? (o as SquareSpaceOrder).customerEmail : ('email' in o ? (o as { email?: string }).email : '');
       return (email || '').toLowerCase() === cleanEmail;

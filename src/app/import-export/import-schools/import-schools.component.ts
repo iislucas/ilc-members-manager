@@ -4,6 +4,7 @@ import { ImportMappingComponent } from '../import-mapping/import-mapping';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { School, initSchool } from '../../../../functions/src/data-model/schools';
+import { normalizeEmails } from '../../../../functions/src/data-model/email';
 import * as Papa from 'papaparse';
 import {
   ParsedRow,
@@ -307,9 +308,7 @@ export class ImportSchoolsComponent {
 
       // Prevent removal of existing managerEmails: merge with imported ones
       if (school.managerEmails !== undefined) {
-        const mergedEmails = new Set(existing.managerEmails || []);
-        school.managerEmails.forEach(e => mergedEmails.add(e));
-        newSchool.managerEmails = Array.from(mergedEmails);
+        newSchool.managerEmails = normalizeEmails([...(existing.managerEmails || []), ...school.managerEmails]);
       }
 
       const diffs = getDifferences(newSchool, existing);

@@ -9,6 +9,7 @@ import { School, SchoolFsDoc } from './data-model/schools';
 import { ensureSchoolCountersAreAtLeast } from './counters';
 import { refreshACLAdminStatus } from './on-member-update';
 import { recordTombstone, recordDeletionLog } from './common';
+import { normalizeEmails } from './data-model/email';
 import { DeletionSource, DeletionLogActor } from './data-model/deletion-logs';
 
 const db = admin.firestore();
@@ -43,7 +44,7 @@ async function resolveInstructorEmails(instructorIds: string[]): Promise<string[
     });
   }
 
-  return emails;
+  return normalizeEmails(emails);
 }
 
 async function resolveSchoolEmails(school: School): Promise<{ ownerEmails: string[]; managerEmails: string[] }> {
@@ -59,7 +60,7 @@ async function resolveSchoolEmails(school: School): Promise<{ ownerEmails: strin
     }
   }
   const managerEmails = await resolveInstructorEmails(school.managerInstructorIds || []);
-  return { ownerEmails, managerEmails };
+  return { ownerEmails: normalizeEmails(ownerEmails), managerEmails };
 }
 
 // @deprecated — ownerEmails/managerEmails on School documents are being

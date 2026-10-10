@@ -2,13 +2,30 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    // Raw Firebase Auth email ('' when there is no string email claim).
+    // Stored emails and `/acl/{email}` / `/video_grants/{email}_{id}` doc ids
+    // are normalised to lowercase, but the token email may contain uppercase
+    // letters, so lookups use the lowercased email first and fall back to the
+    // raw email (transition support until all legacy data is lowercased).
     function getUserEmail() {
-      return (request.auth != null && 'email' in request.auth.token) ? request.auth.token.email : '';
+      return (request.auth != null && 'email' in request.auth.token && request.auth.token.email is string)
+        ? request.auth.token.email : '';
+    }
+
+    // Lowercase-first ACL resolution for a non-empty email. The raw-id ACL is
+    // only consulted when the email has uppercase letters and no lowercase ACL
+    // exists. Cost: 1 Firestore doc for lowercase emails, at most 2 otherwise
+    // (repeated exists()/get() of the same doc are de-duplicated).
+    function resolveAclPath(email) {
+      let lower = email.lower();
+      let lowerPath = /databases/(default)/documents/acl/$(lower);
+      let rawPath = /databases/(default)/documents/acl/$(email);
+      return (email != lower && !firestore.exists(lowerPath) && firestore.exists(rawPath)) ? rawPath : lowerPath;
     }
 
     function getAclPath() {
       let email = getUserEmail();
-      return email != '' ? /databases/(default)/documents/acl/$(email) : /databases/(default)/documents/acl/_invalid_;
+      return email != '' ? resolveAclPath(email) : /databases/(default)/documents/acl/_invalid_;
     }
 
     function isAdmin() {
@@ -195,12 +212,20 @@ service firebase.storage {
         videoData.get('accessTiers', []).hasAny(['public']);
     }
 
+    // True if a `/video_grants/{email}_{id}` doc exists for the lowercased
+    // email, or (transition fallback, mixed-case emails only) the raw email.
+    function videoGrantExists(email, id) {
+      let lower = email.lower();
+      return firestore.exists(/databases/(default)/documents/video_grants/$(lower + '_' + id)) ||
+        (email != lower && firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + id)));
+    }
+
     function hasVideoGrant(videoData, videoId) {
       let email = getUserEmail();
       let seriesId = videoData.get('seriesId', '');
       return email != '' && (
-        firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + videoId)) ||
-        (seriesId != '' && firestore.exists(/databases/(default)/documents/video_grants/$(email + '_' + seriesId)))
+        videoGrantExists(email, videoId) ||
+        (seriesId != '' && videoGrantExists(email, seriesId))
       );
     }
 

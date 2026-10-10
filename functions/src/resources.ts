@@ -20,6 +20,8 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
 import { ResourceAccessLevel, RESOURCE_ACCESS_LEVELS } from './data-model/curriculum';
+import { normalizeEmail } from './data-model/email';
+import { FirestoreCollection } from './data-model/collections';
 
 export interface ResourceFileInfo {
   name: string;
@@ -120,11 +122,17 @@ export async function assertResourceAccess(
     );
   }
 
-  const email = request.auth.token.email;
+  const rawEmail = request.auth.token.email;
+  const email = normalizeEmail(rawEmail);
   const db = admin.firestore();
 
-  // Look up the ACL document for this user.
-  const aclDoc = await db.collection('acl').doc(email).get();
+  // Look up the ACL document for this user. ACL ids are normalised emails; the
+  // raw-id fallback only matters for legacy mixed-case ACL docs that have not
+  // yet been merged by the normalize-emails backfill script.
+  let aclDoc = await db.collection(FirestoreCollection.Acl).doc(email).get();
+  if (!aclDoc.exists && rawEmail !== email) {
+    aclDoc = await db.collection(FirestoreCollection.Acl).doc(rawEmail).get();
+  }
   if (!aclDoc.exists) {
     throw new HttpsError(
       'permission-denied',

@@ -14,6 +14,7 @@ import { Grading, gradingManagerIdsOf } from './data-model/gradings';
 import { Member, MembershipType } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { ACL } from './data-model/system';
+import { normalizeEmail, normalizeEmails } from './data-model/email';
 import { mirrorGradingToInstructor, removeGradingFromInstructor } from './on-grading-update';
 import { createMemberNotification } from './notifications';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
@@ -44,14 +45,11 @@ export async function updateACL(aclUpdate: {
   }
   const memberDocId = member?.docId || previous?.docId;
 
-  const emails = (member?.emails || [])
-    .filter(Boolean)
-    .map((e) => e.trim().toLowerCase());
+  // ACL doc ids are always the normalised (trimmed, lower-cased) email.
+  const emails = normalizeEmails(member?.emails);
   const instructorId = member?.instructorId;
 
-  const previousEmails = (previous?.emails || [])
-    .filter(Boolean)
-    .map((e) => e.trim().toLowerCase());
+  const previousEmails = normalizeEmails(previous?.emails);
   const previousInstructorId = previous?.instructorId;
   const added = emails.filter((e) => !previousEmails.includes(e));
   const removed = previousEmails.filter((e) => !emails.includes(e));
@@ -198,7 +196,8 @@ async function getSchoolInfo(
 }
 
 export async function refreshACLAdminStatus(email: string) {
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanEmail = normalizeEmail(email);
+  if (!cleanEmail) return;
   const aclRef = getDb().collection('acl').doc(cleanEmail);
   const aclSnap = await aclRef.get();
 
@@ -221,18 +220,18 @@ export async function refreshACLAdminStatus(email: string) {
       kind: DeletionTriggerKind.Cascaded,
       cascadeCase: CascadeCase.MemberDeletedToAcl,
       sourceCollection: 'members',
-      sourceDocId: email,
-      sourceName: email,
+      sourceDocId: cleanEmail,
+      sourceName: cleanEmail,
     };
     await recordDeletionLog(
       getDb(),
       'acl',
-      email,
+      cleanEmail,
       data,
       trigger,
       DeletionSource.CloudFunctionTrigger,
     );
-    await recordTombstone(getDb(), 'acl', email, trigger);
+    await recordTombstone(getDb(), 'acl', cleanEmail, trigger);
     await aclRef.delete();
     return;
   }
@@ -463,21 +462,29 @@ export const onMemberCreated = onDocumentCreated(
     const cleanMemberId = member.memberId ? member.memberId.trim().toUpperCase() : undefined;
     const cleanInstructorId = member.instructorId ? member.instructorId.trim().toUpperCase() : undefined;
     const cleanPrimaryInstructorId = member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : undefined;
+    // Emails are stored normalised (trimmed, lower-cased, de-duplicated). This
+    // catches any writer (client, import, script) that did not normalise.
+    const cleanEmails = Array.isArray(member.emails) ? normalizeEmails(member.emails) : undefined;
+    const emailsNeedNormalization =
+      cleanEmails !== undefined && JSON.stringify(cleanEmails) !== JSON.stringify(member.emails);
 
     const needsNormalization =
       (member.memberId && member.memberId !== cleanMemberId) ||
       (member.instructorId && member.instructorId !== cleanInstructorId) ||
-      (member.primaryInstructorId && member.primaryInstructorId !== cleanPrimaryInstructorId);
+      (member.primaryInstructorId && member.primaryInstructorId !== cleanPrimaryInstructorId) ||
+      emailsNeedNormalization;
 
     if (needsNormalization) {
       const normalizationPatch: Partial<Member> = {};
       if (cleanMemberId !== undefined && member.memberId !== cleanMemberId) normalizationPatch.memberId = cleanMemberId;
       if (cleanInstructorId !== undefined && member.instructorId !== cleanInstructorId) normalizationPatch.instructorId = cleanInstructorId;
       if (cleanPrimaryInstructorId !== undefined && member.primaryInstructorId !== cleanPrimaryInstructorId) normalizationPatch.primaryInstructorId = cleanPrimaryInstructorId;
+      if (emailsNeedNormalization && cleanEmails) normalizationPatch.emails = cleanEmails;
       await getDb().collection('members').doc(snap.id).update(normalizationPatch);
       if (cleanMemberId !== undefined) member.memberId = cleanMemberId;
       if (cleanInstructorId !== undefined) member.instructorId = cleanInstructorId;
       if (cleanPrimaryInstructorId !== undefined) member.primaryInstructorId = cleanPrimaryInstructorId;
+      if (cleanEmails !== undefined) member.emails = cleanEmails;
     }
 
     await updateMemberViewForSchoolAndInstrucor(snap.id, member);
@@ -511,21 +518,29 @@ export const onMemberUpdated = onDocumentUpdated(
     const cleanMemberId = member.memberId ? member.memberId.trim().toUpperCase() : undefined;
     const cleanInstructorId = member.instructorId ? member.instructorId.trim().toUpperCase() : undefined;
     const cleanPrimaryInstructorId = member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : undefined;
+    // Emails are stored normalised (trimmed, lower-cased, de-duplicated). This
+    // catches any writer (client, import, script) that did not normalise.
+    const cleanEmails = Array.isArray(member.emails) ? normalizeEmails(member.emails) : undefined;
+    const emailsNeedNormalization =
+      cleanEmails !== undefined && JSON.stringify(cleanEmails) !== JSON.stringify(member.emails);
 
     const needsNormalization =
       (member.memberId && member.memberId !== cleanMemberId) ||
       (member.instructorId && member.instructorId !== cleanInstructorId) ||
-      (member.primaryInstructorId && member.primaryInstructorId !== cleanPrimaryInstructorId);
+      (member.primaryInstructorId && member.primaryInstructorId !== cleanPrimaryInstructorId) ||
+      emailsNeedNormalization;
 
     if (needsNormalization) {
       const normalizationPatch: Partial<Member> = {};
       if (cleanMemberId !== undefined && member.memberId !== cleanMemberId) normalizationPatch.memberId = cleanMemberId;
       if (cleanInstructorId !== undefined && member.instructorId !== cleanInstructorId) normalizationPatch.instructorId = cleanInstructorId;
       if (cleanPrimaryInstructorId !== undefined && member.primaryInstructorId !== cleanPrimaryInstructorId) normalizationPatch.primaryInstructorId = cleanPrimaryInstructorId;
+      if (emailsNeedNormalization && cleanEmails) normalizationPatch.emails = cleanEmails;
       await getDb().collection('members').doc(snap.after.id).update(normalizationPatch);
       if (cleanMemberId !== undefined) member.memberId = cleanMemberId;
       if (cleanInstructorId !== undefined) member.instructorId = cleanInstructorId;
       if (cleanPrimaryInstructorId !== undefined) member.primaryInstructorId = cleanPrimaryInstructorId;
+      if (cleanEmails !== undefined) member.emails = cleanEmails;
     }
 
     await updateMemberViewForSchoolAndInstrucor(snap.after.id, member, previous);

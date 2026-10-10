@@ -21,6 +21,7 @@ import * as logger from 'firebase-functions/logger';
 import { Member } from '../data-model/members';
 import { SquareSpaceOrder, SquareSpaceLineItem } from '../data-model/orders';
 import { MembershipPurchaseInfo } from './common';
+import { normalizeEmail } from '../data-model/email';
 
 /**
  * Normalize a date-of-birth string into YYYY-MM-DD for comparison.
@@ -68,7 +69,7 @@ export async function lookupMembersByEmail(
 ): Promise<{ memberId: string; name: string; dateOfBirth: string; docId: string; emails: string[] }[]> {
   if (!email) return [];
 
-  const emailLower = email.toLowerCase().trim();
+  const emailLower = normalizeEmail(email);
   const memberQuery = await db.collection('members')
     .where('emails', 'array-contains', emailLower)
     .get();

@@ -44,6 +44,7 @@ import {
 import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 import { Member } from './data-model/members';
 import { ACL } from './data-model/system';
+import { normalizeEmail, normalizeEmails } from './data-model/email';
 import { NotificationKind } from './data-model/notifications';
 import { createMemberNotification } from './notifications';
 
@@ -88,9 +89,9 @@ export const createProductCheckoutSession = onCall<
   let member: Member | undefined;
 
   const authEmail = request.auth?.token?.email
-    ? request.auth.token.email.toLowerCase().trim()
+    ? normalizeEmail(request.auth.token.email)
     : undefined;
-  const emailToLookup = authEmail || (data.attendeeDetails?.email ? data.attendeeDetails.email.toLowerCase().trim() : undefined);
+  const emailToLookup = authEmail || (normalizeEmail(data.attendeeDetails?.email) || undefined);
   if (authEmail) {
     try {
       member = await getMemberByEmail(authEmail, db);
@@ -202,14 +203,14 @@ export const createProductCheckoutSession = onCall<
       }
 
       existingReg = regSnap.data() as EventRegistration;
-      const verifiedAuthEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+      const verifiedAuthEmail = normalizeEmail(request.auth?.token?.email);
       if (!verifiedAuthEmail) {
         throw new HttpsError(
           'unauthenticated',
           'You must be authenticated to upgrade an existing registration.',
         );
       }
-      const regEmail = (existingReg.email || '').toLowerCase().trim();
+      const regEmail = normalizeEmail(existingReg.email);
       const callerMemberDoc = memberDocId || '';
       const regMemberDoc = existingReg.memberDocId || '';
 
@@ -525,7 +526,7 @@ export const createProductCheckoutSession = onCall<
     paymentMethod: RegistrationPaymentMethod.Stripe,
     pricingTierType: pricingTierType,
     attendeeName: data.attendeeDetails?.name || '',
-    attendeeEmail: data.attendeeDetails?.email || '',
+    attendeeEmail: normalizeEmail(data.attendeeDetails?.email),
     attendeePhone: data.attendeeDetails?.phone || '',
     attendeeNotes: data.attendeeDetails?.notes || '',
     memberDocId: memberDocId || '',
@@ -652,8 +653,8 @@ export const updateProductRegistration = onCall<
     throw new HttpsError('unauthenticated', 'You must be authenticated to update a registration.');
   }
 
-  const authEmail = request.auth.token.email.toLowerCase().trim();
-  const regEmail = (existingReg.email || '').toLowerCase().trim();
+  const authEmail = normalizeEmail(request.auth.token.email);
+  const regEmail = normalizeEmail(existingReg.email);
   let callerMemberDocId: string | undefined;
 
   try {
@@ -850,7 +851,7 @@ export const updateProductRegistration = onCall<
   // 8. Update registration record in Firestore
   const updatedRegistration: Partial<EventRegistration> = {
     name: data.attendeeDetails.name.trim(),
-    email: data.attendeeDetails.email.trim().toLowerCase(),
+    email: normalizeEmail(data.attendeeDetails.email),
     phone: data.attendeeDetails.phone?.trim() || '',
     notes: data.attendeeDetails.notes?.trim() || '',
     role,
@@ -984,7 +985,7 @@ export const registerEventInPerson = onCall<
 
   // 2. Validate attendee details
   const name = data.attendeeDetails?.name?.trim();
-  const email = data.attendeeDetails?.email?.trim().toLowerCase();
+  const email = normalizeEmail(data.attendeeDetails?.email);
   if (!name || !email) {
     throw new HttpsError('invalid-argument', 'Attendee name and email are required.');
   }
@@ -995,7 +996,7 @@ export const registerEventInPerson = onCall<
   let member: Member | undefined;
 
   const authEmail = request.auth?.token?.email
-    ? request.auth.token.email.toLowerCase().trim()
+    ? normalizeEmail(request.auth.token.email)
     : undefined;
   if (authEmail) {
     try {
@@ -1255,7 +1256,7 @@ export const markEventRegistrationPaid = onCall<
     throw new HttpsError('not-found', 'Event not found.');
   }
   const event = eventSnap.data() as IlcEvent;
-  const callerEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+  const callerEmail = normalizeEmail(request.auth?.token?.email);
   let isAdmin = false;
   if (callerEmail) {
     const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
@@ -1273,8 +1274,8 @@ export const markEventRegistrationPaid = onCall<
     }
     const ownerDocId = event.ownerDocId;
     const managerDocIds: string[] = event.managerDocIds || [];
-    const ownerEmails: string[] = (event.ownerEmails || []).map((e: string) => e.toLowerCase().trim());
-    const managerEmails: string[] = (event.managerEmails || []).map((e: string) => e.toLowerCase().trim());
+    const ownerEmails: string[] = normalizeEmails(event.ownerEmails);
+    const managerEmails: string[] = normalizeEmails(event.managerEmails);
 
     if (callerMemberDocId && (callerMemberDocId === ownerDocId || managerDocIds.includes(callerMemberDocId))) {
       isManager = true;
@@ -1330,7 +1331,7 @@ export const unmarkEventRegistrationPaid = onCall<
   }
 
   const db = admin.firestore();
-  const callerEmail = (request.auth.token.email || '').toLowerCase().trim();
+  const callerEmail = normalizeEmail(request.auth.token.email);
 
   // Verify caller permissions (admin, owner, or manager)
   const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
@@ -1344,8 +1345,8 @@ export const unmarkEventRegistrationPaid = onCall<
     const event = eventSnap.data() as IlcEvent;
     const ownerDocId = event.ownerDocId || '';
     const managerDocIds: string[] = event.managerDocIds || [];
-    const ownerEmails: string[] = (event.ownerEmails || []).map((e: string) => e.toLowerCase().trim());
-    const managerEmails: string[] = (event.managerEmails || []).map((e: string) => e.toLowerCase().trim());
+    const ownerEmails: string[] = normalizeEmails(event.ownerEmails);
+    const managerEmails: string[] = normalizeEmails(event.managerEmails);
 
     if (callerMemberDocId && (callerMemberDocId === ownerDocId || managerDocIds.includes(callerMemberDocId))) {
       isManager = true;

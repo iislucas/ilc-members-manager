@@ -14,6 +14,7 @@ import {
 } from '../data-model/members';
 import { StudentLevel, ApplicationLevel } from '../data-model/curriculum';
 import { assignNextMemberId } from '../counters';
+import { normalizeEmail, normalizeEmails } from '../data-model/email';
 import { ActionContext, ActionResult } from './types';
 
 /** Parameters for creating a new member record. */
@@ -94,7 +95,7 @@ export async function getMemberByEmail(
   email: string,
 ): Promise<Member | null> {
   if (!email) return null;
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanEmail = normalizeEmail(email);
 
   // Search primary email field
   const primarySnap = await ctx.db
@@ -177,7 +178,7 @@ export async function createMember(
     return { success: false, error: 'Member email is required.' };
   }
 
-  const cleanEmail = input.email.trim().toLowerCase();
+  const cleanEmail = normalizeEmail(input.email);
   const existing = await getMemberByEmail(ctx, cleanEmail);
   if (existing) {
     return {
@@ -198,7 +199,7 @@ export async function createMember(
 
   const nowIso = new Date().toISOString();
   const baseDefaults = initMember();
-  const emails = input.emails && input.emails.length > 0 ? input.emails : [cleanEmail];
+  const emails = input.emails && input.emails.length > 0 ? normalizeEmails(input.emails) : [cleanEmail];
   const cleanMemberId = memberId ? memberId.trim().toUpperCase() : '';
   const cleanPrimaryInstructorId = input.primaryInstructorId ? input.primaryInstructorId.trim().toUpperCase() : '';
 
@@ -271,6 +272,10 @@ export async function updateMember(
   if (patchCopy.primaryInstructorId) {
     patchCopy.primaryInstructorId = patchCopy.primaryInstructorId.trim().toUpperCase();
   }
+  // Emails are always stored normalised (trimmed, lower-cased, de-duplicated).
+  if (patchCopy.emails) {
+    patchCopy.emails = normalizeEmails(patchCopy.emails);
+  }
 
   const updated: Member = {
     ...existing,
@@ -280,8 +285,9 @@ export async function updateMember(
   };
 
   // Keep emails array in sync if email was passed in
-  if (patch.email && !updated.emails.includes(patch.email.toLowerCase())) {
-    updated.emails = Array.from(new Set([...updated.emails, patch.email.toLowerCase()]));
+  const patchEmail = normalizeEmail(patch.email);
+  if (patchEmail && !updated.emails.includes(patchEmail)) {
+    updated.emails = normalizeEmails([...updated.emails, patchEmail]);
     patchCopy.emails = updated.emails;
   }
 

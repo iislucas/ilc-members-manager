@@ -204,4 +204,5 @@ Before finalizing any changes to Cloud Functions, rules, or authorization logic:
 - [ ] Do client-side form permission bindings (`disabled()`) match the operational whitelist in `firestore.rules` and `docs/security.md`?
 - [ ] Are Cloud Storage operations validating resource prefixes and MIME types?
 - [ ] Do all Firestore writes from non-admin clients validate `lastUpdated == request.time` (`serverTimestamp()`)?
+- [ ] Are emails written/keyed with `normalizeEmail()` and compared case-insensitively (`normalizeEmail()` in code, `request.auth.token.email.lower()` guarded by `token.get('email', null) is string` in rules)? See [docs/email-normalisation.md](../../../docs/email-normalisation.md).
 - [ ] Have all automated test suites passed: `pnpm test:rules`, `pnpm test:functions`, `pnpm test`, and `pnpm test:docs`?

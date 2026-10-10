@@ -16,6 +16,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins, getMemberByEmail, hasActiveMembership, isActiveInstructor } from '../common';
+import { normalizeEmail } from '../data-model/email';
 import { Member } from '../data-model/members';
 import { VideoItem, VodAccessTier, VodStatus, firestoreDocToVideoItem, isVideoGrantActive } from '../data-model/vod';
 
@@ -117,7 +118,7 @@ export const getVideoPlaybackSession = onCall(
       };
     }
 
-    const email = request.auth.token.email.toLowerCase();
+    const email = normalizeEmail(request.auth.token.email);
 
     // 4. Check if admin (admins have access to all videos)
     const aclDoc = await db.collection('acl').doc(email).get();
