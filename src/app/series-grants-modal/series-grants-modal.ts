@@ -225,11 +225,23 @@ export class SeriesGrantsModalComponent {
       allDates.sort();
       const latestGrantedAt = allDates[allDates.length - 1] || '';
 
-      // Amount paid (if any)
-      const amountPaid = userGrants.reduce(
-        (sum, g) => sum + (typeof g.amountPaidCents === 'number' ? g.amountPaidCents : 0),
-        0,
-      );
+      // Amount paid (if any) - deduplicate by orderDocId / stripeSessionId so bundled video grants aren't summed multiple times
+      const orderAmounts = new Map<string, number>();
+      let standaloneAmount = 0;
+      for (const g of userGrants) {
+        const cents = typeof g.amountPaidCents === 'number' ? g.amountPaidCents : 0;
+        const orderKey = g.orderDocId || g.stripeSessionId;
+        if (orderKey) {
+          const current = orderAmounts.get(orderKey) ?? 0;
+          orderAmounts.set(orderKey, Math.max(current, cents));
+        } else {
+          standaloneAmount += cents;
+        }
+      }
+      let amountPaid = standaloneAmount;
+      for (const cents of orderAmounts.values()) {
+        amountPaid += cents;
+      }
 
       // Order Doc ID
       const orderDocId = userGrants.find((g) => g.orderDocId)?.orderDocId;

@@ -5,10 +5,11 @@ import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { getDocs, getDoc, query, where, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
+import { OrderKind, OrderStatus } from '../../functions/src/data-model/orders';
 import { UserDetails } from './firebase-state.service';
 import { NetworkStateService } from './network-state.service';
 import { ActionQueueService, QueuedActionKind, RollbackTarget } from './action-queue.service';
@@ -36,6 +37,7 @@ vi.mock('firebase/firestore', () => {
     updateDoc: vi.fn().mockResolvedValue(undefined),
     writeBatch: vi.fn().mockReturnValue(mockBatch),
     getDocs: vi.fn(),
+    getDoc: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
     limit: vi.fn(),
@@ -907,6 +909,64 @@ describe('DataManagerService - searchEvents', () => {
 
       expect(batchMock.delete).toHaveBeenCalledTimes(2);
       expect(batchMock.commit).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('searchOrders', () => {
+    it('searches by orderId in-memory when orders are loaded', async () => {
+      service.orders.setEntries([
+        {
+          docId: 'DQJCygchO8qG71QaEDPK',
+          ilcAppOrderKind: OrderKind.Stripe,
+          ilcAppOrderStatus: OrderStatus.Processed,
+          customerEmail: 'pietro.n.roselli.lorenzini@gmail.com',
+          created: '2026-10-06T14:04:37.000Z',
+          lastUpdated: '2026-10-06T14:04:37.000Z',
+        } as never,
+        {
+          docId: 'other_order_doc',
+          ilcAppOrderKind: OrderKind.Stripe,
+          ilcAppOrderStatus: OrderStatus.Processed,
+          customerEmail: 'other@example.com',
+          created: '2026-10-05T14:04:37.000Z',
+          lastUpdated: '2026-10-05T14:04:37.000Z',
+        } as never,
+      ]);
+
+      const results = await service.searchOrders({
+        kind: 'term',
+        searchField: 'orderId',
+        term: 'DQJCygchO8qG71QaEDPK',
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].docId).toBe('DQJCygchO8qG71QaEDPK');
+    });
+
+    it('searches by orderId directly via Firestore getDoc when in-memory cache is empty', async () => {
+      service.orders.setEntries([]);
+
+      const mockOrderDoc = {
+        id: 'DQJCygchO8qG71QaEDPK',
+        exists: () => true,
+        data: () => ({
+          ilcAppOrderKind: 'stripe',
+          ilcAppOrderStatus: 'processed',
+          customerEmail: 'pietro.n.roselli.lorenzini@gmail.com',
+          created: '2026-10-06T14:04:37.000Z',
+          lastUpdated: { toDate: () => new Date('2026-10-06T14:04:37.000Z') },
+        }),
+      };
+      vi.mocked(getDoc).mockResolvedValueOnce(mockOrderDoc as never);
+
+      const results = await service.searchOrders({
+        kind: 'term',
+        searchField: 'orderId',
+        term: 'DQJCygchO8qG71QaEDPK',
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].docId).toBe('DQJCygchO8qG71QaEDPK');
     });
   });
 });

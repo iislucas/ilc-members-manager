@@ -118,6 +118,8 @@ export function sortEventsByStartDesc(events: IlcEvent[]): IlcEvent[] {
 export type OrderSearchCriteriaTerm = {
   kind: 'term';
   searchField:
+    | 'orderId'
+    | 'docId'
     | 'orderNumber'
     | 'referenceNumber'
     | 'id'
@@ -893,6 +895,8 @@ export class DataManagerService {
           } else if (field === 'referenceNumber') {
             const rn = ('referenceNumber' in o && typeof o.referenceNumber === 'string' ? o.referenceNumber : '') || '';
             return rn.toLowerCase().includes(term);
+          } else if (field === 'orderId' || field === 'docId') {
+            return o.docId.toLowerCase().includes(term);
           } else if (field === 'id') {
             const id = ('id' in o && typeof o.id === 'string' ? o.id : '') || '';
             return id.toLowerCase().includes(term) || o.docId.toLowerCase().includes(term);
@@ -959,7 +963,28 @@ export class DataManagerService {
           const order = firestoreDocToOrder(docSnap as unknown as GenericFsDoc);
           results.set(order.docId, order);
         });
+      } else if (field === 'orderId' || field === 'docId') {
+        try {
+          const directDoc = await getDoc(doc(this.ordersCollection, term));
+          if (directDoc.exists()) {
+            const order = firestoreDocToOrder(directDoc as unknown as GenericFsDoc);
+            results.set(order.docId, order);
+          }
+        } catch {
+          // Ignore invalid doc reference errors
+        }
       } else {
+        if (field === 'id') {
+          try {
+            const directDoc = await getDoc(doc(this.ordersCollection, term));
+            if (directDoc.exists()) {
+              const order = firestoreDocToOrder(directDoc as unknown as GenericFsDoc);
+              results.set(order.docId, order);
+            }
+          } catch {
+            // Ignore
+          }
+        }
         // Search only the specifically requested field
         let q = query(this.ordersCollection, where(field, '==', term));
 

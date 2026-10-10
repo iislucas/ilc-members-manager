@@ -1881,20 +1881,22 @@ describe('stripe-fulfillment', () => {
 
         await fulfillStripeOrder(mockDb, sampleMember, order, 'order_series_1');
 
-        // Series ID itself is granted
+        // Series ID itself is granted with full amountPaidCents
         expect(mockMemberVideoGrantsSet).toHaveBeenCalledWith(
           expect.objectContaining({
             docId: 'series_fundamentals',
             videoId: 'series_fundamentals',
             memberDocId: 'mem_123',
+            amountPaidCents: 6000,
           }),
         );
-        // Both episodes are also granted
+        // Both episodes are also granted, but with amountPaidCents: 0 so price is not multiplied
         expect(mockMemberVideoGrantsSet).toHaveBeenCalledWith(
           expect.objectContaining({
             docId: 'ep_1',
             videoId: 'ep_1',
             memberDocId: 'mem_123',
+            amountPaidCents: 0,
           }),
         );
         expect(mockMemberVideoGrantsSet).toHaveBeenCalledWith(
@@ -1902,6 +1904,7 @@ describe('stripe-fulfillment', () => {
             docId: 'ep_2',
             videoId: 'ep_2',
             memberDocId: 'mem_123',
+            amountPaidCents: 0,
           }),
         );
       });
