@@ -23,6 +23,7 @@ import { AppPathPatterns, Views, PUBLIC_VIEWS } from './app.config';
 import { DataManagerService } from './data-manager.service';
 import { FirebaseStateService } from './firebase-state.service';
 import { FindInstructorsService } from './find-instructors.service';
+import { VideoSeries, findSeriesForVideo } from '../../functions/src/data-model/vod';
 
 /** A single item in the breadcrumbs trail. */
 export interface BreadcrumbNode {
@@ -304,7 +305,8 @@ export class NavigationTreeService {
       view === Views.ManageMaterials ||
       view === Views.ManageVod ||
       view === Views.ManageVodUpload ||
-      view === Views.ManageVodEditSeries ||
+      view === Views.ManageVodVideo ||
+      view === Views.ManageVodSeries ||
       view === Views.ManageVideoTags ||
       view === Views.Statistics ||
       view === Views.ImportExport ||
@@ -505,9 +507,19 @@ export class NavigationTreeService {
         return [];
       }
       case Views.ManageVodUpload:
-      case Views.ManageVodEditSeries:
+      case Views.ManageVodSeries:
       case Views.ManageVideoTags:
         return [this.node(Views.ManageVod, 'Manage VOD')];
+      case Views.ManageVodVideo: {
+        // Episodes sit under their series page; standalone videos directly under Manage VOD.
+        const series = this.manageVodVideoSeries();
+        return series
+          ? [
+              this.node(Views.ManageVod, 'Manage VOD'),
+              this.node(Views.ManageVodSeries, series.title, { seriesId: series.seriesId }, { tab: 'overview' }),
+            ]
+          : [this.node(Views.ManageVod, 'Manage VOD')];
+      }
       case Views.ManageVod: {
         const tab = this.routing.signals[Views.ManageVod].urlParams.tab();
         if (tab === 'all_videos') {
@@ -660,19 +672,29 @@ export class NavigationTreeService {
     return profiles.some((p) => p.docId === grading.studentMemberDocId);
   });
 
-  /** An ancestor link, with the target's own URL params carried forward. */
-  private node(view: Views, label: string, pathVars: PathVars = {}): NavNode {
-    return { label, url: this.hrefFor(view, pathVars) };
+  /** The multi-part series containing the video shown on the ManageVodVideo page, if any. */
+  private manageVodVideoSeries(): VideoSeries | null {
+    const videoId = this.routing.signals[Views.ManageVodVideo].pathVars.videoId();
+    const video = this.dataService.videos.get(videoId);
+    return video ? findSeriesForVideo(this.dataService.getVideoSeriesList(), video) : null;
   }
 
-  private hrefFor(view: Views, pathVars: PathVars): string {
+  /**
+   * An ancestor link, with the target's own URL params carried forward unless
+   * explicitly overridden by `urlParams`.
+   */
+  private node(view: Views, label: string, pathVars: PathVars = {}, urlParams?: PathVars): NavNode {
+    return { label, url: this.hrefFor(view, pathVars, urlParams) };
+  }
+
+  private hrefFor(view: Views, pathVars: PathVars, urlParams?: PathVars): string {
     // `hrefForView` is precisely typed per view; this service dispatches over
     // all views at once, so the path variables are only known dynamically.
     // Called on the service (not via a detached reference) so `this` binds.
     const routing = this.routing as unknown as {
-      hrefForView(view: string, pathVars?: PathVars): string;
+      hrefForView(view: string, pathVars?: PathVars, urlParams?: PathVars): string;
     };
-    return routing.hrefForView(view, pathVars);
+    return urlParams ? routing.hrefForView(view, pathVars, urlParams) : routing.hrefForView(view, pathVars);
   }
 
   public titleOf(viewId: Views | null): string {
@@ -869,8 +891,14 @@ export class NavigationTreeService {
       }
       case Views.ManageVodUpload:
         return 'Upload VOD & Series';
-      case Views.ManageVodEditSeries:
-        return 'Edit Video Series';
+      case Views.ManageVodVideo: {
+        const videoId = this.routing.signals[Views.ManageVodVideo].pathVars.videoId();
+        return this.dataService.videos.get(videoId)?.title || 'Video';
+      }
+      case Views.ManageVodSeries: {
+        const seriesId = this.routing.signals[Views.ManageVodSeries].pathVars.seriesId();
+        return this.dataService.getVideoSeriesList().find((s) => s.seriesId === seriesId)?.title || 'Series';
+      }
       case Views.ManageVideoTags:
         return 'Video Tags';
       case Views.Login:

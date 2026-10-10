@@ -1,0 +1,390 @@
+<div class="manage-vod-edit-video-container">
+  <!-- Error Message -->
+  @if (errorMessage()) {
+    <div class="error-container">
+      <app-icon name="error"></app-icon>
+      <span class="error-message">{{ errorMessage() }}</span>
+      <button type="button" class="icon-only-button" (click)="errorMessage.set(null)">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="success-banner card">
+      <div class="banner-header">
+        <app-icon name="check" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>Changes Saved</h3>
+          <p>{{ successMessage() }}</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (dataService.videos.loading() && !video()) {
+    <div class="loading-state card">
+      <app-spinner>Loading video details...</app-spinner>
+    </div>
+  } @else if (!video()) {
+    <!-- Not Found State -->
+    <div class="not-found-state card">
+      <app-icon name="live_tv" width="48px" height="48px"></app-icon>
+      <h3>Video Not Found</h3>
+      <p>Could not find a video with ID <code>{{ videoId() }}</code>.</p>
+      <a class="primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'all_videos' })">
+        <span>Go to Manage VOD</span>
+      </a>
+    </div>
+  } @else {
+    <!-- Main Form Grid -->
+    <div class="video-edit-content">
+      <!-- Section 1: Basic Information -->
+      <section class="video-section">
+        <div class="section-header">
+          <app-icon name="edit"></app-icon>
+          <div>
+            <h3>Basic Information</h3>
+            <p>Title, description, recording date, and classification tags.</p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <!-- Video ID -->
+          <div class="form-group video-id-row">
+            <span class="video-id-label">Video ID:</span>
+            <code class="video-id-val">{{ videoId() }}</code>
+          </div>
+
+          <!-- Video Title -->
+          <div class="form-group">
+            <label for="videoTitle">Title <span class="required">*</span></label>
+            <input
+              id="videoTitle"
+              type="text"
+              class="form-input"
+              [ngModel]="title()"
+              (ngModelChange)="title.set($event)"
+              placeholder="e.g. Masterclass 2026: The 13 Basic Exercises"
+            />
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label for="videoDescription">Description</label>
+            <textarea
+              id="videoDescription"
+              rows="3"
+              class="form-textarea"
+              [ngModel]="description()"
+              (ngModelChange)="description.set($event)"
+              placeholder="Overview of this video, key concepts covered, curriculum notes..."
+            ></textarea>
+          </div>
+
+          <!-- Recording Date -->
+          <div class="form-group">
+            <label for="videoRecordedDate">Recording Date (YYYY-MM-DD)</label>
+            <input
+              id="videoRecordedDate"
+              type="date"
+              class="form-input date-input"
+              [ngModel]="recordedDate()"
+              (ngModelChange)="recordedDate.set($event)"
+            />
+          </div>
+
+          <!-- Tags -->
+          <div class="form-group">
+            <label>Tags</label>
+            <app-tag-input
+              [(tags)]="tags"
+              placeholder="Search or add a tag (type #tag)..."
+            ></app-tag-input>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Thumbnail Poster -->
+      <section class="video-section">
+        <div class="section-header">
+          <app-icon name="image"></app-icon>
+          <div>
+            <h3>Thumbnail Poster</h3>
+            <p>Select any frame from the video or upload a high-resolution custom poster.</p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <div class="thumb-edit-row">
+            <div class="thumb-preview-wrapper">
+              @if (thumbnailUrl()) {
+                <img [src]="thumbnailUrl()" [alt]="title()" class="thumb-preview-img" />
+              } @else {
+                <div class="thumb-placeholder-box">
+                  <app-icon name="live_tv"></app-icon>
+                  <span>No thumbnail</span>
+                </div>
+              }
+            </div>
+            <div class="thumb-actions">
+              @if (isSavingThumbnail()) {
+                <app-spinner>Saving thumbnail...</app-spinner>
+              } @else {
+                <button
+                  type="button"
+                  class="secondary-button change-thumb-btn"
+                  (click)="openThumbnailModal()"
+                >
+                  <app-icon name="image"></app-icon>
+                  <span>Change Thumbnail</span>
+                </button>
+              }
+              <p class="thumb-hint">Pick any frame from the video or upload a custom image (JPG, PNG, WebP).</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: Access Permissions & Pricing -->
+      <section class="video-section">
+        <div class="section-header">
+          <app-icon name="lock"></app-icon>
+          <div>
+            <h3>Access Permissions &amp; Pricing</h3>
+            <p>Control who has streaming access and configure direct video purchase.</p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          @if (isInSeries()) {
+            <!-- Series-Wide Access Notice -->
+            <div class="series-access-notice card">
+              <div class="notice-header">
+                <app-icon name="collections"></app-icon>
+                <span class="notice-title">Series-Wide Access &amp; Pricing</span>
+              </div>
+              <p class="notice-desc">
+                This episode is Part {{ seriesPartIndex() || video()?.seriesPartIndex || 1 }} of
+                <strong>{{ seriesTitle() || video()?.seriesTitle || 'this series' }}</strong>.
+                Access permissions (who can stream), bundle purchase pricing, and Stripe configurations are set series-wide for all episodes in this collection.
+              </p>
+              @if (getSeriesHref(); as seriesUrl) {
+                <a
+                  class="secondary-button edit-series-access-btn"
+                  [href]="seriesUrl"
+                >
+                  <app-icon name="edit"></app-icon>
+                  <span>Edit Series Access &amp; Settings</span>
+                </a>
+              }
+            </div>
+          } @else {
+            <!-- Free Access Tier -->
+            <div class="form-group free-access-group">
+              <label class="section-heading-label">Who can view it for free</label>
+              <p class="section-description">
+                Select who has free streaming access. Instructors are members, and members are part of the public:
+              </p>
+              <select
+                class="form-select free-access-select"
+                [ngModel]="freeAccessTier()"
+                (ngModelChange)="freeAccessTier.set($event)"
+              >
+                @for (opt of freeAccessTierOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }} &mdash; {{ opt.description }}</option>
+                }
+              </select>
+            </div>
+
+            <!-- Class Video Subscription -->
+            <div class="form-group class-subscription-box">
+              <label class="checkbox-label class-sub-toggle">
+                <input
+                  type="checkbox"
+                  [ngModel]="hasClassSub()"
+                  (ngModelChange)="hasClassSub.set($event)"
+                />
+                <span class="checkbox-label-text">Class Video Subscribers</span>
+              </label>
+              <p class="checkbox-hint">Active class video library subscribers have streaming access.</p>
+            </div>
+
+            <!-- Direct / One-off VOD Purchase -->
+            <div class="form-group buyable-box">
+              <label class="checkbox-label buyable-toggle">
+                <input
+                  type="checkbox"
+                  [ngModel]="isBuyable()"
+                  (ngModelChange)="isBuyable.set($event)"
+                />
+                <span class="buyable-label-text">Available for Direct / One-Off VOD Purchase</span>
+              </label>
+              <p class="buyable-hint">
+                Allows users without the above memberships or licenses to purchase individual lifetime streaming access.
+              </p>
+
+              @if (isBuyable()) {
+                <div class="form-row buyable-inputs">
+                  <div class="form-group">
+                    <label for="priceDollars">Purchase Price ($ USD) <span class="required">*</span></label>
+                    <input
+                      id="priceDollars"
+                      type="number"
+                      step="0.50"
+                      min="0.50"
+                      class="form-input"
+                      [ngModel]="priceDollars()"
+                      (ngModelChange)="priceDollars.set($event)"
+                      placeholder="15.00"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label for="stripePriceId">Stripe Price ID (Optional)</label>
+                    <input
+                      id="stripePriceId"
+                      type="text"
+                      class="form-input"
+                      [ngModel]="stripePriceId()"
+                      (ngModelChange)="stripePriceId.set($event)"
+                      placeholder="price_1N..."
+                    />
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Section 4: Video Series & Collection Configuration -->
+      <section class="video-section">
+        <div class="section-header">
+          <app-icon name="video_library"></app-icon>
+          <div>
+            <h3>Video Series / Collection</h3>
+            <p>Link this video as an episode of a multi-part series collection.</p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="seriesTitleInput">Series Title</label>
+              <input
+                id="seriesTitleInput"
+                type="text"
+                class="form-input"
+                [ngModel]="seriesTitle()"
+                (ngModelChange)="seriesTitle.set($event)"
+                placeholder="e.g. Understanding Spacing"
+              />
+            </div>
+            <div class="form-group flex-1">
+              <label for="seriesPartInput">Part #</label>
+              <input
+                id="seriesPartInput"
+                type="number"
+                min="1"
+                class="form-input"
+                [ngModel]="seriesPartIndex()"
+                (ngModelChange)="seriesPartIndex.set($event)"
+                placeholder="1"
+              />
+            </div>
+          </div>
+
+          @if (getSeriesHref('overview'); as seriesUrl) {
+            <div class="series-link-box">
+              <app-icon name="info"></app-icon>
+              <span>This video is linked to an existing series collection.</span>
+              <a [href]="seriesUrl" class="inline-link-button series-editor-link">
+                <span>Open series</span>
+                <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+              </a>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Section 5: Catalog Visibility & Spotlight -->
+      <section class="video-section">
+        <div class="section-header">
+          <app-icon name="visibility"></app-icon>
+          <div>
+            <h3>Catalog Visibility &amp; Spotlight</h3>
+            <p>Control whether this video appears in catalog search results and featured banners.</p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <div class="toggles-column">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="isPublished()"
+                (ngModelChange)="isPublished.set($event)"
+              />
+              <span class="checkbox-label-text">Listed in Public / Member Catalog</span>
+            </label>
+            <p class="checkbox-hint">When unchecked, this video is unlisted from public search and accessible only by direct link or administrators.</p>
+
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="featured()"
+                (ngModelChange)="featured.set($event)"
+              />
+              <span class="checkbox-label-text">Featured in Hero Spotlight</span>
+            </label>
+            <p class="checkbox-hint">Displays this video in the top spotlight carousel on the Video on Demand catalog page.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom Sticky Action Bar -->
+      <div class="video-actions-bar">
+        @if (isSaving()) {
+          <app-spinner>Saving Video Changes...</app-spinner>
+        } @else {
+          <button
+            type="button"
+            class="subtle-button"
+            (click)="discardChanges()"
+          >
+            <span>Discard Changes</span>
+          </button>
+          <button
+            type="button"
+            class="primary-button save-btn"
+            (click)="saveVideoChanges()"
+          >
+            <app-icon name="save"></app-icon>
+            <span>Save Video Changes</span>
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Thumbnail Editor Modal -->
+  @if (thumbnailModalOpen() && video()) {
+    <app-thumbnail-editor-modal
+      [isOpen]="thumbnailModalOpen()"
+      [title]="'Change Thumbnail — ' + (title() || video()?.title || '')"
+      [videoUrl]="video()?.manifestUrl || null"
+      [initialThumbnailUrl]="thumbnailUrl() || video()?.thumbnailUrl || null"
+      [initialDurationSeconds]="video()?.durationSeconds || null"
+      [spriteSheetUrl]="video()?.spriteSheetUrl || null"
+      [spriteIntervalSeconds]="video()?.spriteIntervalSeconds || 5"
+      [spriteWidth]="video()?.spriteWidth || 160"
+      [spriteHeight]="video()?.spriteHeight || 90"
+      [spriteColumnCount]="video()?.spriteColumnCount || 5"
+      [spriteRowCount]="video()?.spriteRowCount || 5"
+      [spriteFrameCount]="video()?.spriteFrameCount || 25"
+      (thumbnailSelected)="onVideoThumbnailSelected($event)"
+      (closed)="closeThumbnailModal()"
+    ></app-thumbnail-editor-modal>
+  }
+</div>

@@ -55,7 +55,8 @@ import { VideosCatalogComponent } from './videos-catalog/videos-catalog';
 import { VideoViewComponent } from './video-view/video-view';
 import { ManageVodComponent } from './manage-vod/manage-vod';
 import { ManageVodUploadComponent } from './manage-vod-upload/manage-vod-upload';
-import { ManageVodEditSeriesComponent } from './manage-vod-edit-series/manage-vod-edit-series';
+import { ManageVodVideoPageComponent } from './manage-vod-video-page/manage-vod-video-page';
+import { ManageVodSeriesPageComponent } from './manage-vod-series-page/manage-vod-series-page';
 import { ManageVideoTagsComponent } from './manage-video-tags/manage-video-tags';
 import { MemberOrdersComponent } from './member-orders/member-orders';
 import { NotFoundComponent } from './not-found/not-found';
@@ -131,7 +132,8 @@ import { ActionQueueService } from './action-queue.service';
     VideoViewComponent,
     ManageVodComponent,
     ManageVodUploadComponent,
-    ManageVodEditSeriesComponent,
+    ManageVodVideoPageComponent,
+    ManageVodSeriesPageComponent,
     ManageVideoTagsComponent,
     NotFoundComponent,
     BecomeAMemberComponent,

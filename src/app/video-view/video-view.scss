@@ -1002,6 +1002,31 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  position: relative;
+
+  // Admin-only ⋮ menu sits in the top-right corner so the layout for everyone else is unchanged.
+  &.has-admin-menu {
+    padding-right: 40px;
+  }
+
+  .admin-actions-row {
+    position: absolute;
+    top: -4px;
+    right: 0;
+  }
+
+  .admin-menu-anchor {
+    position: relative;
+  }
+
+  .admin-dropdown-menu {
+    @extend .menu-style;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 200px;
+    z-index: 100;
+  }
 
   .badge-row {
     display: flex;
@@ -1028,13 +1053,6 @@
       background: #e0f2fe;
       color: #0369a1;
     }
-  }
-
-  .video-title {
-    margin: 0;
-    font-size: 1.7rem;
-    color: v.$text-primary;
-    line-height: 1.3;
   }
 
   .chips-section {
@@ -1431,6 +1449,7 @@
         color: #ffffff;
       }
     }
+
   }
 }
 

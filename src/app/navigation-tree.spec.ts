@@ -32,6 +32,13 @@ describe('NavigationTreeService', () => {
 
   const school = { docId: 'schoolDoc1', schoolId: 'PARIS', schoolName: 'Paris ILC' };
   const instructor = { instructorId: 'I7', name: 'Sifu Chin', memberId: 'M9' };
+  const episode = { docId: 'vid_ep1', title: 'Spacing Part 1', seriesId: 'series_spacing' };
+  const standaloneVideo = { docId: 'vid_solo', title: 'Solo Drill' };
+  const spacingSeries = {
+    seriesId: 'series_spacing',
+    title: 'Understanding Spacing',
+    videos: [episode, { docId: 'vid_ep2', title: 'Spacing Part 2', seriesId: 'series_spacing' }],
+  };
 
   beforeEach(async () => {
     window.history.replaceState(null, '', '/');
@@ -61,6 +68,8 @@ describe('NavigationTreeService', () => {
             myGradingsAssessed: searchableSetStub(),
             getMember: () => undefined,
             getMyStudent: () => undefined,
+            videos: searchableSetStub([episode, standaloneVideo]),
+            getVideoSeriesList: () => [spacingSeries],
           },
         },
         { provide: FirebaseStateService, useValue: { user } },
@@ -153,12 +162,30 @@ describe('NavigationTreeService', () => {
     expect(navTree.currentTitle()).toBe('Upload VOD & Series');
   });
 
-  it('puts Manage VOD Edit Series under Admin and Manage VOD in the navigation tree', () => {
-    goTo(Views.ManageVodEditSeries, { seriesId: 'series_123' });
+  it('titles a series admin page with the series title, under Manage VOD', () => {
+    goTo(Views.ManageVodSeries, { seriesId: 'series_spacing' });
     expect(ancestorLabels()).toEqual(['Admin', 'Manage VOD']);
-    expect(navTree.parent()?.url).toBe('/manage-vod');
-    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Admin', 'Manage VOD', 'Edit Video Series']);
-    expect(navTree.currentTitle()).toBe('Edit Video Series');
+    expect(navTree.currentTitle()).toBe('Understanding Spacing');
+  });
+
+  it('puts an episode admin page under its series page', () => {
+    goTo(Views.ManageVodVideo, { videoId: 'vid_ep1' });
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage VOD', 'Understanding Spacing']);
+    expect(navTree.parent()?.url).toContain('/manage-vod/series/series_spacing');
+    expect(navTree.currentTitle()).toBe('Spacing Part 1');
+  });
+
+  it('puts a standalone video admin page directly under Manage VOD', () => {
+    goTo(Views.ManageVodVideo, { videoId: 'vid_solo' });
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage VOD']);
+    expect(navTree.currentTitle()).toBe('Solo Drill');
+  });
+
+  it('falls back to generic titles when the video or series is not loaded', () => {
+    goTo(Views.ManageVodVideo, { videoId: 'unknown' });
+    expect(navTree.currentTitle()).toBe('Video');
+    goTo(Views.ManageVodSeries, { seriesId: 'unknown' });
+    expect(navTree.currentTitle()).toBe('Series');
   });
 
   it('links a member back to their list, scrolled to their row', () => {

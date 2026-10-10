@@ -44,7 +44,10 @@ to the relevant files instead of re-exploring.
 | Dedicated Class Video Library Page (`/class-video-library`) | [src/app/class-video-library/](../../src/app/class-video-library/) |
 | Video Playback & Trailer Preview Page (`/videos/:videoId`) | [src/app/video-view/](../../src/app/video-view/) |
 | Modern HLS Player + Controls + Offline Storage | [src/app/video-player/](../../src/app/video-player/), [src/app/vod-offline-storage.service.ts](../../src/app/vod-offline-storage.service.ts) |
-| Admin VOD Curation (`/manage-vod`) | [src/app/manage-vod/](../../src/app/manage-vod/) |
+| Admin VOD Curation list (`/manage-vod`) | [src/app/manage-vod/](../../src/app/manage-vod/) |
+| Admin page for one video (`/manage-vod/video/:videoId?tab=overview\|access\|details`) | [src/app/manage-vod-video-page/](../../src/app/manage-vod-video-page/) (Details tab embeds [manage-vod-edit-video](../../src/app/manage-vod-edit-video/)) |
+| Admin page for one series (`/manage-vod/series/:seriesId?tab=overview\|access\|details`) | [src/app/manage-vod-series-page/](../../src/app/manage-vod-series-page/) (Details tab embeds [manage-vod-edit-series](../../src/app/manage-vod-edit-series/)) |
+| "Who has access" panel (grants list, revoke, grant/gift) for a video or series | [src/app/vod-access-list/](../../src/app/vod-access-list/) + [grant-vod-modal](../../src/app/grant-vod-modal/) |
 | Stripe Product & Price Sync Tool (`pnpm sync:video-products`) | [functions/scripts/sync-video-stripe-products.ts](../../functions/scripts/sync-video-stripe-products.ts) |
 
 ### Associations between concepts

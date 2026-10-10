@@ -1,30 +1,34 @@
-/* series-grants-modal.ts
+/* vod-access-list.ts
  *
- * Administrator modal dialog to inspect who has purchased, been gifted,
- * or been granted access to a video series.
+ * Embeddable administrator panel listing who has purchased, been gifted, or
+ * been granted access to a single video or to a whole video series, with
+ * search/filter, revoke, and an entry point to grant/gift further access.
+ *
+ * Used as the "Who has access" tab on the dedicated admin pages for a video
+ * (/manage-vod/video/:videoId) and for a series (/manage-vod/series/:seriesId).
  */
 
 import {
   Component,
   input,
-  output,
   signal,
   computed,
   effect,
   inject,
   ChangeDetectionStrategy,
+  untracked,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { VideoSeries, VideoGrant, VideoGrantKind } from '../../../functions/src/data-model/vod';
+import { VideoItem, VideoSeries, VideoGrant, VideoGrantKind } from '../../../functions/src/data-model/vod';
 import { Member } from '../../../functions/src/data-model/members';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { GrantVodModalComponent } from '../grant-vod-modal/grant-vod-modal';
 
-export interface SeriesGrantRecipient {
+export interface VodGrantRecipient {
   recipientKey: string;
   memberDocId?: string;
   memberId?: string;
@@ -32,6 +36,8 @@ export interface SeriesGrantRecipient {
   memberEmail: string;
   member?: Member;
   hasFullSeries: boolean;
+  /** True when access comes from a grant on the whole series (vs. individual videos). */
+  viaSeriesGrant: boolean;
   grantedVideoCount: number;
   totalSeriesVideoCount: number;
   grantedVideoTitles: string[];
@@ -51,28 +57,88 @@ export interface SeriesGrantRecipient {
 }
 
 @Component({
-  selector: 'app-series-grants-modal',
+  selector: 'app-vod-access-list',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     IconComponent,
     SpinnerComponent,
+    GrantVodModalComponent,
   ],
-  templateUrl: './series-grants-modal.html',
-  styleUrl: './series-grants-modal.scss',
+  templateUrl: './vod-access-list.html',
+  styleUrl: './vod-access-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SeriesGrantsModalComponent {
+export class VodAccessListComponent {
   private dataService = inject(DataManagerService);
   protected routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
   readonly Views = Views;
   readonly VideoGrantKind = VideoGrantKind;
 
+  /** Provide exactly one of `series` or `video`. */
   series = input<VideoSeries | null>(null);
-  closed = output<void>();
-  grantRequested = output<VideoSeries>();
+  video = input<VideoItem | null>(null);
+  /**
+   * In video mode, the series containing the video as resolved by the page
+   * (covers series grouped by title pattern that have no explicit seriesId).
+   */
+  parentSeries = input<VideoSeries | null>(null);
+
+  /** True when listing access for a single video rather than a whole series. */
+  isVideoMode = computed(() => !this.series() && Boolean(this.video()));
+
+  /**
+   * The series-shaped target whose grants are listed. A single video is
+   * modelled as a one-episode series keyed by its parent series id (if any),
+   * so that whole-series grants are correctly counted as access to the video.
+   */
+  target = computed<VideoSeries | null>(() => {
+    const s = this.series();
+    if (s) return s;
+    const v = this.video();
+    if (!v) return null;
+    return {
+      seriesId: this.parentSeries()?.seriesId || v.seriesId || v.forVodPageId || '',
+      title: v.title,
+      description: v.description,
+      tags: v.tags || [],
+      videoCount: 1,
+      totalDurationSeconds: v.durationSeconds || 0,
+      videos: [v],
+    };
+  });
+
+  /** Ids whose grants confer access to the whole series (vs. individual episodes). */
+  seriesTargetIds = computed<Set<string>>(() => {
+    const ids = new Set<string>();
+    const t = this.target();
+    if (!t) return ids;
+    if (t.seriesId) ids.add(t.seriesId);
+    for (const v of t.videos || []) {
+      if (v.seriesId) ids.add(v.seriesId);
+      if (v.forVodPageId) ids.add(v.forVodPageId);
+    }
+    return ids;
+  });
+
+  /** All grant target ids to fetch; the stable key that drives (re)loading. */
+  private grantTargetIds = computed<string[]>(() => {
+    const t = this.target();
+    if (!t) return [];
+    const ids = new Set<string>(this.seriesTargetIds());
+    for (const v of t.videos || []) ids.add(v.docId);
+    return Array.from(ids).filter(Boolean).sort();
+  }, { equal: (a, b) => a.length === b.length && a.every((id, i) => id === b[i]) });
+
+  /** Incremented per load so that out-of-order responses are discarded. */
+  private loadToken = 0;
+
+  /** Title of whatever is being listed (series or video). */
+  targetTitle = computed(() => this.series()?.title || this.video()?.title || '');
+
+  // Grant / gift dialog
+  grantModalOpen = signal<boolean>(false);
 
   // Raw fetched grants
   rawGrants = signal<VideoGrant[]>([]);
@@ -86,52 +152,44 @@ export class SeriesGrantsModalComponent {
 
   // Interactive feedback
   copiedEmailsToast = signal<boolean>(false);
-  revokeConfirmRecipient = signal<SeriesGrantRecipient | null>(null);
+  revokeConfirmRecipient = signal<VodGrantRecipient | null>(null);
   isRevoking = signal<boolean>(false);
 
   constructor() {
+    // Only refetch when the set of target ids changes, not whenever the parent
+    // hands us a new (but equivalent) series/video object after a catalog update.
     effect(() => {
-      const s = this.series();
-      if (!s) {
-        this.rawGrants.set([]);
-        this.isLoading.set(false);
-        return;
-      }
-      this.loadGrantsForSeries(s);
+      const ids = this.grantTargetIds();
+      untracked(() => this.loadGrants(ids));
     });
   }
 
-  async loadGrantsForSeries(s: VideoSeries): Promise<void> {
+  async loadGrants(targetIds: string[] = this.grantTargetIds()): Promise<void> {
+    const token = ++this.loadToken;
+    if (targetIds.length === 0) {
+      this.rawGrants.set([]);
+      this.isLoading.set(false);
+      return;
+    }
     this.isLoading.set(true);
     this.errorMessage.set(null);
-
-    const targetIds = Array.from(
-      new Set(
-        [
-          s.seriesId,
-          ...(s.videos || []).map((v) => v.docId),
-          ...(s.videos || []).map((v) => v.forVodPageId),
-        ].filter(Boolean),
-      ),
-    ) as string[];
-
     try {
       const grants = await this.dataService.getSeriesGrants(targetIds);
-      this.rawGrants.set(grants);
+      if (token === this.loadToken) this.rawGrants.set(grants);
     } catch (err: unknown) {
-      this.errorMessage.set(
-        err instanceof Error ? err.message : 'Failed to load video grants for this series.',
-      );
+      if (token === this.loadToken) {
+        this.errorMessage.set(err instanceof Error ? err.message : 'Failed to load access records.');
+      }
     } finally {
-      this.isLoading.set(false);
+      if (token === this.loadToken) this.isLoading.set(false);
     }
   }
 
   /**
    * Transforms raw grants into aggregated recipient records.
    */
-  recipients = computed<SeriesGrantRecipient[]>(() => {
-    const s = this.series();
+  recipients = computed<VodGrantRecipient[]>(() => {
+    const s = this.target();
     const grants = this.rawGrants();
     if (!s || grants.length === 0) return [];
 
@@ -139,11 +197,7 @@ export class SeriesGrantsModalComponent {
     const constituentVideoMap = new Map(constituentVideos.map((v) => [v.docId, v]));
     const totalVideoCount = Math.max(s.videoCount || 0, constituentVideos.length, 1);
 
-    const directSeriesTargetIds = new Set<string>([s.seriesId]);
-    for (const v of constituentVideos) {
-      if (v.seriesId) directSeriesTargetIds.add(v.seriesId);
-      if (v.forVodPageId) directSeriesTargetIds.add(v.forVodPageId);
-    }
+    const directSeriesTargetIds = this.seriesTargetIds();
 
     // Group grants by recipient
     const bucketMap = new Map<string, VideoGrant[]>();
@@ -155,7 +209,7 @@ export class SeriesGrantsModalComponent {
       bucketMap.set(key, list);
     }
 
-    const result: SeriesGrantRecipient[] = [];
+    const result: VodGrantRecipient[] = [];
 
     for (const [, userGrants] of bucketMap) {
       const first = userGrants[0];
@@ -260,6 +314,7 @@ export class SeriesGrantsModalComponent {
         memberEmail,
         member,
         hasFullSeries,
+        viaSeriesGrant: hasDirectSeriesGrant,
         grantedVideoCount: grantedCount,
         totalSeriesVideoCount: totalVideoCount,
         grantedVideoTitles,
@@ -287,7 +342,7 @@ export class SeriesGrantsModalComponent {
   /**
    * Filtered list based on search term, grant kind filter, and scope filter.
    */
-  filteredRecipients = computed<SeriesGrantRecipient[]>(() => {
+  filteredRecipients = computed<VodGrantRecipient[]>(() => {
     let list = this.recipients();
     const term = this.searchTerm().toLowerCase().trim();
     if (term) {
@@ -340,7 +395,8 @@ export class SeriesGrantsModalComponent {
         adminGrantedCount++;
       }
 
-      if (r.hasFullSeries) {
+      const countsAsScope = this.isVideoMode() ? r.viaSeriesGrant : r.hasFullSeries;
+      if (countsAsScope) {
         fullSeriesCount++;
       } else {
         partialCount++;
@@ -362,15 +418,34 @@ export class SeriesGrantsModalComponent {
     };
   });
 
-  close(): void {
-    this.closed.emit();
+  openGrantModal(): void {
+    this.grantModalOpen.set(true);
   }
 
-  openGrantModal(): void {
-    const s = this.series();
-    if (s) {
-      this.grantRequested.emit(s);
-    }
+  closeGrantModal(): void {
+    this.grantModalOpen.set(false);
+  }
+
+  /** Reload the list after a new grant so the recipient appears immediately. */
+  onAccessGranted(): void {
+    this.loadGrants();
+  }
+
+  /**
+   * Grants that revoking from this list removes. On a single video's list,
+   * whole-series grants are left alone (they would remove access to every
+   * episode); those must be revoked from the series page.
+   */
+  revocableGrants(recipient: VodGrantRecipient): VideoGrant[] {
+    if (!this.isVideoMode()) return recipient.grants;
+    const seriesIds = this.seriesTargetIds();
+    return recipient.grants.filter((g) => !seriesIds.has(g.videoId));
+  }
+
+  clearFilters(): void {
+    this.searchTerm.set('');
+    this.grantKindFilter.set('all');
+    this.accessScopeFilter.set('all');
   }
 
   async copyAllEmails(): Promise<void> {
@@ -394,7 +469,7 @@ export class SeriesGrantsModalComponent {
     }
   }
 
-  promptRevoke(recipient: SeriesGrantRecipient): void {
+  promptRevoke(recipient: VodGrantRecipient): void {
     this.revokeConfirmRecipient.set(recipient);
   }
 
@@ -402,14 +477,15 @@ export class SeriesGrantsModalComponent {
     this.revokeConfirmRecipient.set(null);
   }
 
-  async confirmRevoke(recipient: SeriesGrantRecipient): Promise<void> {
+  async confirmRevoke(recipient: VodGrantRecipient): Promise<void> {
     this.isRevoking.set(true);
     try {
-      for (const g of recipient.grants) {
+      const toRevoke = this.revocableGrants(recipient);
+      for (const g of toRevoke) {
         await this.dataService.revokeVideoGrant(g);
       }
       // Remove revoked grants from rawGrants signal
-      const revokedGrantsSet = new Set(recipient.grants);
+      const revokedGrantsSet = new Set(toRevoke);
       this.rawGrants.update((list) => list.filter((g) => !revokedGrantsSet.has(g)));
       this.revokeConfirmRecipient.set(null);
     } catch (err: unknown) {

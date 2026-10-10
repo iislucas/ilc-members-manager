@@ -21,6 +21,7 @@ describe('ManageVodEditSeriesComponent', () => {
   let mockRoutingService: any;
   let sampleSeries: VideoSeries;
   let sampleVideos: VideoItem[];
+  let seriesList: WritableSignal<VideoSeries[]>;
 
   beforeEach(async () => {
     sampleVideos = [
@@ -73,24 +74,20 @@ describe('ManageVodEditSeriesComponent', () => {
       isPublished: true,
     };
 
+    seriesList = signal<VideoSeries[]>([sampleSeries]);
     mockDataService = {
       videos: {
         entries: signal(sampleVideos),
         loading: signal(false),
         get: (id: string) => sampleVideos.find((v) => v.docId === id),
       },
-      getVideoSeriesList: vi.fn().mockReturnValue([sampleSeries]),
+      // Like the real service, derive the list from a signal so computeds stay reactive.
+      getVideoSeriesList: vi.fn(() => seriesList()),
       updateVideoSeries: vi.fn().mockResolvedValue(undefined),
     };
 
     mockRoutingService = {
       signals: {
-        [Views.ManageVodEditSeries]: {
-          pathVars: {
-            seriesId: signal('series-test-1'),
-          },
-          urlParams: {},
-        },
         [Views.ManageVod]: {
           urlParams: {
             tab: signal('series_collections'),
@@ -103,7 +100,7 @@ describe('ManageVodEditSeriesComponent', () => {
         },
       },
       hrefForView: vi.fn((view: string, params?: Record<string, string>) => {
-        if (params && params['seriesId']) return `/manage-vod/edit-series/${params['seriesId']}`;
+        if (params && params['seriesId']) return `/manage-vod/series/${params['seriesId']}`;
         if (params && params['videoId']) return `/videos/${params['videoId']}`;
         if (view === Views.ManageVod) {
           return params && params['tab'] ? `/manage-vod?tab=${params['tab']}` : '/manage-vod';
@@ -123,10 +120,11 @@ describe('ManageVodEditSeriesComponent', () => {
 
     fixture = TestBed.createComponent(ManageVodEditSeriesComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('seriesId', 'series-test-1');
     fixture.detectChanges();
   });
 
-  it('should create and initialize form signals from the seriesId path param', () => {
+  it('should create and initialize form signals from the seriesId input', () => {
     expect(component).toBeTruthy();
     expect(component.seriesId()).toBe('series-test-1');
     expect(component.seriesTitle()).toBe('Sample Test Series');
@@ -175,7 +173,7 @@ describe('ManageVodEditSeriesComponent', () => {
     expect(component.seriesVideos()[0].docId).toBe('v2');
   });
 
-  it('should save series changes and navigate back to ManageVod', async () => {
+  it('should save series changes and stay on the page with a success message', async () => {
     component.seriesTitle.set('Updated Series Name');
     component.seriesDescription.set('New description');
     component.seriesPriceDollars.set(59.99);
@@ -199,7 +197,8 @@ describe('ManageVodEditSeriesComponent', () => {
       ['v1', 'v2'],
     );
 
-    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-vod?tab=series_collections');
+    expect(component.successMessage()).toBe('Series details saved.');
+    expect(mockRoutingService.navigateTo).not.toHaveBeenCalled();
   });
 
   it('should show error message if saving with empty series title', async () => {
@@ -210,13 +209,18 @@ describe('ManageVodEditSeriesComponent', () => {
     expect(mockDataService.updateVideoSeries).not.toHaveBeenCalled();
   });
 
-  it('should cancel and navigate back to ManageVod', () => {
-    component.cancel();
-    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-vod?tab=series_collections');
+  it('should discard unsaved edits and repopulate the form from the stored series', () => {
+    component.seriesTitle.set('Unsaved edit');
+    component.removeSeriesVideo(0);
+    component.discardChanges();
+    TestBed.flushEffects();
+    expect(component.seriesTitle()).toBe('Sample Test Series');
+    expect(component.seriesVideos().length).toBe(2);
+    expect(mockRoutingService.navigateTo).not.toHaveBeenCalled();
   });
 
   it('should show not found state if seriesId is unknown', () => {
-    mockRoutingService.signals[Views.ManageVodEditSeries].pathVars.seriesId.set('nonexistent-id');
+    fixture.componentRef.setInput('seriesId', 'nonexistent-id');
     fixture.detectChanges();
 
     expect(component.series()).toBeNull();
@@ -308,11 +312,14 @@ describe('ManageVodEditSeriesComponent', () => {
     expect(availableIds).not.toContain('v-old');
   });
 
-  it('should toggle viewingGrants modal open and closed', () => {
-    expect(component.viewingGrants()).toBe(false);
-    component.openViewGrantsModal();
-    expect(component.viewingGrants()).toBe(true);
-    component.closeViewGrantsModal();
-    expect(component.viewingGrants()).toBe(false);
+  it('should clear feedback when switching to a different series', async () => {
+    await component.saveSeriesChanges();
+    expect(component.successMessage()).toBe('Series details saved.');
+    const other: VideoSeries = { ...sampleSeries, seriesId: 'series-test-2', title: 'Other Series' };
+    seriesList.set([sampleSeries, other]);
+    fixture.componentRef.setInput('seriesId', 'series-test-2');
+    fixture.detectChanges();
+    expect(component.seriesTitle()).toBe('Other Series');
+    expect(component.successMessage()).toBeNull();
   });
 });

@@ -231,6 +231,24 @@ export function getVideoSeriesGroupingKey(video: VideoItem): {
 }
 
 /**
+ * Finds the series a video belongs to within a grouped series list: first by its
+ * explicit seriesId / legacy forVodPageId, otherwise the multi-part series that
+ * contains it (e.g. grouped by a "Title : Part N" pattern). Returns null for
+ * standalone videos.
+ */
+export function findSeriesForVideo(seriesList: VideoSeries[], video: VideoItem): VideoSeries | null {
+  const directId = video.seriesId || video.forVodPageId;
+  if (directId) {
+    const direct = seriesList.find((s) => s.seriesId === directId);
+    if (direct) return direct;
+  }
+  return (
+    seriesList.find((s) => s.videos.length > 1 && s.videos.some((v) => v.docId === video.docId)) ??
+    null
+  );
+}
+
+/**
  * Groups an array of VideoItems into VideoSeries collections and standalone single videos.
  */
 export function groupVideosIntoSeries(allVideos: VideoItem[]): {

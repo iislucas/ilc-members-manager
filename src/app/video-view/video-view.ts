@@ -27,6 +27,7 @@ import {
   VideoItem,
   VideoSeries,
   groupVideosIntoSeries,
+  findSeriesForVideo,
   VodAccessTier,
   VodStatus,
   VideoProgress,
@@ -82,10 +83,22 @@ export class VideoViewComponent implements OnInit {
   public stripeService = inject(StripeService);
   public offlineStorage = inject(VodOfflineStorageService);
 
+  readonly Views = Views;
+
   private viewSignals = this.routingService.signals[Views.VideoView];
 
   // Path Variable
   videoId = computed(() => this.viewSignals.pathVars.videoId());
+
+  // Admin Controls
+  isAdmin = computed(() => this.firebaseState.isAdmin());
+  adminMenuOpen = signal<boolean>(false);
+
+  seriesIdForAdmin = computed<string | null>(() => {
+    const v = this.video();
+    if (!v) return null;
+    return findSeriesForVideo(this.dataService.getVideoSeriesList(), v)?.seriesId ?? null;
+  });
 
   // Outputs
   public titleLoaded = output<string>();
@@ -303,6 +316,7 @@ export class VideoViewComponent implements OnInit {
     this.currentPlayerTime.set(0);
     this.activeLoopRange.set(null);
     this.streamingStats.set(null);
+    this.adminMenuOpen.set(false);
     this.isGiftPurchase.set(false);
     this.isGiftModalOpen.set(false);
     this.giftValidationError.set(null);
@@ -603,6 +617,14 @@ export class VideoViewComponent implements OnInit {
       return `${hrs}h ${mins}m`;
     }
     return `${mins}m`;
+  }
+
+  toggleAdminMenu(): void {
+    this.adminMenuOpen.update((open) => !open);
+  }
+
+  closeAdminMenu(): void {
+    this.adminMenuOpen.set(false);
   }
 
   getVideoHref(video: VideoItem): string {
