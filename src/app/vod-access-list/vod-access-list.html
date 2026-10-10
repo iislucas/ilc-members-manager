@@ -270,8 +270,8 @@
                       }
 
                       @if (r.expiresAt) {
-                        <div class="expiry-note">
-                          Expires: {{ formatDate(r.expiresAt) }}
+                        <div class="expiry-note" [class.expired]="!isActive(r)">
+                          {{ isActive(r) ? 'Expires' : 'Expired' }}: {{ formatDate(r.expiresAt) }}
                         </div>
                       }
                     </div>

@@ -3,7 +3,9 @@
  * Admin form to grant access to a single video or a whole series to a member
  * or to any email address. Every admin grant is a plain "admin grant"; the
  * admin chooses whether to notify the recipient and, if so, edits the message
- * (starting from one of two presets). Embedded in the grant pages at
+ * (starting from one of two presets) in the same markdown editor used for
+ * system email templates, with {title}/{name} placeholders filled in
+ * server-side. An optional expiry can be set. Embedded in the grant pages at
  * /manage-vod/video/:videoId/grant and /manage-vod/series/:seriesId/grant.
  */
 
@@ -18,11 +20,13 @@ import {
   signal,
 } from '@angular/core';
 import {
+  GRANT_MESSAGE_PLACEHOLDERS,
   GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH,
   GrantVideoAccessResponse,
   VideoItem,
   VideoSeries,
 } from '../../../functions/src/data-model/vod';
+import { findUnsupportedEmailMarkdown } from '../../../functions/src/email-markdown';
 import { Member } from '../../../functions/src/data-model/members';
 import {
   MailSendingStatus,
@@ -31,19 +35,25 @@ import {
 } from '../../../functions/src/data-model/mail';
 import { DataManagerService } from '../data-manager.service';
 import { MemberSelectorComponent } from '../member-selector/member-selector';
+import { EditorChip, MarkdownEditor, MarkdownFeature } from '../markdown-editor/markdown-editor';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 
 export type GrantMessagePresetId = 'access' | 'gift';
 
-/** Recipient-facing notification presets; `{title}` is replaced with the video/series title. */
+/**
+ * Recipient-facing notification presets. Placeholders (GRANT_MESSAGE_PLACEHOLDERS)
+ * are kept as-is and filled in server-side, like system email templates.
+ */
 export const GRANT_MESSAGE_PRESETS: readonly { id: GrantMessagePresetId; label: string; template: string }[] = [
-  { id: 'access', label: 'Access granted', template: "You've been given access to **{title}**." },
-  { id: 'gift', label: 'Gift', template: '🎁 A gift for you: enjoy **{title}**!' },
+  { id: 'access', label: 'Access granted', template: `You've been given access to **${GRANT_MESSAGE_PLACEHOLDERS.title}**.` },
+  { id: 'gift', label: 'Gift', template: `🎁 A gift for you: enjoy **${GRANT_MESSAGE_PLACEHOLDERS.title}**!` },
 ];
 
-export function fillGrantMessage(template: string, title: string): string {
-  return template.split('{title}').join(title);
+/** Today's date as YYYY-MM-DD in the admin's local time (min for the expiry picker). */
+function localDateString(d: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 /** Emitted after a successful grant, for the page to show a confirmation. */
@@ -54,12 +64,14 @@ export interface GrantVodResult {
   title: string;
   recipientLabel: string;
   notificationRequested: boolean;
+  /** YYYY-MM-DD the access ends (end of day, UTC), if any. */
+  expiresOn?: string;
 }
 
 @Component({
   selector: 'app-grant-vod-form',
   standalone: true,
-  imports: [MemberSelectorComponent, IconComponent, SpinnerComponent],
+  imports: [MemberSelectorComponent, IconComponent, SpinnerComponent, MarkdownEditor],
   templateUrl: './grant-vod-form.html',
   styleUrl: './grant-vod-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -69,6 +81,12 @@ export class GrantVodFormComponent {
 
   readonly presets = GRANT_MESSAGE_PRESETS;
   readonly maxMessageLength = GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH;
+  /** Same formatting as system email bodies (they're rendered into the email). */
+  readonly messageFeatures: MarkdownFeature[] = ['bold', 'link'];
+  readonly messageChips: EditorChip[] = [
+    { token: GRANT_MESSAGE_PLACEHOLDERS.title, description: 'Title of the video or series' },
+    { token: GRANT_MESSAGE_PLACEHOLDERS.name, description: "Recipient's name" },
+  ];
 
   /** Provide exactly one of `video` or `series`. */
   video = input<VideoItem | null>(null);
@@ -137,12 +155,16 @@ export class GrantVodFormComponent {
   // Notification
   sendNotification = signal<boolean>(true);
   presetId = signal<GrantMessagePresetId>('access');
-  /** Editable message; re-filled from the preset when the preset or title changes. */
-  message = linkedSignal<string>(() => {
-    const preset = this.presets.find((p) => p.id === this.presetId()) ?? this.presets[0];
-    return fillGrantMessage(preset.template, this.title());
-  });
+  /** Value loaded into the editor; only changes when a preset is chosen. */
+  editorValue = signal<string>(GRANT_MESSAGE_PRESETS[0].template);
+  /** The current message as edited (markdown, placeholders unfilled). */
+  message = signal<string>(GRANT_MESSAGE_PRESETS[0].template);
   messageTooLong = computed(() => this.message().length > this.maxMessageLength);
+  messageWarnings = computed(() => findUnsupportedEmailMarkdown(this.message()));
+
+  /** Optional expiry date (YYYY-MM-DD); access ends at the end of that day (UTC). */
+  expiresOn = signal<string>('');
+  readonly minExpiryDate = localDateString();
 
   /** Private note for admins (shown in the access list), never sent to the recipient. */
   notes = signal<string>('');
@@ -186,7 +208,8 @@ export class GrantVodFormComponent {
     this.presetId.set(id);
     // Re-apply even if the same preset is picked again after edits.
     const preset = this.presets.find((p) => p.id === id) ?? this.presets[0];
-    this.message.set(fillGrantMessage(preset.template, this.title()));
+    this.message.set(preset.template);
+    this.editorValue.set(preset.template);
   }
 
   async submit(): Promise<void> {
@@ -199,6 +222,11 @@ export class GrantVodFormComponent {
     const targetId = this.targetId();
     if (!targetId) {
       this.errorMessage.set('Could not identify the video or series to grant.');
+      return;
+    }
+    const expiresOn = this.expiresOn().trim();
+    if (expiresOn && expiresOn < this.minExpiryDate) {
+      this.errorMessage.set('The expiry date must be today or later.');
       return;
     }
     const sendNotification = this.sendNotification();
@@ -217,6 +245,7 @@ export class GrantVodFormComponent {
         recipientMemberDocId: this.recipientMember()?.docId || undefined,
         recipientName: this.recipientName().trim() || undefined,
         notes: this.notes().trim() || undefined,
+        expiresAt: expiresOn || undefined,
         sendNotification,
         notificationMessage: sendNotification ? this.message().trim() : undefined,
       });
@@ -232,6 +261,7 @@ export class GrantVodFormComponent {
         title: this.title(),
         recipientLabel: member ? `${member.name} (${email})` : email,
         notificationRequested: sendNotification,
+        expiresOn: expiresOn || undefined,
       });
     } catch (err: unknown) {
       this.errorMessage.set(err instanceof Error ? err.message : 'An error occurred while granting access.');

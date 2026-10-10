@@ -528,13 +528,18 @@ export interface GrantVideoAccessRequest {
   recipientName?: string;
   /** Private note stored on the grant; shown only to admins in the access list. */
   notes?: string;
+  /**
+   * Optional expiry: an ISO date-time, or a YYYY-MM-DD date meaning the end of
+   * that day (UTC). Must be in the future. See normalizeGrantExpiry().
+   */
   expiresAt?: string;
   /** Notify the recipient (in-app if they have a member account, plus email). Defaults to true. */
   sendNotification?: boolean;
   /**
-   * Recipient-facing notification text (markdown, title already filled in),
-   * at most GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH characters. Ignored when
-   * sendNotification is false; a generic message is used if empty.
+   * Recipient-facing notification text (markdown), at most
+   * GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH characters. May contain the
+   * placeholders in GRANT_MESSAGE_PLACEHOLDERS, filled in server-side. Ignored
+   * when sendNotification is false; a generic message is used if empty.
    */
   notificationMessage?: string;
 }
@@ -548,6 +553,47 @@ export interface GrantVideoAccessResponse {
   notifiedInApp: boolean;
   /** True if an email send was attempted (email not turned off for this kind). */
   emailSent: boolean;
+}
+
+/** Placeholders an admin can use in a grant notification message (filled in server-side). */
+export const GRANT_MESSAGE_PLACEHOLDERS = {
+  title: '{title}',
+  name: '{name}',
+} as const;
+
+/** Replaces GRANT_MESSAGE_PLACEHOLDERS in an admin-authored grant message. */
+export function fillGrantMessagePlaceholders(message: string, values: { title: string; name: string }): string {
+  return message
+    .split(GRANT_MESSAGE_PLACEHOLDERS.title).join(values.title)
+    .split(GRANT_MESSAGE_PLACEHOLDERS.name).join(values.name);
+}
+
+/**
+ * Validates and normalises a grant expiry to an ISO timestamp. Accepts an ISO
+ * date-time, or YYYY-MM-DD meaning the end of that day (UTC). Returns
+ * undefined for no expiry; throws an Error (with a user-facing message) if the
+ * value is unparseable or not in the future relative to `now`.
+ */
+export function normalizeGrantExpiry(raw: string | undefined | null, now: Date = new Date()): string | undefined {
+  const value = (raw || '').trim();
+  if (!value) return undefined;
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T23:59:59.999Z` : value;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('The expiry date is not a valid date.');
+  }
+  if (date.getTime() <= now.getTime()) {
+    throw new Error('The expiry date must be in the future.');
+  }
+  return date.toISOString();
+}
+
+/** True if the grant has no expiry or has not expired yet. */
+export function isVideoGrantActive(grant: { expiresAt?: string }, now: Date = new Date()): boolean {
+  if (!grant.expiresAt) return true;
+  const expires = new Date(grant.expiresAt);
+  // An unparseable expiry is treated as expired (fail closed).
+  return !Number.isNaN(expires.getTime()) && expires.getTime() >= now.getTime();
 }
 
 export function initVideoGrant(videoId = '', memberDocId = ''): VideoGrant {

@@ -85,14 +85,21 @@
           </label>
         }
       </div>
-      <textarea
-        rows="4"
-        aria-label="Notification message"
-        [value]="message()"
-        (input)="message.set($any($event.target).value)"
-      ></textarea>
+      <div class="message-editor">
+        <app-markdown-editor
+          [initialValue]="editorValue()"
+          [chips]="messageChips"
+          [enabledFeatures]="messageFeatures"
+          [autoHeight]="true"
+          (changed)="message.set($event)"
+        ></app-markdown-editor>
+      </div>
+      @if (messageWarnings().length > 0) {
+        <p class="field-hint over-limit">Unsupported formatting for email: {{ messageWarnings().join(', ') }}.</p>
+      }
       <p class="field-hint" [class.over-limit]="messageTooLong()">
-        Sent as an in-app notification and email, with a link to watch. {{ message().length }} / {{ maxMessageLength }}
+        Sent as an in-app notification and email, with a link to watch. Placeholders like {{ '{' }}title{{ '}' }}
+        are filled in when sent. {{ message().length }} / {{ maxMessageLength }}
       </p>
     </fieldset>
   }
@@ -103,6 +110,26 @@
       <span>{{ notice }}</span>
     </div>
   }
+
+  <!-- Expiry -->
+  <div class="form-field">
+    <label for="grantExpiresOn">Access expires (optional)</label>
+    <input
+      id="grantExpiresOn"
+      type="date"
+      [min]="minExpiryDate"
+      [value]="expiresOn()"
+      (input)="expiresOn.set($any($event.target).value)"
+    />
+    <p class="field-hint">
+      @if (expiresOn()) {
+        Access ends at the end of {{ expiresOn() }} (UTC).
+        <button type="button" class="inline-link-button" (click)="expiresOn.set('')">Remove expiry</button>
+      } @else {
+        Leave empty for permanent access.
+      }
+    </p>
+  </div>
 
   <!-- Internal note -->
   <div class="form-field">

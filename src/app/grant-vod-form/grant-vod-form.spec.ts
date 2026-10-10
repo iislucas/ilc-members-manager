@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { GrantVodFormComponent, GrantVodResult, fillGrantMessage } from './grant-vod-form';
+import { GrantVodFormComponent, GrantVodResult } from './grant-vod-form';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
 import {
@@ -114,16 +114,47 @@ describe('GrantVodFormComponent', () => {
       expect(component.title()).toBe('Basics');
     });
 
-    it('starts with the "Access granted" preset filled with the title', () => {
-      expect(component.message()).toBe("You've been given access to **Neutral Stance**.");
+    it('starts with the "Access granted" preset, keeping {title} for the server to fill in', () => {
+      expect(component.message()).toBe("You've been given access to **{title}**.");
+      expect(component.editorValue()).toBe(component.message());
+    });
+
+    it('uses the shared markdown editor with {title} and {name} placeholder chips', () => {
+      const editor = (fixture.nativeElement as HTMLElement).querySelector('app-markdown-editor');
+      expect(editor).toBeTruthy();
+      expect(component.messageChips.map((c) => c.token)).toEqual(['{title}', '{name}']);
     });
 
     it('switches presets and re-applies a preset after edits', () => {
       component.selectPreset('gift');
-      expect(component.message()).toBe(fillGrantMessage('🎁 A gift for you: enjoy **{title}**!', 'Neutral Stance'));
+      expect(component.message()).toBe('🎁 A gift for you: enjoy **{title}**!');
+      expect(component.editorValue()).toBe(component.message());
       component.message.set('custom');
       component.selectPreset('gift');
       expect(component.message()).toContain('A gift for you');
+    });
+
+    it('flags formatting that email cannot render', () => {
+      component.message.set('# Heading');
+      expect(component.messageWarnings().length).toBeGreaterThan(0);
+    });
+
+    it('sends an optional expiry date and rejects a date in the past', async () => {
+      component.onMemberSelected(member);
+      component.expiresOn.set('2000-01-01');
+      await component.submit();
+      expect(grantVideoAccess).not.toHaveBeenCalled();
+      expect(component.errorMessage()).toContain('today or later');
+
+      component.expiresOn.set('2999-12-31');
+      await component.submit();
+      expect(grantVideoAccess).toHaveBeenCalledWith(expect.objectContaining({ expiresAt: '2999-12-31' }));
+    });
+
+    it('sends no expiry when none is chosen', async () => {
+      component.onMemberSelected(member);
+      await component.submit();
+      expect(grantVideoAccess).toHaveBeenCalledWith(expect.objectContaining({ expiresAt: undefined }));
     });
 
     it('submits an admin grant with the edited message and emits the result', async () => {

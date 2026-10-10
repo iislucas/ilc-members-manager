@@ -19,7 +19,10 @@ import * as logger from 'firebase-functions/logger';
 import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
 import { FirestoreCollection, FirestoreSubcollection } from '../data-model/collections';
 import {
+  GRANT_MESSAGE_PLACEHOLDERS,
   GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH,
+  fillGrantMessagePlaceholders,
+  normalizeGrantExpiry,
   GrantVideoAccessRequest,
   GrantVideoAccessResponse,
   VideoGrant,
@@ -56,6 +59,14 @@ export const grantVideoAccess = onCall(
         'invalid-argument',
         `The notification message must be at most ${GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH} characters.`,
       );
+    }
+
+    // Validate the optional expiry up front, before any writes.
+    let expiresAt: string | undefined;
+    try {
+      expiresAt = normalizeGrantExpiry(data.expiresAt);
+    } catch (err: unknown) {
+      throw new HttpsError('invalid-argument', err instanceof Error ? err.message : 'Invalid expiry date.');
     }
 
     const db = admin.firestore();
@@ -137,7 +148,7 @@ export const grantVideoAccess = onCall(
         grantKind: VideoGrantKind.AdminGrant,
         grantedByMemberDocId: adminMemberDocId || undefined,
         notes: data.notes || undefined,
-        expiresAt: data.expiresAt || undefined,
+        expiresAt,
         grantedAt: nowIso,
       };
 
@@ -165,7 +176,11 @@ export const grantVideoAccess = onCall(
     let emailSent = false;
 
     if (sendNotification) {
-      const message = customMessage || `You've been given access to **${contentTitle}**.`;
+      const recipientDisplayName = recipientMember?.name || data.recipientName || 'there';
+      const message = fillGrantMessagePlaceholders(
+        customMessage || `You've been given access to **${GRANT_MESSAGE_PLACEHOLDERS.title}**.`,
+        { title: contentTitle, name: recipientDisplayName },
+      );
       const watchLink = data.targetType === 'video'
         ? `/videos/${data.targetId}`
         : `/videos?series=${data.targetId}`;

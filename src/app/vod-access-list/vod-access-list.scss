@@ -536,8 +536,13 @@
 
               .expiry-note {
                 font-size: 0.72rem;
-                color: #b91c1c;
+                color: v.$text-muted;
                 font-weight: 500;
+
+                &.expired {
+                  color: #b91c1c;
+                  font-weight: 700;
+                }
               }
             }
 

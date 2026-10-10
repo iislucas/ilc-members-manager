@@ -5,7 +5,14 @@
         <app-icon name="check" width="24px" height="24px"></app-icon>
         <div>
           <h3>Access granted</h3>
-          <p>{{ r.recipientLabel }} now has access to <strong>{{ r.title }}</strong>.</p>
+          <p>
+            {{ r.recipientLabel }} now has access to <strong>{{ r.title }}</strong>
+            @if (r.expiresOn) {
+              until the end of {{ r.expiresOn }} (UTC).
+            } @else {
+              (no expiry).
+            }
+          </p>
           @if (r.notificationRequested) {
             @if (r.response.notifiedInApp && r.response.emailSent) {
               <p>They were sent an in-app notification and an email.</p>

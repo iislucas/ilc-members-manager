@@ -1,6 +1,6 @@
 /* files-catalog.ts
  *
- * Automatically cataloged index of 100% of repository tracked files (1186 files).
+ * Automatically cataloged index of 100% of repository tracked files (1187 files).
  */
 
 import { CodeFileEntry, ArchitecturalLayer } from '../models/code-file';
@@ -4143,6 +4143,17 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     relatedPatterns: [],
   },
   {
+    path: "functions/src/data-model/vod-grants.spec.ts",
+    layer: ArchitecturalLayer.DataModel,
+    responsibility: "Unit and regression tests for vod-grants",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: ["video-item"],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
     path: "functions/src/data-model/vod.ts",
     layer: ArchitecturalLayer.DataModel,
     responsibility: "Implements GrantVideoAccessRequest, GrantVideoAccessResponse, VodAccessTier",
@@ -8050,8 +8061,8 @@ export const FILES_CATALOG: CodeFileEntry[] = [
   {
     path: "src/app/grant-vod-form/grant-vod-form.ts",
     layer: ArchitecturalLayer.ClientUIComponent,
-    responsibility: "Implements GrantVodFormComponent, GrantVodResult, fillGrantMessage",
-    keySymbols: ["GrantVodFormComponent","GrantVodResult","fillGrantMessage","GRANT_MESSAGE_PRESETS"],
+    responsibility: "Implements GrantVodFormComponent, GrantVodResult, GRANT_MESSAGE_PRESETS",
+    keySymbols: ["GrantVodFormComponent","GrantVodResult","GRANT_MESSAGE_PRESETS"],
     relatedJourneys: [],
     relatedDataTypes: ["video-item"],
     relatedStories: [],

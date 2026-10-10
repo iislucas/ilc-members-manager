@@ -342,6 +342,69 @@ describe('grantVideoAccess', () => {
     );
   });
 
+  it('fills {title} and {name} placeholders in the message', async () => {
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      recipientMemberDocId: 'target_mem_42',
+      notificationMessage: 'Hi {name}, enjoy **{title}**!',
+    });
+
+    await runGrant(req);
+
+    const expected = 'Hi Recipient Student, enjoy **Neutral Stance & Mechanics**!';
+    expect(lastNotification().markdown).toBe(`${expected}\n\n[Watch now](/videos/vid_101)`);
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ replacements: expect.objectContaining({ message: expected }) }),
+    );
+  });
+
+  it('stores a date-only expiry as the end of that day (UTC)', async () => {
+    const future = new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      expiresAt: future,
+    });
+
+    await runGrant(req);
+    expect(lastGlobalGrant().expiresAt).toBe(`${future}T23:59:59.999Z`);
+  });
+
+  it('stores no expiry when none is given', async () => {
+    const req = makeCallableRequest({ targetType: 'video', targetId: 'vid_101', recipientEmail: 'student@example.com' });
+    await runGrant(req);
+    expect(lastGlobalGrant().expiresAt).toBeUndefined();
+  });
+
+  it('rejects an expiry in the past without writing anything', async () => {
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      expiresAt: '2000-01-01',
+    });
+
+    await expect(runGrant(req)).rejects.toThrowError('The expiry date must be in the future.');
+    expect(mockGlobalGrantsSet).not.toHaveBeenCalled();
+    expect(mockMemberSubcollectionSet).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unparseable expiry', async () => {
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      expiresAt: 'next tuesday',
+    });
+
+    await expect(runGrant(req)).rejects.toThrowError(HttpsError);
+    expect(mockGlobalGrantsSet).not.toHaveBeenCalled();
+  });
+
   it('rejects a notification message that is too long', async () => {
     const req = makeCallableRequest({
       targetType: 'video',

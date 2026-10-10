@@ -40,6 +40,12 @@
   }
 }
 
+.message-editor {
+  border: 1px solid v.$border-color-light;
+  border-radius: 0.3em;
+  min-height: 6rem;
+}
+
 .label-row {
   display: flex;
   justify-content: space-between;

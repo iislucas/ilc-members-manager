@@ -19,7 +19,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { VideoItem, VideoSeries, VideoGrant, VideoGrantKind } from '../../../functions/src/data-model/vod';
+import { VideoItem, VideoSeries, VideoGrant, VideoGrantKind, isVideoGrantActive } from '../../../functions/src/data-model/vod';
 import { Member } from '../../../functions/src/data-model/members';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
@@ -415,6 +415,11 @@ export class VodAccessListComponent {
       totalRevenueDollars: (totalRevenueCents / 100).toFixed(2),
     };
   });
+
+  /** False once every one of the recipient's grants here has expired. */
+  isActive(recipient: VodGrantRecipient): boolean {
+    return recipient.grants.some((g) => isVideoGrantActive(g));
+  }
 
   /** The grant page for whatever this list shows. */
   grantHref(): string {

@@ -28,6 +28,7 @@ import {
   VideoSeries,
   groupVideosIntoSeries,
   findSeriesForVideo,
+  isVideoGrantActive,
   VodAccessTier,
   VodStatus,
   VideoProgress,
@@ -234,8 +235,8 @@ export class VideoViewComponent implements OnInit {
     return (
       grants.find(
         (g) =>
-          g.videoId === v.docId ||
-          (Boolean(v.seriesId) && g.videoId === v.seriesId),
+          isVideoGrantActive(g) &&
+          (g.videoId === v.docId || (Boolean(v.seriesId) && g.videoId === v.seriesId)),
       ) || null
     );
   });

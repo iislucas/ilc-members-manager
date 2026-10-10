@@ -69,6 +69,8 @@ export class ManageVodEditSeriesComponent {
   seriesVideos = signal<VideoItem[]>([]);
 
   // Search & Add Video
+  /** Whether the (collapsed-by-default) "Add a video" panel is unfolded. */
+  addVideoPanelOpen = signal<boolean>(false);
   selectedVideoToAdd = signal<VideoItem | null>(null);
   addVideoSearchTerm = signal<string>('');
   uploadDateFilterOption = signal<'1_month' | '3_months' | '6_months' | '1_year' | 'all' | 'custom'>('1_month');
@@ -152,6 +154,7 @@ export class ManageVodEditSeriesComponent {
       this.seriesVideos.set([...s.videos]);
       this.selectedVideoToAdd.set(null);
       this.addVideoSearchTerm.set('');
+      this.addVideoPanelOpen.set(false);
     });
 
     // Keep availableVideosForSeries up-to-date, excluding currently attached videos and applying upload date filter
@@ -233,6 +236,16 @@ export class ManageVodEditSeriesComponent {
     return tiers.includes(VodAccessTier.ClassVideoSubscribers);
   }
 
+  /** Fold/unfold the add-video panel. Folding clears any pending selection. */
+  toggleAddVideoPanel(): void {
+    const open = !this.addVideoPanelOpen();
+    this.addVideoPanelOpen.set(open);
+    if (!open) {
+      this.selectedVideoToAdd.set(null);
+      this.addVideoSearchTerm.set('');
+    }
+  }
+
   onVideoSelectedToAdd(video: VideoItem): void {
     this.selectedVideoToAdd.set(video);
   }
@@ -285,6 +298,15 @@ export class ManageVodEditSeriesComponent {
 
   getVideoHref(video: VideoItem): string {
     return this.routingService.hrefForView(Views.VideoView, { videoId: video.docId });
+  }
+
+  /** Link to the individual video's admin Details tab. */
+  getVideoEditHref(video: VideoItem): string {
+    return this.routingService.hrefForView(
+      Views.ManageVodVideo,
+      { videoId: video.docId },
+      { tab: 'details' },
+    );
   }
 
   formatDuration(seconds?: number): string {

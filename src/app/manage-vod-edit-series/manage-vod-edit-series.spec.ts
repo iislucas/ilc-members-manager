@@ -99,14 +99,22 @@ describe('ManageVodEditSeriesComponent', () => {
           },
         },
       },
-      hrefForView: vi.fn((view: string, params?: Record<string, string>) => {
-        if (params && params['seriesId']) return `/manage-vod/series/${params['seriesId']}`;
-        if (params && params['videoId']) return `/videos/${params['videoId']}`;
-        if (view === Views.ManageVod) {
-          return params && params['tab'] ? `/manage-vod?tab=${params['tab']}` : '/manage-vod';
-        }
-        return `/${view}`;
-      }),
+      hrefForView: vi.fn(
+        (view: string, params?: Record<string, string>, urlParams?: Record<string, string>) => {
+          const query = urlParams
+            ? '?' + new URLSearchParams(urlParams).toString()
+            : '';
+          if (view === Views.ManageVodVideo && params && params['videoId']) {
+            return `/manage-vod/video/${params['videoId']}${query}`;
+          }
+          if (params && params['seriesId']) return `/manage-vod/series/${params['seriesId']}`;
+          if (params && params['videoId']) return `/videos/${params['videoId']}`;
+          if (view === Views.ManageVod) {
+            return params && params['tab'] ? `/manage-vod?tab=${params['tab']}` : '/manage-vod';
+          }
+          return `/${view}`;
+        },
+      ),
       navigateTo: vi.fn(),
     };
 
@@ -232,6 +240,9 @@ describe('ManageVodEditSeriesComponent', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
+    // The add button only exists once the add-video panel is unfolded.
+    component.addVideoPanelOpen.set(true);
+    fixture.detectChanges();
     const addBtn = compiled.querySelector('.add-btn');
     expect(addBtn).toBeTruthy();
     expect(addBtn?.classList.contains('primary-button')).toBe(true);
@@ -258,11 +269,86 @@ describe('ManageVodEditSeriesComponent', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
+    // Details/access section + episodes section (which hosts the add-video panel).
     const sections = compiled.querySelectorAll('.series-section');
-    expect(sections.length).toBe(3);
+    expect(sections.length).toBe(2);
     for (const section of Array.from(sections)) {
       expect(section.classList.contains('card')).toBe(false);
     }
+  });
+
+  describe('add-video panel', () => {
+    const toggle = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.add-video-toggle')!;
+    const panel = () => (fixture.nativeElement as HTMLElement).querySelector('.add-video-panel');
+
+    it('should be collapsed by default with only the "Add a video" button shown', () => {
+      expect(panel()).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('app-autocomplete')).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.add-btn')).toBeNull();
+      const btn = toggle();
+      expect(btn).toBeTruthy();
+      expect(btn.classList.contains('subtle-button')).toBe(true);
+      expect(btn.getAttribute('aria-expanded')).toBe('false');
+      expect(btn.textContent).toContain('Add a video');
+    });
+
+    it('should unfold when the + button is clicked and fold again on a second click', () => {
+      toggle().click();
+      fixture.detectChanges();
+      expect(panel()).toBeTruthy();
+      expect(panel()!.querySelector('app-autocomplete')).toBeTruthy();
+      expect(panel()!.querySelector('.add-btn')).toBeTruthy();
+      expect(panel()!.querySelector('#uploadDateFilter')).toBeTruthy();
+      expect(toggle().getAttribute('aria-expanded')).toBe('true');
+
+      component.onVideoSelectedToAdd(sampleVideos[2]);
+      toggle().click();
+      fixture.detectChanges();
+      expect(panel()).toBeNull();
+      expect(toggle().getAttribute('aria-expanded')).toBe('false');
+      // Folding drops any pending selection.
+      expect(component.selectedVideoToAdd()).toBeNull();
+    });
+
+    it('should stay open after adding a video so several can be added', () => {
+      toggle().click();
+      fixture.detectChanges();
+      component.onVideoSelectedToAdd(sampleVideos[2]);
+      fixture.detectChanges();
+      panel()!.querySelector<HTMLButtonElement>('.add-btn')!.click();
+      fixture.detectChanges();
+      expect(component.seriesVideos().map((v) => v.docId)).toEqual(['v1', 'v2', 'v3']);
+      expect(component.addVideoPanelOpen()).toBe(true);
+      expect(panel()).toBeTruthy();
+    });
+
+    it('should show the + button under the empty-state notice when there are no episodes', () => {
+      component.seriesVideos.set([]);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.empty-episodes-notice')).toBeTruthy();
+      expect(toggle()).toBeTruthy();
+    });
+  });
+
+  it('should render a per-episode edit link to the video admin Details tab', () => {
+    const links = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>(
+        '.episode-item .edit-episode-link',
+      ),
+    );
+    expect(links.length).toBe(2);
+    expect(links[0].classList.contains('icon-only-button')).toBe(true);
+    expect(links[0].getAttribute('href')).toBe('/manage-vod/video/v1?tab=details');
+    expect(links[1].getAttribute('href')).toBe('/manage-vod/video/v2?tab=details');
+    expect(links[0].getAttribute('title')).toContain('Edit this video');
+    expect(links[0].querySelector('app-icon[name="edit"]')).toBeTruthy();
+    expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(
+      Views.ManageVodVideo,
+      { videoId: 'v1' },
+      { tab: 'details' },
+    );
   });
 
   it('should filter available videos by upload date defaulting to 1 month', () => {
