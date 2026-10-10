@@ -24,6 +24,7 @@ import {
   VideoSeries,
   VodAccessTier,
   VodStatus,
+  findSeriesForVideo,
 } from '../../../functions/src/data-model/vod';
 
 @Component({
@@ -101,12 +102,10 @@ export class ManageVodEditVideoComponent {
   associatedSeries = computed<VideoSeries | null>(() => {
     const v = this.video();
     if (!v) return null;
-    const sId = this.seriesId().trim() || v.seriesId || v.forVodPageId;
-    if (sId) {
-      const match = this.allSeries().find((s) => s.seriesId === sId);
-      if (match) return match;
-    }
-    return this.allSeries().find((s) => s.videos.some((item) => item.docId === v.docId)) ?? null;
+    // Prefer the series id currently typed into the form, then the stored linkage.
+    const formSeriesId = this.seriesId().trim();
+    const fromForm = formSeriesId ? this.allSeries().find((s) => s.seriesId === formSeriesId) : undefined;
+    return fromForm ?? findSeriesForVideo(this.allSeries(), v);
   });
 
   isInSeries = computed(() => {
@@ -145,6 +144,10 @@ export class ManageVodEditVideoComponent {
       if (this.lastInitializedVideoId() === v.docId) return;
 
       this.lastInitializedVideoId.set(v.docId);
+      // Don't carry feedback or an open dialog over from a previously shown video.
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
+      this.thumbnailModalOpen.set(false);
       this.title.set(v.title || '');
       this.description.set(v.description || '');
       this.recordedDate.set(v.recordedDate || '');
@@ -197,16 +200,6 @@ export class ManageVodEditVideoComponent {
     const sId = s?.seriesId || this.seriesId().trim();
     if (!sId) return null;
     return this.routingService.hrefForView(Views.ManageVodSeries, { seriesId: sId }, { tab });
-  }
-
-  formatDuration(seconds?: number): string {
-    if (!seconds || seconds <= 0) return '0 min';
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    if (hrs > 0) {
-      return `${hrs}h ${mins}m`;
-    }
-    return `${mins}m`;
   }
 
   openThumbnailModal(): void {

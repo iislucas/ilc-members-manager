@@ -302,14 +302,24 @@
                           <app-icon name="person"></app-icon>
                         </a>
                       }
-                      <button
-                        type="button"
-                        class="icon-action-btn revoke-btn"
-                        (click)="promptRevoke(r)"
-                        [title]="isVideoMode() ? 'Revoke this recipient\'s access grants for this video' : 'Revoke access to this series for this recipient'"
-                      >
-                        <app-icon name="delete"></app-icon>
-                      </button>
+                      @if (revocableGrants(r).length > 0) {
+                        <button
+                          type="button"
+                          class="icon-action-btn revoke-btn"
+                          (click)="promptRevoke(r)"
+                          [title]="isVideoMode() ? 'Revoke this recipient\'s access to this video' : 'Revoke access to this series for this recipient'"
+                        >
+                          <app-icon name="delete"></app-icon>
+                        </button>
+                      } @else if (target()?.seriesId; as seriesId) {
+                        <a
+                          class="icon-action-btn series-access-link"
+                          [href]="routingService.hrefForView(Views.ManageVodSeries, { seriesId }, { tab: 'access' })"
+                          title="Access comes from the whole series; manage it on the series page"
+                        >
+                          <app-icon name="collections"></app-icon>
+                        </a>
+                      }
                     </div>
                   </td>
                 </tr>
@@ -338,9 +348,14 @@
         <strong>{{ revokeConfirmRecipient()?.memberName }}</strong>
         ({{ revokeConfirmRecipient()?.memberEmail }})?
       </p>
-      <p class="revoke-subtext">
-        This will remove {{ revokeConfirmRecipient()?.grants?.length }} access grant(s).
-      </p>
+      @if (revokeConfirmRecipient(); as rc) {
+        <p class="revoke-subtext">
+          This will remove {{ revocableGrants(rc).length }} access grant(s).
+          @if (isVideoMode() && rc.viaSeriesGrant) {
+            Their whole-series access is kept; revoke that from the series page.
+          }
+        </p>
+      }
       <div class="revoke-actions">
         <button
           type="button"

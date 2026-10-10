@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { ThumbnailEditorModalComponent } from '../thumbnail-editor-modal/thumbnail-editor-modal';
 import { signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ManageVodEditVideoComponent } from './manage-vod-edit-video';
@@ -210,5 +212,26 @@ describe('ManageVodEditVideoComponent', () => {
     TestBed.flushEffects();
     expect(component.title()).toBe('Spinning Hands Practice');
     expect(component.featured()).toBe(false);
+  });
+
+  it('should clear feedback when switching to a different video', async () => {
+    await component.saveVideoChanges();
+    expect(component.successMessage()).toBe('Video details saved.');
+    fixture.componentRef.setInput('videoId', 'v2');
+    fixture.detectChanges();
+    expect(component.title()).toBe('Masterclass Part 1');
+    expect(component.successMessage()).toBeNull();
+  });
+
+  it('should pass sprite-sheet inputs to the thumbnail picker', () => {
+    sampleVideos[0].spriteSheetUrl = 'https://example.com/sprite.jpg';
+    sampleVideos[0].spriteFrameCount = 100;
+    component.openThumbnailModal();
+    fixture.detectChanges();
+    const modal = fixture.debugElement.query(By.directive(ThumbnailEditorModalComponent))
+      .componentInstance as ThumbnailEditorModalComponent;
+    expect(modal.spriteSheetUrl()).toBe('https://example.com/sprite.jpg');
+    expect(modal.spriteFrameCount()).toBe(100);
+    expect(modal.spriteWidth()).toBe(160);
   });
 });

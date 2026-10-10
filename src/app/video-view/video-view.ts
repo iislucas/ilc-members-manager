@@ -27,6 +27,7 @@ import {
   VideoItem,
   VideoSeries,
   groupVideosIntoSeries,
+  findSeriesForVideo,
   VodAccessTier,
   VodStatus,
   VideoProgress,
@@ -90,26 +91,13 @@ export class VideoViewComponent implements OnInit {
   videoId = computed(() => this.viewSignals.pathVars.videoId());
 
   // Admin Controls
-  isAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
+  isAdmin = computed(() => this.firebaseState.isAdmin());
   adminMenuOpen = signal<boolean>(false);
 
-  seriesForAdmin = computed<VideoSeries | null>(() => {
+  seriesIdForAdmin = computed<string | null>(() => {
     const v = this.video();
     if (!v) return null;
-    const directId = v.seriesId || v.forVodPageId;
-    const sList = this.dataService.getVideoSeriesList();
-    if (directId) {
-      const found = sList.find((s) => s.seriesId === directId);
-      if (found) return found;
-    }
-    return sList.find((s) => s.videos.some((item) => item.docId === v.docId)) || null;
-  });
-
-  seriesIdForAdmin = computed<string | null>(() => {
-    const s = this.seriesForAdmin();
-    if (s) return s.seriesId;
-    const v = this.video();
-    return v?.seriesId || v?.forVodPageId || null;
+    return findSeriesForVideo(this.dataService.getVideoSeriesList(), v)?.seriesId ?? null;
   });
 
   // Outputs

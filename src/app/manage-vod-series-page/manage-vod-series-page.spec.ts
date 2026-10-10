@@ -19,6 +19,7 @@ import {
 class StubAccessListComponent {
   video = input<VideoItem | null>(null);
   series = input<VideoSeries | null>(null);
+  parentSeries = input<VideoSeries | null>(null);
 }
 
 @Component({ selector: 'app-manage-vod-edit-series', template: 'DETAILS:{{ seriesId() }}' })

@@ -114,7 +114,7 @@
         </div>
       }
       @case ('access') {
-        <app-vod-access-list [video]="v"></app-vod-access-list>
+        <app-vod-access-list [video]="v" [parentSeries]="series()"></app-vod-access-list>
       }
       @case ('details') {
         <app-manage-vod-edit-video [videoId]="v.docId"></app-manage-vod-edit-video>

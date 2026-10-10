@@ -20,6 +20,7 @@ import {
   VideoSeries,
   VodAccessTier,
   VodStatus,
+  findSeriesForVideo,
   getVodFreeAccessLabel,
   getVodFreeAccessTier,
   hasClassVideoSubscriberAccess,
@@ -61,14 +62,7 @@ export class ManageVodVideoPageComponent {
 
   series = computed<VideoSeries | null>(() => {
     const v = this.video();
-    if (!v) return null;
-    const list = this.dataService.getVideoSeriesList();
-    const directId = v.seriesId || v.forVodPageId;
-    if (directId) {
-      const match = list.find((s) => s.seriesId === directId);
-      if (match) return match;
-    }
-    return list.find((s) => s.videos.length > 1 && s.videos.some((item) => item.docId === v.docId)) ?? null;
+    return v ? findSeriesForVideo(this.dataService.getVideoSeriesList(), v) : null;
   });
 
   partNumber = computed<number>(() => {

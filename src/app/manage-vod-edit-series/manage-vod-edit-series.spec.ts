@@ -21,6 +21,7 @@ describe('ManageVodEditSeriesComponent', () => {
   let mockRoutingService: any;
   let sampleSeries: VideoSeries;
   let sampleVideos: VideoItem[];
+  let seriesList: WritableSignal<VideoSeries[]>;
 
   beforeEach(async () => {
     sampleVideos = [
@@ -73,13 +74,15 @@ describe('ManageVodEditSeriesComponent', () => {
       isPublished: true,
     };
 
+    seriesList = signal<VideoSeries[]>([sampleSeries]);
     mockDataService = {
       videos: {
         entries: signal(sampleVideos),
         loading: signal(false),
         get: (id: string) => sampleVideos.find((v) => v.docId === id),
       },
-      getVideoSeriesList: vi.fn().mockReturnValue([sampleSeries]),
+      // Like the real service, derive the list from a signal so computeds stay reactive.
+      getVideoSeriesList: vi.fn(() => seriesList()),
       updateVideoSeries: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -97,7 +100,7 @@ describe('ManageVodEditSeriesComponent', () => {
         },
       },
       hrefForView: vi.fn((view: string, params?: Record<string, string>) => {
-        if (params && params['seriesId']) return `/manage-vod/edit-series/${params['seriesId']}`;
+        if (params && params['seriesId']) return `/manage-vod/series/${params['seriesId']}`;
         if (params && params['videoId']) return `/videos/${params['videoId']}`;
         if (view === Views.ManageVod) {
           return params && params['tab'] ? `/manage-vod?tab=${params['tab']}` : '/manage-vod';
@@ -307,5 +310,16 @@ describe('ManageVodEditSeriesComponent', () => {
     availableIds = component.availableVideosForSeries.entries().map((v) => v.docId);
     expect(availableIds).toContain('v-recent');
     expect(availableIds).not.toContain('v-old');
+  });
+
+  it('should clear feedback when switching to a different series', async () => {
+    await component.saveSeriesChanges();
+    expect(component.successMessage()).toBe('Series details saved.');
+    const other: VideoSeries = { ...sampleSeries, seriesId: 'series-test-2', title: 'Other Series' };
+    seriesList.set([sampleSeries, other]);
+    fixture.componentRef.setInput('seriesId', 'series-test-2');
+    fixture.detectChanges();
+    expect(component.seriesTitle()).toBe('Other Series');
+    expect(component.successMessage()).toBeNull();
   });
 });

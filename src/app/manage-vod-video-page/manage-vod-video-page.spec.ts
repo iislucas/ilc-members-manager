@@ -15,10 +15,14 @@ import {
   VodStatus,
 } from '../../../functions/src/data-model/vod';
 
-@Component({ selector: 'app-vod-access-list', template: 'ACCESS:{{ video()?.docId }}' })
+@Component({
+  selector: 'app-vod-access-list',
+  template: 'ACCESS:{{ video()?.docId }}:{{ parentSeries()?.seriesId }}',
+})
 class StubAccessListComponent {
   video = input<VideoItem | null>(null);
   series = input<VideoSeries | null>(null);
+  parentSeries = input<VideoSeries | null>(null);
 }
 
 @Component({ selector: 'app-manage-vod-edit-video', template: 'DETAILS:{{ videoId() }}' })
@@ -153,6 +157,13 @@ describe('ManageVodVideoPageComponent', () => {
     expect(text()).toContain('Series bundle $25.00');
     const seriesLink = (fixture.nativeElement as HTMLElement).querySelector('dd a.inline-link-button');
     expect(seriesLink?.getAttribute('href')).toBe(`/${Views.ManageVodSeries}/series_spacing?tab=overview`);
+  });
+
+  it('passes the resolved parent series to the access list for an episode', () => {
+    videoIdSignal.set('ep2');
+    tabSignal.set('access');
+    fixture.detectChanges();
+    expect(text()).toContain('ACCESS:ep2:series_spacing');
   });
 
   it('shows a not-found state when the video cannot be loaded', async () => {

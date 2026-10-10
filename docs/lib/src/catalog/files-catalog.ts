@@ -4146,7 +4146,7 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     path: "functions/src/data-model/vod.ts",
     layer: ArchitecturalLayer.DataModel,
     responsibility: "Implements VodAccessTier, VodStatus, VideoGrantKind",
-    keySymbols: ["VodAccessTier","VodStatus","VideoGrantKind","getVideoSeriesGroupingKey","groupVideosIntoSeries","initVideoItem","firestoreDocToVideoItem","initVideoGrant","firestoreDocToVideoGrant","initVideoProgress"],
+    keySymbols: ["VodAccessTier","VodStatus","VideoGrantKind","getVideoSeriesGroupingKey","findSeriesForVideo","groupVideosIntoSeries","initVideoItem","firestoreDocToVideoItem","initVideoGrant","firestoreDocToVideoGrant"],
     relatedJourneys: [],
     relatedDataTypes: ["video-item"],
     relatedStories: [],

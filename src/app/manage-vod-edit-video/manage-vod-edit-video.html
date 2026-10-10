@@ -376,6 +376,13 @@
       [videoUrl]="video()?.manifestUrl || null"
       [initialThumbnailUrl]="thumbnailUrl() || video()?.thumbnailUrl || null"
       [initialDurationSeconds]="video()?.durationSeconds || null"
+      [spriteSheetUrl]="video()?.spriteSheetUrl || null"
+      [spriteIntervalSeconds]="video()?.spriteIntervalSeconds || 5"
+      [spriteWidth]="video()?.spriteWidth || 160"
+      [spriteHeight]="video()?.spriteHeight || 90"
+      [spriteColumnCount]="video()?.spriteColumnCount || 5"
+      [spriteRowCount]="video()?.spriteRowCount || 5"
+      [spriteFrameCount]="video()?.spriteFrameCount || 25"
       (thumbnailSelected)="onVideoThumbnailSelected($event)"
       (closed)="closeThumbnailModal()"
     ></app-thumbnail-editor-modal>

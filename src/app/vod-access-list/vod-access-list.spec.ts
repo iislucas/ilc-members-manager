@@ -258,6 +258,29 @@ describe('VodAccessListComponent', () => {
     expect(mockDataManagerService.getSeriesGrants).toHaveBeenCalledTimes(1);
   });
 
+  it('should not refetch when given an equivalent series object', async () => {
+    mockDataManagerService.getSeriesGrants.mockClear();
+    fixture.componentRef.setInput('series', { ...mockSeries, videos: [...mockSeries.videos] });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(mockDataManagerService.getSeriesGrants).not.toHaveBeenCalled();
+  });
+
+  it('should ignore a slower response for a previous target', async () => {
+    let resolveFirst: (g: VideoGrant[]) => void = () => {};
+    mockDataManagerService.getSeriesGrants
+      .mockImplementationOnce(() => new Promise<VideoGrant[]>((r) => (resolveFirst = r)))
+      .mockResolvedValueOnce([mockGrants[1]]);
+    fixture.componentRef.setInput('series', { ...mockSeries, seriesId: 'series_a' });
+    fixture.detectChanges();
+    fixture.componentRef.setInput('series', { ...mockSeries, seriesId: 'series_b' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    resolveFirst(mockGrants);
+    await Promise.resolve();
+    expect(component.rawGrants()).toEqual([mockGrants[1]]);
+  });
+
   it('should not be in video mode when given a series', () => {
     expect(component.isVideoMode()).toBe(false);
     expect(component.targetTitle()).toBe('Spinning Hands Series');
@@ -334,6 +357,40 @@ describe('VodAccessListComponent', () => {
       expect(bob?.viaSeriesGrant).toBe(false);
       // Alice and Charlie have series grants; Bob was gifted this episode directly.
       expect(component.summaryStats().fullSeriesCount).toBe(2);
+    });
+
+    it('should only revoke direct video grants, keeping whole-series grants', async () => {
+      const alice = component.recipients().find((r) => r.memberEmail === 'alice@example.com')!;
+      const bob = component.recipients().find((r) => r.memberEmail === 'bob@example.com')!;
+      // Alice's only grant is on the whole series: nothing is revocable from this video.
+      expect(component.revocableGrants(alice)).toEqual([]);
+      // Bob's gift is for this episode directly.
+      expect(component.revocableGrants(bob).map((g) => g.videoId)).toEqual(['vid_1']);
+
+      mockDataManagerService.revokeVideoGrant.mockClear();
+      await component.confirmRevoke(alice);
+      expect(mockDataManagerService.revokeVideoGrant).not.toHaveBeenCalled();
+    });
+
+    it('should offer a link to the series page instead of revoke for series-level access', () => {
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      // Alice and Charlie: series-only access; Bob: direct grant.
+      expect(el.querySelectorAll('.series-access-link').length).toBe(2);
+      expect(el.querySelectorAll('.revoke-btn').length).toBe(1);
+      expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(
+        Views.ManageVodSeries, { seriesId: 'series_spin' }, { tab: 'access' },
+      );
+    });
+
+    it('should use the page-resolved parent series id for grouped series', async () => {
+      mockDataManagerService.getSeriesGrants.mockClear();
+      fixture.componentRef.setInput('video', { ...mockVideo1, seriesId: undefined });
+      fixture.componentRef.setInput('parentSeries', { ...mockSeries, seriesId: 'grouped_series' });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const ids = mockDataManagerService.getSeriesGrants.mock.calls.at(-1)![0] as string[];
+      expect(ids).toEqual(expect.arrayContaining(['grouped_series', 'vid_1']));
     });
 
     it('should render video-specific labels', () => {

@@ -127,6 +127,9 @@ export class ManageVodEditSeriesComponent {
       if (this.lastInitializedSeriesId() === s.seriesId) return;
 
       this.lastInitializedSeriesId.set(s.seriesId);
+      // Don't carry feedback over from a previously shown series.
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
       this.seriesTitle.set(s.title);
       this.seriesDescription.set(s.description || '');
       this.seriesPriceDollars.set(

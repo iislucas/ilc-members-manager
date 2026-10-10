@@ -35,7 +35,7 @@
           }
           @if (isAdmin()) {
             <a
-              class="nav-admin-edit-btn"
+              class="admin-button"
               [href]="routingService.hrefForView(Views.ManageVodSeries, { seriesId: s.seriesId }, { tab: 'overview' })"
               title="Manage this series in the admin console"
             >
@@ -531,10 +531,9 @@
     <div class="video-details-layout">
       <!-- Main Column: Info, Instructor, Description, Chapters -->
       <div class="main-info-col">
-        <div class="title-header">
-          <div class="title-and-actions-row">
-            <h1 class="video-title">{{ v.title }}</h1>
-            @if (isAdmin()) {
+        <div class="title-header" [class.has-admin-menu]="isAdmin()">
+          @if (isAdmin()) {
+            <div class="admin-actions-row">
               <div class="admin-menu-anchor">
                 <button
                   type="button"
@@ -582,8 +581,8 @@
                   </div>
                 }
               </div>
-            }
-          </div>
+            </div>
+          }
 
           <div class="badge-row">
             <span class="duration-badge">{{ formatDuration(v.durationSeconds) }}</span>

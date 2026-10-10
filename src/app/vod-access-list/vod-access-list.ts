@@ -16,6 +16,7 @@ import {
   effect,
   inject,
   ChangeDetectionStrategy,
+  untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { VideoItem, VideoSeries, VideoGrant, VideoGrantKind } from '../../../functions/src/data-model/vod';
@@ -78,6 +79,11 @@ export class VodAccessListComponent {
   /** Provide exactly one of `series` or `video`. */
   series = input<VideoSeries | null>(null);
   video = input<VideoItem | null>(null);
+  /**
+   * In video mode, the series containing the video as resolved by the page
+   * (covers series grouped by title pattern that have no explicit seriesId).
+   */
+  parentSeries = input<VideoSeries | null>(null);
 
   /** True when listing access for a single video rather than a whole series. */
   isVideoMode = computed(() => !this.series() && Boolean(this.video()));
@@ -93,7 +99,7 @@ export class VodAccessListComponent {
     const v = this.video();
     if (!v) return null;
     return {
-      seriesId: v.seriesId || v.forVodPageId || '',
+      seriesId: this.parentSeries()?.seriesId || v.seriesId || v.forVodPageId || '',
       title: v.title,
       description: v.description,
       tags: v.tags || [],
@@ -102,6 +108,31 @@ export class VodAccessListComponent {
       videos: [v],
     };
   });
+
+  /** Ids whose grants confer access to the whole series (vs. individual episodes). */
+  seriesTargetIds = computed<Set<string>>(() => {
+    const ids = new Set<string>();
+    const t = this.target();
+    if (!t) return ids;
+    if (t.seriesId) ids.add(t.seriesId);
+    for (const v of t.videos || []) {
+      if (v.seriesId) ids.add(v.seriesId);
+      if (v.forVodPageId) ids.add(v.forVodPageId);
+    }
+    return ids;
+  });
+
+  /** All grant target ids to fetch; the stable key that drives (re)loading. */
+  private grantTargetIds = computed<string[]>(() => {
+    const t = this.target();
+    if (!t) return [];
+    const ids = new Set<string>(this.seriesTargetIds());
+    for (const v of t.videos || []) ids.add(v.docId);
+    return Array.from(ids).filter(Boolean).sort();
+  }, { equal: (a, b) => a.length === b.length && a.every((id, i) => id === b[i]) });
+
+  /** Incremented per load so that out-of-order responses are discarded. */
+  private loadToken = 0;
 
   /** Title of whatever is being listed (series or video). */
   targetTitle = computed(() => this.series()?.title || this.video()?.title || '');
@@ -125,40 +156,32 @@ export class VodAccessListComponent {
   isRevoking = signal<boolean>(false);
 
   constructor() {
+    // Only refetch when the set of target ids changes, not whenever the parent
+    // hands us a new (but equivalent) series/video object after a catalog update.
     effect(() => {
-      const t = this.target();
-      if (!t) {
-        this.rawGrants.set([]);
-        this.isLoading.set(false);
-        return;
-      }
-      this.loadGrants(t);
+      const ids = this.grantTargetIds();
+      untracked(() => this.loadGrants(ids));
     });
   }
 
-  async loadGrants(s: VideoSeries): Promise<void> {
+  async loadGrants(targetIds: string[] = this.grantTargetIds()): Promise<void> {
+    const token = ++this.loadToken;
+    if (targetIds.length === 0) {
+      this.rawGrants.set([]);
+      this.isLoading.set(false);
+      return;
+    }
     this.isLoading.set(true);
     this.errorMessage.set(null);
-
-    const targetIds = Array.from(
-      new Set(
-        [
-          s.seriesId,
-          ...(s.videos || []).map((v) => v.docId),
-          ...(s.videos || []).map((v) => v.forVodPageId),
-        ].filter(Boolean),
-      ),
-    ) as string[];
-
     try {
       const grants = await this.dataService.getSeriesGrants(targetIds);
-      this.rawGrants.set(grants);
+      if (token === this.loadToken) this.rawGrants.set(grants);
     } catch (err: unknown) {
-      this.errorMessage.set(
-        err instanceof Error ? err.message : 'Failed to load access records.',
-      );
+      if (token === this.loadToken) {
+        this.errorMessage.set(err instanceof Error ? err.message : 'Failed to load access records.');
+      }
     } finally {
-      this.isLoading.set(false);
+      if (token === this.loadToken) this.isLoading.set(false);
     }
   }
 
@@ -174,12 +197,7 @@ export class VodAccessListComponent {
     const constituentVideoMap = new Map(constituentVideos.map((v) => [v.docId, v]));
     const totalVideoCount = Math.max(s.videoCount || 0, constituentVideos.length, 1);
 
-    const directSeriesTargetIds = new Set<string>();
-    if (s.seriesId) directSeriesTargetIds.add(s.seriesId);
-    for (const v of constituentVideos) {
-      if (v.seriesId) directSeriesTargetIds.add(v.seriesId);
-      if (v.forVodPageId) directSeriesTargetIds.add(v.forVodPageId);
-    }
+    const directSeriesTargetIds = this.seriesTargetIds();
 
     // Group grants by recipient
     const bucketMap = new Map<string, VideoGrant[]>();
@@ -410,10 +428,18 @@ export class VodAccessListComponent {
 
   /** Reload the list after a new grant so the recipient appears immediately. */
   onAccessGranted(): void {
-    const t = this.target();
-    if (t) {
-      this.loadGrants(t);
-    }
+    this.loadGrants();
+  }
+
+  /**
+   * Grants that revoking from this list removes. On a single video's list,
+   * whole-series grants are left alone (they would remove access to every
+   * episode); those must be revoked from the series page.
+   */
+  revocableGrants(recipient: VodGrantRecipient): VideoGrant[] {
+    if (!this.isVideoMode()) return recipient.grants;
+    const seriesIds = this.seriesTargetIds();
+    return recipient.grants.filter((g) => !seriesIds.has(g.videoId));
   }
 
   clearFilters(): void {
@@ -454,11 +480,12 @@ export class VodAccessListComponent {
   async confirmRevoke(recipient: VodGrantRecipient): Promise<void> {
     this.isRevoking.set(true);
     try {
-      for (const g of recipient.grants) {
+      const toRevoke = this.revocableGrants(recipient);
+      for (const g of toRevoke) {
         await this.dataService.revokeVideoGrant(g);
       }
       // Remove revoked grants from rawGrants signal
-      const revokedGrantsSet = new Set(recipient.grants);
+      const revokedGrantsSet = new Set(toRevoke);
       this.rawGrants.update((list) => list.filter((g) => !revokedGrantsSet.has(g)));
       this.revokeConfirmRecipient.set(null);
     } catch (err: unknown) {
