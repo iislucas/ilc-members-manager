@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { VodAccessListComponent } from './vod-access-list';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
+import { Views } from '../app.config';
 import { SearchableSet } from '../searchable-set';
 import {
   initVideoItem,
@@ -234,6 +235,12 @@ describe('VodAccessListComponent', () => {
     expect(copiedText).toContain('bob@example.com');
     expect(copiedText).toContain('charlie@example.com');
     expect(component.copiedEmailsToast()).toBe(true);
+  });
+
+  it('should link purchases directly to the order page by order doc id', () => {
+    fixture.detectChanges();
+    expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(Views.OrderView, { orderId: 'order_123' });
+    expect(mockRoutingService.hrefForView).not.toHaveBeenCalledWith(Views.ManageOrders, expect.anything());
   });
 
   it('should open and close the inline grant dialog', () => {

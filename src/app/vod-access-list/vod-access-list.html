@@ -261,9 +261,9 @@
                       @if (r.orderDocId) {
                         <a
                           class="order-link"
-                          [href]="routingService.hrefForView(Views.ManageOrders, { q: r.orderDocId, searchField: 'orderId' })"
+                          [href]="routingService.hrefForView(Views.OrderView, { orderId: r.orderDocId })"
                           target="_blank"
-                          title="View order in Manage Orders"
+                          title="Open this order"
                         >
                           <app-icon name="receipt_long"></app-icon>
                           <span>Order Details</span>
