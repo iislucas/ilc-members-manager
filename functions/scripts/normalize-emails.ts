@@ -20,8 +20,11 @@
  *     with a non-normalised email are moved to the normalised id.
  *   - `lastUpdated` is bumped (server timestamp) on docs that have that field,
  *     so clients' incremental caches pick up the change.
- * Orders are intentionally NOT rewritten (they are not used for access control
- * and writing /orders re-fires the order-processing trigger).
+ *   - /orders: `customerEmail`, sheets-import `email`, `billingAddress.email`
+ *     (WITHOUT bumping `lastUpdated`, which is the order date). The order
+ *     trigger (processSquarespaceOrder) ignores email-case-only changes, so
+ *     this does not re-run order processing — but only once the functions
+ *     containing that guard are deployed (step 2 below).
  *
  * DEFAULTS TO A DRY RUN: it only reports what would change. Pass --apply to
  * write. Safe to re-run: a second run reports zero changes.
@@ -32,7 +35,9 @@
  *      email, so nobody loses access while data is mixed.
  *   2. Deploy functions and hosting (these start normalising new writes; with
  *      the old rules still live they could lock out users whose auth email has
- *      capitals, hence step 1 first).
+ *      capitals, hence step 1 first). This also deploys the order trigger's
+ *      email-case-only guard, which MUST be live before the backfill rewrites
+ *      /orders.
  *   3. Run this script as a dry run and review the report.
  *   4. Run it again with --apply. (Running it before step 1 would delete
  *      mixed-case ACL ids / rewrite emails that the OLD rules still match by
@@ -65,6 +70,7 @@ import {
   planRegistrationEmailUpdates,
   planVideoGrantEmailUpdates,
   planVideoGrantDocIdMove,
+  planOrderEmailUpdates,
   mergeAclDocs,
 } from '../src/email-backfill';
 
@@ -252,6 +258,19 @@ async function run(): Promise<void> {
   await normalizeDocs<VideoGrant>('members/*/videoGrants', memberGrants.docs, planVideoGrantEmailUpdates, writer);
 
   await normalizeGlobalVideoGrants(writer);
+
+  // Orders: email fields only, never bumping `lastUpdated` (it is the order
+  // date). The order trigger skips email-case-only changes.
+  const orderStats = area('orders');
+  const orders = await db.collection(FirestoreCollection.Orders).get();
+  for (const doc of orders.docs) {
+    orderStats.scanned++;
+    const updates = planOrderEmailUpdates(doc.data());
+    if (Object.keys(updates).length === 0) continue;
+    orderStats.changed++;
+    console.log(`[orders] ${doc.ref.path}: ${JSON.stringify(updates)}`);
+    await writer.update(doc.ref, updates);
+  }
 
   await writer.flush();
 

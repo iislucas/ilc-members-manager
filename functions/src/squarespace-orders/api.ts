@@ -42,6 +42,7 @@ import { processMembershipRenewal } from './membership';
 import { processLifeMembership } from './life-membership';
 import { processInstructorLicense } from './instructor-license';
 import { parseSchoolLicenseInfo, processSchoolLicense } from './school-license';
+import { isEmailCaseOnlyChange } from './order-change';
 
 const squarespaceApiKey = defineSecret('SQUARESPACE_API_KEY');
 
@@ -296,6 +297,13 @@ export const processSquarespaceOrder = onDocumentWritten(
       orderData.ilcAppOrderKind !==
       OrderKind.Squarespace
     ) {
+      return;
+    }
+
+    // Updates that only normalise the case of email fields (e.g. the
+    // normalize-emails backfill) must not re-run any order processing.
+    if (isEmailCaseOnlyChange(event.data?.before.data(), orderData)) {
+      logger.info(`Order ${event.params.orderId}: email-case-only change. Skipping trigger processing.`);
       return;
     }
 

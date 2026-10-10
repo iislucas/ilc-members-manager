@@ -27,7 +27,7 @@ access to users whose auth email contains capitals.
 | `/schools/{id}` | `ownerEmails`, `managerEmails` (deprecated) | [on-school-update.ts](../functions/src/on-school-update.ts), school import |
 | `registrations` (events + members) | `email` | `stripe-product-checkout.ts`, `stripe-fulfillment.ts` |
 | `/video_grants`, `/members/{id}/videoGrants` | `memberEmail`, `giftedByEmail`, email-keyed ids `${email}_${targetId}` | `grant-video.ts`, `stripe-fulfillment.ts`, actions library |
-| `/orders` | Stripe `customerEmail`, sheets-import `email` | `stripe-webhook.ts`, order import (existing orders are **not** backfilled — see below) |
+| `/orders` | `customerEmail`, sheets-import `email`, `billingAddress.email` | `stripe-webhook.ts`, order import, backfill. The Squarespace order trigger ignores email-case-only changes ([order-change.ts](../functions/src/squarespace-orders/order-change.ts)) |
 
 ### Security rules
 
@@ -56,9 +56,12 @@ per-collection summary:
   `ownerEmails`/`managerEmails`/`updatedByEmail`; school `ownerEmails`/`managerEmails`; every
   `registrations.email`; video grant `memberEmail`/`giftedByEmail`; email-keyed
   `/video_grants` ids are moved to the normalised id.
-- `lastUpdated` is bumped where the doc has one so client caches refresh.
-- Orders are deliberately skipped (not used for access control, and writing `/orders`
-  re-fires the Squarespace order-processing trigger). Order searches match both forms.
+- `lastUpdated` is bumped where the doc has one so client caches refresh (except orders, below).
+- `/orders`: `customerEmail`, sheets-import `email` and `billingAddress.email` are lower-cased
+  **without** touching `lastUpdated` (it is the order date used for sorting). The
+  `processSquarespaceOrder` trigger skips writes whose only change is email case
+  ([`isEmailCaseOnlyChange`](../functions/src/squarespace-orders/order-change.ts)), so this does
+  not re-run order processing — provided the functions from step 2 are deployed first.
 
 ```bash
 cd functions
@@ -73,6 +76,8 @@ pnpm run normalize-emails --project <PROJECT_ID> --apply   # write
 2. Deploy functions and hosting (`pnpm deploy:functions`, `pnpm deploy:hosting`). These start
    normalising new writes. With the *old* rules still live, a user whose auth email has capitals
    could be locked out of their own (now lower-cased) profile — hence rules first.
+   This also deploys the order trigger's email-case-only guard, which must be live before the
+   backfill rewrites `/orders`.
 3. Run the backfill dry run, review it, then run it with `--apply`. Re-running is safe; a second
    dry run should report zero changes.
 

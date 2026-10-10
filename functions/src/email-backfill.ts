@@ -105,6 +105,26 @@ export function planVideoGrantDocIdMove(docId: string, memberEmail: string | und
   return normalizedId === docId ? undefined : normalizedId;
 }
 
+// /orders/{docId}: Squarespace/Stripe `customerEmail`, sheets-import `email`
+// and the nested `billingAddress.email`. Returns Firestore update paths
+// (dotted for nested fields). Safe to write: the order-processing trigger
+// ignores email-case-only changes (squarespace-orders/order-change.ts).
+// Orders' `lastUpdated` is the order date (used for sorting), so it must NOT be
+// bumped by the backfill.
+export function planOrderEmailUpdates(order: Record<string, unknown>): Record<string, string> {
+  const updates: Record<string, string> = {};
+  const customerEmail = normalizedStringIfChanged(order['customerEmail']);
+  if (customerEmail !== undefined) updates['customerEmail'] = customerEmail;
+  const email = normalizedStringIfChanged(order['email']);
+  if (email !== undefined) updates['email'] = email;
+  const billing = order['billingAddress'];
+  if (billing !== null && typeof billing === 'object') {
+    const billingEmail = normalizedStringIfChanged((billing as Record<string, unknown>)['email']);
+    if (billingEmail !== undefined) updates['billingAddress.email'] = billingEmail;
+  }
+  return updates;
+}
+
 // Union of two string lists, preserving first-occurrence order.
 function union(a: readonly string[] | undefined, b: readonly string[] | undefined): string[] {
   return Array.from(new Set([...(a ?? []), ...(b ?? [])]));

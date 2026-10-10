@@ -7,6 +7,7 @@ import {
   planRegistrationEmailUpdates,
   planVideoGrantEmailUpdates,
   planVideoGrantDocIdMove,
+  planOrderEmailUpdates,
   mergeAclDocs,
 } from './email-backfill';
 
@@ -130,5 +131,24 @@ describe('mergeAclDocs', () => {
   });
   it('picks the later dated expiry', () => {
     expect(mergeAclDocs({ schoolLicenseExpires: '2026-01-01' }, { schoolLicenseExpires: '2025-12-31' }).schoolLicenseExpires).toBe('2026-01-01');
+  });
+});
+
+describe('planOrderEmailUpdates', () => {
+  it('lower-cases customerEmail, sheets email and nested billing email (dotted path)', () => {
+    expect(
+      planOrderEmailUpdates({
+        customerEmail: 'Foo@X.com',
+        email: ' Bar@Y.com',
+        billingAddress: { email: 'Foo@X.com', firstName: 'Foo' },
+        lastUpdated: '2026-01-01T00:00:00Z',
+      }),
+    ).toEqual({ customerEmail: 'foo@x.com', email: 'bar@y.com', 'billingAddress.email': 'foo@x.com' });
+  });
+  it('returns nothing for already-normalised orders and never touches lastUpdated', () => {
+    expect(
+      planOrderEmailUpdates({ customerEmail: 'foo@x.com', billingAddress: { email: 'foo@x.com' }, lastUpdated: 'x' }),
+    ).toEqual({});
+    expect(planOrderEmailUpdates({ docId: 'o1' })).toEqual({});
   });
 });
