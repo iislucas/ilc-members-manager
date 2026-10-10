@@ -125,6 +125,16 @@ describe('ManageVodVideoPageComponent', () => {
     expect(component.series()).toBeNull();
   });
 
+  it('offers only a standard primary Watch button on the overview (tabs cover the rest)', () => {
+    const actions = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('.overview-actions a'),
+    );
+    expect(actions.length).toBe(1);
+    expect(actions[0].classList).toContain('button');
+    expect(actions[0].classList).toContain('primary-button');
+    expect(actions[0].textContent).toContain('Watch');
+  });
+
   it('syncs the selected tab to the URL', () => {
     const tabs = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.pill-tab');
     tabs[1].click();

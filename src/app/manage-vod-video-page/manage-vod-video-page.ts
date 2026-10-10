@@ -116,10 +116,6 @@ export class ManageVodVideoPageComponent {
     this.viewSignals.urlParams.tab.set(tab);
   }
 
-  tabHref(tab: VodAdminTab): string {
-    return this.routingService.hrefForView(Views.ManageVodVideo, { videoId: this.videoId() }, { tab });
-  }
-
   watchHref(): string {
     return this.routingService.hrefForView(Views.VideoView, { videoId: this.videoId() });
   }

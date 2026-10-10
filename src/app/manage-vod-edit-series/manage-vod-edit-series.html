@@ -33,7 +33,7 @@
       <app-icon name="collections" width="48px" height="48px"></app-icon>
       <h3>Series Not Found</h3>
       <p>Could not find a video series with ID <code>{{ seriesId() }}</code>.</p>
-      <a class="primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+      <a class="button primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
         <span>Go to Manage VOD</span>
       </a>
     </div>

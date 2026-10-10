@@ -33,7 +33,7 @@
       <app-icon name="live_tv" width="48px" height="48px"></app-icon>
       <h3>Video Not Found</h3>
       <p>Could not find a video with ID <code>{{ videoId() }}</code>.</p>
-      <a class="primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'all_videos' })">
+      <a class="button primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'all_videos' })">
         <span>Go to Manage VOD</span>
       </a>
     </div>
