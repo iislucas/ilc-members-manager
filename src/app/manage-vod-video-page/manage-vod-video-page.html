@@ -1,0 +1,127 @@
+<div class="vod-admin-page">
+  <div class="header-extension-tabs">
+    <div class="pill-tabs">
+      @for (t of tabs; track t.id) {
+        <button
+          type="button"
+          class="pill-tab"
+          [attr.data-label]="t.label"
+          [class.active]="activeTab() === t.id"
+          (click)="setTab(t.id)"
+        >
+          {{ t.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (video(); as v) {
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="vod-overview">
+          <div class="overview-hero">
+            <div class="overview-thumb">
+              @if (v.thumbnailUrl) {
+                <img [src]="v.thumbnailUrl" [alt]="v.title" />
+              } @else {
+                <div class="thumb-placeholder">
+                  <app-icon name="live_tv"></app-icon>
+                </div>
+              }
+            </div>
+
+            <div class="overview-info">
+              <div class="level-info">
+                <span class="identifier-chip" [class.status-issue]="v.vodStatus !== VodStatus.Ready">{{ v.vodStatus || 'unknown' }}</span>
+                <span class="listing-chip" [class.listed]="v.isPublished" [class.unlisted]="!v.isPublished">
+                  {{ v.isPublished ? 'Listed' : 'Unlisted' }}
+                </span>
+                @if (v.featured) {
+                  <span class="tag-chip">Featured</span>
+                }
+                <span class="level-chip">Free: {{ freeAccessLabel() }}</span>
+                @if (hasClassSub()) {
+                  <span class="level-chip">Class subscribers</span>
+                }
+                @if (priceCents() > 0) {
+                  <span class="level-chip">
+                    {{ series() ? 'Series bundle' : 'Buy' }} ${{ (priceCents() / 100).toFixed(2) }}
+                  </span>
+                }
+              </div>
+
+              <dl class="overview-facts">
+                <dt>Duration</dt>
+                <dd>{{ formatDuration(v.durationSeconds) }}</dd>
+                @if (v.recordedDate) {
+                  <dt>Recorded</dt>
+                  <dd>{{ v.recordedDate }}</dd>
+                }
+                @if (v.instructorName) {
+                  <dt>Instructor</dt>
+                  <dd>{{ v.instructorName }}</dd>
+                }
+                @if (v.location) {
+                  <dt>Location</dt>
+                  <dd>{{ v.location }}</dd>
+                }
+                @if (series(); as s) {
+                  <dt>Series</dt>
+                  <dd>
+                    Part {{ partNumber() }} of {{ s.videoCount }} in
+                    <a class="inline-link-button" [href]="seriesHref(s)">{{ s.title }}</a>
+                  </dd>
+                }
+                <dt>Video ID</dt>
+                <dd><code>{{ v.docId }}</code></dd>
+              </dl>
+
+              <div class="overview-actions">
+                <a class="button primary-button" [href]="watchHref()">
+                  <app-icon name="play_arrow"></app-icon>
+                  <span>Watch</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          @if (series()) {
+            <p class="overview-note">
+              <app-icon name="info"></app-icon>
+              <span>Access and pricing for this episode are set on its series.</span>
+            </p>
+          }
+
+          @if (v.description) {
+            <p class="overview-description">{{ v.description }}</p>
+          }
+
+          @if (v.tags.length) {
+            <div class="level-info">
+              @for (tag of v.tags; track tag) {
+                <span class="tag-chip">#{{ tag }}</span>
+              }
+            </div>
+          }
+        </div>
+      }
+      @case ('access') {
+        <app-vod-access-list [video]="v" [parentSeries]="series()"></app-vod-access-list>
+      }
+      @case ('details') {
+        <app-manage-vod-edit-video [videoId]="v.docId"></app-manage-vod-edit-video>
+      }
+    }
+  } @else if (fetchFailed()) {
+    <div class="not-found-state">
+      <app-icon name="live_tv" width="48px" height="48px"></app-icon>
+      <h3>Video not found</h3>
+      <p>Could not find a video with ID <code>{{ videoId() }}</code>.</p>
+      <a class="subtle-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'all_videos' })">
+        Go to Manage VOD
+      </a>
+    </div>
+  } @else {
+    <app-spinner>Loading video...</app-spinner>
+  }
+</div>

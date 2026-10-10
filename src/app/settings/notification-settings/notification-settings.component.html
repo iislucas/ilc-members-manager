@@ -326,8 +326,8 @@
 
           <div class="pref-row">
             <div class="pref-info">
-              <span class="pref-title">Video Access & Gifts</span>
-              <span class="pref-sub">Notifications when on-demand video access or a video gift is granted to your account.</span>
+              <span class="pref-title">Video Gifts</span>
+              <span class="pref-sub">Notifications when another member gifts you on-demand video access.</span>
             </div>
             <div class="toggle-control">
               <input
@@ -338,6 +338,23 @@
                 (change)="toggleEmailKind(TransactionalEmailKey.VodGiftReceived, $any($event.target).checked)"
               />
               <label for="email-vod-gift">Video Gifts</label>
+            </div>
+          </div>
+
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">Video Access Granted</span>
+              <span class="pref-sub">Notifications when an administrator grants you on-demand video access.</span>
+            </div>
+            <div class="toggle-control">
+              <input
+                type="checkbox"
+                id="email-vod-access"
+                [disabled]="digestBusy() || !globalEmailEnabled() || !isCategoryEmailEnabled(EmailCategory.Purchases)"
+                [checked]="isEmailKindEnabled(TransactionalEmailKey.VodAccessGranted)"
+                (change)="toggleEmailKind(TransactionalEmailKey.VodAccessGranted, $any($event.target).checked)"
+              />
+              <label for="email-vod-access">Video Access</label>
             </div>
           </div>
 

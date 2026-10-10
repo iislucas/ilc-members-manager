@@ -15,6 +15,7 @@
     "grant-video-library-access": "ts-node scripts/grant-video-library-access.ts",
     "import-stripe-products": "ts-node scripts/import-stripe-products.ts",
     "backfill-video-spritesheets": "ts-node scripts/backfill-video-spritesheets.ts",
+    "normalize-emails": "ts-node scripts/normalize-emails.ts",
     "test": "vitest run --no-color"
   },
   "main": "dist/index.js",

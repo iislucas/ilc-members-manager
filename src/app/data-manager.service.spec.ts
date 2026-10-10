@@ -5,10 +5,11 @@ import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { getDocs, query, where, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { getDocs, getDoc, query, where, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
+import { OrderKind, OrderStatus } from '../../functions/src/data-model/orders';
 import { UserDetails } from './firebase-state.service';
 import { NetworkStateService } from './network-state.service';
 import { ActionQueueService, QueuedActionKind, RollbackTarget } from './action-queue.service';
@@ -36,6 +37,7 @@ vi.mock('firebase/firestore', () => {
     updateDoc: vi.fn().mockResolvedValue(undefined),
     writeBatch: vi.fn().mockReturnValue(mockBatch),
     getDocs: vi.fn(),
+    getDoc: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
     limit: vi.fn(),
@@ -69,6 +71,7 @@ describe('DataManagerService - searchEvents', () => {
     const mockSyncService = {
       loadCachedData: vi.fn().mockResolvedValue(true),
       syncCollection: vi.fn().mockResolvedValue(undefined),
+      saveCachedBundle: vi.fn().mockResolvedValue(undefined),
       upsertCachedEntry: vi.fn().mockResolvedValue(undefined),
       deleteCachedEntry: vi.fn().mockResolvedValue(undefined),
       clearCache: vi.fn().mockResolvedValue(undefined),
@@ -907,6 +910,213 @@ describe('DataManagerService - searchEvents', () => {
 
       expect(batchMock.delete).toHaveBeenCalledTimes(2);
       expect(batchMock.commit).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('my video grants (member subcollection + email-matched global grants)', () => {
+    type SnapshotDoc = { id: string; data: () => Record<string, unknown> };
+    type Listener = {
+      target: string;
+      next: (snap: { docs: SnapshotDoc[] }) => void;
+      error: (err: Error) => void;
+      unsubscribe: ReturnType<typeof vi.fn>;
+    };
+    let listeners: Listener[];
+
+    const grantDoc = (id: string, data: Record<string, unknown>): SnapshotDoc => ({ id, data: () => data });
+    const listenerFor = (target: string): Listener => {
+      const l = listeners.filter((x) => x.target === target).at(-1);
+      if (!l) throw new Error(`no listener for ${target}`);
+      return l;
+    };
+
+    beforeEach(() => {
+      listeners = [];
+      vi.mocked(collection).mockImplementation(((_db: unknown, ...segments: string[]) => ({
+        path: segments.join('/'),
+      })) as never);
+      vi.mocked(where).mockImplementation(((field: string, _op: string, value: string) => ({
+        clause: `${field}==${value}`,
+      })) as never);
+      vi.mocked(query).mockImplementation(((ref: { path: string }, w: { clause: string }) => ({
+        path: `${ref.path}?${w.clause}`,
+      })) as never);
+      vi.mocked(onSnapshot).mockImplementation(((
+        target: { path: string },
+        next: Listener['next'],
+        error: Listener['error'],
+      ) => {
+        const unsubscribe = vi.fn();
+        listeners.push({ target: target.path, next, error, unsubscribe });
+        return unsubscribe;
+      }) as never);
+    });
+
+    afterEach(() => {
+      vi.mocked(collection).mockReset();
+      vi.mocked(where).mockReset();
+      vi.mocked(query).mockReset();
+      vi.mocked(onSnapshot).mockReset();
+      vi.mocked(onSnapshot).mockImplementation((() => () => {}) as never);
+    });
+
+    const MEMBER_PATH = `${FirestoreCollection.Members}/mem_1/videoGrants`;
+    const EMAIL_PATH = `${FirestoreCollection.VideoGrants}?memberEmail==alice@example.com`;
+
+    it('merges member and email grants, de-duplicated by target with member record preferred', () => {
+      service.listenToMemberVideoGrants('mem_1', 'Alice@Example.com');
+
+      listenerFor(MEMBER_PATH).next({
+        docs: [grantDoc('vid_1', { videoId: 'vid_1', memberDocId: 'mem_1', orderDocId: 'member-order' })],
+      });
+      listenerFor(EMAIL_PATH).next({
+        docs: [
+          grantDoc('mem_1_vid_1', { videoId: 'vid_1', memberEmail: 'alice@example.com', orderDocId: 'global-order' }),
+          grantDoc('alice@example.com_series_1', { videoId: 'series_1', memberEmail: 'alice@example.com' }),
+        ],
+      });
+
+      const entries = service.myVideoGrants.entries();
+      expect(entries.map((g) => g.docId).sort()).toEqual(['series_1', 'vid_1']);
+      expect(service.myVideoGrants.get('vid_1')?.orderDocId).toBe('member-order');
+      expect(service.myVideoGrants.get('series_1')?.videoId).toBe('series_1');
+    });
+
+    it('shows email-only grants for a signed-in user without a member record', () => {
+      service.listenToMemberVideoGrants('', 'alice@example.com');
+
+      expect(listeners.some((l) => l.target.startsWith(FirestoreCollection.Members))).toBe(false);
+      listenerFor(EMAIL_PATH).next({
+        docs: [grantDoc('alice@example.com_vid_9', { videoId: 'vid_9', memberDocId: '', memberEmail: 'alice@example.com' })],
+      });
+
+      expect(service.myVideoGrants.entries().map((g) => g.docId)).toEqual(['vid_9']);
+      const syncService = TestBed.inject(IncrementalSyncService);
+      expect(syncService.loadCachedData).toHaveBeenCalledWith(
+        'my_video_grants_no-member_alice@example.com',
+        service.myVideoGrants,
+      );
+    });
+
+    it('a permission error on the email query does not wipe member grants', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      service.listenToMemberVideoGrants('mem_1', 'alice@example.com');
+
+      listenerFor(MEMBER_PATH).next({ docs: [grantDoc('vid_1', { videoId: 'vid_1', memberDocId: 'mem_1' })] });
+      listenerFor(EMAIL_PATH).error(new Error('Missing or insufficient permissions.'));
+
+      expect(service.myVideoGrants.entries().map((g) => g.docId)).toEqual(['vid_1']);
+      expect(service.myVideoGrants.error()).toBeNull();
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('unsubscribes both listeners on user change and on sign-out', () => {
+      service.listenToMemberVideoGrants('mem_1', 'alice@example.com');
+      const first = [listenerFor(MEMBER_PATH), listenerFor(EMAIL_PATH)];
+
+      service.listenToMemberVideoGrants('', 'bob@example.com');
+      first.forEach((l) => expect(l.unsubscribe).toHaveBeenCalledTimes(1));
+      const bob = listenerFor(`${FirestoreCollection.VideoGrants}?memberEmail==bob@example.com`);
+      expect(bob.unsubscribe).not.toHaveBeenCalled();
+
+      service.unsubscribeSnapshots();
+      expect(bob.unsubscribe).toHaveBeenCalledTimes(1);
+
+      service.listenToMemberVideoGrants('', '');
+      expect(service.myVideoGrants.entries()).toEqual([]);
+    });
+
+    it('getMyVideoGrants merges member and email grants and tolerates email query errors', async () => {
+      const firebaseState = TestBed.inject(FirebaseStateService);
+      vi.mocked(firebaseState.user).mockReturnValue({
+        member: { ...initMember(), docId: 'mem_1' },
+        firebaseUser: { email: 'alice@example.com' },
+      } as unknown as UserDetails);
+      vi.mocked(getDocs).mockImplementation((async (target: { path: string }) => {
+        if (target.path === MEMBER_PATH) {
+          return { docs: [grantDoc('vid_1', { videoId: 'vid_1', memberDocId: 'mem_1' })] };
+        }
+        return {
+          docs: [
+            grantDoc('k1', { videoId: 'vid_1', memberEmail: 'alice@example.com' }),
+            grantDoc('k2', { videoId: 'vid_2', memberEmail: 'alice@example.com' }),
+          ],
+        };
+      }) as never);
+
+      const res = await service.getMyVideoGrants();
+      expect(res.map((g) => g.docId).sort()).toEqual(['vid_1', 'vid_2']);
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.mocked(getDocs).mockImplementation((async (target: { path: string }) => {
+        if (target.path === MEMBER_PATH) {
+          return { docs: [grantDoc('vid_1', { videoId: 'vid_1', memberDocId: 'mem_1' })] };
+        }
+        throw new Error('permission-denied');
+      }) as never);
+      const res2 = await service.getMyVideoGrants();
+      expect(res2.map((g) => g.docId)).toEqual(['vid_1']);
+      warnSpy.mockRestore();
+      vi.mocked(getDocs).mockReset();
+    });
+  });
+
+  describe('searchOrders', () => {
+    it('searches by orderId in-memory when orders are loaded', async () => {
+      service.orders.setEntries([
+        {
+          docId: 'DQJCygchO8qG71QaEDPK',
+          ilcAppOrderKind: OrderKind.Stripe,
+          ilcAppOrderStatus: OrderStatus.Processed,
+          customerEmail: 'pietro.n.roselli.lorenzini@gmail.com',
+          created: '2026-10-06T14:04:37.000Z',
+          lastUpdated: '2026-10-06T14:04:37.000Z',
+        } as never,
+        {
+          docId: 'other_order_doc',
+          ilcAppOrderKind: OrderKind.Stripe,
+          ilcAppOrderStatus: OrderStatus.Processed,
+          customerEmail: 'other@example.com',
+          created: '2026-10-05T14:04:37.000Z',
+          lastUpdated: '2026-10-05T14:04:37.000Z',
+        } as never,
+      ]);
+
+      const results = await service.searchOrders({
+        kind: 'term',
+        searchField: 'orderId',
+        term: 'DQJCygchO8qG71QaEDPK',
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].docId).toBe('DQJCygchO8qG71QaEDPK');
+    });
+
+    it('searches by orderId directly via Firestore getDoc when in-memory cache is empty', async () => {
+      service.orders.setEntries([]);
+
+      const mockOrderDoc = {
+        id: 'DQJCygchO8qG71QaEDPK',
+        exists: () => true,
+        data: () => ({
+          ilcAppOrderKind: 'stripe',
+          ilcAppOrderStatus: 'processed',
+          customerEmail: 'pietro.n.roselli.lorenzini@gmail.com',
+          created: '2026-10-06T14:04:37.000Z',
+          lastUpdated: { toDate: () => new Date('2026-10-06T14:04:37.000Z') },
+        }),
+      };
+      vi.mocked(getDoc).mockResolvedValueOnce(mockOrderDoc as never);
+
+      const results = await service.searchOrders({
+        kind: 'term',
+        searchField: 'orderId',
+        term: 'DQJCygchO8qG71QaEDPK',
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].docId).toBe('DQJCygchO8qG71QaEDPK');
     });
   });
 });

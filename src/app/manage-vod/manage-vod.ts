@@ -35,14 +35,11 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 import { SearchableSet } from '../searchable-set';
-import { TagInputComponent } from '../tag-input/tag-input';
-import { GrantVodModalComponent } from '../grant-vod-modal/grant-vod-modal';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   ThumbnailEditorModalComponent,
   ThumbnailSelectedEvent,
 } from '../thumbnail-editor-modal/thumbnail-editor-modal';
-import { SeriesGrantsModalComponent } from '../series-grants-modal/series-grants-modal';
 
 @Component({
   selector: 'app-manage-vod',
@@ -53,10 +50,7 @@ import { SeriesGrantsModalComponent } from '../series-grants-modal/series-grants
     IconComponent,
     SpinnerComponent,
     AutocompleteComponent,
-    TagInputComponent,
-    GrantVodModalComponent,
     ThumbnailEditorModalComponent,
-    SeriesGrantsModalComponent,
   ],
   templateUrl: './manage-vod.html',
   styleUrl: './manage-vod.scss',
@@ -79,11 +73,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   selectedListing = computed(() => this.viewSignals.urlParams.listing() || 'all');
   selectedYear = computed(() => this.viewSignals.urlParams.year() || 'all');
   selectedVideoIdParam = computed(() => this.viewSignals.urlParams.videoId() || '');
-  editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
-  grantVideoIdParam = computed(() => this.viewSignals.urlParams.grantVideoId() || '');
-  grantSeriesIdParam = computed(() => this.viewSignals.urlParams.grantSeriesId() || '');
-  viewGrantsSeriesIdParam = computed(() => this.viewSignals.urlParams.viewGrantsSeriesId() || '');
-  editSeriesIdParam = computed(() => this.viewSignals.urlParams.editSeriesId() || '');
   tabParam = computed(() => this.viewSignals.urlParams.tab() || 'series_collections');
   selectedTagFilter = signal<string>('');
   selectedTagSearchTerm = signal<string>('');
@@ -131,58 +120,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.viewSignals.urlParams.tab.set(mode);
   }
 
-  // Edit Video Modal Series Signals
-  editSeriesId = signal<string>('');
-  editSeriesTitle = signal<string>('');
-  editSeriesDescription = signal<string>('');
-  editSeriesPartIndex = signal<number | null>(null);
-  editSeriesPriceDollars = signal<number | null>(null);
-  editApplyToEntireSeries = signal<boolean>(false);
-
-  // Edit Series Modal State
-  editingSeries = signal<VideoSeries | null>(null);
-  editingSeriesVideos = signal<VideoItem[]>([]);
-  editingSeriesTitle = signal<string>('');
-  editingSeriesDescription = signal<string>('');
-  editingSeriesPriceDollars = signal<number | null>(null);
-  editingSeriesFreeAccessTier = signal<VodAccessTier>(VodAccessTier.MembersOnly);
-  editingSeriesHasClassSub = signal<boolean>(false);
-  editingSeriesAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
-  editingSeriesIsBuyable = signal<boolean>(false);
-  editingSeriesStripePriceId = signal<string>('');
-  editingSeriesIsPublished = signal<boolean>(true);
-  isSavingSeries = signal<boolean>(false);
-
-  // Series Add Video Autocomplete State
-  availableVideosForSeries = new SearchableSet<'docId', VideoItem>(
-    ['title', 'description', 'instructorName', 'tags', 'docId'],
-    'docId',
-  );
-  selectedVideoToAdd = signal<VideoItem | null>(null);
-  addVideoSearchTerm = signal<string>('');
-
-  seriesAddVideoDisplayFns: DisplayFns<VideoItem> = {
-    toChipId: (v) => v.docId,
-    toName: (v) => {
-      const parts = [v.title];
-      if (v.seriesTitle) {
-        parts.push(`[In Series: ${v.seriesTitle}]`);
-      } else {
-        parts.push('[Standalone]');
-      }
-      if (v.instructorName) {
-        parts.push(`(${v.instructorName})`);
-      }
-      return parts.join(' ');
-    },
-  };
-
-  editingVideoInSeries = computed(() => {
-    const seriesId = this.editSeriesId().trim();
-    const seriesTitle = this.editSeriesTitle().trim();
-    return Boolean(seriesId || seriesTitle);
-  });
-
   // Tag autocomplete display helper
   tagDisplayFns: DisplayFns<TagItem> = {
     toChipId: (t) => t.tag,
@@ -200,69 +137,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   // 3-Dots Action Menu state
   activeMenuVideoId = signal<string | null>(null);
   deletingVideoIds = signal<Set<string>>(new Set());
-
-  // Grant Access Modal state
-  grantingVideo = signal<VideoItem | null>(null);
-  grantingSeries = signal<VideoSeries | null>(null);
-
-  openGrantModal(video: VideoItem, event?: Event, updateUrl: boolean = true): void {
-    if (event) event.stopPropagation();
-    this.closeMenu();
-    if (updateUrl) {
-      this.viewSignals.urlParams.grantSeriesId.set('');
-      this.viewSignals.urlParams.grantVideoId.set(video.docId);
-    }
-    this.grantingSeries.set(null);
-    this.grantingVideo.set(video);
-  }
-
-  openGrantSeriesModal(series: VideoSeries, event?: Event, updateUrl: boolean = true): void {
-    if (event) event.stopPropagation();
-    this.closeMenu();
-    if (updateUrl) {
-      this.viewSignals.urlParams.grantVideoId.set('');
-      this.viewSignals.urlParams.grantSeriesId.set(series.seriesId);
-    }
-    this.grantingVideo.set(null);
-    this.grantingSeries.set(series);
-  }
-
-  closeGrantModal(updateUrl: boolean = true): void {
-    this.grantingVideo.set(null);
-    this.grantingSeries.set(null);
-    if (updateUrl) {
-      this.viewSignals.urlParams.grantVideoId.set('');
-      this.viewSignals.urlParams.grantSeriesId.set('');
-    }
-  }
-
-  onAccessGranted(result: { targetId: string; recipientEmail: string; grantedCount: number }): void {
-    console.info('VOD access granted successfully:', result);
-  }
-
-  // View Series Grants & Purchases Modal state
-  viewingGrantsSeries = signal<VideoSeries | null>(null);
-
-  openViewGrantsModal(series: VideoSeries, event?: Event, updateUrl: boolean = true): void {
-    if (event) event.stopPropagation();
-    this.closeMenu();
-    if (updateUrl) {
-      this.viewSignals.urlParams.viewGrantsSeriesId.set(series.seriesId);
-    }
-    this.viewingGrantsSeries.set(series);
-  }
-
-  closeViewGrantsModal(updateUrl: boolean = true): void {
-    this.viewingGrantsSeries.set(null);
-    if (updateUrl) {
-      this.viewSignals.urlParams.viewGrantsSeriesId.set('');
-    }
-  }
-
-  onGrantRequestedFromViewGrants(series: VideoSeries): void {
-    this.closeViewGrantsModal();
-    this.openGrantSeriesModal(series);
-  }
 
   isDeleting(videoId?: string): boolean {
     if (!videoId) return false;
@@ -329,32 +203,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
 
   // Stats Folddown toggle
   showStatsFold = signal(false);
-
-  // Edit Modal State
-  editingVideo = signal<VideoItem | null>(null);
-  isSaving = signal(false);
-  editRecordedDate = signal<string>('');
-  editTags = signal<string[]>([]);
-  editFreeAccessTier = signal<VodAccessTier>(VodAccessTier.MembersOnly);
-  editHasClassSub = signal<boolean>(false);
-  editAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
-  editIsBuyable = signal<boolean>(false);
-  editStripePriceId = signal<string>('');
-  priceDollars = signal<number | null>(null);
-
-  readonly freeAccessTierOptions = [
-    { value: VodAccessTier.Public, label: 'Public', description: 'Free to everyone (visitors & unauthenticated)' },
-    { value: VodAccessTier.MembersOnly, label: 'Members', description: 'Active members & licensed instructors' },
-    { value: VodAccessTier.InstructorsOnly, label: 'Instructors', description: 'Licensed instructors only' },
-    { value: VodAccessTier.AdminOnly, label: 'Admin only', description: 'No free access (administrators only)' },
-  ];
-
-  readonly availableAccessTiers = [
-    { value: VodAccessTier.Public, label: 'Public (Free to everyone)', description: 'Accessible to all visitors without logging in' },
-    { value: VodAccessTier.MembersOnly, label: 'Members', description: 'Active annual and life members (instructors included)' },
-    { value: VodAccessTier.InstructorsOnly, label: 'Instructors Only', description: 'Licensed ILC instructors' },
-    { value: VodAccessTier.ClassVideoSubscribers, label: 'Class Video Subscribers', description: 'Active class video library subscribers' },
-  ];
 
   VodAccessTier = VodAccessTier;
 
@@ -669,28 +517,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     });
 
     effect(() => {
-      const editId = this.editVideoIdParam();
-      if (editId) {
-        if (this.editingVideo()?.docId !== editId) {
-          const v = this.dataService.videos.get(editId);
-          if (v) {
-            this.openEditModal(v, false);
-          } else {
-            this.dataService.getVideoById(editId).then((fetched) => {
-              if (fetched && this.editVideoIdParam() === editId) {
-                this.openEditModal(fetched, false);
-              }
-            });
-          }
-        }
-      } else {
-        if (this.editingVideo()) {
-          this.closeEditModal(false);
-        }
-      }
-    });
-
-    effect(() => {
       const tab = this.tabParam();
       if (tab === 'all_videos' || tab === 'series_collections') {
         if (this.viewMode() !== tab) {
@@ -699,84 +525,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       }
     });
 
-    effect(() => {
-      const gVid = this.grantVideoIdParam();
-      if (gVid) {
-        if (this.grantingVideo()?.docId !== gVid) {
-          const v = this.dataService.videos.get(gVid);
-          if (v) {
-            this.openGrantModal(v, undefined, false);
-          } else {
-            this.dataService.getVideoById(gVid).then((fetched) => {
-              if (fetched && this.grantVideoIdParam() === gVid) {
-                this.openGrantModal(fetched, undefined, false);
-              }
-            });
-          }
-        }
-      } else if (!this.grantSeriesIdParam()) {
-        if (this.grantingVideo()) {
-          this.closeGrantModal(false);
-        }
-      }
-    });
-
-    effect(() => {
-      const gSid = this.grantSeriesIdParam();
-      if (gSid) {
-        if (this.grantingSeries()?.seriesId !== gSid) {
-          const s = this.allSeries().find((item) => item.seriesId === gSid);
-          if (s) {
-            this.openGrantSeriesModal(s, undefined, false);
-          }
-        }
-      } else if (!this.grantVideoIdParam()) {
-        if (this.grantingSeries()) {
-          this.closeGrantModal(false);
-        }
-      }
-    });
-
-    effect(() => {
-      const vgSid = this.viewGrantsSeriesIdParam();
-      if (vgSid) {
-        if (this.viewingGrantsSeries()?.seriesId !== vgSid) {
-          const s = this.allSeries().find((item) => item.seriesId === vgSid);
-          if (s) {
-            this.openViewGrantsModal(s, undefined, false);
-          }
-        }
-      } else {
-        if (this.viewingGrantsSeries()) {
-          this.closeViewGrantsModal(false);
-        }
-      }
-    });
-
-    effect(() => {
-      const eSid = this.editSeriesIdParam();
-      if (eSid) {
-        if (this.editingSeries()?.seriesId !== eSid) {
-          const s = this.allSeries().find((item) => item.seriesId === eSid);
-          if (s) {
-            this.openSeriesModal(s, false);
-          }
-        }
-      } else {
-        if (this.editingSeries()) {
-          this.closeSeriesModal(false);
-        }
-      }
-    });
-
-    effect(() => {
-      const currentSeries = this.editingSeries();
-      if (!currentSeries) return;
-      const currentDocIds = new Set(this.editingSeriesVideos().map((v) => v.docId));
-      const all = this.dataService.videos.entries();
-      const available = all.filter((v) => !currentDocIds.has(v.docId));
-      this.availableVideosForSeries.setEntries(available);
-    });
   }
 
   ngOnInit(): void {}
@@ -912,6 +660,16 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   }
 
   // Job Details Drawer Methods
+
+  /** Opens the drawer from the title cell, unless the click was on a link
+   * inside it (link clicks must still bubble to the document-level SPA
+   * link handler, so we can't stopPropagation on the anchor itself). */
+  onMetaCellClick(video: VideoItem, event: MouseEvent): void {
+    const target = event.target;
+    if (target instanceof Element && target.closest('a')) return;
+    this.openDrawer(video);
+  }
+
   openDrawer(video: VideoItem, updateUrl = true): void {
     this.closeMenu();
     this.drawerVideo.set(video);
@@ -1101,171 +859,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Edit Metadata Modal Methods
-  openEditModal(video: VideoItem, updateUrl = true): void {
-    this.closeMenu();
-    this.editingVideo.set({ ...video });
-    this.editRecordedDate.set(video.recordedDate || '');
-    this.priceDollars.set(
-      video.priceCents ? video.priceCents / 100 : null,
-    );
-    this.editTags.set([...(video.tags || [])]);
-
-    this.editSeriesId.set(video.seriesId || video.forVodPageId || '');
-    this.editSeriesTitle.set(video.seriesTitle || video.forVodSeriesTitle || '');
-    this.editSeriesDescription.set(video.seriesDescription || '');
-    this.editSeriesPartIndex.set(typeof video.seriesPartIndex === 'number' ? video.seriesPartIndex : null);
-    this.editSeriesPriceDollars.set(
-      typeof video.seriesPriceCents === 'number' ? video.seriesPriceCents / 100 : null,
-    );
-    this.editApplyToEntireSeries.set(false);
-
-    const freeTier = this.getFreeAccessTier(video);
-    const hasClassSub = this.hasClassSubscription(video);
-    this.editFreeAccessTier.set(freeTier);
-    this.editHasClassSub.set(hasClassSub);
-
-    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
-      ? video.accessTiers.filter((t) => t !== VodAccessTier.DirectPurchase)
-      : (video.accessTier && video.accessTier !== VodAccessTier.DirectPurchase ? [video.accessTier] : [VodAccessTier.MembersOnly]);
-    this.editAccessTiers.set([...tiers]);
-    this.editIsBuyable.set(
-      Boolean(
-        video.isBuyable ||
-        (Array.isArray(video.accessTiers) && video.accessTiers.includes(VodAccessTier.DirectPurchase)) ||
-        video.accessTier === VodAccessTier.DirectPurchase ||
-        (video.priceCents && video.priceCents > 0) ||
-        (video.seriesPriceCents && video.seriesPriceCents > 0),
-      ),
-    );
-    this.editStripePriceId.set(video.stripePriceId || '');
-    if (updateUrl) {
-      this.viewSignals.urlParams.editVideoId.set(video.docId);
-    }
-  }
-
-  closeEditModal(updateUrl = true): void {
-    this.editingVideo.set(null);
-    if (updateUrl) {
-      this.viewSignals.urlParams.editVideoId.set('');
-    }
-  }
-
-  toggleAccessTier(tier: VodAccessTier): void {
-    if (tier === VodAccessTier.ClassVideoSubscribers) {
-      this.editHasClassSub.set(!this.editHasClassSub());
-    } else if (tier === VodAccessTier.DirectPurchase) {
-      this.editIsBuyable.set(!this.editIsBuyable());
-    } else {
-      if (this.editFreeAccessTier() === tier) {
-        this.editFreeAccessTier.set(VodAccessTier.AdminOnly);
-      } else {
-        this.editFreeAccessTier.set(tier);
-      }
-    }
-    const current = this.editAccessTiers();
-    if (current.includes(tier)) {
-      this.editAccessTiers.set(current.filter((t) => t !== tier));
-    } else {
-      this.editAccessTiers.set([...current, tier]);
-    }
-  }
-
-  isAccessTierSelected(tier: VodAccessTier): boolean {
-    if (tier === VodAccessTier.ClassVideoSubscribers) {
-      return this.editHasClassSub();
-    }
-    if (tier === VodAccessTier.DirectPurchase) {
-      return this.editIsBuyable();
-    }
-    return this.editFreeAccessTier() === tier;
-  }
-
-  async saveVideoChanges(): Promise<void> {
-    const v = this.editingVideo();
-    if (!v) return;
-
-    this.isSaving.set(true);
-    try {
-      const tags = this.editTags();
-      const seriesId = this.editSeriesId().trim();
-      const seriesTitle = this.editSeriesTitle().trim();
-      const seriesDescription = this.editSeriesDescription().trim();
-      const seriesPartIndex = this.editSeriesPartIndex();
-      const isSeriesVideo = Boolean(seriesId || seriesTitle);
-
-      const patch: Partial<VideoItem> = {
-        title: v.title,
-        description: v.description,
-        recordedDate: this.editRecordedDate().trim(),
-        featured: v.featured,
-        tags,
-      };
-
-      if (isSeriesVideo) {
-        patch.seriesId = seriesId || undefined;
-        patch.seriesTitle = seriesTitle || undefined;
-        patch.seriesDescription = seriesDescription || undefined;
-        patch.seriesPartIndex = seriesPartIndex !== null ? seriesPartIndex : undefined;
-        patch.isPublished = v.isPublished;
-      } else {
-        const freeTier = this.editFreeAccessTier();
-        const hasClassSub = this.editHasClassSub();
-        const isBuyable = this.editIsBuyable();
-        const price = this.priceDollars();
-        const priceCents = isBuyable && price ? Math.round(price * 100) : undefined;
-        const stripePriceId = isBuyable && this.editStripePriceId().trim()
-          ? this.editStripePriceId().trim()
-          : undefined;
-
-        const finalTiers: VodAccessTier[] = [];
-        if (freeTier !== VodAccessTier.AdminOnly) {
-          finalTiers.push(freeTier);
-        }
-        if (hasClassSub) {
-          finalTiers.push(VodAccessTier.ClassVideoSubscribers);
-        }
-        if (isBuyable) {
-          finalTiers.push(VodAccessTier.DirectPurchase);
-        }
-        if (finalTiers.length === 0) {
-          finalTiers.push(VodAccessTier.AdminOnly);
-        }
-
-        const primaryTier = freeTier !== VodAccessTier.AdminOnly
-          ? freeTier
-          : (hasClassSub ? VodAccessTier.ClassVideoSubscribers : (isBuyable ? VodAccessTier.DirectPurchase : VodAccessTier.AdminOnly));
-
-        patch.accessTier = primaryTier;
-        patch.accessTiers = finalTiers;
-        patch.isBuyable = isBuyable;
-        patch.isPublished = v.isPublished;
-        patch.priceCents = priceCents;
-        patch.stripePriceId = stripePriceId;
-        patch.seriesId = undefined;
-        patch.seriesTitle = undefined;
-        patch.seriesDescription = undefined;
-        patch.seriesPartIndex = undefined;
-        patch.seriesPriceCents = undefined;
-        patch.seriesStripePriceId = undefined;
-      }
-
-      await this.dataService.updateVideoMetadata(v.docId, patch);
-
-      if (this.drawerVideo()?.docId === v.docId) {
-        this.drawerVideo.set(this.dataService.videos.get(v.docId) || null);
-      }
-
-      this.closeEditModal(true);
-    } catch (err: unknown) {
-      console.error('Error saving video changes:', err);
-      const msg = err instanceof Error ? err.message : 'Could not save video changes.';
-      alert(msg);
-    } finally {
-      this.isSaving.set(false);
-    }
-  }
-
   // --- Thumbnail Customization Modal State ---
   thumbnailModalVideo = signal<VideoItem | null>(null);
   isSavingThumbnail = signal<boolean>(false);
@@ -1294,9 +887,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
         thumbnailUrl: newUrl,
       });
 
-      if (this.editingVideo()?.docId === video.docId) {
-        this.editingVideo.update((v) => (v ? { ...v, thumbnailUrl: newUrl } : null));
-      }
       if (this.drawerVideo()?.docId === video.docId) {
         this.drawerVideo.update((v) => (v ? { ...v, thumbnailUrl: newUrl } : null));
       }
@@ -1307,209 +897,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       alert('Failed to update thumbnail: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       this.isSavingThumbnail.set(false);
-    }
-  }
-
-  openSeriesFromVideoEdit(video: VideoItem): void {
-    const sId = this.editSeriesId().trim() || video.seriesId || video.forVodPageId;
-    const series = this.allSeries().find(
-      (s) => (sId && s.seriesId === sId) || s.videos.some((v) => v.docId === video.docId),
-    );
-    if (series) {
-      this.closeEditModal(false);
-      this.openSeriesModal(series, true);
-    }
-  }
-
-  // --- Series Modal Management ---
-  openSeriesModal(series: VideoSeries, updateUrl: boolean = true): void {
-    this.closeMenu();
-    if (updateUrl) {
-      this.viewSignals.urlParams.editSeriesId.set(series.seriesId);
-    }
-    this.editingSeries.set(series);
-    this.editingSeriesVideos.set([...series.videos]);
-    this.editingSeriesTitle.set(series.title);
-    this.editingSeriesDescription.set(series.description || '');
-    this.editingSeriesPriceDollars.set(
-      typeof series.priceCents === 'number' && series.priceCents > 0
-        ? series.priceCents / 100
-        : null,
-    );
-    const freeTier = this.getFreeAccessTier(series);
-    const hasClassSub = this.hasClassSubscription(series);
-    this.editingSeriesFreeAccessTier.set(freeTier);
-    this.editingSeriesHasClassSub.set(hasClassSub);
-
-    const tiers = Array.isArray(series.accessTiers) && series.accessTiers.length > 0
-      ? series.accessTiers.filter((t) => t !== VodAccessTier.DirectPurchase)
-      : (series.accessTier && series.accessTier !== VodAccessTier.DirectPurchase ? [series.accessTier] : [VodAccessTier.MembersOnly]);
-    this.editingSeriesAccessTiers.set([...tiers]);
-    this.editingSeriesIsBuyable.set(
-      Boolean(
-        (Array.isArray(series.accessTiers) && series.accessTiers.includes(VodAccessTier.DirectPurchase)) ||
-        series.accessTier === VodAccessTier.DirectPurchase ||
-        (series.priceCents && series.priceCents > 0) ||
-        series.stripePriceId,
-      ),
-    );
-    this.editingSeriesStripePriceId.set(series.stripePriceId || '');
-    this.editingSeriesIsPublished.set(series.isPublished !== false);
-    this.selectedVideoToAdd.set(null);
-    this.addVideoSearchTerm.set('');
-  }
-
-  toggleSeriesAccessTier(tier: VodAccessTier): void {
-    if (tier === VodAccessTier.ClassVideoSubscribers) {
-      this.editingSeriesHasClassSub.set(!this.editingSeriesHasClassSub());
-    } else if (tier === VodAccessTier.DirectPurchase) {
-      this.editingSeriesIsBuyable.set(!this.editingSeriesIsBuyable());
-    } else {
-      if (this.editingSeriesFreeAccessTier() === tier) {
-        this.editingSeriesFreeAccessTier.set(VodAccessTier.AdminOnly);
-      } else {
-        this.editingSeriesFreeAccessTier.set(tier);
-      }
-    }
-    const current = this.editingSeriesAccessTiers();
-    if (current.includes(tier)) {
-      this.editingSeriesAccessTiers.set(current.filter((t) => t !== tier));
-    } else {
-      this.editingSeriesAccessTiers.set([...current, tier]);
-    }
-  }
-
-  isSeriesAccessTierSelected(tier: VodAccessTier): boolean {
-    if (tier === VodAccessTier.ClassVideoSubscribers) {
-      return this.editingSeriesHasClassSub();
-    }
-    if (tier === VodAccessTier.DirectPurchase) {
-      return this.editingSeriesIsBuyable();
-    }
-    return this.editingSeriesFreeAccessTier() === tier;
-  }
-
-  closeSeriesModal(updateUrl: boolean = true): void {
-    this.editingSeries.set(null);
-    this.editingSeriesVideos.set([]);
-    this.selectedVideoToAdd.set(null);
-    this.addVideoSearchTerm.set('');
-    if (updateUrl) {
-      this.viewSignals.urlParams.editSeriesId.set('');
-    }
-  }
-
-  onVideoSelectedToAdd(video: VideoItem): void {
-    this.selectedVideoToAdd.set(video);
-  }
-
-  onVideoSearchTextChange(text: string): void {
-    this.addVideoSearchTerm.set(text);
-    if (!text.trim()) {
-      this.selectedVideoToAdd.set(null);
-    }
-  }
-
-  addSelectedVideoToSeries(): void {
-    const video = this.selectedVideoToAdd();
-    if (!video) return;
-    if (this.editingSeriesVideos().some((v) => v.docId === video.docId)) {
-      this.selectedVideoToAdd.set(null);
-      this.addVideoSearchTerm.set('');
-      return;
-    }
-    this.editingSeriesVideos.update((list) => [...list, video]);
-    this.selectedVideoToAdd.set(null);
-    this.addVideoSearchTerm.set('');
-  }
-
-  removeSeriesVideo(index: number): void {
-    this.editingSeriesVideos.update((list) => list.filter((_, idx) => idx !== index));
-  }
-
-  moveSeriesVideoUp(index: number): void {
-    if (index <= 0) return;
-    this.editingSeriesVideos.update((list) => {
-      const copy = [...list];
-      const temp = copy[index - 1];
-      copy[index - 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
-  }
-
-  moveSeriesVideoDown(index: number): void {
-    if (index >= this.editingSeriesVideos().length - 1) return;
-    this.editingSeriesVideos.update((list) => {
-      const copy = [...list];
-      const temp = copy[index + 1];
-      copy[index + 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
-  }
-
-  async saveSeriesChanges(): Promise<void> {
-    const s = this.editingSeries();
-    if (!s) return;
-
-    this.isSavingSeries.set(true);
-    try {
-      const orderedIds = this.editingSeriesVideos().map((v) => v.docId);
-      const freeTier = this.editingSeriesFreeAccessTier();
-      const hasClassSub = this.editingSeriesHasClassSub();
-      const isBuyable = this.editingSeriesIsBuyable();
-      const price = this.editingSeriesPriceDollars();
-      const priceCents = isBuyable && price !== null && price > 0
-        ? Math.round(price * 100)
-        : 0;
-      const stripePriceId = isBuyable ? this.editingSeriesStripePriceId().trim() : '';
-      const isPublished = this.editingSeriesIsPublished();
-
-      const finalTiers: VodAccessTier[] = [];
-      if (freeTier !== VodAccessTier.AdminOnly) {
-        finalTiers.push(freeTier);
-      }
-      if (hasClassSub) {
-        finalTiers.push(VodAccessTier.ClassVideoSubscribers);
-      }
-      if (isBuyable) {
-        finalTiers.push(VodAccessTier.DirectPurchase);
-      }
-      if (finalTiers.length === 0) {
-        finalTiers.push(VodAccessTier.AdminOnly);
-      }
-
-      const primaryTier = freeTier !== VodAccessTier.AdminOnly
-        ? freeTier
-        : (hasClassSub ? VodAccessTier.ClassVideoSubscribers : (isBuyable ? VodAccessTier.DirectPurchase : VodAccessTier.AdminOnly));
-
-      await this.dataService.updateVideoSeries(
-        s.seriesId,
-        {
-          title: this.editingSeriesTitle().trim(),
-          description: this.editingSeriesDescription().trim(),
-          priceCents,
-          stripePriceId,
-          accessTier: primaryTier,
-          accessTiers: finalTiers,
-          isPublished,
-        },
-        orderedIds,
-      );
-      if (this.selectedSeriesFilter() === s.seriesId) {
-        this.setSeriesFilter(s.seriesId);
-      }
-      const currentDrawer = this.drawerVideo();
-      if (currentDrawer && orderedIds.includes(currentDrawer.docId)) {
-        this.drawerVideo.set(this.dataService.videos.get(currentDrawer.docId) || null);
-      }
-      this.closeSeriesModal();
-    } catch (err) {
-      console.error('Error updating series:', err);
-      alert(err instanceof Error ? err.message : 'Failed to update series.');
-    } finally {
-      this.isSavingSeries.set(false);
     }
   }
 
@@ -1610,9 +997,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       await this.dataService.deleteVideo(video.docId);
       if (this.drawerVideo()?.docId === video.docId) {
         this.closeDrawer(true);
-      }
-      if (this.editingVideo()?.docId === video.docId) {
-        this.closeEditModal(true);
       }
     } catch (err: unknown) {
       console.error('Error deleting video:', err);

@@ -20,6 +20,7 @@ import {
   groupVideosIntoSeries,
 } from '../data-model/vod';
 import { getMember, getMemberByEmail } from './members';
+import { normalizeEmail } from '../data-model/email';
 import { ActionContext, ActionResult } from './types';
 import { recordDeletionLog, recordTombstone } from '../common';
 import { DeletionSource, DeletionLogActor } from '../data-model/deletion-logs';
@@ -378,7 +379,7 @@ export async function grantVideoAccess(
     return { success: false, error: 'No videos found matching the specified target.' };
   }
 
-  const recipientEmail = recipientMember.emails[0] || '';
+  const recipientEmail = normalizeEmail(recipientMember.emails[0]);
 
   if (ctx.dryRun) {
     ctx.logger?.(`[DRY-RUN] Granted ${targetVideoIds.length} video(s)/series to ${recipientMember.name} (${recipientEmail})`);

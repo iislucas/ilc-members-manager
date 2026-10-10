@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { SeriesGrantsModalComponent } from './series-grants-modal';
+import { VodAccessListComponent } from './vod-access-list';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
+import { Views } from '../app.config';
 import { SearchableSet } from '../searchable-set';
 import {
   initVideoItem,
@@ -14,9 +15,9 @@ import {
 import { initMember, Member } from '../../../functions/src/data-model/members';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-describe('SeriesGrantsModalComponent', () => {
-  let component: SeriesGrantsModalComponent;
-  let fixture: ComponentFixture<SeriesGrantsModalComponent>;
+describe('VodAccessListComponent', () => {
+  let component: VodAccessListComponent;
+  let fixture: ComponentFixture<VodAccessListComponent>;
   let mockDataManagerService: {
     members: SearchableSet<'docId', Member>;
     getSeriesGrants: ReturnType<typeof vi.fn>;
@@ -116,14 +117,14 @@ describe('SeriesGrantsModalComponent', () => {
     };
 
     await TestBed.configureTestingModule({
-      imports: [SeriesGrantsModalComponent],
+      imports: [VodAccessListComponent],
       providers: [
         { provide: DataManagerService, useValue: mockDataManagerService },
         { provide: RoutingService, useValue: mockRoutingService },
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(SeriesGrantsModalComponent);
+    fixture = TestBed.createComponent(VodAccessListComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('series', mockSeries);
     fixture.detectChanges();
@@ -236,18 +237,62 @@ describe('SeriesGrantsModalComponent', () => {
     expect(component.copiedEmailsToast()).toBe(true);
   });
 
-  it('should emit grantRequested when openGrantModal is called', () => {
-    const emitSpy = vi.fn();
-    component.grantRequested.subscribe(emitSpy);
-    component.openGrantModal();
-    expect(emitSpy).toHaveBeenCalledWith(mockSeries);
+  it('should link purchases directly to the order page by order doc id', () => {
+    fixture.detectChanges();
+    expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(Views.OrderView, { orderId: 'order_123' });
+    expect(mockRoutingService.hrefForView).not.toHaveBeenCalledWith(Views.ManageOrders, expect.anything());
   });
 
-  it('should emit closed when close is called', () => {
-    const emitSpy = vi.fn();
-    component.closed.subscribe(emitSpy);
-    component.close();
-    expect(emitSpy).toHaveBeenCalled();
+  it('should link Grant access to the grant page for the series', () => {
+    fixture.detectChanges();
+    expect(component.grantHref()).toBe('/test-href');
+    expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(Views.ManageVodSeriesGrant, { seriesId: 'series_spin' });
+  });
+
+  it('should treat only paid gifts as gifts, not admin grants', () => {
+    const charlie = component.recipients().find((r) => r.memberEmail === 'charlie@example.com')!;
+    expect(charlie.isGift).toBe(false);
+    const bob = component.recipients().find((r) => r.memberEmail === 'bob@example.com')!;
+    expect(bob.isGift).toBe(true);
+  });
+
+  it('should include legacy complimentary grants under the Admin Grant filter', () => {
+    component.rawGrants.update((list) => [
+      ...list,
+      { ...initVideoGrant('series_spin', ''), memberEmail: 'dana@example.com', grantKind: VideoGrantKind.Complimentary },
+    ]);
+    component.grantKindFilter.set(VideoGrantKind.AdminGrant);
+    const emails = component.filteredRecipients().map((r) => r.memberEmail);
+    expect(emails).toEqual(expect.arrayContaining(['charlie@example.com', 'dana@example.com']));
+    expect(component.getGrantKindLabel(VideoGrantKind.Complimentary)).toBe('Admin Grant');
+  });
+
+  it('should not refetch when given an equivalent series object', async () => {
+    mockDataManagerService.getSeriesGrants.mockClear();
+    fixture.componentRef.setInput('series', { ...mockSeries, videos: [...mockSeries.videos] });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(mockDataManagerService.getSeriesGrants).not.toHaveBeenCalled();
+  });
+
+  it('should ignore a slower response for a previous target', async () => {
+    let resolveFirst: (g: VideoGrant[]) => void = () => {};
+    mockDataManagerService.getSeriesGrants
+      .mockImplementationOnce(() => new Promise<VideoGrant[]>((r) => (resolveFirst = r)))
+      .mockResolvedValueOnce([mockGrants[1]]);
+    fixture.componentRef.setInput('series', { ...mockSeries, seriesId: 'series_a' });
+    fixture.detectChanges();
+    fixture.componentRef.setInput('series', { ...mockSeries, seriesId: 'series_b' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    resolveFirst(mockGrants);
+    await Promise.resolve();
+    expect(component.rawGrants()).toEqual([mockGrants[1]]);
+  });
+
+  it('should not be in video mode when given a series', () => {
+    expect(component.isVideoMode()).toBe(false);
+    expect(component.targetTitle()).toBe('Spinning Hands Series');
   });
 
   it('should prompt and execute revoke for a recipient', async () => {
@@ -260,5 +305,110 @@ describe('SeriesGrantsModalComponent', () => {
     expect(component.revokeConfirmRecipient()).toBeNull();
     // Charlie should be removed from rawGrants
     expect(component.rawGrants().length).toBe(2);
+  });
+
+  it('should deduplicate amountPaidCents across multiple bundled grants sharing the same order', () => {
+    // When a recipient has multiple grants (series + constituent episodes) all stamped with order amount
+    component.rawGrants.set([
+      {
+        ...initVideoGrant('series_spin', 'mem_1'),
+        memberEmail: 'alice@example.com',
+        grantKind: VideoGrantKind.StripePurchase,
+        amountPaidCents: 4999,
+        orderDocId: 'order_bundle_1',
+        grantedAt: '2026-09-20T10:00:00Z',
+      },
+      {
+        ...initVideoGrant('vid_1', 'mem_1'),
+        memberEmail: 'alice@example.com',
+        grantKind: VideoGrantKind.StripePurchase,
+        amountPaidCents: 4999,
+        orderDocId: 'order_bundle_1',
+        grantedAt: '2026-09-20T10:00:01Z',
+      },
+      {
+        ...initVideoGrant('vid_2', 'mem_1'),
+        memberEmail: 'alice@example.com',
+        grantKind: VideoGrantKind.StripePurchase,
+        amountPaidCents: 4999,
+        orderDocId: 'order_bundle_1',
+        grantedAt: '2026-09-20T10:00:02Z',
+      },
+    ]);
+
+    const recipients = component.recipients();
+    expect(recipients.length).toBe(1);
+    expect(recipients[0].amountPaidCents).toBe(4999);
+  });
+
+  describe('single video mode', () => {
+    beforeEach(async () => {
+      mockDataManagerService.getSeriesGrants.mockClear();
+      fixture.componentRef.setInput('series', null);
+      fixture.componentRef.setInput('video', mockVideo1);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    it('should load grants for the video and its parent series', () => {
+      expect(component.isVideoMode()).toBe(true);
+      expect(component.targetTitle()).toBe('Episode 1: Fundamentals');
+      const ids = mockDataManagerService.getSeriesGrants.mock.calls[0][0] as string[];
+      expect(ids).toEqual(expect.arrayContaining(['series_spin', 'vid_1']));
+      expect(ids).not.toContain('vid_2');
+    });
+
+    it('should distinguish whole-series access from direct video access', () => {
+      const recipients = component.recipients();
+      const alice = recipients.find((r) => r.memberEmail === 'alice@example.com');
+      const bob = recipients.find((r) => r.memberEmail === 'bob@example.com');
+      expect(alice?.viaSeriesGrant).toBe(true);
+      expect(bob?.viaSeriesGrant).toBe(false);
+      // Alice and Charlie have series grants; Bob was gifted this episode directly.
+      expect(component.summaryStats().fullSeriesCount).toBe(2);
+    });
+
+    it('should only revoke direct video grants, keeping whole-series grants', async () => {
+      const alice = component.recipients().find((r) => r.memberEmail === 'alice@example.com')!;
+      const bob = component.recipients().find((r) => r.memberEmail === 'bob@example.com')!;
+      // Alice's only grant is on the whole series: nothing is revocable from this video.
+      expect(component.revocableGrants(alice)).toEqual([]);
+      // Bob's gift is for this episode directly.
+      expect(component.revocableGrants(bob).map((g) => g.videoId)).toEqual(['vid_1']);
+
+      mockDataManagerService.revokeVideoGrant.mockClear();
+      await component.confirmRevoke(alice);
+      expect(mockDataManagerService.revokeVideoGrant).not.toHaveBeenCalled();
+    });
+
+    it('should offer a link to the series page instead of revoke for series-level access', () => {
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      // Alice and Charlie: series-only access; Bob: direct grant.
+      expect(el.querySelectorAll('.series-access-link').length).toBe(2);
+      expect(el.querySelectorAll('.revoke-btn').length).toBe(1);
+      expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(
+        Views.ManageVodSeries, { seriesId: 'series_spin' }, { tab: 'access' },
+      );
+    });
+
+    it('should use the page-resolved parent series id for grouped series', async () => {
+      mockDataManagerService.getSeriesGrants.mockClear();
+      fixture.componentRef.setInput('video', { ...mockVideo1, seriesId: undefined });
+      fixture.componentRef.setInput('parentSeries', { ...mockSeries, seriesId: 'grouped_series' });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const ids = mockDataManagerService.getSeriesGrants.mock.calls.at(-1)![0] as string[];
+      expect(ids).toEqual(expect.arrayContaining(['grouped_series', 'vid_1']));
+    });
+
+    it('should render video-specific labels', () => {
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain('Access Via');
+      expect(el.textContent).toContain('This video');
+      expect(el.textContent).toContain('Whole series');
+      expect(el.textContent).not.toContain('Full Series Only');
+    });
   });
 });

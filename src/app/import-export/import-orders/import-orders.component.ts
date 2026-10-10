@@ -7,6 +7,7 @@ import { StudentLevel, InstructorLicenseType, MasterLevel } from '../../../../fu
 import { Member, initMember, MembershipType } from '../../../../functions/src/data-model/members';
 import { SheetsImportOrder, initSheetsImportOrder } from '../../../../functions/src/data-model/orders';
 import { School } from '../../../../functions/src/data-model/schools';
+import { normalizeEmail } from '../../../../functions/src/data-model/email';
 import * as Papa from 'papaparse';
 import {
   ParsedRow,
@@ -690,6 +691,8 @@ export class ImportOrdersComponent {
           issues.push(result.issue);
           (order as any)[key] = value;
         }
+      } else if (key === 'email') {
+        order.email = normalizeEmail(value);
       } else {
         (order as any)[key] = value;
       }
@@ -798,7 +801,7 @@ export class ImportOrdersComponent {
     // Column-level fallback fields (used if meta doesn't have them)
     const colFirstName = (row['first_name'] || '').trim();
     const colLastName = (row['last_name'] || '').trim();
-    const colEmail = (row['billing_email'] || '').trim();
+    const colEmail = normalizeEmail(row['billing_email']);
     order.country = (row['billing_country'] || '').trim();
     order.state = (row['billing_state'] || '').trim();
 
@@ -840,7 +843,7 @@ export class ImportOrdersComponent {
       }
 
       // ─── Email: prefer meta Email over billing column ───
-      const metaEmail = (li['meta.Email'] || '').trim();
+      const metaEmail = normalizeEmail(li['meta.Email']);
       order.email = metaEmail || colEmail;
 
       // Membership Level → orderType

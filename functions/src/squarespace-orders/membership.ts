@@ -13,6 +13,7 @@ import { resolveCountryCode, resolveCountryName } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder, lookupMembersByEmail } from './infer-member';
+import { normalizeEmails } from '../data-model/email';
 import { snapshotPreOrderDates } from './snapshot-pre-order-dates';
 
 export interface MembershipRenewalInfo {
@@ -224,7 +225,7 @@ async function processNewMemberRegistration(
     memberId: newMemberId.trim().toUpperCase(),
     name: pInfo.name,
     country: pInfo.country,
-    emails: pInfo.email ? [pInfo.email] : [],
+    emails: normalizeEmails([pInfo.email]),
     dateOfBirth: pInfo.dateOfBirth,
     membershipType: MembershipType.Annual,
     firstMembershipStarted: info.renewalDate,

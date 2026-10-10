@@ -13,6 +13,7 @@ import {
   firestoreDocToIlcEvent,
 } from '../data-model/events';
 import { firestoreDocToMember } from '../data-model/members';
+import { normalizeEmail, normalizeEmails } from '../data-model/email';
 import { ActionContext, ActionResult } from './types';
 
 /** Parameters for creating a new event. */
@@ -134,7 +135,7 @@ export async function createEvent(
       ownerName = owner.name;
       ownerMemberId = owner.memberId;
       ownerInstructorId = String(owner.instructorId || '');
-      ownerEmails = owner.emails || [];
+      ownerEmails = normalizeEmails(owner.emails);
     }
   }
 
@@ -151,7 +152,7 @@ export async function createEvent(
     ownerMemberId: ownerMemberId || ctx.actor?.memberId || '',
     ownerInstructorId,
     ownerEmails,
-    updatedByEmail: ctx.actor?.email || '',
+    updatedByEmail: normalizeEmail(ctx.actor?.email),
     lastUpdated: nowIso,
   };
 
@@ -228,7 +229,7 @@ export async function setEventStatus(
 ): Promise<ActionResult<IlcEvent>> {
   return updateEvent(ctx, eventDocId, {
     status,
-    updatedByEmail: ctx.actor?.email || '',
+    updatedByEmail: normalizeEmail(ctx.actor?.email),
   });
 }
 

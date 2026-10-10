@@ -5,77 +5,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1.5rem 0 3.5rem;
-  max-width: 1000px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.page-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-
-  .header-nav {
-    margin-bottom: 0.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.95rem;
-      text-decoration: none;
-      color: v.$text-secondary;
-      padding: 0.35rem 0.65rem;
-      border-radius: 6px;
-      transition: background 0.15s ease, color 0.15s ease;
-
-      &:hover {
-        color: v.$text-primary;
-        background: rgba(0, 0, 0, 0.05);
-      }
-    }
-
-    .view-grants-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.88rem;
-      font-weight: 500;
-      padding: 0.4rem 0.85rem;
-      border-radius: 6px;
-      background: white;
-      border: 1px solid #cbd5e1;
-      color: v.$text-primary;
-      cursor: pointer;
-      transition: all 0.15s ease;
-
-      &:hover {
-        background: #f1f5f9;
-        border-color: #94a3b8;
-      }
-    }
-  }
-
-  .header-titles {
-    h2 {
-      margin: 0 0 0.25rem 0;
-      color: v.$text-primary;
-      font-size: 1.6rem;
-    }
-
-    .subtitle {
-      margin: 0;
-      color: v.$text-secondary;
-      font-size: 0.95rem;
-      line-height: 1.4;
-    }
-  }
+  padding-bottom: 1rem;
 }
 
 .error-container {
@@ -132,12 +62,6 @@
     }
   }
 
-  .banner-actions {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    margin-left: 2.25rem;
-  }
 }
 
 .loading-state,
@@ -491,12 +415,30 @@
   }
 }
 
-.add-video-section {
-  /* Critical: ensure autocomplete dropdown floats freely without overflow clipping */
+.episodes-section {
+  /* Critical: ensure the add-video autocomplete dropdown floats freely without overflow clipping */
   overflow: visible !important;
 
   .section-body {
     overflow: visible !important;
+  }
+}
+
+.add-video-toggle-row {
+  display: flex;
+  margin-top: 0.75rem;
+}
+
+.add-video-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+
+  .add-video-hint {
+    margin: 0;
+    font-size: 0.88rem;
+    color: v.$text-secondary;
   }
 }
 

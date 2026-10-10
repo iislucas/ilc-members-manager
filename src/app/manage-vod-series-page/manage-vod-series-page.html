@@ -1,0 +1,120 @@
+<div class="vod-admin-page">
+  <div class="header-extension-tabs">
+    <div class="pill-tabs">
+      @for (t of tabs; track t.id) {
+        <button
+          type="button"
+          class="pill-tab"
+          [attr.data-label]="t.label"
+          [class.active]="activeTab() === t.id"
+          (click)="setTab(t.id)"
+        >
+          {{ t.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (series(); as s) {
+    @switch (activeTab()) {
+      @case ('overview') {
+        <div class="vod-overview">
+          <div class="overview-hero">
+            <div class="overview-thumb">
+              @if (thumbnailUrl()) {
+                <img [src]="thumbnailUrl()" [alt]="s.title" />
+              } @else {
+                <div class="thumb-placeholder">
+                  <app-icon name="collections"></app-icon>
+                </div>
+              }
+            </div>
+
+            <div class="overview-info">
+              <div class="level-info">
+                <span class="listing-chip" [class.listed]="s.isPublished !== false" [class.unlisted]="s.isPublished === false">
+                  {{ s.isPublished !== false ? 'Listed' : 'Unlisted' }}
+                </span>
+                <span class="level-chip">Free: {{ freeAccessLabel() }}</span>
+                @if (hasClassSub()) {
+                  <span class="level-chip">Class subscribers</span>
+                }
+                @if (s.priceCents && s.priceCents > 0) {
+                  <span class="level-chip">Bundle ${{ (s.priceCents / 100).toFixed(2) }}</span>
+                }
+              </div>
+
+              <dl class="overview-facts">
+                <dt>Episodes</dt>
+                <dd>{{ s.videoCount }}</dd>
+                <dt>Total length</dt>
+                <dd>{{ formatDuration(s.totalDurationSeconds) }}</dd>
+                @if (s.recordedDate) {
+                  <dt>Recorded</dt>
+                  <dd>{{ s.recordedDate }}</dd>
+                }
+                @if (s.instructorName) {
+                  <dt>Instructor</dt>
+                  <dd>{{ s.instructorName }}</dd>
+                }
+                <dt>Series ID</dt>
+                <dd><code>{{ s.seriesId }}</code></dd>
+              </dl>
+
+              @if (watchFirstEpisodeHref(); as watchUrl) {
+                <div class="overview-actions">
+                  <a class="button primary-button" [href]="watchUrl">
+                    <app-icon name="play_arrow"></app-icon>
+                    <span>Watch</span>
+                  </a>
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (s.description) {
+            <p class="overview-description">{{ s.description }}</p>
+          }
+
+          <h3 class="overview-section-heading">Episodes</h3>
+          @if (s.videos.length === 0) {
+            <p class="overview-note">No episodes yet. Add videos from the Details tab.</p>
+          } @else {
+            <div class="episode-list">
+              @for (vid of s.videos; track vid.docId; let i = $index) {
+                <a class="episode-row" [href]="videoAdminHref(vid)">
+                  <span class="episode-part">Part {{ i + 1 }}</span>
+                  <span class="episode-title">{{ vid.title }}</span>
+                  @if (vid.vodStatus !== VodStatus.Ready) {
+                    <span class="identifier-chip status-issue">{{ vid.vodStatus }}</span>
+                  }
+                  @if (!vid.isPublished) {
+                    <span class="listing-chip unlisted">Unlisted</span>
+                  }
+                  <span class="episode-meta">{{ formatDuration(vid.durationSeconds) }}</span>
+                </a>
+              }
+            </div>
+          }
+        </div>
+      }
+      @case ('access') {
+        <app-vod-access-list [series]="s"></app-vod-access-list>
+      }
+      @case ('details') {
+        <app-manage-vod-edit-series [seriesId]="s.seriesId"></app-manage-vod-edit-series>
+      }
+    }
+  } @else if (dataService.videos.loading()) {
+    <app-spinner>Loading series...</app-spinner>
+  } @else {
+    <div class="not-found-state">
+      <app-icon name="collections" width="48px" height="48px"></app-icon>
+      <h3>Series not found</h3>
+      <p>Could not find a video series with ID <code>{{ seriesId() }}</code>.</p>
+      <a class="subtle-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+        Go to Manage VOD
+      </a>
+    </div>
+  }
+</div>

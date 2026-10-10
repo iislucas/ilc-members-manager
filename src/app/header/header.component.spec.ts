@@ -197,6 +197,17 @@ describe('HeaderComponent', () => {
     expect(component.hasTopTabs()).toBe(true);
   });
 
+  it('computes hasTopTabs as true for the VOD video and series admin pages', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    const component = fixture.componentInstance;
+    const view = signal<Views>(Views.ManageVodVideo);
+    component.routingService.matchedPatternId = view;
+    fixture.detectChanges();
+    expect(component.hasTopTabs()).toBe(true);
+    view.set(Views.ManageVodSeries);
+    expect(component.hasTopTabs()).toBe(true);
+  });
+
   it('computes hasTopTabs as true for Videos view and applies has-top-tabs class on public page', async () => {
     const fixture = TestBed.createComponent(HeaderComponent);
     const component = fixture.componentInstance;

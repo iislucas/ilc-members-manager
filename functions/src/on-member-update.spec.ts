@@ -600,6 +600,38 @@ describe('on-member-update triggers logic', () => {
         { merge: true },
       );
     });
+
+    it('should key ACL docs by the normalised (lower-cased, trimmed) email and ignore case-only changes', async () => {
+      const mockBatch = {
+        set: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      };
+      const aclDoc = vi.fn().mockReturnValue({
+        get: vi.fn().mockResolvedValue({ exists: false }),
+        update: vi.fn().mockResolvedValue({}),
+      });
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        batch: vi.fn().mockReturnValue(mockBatch),
+        collection: vi.fn().mockImplementation((col: string) => {
+          if (col === 'acl') return { doc: aclDoc };
+          return {};
+        }),
+        getAll: vi.fn().mockResolvedValue([]),
+      } as never);
+
+      // Previously stored with different case: only the genuinely new address is added.
+      await updateACL({
+        previous: { docId: 'member-7', emails: ['Existing@Example.com'] } as Member,
+        member: { docId: 'member-7', emails: ['existing@example.com', ' New.Person@Example.COM '] } as Member,
+      });
+
+      expect(mockBatch.set).toHaveBeenCalledTimes(1);
+      expect(aclDoc).toHaveBeenCalledWith('new.person@example.com');
+      expect(aclDoc).not.toHaveBeenCalledWith('Existing@Example.com');
+      expect(mockBatch.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('refreshACLAdminStatus', () => {

@@ -13,6 +13,7 @@ import { StripeService } from '../stripe.service';
 import { initVideoItem, VideoItem, VideoTimeRange, VodAccessTier, VodStatus, VideoGrant, VideoGrantKind } from '../../../functions/src/data-model/vod';
 import { initMailSettings, MailSendingStatus, MailSettings } from '../../../functions/src/data-model/mail';
 import { signal, WritableSignal } from '@angular/core';
+import { Views } from '../app.config';
 
 describe('VideoViewComponent', () => {
   let component: VideoViewComponent;
@@ -28,9 +29,11 @@ describe('VideoViewComponent', () => {
     videos: { entries: WritableSignal<VideoItem[]> };
     myVideoGrants: { entries: WritableSignal<VideoGrant[]> };
     mailSettings: WritableSignal<MailSettings>;
+    getVideoSeriesList: ReturnType<typeof vi.fn>;
   };
   let mockFirebaseState: {
-    user: WritableSignal<null>;
+    user: WritableSignal<{ isAdmin: boolean; member: { docId: string } } | null>;
+    isAdmin: () => boolean;
   };
   let mockRoutingService: {
     signals: {
@@ -81,10 +84,13 @@ describe('VideoViewComponent', () => {
         entries: signal<VideoGrant[]>([]),
       },
       mailSettings: signal(initMailSettings()),
+      getVideoSeriesList: vi.fn().mockReturnValue([]),
     };
 
+    const user = signal<{ isAdmin: boolean; member: { docId: string } } | null>(null);
     mockFirebaseState = {
-      user: signal(null),
+      user,
+      isAdmin: () => user()?.isAdmin ?? false,
     };
 
     mockRoutingService = {
@@ -95,7 +101,12 @@ describe('VideoViewComponent', () => {
           },
         },
       },
-      hrefForView: vi.fn().mockReturnValue('/videos/v100'),
+      hrefForView: vi.fn((view: string, params?: Record<string, string>) => {
+        if (view === Views.ManageVodVideo && params?.['videoId']) return `/manage-vod/video/${params['videoId']}`;
+        if (view === Views.ManageVodSeries && params?.['seriesId']) return `/manage-vod/series/${params['seriesId']}`;
+        if (params && params['videoId']) return `/videos/${params['videoId']}`;
+        return `/${view}`;
+      }),
     };
 
     mockStripeService = {
@@ -689,6 +700,136 @@ describe('VideoViewComponent', () => {
       await fixture.whenStable();
 
       expect(component.giftModalTarget()).toBe('video');
+    });
+  });
+
+  describe('Admin Video Menu', () => {
+    it('should not display admin menu button when current user is not an admin', async () => {
+      mockFirebaseState.user.set({ isAdmin: false, member: { docId: 'm1' } });
+      await component.ngOnInit();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const adminBtn = compiled.querySelector('.admin-menu-btn');
+      expect(adminBtn).toBeNull();
+    });
+
+    it('should display admin menu button when current user is an admin', async () => {
+      mockFirebaseState.user.set({ isAdmin: true, member: { docId: 'admin1' } });
+      await component.ngOnInit();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const adminBtn = compiled.querySelector('.admin-menu-btn');
+      expect(adminBtn).toBeTruthy();
+    });
+
+    it('should toggle admin dropdown menu and show Manage this video link', async () => {
+      mockFirebaseState.user.set({ isAdmin: true, member: { docId: 'admin1' } });
+      await component.ngOnInit();
+      fixture.detectChanges();
+
+      let compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('.admin-dropdown-menu')).toBeNull();
+
+      const adminBtn = compiled.querySelector('.admin-menu-btn') as HTMLButtonElement;
+      adminBtn.click();
+      fixture.detectChanges();
+
+      compiled = fixture.nativeElement as HTMLElement;
+      const dropdown = compiled.querySelector('.admin-dropdown-menu');
+      expect(dropdown).toBeTruthy();
+
+      const editVideoLink = dropdown?.querySelector('a[href="/manage-vod/video/v100"]');
+      expect(editVideoLink).toBeTruthy();
+      expect(editVideoLink?.textContent).toContain('Manage this video');
+    });
+
+    it('should show Manage this series option when video is part of a series', async () => {
+      mockFirebaseState.user.set({ isAdmin: true, member: { docId: 'admin1' } });
+
+      const seriesVideo = {
+        ...initVideoItem(),
+        docId: 'v100',
+        title: 'Mastering Zhong Xin Dao Part 1',
+        seriesId: 'series_xyz',
+        seriesTitle: 'Complete ZXD',
+        accessTier: VodAccessTier.Public,
+        vodStatus: VodStatus.Ready,
+        isPublished: true,
+        durationSeconds: 3600,
+        manifestUrl: 'https://example.com/vod/v100/master.m3u8',
+      };
+      mockDataService.getVideoById.mockResolvedValue(seriesVideo);
+      mockDataService.getVideoSeriesList.mockReturnValue([
+        {
+          seriesId: 'series_xyz',
+          title: 'Complete ZXD',
+          videos: [seriesVideo, { ...seriesVideo, docId: 'v101' }],
+        },
+      ]);
+      mockDataService.videos.entries.set([seriesVideo, { ...seriesVideo, docId: 'v101' }]);
+
+      await component.ngOnInit();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const adminBtn = compiled.querySelector('.admin-menu-btn') as HTMLButtonElement;
+      adminBtn.click();
+      fixture.detectChanges();
+
+      const dropdown = compiled.querySelector('.admin-dropdown-menu');
+      const editSeriesLink = dropdown?.querySelector('a[href="/manage-vod/series/series_xyz"]');
+      expect(editSeriesLink).toBeTruthy();
+      expect(editSeriesLink?.textContent).toContain('Manage this series');
+
+      // Also check series nav controls has quick admin edit series link
+      const seriesNavEditBtn = compiled.querySelector('.series-nav-controls .admin-button');
+      expect(seriesNavEditBtn).toBeTruthy();
+      expect(seriesNavEditBtn?.getAttribute('href')).toBe('/manage-vod/series/series_xyz');
+    });
+
+    it('should not show Manage this series option when video is not part of any series', async () => {
+      mockFirebaseState.user.set({ isAdmin: true, member: { docId: 'admin1' } });
+      await component.ngOnInit();
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const adminBtn = compiled.querySelector('.admin-menu-btn') as HTMLButtonElement;
+      adminBtn.click();
+      fixture.detectChanges();
+
+      const dropdown = compiled.querySelector('.admin-dropdown-menu');
+      expect(dropdown?.textContent).not.toContain('Manage this series');
+    });
+
+    it('should not render an in-page video title (the header shows it) for admins or others', async () => {
+      await component.ngOnInit();
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('h1')).toBeNull();
+      mockFirebaseState.user.set({ isAdmin: true, member: { docId: 'admin1' } });
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('h1')).toBeNull();
+    });
+
+    it('should hide the series-nav Manage series link from non-admins', async () => {
+      const seriesVideo = {
+        ...initVideoItem(),
+        docId: 'v100',
+        title: 'Part 1',
+        seriesId: 'series_xyz',
+        accessTier: VodAccessTier.Public,
+        vodStatus: VodStatus.Ready,
+        isPublished: true,
+      };
+      mockDataService.getVideoById.mockResolvedValue(seriesVideo);
+      mockDataService.videos.entries.set([seriesVideo, { ...seriesVideo, docId: 'v101' }]);
+      mockFirebaseState.user.set({ isAdmin: false, member: { docId: 'm1' } });
+      await component.ngOnInit();
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.series-nav-bar')).toBeTruthy();
+      expect(el.querySelector('.series-nav-controls .admin-button')).toBeNull();
     });
   });
 });

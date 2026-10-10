@@ -22,7 +22,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { InstructorPublicData } from '../../../functions/src/data-model/members';
-import { VideoItem, VideoSeries, groupVideosIntoSeries, VodAccessTier, VodStatus, VideoProgress, TagItem } from '../../../functions/src/data-model/vod';
+import { VideoItem, VideoSeries, groupVideosIntoSeries, VodAccessTier, VodStatus, VideoProgress, TagItem, isVideoGrantActive } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -144,6 +144,8 @@ export class VideosCatalogComponent {
     const grants = this.dataService.myVideoGrants.entries();
     const set = new Set<string>();
     for (const g of grants) {
+      // Expired grants no longer confer access (playback enforces this server-side too).
+      if (!isVideoGrantActive(g)) continue;
       if (g.videoId) set.add(g.videoId);
       if (g.docId) set.add(g.docId);
     }

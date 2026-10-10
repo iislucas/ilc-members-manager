@@ -5,6 +5,7 @@ import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { InstructorLicenseType, MasterLevel } from '../../../../functions/src/data-model/curriculum';
 import { Member, initMember, MembershipType } from '../../../../functions/src/data-model/members';
+import { normalizeEmails } from '../../../../functions/src/data-model/email';
 import * as Papa from 'papaparse';
 import {
   ParsedRow,
@@ -373,9 +374,7 @@ export class ImportMembersComponent {
 
         // Prevent removal of existing emails: merge with imported ones
         if (member.emails !== undefined) {
-          const mergedEmails = new Set(existing.emails || []);
-          member.emails.forEach(e => mergedEmails.add(e));
-          newMember.emails = Array.from(mergedEmails);
+          newMember.emails = normalizeEmails([...(existing.emails || []), ...member.emails]);
         }
 
         const diffs = getDifferences(newMember, existing);

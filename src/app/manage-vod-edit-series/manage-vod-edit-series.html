@@ -1,31 +1,4 @@
 <div class="manage-vod-edit-series-container">
-  <!-- Page Header -->
-  <div class="page-header">
-    <div class="header-nav">
-      <a class="subtle-button back-link" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
-        <app-icon name="arrow_back"></app-icon>
-        <span>Back to Manage VOD</span>
-      </a>
-      @if (series()) {
-        <button
-          type="button"
-          class="secondary-button view-grants-btn"
-          (click)="openViewGrantsModal()"
-          title="View who has purchased or been granted access to this series"
-        >
-          <app-icon name="group"></app-icon>
-          <span>Purchases &amp; Access</span>
-        </button>
-      }
-    </div>
-    <div class="header-titles">
-      <h2>Edit Video Series &amp; Parts</h2>
-      <p class="subtitle">
-        Configure series metadata, access tiers, single bundle purchase pricing, and episode sequence ordering.
-      </p>
-    </div>
-  </div>
-
   <!-- Messages -->
   @if (errorMessage()) {
     <div class="error-container">
@@ -46,12 +19,6 @@
           <p>{{ successMessage() }}</p>
         </div>
       </div>
-      <div class="banner-actions">
-        <a class="primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
-          <app-icon name="video_library"></app-icon>
-          <span>Return to Manage VOD</span>
-        </a>
-      </div>
     </div>
   }
 
@@ -66,7 +33,7 @@
       <app-icon name="collections" width="48px" height="48px"></app-icon>
       <h3>Series Not Found</h3>
       <p>Could not find a video series with ID <code>{{ seriesId() }}</code>.</p>
-      <a class="primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+      <a class="button primary-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
         <span>Go to Manage VOD</span>
       </a>
     </div>
@@ -204,8 +171,8 @@
         </div>
       </section>
 
-      <!-- Section 2: Episodes & Sequence Ordering -->
-      <section class="series-section">
+      <!-- Section 2: Episodes & Sequence Ordering (+ collapsible add-video panel) -->
+      <section class="series-section episodes-section">
         <div class="section-header">
           <app-icon name="video_library"></app-icon>
           <div>
@@ -218,7 +185,7 @@
           @if (seriesVideos().length === 0) {
             <div class="empty-episodes-notice">
               <app-icon name="info"></app-icon>
-              <p>There are currently no episodes in this series. Use the video selector below to add videos.</p>
+              <p>There are currently no episodes in this series. Use "Add a video" below to add videos.</p>
             </div>
           } @else {
             <div class="episodes-list">
@@ -265,6 +232,14 @@
                     >
                       <app-icon name="arrow_downward"></app-icon>
                     </button>
+                    <a
+                      class="icon-only-button edit-episode-link"
+                      [href]="getVideoEditHref(vid)"
+                      title="Edit this video (unsaved series changes will be lost)"
+                      aria-label="Edit this video"
+                    >
+                      <app-icon name="edit"></app-icon>
+                    </a>
                     @if (vid.vodStatus === 'ready') {
                       <a
                         class="icon-only-button play-link"
@@ -288,88 +263,98 @@
               }
             </div>
           }
-        </div>
-      </section>
 
-      <!-- Section 3: Add Video to Series -->
-      <section class="series-section add-video-section">
-        <div class="section-header">
-          <app-icon name="add"></app-icon>
-          <div>
-            <h3>Add Video to this Series</h3>
-            <p>
-              Search by title, instructor, or tags to add any standalone video or episode into this series.
-              Videos already in this series are excluded from suggestions.
-            </p>
-          </div>
-        </div>
-
-        <div class="section-body">
-          <!-- Upload Date Filter -->
-          <div class="upload-date-filter-row">
-            <div class="filter-item">
-              <label for="uploadDateFilter">Filter uploaded:</label>
-              <select
-                id="uploadDateFilter"
-                class="filter-select"
-                [ngModel]="uploadDateFilterOption()"
-                (ngModelChange)="setUploadDateFilterOption($event)"
-              >
-                <option value="1_month">Past month (Default)</option>
-                <option value="3_months">Past 3 months</option>
-                <option value="6_months">Past 6 months</option>
-                <option value="1_year">Past 1 year</option>
-                <option value="all">All time</option>
-                <option value="custom">Specific date...</option>
-              </select>
-            </div>
-            @if (uploadDateFilterOption() === 'custom') {
-              <div class="filter-item custom-date-item">
-                <label for="customUploadDate">Uploaded after:</label>
-                <input
-                  id="customUploadDate"
-                  type="date"
-                  class="filter-date-input"
-                  [ngModel]="customUploadDate()"
-                  (ngModelChange)="setCustomUploadDate($event)"
-                />
-              </div>
-            }
-            <span class="filter-count-badge">
-              {{ availableVideosCount() }} video{{ availableVideosCount() === 1 ? '' : 's' }} available
-            </span>
-          </div>
-
-          <div class="add-video-controls-row">
-            <div class="autocomplete-container">
-              <app-autocomplete
-                [searchableSet]="availableVideosForSeries"
-                [displayFns]="seriesAddVideoDisplayFns"
-                [inputBoxIsChip]="false"
-                [initSearchTerm]="addVideoSearchTerm()"
-                placeholder="Search by title, instructor name, tags, or docId..."
-                (itemSelected)="onVideoSelectedToAdd($event)"
-                (textUpdated)="onVideoSearchTextChange($event)"
-              ></app-autocomplete>
-            </div>
+          <div class="add-video-toggle-row">
             <button
               type="button"
-              class="primary-button add-btn"
-              [disabled]="!selectedVideoToAdd()"
-              (click)="addSelectedVideoToSeries()"
+              class="subtle-button add-video-toggle"
+              [attr.aria-expanded]="addVideoPanelOpen()"
+              aria-controls="add-video-panel"
+              (click)="toggleAddVideoPanel()"
             >
-              <app-icon name="add"></app-icon>
-              <span>Add to Series</span>
+              @if (addVideoPanelOpen()) {
+                <app-icon name="close"></app-icon>
+                <span>Done adding videos</span>
+              } @else {
+                <app-icon name="add"></app-icon>
+                <span>Add a video</span>
+              }
             </button>
           </div>
 
-          @if (selectedVideoToAdd(); as selected) {
-            <div class="selected-video-notice">
-              <app-icon name="check_circle"></app-icon>
-              <span class="notice-text">
-                Selected: <strong>{{ selected.title }}</strong> ({{ formatDuration(selected.durationSeconds) }})
-                &mdash; Click "Add to Series" to append as Part {{ seriesVideos().length + 1 }}.
-              </span>
+          @if (addVideoPanelOpen()) {
+            <div id="add-video-panel" class="add-video-panel">
+              <p class="add-video-hint">
+                Search by title, instructor, or tags to add any standalone video or episode into this series.
+                Videos already in this series are excluded from suggestions.
+              </p>
+              <!-- Upload Date Filter -->
+              <div class="upload-date-filter-row">
+                <div class="filter-item">
+                  <label for="uploadDateFilter">Filter uploaded:</label>
+                  <select
+                    id="uploadDateFilter"
+                    class="filter-select"
+                    [ngModel]="uploadDateFilterOption()"
+                    (ngModelChange)="setUploadDateFilterOption($event)"
+                  >
+                    <option value="1_month">Past month (Default)</option>
+                    <option value="3_months">Past 3 months</option>
+                    <option value="6_months">Past 6 months</option>
+                    <option value="1_year">Past 1 year</option>
+                    <option value="all">All time</option>
+                    <option value="custom">Specific date...</option>
+                  </select>
+                </div>
+                @if (uploadDateFilterOption() === 'custom') {
+                  <div class="filter-item custom-date-item">
+                    <label for="customUploadDate">Uploaded after:</label>
+                    <input
+                      id="customUploadDate"
+                      type="date"
+                      class="filter-date-input"
+                      [ngModel]="customUploadDate()"
+                      (ngModelChange)="setCustomUploadDate($event)"
+                    />
+                  </div>
+                }
+                <span class="filter-count-badge">
+                  {{ availableVideosCount() }} video{{ availableVideosCount() === 1 ? '' : 's' }} available
+                </span>
+              </div>
+
+              <div class="add-video-controls-row">
+                <div class="autocomplete-container">
+                  <app-autocomplete
+                    [searchableSet]="availableVideosForSeries"
+                    [displayFns]="seriesAddVideoDisplayFns"
+                    [inputBoxIsChip]="false"
+                    [initSearchTerm]="addVideoSearchTerm()"
+                    placeholder="Search by title, instructor name, tags, or docId..."
+                    (itemSelected)="onVideoSelectedToAdd($event)"
+                    (textUpdated)="onVideoSearchTextChange($event)"
+                  ></app-autocomplete>
+                </div>
+                <button
+                  type="button"
+                  class="primary-button add-btn"
+                  [disabled]="!selectedVideoToAdd()"
+                  (click)="addSelectedVideoToSeries()"
+                >
+                  <app-icon name="add"></app-icon>
+                  <span>Add to Series</span>
+                </button>
+              </div>
+
+              @if (selectedVideoToAdd(); as selected) {
+                <div class="selected-video-notice">
+                  <app-icon name="check_circle"></app-icon>
+                  <span class="notice-text">
+                    Selected: <strong>{{ selected.title }}</strong> ({{ formatDuration(selected.durationSeconds) }})
+                    &mdash; Click "Add to Series" to append as Part {{ seriesVideos().length + 1 }}.
+                  </span>
+                </div>
+              }
             </div>
           }
         </div>
@@ -383,9 +368,9 @@
           <button
             type="button"
             class="subtle-button"
-            (click)="cancel()"
+            (click)="discardChanges()"
           >
-            <span>Cancel</span>
+            <span>Discard Changes</span>
           </button>
           <button
             type="button"
@@ -400,11 +385,4 @@
     </div>
   }
 
-  <!-- Series Access & Purchases Modal -->
-  @if (viewingGrants() && series()) {
-    <app-series-grants-modal
-      [series]="series()"
-      (closed)="closeViewGrantsModal()"
-    ></app-series-grants-modal>
-  }
 </div>

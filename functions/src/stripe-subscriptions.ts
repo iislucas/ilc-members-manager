@@ -22,6 +22,7 @@ import {
   ResumeSubscriptionRenewalResult,
 } from './stripe-types';
 import { Member, MemberUpdates } from './data-model/members';
+import { normalizeEmail } from './data-model/email';
 
 export function getSubscriptionCurrentPeriodEnd(
   subscription: Stripe.Subscription,
@@ -62,7 +63,7 @@ async function verifySubscriptionOwnership(
   authEmail?: string,
 ): Promise<void> {
   if (authEmail) {
-    const aclDoc = await db.collection('acl').doc(authEmail.toLowerCase().trim()).get();
+    const aclDoc = await db.collection('acl').doc(normalizeEmail(authEmail)).get();
     if (aclDoc.exists && aclDoc.data()?.isAdmin === true) {
       return;
     }

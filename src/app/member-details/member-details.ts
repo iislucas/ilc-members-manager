@@ -32,6 +32,7 @@ import {
 } from '../../../functions/src/data-model/vod';
 import { NotificationKind } from '../../../functions/src/data-model/notifications';
 import { School } from '../../../functions/src/data-model/schools';
+import { normalizeEmails, emailListIncludes } from '../../../functions/src/data-model/email';
 import {
   form,
   FormField,
@@ -510,7 +511,7 @@ export class MemberDetailsComponent {
     const user = this.firebaseState.user();
     if (!user) return false;
     const emails = this.member().emails || [];
-    return user.isAdmin || emails.includes(user.firebaseUser.email || '');
+    return user.isAdmin || emailListIncludes(emails, user.firebaseUser.email);
   });
   userIsMemberSchoolManagerOrAdmin = computed(() => {
     const user = this.firebaseState.user();
@@ -519,7 +520,7 @@ export class MemberDetailsComponent {
     const member = this.member();
     const emails = member.emails || [];
     return (
-      emails.includes(user.firebaseUser.email || '') ||
+      emailListIncludes(emails, user.firebaseUser.email) ||
       (!!member.primarySchoolId &&
         user.schoolsManaged.includes(member.primarySchoolId)) ||
       (!!member.primarySchoolDocId &&
@@ -540,8 +541,7 @@ export class MemberDetailsComponent {
     if (!user || !currentMember) return false;
     if (currentMember.docId && user.member?.docId === currentMember.docId) return true;
     if (user.memberProfiles?.some((p) => p.docId === currentMember.docId)) return true;
-    const userEmail = user.firebaseUser?.email?.toLowerCase().trim();
-    if (userEmail && currentMember.emails?.some((e) => e.toLowerCase().trim() === userEmail)) return true;
+    if (emailListIncludes(currentMember.emails, user.firebaseUser?.email)) return true;
     return false;
   });
 
@@ -1364,10 +1364,8 @@ export class MemberDetailsComponent {
       // fields which don't use conventional two-way bindings.
       const member = {
         ...this.editableMember(),
-        emails: this.form
-          .emails()
-          .value()
-          .filter((e) => e.trim() !== ''),
+        // Emails are always stored normalised (trimmed, lower-cased, de-duplicated).
+        emails: normalizeEmails(this.form.emails().value()),
         tags: this.form
           .tags()
           .value()

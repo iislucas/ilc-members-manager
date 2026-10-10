@@ -1,4 +1,12 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+/* manage-vod-edit-series.ts
+ *
+ * Editable "Details" form for a VOD series: title/description, series-wide
+ * access tiers & bundle pricing, visibility, and episode membership/ordering.
+ * Embedded as the Details tab of the admin series page
+ * (/manage-vod/series/:seriesId?tab=details).
+ */
+
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Views } from '../app.config';
 import { RoutingService } from '../routing.service';
@@ -14,7 +22,6 @@ import {
   VodStatus,
 } from '../../../functions/src/data-model/vod';
 
-import { SeriesGrantsModalComponent } from '../series-grants-modal/series-grants-modal';
 
 @Component({
   selector: 'app-manage-vod-edit-series',
@@ -24,7 +31,6 @@ import { SeriesGrantsModalComponent } from '../series-grants-modal/series-grants
     IconComponent,
     SpinnerComponent,
     AutocompleteComponent,
-    SeriesGrantsModalComponent,
   ],
   templateUrl: './manage-vod-edit-series.html',
   styleUrl: './manage-vod-edit-series.scss',
@@ -37,8 +43,8 @@ export class ManageVodEditSeriesComponent {
   readonly VodAccessTier = VodAccessTier;
   readonly VodStatus = VodStatus;
 
-  private viewSignals = this.routingService.signals[Views.ManageVodEditSeries];
-  seriesId = computed(() => this.viewSignals.pathVars['seriesId']() || '');
+  /** Identifier of the series being edited. */
+  seriesId = input.required<string>();
 
   // Catalog data
   allSeries = computed(() => this.dataService.getVideoSeriesList());
@@ -63,6 +69,8 @@ export class ManageVodEditSeriesComponent {
   seriesVideos = signal<VideoItem[]>([]);
 
   // Search & Add Video
+  /** Whether the (collapsed-by-default) "Add a video" panel is unfolded. */
+  addVideoPanelOpen = signal<boolean>(false);
   selectedVideoToAdd = signal<VideoItem | null>(null);
   addVideoSearchTerm = signal<string>('');
   uploadDateFilterOption = signal<'1_month' | '3_months' | '6_months' | '1_year' | 'all' | 'custom'>('1_month');
@@ -82,17 +90,6 @@ export class ManageVodEditSeriesComponent {
   isSaving = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
-
-  // Series Grants & Purchases Modal
-  viewingGrants = signal<boolean>(false);
-
-  openViewGrantsModal(): void {
-    this.viewingGrants.set(true);
-  }
-
-  closeViewGrantsModal(): void {
-    this.viewingGrants.set(false);
-  }
 
   readonly freeAccessTierOptions = [
     { value: VodAccessTier.Public, label: 'Public', description: 'Free to everyone (visitors & unauthenticated)' },
@@ -132,6 +129,9 @@ export class ManageVodEditSeriesComponent {
       if (this.lastInitializedSeriesId() === s.seriesId) return;
 
       this.lastInitializedSeriesId.set(s.seriesId);
+      // Don't carry feedback over from a previously shown series.
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
       this.seriesTitle.set(s.title);
       this.seriesDescription.set(s.description || '');
       this.seriesPriceDollars.set(
@@ -154,6 +154,7 @@ export class ManageVodEditSeriesComponent {
       this.seriesVideos.set([...s.videos]);
       this.selectedVideoToAdd.set(null);
       this.addVideoSearchTerm.set('');
+      this.addVideoPanelOpen.set(false);
     });
 
     // Keep availableVideosForSeries up-to-date, excluding currently attached videos and applying upload date filter
@@ -235,6 +236,16 @@ export class ManageVodEditSeriesComponent {
     return tiers.includes(VodAccessTier.ClassVideoSubscribers);
   }
 
+  /** Fold/unfold the add-video panel. Folding clears any pending selection. */
+  toggleAddVideoPanel(): void {
+    const open = !this.addVideoPanelOpen();
+    this.addVideoPanelOpen.set(open);
+    if (!open) {
+      this.selectedVideoToAdd.set(null);
+      this.addVideoSearchTerm.set('');
+    }
+  }
+
   onVideoSelectedToAdd(video: VideoItem): void {
     this.selectedVideoToAdd.set(video);
   }
@@ -287,6 +298,15 @@ export class ManageVodEditSeriesComponent {
 
   getVideoHref(video: VideoItem): string {
     return this.routingService.hrefForView(Views.VideoView, { videoId: video.docId });
+  }
+
+  /** Link to the individual video's admin Details tab. */
+  getVideoEditHref(video: VideoItem): string {
+    return this.routingService.hrefForView(
+      Views.ManageVodVideo,
+      { videoId: video.docId },
+      { tab: 'details' },
+    );
   }
 
   formatDuration(seconds?: number): string {
@@ -357,8 +377,7 @@ export class ManageVodEditSeriesComponent {
         orderedIds,
       );
 
-      this.successMessage.set('Series updated successfully.');
-      this.routingService.navigateTo(this.routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' }));
+      this.successMessage.set('Series details saved.');
     } catch (err: unknown) {
       this.errorMessage.set(err instanceof Error ? err.message : String(err));
     } finally {
@@ -366,7 +385,10 @@ export class ManageVodEditSeriesComponent {
     }
   }
 
-  cancel(): void {
-    this.routingService.navigateTo(this.routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' }));
+  /** Discard unsaved edits by re-populating the form from the stored series. */
+  discardChanges(): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.lastInitializedSeriesId.set('');
   }
 }

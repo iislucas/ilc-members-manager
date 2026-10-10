@@ -13,10 +13,31 @@ export enum SearchMode {
   Term = 'term',
   Date = 'date',
 }
-type SearchField = 'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName' | 'memberDocId';
+type SearchField =
+  | 'orderId'
+  | 'docId'
+  | 'orderNumber'
+  | 'referenceNumber'
+  | 'id'
+  | 'customerEmail'
+  | 'email'
+  | 'lastName'
+  | 'billingAddress.lastName'
+  | 'memberDocId';
 
 const VALID_SEARCH_MODES: SearchMode[] = [SearchMode.Recent, SearchMode.Term, SearchMode.Date];
-const VALID_SEARCH_FIELDS: SearchField[] = ['orderNumber', 'referenceNumber', 'id', 'customerEmail', 'email', 'lastName', 'billingAddress.lastName', 'memberDocId'];
+const VALID_SEARCH_FIELDS: SearchField[] = [
+  'orderId',
+  'docId',
+  'orderNumber',
+  'referenceNumber',
+  'id',
+  'customerEmail',
+  'email',
+  'lastName',
+  'billingAddress.lastName',
+  'memberDocId',
+];
 
 function getOrderRank(order: Order): number {
   if (order.ilcAppOrderStatus === OrderStatus.Error) {
@@ -121,6 +142,7 @@ export class OrderList {
   constructor() {
     // Read URL params on init and trigger the appropriate search.
     effect(() => {
+      const urlOrderId = this.orderSignals.urlParams.orderId?.();
       const urlMode = this.orderSignals.urlParams.searchMode() as SearchMode;
       const urlField = this.orderSignals.urlParams.searchField() as SearchField;
       const urlQ = this.orderSignals.urlParams.q();
@@ -135,12 +157,18 @@ export class OrderList {
       if (this.initialised) return;
       this.initialised = true;
 
-      const mode: SearchMode = VALID_SEARCH_MODES.includes(urlMode as SearchMode) ? (urlMode as SearchMode) : SearchMode.Recent;
-      const field: SearchField = VALID_SEARCH_FIELDS.includes(urlField) ? urlField : 'email';
+      const effectiveTerm = urlQ || urlOrderId || '';
+      const hasTermQuery = Boolean(effectiveTerm);
+      const mode: SearchMode = VALID_SEARCH_MODES.includes(urlMode as SearchMode)
+        ? (urlMode as SearchMode)
+        : (hasTermQuery ? SearchMode.Term : SearchMode.Recent);
+      const field: SearchField = VALID_SEARCH_FIELDS.includes(urlField)
+        ? urlField
+        : (urlOrderId ? 'orderId' : 'email');
 
       this.searchMode.set(mode);
       this.searchField.set(field);
-      this.searchTerm.set(urlQ || '');
+      this.searchTerm.set(effectiveTerm);
       this.startDate.set(urlStart || '');
       this.endDate.set(urlEnd || '');
       this.sortField.set(urlSortBy || 'default');
@@ -148,7 +176,7 @@ export class OrderList {
       this.statusFilter.set(urlStatus || '');
       this.kindFilter.set(urlKind || '');
 
-      if (mode === SearchMode.Term && urlQ) {
+      if (mode === SearchMode.Term && effectiveTerm) {
         this.search();
       } else if (mode === SearchMode.Date && (urlStart || urlEnd)) {
         this.search();

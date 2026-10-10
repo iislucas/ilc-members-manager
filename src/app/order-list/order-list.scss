@@ -252,6 +252,14 @@
         white-space: nowrap;
       }
 
+      .order-doc-id {
+        font-family: monospace;
+        font-size: 0.72rem;
+        color: v.$text-secondary;
+        opacity: 0.8;
+        word-break: break-all;
+      }
+
       .kind-badge {
         font-size: 0.75rem;
         padding: 0.2rem 0.5rem;

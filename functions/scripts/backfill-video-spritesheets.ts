@@ -37,6 +37,7 @@ interface CliOptions {
   videoId: string;
   limit: number;
   force: boolean;
+  regeneratePoster: boolean;
   concurrency: number;
   videoConcurrency: number;
 }
@@ -48,6 +49,7 @@ function parseArgs(argv: string[]): CliOptions {
     videoId: '',
     limit: 0,
     force: false,
+    regeneratePoster: false,
     concurrency: 4,
     videoConcurrency: 3,
   };
@@ -58,6 +60,8 @@ function parseArgs(argv: string[]): CliOptions {
       options.dryRun = true;
     } else if (arg === '--force') {
       options.force = true;
+    } else if (arg === '--regeneratePoster' || arg === '--regenerate-poster') {
+      options.regeneratePoster = true;
     } else if (arg === '--project' && i + 1 < argv.length) {
       options.project = argv[i + 1]!;
       i += 1;
@@ -218,12 +222,13 @@ async function processVideo(
 
     await asyncPool(options.concurrency, timestamps, async (targetSec, index) => {
       const framePath = path.join(tmpDir, `frame_${String(index).padStart(2, '0')}.jpg`);
+      const vfFilter = 'scale=160:90:force_original_aspect_ratio=decrease,pad=160:90:(ow-iw)/2:(oh-ih)/2:color=black';
       try {
         await execFile(ffmpegBin, [
           '-ss', String(targetSec),
           '-i', videoUrl,
           '-vframes', '1',
-          '-s', '160x90',
+          '-vf', vfFilter,
           '-y', framePath,
           '-v', 'error',
         ], { timeout: 25000 });
@@ -234,7 +239,7 @@ async function processVideo(
             '-ss', String(Math.max(0, targetSec - 2)),
             '-i', videoUrl,
             '-vframes', '1',
-            '-s', '160x90',
+            '-vf', vfFilter,
             '-y', framePath,
             '-v', 'error',
           ], { timeout: 25000 });
@@ -321,6 +326,40 @@ async function processVideo(
       spriteHeight: 90,
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     };
+
+    if (options.regeneratePoster) {
+      console.log(`Extracting native aspect ratio poster thumbnail...`);
+      const posterPath = path.join(tmpDir, 'poster.jpg');
+      const posterSec = Math.min(Math.max(1, duration * 0.05), duration - 1);
+      // Scale longest dimension to 640 while strictly preserving native aspect ratio (-1)
+      await execFile(ffmpegBin, [
+        '-ss', String(posterSec),
+        '-i', videoUrl,
+        '-vframes', '1',
+        '-vf', 'scale=640:-1',
+        '-q:v', '2',
+        '-y', posterPath,
+        '-v', 'error',
+      ], { timeout: 25000 });
+
+      if (fs.existsSync(posterPath) && fs.statSync(posterPath).size > 0) {
+        const posterDestination = `vod/${video.docId}/poster.jpg`;
+        const posterToken = randomUUID();
+        await bucket.upload(posterPath, {
+          destination: posterDestination,
+          metadata: {
+            contentType: 'image/jpeg',
+            cacheControl: 'public, max-age=31536000',
+            metadata: {
+              firebaseStorageDownloadTokens: posterToken,
+            },
+          },
+        });
+        const newThumbnailUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(posterDestination)}?alt=media&token=${posterToken}`;
+        updateData['thumbnailUrl'] = newThumbnailUrl;
+        console.log(`✓ Uploaded native poster thumbnail: ${newThumbnailUrl}`);
+      }
+    }
 
     if (!video.durationSeconds && duration > 0) {
       updateData['durationSeconds'] = Math.round(duration);

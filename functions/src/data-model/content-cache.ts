@@ -11,6 +11,8 @@ import {
   vodPurchaseConfirmationBody,
   vodGiftReceivedSubject,
   vodGiftReceivedBody,
+  vodAccessGrantedSubject,
+  vodAccessGrantedBody,
   gradingPaymentConfirmationSubject,
   gradingPaymentConfirmationBody,
   subscriptionRenewalSubject,
@@ -178,6 +180,9 @@ export interface EmailTemplates {
   vodGiftReceivedSubject: string;
   vodGiftReceivedBody: string;
 
+  vodAccessGrantedSubject: string;
+  vodAccessGrantedBody: string;
+
   gradingPaymentConfirmationSubject: string;
   gradingPaymentConfirmationBody: string;
 
@@ -264,6 +269,15 @@ export function initEmailTemplates(): EmailTemplates {
       videoTitle: '{videoTitle}',
       videoUrl: '{videoUrl}',
       giftMessage: '{giftMessage}',
+      appBase: '{appBase}',
+    }),
+
+    vodAccessGrantedSubject: vodAccessGrantedSubject(),
+    vodAccessGrantedBody: vodAccessGrantedBody({
+      name: '{name}',
+      videoTitle: '{videoTitle}',
+      videoUrl: '{videoUrl}',
+      message: '{message}',
       appBase: '{appBase}',
     }),
 

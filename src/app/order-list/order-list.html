@@ -140,6 +140,7 @@
       @if (searchMode() === 'term') {
         <select [(ngModel)]="searchField" class="field-select">
           <option value="email">Member Email</option>
+          <option value="orderId">Order Doc ID</option>
           <option value="memberDocId">Member Doc ID</option>
           <option value="lastName">Member Last Name</option>
           <option value="customerEmail">Billing Email</option>
@@ -223,6 +224,7 @@
                   <div>{{ order.orderNumber }}</div>
                 } @else if (order.ilcAppOrderKind === OrderKind.Stripe) {
                   <div>{{ order.stripeOrderType }}</div>
+                  <div class="order-doc-id">{{ order.docId }}</div>
                 } @else {
                   <div>{{ order.referenceNumber }}</div>
                 }

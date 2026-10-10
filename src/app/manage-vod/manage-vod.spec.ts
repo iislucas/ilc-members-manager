@@ -61,16 +61,12 @@ describe('ManageVodComponent', () => {
           year: WritableSignal<string | null>;
           instructorId: WritableSignal<string | null>;
           videoId: WritableSignal<string | null>;
-          editVideoId: WritableSignal<string | null>;
-          grantVideoId: WritableSignal<string | null>;
-          grantSeriesId: WritableSignal<string | null>;
-          viewGrantsSeriesId: WritableSignal<string | null>;
-          editSeriesId: WritableSignal<string | null>;
           tab: WritableSignal<string | null>;
         };
       };
     };
     hrefForView: ReturnType<typeof vi.fn>;
+    navigateTo: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -193,16 +189,20 @@ describe('ManageVodComponent', () => {
             year: signal(null),
             instructorId: signal(null),
             videoId: signal(null),
-            editVideoId: signal(null),
-            grantVideoId: signal<string | null>(null),
-            grantSeriesId: signal<string | null>(null),
-            viewGrantsSeriesId: signal<string | null>(null),
-            editSeriesId: signal<string | null>(null),
             tab: signal<string | null>(null),
           },
         },
       },
-      hrefForView: vi.fn().mockReturnValue('/videos/v1'),
+      // Produces distinguishable hrefs per view, e.g.
+      // `/manageVodSeries?seriesId=series-1&tab=access`. Mirrors the real
+      // signature: hrefForView(view, pathVars?, urlParams?).
+      hrefForView: vi.fn(
+        (view: string, pathVars: Record<string, string> = {}, urlParams: Record<string, string> = {}) => {
+          const query = new URLSearchParams({ ...pathVars, ...urlParams }).toString();
+          return query ? `/${view}?${query}` : `/${view}`;
+        },
+      ),
+      navigateTo: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
@@ -323,68 +323,6 @@ describe('ManageVodComponent', () => {
     // Neither sampleSeries nor any of its episodes has 2024 (only v3 has 2024, not in series)
     component.setYearFilter('2024');
     expect(component.filteredSeries().length).toBe(0);
-  });
-
-  it('should edit and save recordedDate in edit modal', async () => {
-    const video = mockDataService.videos.entries()[0];
-    component.openEditModal(video);
-    expect(component.editRecordedDate()).toBe('2026-03-20');
-
-    component.editRecordedDate.set('2026-04-15');
-    await component.saveVideoChanges();
-
-    expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', expect.objectContaining({
-      recordedDate: '2026-04-15',
-    }));
-  });
-
-  it('should open and close edit modal with URL parameter sync', () => {
-    const video = mockDataService.videos.entries()[0];
-    component.openEditModal(video);
-    expect(component.editingVideo()).toBeTruthy();
-    expect(component.editingVideo()?.docId).toBe('v1');
-    expect(mockRoutingService.signals.manageVod.urlParams.editVideoId()).toBe('v1');
-
-    component.closeEditModal();
-    expect(component.editingVideo()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.editVideoId()).toBe('');
-  });
-
-  it('should auto-open edit modal when editVideoId URL param is present', () => {
-    mockRoutingService.signals.manageVod.urlParams.editVideoId.set('v2');
-    fixture.detectChanges();
-    expect(component.editingVideo()?.docId).toBe('v2');
-  });
-
-  it('should save edited video metadata using updateVideoMetadata and clear URL param', async () => {
-    const video = mockDataService.videos.entries()[0];
-    component.openEditModal(video);
-    expect(mockRoutingService.signals.manageVod.urlParams.editVideoId()).toBe('v1');
-
-    component.editTags.set(['spinning', 'form']);
-    component.editIsBuyable.set(true);
-    component.priceDollars.set(25.00);
-
-    await component.saveVideoChanges();
-    expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', expect.objectContaining({
-      tags: ['spinning', 'form'],
-      isBuyable: true,
-      priceCents: 2500,
-    }));
-    expect(component.editingVideo()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.editVideoId()).toBe('');
-  });
-
-  it('should toggle access tiers in edit modal', () => {
-    const video = mockDataService.videos.entries()[0];
-    component.openEditModal(video);
-
-    expect(component.isAccessTierSelected(VodAccessTier.Public)).toBe(true);
-    component.toggleAccessTier(VodAccessTier.InstructorsOnly);
-    expect(component.isAccessTierSelected(VodAccessTier.InstructorsOnly)).toBe(true);
-
-    component.toggleAccessTier(VodAccessTier.InstructorsOnly);
-    expect(component.isAccessTierSelected(VodAccessTier.InstructorsOnly)).toBe(false);
   });
 
   it('should format access tier summary correctly', () => {
@@ -575,32 +513,19 @@ describe('ManageVodComponent', () => {
     expect(dateEl?.textContent).not.toContain('Added');
   });
 
-  it('should open and close the grant modal for a video and sync URL params', () => {
-    const video = mockDataService.videos.entries()[0];
-    component.openGrantModal(video);
-    expect(component.grantingVideo()).toEqual(video);
-    expect(component.grantingSeries()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('v1');
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
+  it('should link grant actions to the dedicated grant pages', () => {
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const seriesGrant = compiled.querySelector<HTMLAnchorElement>(
+      '.series-manage-card a[href="/manageVodSeriesGrant?seriesId=series-1"]',
+    );
+    expect(seriesGrant?.textContent).toContain('Grant access');
 
-    component.closeGrantModal();
-    expect(component.grantingVideo()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
-  });
-
-  it('should open and close the grant modal for a series and sync URL params', () => {
-    const series = mockDataService.getVideoSeriesList()[0];
-    component.openGrantSeriesModal(series);
-    expect(component.grantingSeries()).toEqual(series);
-    expect(component.grantingVideo()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('series-1');
-    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
-
-    component.closeGrantModal();
-    expect(component.grantingSeries()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
-    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
+    component.setViewMode('all_videos');
+    component.toggleMenu('v1', new MouseEvent('click'));
+    fixture.detectChanges();
+    const videoGrant = compiled.querySelector<HTMLAnchorElement>('.actions-menu a[href="/manageVodVideoGrant?videoId=v1"]');
+    expect(videoGrant?.textContent).toContain('Grant access');
   });
 
   it('should default to series_collections viewMode and sync tab changes with URL', () => {
@@ -613,52 +538,6 @@ describe('ManageVodComponent', () => {
     component.setViewMode('series_collections');
     expect(component.viewMode()).toBe('series_collections');
     expect(mockRoutingService.signals.manageVod.urlParams.tab()).toBe('series_collections');
-  });
-
-  it('should open grant modal when grantVideoId URL param is present on deep link', async () => {
-    mockRoutingService.signals.manageVod.urlParams.grantVideoId.set('v2');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.grantingVideo()?.docId).toBe('v2');
-  });
-
-  it('should open grant modal when grantSeriesId URL param is present on deep link', async () => {
-    mockRoutingService.signals.manageVod.urlParams.grantSeriesId.set('series-1');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.grantingSeries()?.seriesId).toBe('series-1');
-  });
-
-  it('should open and close the view grants modal for a series and sync URL params', () => {
-    const series = component.allSeries()[0];
-    component.openViewGrantsModal(series);
-    expect(component.viewingGrantsSeries()).toEqual(series);
-    expect(mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId()).toBe(series.seriesId);
-
-    component.closeViewGrantsModal();
-    expect(component.viewingGrantsSeries()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId()).toBe('');
-  });
-
-  it('should open view grants modal when viewGrantsSeriesId URL param is present on deep link', async () => {
-    mockRoutingService.signals.manageVod.urlParams.viewGrantsSeriesId.set('series-1');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.viewingGrantsSeries()?.seriesId).toBe('series-1');
-  });
-
-  it('should transition from view grants modal to grant modal via onGrantRequestedFromViewGrants', () => {
-    const series = component.allSeries()[0];
-    component.openViewGrantsModal(series);
-    expect(component.viewingGrantsSeries()).toEqual(series);
-
-    component.onGrantRequestedFromViewGrants(series);
-    expect(component.viewingGrantsSeries()).toBeNull();
-    expect(component.grantingSeries()).toEqual(series);
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe(series.seriesId);
   });
 
   describe('Series Autocomplete Filter', () => {
@@ -741,175 +620,6 @@ describe('ManageVodComponent', () => {
 
       component.clearSeriesFilter();
       expect(component.filteredSeries().length).toBe(1);
-    });
-  });
-
-  describe('Edit Series Modal', () => {
-    it('should populate edit fields when openSeriesModal is called', () => {
-      const series = mockDataService.getVideoSeriesList()[0];
-      component.openSeriesModal(series);
-
-      expect(component.editingSeries()?.seriesId).toBe('series-1');
-      expect(component.editingSeriesTitle()).toBe('Sample Series 1');
-      expect(component.editingSeriesDescription()).toBe('A great series');
-      expect(component.editingSeriesVideos().length).toBe(2);
-      expect(component.isSeriesAccessTierSelected(VodAccessTier.MembersOnly)).toBe(true);
-    });
-
-    it('should call updateVideoSeries with trimmed values, access tiers, and close modal on saveSeriesChanges', async () => {
-      const series = mockDataService.getVideoSeriesList()[0];
-      component.openSeriesModal(series);
-
-      component.editingSeriesTitle.set('  Updated Series Title  ');
-      component.editingSeriesDescription.set('  Updated Description  ');
-      component.editingSeriesIsBuyable.set(true);
-      component.editingSeriesPriceDollars.set(29.99);
-      component.editingSeriesStripePriceId.set('price_series_1');
-      component.toggleSeriesAccessTier(VodAccessTier.InstructorsOnly);
-
-      // Also set series filter to this series
-      component.setSeriesFilter('series-1');
-
-      // Setup drawer video for one of the videos in series
-      component.drawerVideo.set({ ...series.videos[0] });
-
-      // When updateVideoSeries completes, mock updated video item returned by get()
-      const updatedV1 = { ...series.videos[0], seriesTitle: 'Updated Series Title' };
-      mockDataService.videos.get = vi.fn().mockReturnValue(updatedV1);
-
-      await component.saveSeriesChanges();
-
-      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
-        'series-1',
-        {
-          title: 'Updated Series Title',
-          description: 'Updated Description',
-          priceCents: 2999,
-          stripePriceId: 'price_series_1',
-          accessTier: VodAccessTier.InstructorsOnly,
-          accessTiers: [VodAccessTier.InstructorsOnly, VodAccessTier.DirectPurchase],
-          isPublished: true,
-        },
-        ['v1', 'v2'],
-      );
-
-      expect(component.editingSeries()).toBeNull();
-      expect(component.selectedSeriesFilter()).toBe('series-1');
-      expect(component.drawerVideo()?.seriesTitle).toBe('Updated Series Title');
-    });
-
-    it('should identify when an edited video is in a series and navigate to series edit', () => {
-      const videoInSeries: VideoItem = {
-        ...initVideoItem(),
-        docId: 'v-ep-1',
-        title: 'Episode 1',
-        seriesId: 'series-1',
-        seriesTitle: 'Sample Series 1',
-        seriesPartIndex: 1,
-      };
-
-      component.openEditModal(videoInSeries);
-      expect(component.editingVideoInSeries()).toBe(true);
-
-      component.openSeriesFromVideoEdit(videoInSeries);
-      expect(component.editingVideo()).toBeNull();
-      expect(component.editingSeries()?.seriesId).toBe('series-1');
-    });
-
-    it('should save episode metadata without stripePriceId undefined when video is in a series', async () => {
-      const videoInSeries: VideoItem = {
-        ...initVideoItem(),
-        docId: 'v-ep-2',
-        title: 'Episode 2',
-        seriesId: 'series-1',
-        seriesTitle: 'Sample Series 1',
-        seriesPartIndex: 2,
-        isPublished: true,
-      };
-
-      component.openEditModal(videoInSeries);
-      component.editingVideo.update((v) => v ? { ...v, title: 'Episode 2 - Updated' } : null);
-
-      await component.saveVideoChanges();
-
-      expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v-ep-2', expect.objectContaining({
-        title: 'Episode 2 - Updated',
-        seriesId: 'series-1',
-      }));
-      const lastCallArg = (mockDataService.updateVideoMetadata as ReturnType<typeof vi.fn>).mock.calls.at(-1)[1];
-      expect('stripePriceId' in lastCallArg).toBe(false);
-      expect('priceCents' in lastCallArg).toBe(false);
-    });
-
-    it('should sync editSeriesId in URL parameters when opening and closing series modal', () => {
-      const s = mockDataService.getVideoSeriesList()[0];
-      component.openSeriesModal(s);
-      expect(mockRoutingService.signals.manageVod.urlParams.editSeriesId()).toBe('series-1');
-
-      component.closeSeriesModal();
-      expect(mockRoutingService.signals.manageVod.urlParams.editSeriesId()).toBe('');
-      expect(component.editingSeries()).toBeNull();
-    });
-
-    it('should auto-open series modal when editSeriesId URL param is present on deep link', async () => {
-      mockRoutingService.signals.manageVod.urlParams.editSeriesId.set('series-1');
-      TestBed.flushEffects();
-
-      expect(component.editingSeries()).toBeTruthy();
-      expect(component.editingSeries()?.seriesId).toBe('series-1');
-      expect(component.editingSeriesVideos().length).toBe(2);
-    });
-
-    it('should populate availableVideosForSeries excluding current series episodes', () => {
-      const s = mockDataService.getVideoSeriesList()[0]; // has v1, v2
-      component.openSeriesModal(s);
-      TestBed.flushEffects();
-
-      const available = component.availableVideosForSeries.entries();
-      // v3 is in mockVideos (total 3 videos), so v1 and v2 should be excluded, v3 available
-      expect(available.some((v) => v.docId === 'v1')).toBe(false);
-      expect(available.some((v) => v.docId === 'v2')).toBe(false);
-      expect(available.some((v) => v.docId === 'v3')).toBe(true);
-    });
-
-    it('should add video to series using autocomplete selection and addSelectedVideoToSeries', async () => {
-      const s = mockDataService.getVideoSeriesList()[0]; // has v1, v2
-      component.openSeriesModal(s);
-      TestBed.flushEffects();
-
-      const videoToAdd = mockDataService.videos.entries().find((v) => v.docId === 'v3')!;
-      component.onVideoSelectedToAdd(videoToAdd);
-      expect(component.selectedVideoToAdd()?.docId).toBe('v3');
-
-      component.addSelectedVideoToSeries();
-      expect(component.editingSeriesVideos().map((v) => v.docId)).toEqual(['v1', 'v2', 'v3']);
-      expect(component.selectedVideoToAdd()).toBeNull();
-      expect(component.addVideoSearchTerm()).toBe('');
-
-      // Saving should persist all 3 videos
-      await component.saveSeriesChanges();
-      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
-        'series-1',
-        expect.any(Object),
-        ['v1', 'v2', 'v3'],
-      );
-    });
-
-    it('should remove video from series using removeSeriesVideo', async () => {
-      const s = mockDataService.getVideoSeriesList()[0]; // has v1, v2
-      component.openSeriesModal(s);
-
-      // Remove the first video (v1)
-      component.removeSeriesVideo(0);
-      expect(component.editingSeriesVideos().map((v) => v.docId)).toEqual(['v2']);
-
-      // Saving should persist only v2
-      await component.saveSeriesChanges();
-      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
-        'series-1',
-        expect.any(Object),
-        ['v2'],
-      );
     });
   });
 
@@ -1018,62 +728,6 @@ describe('ManageVodComponent', () => {
       const row2PubPill = tableRows[2].querySelector('.published-pill');
       expect(row2PubPill?.textContent?.trim()).toBe('Listed');
     });
-
-    it('should display "Who can view it for free" heading in Edit Series and Edit Video modals', () => {
-      const series = mockDataService.getVideoSeriesList()[0];
-      component.openSeriesModal(series);
-      fixture.detectChanges();
-      let compiled = fixture.nativeElement as HTMLElement;
-      expect(compiled.textContent).toContain('Who can view it for free');
-
-      component.closeSeriesModal();
-      const video = mockDataService.videos.entries()[0];
-      component.openEditModal(video);
-      fixture.detectChanges();
-      compiled = fixture.nativeElement as HTMLElement;
-      expect(compiled.textContent).toContain('Who can view it for free');
-    });
-
-    it('should save series with updated free access tier and separate class subscription', async () => {
-      const series = mockDataService.getVideoSeriesList()[0];
-      component.openSeriesModal(series);
-
-      component.editingSeriesFreeAccessTier.set(VodAccessTier.Public);
-      component.editingSeriesHasClassSub.set(true);
-      component.editingSeriesIsBuyable.set(false);
-
-      await component.saveSeriesChanges();
-
-      expect(mockDataService.updateVideoSeries).toHaveBeenCalledWith(
-        'series-1',
-        expect.objectContaining({
-          accessTier: VodAccessTier.Public,
-          accessTiers: [VodAccessTier.Public, VodAccessTier.ClassVideoSubscribers],
-        }),
-        ['v1', 'v2'],
-      );
-    });
-
-    it('should save standalone video with updated free access tier and separate class subscription', async () => {
-      const video = mockDataService.videos.entries()[1]; // v2
-      component.openEditModal(video);
-
-      component.editFreeAccessTier.set(VodAccessTier.InstructorsOnly);
-      component.editHasClassSub.set(true);
-
-      await component.saveVideoChanges();
-
-      expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith(
-        'v2',
-        expect.objectContaining({
-          accessTier: VodAccessTier.InstructorsOnly,
-          accessTiers: expect.arrayContaining([
-            VodAccessTier.InstructorsOnly,
-            VodAccessTier.ClassVideoSubscribers,
-          ]),
-        }),
-      );
-    });
   });
 
   describe('Listing and Access Search & Filter Options', () => {
@@ -1172,6 +826,74 @@ describe('ManageVodComponent', () => {
         thumbnailUrl: 'https://storage.googleapis.com/thumb_new.jpg',
       });
       expect(component.thumbnailModalVideo()).toBeNull();
+    });
+  });
+
+  describe('Links to dedicated video & series pages', () => {
+    it('should render series card links to the series overview, details and access tabs', () => {
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      const seriesCard = compiled.querySelector('.series-manage-card');
+      expect(seriesCard).toBeTruthy();
+
+      const titleLink = seriesCard?.querySelector('.series-title-row h4 a.inline-link-button');
+      expect(titleLink?.getAttribute('href')).toBe('/manageVodSeries?seriesId=series-1&tab=overview');
+      expect(titleLink?.textContent?.trim()).toBe('Sample Series 1');
+
+      const actionLinks = Array.from(
+        seriesCard?.querySelectorAll<HTMLAnchorElement>('.series-actions-col a') ?? [],
+      );
+      const editLink = actionLinks.find((a) => a.textContent?.includes('Edit Series'));
+      const accessLink = actionLinks.find((a) => a.textContent?.includes('Who has access'));
+      expect(editLink?.getAttribute('href')).toBe('/manageVodSeries?seriesId=series-1&tab=details');
+      expect(accessLink?.getAttribute('href')).toBe('/manageVodSeries?seriesId=series-1&tab=access');
+    });
+
+    it('should link episode edit icons to the video page details tab', () => {
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      const episodeLinks = Array.from(
+        compiled.querySelectorAll<HTMLAnchorElement>('.episode-actions a[title^="Edit episode"]'),
+      );
+      expect(episodeLinks.map((a) => a.getAttribute('href'))).toEqual([
+        '/manageVodVideo?videoId=v1&tab=details',
+        '/manageVodVideo?videoId=v2&tab=details',
+      ]);
+    });
+
+    it('should link video titles to the video overview and the actions menu to details and access tabs', () => {
+      component.setViewMode('all_videos');
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+
+      const titleLinks = Array.from(
+        compiled.querySelectorAll<HTMLAnchorElement>('.vod-table a.video-title'),
+      );
+      expect(titleLinks.map((a) => a.getAttribute('href'))).toContain('/manageVodVideo?videoId=v1&tab=overview');
+
+      component.activeMenuVideoId.set('v1');
+      fixture.detectChanges();
+      const menuLinks = Array.from(
+        compiled.querySelectorAll<HTMLAnchorElement>('.actions-menu a.menu-item'),
+      ).map((a) => a.getAttribute('href'));
+      expect(menuLinks).toContain('/manageVodVideo?videoId=v1&tab=details');
+      expect(menuLinks).toContain('/manageVodVideo?videoId=v1&tab=access');
+    });
+
+    it('should not open the drawer when the video title link is clicked', () => {
+      component.setViewMode('all_videos');
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      const titleLink = compiled.querySelector<HTMLAnchorElement>('.vod-table a.video-title');
+      expect(titleLink).toBeTruthy();
+      // Prevent jsdom from attempting navigation.
+      titleLink?.addEventListener('click', (e) => e.preventDefault());
+      titleLink?.click();
+      expect(component.drawerVideo()).toBeNull();
+
+      const metaCell = compiled.querySelector<HTMLElement>('.vod-table td.meta-cell .video-sub-row');
+      metaCell?.click();
+      expect(component.drawerVideo()).toBeTruthy();
     });
   });
 });

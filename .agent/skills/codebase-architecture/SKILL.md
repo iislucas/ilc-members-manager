@@ -44,7 +44,11 @@ to the relevant files instead of re-exploring.
 | Dedicated Class Video Library Page (`/class-video-library`) | [src/app/class-video-library/](../../src/app/class-video-library/) |
 | Video Playback & Trailer Preview Page (`/videos/:videoId`) | [src/app/video-view/](../../src/app/video-view/) |
 | Modern HLS Player + Controls + Offline Storage | [src/app/video-player/](../../src/app/video-player/), [src/app/vod-offline-storage.service.ts](../../src/app/vod-offline-storage.service.ts) |
-| Admin VOD Curation (`/manage-vod`) | [src/app/manage-vod/](../../src/app/manage-vod/) |
+| Admin VOD Curation list (`/manage-vod`) | [src/app/manage-vod/](../../src/app/manage-vod/) |
+| Admin page for one video (`/manage-vod/video/:videoId?tab=overview\|access\|details`) | [src/app/manage-vod-video-page/](../../src/app/manage-vod-video-page/) (Details tab embeds [manage-vod-edit-video](../../src/app/manage-vod-edit-video/)) |
+| Admin page for one series (`/manage-vod/series/:seriesId?tab=overview\|access\|details`) | [src/app/manage-vod-series-page/](../../src/app/manage-vod-series-page/) (Details tab embeds [manage-vod-edit-series](../../src/app/manage-vod-edit-series/)) |
+| "Who has access" panel (grants list, revoke) for a video or series | [src/app/vod-access-list/](../../src/app/vod-access-list/) |
+| Admin grant page (`/manage-vod/video/:videoId/grant`, `/manage-vod/series/:seriesId/grant`): one "admin grant" kind, optional editable notification, any-email recipients | [src/app/manage-vod-grant-page/](../../src/app/manage-vod-grant-page/) + [grant-vod-form](../../src/app/grant-vod-form/) → [functions/src/vod/grant-video.ts](../../functions/src/vod/grant-video.ts) |
 | Stripe Product & Price Sync Tool (`pnpm sync:video-products`) | [functions/scripts/sync-video-stripe-products.ts](../../functions/scripts/sync-video-stripe-products.ts) |
 
 ### Associations between concepts
@@ -96,6 +100,7 @@ Firestore collections and their TypeScript types (organized modularly in [functi
 - **Typed Mutation Accumulators**: Type update payloads with `Partial<DomainType>` (e.g. `Partial<EventRegistration>` or `MemberUpdates`) and use dot-property notation rather than loose string brackets.
 - `docId` is never stored inside the Firestore document — it's added on read from `doc.id`.
 - `lastUpdated` is stored as a Firestore `Timestamp` but converted to ISO string on read.
+- **Emails are stored lowercase** (trimmed; lists de-duplicated): always write/key/query emails via `normalizeEmail()` / `normalizeEmails()` from [`data-model/email.ts`](../../functions/src/data-model/email.ts), and compare with `emailsMatch()` / `emailListIncludes()` or `request.auth.token.email.lower()` in rules. See [docs/email-normalisation.md](../../docs/email-normalisation.md).
 
 ### Grading type key fields
 ```typescript
@@ -237,7 +242,7 @@ All seeded Auth accounts use password `testpassword123`:
 
 **3. Timestamp deserialization** — `firebase-admin` exports Firestore Timestamps as `{_seconds, _nanoseconds}` plain objects in JSON. The seed script restores these to proper `admin.firestore.Timestamp` instances before writing, so `firestoreDocToXxx()` converters work. If you see `RangeError: Invalid time value` from `firestoreDocToMember`, this is why.
 
-**4. Email case-sensitivity** — `checkEmailStatus` and `getUserDetails` normalize emails to lowercase. ACL document IDs must therefore be lowercase. The export script produces all email-based IDs as `member-{memberId.toLowerCase()}@example.com`.
+**4. Email case-sensitivity** — **Invariant: emails are stored lowercase (trimmed); compare with `normalizeEmail()` ([functions/src/data-model/email.ts](../../functions/src/data-model/email.ts)) in code and `request.auth.token.email.lower()` in rules.** ACL document IDs are the normalised email. Use `normalizeEmail`/`normalizeEmails` whenever you write an email to Firestore or use one as a key/query value. Rules still also accept the raw token email until the `normalize-emails` backfill has run in production. Full details, backfill and deploy order: [docs/email-normalisation.md](../../docs/email-normalisation.md). The export script produces all email-based IDs as `member-{memberId.toLowerCase()}@example.com`.
 
 **5. `onMemberCreated` crash in emulator** — the trigger fires when the seed script writes member docs, but crashes with `TypeError: Cannot read properties of undefined (reading 'arrayUnion')`. This is a pre-existing functions emulator issue (FieldValue not available in the emulator environment). It doesn't affect seeded data since the ACL is seeded separately. Not blocking for development.
 

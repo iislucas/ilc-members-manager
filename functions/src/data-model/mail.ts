@@ -54,6 +54,8 @@ export enum TransactionalEmailKey {
   EventRegistrationConfirmation = 'eventRegistrationConfirmation',
   VodPurchaseConfirmation = 'vodPurchaseConfirmation',
   VodGiftReceived = 'vodGiftReceived',
+  // Sent when an admin grants video access and chooses to notify the recipient.
+  VodAccessGranted = 'vodAccessGranted',
   GradingPaymentConfirmation = 'gradingPaymentConfirmation',
   SubscriptionRenewal = 'subscriptionRenewal',
   EventDigestOverall = 'eventDigestOverall',
@@ -112,6 +114,7 @@ export const ALL_TRANSACTIONAL_EMAIL_KEYS: TransactionalEmailKey[] = [
   TransactionalEmailKey.EventRegistrationConfirmation,
   TransactionalEmailKey.VodPurchaseConfirmation,
   TransactionalEmailKey.VodGiftReceived,
+  TransactionalEmailKey.VodAccessGranted,
   TransactionalEmailKey.GradingPaymentConfirmation,
   TransactionalEmailKey.SubscriptionRenewal,
   TransactionalEmailKey.EventDigestOverall,

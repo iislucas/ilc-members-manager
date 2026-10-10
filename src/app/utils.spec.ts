@@ -156,6 +156,11 @@ More details at the mini-site: [**Master Hsin C's workshop on Structure, Relaxat
       expect(res).toEqual({ w: 640, h: 480 });
     });
 
+    it('should scale ultra-wide 8:3 (1920x720) video preserving aspect ratio', () => {
+      const res = fitWithin(1920, 720, 640);
+      expect(res).toEqual({ w: 640, h: 240 });
+    });
+
     it('should handle zero or negative dimensions safely', () => {
       const res = fitWithin(0, 0, 1280);
       expect(res).toEqual({ w: 1280, h: 720 });
@@ -175,6 +180,7 @@ More details at the mini-site: [**Master Hsin C's workshop on Structure, Relaxat
 
     it('should return decimal ratio for non-standard aspect ratios', () => {
       expect(getAspectRatioLabel(1000, 400)).toBe('2.50:1');
+      expect(getAspectRatioLabel(1920, 720)).toBe('2.67:1');
     });
   });
 });

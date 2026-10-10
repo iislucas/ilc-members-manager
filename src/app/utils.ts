@@ -398,12 +398,30 @@ export async function generateVideoSpriteSheet(
       throw new Error('Failed to acquire 2D canvas context for sprite sheet.');
     }
 
+    const nativeWidth = video.videoWidth || 1920;
+    const nativeHeight = video.videoHeight || 1080;
+
     let posterBlob: Blob | undefined;
     const posterCanvas = options.includePoster !== false ? document.createElement('canvas') : null;
     if (posterCanvas) {
-      posterCanvas.width = options.posterWidth ?? 640;
-      posterCanvas.height = options.posterHeight ?? 360;
+      const maxPosterDim = options.posterWidth ?? 640;
+      const { w, h } = fitWithin(nativeWidth, nativeHeight, maxPosterDim);
+      posterCanvas.width = w;
+      posterCanvas.height = h;
     }
+
+    // Compute letterboxed/fitted frame rect within frameWidth x frameHeight to avoid stretching
+    const frameFit = fitWithin(nativeWidth, nativeHeight, Math.max(frameWidth, frameHeight));
+    // Scale frameFit down if either dimension exceeds frame cell
+    const cellScale = Math.min(1, frameWidth / frameFit.w, frameHeight / frameFit.h);
+    const drawW = Math.max(1, Math.round(frameFit.w * cellScale));
+    const drawH = Math.max(1, Math.round(frameFit.h * cellScale));
+    const offsetX = Math.round((frameWidth - drawW) / 2);
+    const offsetY = Math.round((frameHeight - drawH) / 2);
+
+    // Clear sprite canvas background to dark neutral
+    ctx.fillStyle = '#09090b';
+    ctx.fillRect(0, 0, spriteCanvas.width, spriteCanvas.height);
 
     // Helper to seek and wait for seeked event with a safety timeout
     const seekTo = (targetSec: number): Promise<void> => {
@@ -438,7 +456,13 @@ export async function generateVideoSpriteSheet(
 
       const col = i % columns;
       const row = Math.floor(i / columns);
-      ctx.drawImage(video, col * frameWidth, row * frameHeight, frameWidth, frameHeight);
+      ctx.drawImage(
+        video,
+        col * frameWidth + offsetX,
+        row * frameHeight + offsetY,
+        drawW,
+        drawH,
+      );
 
       // Grab poster around ~5% into video or on first frame
       if (posterCanvas && !posterBlob && (i === 0 || targetTime >= duration * 0.05)) {

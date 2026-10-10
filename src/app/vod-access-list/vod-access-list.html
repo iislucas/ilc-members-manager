@@ -1,35 +1,6 @@
-<!-- series-grants-modal.html -->
-<div class="modal-backdrop" (click)="close()">
-  <div class="modal-dialog grants-modal-dialog" (click)="$event.stopPropagation()">
-    <!-- Modal Header -->
-    <div class="modal-header">
-      <div class="header-title-group">
-        <app-icon name="group" class="header-icon"></app-icon>
-        <div class="title-details">
-          <h3>Series Access &amp; Purchases</h3>
-          <p class="subtitle">
-            <span class="series-name">{{ series()?.title }}</span>
-            <span class="dot-sep">&bull;</span>
-            <span>{{ series()?.videoCount || series()?.videos?.length || 0 }} Videos</span>
-            @if (series()?.priceCents && series()?.priceCents! > 0) {
-              <span class="dot-sep">&bull;</span>
-              <span class="bundle-price">${{ (series()?.priceCents! / 100).toFixed(2) }} Bundle</span>
-            }
-          </p>
-        </div>
-      </div>
-      <button
-        type="button"
-        class="icon-only-button close-btn"
-        (click)="close()"
-        title="Close dialog"
-      >
-        <app-icon name="close"></app-icon>
-      </button>
-    </div>
-
-    <!-- Modal Body -->
-    <div class="modal-body">
+<!-- vod-access-list.html -->
+<div class="vod-access-list">
+    <div class="access-body">
       @if (errorMessage()) {
         <div class="alert-banner error-banner">
           <app-icon name="error"></app-icon>
@@ -62,7 +33,7 @@
         </div>
         <div class="stat-card highlight-scope">
           <div class="stat-number">{{ summaryStats().fullSeriesCount }}</div>
-          <div class="stat-label">Full Series Access</div>
+          <div class="stat-label">{{ isVideoMode() ? 'Via Whole Series' : 'Full Series Access' }}</div>
         </div>
       </div>
 
@@ -99,11 +70,10 @@
               <option [value]="VideoGrantKind.StripePurchase">Purchased</option>
               <option [value]="VideoGrantKind.GiftPurchase">Gifted</option>
               <option [value]="VideoGrantKind.AdminGrant">Admin Grant</option>
-              <option [value]="VideoGrantKind.Complimentary">Complimentary</option>
-              <option [value]="VideoGrantKind.EventAttendance">Event Attendee</option>
             </select>
           </div>
 
+          @if (!isVideoMode()) {
           <div class="filter-item">
             <label>Scope:</label>
             <select
@@ -115,6 +85,7 @@
               <option value="partial">Partial Episodes Only</option>
             </select>
           </div>
+          }
         </div>
 
         <div class="toolbar-actions">
@@ -134,15 +105,14 @@
             }
           </button>
 
-          <button
-            type="button"
-            class="primary-btn grant-btn"
-            (click)="openGrantModal()"
-            title="Grant or gift this series to another person"
+          <a
+            class="button primary-button"
+            [href]="grantHref()"
+            [title]="isVideoMode() ? 'Grant someone access to this video' : 'Grant someone access to this series'"
           >
             <app-icon name="card_giftcard"></app-icon>
-            <span>+ Grant / Gift</span>
-          </button>
+            <span>Grant access</span>
+          </a>
         </div>
       </div>
 
@@ -161,22 +131,18 @@
             <button
               type="button"
               class="secondary-btn"
-              (click)="searchTerm.set(''); grantKindFilter.set('all'); accessScopeFilter.set('all')"
+              (click)="clearFilters()"
             >
               Clear Filters
             </button>
           } @else {
             <app-icon name="group" class="empty-icon"></app-icon>
             <h4>No access records found</h4>
-            <p>No one has purchased, been gifted, or been granted access to this series yet.</p>
-            <button
-              type="button"
-              class="primary-btn"
-              (click)="openGrantModal()"
-            >
+            <p>No one has purchased, been gifted, or been granted access to this {{ isVideoMode() ? 'video' : 'series' }} yet.</p>
+            <a class="button primary-button" [href]="grantHref()">
               <app-icon name="card_giftcard"></app-icon>
-              <span>Grant Access Now</span>
-            </button>
+              <span>Grant access</span>
+            </a>
           }
         </div>
       } @else {
@@ -186,7 +152,7 @@
             <thead>
               <tr>
                 <th class="col-recipient">Recipient</th>
-                <th class="col-scope">Series Access</th>
+                <th class="col-scope">{{ isVideoMode() ? 'Access Via' : 'Series Access' }}</th>
                 <th class="col-origin">Origin / Details</th>
                 <th class="col-date">Granted / Purchased</th>
                 <th class="col-actions">Actions</th>
@@ -228,7 +194,18 @@
 
                   <!-- Scope column -->
                   <td class="col-scope">
-                    @if (r.hasFullSeries) {
+                    @if (isVideoMode()) {
+                      @if (r.viaSeriesGrant) {
+                        <span class="scope-pill full-access" title="Has access through a grant on the whole series">
+                          <app-icon name="collections"></app-icon>
+                          <span>Whole series</span>
+                        </span>
+                      } @else {
+                        <span class="scope-pill partial-access" title="Has access to this video only">
+                          <span>This video</span>
+                        </span>
+                      }
+                    } @else if (r.hasFullSeries) {
                       <span class="scope-pill full-access" title="Has access to all videos in this series">
                         <app-icon name="check_circle"></app-icon>
                         <span>Full Series ({{ r.totalSeriesVideoCount }} Videos)</span>
@@ -277,9 +254,9 @@
                       @if (r.orderDocId) {
                         <a
                           class="order-link"
-                          [href]="routingService.hrefForView(Views.ManageOrders, { q: r.orderDocId, searchField: 'orderId' })"
+                          [href]="routingService.hrefForView(Views.OrderView, { orderId: r.orderDocId })"
                           target="_blank"
-                          title="View order in Manage Orders"
+                          title="Open this order"
                         >
                           <app-icon name="receipt_long"></app-icon>
                           <span>Order Details</span>
@@ -293,8 +270,8 @@
                       }
 
                       @if (r.expiresAt) {
-                        <div class="expiry-note">
-                          Expires: {{ formatDate(r.expiresAt) }}
+                        <div class="expiry-note" [class.expired]="!isActive(r)">
+                          {{ isActive(r) ? 'Expires' : 'Expired' }}: {{ formatDate(r.expiresAt) }}
                         </div>
                       }
                     </div>
@@ -318,14 +295,24 @@
                           <app-icon name="person"></app-icon>
                         </a>
                       }
-                      <button
-                        type="button"
-                        class="icon-action-btn revoke-btn"
-                        (click)="promptRevoke(r)"
-                        title="Revoke access to this series for this recipient"
-                      >
-                        <app-icon name="delete"></app-icon>
-                      </button>
+                      @if (revocableGrants(r).length > 0) {
+                        <button
+                          type="button"
+                          class="icon-action-btn revoke-btn"
+                          (click)="promptRevoke(r)"
+                          [title]="isVideoMode() ? 'Revoke this recipient\'s access to this video' : 'Revoke access to this series for this recipient'"
+                        >
+                          <app-icon name="delete"></app-icon>
+                        </button>
+                      } @else if (target()?.seriesId; as seriesId) {
+                        <a
+                          class="icon-action-btn series-access-link"
+                          [href]="routingService.hrefForView(Views.ManageVodSeries, { seriesId }, { tab: 'access' })"
+                          title="Access comes from the whole series; manage it on the series page"
+                        >
+                          <app-icon name="collections"></app-icon>
+                        </a>
+                      }
                     </div>
                   </td>
                 </tr>
@@ -336,16 +323,9 @@
       }
     </div>
 
-    <!-- Modal Footer -->
-    <div class="modal-footer">
-      <div class="footer-info">
-        <span>Showing {{ filteredRecipients().length }} of {{ recipients().length }} recipients</span>
-      </div>
-      <button type="button" class="secondary-btn" (click)="close()">
-        Close
-      </button>
+    <div class="access-footer">
+      Showing {{ filteredRecipients().length }} of {{ recipients().length }} recipients
     </div>
-  </div>
 </div>
 
 <!-- Revoke Confirmation Dialog -->
@@ -354,16 +334,21 @@
     <div class="revoke-dialog card" (click)="$event.stopPropagation()">
       <div class="revoke-header">
         <app-icon name="warning" class="warning-icon"></app-icon>
-        <h4>Revoke Series Access?</h4>
+        <h4>Revoke Access?</h4>
       </div>
       <p class="revoke-message">
-        Are you sure you want to revoke access to <strong>{{ series()?.title }}</strong> for
+        Are you sure you want to revoke access to <strong>{{ targetTitle() }}</strong> for
         <strong>{{ revokeConfirmRecipient()?.memberName }}</strong>
         ({{ revokeConfirmRecipient()?.memberEmail }})?
       </p>
-      <p class="revoke-subtext">
-        This will remove {{ revokeConfirmRecipient()?.grants?.length }} access grant(s) for this series.
-      </p>
+      @if (revokeConfirmRecipient(); as rc) {
+        <p class="revoke-subtext">
+          This will remove {{ revocableGrants(rc).length }} access grant(s).
+          @if (isVideoMode() && rc.viaSeriesGrant) {
+            Their whole-series access is kept; revoke that from the series page.
+          }
+        </p>
+      }
       <div class="revoke-actions">
         <button
           type="button"
@@ -388,3 +373,4 @@
     </div>
   </div>
 }
+

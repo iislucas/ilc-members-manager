@@ -16,8 +16,9 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins, getMemberByEmail, hasActiveMembership, isActiveInstructor } from '../common';
+import { normalizeEmail } from '../data-model/email';
 import { Member } from '../data-model/members';
-import { VideoItem, VodAccessTier, VodStatus, firestoreDocToVideoItem } from '../data-model/vod';
+import { VideoItem, VodAccessTier, VodStatus, firestoreDocToVideoItem, isVideoGrantActive } from '../data-model/vod';
 
 export interface GetPlaybackSessionRequest {
   videoId: string;
@@ -117,7 +118,7 @@ export const getVideoPlaybackSession = onCall(
       };
     }
 
-    const email = request.auth.token.email.toLowerCase();
+    const email = normalizeEmail(request.auth.token.email);
 
     // 4. Check if admin (admins have access to all videos)
     const aclDoc = await db.collection('acl').doc(email).get();
@@ -159,8 +160,7 @@ export const getVideoPlaybackSession = onCall(
         const grantSnap = await grantRef.get();
         if (grantSnap.exists) {
           const grantData = grantSnap.data();
-          const expiresAt = grantData?.expiresAt;
-          if (!expiresAt || new Date(expiresAt) >= new Date()) {
+          if (isVideoGrantActive({ expiresAt: grantData?.expiresAt })) {
             return {
               authorized: true,
               manifestUrl: video.manifestUrl,
@@ -182,24 +182,24 @@ export const getVideoPlaybackSession = onCall(
         .collection('video_grants')
         .where('videoId', '==', targetId)
         .where('memberEmail', '==', email)
-        .limit(1)
         .get();
 
-      if (!globalGrantsQuery.empty) {
-        const grantData = globalGrantsQuery.docs[0].data();
-        const expiresAt = grantData?.expiresAt;
-        if (!expiresAt || new Date(expiresAt) >= new Date()) {
-          return {
-            authorized: true,
-            manifestUrl: video.manifestUrl,
-            title: video.title,
-            durationSeconds: video.durationSeconds,
-            seriesId: video.seriesId || undefined,
-            seriesTitle: video.seriesTitle || undefined,
-            trailerVideoId: video.trailerVideoId || undefined,
-            trailerManifestUrl,
-          };
-        }
+      // A person can have more than one global grant for the same target
+      // (e.g. keyed by member id and by email); any active one authorizes.
+      const hasActiveGrant = globalGrantsQuery.docs.some((d) =>
+        isVideoGrantActive({ expiresAt: d.data()?.expiresAt }),
+      );
+      if (hasActiveGrant) {
+        return {
+          authorized: true,
+          manifestUrl: video.manifestUrl,
+          title: video.title,
+          durationSeconds: video.durationSeconds,
+          seriesId: video.seriesId || undefined,
+          seriesTitle: video.seriesTitle || undefined,
+          trailerVideoId: video.trailerVideoId || undefined,
+          trailerManifestUrl,
+        };
       }
     }
 

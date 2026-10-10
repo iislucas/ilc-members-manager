@@ -13,6 +13,7 @@ import { resolveCountryCode, resolveCountryName } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder, lookupMembersByEmail } from './infer-member';
+import { normalizeEmails } from '../data-model/email';
 
 export interface LifeMembershipInfo {
   member: MembershipPurchaseInfo;
@@ -109,7 +110,7 @@ export async function processNewLifeMember(
     memberId: newMemberId,
     name: pInfo.name,
     country: pInfo.country,
-    emails: pInfo.email ? [pInfo.email] : [],
+    emails: normalizeEmails([pInfo.email]),
     dateOfBirth: pInfo.dateOfBirth,
     membershipType: MembershipType.Life,
     firstMembershipStarted: orderDate,

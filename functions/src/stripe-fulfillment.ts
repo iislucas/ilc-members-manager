@@ -35,6 +35,7 @@ import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from '
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
 import { getMemberByEmail } from './common';
+import { normalizeEmail, normalizeEmails, emailListIncludes } from './data-model/email';
 import { environment } from './environment/environment.js';
 import { sendTransactionalEmail } from './email-dispatcher.js';
 import { TransactionalEmailKey } from './data-model/mail';
@@ -117,7 +118,7 @@ export async function resolveMemberForStripeOrder(
   }
 
   // 3. Lookup by customerEmail in ACL / members
-  const email = order.customerEmail?.toLowerCase().trim();
+  const email = normalizeEmail(order.customerEmail);
   if (email) {
     const aclDoc = await db.collection('acl').doc(email).get();
     if (aclDoc.exists) {
@@ -617,7 +618,7 @@ export async function fulfillSpouseLifeMembership(
   orderDocId: string,
   primaryMember: Member,
 ): Promise<string | null> {
-  const spouseEmail = (order.metadata?.['spouseEmail'] || '').trim().toLowerCase();
+  const spouseEmail = normalizeEmail(order.metadata?.['spouseEmail']);
   const spouseName = (order.metadata?.['spouseName'] || '').trim();
   const spouseDob = (order.metadata?.['spouseDob'] || '').trim();
   const spouseCountry = (
@@ -710,8 +711,8 @@ export async function fulfillSpouseLifeMembership(
     if (spouseDob && !spouseData.dateOfBirth) {
       updates.dateOfBirth = spouseDob;
     }
-    if (spouseEmail && !(spouseData.emails || []).map((e) => e.toLowerCase()).includes(spouseEmail)) {
-      updates.emails = [...(spouseData.emails || []), spouseEmail];
+    if (spouseEmail && !emailListIncludes(spouseData.emails, spouseEmail)) {
+      updates.emails = normalizeEmails([...(spouseData.emails || []), spouseEmail]);
     }
 
     // Auto-assign member ID if existing member does not have one
@@ -818,7 +819,7 @@ export async function fulfillEventRegistration(
   const attendance = (order.metadata?.['attendance'] || AttendanceType.InPerson) as AttendanceType;
   const hasVideoAccess = order.metadata?.['includeVideo'] === 'true' || attendance === AttendanceType.VideoOnly;
   const name = order.metadata?.['attendeeName'] || order.customerName || '';
-  const email = order.metadata?.['attendeeEmail'] || order.customerEmail || '';
+  const email = normalizeEmail(order.metadata?.['attendeeEmail'] || order.customerEmail);
   const phone = order.metadata?.['attendeePhone'] || '';
   const notes = order.metadata?.['attendeeNotes'] || '';
   const amountPaidCents = order.amountTotal || 0;
@@ -1425,7 +1426,7 @@ export async function fulfillStripeOrder(
         ownerMemberDocId: member.docId,
         ownerInstructorId: member.instructorId || '',
         managerInstructorIds: [],
-        ownerEmails: member.emails && member.emails.length > 0 ? member.emails : [],
+        ownerEmails: normalizeEmails(member.emails),
         managerEmails: [],
         schoolLicenseRenewalDate: orderDate,
         schoolLicenseExpires: newExpires,
@@ -1511,11 +1512,11 @@ export async function fulfillStripeOrder(
       }
 
       const isGift = order.metadata?.['isGift'] === 'true';
-      const recipientEmail = (order.metadata?.['recipientEmail'] || '').trim().toLowerCase();
+      const recipientEmail = normalizeEmail(order.metadata?.['recipientEmail']);
       const recipientName = (order.metadata?.['recipientName'] || '').trim();
       const giftMessage = (order.metadata?.['giftMessage'] || '').trim();
       const buyerName = member.name || order.customerName || 'A friend';
-      const buyerEmail = member.emails?.[0] || order.customerEmail || '';
+      const buyerEmail = normalizeEmail(member.emails?.[0] || order.customerEmail);
 
       let recipientMember: Member | null = null;
       if (isGift && recipientEmail) {
@@ -1528,7 +1529,13 @@ export async function fulfillStripeOrder(
 
       for (const targetId of grantTargetIds) {
         const targetMemberDocId = isGift ? (recipientMember?.docId || '') : member.docId;
-        const targetEmail = isGift ? recipientEmail : (member.emails?.[0] || order.customerEmail || '');
+        const targetEmail = isGift ? recipientEmail : normalizeEmail(member.emails?.[0] || order.customerEmail);
+
+        // When fulfilling a series bundle with constituent episodes, only attribute the full purchase amount
+        // to the primary purchased target (the series ID, or the standalone videoId). Constituent episode grants
+        // provisioned as part of the series bundle should have amountPaidCents: 0 so prices are not multiplied.
+        const isPrimaryTarget = seriesId ? targetId === seriesId : targetId === videoId;
+        const grantAmountPaidCents = isPrimaryTarget ? (item.amountTotal || order.amountTotal || 0) : 0;
 
         const grant: VideoGrant = {
           docId: targetId,
@@ -1538,7 +1545,7 @@ export async function fulfillStripeOrder(
           grantKind: isGift ? VideoGrantKind.GiftPurchase : VideoGrantKind.StripePurchase,
           orderDocId,
           stripeSessionId: order.checkoutSessionId,
-          amountPaidCents: item.amountTotal || order.amountTotal || 0,
+          amountPaidCents: grantAmountPaidCents,
           grantedAt: new Date().toISOString(),
           ...(isGift
             ? {
