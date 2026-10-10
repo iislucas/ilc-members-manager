@@ -1530,6 +1530,12 @@ export async function fulfillStripeOrder(
         const targetMemberDocId = isGift ? (recipientMember?.docId || '') : member.docId;
         const targetEmail = isGift ? recipientEmail : (member.emails?.[0] || order.customerEmail || '');
 
+        // When fulfilling a series bundle with constituent episodes, only attribute the full purchase amount
+        // to the primary purchased target (the series ID, or the standalone videoId). Constituent episode grants
+        // provisioned as part of the series bundle should have amountPaidCents: 0 so prices are not multiplied.
+        const isPrimaryTarget = seriesId ? targetId === seriesId : targetId === videoId;
+        const grantAmountPaidCents = isPrimaryTarget ? (item.amountTotal || order.amountTotal || 0) : 0;
+
         const grant: VideoGrant = {
           docId: targetId,
           videoId: targetId,
@@ -1538,7 +1544,7 @@ export async function fulfillStripeOrder(
           grantKind: isGift ? VideoGrantKind.GiftPurchase : VideoGrantKind.StripePurchase,
           orderDocId,
           stripeSessionId: order.checkoutSessionId,
-          amountPaidCents: item.amountTotal || order.amountTotal || 0,
+          amountPaidCents: grantAmountPaidCents,
           grantedAt: new Date().toISOString(),
           ...(isGift
             ? {

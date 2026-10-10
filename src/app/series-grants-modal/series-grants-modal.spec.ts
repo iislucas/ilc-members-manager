@@ -261,4 +261,38 @@ describe('SeriesGrantsModalComponent', () => {
     // Charlie should be removed from rawGrants
     expect(component.rawGrants().length).toBe(2);
   });
+
+  it('should deduplicate amountPaidCents across multiple bundled grants sharing the same order', () => {
+    // When a recipient has multiple grants (series + constituent episodes) all stamped with order amount
+    component.rawGrants.set([
+      {
+        ...initVideoGrant('series_spin', 'mem_1'),
+        memberEmail: 'alice@example.com',
+        grantKind: VideoGrantKind.StripePurchase,
+        amountPaidCents: 4999,
+        orderDocId: 'order_bundle_1',
+        grantedAt: '2026-09-20T10:00:00Z',
+      },
+      {
+        ...initVideoGrant('vid_1', 'mem_1'),
+        memberEmail: 'alice@example.com',
+        grantKind: VideoGrantKind.StripePurchase,
+        amountPaidCents: 4999,
+        orderDocId: 'order_bundle_1',
+        grantedAt: '2026-09-20T10:00:01Z',
+      },
+      {
+        ...initVideoGrant('vid_2', 'mem_1'),
+        memberEmail: 'alice@example.com',
+        grantKind: VideoGrantKind.StripePurchase,
+        amountPaidCents: 4999,
+        orderDocId: 'order_bundle_1',
+        grantedAt: '2026-09-20T10:00:02Z',
+      },
+    ]);
+
+    const recipients = component.recipients();
+    expect(recipients.length).toBe(1);
+    expect(recipients[0].amountPaidCents).toBe(4999);
+  });
 });
