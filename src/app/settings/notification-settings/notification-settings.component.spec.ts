@@ -220,6 +220,43 @@ describe('NotificationSettingsComponent', () => {
     );
   });
 
+  it('should toggle VodAccessGranted email preference independently of VodGiftReceived', async () => {
+    fixture.detectChanges();
+    const dataManager = TestBed.inject(DataManagerService);
+
+    expect(
+      component.isEmailKindEnabled(TransactionalEmailKey.VodAccessGranted),
+    ).toBe(true);
+
+    await component.toggleEmailKind(
+      TransactionalEmailKey.VodAccessGranted,
+      false,
+    );
+    expect(dataManager.updateMember).toHaveBeenCalledWith(
+      'member-123',
+      expect.objectContaining({
+        notificationSettings: expect.objectContaining({
+          emailEnabled: expect.objectContaining({
+            [TransactionalEmailKey.VodAccessGranted]: false,
+          }),
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('should map video notification kinds to their own email keys', () => {
+    expect(
+      component.getTransactionalEmailKeyForKind(NotificationKind.VideoAccessGranted),
+    ).toBe(TransactionalEmailKey.VodAccessGranted);
+    expect(
+      component.getTransactionalEmailKeyForKind(NotificationKind.VideoGiftReceived),
+    ).toBe(TransactionalEmailKey.VodGiftReceived);
+    expect(component.getEmailCategory(TransactionalEmailKey.VodAccessGranted)).toBe(
+      EmailCategory.Purchases,
+    );
+  });
+
   it('should toggle category-level email preferences and respect them in isEmailKindEnabled', async () => {
     fixture.detectChanges();
     const dataManager = TestBed.inject(DataManagerService);

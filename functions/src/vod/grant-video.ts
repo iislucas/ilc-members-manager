@@ -1,7 +1,16 @@
 /* grant-video.ts
  *
  * Admin-only Callable Cloud Function to grant access to a video or video series
- * to a member or email address.
+ * to a member or any email address (the recipient need not have a member
+ * record; playback finds the grant in the global video_grants collection by
+ * email).
+ *
+ * Every grant written here is a VideoGrantKind.AdminGrant. Paid member-to-member
+ * gifts are a separate Stripe flow (VideoGrantKind.GiftPurchase).
+ *
+ * When `sendNotification` is not false, the recipient is notified with an
+ * admin-authored message: in-app (only if they have a member record) and by
+ * the `vodAccessGranted` transactional email (unless that email is turned Off).
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -9,7 +18,14 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
 import { FirestoreCollection, FirestoreSubcollection } from '../data-model/collections';
-import { VideoGrant, VideoGrantKind, firestoreDocToVideoItem } from '../data-model/vod';
+import {
+  GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH,
+  GrantVideoAccessRequest,
+  GrantVideoAccessResponse,
+  VideoGrant,
+  VideoGrantKind,
+  firestoreDocToVideoItem,
+} from '../data-model/vod';
 import { NotificationKind } from '../data-model/notifications';
 import { createMemberNotification } from '../notifications';
 import { Member } from '../data-model/members';
@@ -17,28 +33,9 @@ import { sendTransactionalEmail } from '../email-dispatcher';
 import { environment } from '../environment/environment';
 import { MailSettings, MailSendingStatus, TransactionalEmailKey, resolveNotificationStatus } from '../data-model/mail';
 
-export interface GrantVideoAccessRequest {
-  targetType: 'video' | 'series';
-  targetId: string;
-  recipientEmail: string;
-  recipientMemberDocId?: string;
-  recipientName?: string;
-  grantKind?: VideoGrantKind;
-  notes?: string;
-  expiresAt?: string;
-  sendNotification?: boolean;
-}
-
-export interface GrantVideoAccessResponse {
-  success: boolean;
-  grantedCount: number;
-  recipientEmail: string;
-  recipientMemberDocId?: string;
-}
-
 export const grantVideoAccess = onCall(
   { cors: allowedOrigins },
-  async (request) => {
+  async (request): Promise<GrantVideoAccessResponse> => {
     await assertAdmin(request);
 
     const data = request.data as GrantVideoAccessRequest;
@@ -51,9 +48,19 @@ export const grantVideoAccess = onCall(
       throw new HttpsError('invalid-argument', 'A valid recipient email is required.');
     }
 
+    const sendNotification = data.sendNotification !== false;
+    // The recipient-facing message is ignored when not notifying.
+    const customMessage = sendNotification ? (data.notificationMessage || '').trim() : '';
+    if (customMessage.length > GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH) {
+      throw new HttpsError(
+        'invalid-argument',
+        `The notification message must be at most ${GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH} characters.`,
+      );
+    }
+
     const db = admin.firestore();
 
-    // Resolve caller admin info
+    // Resolve caller admin's member record (for grantedByMemberDocId).
     const callerEmail = request.auth?.token.email?.toLowerCase();
     let adminMember: Member | null = null;
     if (callerEmail) {
@@ -63,7 +70,6 @@ export const grantVideoAccess = onCall(
         // Continue if admin lookup fails
       }
     }
-    const adminName = adminMember?.name || 'Administrator';
     const adminMemberDocId = adminMember?.docId || '';
 
     // Resolve recipient member if possible
@@ -84,22 +90,6 @@ export const grantVideoAccess = onCall(
 
     const recipientMemberDocId = recipientMember?.docId || data.recipientMemberDocId || '';
 
-    // Check mail settings status: if OFF, only allow granting to existing member accounts
-    const mailSettingsSnap = await db.doc('system/mail-settings').get();
-    const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
-    const mailStatus: MailSendingStatus = resolveNotificationStatus(
-      mailSettings,
-      TransactionalEmailKey.VodGiftReceived,
-    );
-
-    if (mailStatus === MailSendingStatus.Off && !recipientMember) {
-      throw new HttpsError(
-        'failed-precondition',
-        'Email notifications are currently turned off. Access can only be granted to existing member accounts.',
-      );
-    }
-
-    const grantKind = data.grantKind || VideoGrantKind.AdminGrant;
     const nowIso = new Date().toISOString();
 
     const targetDocIds = new Set<string>();
@@ -144,11 +134,8 @@ export const grantVideoAccess = onCall(
         videoId: targetId,
         memberDocId: recipientMemberDocId,
         memberEmail: recipientEmail,
-        grantKind,
+        grantKind: VideoGrantKind.AdminGrant,
         grantedByMemberDocId: adminMemberDocId || undefined,
-        giftedByMemberDocId: adminMemberDocId || undefined,
-        giftedByName: adminName,
-        giftedByEmail: callerEmail || undefined,
         notes: data.notes || undefined,
         expiresAt: data.expiresAt || undefined,
         grantedAt: nowIso,
@@ -174,72 +161,64 @@ export const grantVideoAccess = onCall(
       grantedCount++;
     }
 
-    const sendNotification = data.sendNotification !== false;
+    let notifiedInApp = false;
+    let emailSent = false;
 
-    if (sendNotification && recipientMemberDocId) {
-      const kindLabel = grantKind === VideoGrantKind.Complimentary
-        ? 'complimentary access'
-        : grantKind === VideoGrantKind.GiftPurchase
-        ? 'gifted access'
-        : 'access';
-
+    if (sendNotification) {
+      const message = customMessage || `You've been given access to **${contentTitle}**.`;
       const watchLink = data.targetType === 'video'
         ? `/videos/${data.targetId}`
         : `/videos?series=${data.targetId}`;
 
-      const notesSnippet = data.notes ? `\n\n> "${data.notes}"` : '';
-      const icon = grantKind === VideoGrantKind.GiftPurchase ? '🎁' : '🎬';
-
-      await createMemberNotification(db, recipientMemberDocId, {
-        kind: NotificationKind.VideoAccessGranted,
-        markdown: `${icon} You have been granted ${kindLabel} to [**${contentTitle}**](${watchLink})!${notesSnippet}`,
-        createdAt: nowIso,
-        dismissed: false,
-        data: {
-          videoId: data.targetType === 'video' ? data.targetId : undefined,
-          seriesId: data.targetType === 'series' ? data.targetId : undefined,
-          title: contentTitle,
-          grantKind,
-          giftedByName: adminName,
-          giftMessage: data.notes || undefined,
-          videoUrl: watchLink,
-        },
-      });
-    }
-
-    // Send transactional email notification to recipient if notifications enabled
-    // Note: sendTransactionalEmail checks user opt-out preferences and global email settings
-    if (sendNotification && recipientEmail) {
-      try {
-        const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
-        const watchUrl = data.targetType === 'video'
-          ? `${appBase}/videos/${data.targetId}`
-          : `${appBase}/videos?series=${data.targetId}`;
-
-        await sendTransactionalEmail(db, {
-          to: recipientEmail,
-          templateKey: TransactionalEmailKey.VodGiftReceived,
-          replacements: {
-            name: recipientMember?.name || data.recipientName || 'ILC Member',
-            giverName: adminName,
-            videoTitle: contentTitle,
-            videoUrl: watchUrl,
-            giftMessage: data.notes || (
-              grantKind === VideoGrantKind.GiftPurchase
-                ? 'Enjoy your video gift!'
-                : grantKind === VideoGrantKind.Complimentary
-                ? 'Complimentary access has been granted to your account.'
-                : 'Access has been granted to your account.'
-            ),
-            appBase,
+      if (recipientMember) {
+        await createMemberNotification(db, recipientMember.docId, {
+          kind: NotificationKind.VideoAccessGranted,
+          // The admin writes the whole message (presets carry their own emoji), so no prefix is added.
+          markdown: `${message}\n\n[Watch now](${watchLink})`,
+          createdAt: nowIso,
+          dismissed: false,
+          data: {
+            videoId: data.targetType === 'video' ? data.targetId : undefined,
+            seriesId: data.targetType === 'series' ? data.targetId : undefined,
+            title: contentTitle,
+            grantKind: VideoGrantKind.AdminGrant,
+            videoUrl: watchLink,
           },
         });
-      } catch (emailErr) {
-        logger.error('Failed to send vodGiftReceived email notification for grant', {
-          emailErr,
-          recipientEmail,
-          targetId: data.targetId,
-        });
+        notifiedInApp = true;
+      }
+
+      // sendTransactionalEmail additionally applies per-member opt-outs and
+      // the Paused status; here we only skip when the email kind is Off.
+      const mailSettingsSnap = await db.doc('system/mail-settings').get();
+      const mailSettings = mailSettingsSnap.exists ? (mailSettingsSnap.data() as MailSettings) : undefined;
+      const mailStatus: MailSendingStatus = resolveNotificationStatus(
+        mailSettings,
+        TransactionalEmailKey.VodAccessGranted,
+      );
+
+      if (mailStatus !== MailSendingStatus.Off) {
+        try {
+          const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
+          await sendTransactionalEmail(db, {
+            to: recipientEmail,
+            templateKey: TransactionalEmailKey.VodAccessGranted,
+            replacements: {
+              name: recipientMember?.name || data.recipientName || 'ILC Member',
+              videoTitle: contentTitle,
+              videoUrl: `${appBase}${watchLink}`,
+              message,
+              appBase,
+            },
+          });
+          emailSent = true;
+        } catch (emailErr) {
+          logger.error('Failed to send vodAccessGranted email notification for grant', {
+            emailErr,
+            recipientEmail,
+            targetId: data.targetId,
+          });
+        }
       }
     }
 
@@ -250,6 +229,8 @@ export const grantVideoAccess = onCall(
       targetType: data.targetType,
       targetId: data.targetId,
       grantedCount,
+      notifiedInApp,
+      emailSent,
     });
 
     return {
@@ -257,6 +238,8 @@ export const grantVideoAccess = onCall(
       grantedCount,
       recipientEmail,
       recipientMemberDocId: recipientMemberDocId || undefined,
+      notifiedInApp,
+      emailSent,
     };
   },
 );

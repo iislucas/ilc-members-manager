@@ -39,7 +39,7 @@ import {
 
 export type TemplateCategory = 'settings' | 'test' | 'onboarding' | 'purchases' | 'gradings' | 'digest' | 'logs';
 export type OnboardingSubtype = 'member' | 'instructor';
-export type PurchaseSubtype = 'order' | 'event' | 'vod' | 'vod-gift' | 'grading' | 'subscription';
+export type PurchaseSubtype = 'order' | 'event' | 'vod' | 'vod-gift' | 'vod-access' | 'grading' | 'subscription';
 export type GradingSubtype = 'request' | 'accepted' | 'declined' | 'passed' | 'not-passed';
 export type TestEmailType = 'ping' | 'welcome' | 'order' | 'digest' | 'grading';
 
@@ -66,6 +66,7 @@ export interface TestEmailReplacements {
   videoUrl: string;
   giverName: string;
   giftMessage: string;
+  message: string;
   studentName: string;
   instructorName: string;
   notes: string;
@@ -90,7 +91,7 @@ export const DEFAULT_PING_BODY =
 
 const VALID_CATEGORIES: TemplateCategory[] = ['settings', 'test', 'onboarding', 'purchases', 'gradings', 'digest', 'logs'];
 const VALID_ONBOARDING_SUBTYPES: OnboardingSubtype[] = ['member', 'instructor'];
-const VALID_PURCHASE_SUBTYPES: PurchaseSubtype[] = ['order', 'event', 'vod', 'vod-gift', 'grading', 'subscription'];
+const VALID_PURCHASE_SUBTYPES: PurchaseSubtype[] = ['order', 'event', 'vod', 'vod-gift', 'vod-access', 'grading', 'subscription'];
 const VALID_GRADING_SUBTYPES: GradingSubtype[] = ['request', 'accepted', 'declined', 'passed', 'not-passed'];
 
 export interface NotificationControlItem {
@@ -164,6 +165,12 @@ export const NOTIFICATION_CONTROL_GROUPS: NotificationControlGroup[] = [
         key: TransactionalEmailKey.VodGiftReceived,
         label: 'VOD Gift Received',
         description: 'Sent to gift recipients with a direct link to access gifted video content.',
+        category: 'purchases',
+      },
+      {
+        key: TransactionalEmailKey.VodAccessGranted,
+        label: 'VOD Access Granted (Admin)',
+        description: 'Sent when an admin grants video access and chooses to notify the recipient.',
         category: 'purchases',
       },
       {
@@ -362,6 +369,14 @@ export class EmailNotificationsComponent {
     { token: '{appBase}', description: 'Application base URL' },
   ];
 
+  readonly vodAccessChips: EditorChip[] = [
+    { token: '{name}', description: "Recipient's full name" },
+    { token: '{videoTitle}', description: 'Title of the video or series' },
+    { token: '{videoUrl}', description: 'Direct link to watch video' },
+    { token: '{message}', description: 'Message written by the granting admin' },
+    { token: '{appBase}', description: 'Application base URL' },
+  ];
+
   readonly gradingChips: EditorChip[] = [
     { token: '{name}', description: "Student's full name" },
     { token: '{memberId}', description: "Student's Member ID" },
@@ -490,6 +505,9 @@ export class EmailNotificationsComponent {
   );
   vodGiftBodyWarnings = computed(() =>
     findUnsupportedEmailMarkdown(this.templates().vodGiftReceivedBody || '')
+  );
+  vodAccessBodyWarnings = computed(() =>
+    findUnsupportedEmailMarkdown(this.templates().vodAccessGrantedBody || '')
   );
   gradingBodyWarnings = computed(() =>
     findUnsupportedEmailMarkdown(this.templates().gradingPaymentConfirmationBody || '')
@@ -673,6 +691,7 @@ export class EmailNotificationsComponent {
       videoUrl: `${origin}/videos/v-21-form`,
       giverName: 'Sam Chin',
       giftMessage: 'Enjoy this video for your daily practice!',
+      message: "You've been given access to **21 Form Detailed Breakdown**.",
       studentName: 'Alex Chen',
       instructorName: 'Master Joshua Craig',
       notes: 'Good execution of basic alignments and 13 points. Keep cultivating relaxation and center line awareness.',
@@ -908,6 +927,10 @@ export class EmailNotificationsComponent {
     this.updateBody('vodGiftReceivedBody', markdown);
   }
 
+  setVodAccessBody(markdown: string) {
+    this.updateBody('vodAccessGrantedBody', markdown);
+  }
+
   setGradingBody(markdown: string) {
     this.updateBody('gradingPaymentConfirmationBody', markdown);
   }
@@ -1053,6 +1076,17 @@ export class EmailNotificationsComponent {
         this.statusActionFeedback.set({
           success: true,
           message: 'VOD Gift template reset to default. Click "Save Changes" to apply.',
+        });
+        break;
+      case 'vod-access':
+        this.templates.set({
+          ...current,
+          vodAccessGrantedSubject: defaults.vodAccessGrantedSubject,
+          vodAccessGrantedBody: defaults.vodAccessGrantedBody,
+        });
+        this.statusActionFeedback.set({
+          success: true,
+          message: 'VOD Access Granted template reset to default. Click "Save Changes" to apply.',
         });
         break;
       case 'grading':
@@ -1522,6 +1556,10 @@ export class EmailNotificationsComponent {
       case TransactionalEmailKey.VodGiftReceived:
         await this.setCategory('purchases');
         this.setPurchaseSubtype('vod-gift');
+        break;
+      case TransactionalEmailKey.VodAccessGranted:
+        await this.setCategory('purchases');
+        this.setPurchaseSubtype('vod-access');
         break;
       case TransactionalEmailKey.GradingPaymentConfirmation:
         await this.setCategory('purchases');

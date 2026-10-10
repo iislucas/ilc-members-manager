@@ -511,6 +511,45 @@ export type VideoGrant = {
 
 export type VideoGrantFsDoc = Omit<VideoGrant, 'docId'>;
 
+/** Maximum length of the recipient-facing message on an admin grant notification. */
+export const GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH = 2000;
+
+/**
+ * Request for the admin-only `grantVideoAccess` callable. Every admin grant is
+ * stored as VideoGrantKind.AdminGrant (paid member-to-member gifts are a
+ * separate flow via Stripe checkout).
+ */
+export interface GrantVideoAccessRequest {
+  targetType: 'video' | 'series';
+  targetId: string;
+  /** Any email address; the recipient need not have a member record. */
+  recipientEmail: string;
+  recipientMemberDocId?: string;
+  recipientName?: string;
+  /** Private note stored on the grant; shown only to admins in the access list. */
+  notes?: string;
+  expiresAt?: string;
+  /** Notify the recipient (in-app if they have a member account, plus email). Defaults to true. */
+  sendNotification?: boolean;
+  /**
+   * Recipient-facing notification text (markdown, title already filled in),
+   * at most GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH characters. Ignored when
+   * sendNotification is false; a generic message is used if empty.
+   */
+  notificationMessage?: string;
+}
+
+export interface GrantVideoAccessResponse {
+  success: boolean;
+  grantedCount: number;
+  recipientEmail: string;
+  recipientMemberDocId?: string;
+  /** True if an in-app notification was created (requires a member account). */
+  notifiedInApp: boolean;
+  /** True if an email send was attempted (email not turned off for this kind). */
+  emailSent: boolean;
+}
+
 export function initVideoGrant(videoId = '', memberDocId = ''): VideoGrant {
   return {
     docId: videoId,

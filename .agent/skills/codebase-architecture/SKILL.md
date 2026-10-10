@@ -47,7 +47,8 @@ to the relevant files instead of re-exploring.
 | Admin VOD Curation list (`/manage-vod`) | [src/app/manage-vod/](../../src/app/manage-vod/) |
 | Admin page for one video (`/manage-vod/video/:videoId?tab=overview\|access\|details`) | [src/app/manage-vod-video-page/](../../src/app/manage-vod-video-page/) (Details tab embeds [manage-vod-edit-video](../../src/app/manage-vod-edit-video/)) |
 | Admin page for one series (`/manage-vod/series/:seriesId?tab=overview\|access\|details`) | [src/app/manage-vod-series-page/](../../src/app/manage-vod-series-page/) (Details tab embeds [manage-vod-edit-series](../../src/app/manage-vod-edit-series/)) |
-| "Who has access" panel (grants list, revoke, grant/gift) for a video or series | [src/app/vod-access-list/](../../src/app/vod-access-list/) + [grant-vod-modal](../../src/app/grant-vod-modal/) |
+| "Who has access" panel (grants list, revoke) for a video or series | [src/app/vod-access-list/](../../src/app/vod-access-list/) |
+| Admin grant page (`/manage-vod/video/:videoId/grant`, `/manage-vod/series/:seriesId/grant`): one "admin grant" kind, optional editable notification, any-email recipients | [src/app/manage-vod-grant-page/](../../src/app/manage-vod-grant-page/) + [grant-vod-form](../../src/app/grant-vod-form/) → [functions/src/vod/grant-video.ts](../../functions/src/vod/grant-video.ts) |
 | Stripe Product & Price Sync Tool (`pnpm sync:video-products`) | [functions/scripts/sync-video-stripe-products.ts](../../functions/scripts/sync-video-stripe-products.ts) |
 
 ### Associations between concepts

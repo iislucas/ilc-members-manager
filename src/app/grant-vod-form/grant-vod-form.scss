@@ -1,0 +1,100 @@
+// grant-vod-form.scss — layout only; buttons, inputs, notes and errors use global styles.
+@use "../../scss_variables" as v;
+
+.grant-vod-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 40rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  > label,
+  legend {
+    font-weight: 600;
+    color: v.$text-primary;
+    padding: 0;
+    margin-bottom: 0.2rem;
+  }
+
+  input[type="email"],
+  input[type="text"],
+  textarea {
+    max-width: none;
+  }
+
+  textarea {
+    font-family: inherit;
+    font-size: inherit;
+    padding: 0.5rem;
+    border: 1px solid v.$border-color-light;
+    border-radius: 0.3em;
+    resize: vertical;
+  }
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  label {
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+}
+
+.radio-row,
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox-row span {
+  font-weight: 600;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: v.$text-muted;
+
+  &.over-limit {
+    color: v.$theme-error-text-color;
+  }
+}
+
+.grant-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  app-icon {
+    flex-shrink: 0;
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+}

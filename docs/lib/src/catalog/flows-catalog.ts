@@ -261,9 +261,9 @@ export const FLOWS_CATALOG: ArchFlowEntry[] = [
         stepNumber: 6,
         sourceTier: 'Admin / Modal',
         targetTier: 'grantVideoAccess',
-        action: 'Administrator directly grants video or series access to member or external email with optional expiration and notes',
-        payloadDescription: 'GrantVideoAccessRequest (targetType, targetId, recipientEmail, notes)',
-        codePointers: ['src/app/grant-vod-modal/grant-vod-modal.ts', 'functions/src/vod/grant-video.ts'],
+        action: 'Administrator grants video or series access (always VideoGrantKind.AdminGrant) to a member or any email, with optional expiration, private notes, and an optional admin-written recipient notification (in-app + vodAccessGranted email)',
+        payloadDescription: 'GrantVideoAccessRequest (targetType, targetId, recipientEmail, notes, sendNotification, notificationMessage)',
+        codePointers: ['src/app/grant-vod-form/grant-vod-form.ts', 'functions/src/vod/grant-video.ts'],
         tierType: 'client',
         protocol: 'HTTPS Callable SDK',
       },
@@ -279,7 +279,7 @@ export const FLOWS_CATALOG: ArchFlowEntry[] = [
     HLS --> Ready[onTranscodeFinished Trigger]
     Ready --> VideoDoc[(/videos/{id} Ready)]
     AdminGrant[Admin grantVideoAccess Callable] --> GrantDoc[(/members/{id}/videoGrants & /videoGrants)]
-    AdminGrant --> MailDoc[(/mail: vodGiftReceived)]
+    AdminGrant -->|optional, admin-written message| MailDoc[(/mail: vodAccessGranted)]
     PlayReq[Player Request] --> Session[getVideoPlaybackSession]
     Session --> Player[Hls.js Player + IndexedDB Cache]`,
   },

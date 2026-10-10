@@ -1,0 +1,139 @@
+<form class="grant-vod-form" (submit)="$event.preventDefault(); submit()">
+  <!-- Scope: only offered for a video that belongs to a series -->
+  @if (canChooseScope()) {
+    <fieldset class="form-field">
+      <legend>What to grant</legend>
+      <label class="radio-row">
+        <input type="radio" name="grantScope" [checked]="grantScope() === 'video'" (change)="grantScope.set('video')" />
+        <span>This video only</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="grantScope" [checked]="grantScope() === 'series'" (change)="grantScope.set('series')" />
+        <span>
+          The whole series
+          @if (seriesVideoCount(); as count) {
+            ({{ count }} videos)
+          }
+        </span>
+      </label>
+    </fieldset>
+  }
+
+  <!-- Recipient -->
+  <div class="form-field">
+    <div class="label-row">
+      <label for="grantRecipient">Recipient</label>
+      <button type="button" class="inline-link-button" (click)="toggleManualEmail()">
+        {{ useManualEmail() ? 'Choose a member instead' : 'Enter any email address instead' }}
+      </button>
+    </div>
+    @if (!useManualEmail()) {
+      <app-member-selector
+        name="grantRecipient"
+        [value]="selectedMemberId()"
+        (valueChange)="selectedMemberId.set($event)"
+        (memberSelected)="onMemberSelected($event)"
+        placeholder="Search member by ID or name..."
+      ></app-member-selector>
+      @if (selectedMember(); as m) {
+        <p class="field-hint">{{ m.name }} &bull; {{ m.emails[0] || 'no email on record' }}</p>
+      }
+    } @else {
+      <input
+        id="grantRecipient"
+        type="email"
+        placeholder="recipient@example.com"
+        [value]="manualEmail()"
+        (input)="manualEmail.set($any($event.target).value)"
+      />
+      <input
+        type="text"
+        placeholder="Recipient name (optional)"
+        [value]="recipientName()"
+        (input)="recipientName.set($any($event.target).value)"
+      />
+      @if (recipientEmail() && recipientMember(); as m) {
+        <p class="field-hint">This email belongs to member {{ m.name }}.</p>
+      }
+    }
+  </div>
+
+  <!-- Notification -->
+  <div class="form-field">
+    <label class="checkbox-row">
+      <input
+        type="checkbox"
+        [checked]="sendNotification()"
+        (change)="sendNotification.set($any($event.target).checked)"
+      />
+      <span>Notify the recipient</span>
+    </label>
+    @if (!sendNotification()) {
+      <p class="field-hint">Access will be added silently.</p>
+    }
+  </div>
+
+  @if (sendNotification()) {
+    <fieldset class="form-field">
+      <legend>Message</legend>
+      <div class="preset-row">
+        <span class="field-hint">Start from:</span>
+        @for (p of presets; track p.id) {
+          <label class="radio-row">
+            <input type="radio" name="grantPreset" [checked]="presetId() === p.id" (change)="selectPreset(p.id)" />
+            <span>{{ p.label }}</span>
+          </label>
+        }
+      </div>
+      <textarea
+        rows="4"
+        aria-label="Notification message"
+        [value]="message()"
+        (input)="message.set($any($event.target).value)"
+      ></textarea>
+      <p class="field-hint" [class.over-limit]="messageTooLong()">
+        Sent as an in-app notification and email, with a link to watch. {{ message().length }} / {{ maxMessageLength }}
+      </p>
+    </fieldset>
+  }
+
+  @if (notificationNotice(); as notice) {
+    <div class="note-box grant-notice">
+      <app-icon name="info"></app-icon>
+      <span>{{ notice }}</span>
+    </div>
+  }
+
+  <!-- Internal note -->
+  <div class="form-field">
+    <label for="grantNotes">Internal note (optional)</label>
+    <input
+      id="grantNotes"
+      type="text"
+      placeholder="e.g. Level 3 grading reward. Only admins see this."
+      [value]="notes()"
+      (input)="notes.set($any($event.target).value)"
+    />
+  </div>
+
+  @if (errorMessage()) {
+    <div class="error-container">
+      <span class="error-message">{{ errorMessage() }}</span>
+    </div>
+  }
+
+  <div class="form-actions">
+    @if (isGranting()) {
+      <app-spinner>Granting access...</app-spinner>
+    } @else {
+      <a class="button subtle-button" [href]="cancelHref()">Cancel</a>
+      <button type="submit" class="primary-button" [disabled]="!recipientEmail()">
+        @if (grantScope() === 'series') {
+          Grant series access
+        } @else {
+          Grant video access
+        }
+      </button>
+    }
+  </div>
+</form>

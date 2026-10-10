@@ -57,6 +57,7 @@ import { ManageVodComponent } from './manage-vod/manage-vod';
 import { ManageVodUploadComponent } from './manage-vod-upload/manage-vod-upload';
 import { ManageVodVideoPageComponent } from './manage-vod-video-page/manage-vod-video-page';
 import { ManageVodSeriesPageComponent } from './manage-vod-series-page/manage-vod-series-page';
+import { ManageVodGrantPageComponent } from './manage-vod-grant-page/manage-vod-grant-page';
 import { ManageVideoTagsComponent } from './manage-video-tags/manage-video-tags';
 import { MemberOrdersComponent } from './member-orders/member-orders';
 import { NotFoundComponent } from './not-found/not-found';
@@ -134,6 +135,7 @@ import { ActionQueueService } from './action-queue.service';
     ManageVodUploadComponent,
     ManageVodVideoPageComponent,
     ManageVodSeriesPageComponent,
+    ManageVodGrantPageComponent,
     ManageVideoTagsComponent,
     NotFoundComponent,
     BecomeAMemberComponent,

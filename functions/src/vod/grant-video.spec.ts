@@ -5,23 +5,39 @@
 
 import * as admin from 'firebase-admin';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HttpsError } from 'firebase-functions/v2/https';
-import { grantVideoAccess, GrantVideoAccessRequest } from './grant-video';
-import { VideoGrantKind, initVideoItem } from '../data-model/vod';
+import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
+import { grantVideoAccess } from './grant-video';
+import {
+  GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH,
+  GrantVideoAccessRequest,
+  GrantVideoAccessResponse,
+  VideoGrant,
+  VideoGrantKind,
+  initVideoItem,
+} from '../data-model/vod';
 import { initMember } from '../data-model/members';
+import { MailSendingStatus, MailSettings, TransactionalEmailKey } from '../data-model/mail';
+import { MemberNotification } from '../data-model/notifications';
 import { sendTransactionalEmail } from '../email-dispatcher';
 
 vi.mock('../email-dispatcher', () => ({
   sendTransactionalEmail: vi.fn().mockResolvedValue('mock_mail_1'),
 }));
 
+// The deployed callable exposes `.run()` for direct invocation in tests.
+interface RunnableCallable {
+  run(req: CallableRequest<Partial<GrantVideoAccessRequest>>): Promise<GrantVideoAccessResponse>;
+}
+
+const runGrant = (req: CallableRequest<Partial<GrantVideoAccessRequest>>) =>
+  (grantVideoAccess as unknown as RunnableCallable).run(req);
+
 describe('grantVideoAccess', () => {
-  let mockMemberSubcollectionSet: any;
-  let mockGlobalGrantsSet: any;
-  let mockNotificationsSet: any;
-  let mockDb: any;
+  let mockMemberSubcollectionSet: ReturnType<typeof vi.fn>;
+  let mockGlobalGrantsSet: ReturnType<typeof vi.fn>;
+  let mockNotificationsSet: ReturnType<typeof vi.fn>;
   let isAdminCaller = true;
-  let mailSettingsStatus = 'active';
+  let mailSettings: MailSettings;
 
   const mockAdminMember = {
     ...initMember(),
@@ -61,13 +77,13 @@ describe('grantVideoAccess', () => {
 
   beforeEach(() => {
     isAdminCaller = true;
-    mailSettingsStatus = 'active';
+    mailSettings = { status: MailSendingStatus.Active };
     vi.clearAllMocks();
     mockMemberSubcollectionSet = vi.fn().mockResolvedValue({});
     mockGlobalGrantsSet = vi.fn().mockResolvedValue({});
     mockNotificationsSet = vi.fn().mockResolvedValue({});
 
-    mockDb = {
+    const mockDb = {
       collection: vi.fn((colName: string) => {
         if (colName === 'acl') {
           return {
@@ -113,7 +129,7 @@ describe('grantVideoAccess', () => {
                 }),
               };
             }),
-            where: vi.fn((field: string, op: string, val: string) => {
+            where: vi.fn((_field: string, _op: string, val: string) => {
               const known = val === 'admin@example.com' || val === 'student@example.com';
               return {
                 limit: vi.fn().mockReturnValue({
@@ -142,7 +158,7 @@ describe('grantVideoAccess', () => {
                 data: () => mockVideo,
               }),
             })),
-            where: vi.fn((field: string, op: string, val: string) => ({
+            where: vi.fn((_field: string, _op: string, val: string) => ({
               get: vi.fn().mockResolvedValue({
                 empty: val !== 'series_basics',
                 docs: [
@@ -165,7 +181,7 @@ describe('grantVideoAccess', () => {
           return {
             get: vi.fn().mockResolvedValue({
               exists: true,
-              data: () => ({ status: mailSettingsStatus }),
+              data: () => mailSettings,
             }),
           };
         }
@@ -175,26 +191,31 @@ describe('grantVideoAccess', () => {
       }),
     };
 
-    vi.spyOn(admin, 'firestore').mockReturnValue(mockDb as any);
+    vi.spyOn(admin, 'firestore').mockReturnValue(mockDb as never as admin.firestore.Firestore);
   });
 
   const makeCallableRequest = (data: Partial<GrantVideoAccessRequest>, email = 'admin@example.com') =>
     ({
       auth: email ? { token: { email }, uid: 'uid_admin' } : undefined,
       data,
-      rawRequest: {} as any,
-      accepts: () => true,
-    }) as unknown as import('firebase-functions/v2/https').CallableRequest<GrantVideoAccessRequest>;
+      rawRequest: {},
+      acceptsStreaming: false,
+    }) as never as CallableRequest<Partial<GrantVideoAccessRequest>>;
+
+  const lastGlobalGrant = (): VideoGrant =>
+    mockGlobalGrantsSet.mock.calls[mockGlobalGrantsSet.mock.calls.length - 1][0] as VideoGrant;
+  const lastNotification = (): MemberNotification =>
+    mockNotificationsSet.mock.calls[0][0] as MemberNotification;
 
   it('rejects unauthenticated caller', async () => {
     const req = makeCallableRequest({ targetType: 'video', targetId: 'vid_101' }, '');
-    await expect((grantVideoAccess as any).run(req)).rejects.toThrowError(HttpsError);
+    await expect(runGrant(req)).rejects.toThrowError(HttpsError);
   });
 
   it('rejects non-admin caller', async () => {
     isAdminCaller = false;
     const req = makeCallableRequest({ targetType: 'video', targetId: 'vid_101' }, 'student@example.com');
-    await expect((grantVideoAccess as any).run(req)).rejects.toThrowError(HttpsError);
+    await expect(runGrant(req)).rejects.toThrowError(HttpsError);
   });
 
   it('rejects missing recipient email', async () => {
@@ -203,76 +224,89 @@ describe('grantVideoAccess', () => {
       targetId: 'vid_101',
       recipientEmail: '',
     });
-    await expect((grantVideoAccess as any).run(req)).rejects.toThrowError('A valid recipient email is required');
+    await expect(runGrant(req)).rejects.toThrowError('A valid recipient email is required');
   });
 
-  it('successfully grants single video to member', async () => {
+  it('grants a single video to a member as AdminGrant without gift fields', async () => {
     const req = makeCallableRequest({
       targetType: 'video',
       targetId: 'vid_101',
       recipientEmail: 'student@example.com',
       recipientMemberDocId: 'target_mem_42',
-      grantKind: VideoGrantKind.AdminGrant,
-      notes: 'Gift from Grandmaster for dedication',
+      notes: 'Private admin note',
+      notificationMessage: 'Enjoy this one, from HQ!',
     });
 
-    const result = await (grantVideoAccess as any).run(req);
+    const result = await runGrant(req);
 
-    expect(result.success).toBe(true);
-    expect(result.grantedCount).toBe(1);
-    expect(result.recipientMemberDocId).toBe('target_mem_42');
+    expect(result).toEqual({
+      success: true,
+      grantedCount: 1,
+      recipientEmail: 'student@example.com',
+      recipientMemberDocId: 'target_mem_42',
+      notifiedInApp: true,
+      emailSent: true,
+    });
 
     expect(mockMemberSubcollectionSet).toHaveBeenCalledWith(
       expect.objectContaining({
         docId: 'vid_101',
         videoId: 'vid_101',
         memberDocId: 'target_mem_42',
-        grantKind: 'admin_grant',
-        giftedByName: 'Admin User',
-        notes: 'Gift from Grandmaster for dedication',
+        grantKind: VideoGrantKind.AdminGrant,
+        grantedByMemberDocId: 'admin_doc_1',
+        notes: 'Private admin note',
       }),
     );
 
-    expect(mockGlobalGrantsSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        docId: 'vid_101',
-        memberEmail: 'student@example.com',
-        grantKind: 'admin_grant',
-      }),
-    );
+    const grant = lastGlobalGrant();
+    expect(grant.memberEmail).toBe('student@example.com');
+    expect(grant.grantKind).toBe(VideoGrantKind.AdminGrant);
+    expect(grant.giftedByName).toBeUndefined();
+    expect(grant.giftedByEmail).toBeUndefined();
+    expect(grant.giftedByMemberDocId).toBeUndefined();
+    expect(grant.giftMessage).toBeUndefined();
 
-    expect(mockNotificationsSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'VideoAccessGranted',
-      }),
-    );
+    const notification = lastNotification();
+    expect(notification.kind).toBe('VideoAccessGranted');
+    expect(notification.markdown).toBe('Enjoy this one, from HQ!\n\n[Watch now](/videos/vid_101)');
 
     expect(sendTransactionalEmail).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         to: 'student@example.com',
-        templateKey: 'vodGiftReceived',
+        templateKey: TransactionalEmailKey.VodAccessGranted,
         replacements: expect.objectContaining({
           name: 'Recipient Student',
-          giverName: 'Admin User',
           videoTitle: 'Neutral Stance & Mechanics',
           videoUrl: expect.stringContaining('/videos/vid_101'),
-          giftMessage: 'Gift from Grandmaster for dedication',
+          message: 'Enjoy this one, from HQ!',
         }),
       }),
     );
   });
 
-  it('successfully grants an entire series to member', async () => {
+  it('ignores a client-supplied grantKind and always stores AdminGrant', async () => {
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      grantKind: VideoGrantKind.GiftPurchase,
+    } as Partial<GrantVideoAccessRequest>);
+
+    await runGrant(req);
+    expect(lastGlobalGrant().grantKind).toBe(VideoGrantKind.AdminGrant);
+  });
+
+  it('grants an entire series to a member', async () => {
     const req = makeCallableRequest({
       targetType: 'series',
       targetId: 'series_basics',
       recipientEmail: 'student@example.com',
       recipientMemberDocId: 'target_mem_42',
-      grantKind: VideoGrantKind.Complimentary,
     });
 
-    const result = await (grantVideoAccess as any).run(req);
+    const result = await runGrant(req);
 
     expect(result.success).toBe(true);
     // targetId (seriesId) + 2 videos in the series = 3 grants
@@ -283,26 +317,96 @@ describe('grantVideoAccess', () => {
       expect.anything(),
       expect.objectContaining({
         to: 'student@example.com',
-        templateKey: 'vodGiftReceived',
+        templateKey: TransactionalEmailKey.VodAccessGranted,
       }),
     );
   });
 
-  it('rejects granting to non-member when mail sending is off', async () => {
-    mailSettingsStatus = 'off';
+  it('uses a default message when the notification message is empty', async () => {
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      notificationMessage: '   ',
+    });
+
+    await runGrant(req);
+
+    const expected = "You've been given access to **Neutral Stance & Mechanics**.";
+    expect(lastNotification().markdown).toBe(`${expected}\n\n[Watch now](/videos/vid_101)`);
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        replacements: expect.objectContaining({ message: expected }),
+      }),
+    );
+  });
+
+  it('rejects a notification message that is too long', async () => {
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'student@example.com',
+      notificationMessage: 'x'.repeat(GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH + 1),
+    });
+
+    await expect(runGrant(req)).rejects.toThrowError(HttpsError);
+    expect(mockGlobalGrantsSet).not.toHaveBeenCalled();
+  });
+
+  it('grants to a non-member email even when mail sending is off', async () => {
+    mailSettings = { status: MailSendingStatus.Off };
+    const req = makeCallableRequest({
+      targetType: 'video',
+      targetId: 'vid_101',
+      recipientEmail: 'Unregistered@Example.com',
+    });
+
+    const result = await runGrant(req);
+
+    expect(result.success).toBe(true);
+    expect(result.grantedCount).toBe(1);
+    expect(result.recipientMemberDocId).toBeUndefined();
+    expect(result.notifiedInApp).toBe(false);
+    expect(result.emailSent).toBe(false);
+    expect(mockMemberSubcollectionSet).not.toHaveBeenCalled();
+    expect(mockGlobalGrantsSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberEmail: 'unregistered@example.com',
+        memberDocId: '',
+        grantKind: VideoGrantKind.AdminGrant,
+      }),
+    );
+    expect(sendTransactionalEmail).not.toHaveBeenCalled();
+  });
+
+  it('emails a non-member recipient when mail is on (no in-app notification)', async () => {
     const req = makeCallableRequest({
       targetType: 'video',
       targetId: 'vid_101',
       recipientEmail: 'unregistered@example.com',
+      recipientName: 'New Friend',
     });
 
-    await expect((grantVideoAccess as any).run(req)).rejects.toThrowError(
-      'Email notifications are currently turned off. Access can only be granted to existing member accounts.',
+    const result = await runGrant(req);
+
+    expect(result.notifiedInApp).toBe(false);
+    expect(result.emailSent).toBe(true);
+    expect(mockNotificationsSet).not.toHaveBeenCalled();
+    expect(sendTransactionalEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        to: 'unregistered@example.com',
+        replacements: expect.objectContaining({ name: 'New Friend' }),
+      }),
     );
   });
 
-  it('allows granting to existing member when mail sending is off', async () => {
-    mailSettingsStatus = 'off';
+  it('skips email but still notifies in-app when VodAccessGranted email is off', async () => {
+    mailSettings = {
+      status: MailSendingStatus.Active,
+      notificationStatus: { [TransactionalEmailKey.VodAccessGranted]: MailSendingStatus.Off },
+    };
     const req = makeCallableRequest({
       targetType: 'video',
       targetId: 'vid_101',
@@ -310,9 +414,12 @@ describe('grantVideoAccess', () => {
       recipientMemberDocId: 'target_mem_42',
     });
 
-    const result = await (grantVideoAccess as any).run(req);
-    expect(result.success).toBe(true);
-    expect(result.grantedCount).toBe(1);
+    const result = await runGrant(req);
+
+    expect(result.notifiedInApp).toBe(true);
+    expect(result.emailSent).toBe(false);
+    expect(mockNotificationsSet).toHaveBeenCalled();
+    expect(sendTransactionalEmail).not.toHaveBeenCalled();
   });
 
   it('skips in-app notification and email when sendNotification is false', async () => {
@@ -321,13 +428,15 @@ describe('grantVideoAccess', () => {
       targetId: 'vid_101',
       recipientEmail: 'student@example.com',
       recipientMemberDocId: 'target_mem_42',
-      grantKind: VideoGrantKind.AdminGrant,
       sendNotification: false,
+      notificationMessage: 'x'.repeat(GRANT_NOTIFICATION_MESSAGE_MAX_LENGTH + 1),
     });
 
-    const result = await (grantVideoAccess as any).run(req);
+    const result = await runGrant(req);
     expect(result.success).toBe(true);
     expect(result.grantedCount).toBe(1);
+    expect(result.notifiedInApp).toBe(false);
+    expect(result.emailSent).toBe(false);
     expect(mockNotificationsSet).not.toHaveBeenCalled();
     expect(sendTransactionalEmail).not.toHaveBeenCalled();
   });

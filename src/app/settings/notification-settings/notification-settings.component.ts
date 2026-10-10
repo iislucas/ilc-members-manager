@@ -171,6 +171,7 @@ export class NotificationSettingsComponent implements OnInit {
       case TransactionalEmailKey.EventRegistrationConfirmation:
       case TransactionalEmailKey.VodPurchaseConfirmation:
       case TransactionalEmailKey.VodGiftReceived:
+      case TransactionalEmailKey.VodAccessGranted:
       case TransactionalEmailKey.GradingPaymentConfirmation:
         return EmailCategory.Purchases;
 
@@ -279,6 +280,7 @@ export class NotificationSettingsComponent implements OnInit {
       case NotificationKind.EventRegistrationConfirmed:
         return TransactionalEmailKey.EventRegistrationConfirmation;
       case NotificationKind.VideoAccessGranted:
+        return TransactionalEmailKey.VodAccessGranted;
       case NotificationKind.VideoGiftReceived:
         return TransactionalEmailKey.VodGiftReceived;
       case NotificationKind.MembershipActivated:
@@ -435,7 +437,7 @@ export class NotificationSettingsComponent implements OnInit {
       case NotificationKind.EventVideoAvailable:
         return 'Event Video Recording Available';
       case NotificationKind.VideoAccessGranted:
-        return 'Video Access & Gift Granted';
+        return 'Video Access Granted';
       default:
         return kind;
     }

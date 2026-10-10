@@ -33,6 +33,7 @@ export function getEmailCategory(key: TransactionalEmailKey | string): EmailCate
     case TransactionalEmailKey.EventRegistrationConfirmation:
     case TransactionalEmailKey.VodPurchaseConfirmation:
     case TransactionalEmailKey.VodGiftReceived:
+    case TransactionalEmailKey.VodAccessGranted:
     case TransactionalEmailKey.GradingPaymentConfirmation:
       return EmailCategory.Purchases;
 
@@ -84,7 +85,9 @@ export function getEmailKindLabel(key: TransactionalEmailKey | string): string {
     case TransactionalEmailKey.VodPurchaseConfirmation:
       return 'Video on Demand Purchases';
     case TransactionalEmailKey.VodGiftReceived:
-      return 'Video Gifts & Grants';
+      return 'Video Gifts';
+    case TransactionalEmailKey.VodAccessGranted:
+      return 'Video Access Granted by Admins';
     case TransactionalEmailKey.GradingPaymentConfirmation:
       return 'Grading Assessment Fee Receipts';
     case TransactionalEmailKey.GradingRequestReceived:

@@ -216,25 +216,6 @@
             color: #16a34a;
           }
         }
-
-        .grant-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 12px;
-          font-size: 0.82rem;
-          font-weight: 500;
-          border-radius: 6px;
-          background: v.$primary-color;
-          color: white;
-          border: none;
-          cursor: pointer;
-          transition: background-color 0.15s ease;
-
-          &:hover {
-            background: color.adjust(v.$primary-color, $lightness: -6%);
-          }
-        }
       }
     }
 

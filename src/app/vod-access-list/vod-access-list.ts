@@ -26,7 +26,6 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { GrantVodModalComponent } from '../grant-vod-modal/grant-vod-modal';
 
 export interface VodGrantRecipient {
   recipientKey: string;
@@ -63,7 +62,6 @@ export interface VodGrantRecipient {
     FormsModule,
     IconComponent,
     SpinnerComponent,
-    GrantVodModalComponent,
   ],
   templateUrl: './vod-access-list.html',
   styleUrl: './vod-access-list.scss',
@@ -137,8 +135,6 @@ export class VodAccessListComponent {
   /** Title of whatever is being listed (series or video). */
   targetTitle = computed(() => this.series()?.title || this.video()?.title || '');
 
-  // Grant / gift dialog
-  grantModalOpen = signal<boolean>(false);
 
   // Raw fetched grants
   rawGrants = signal<VideoGrant[]>([]);
@@ -270,7 +266,7 @@ export class VodAccessListComponent {
 
       // Gift info
       const giftGrant = userGrants.find(
-        (g) => g.grantKind === VideoGrantKind.GiftPurchase || Boolean(g.giftedByName),
+        (g) => g.grantKind === VideoGrantKind.GiftPurchase,
       );
       const isGift = Boolean(giftGrant);
 
@@ -360,7 +356,9 @@ export class VodAccessListComponent {
 
     const kind = this.grantKindFilter();
     if (kind !== 'all') {
-      list = list.filter((r) => r.primaryGrantKind === kind || r.grantKinds.includes(kind));
+      // Legacy "complimentary" grants are admin grants too.
+      const kinds = kind === VideoGrantKind.AdminGrant ? [kind, VideoGrantKind.Complimentary] : [kind];
+      list = list.filter((r) => r.grantKinds.some((k) => kinds.includes(k)));
     }
 
     const scope = this.accessScopeFilter();
@@ -418,17 +416,11 @@ export class VodAccessListComponent {
     };
   });
 
-  openGrantModal(): void {
-    this.grantModalOpen.set(true);
-  }
-
-  closeGrantModal(): void {
-    this.grantModalOpen.set(false);
-  }
-
-  /** Reload the list after a new grant so the recipient appears immediately. */
-  onAccessGranted(): void {
-    this.loadGrants();
+  /** The grant page for whatever this list shows. */
+  grantHref(): string {
+    const s = this.series();
+    if (s) return this.routingService.hrefForView(Views.ManageVodSeriesGrant, { seriesId: s.seriesId });
+    return this.routingService.hrefForView(Views.ManageVodVideoGrant, { videoId: this.video()?.docId || '' });
   }
 
   /**
@@ -518,9 +510,8 @@ export class VodAccessListComponent {
       case VideoGrantKind.GiftPurchase:
         return 'Gifted';
       case VideoGrantKind.AdminGrant:
+      case VideoGrantKind.Complimentary: // legacy admin grant type
         return 'Admin Grant';
-      case VideoGrantKind.Complimentary:
-        return 'Complimentary';
       case VideoGrantKind.EventAttendance:
         return 'Event Attendee';
       default:

@@ -2097,5 +2097,60 @@ describe('Firestore Rules', () => {
       await assertFails(adminDb.collection('mail').doc('mail-processing').update({ to: 'other@example.com' }));
     });
   });
+
+  describe('Global video_grants Collection', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('video_grants').doc('grant-mixed').set({
+          videoId: 'video1',
+          memberEmail: 'mixed.case@ilc.com',
+          memberDocId: '',
+        });
+      });
+    });
+
+    it('should allow owner with mixed-case auth email to read their lowercased-email grant', async () => {
+      const ownerDb = testEnv
+        .authenticatedContext('mixed_user', { email: 'Mixed.Case@ILC.com' })
+        .firestore();
+      await assertSucceeds(ownerDb.collection('video_grants').doc('grant-mixed').get());
+      // Query used by the client (lowercased email equality).
+      await assertSucceeds(
+        ownerDb
+          .collection('video_grants')
+          .where('memberEmail', '==', 'mixed.case@ilc.com')
+          .get(),
+      );
+    });
+
+    it('should deny a different user from reading the grant', async () => {
+      const otherDb = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertFails(otherDb.collection('video_grants').doc('grant-mixed').get());
+      await assertFails(
+        otherDb
+          .collection('video_grants')
+          .where('memberEmail', '==', 'mixed.case@ilc.com')
+          .get(),
+      );
+      await assertFails(unauthDb.collection('video_grants').doc('grant-mixed').get());
+    });
+
+    it('should deny non-admin writes but allow admin writes', async () => {
+      const ownerDb = testEnv
+        .authenticatedContext('mixed_user', { email: 'Mixed.Case@ILC.com' })
+        .firestore();
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      const newGrant = { videoId: 'video2', memberEmail: 'mixed.case@ilc.com', memberDocId: '' };
+      await assertFails(ownerDb.collection('video_grants').doc('grant-new').set(newGrant));
+      await assertFails(ownerDb.collection('video_grants').doc('grant-mixed').update({ videoId: 'video3' }));
+      await assertFails(ownerDb.collection('video_grants').doc('grant-mixed').delete());
+      await assertSucceeds(adminDb.collection('video_grants').doc('grant-new').set(newGrant));
+    });
+  });
 });
 

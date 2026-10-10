@@ -754,12 +754,12 @@ export const SITE_SURFACE_MAP: SiteSurfaceEntry[] = [
     componentFile: 'src/app/video-view/video-view.ts',
   },
   {
-    viewId: 'grantVodModal',
-    pathPattern: '/videos?grant=true',
+    viewId: 'manageVodVideoGrant',
+    pathPattern: '/manage-vod/video/:videoId/grant | /manage-vod/series/:seriesId/grant',
     permittedRoles: [UserActor.HQAdmin],
-    objective: 'Modal dialog to grant access to individual videos or full series to any member or external email.',
-    actions: ['Search video or series', 'Input recipient email and name', 'Toggle recipient email notification', 'Set optional expiration date and notes', 'Execute grantVideoAccess callable'],
-    componentFile: 'src/app/grant-vod-modal/grant-vod-modal.ts',
+    objective: 'Admin page to grant access to a video (or its whole series) or a series to any member or email address.',
+    actions: ['Choose a member or enter any email', 'Optionally notify the recipient', 'Edit the notification message from the Access granted / Gift presets', 'Add a private admin note', 'Execute grantVideoAccess callable'],
+    componentFile: 'src/app/manage-vod-grant-page/manage-vod-grant-page.ts',
   },
   {
     viewId: 'manageVod',
