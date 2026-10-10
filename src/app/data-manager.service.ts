@@ -54,7 +54,7 @@ import { Member, initMember, InstructorPublicData, initInstructor, MemberFsDoc, 
 import { Order, firestoreDocToOrder, OrderFsDoc, SquareSpaceOrder, SquareSpaceLineItem, MemberOrder, firestoreDocToMemberOrder, OrderKind } from '../../functions/src/data-model/orders';
 import { School, initSchool, SchoolFsDoc, firestoreDocToSchool } from '../../functions/src/data-model/schools';
 import { Counters } from '../../functions/src/data-model/system';
-import { VideoItem, VideoSeries, groupVideosIntoSeries, getVideoSeriesGroupingKey, firestoreDocToVideoItem, initVideoItem, VideoGrant, firestoreDocToVideoGrant, VideoProgress, firestoreDocToVideoProgress, VodStatus, VodAccessTier, VideoGrantKind, SystemTagsDoc, SystemVideoTagsDoc, VideoTagMeta, initVideoTagMeta, TagItem, VideoTimeRange, MemberVideoTimeRanges, firestoreDocToMemberVideoTimeRanges, MemberVideoTimeRangesFsDoc } from '../../functions/src/data-model/vod';
+import { VideoItem, VideoSeries, groupVideosIntoSeries, getVideoSeriesGroupingKey, firestoreDocToVideoItem, initVideoItem, VideoGrant, firestoreDocToVideoGrant, VideoProgress, firestoreDocToVideoProgress, VodStatus, VodAccessTier, GrantVideoAccessRequest, GrantVideoAccessResponse, SystemTagsDoc, SystemVideoTagsDoc, VideoTagMeta, initVideoTagMeta, TagItem, VideoTimeRange, MemberVideoTimeRanges, firestoreDocToMemberVideoTimeRanges, MemberVideoTimeRangesFsDoc } from '../../functions/src/data-model/vod';
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, LoginStatus, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -72,6 +72,27 @@ import {
   RollbackTarget,
 } from './action-queue.service';
 import { NetworkStateService } from './network-state.service';
+
+/**
+ * Merges the signed-in user's member-subcollection grants
+ * (/members/{id}/videoGrants, doc id == video/series id) with email-matched
+ * global grants (/video_grants, arbitrary doc keys). Global grants are
+ * normalised so their docId is the target videoId; when both sources hold a
+ * grant for the same target, the member-subcollection record wins.
+ */
+export function mergeMyVideoGrants(memberGrants: VideoGrant[], emailGrants: VideoGrant[]): VideoGrant[] {
+  const byTarget = new Map<string, VideoGrant>();
+  for (const grant of emailGrants) {
+    const targetId = grant.videoId || grant.docId;
+    if (!byTarget.has(targetId)) {
+      byTarget.set(targetId, { ...grant, docId: targetId });
+    }
+  }
+  for (const grant of memberGrants) {
+    byTarget.set(grant.docId, grant);
+  }
+  return Array.from(byTarget.values());
+}
 
 /** The state of the schools collection. */
 export interface SchoolsState {
@@ -631,11 +652,10 @@ export class DataManagerService {
       if (!isAuthReady && user) {
         return;
       }
-      if (user?.member?.docId) {
-        this.listenToMemberVideoGrants(user.member.docId);
-      } else {
-        this.listenToMemberVideoGrants('');
-      }
+      // Grants can be keyed by member doc (subcollection) and/or by the
+      // auth email (global /video_grants), so users without a member record
+      // still see email-only grants.
+      this.listenToMemberVideoGrants(user?.member?.docId || '', user?.firebaseUser?.email || '');
     });
 
     // Reactive effect for System Video Tags
@@ -671,6 +691,7 @@ export class DataManagerService {
 
   private myOrdersUnsubscribe: (() => void) | null = null;
   private myVideoGrantsUnsubscribe: (() => void) | null = null;
+  private myEmailVideoGrantsUnsubscribe: (() => void) | null = null;
 
   public listenToMemberOrders(memberDocId: string) {
     if (this.myOrdersUnsubscribe) {
@@ -708,39 +729,95 @@ export class DataManagerService {
     );
   }
 
-  public listenToMemberVideoGrants(memberDocId: string) {
-    if (this.myVideoGrantsUnsubscribe) {
-      this.myVideoGrantsUnsubscribe();
-      this.myVideoGrantsUnsubscribe = null;
-    }
+  /**
+   * Listens to the signed-in user's video grants from two sources and merges
+   * them into `myVideoGrants`:
+   *  - /members/{memberDocId}/videoGrants (when the user has a member record)
+   *  - /video_grants where memberEmail == the auth email (lowercased), which
+   *    covers admin grants to an email with no member record.
+   * Firestore rules only allow reading global grants whose memberEmail equals
+   * the auth token email, so we never query the member's other emails.
+   */
+  public listenToMemberVideoGrants(memberDocId: string, authEmail = '') {
+    this.stopMyVideoGrantsListeners();
 
-    if (!memberDocId) {
+    const email = authEmail.trim().toLowerCase();
+    if (!memberDocId && !email) {
       this.myVideoGrants.setEntries([]);
       return;
     }
 
-    const cacheKey = `my_video_grants_${memberDocId}`;
+    const cacheKey = `my_video_grants_${memberDocId || 'no-member'}_${email || 'no-email'}`;
     void this.syncService.loadCachedData(cacheKey, this.myVideoGrants);
 
-    const grantsSubcollection = collection(
-      this.db,
-      'members',
-      memberDocId,
-      'videoGrants',
-    );
+    let memberGrants: VideoGrant[] = [];
+    let emailGrants: VideoGrant[] = [];
+    let memberSettled = !memberDocId;
+    let emailSettled = !email;
+    const publish = () => {
+      const merged = mergeMyVideoGrants(memberGrants, emailGrants);
+      this.myVideoGrants.setEntries(merged);
+      if (memberSettled && emailSettled) {
+        void this.syncService.saveCachedBundle(cacheKey, merged);
+      }
+    };
 
-    this.myVideoGrantsUnsubscribe = onSnapshot(
-      grantsSubcollection,
-      (snapshot) => {
-        const grants = snapshot.docs.map(firestoreDocToVideoGrant);
-        this.myVideoGrants.setEntries(grants);
-        void this.syncService.saveCachedBundle(cacheKey, grants);
-      },
-      (error) => {
-        console.error('Error listening to member video grants:', error);
-        this.myVideoGrants.setError(error.message);
-      },
-    );
+    if (memberDocId) {
+      const grantsSubcollection = collection(
+        this.db,
+        FirestoreCollection.Members,
+        memberDocId,
+        FirestoreSubcollection.VideoGrants,
+      );
+      this.myVideoGrantsUnsubscribe = onSnapshot(
+        grantsSubcollection,
+        (snapshot) => {
+          memberGrants = snapshot.docs.map(firestoreDocToVideoGrant);
+          memberSettled = true;
+          publish();
+        },
+        (error) => {
+          console.error('Error listening to member video grants:', error);
+          this.myVideoGrants.setError(error.message);
+        },
+      );
+    }
+
+    if (email) {
+      const emailGrantsQuery = query(
+        collection(this.db, FirestoreCollection.VideoGrants),
+        where('memberEmail', '==', email),
+      );
+      this.myEmailVideoGrantsUnsubscribe = onSnapshot(
+        emailGrantsQuery,
+        (snapshot) => {
+          emailGrants = snapshot.docs.map(firestoreDocToVideoGrant);
+          emailSettled = true;
+          publish();
+        },
+        (error) => {
+          // Non-fatal: e.g. permission-denied if the auth email's case differs
+          // from the stored (lowercased) memberEmail. Keep member grants intact.
+          console.warn('Error listening to email-matched video grants:', error);
+          emailGrants = [];
+          emailSettled = true;
+          if (memberSettled) {
+            publish();
+          }
+        },
+      );
+    }
+  }
+
+  private stopMyVideoGrantsListeners() {
+    if (this.myVideoGrantsUnsubscribe) {
+      this.myVideoGrantsUnsubscribe();
+      this.myVideoGrantsUnsubscribe = null;
+    }
+    if (this.myEmailVideoGrantsUnsubscribe) {
+      this.myEmailVideoGrantsUnsubscribe();
+      this.myEmailVideoGrantsUnsubscribe = null;
+    }
   }
 
   unsubscribeSnapshots() {
@@ -754,10 +831,7 @@ export class DataManagerService {
       this.myOrdersUnsubscribe();
       this.myOrdersUnsubscribe = null;
     }
-    if (this.myVideoGrantsUnsubscribe) {
-      this.myVideoGrantsUnsubscribe();
-      this.myVideoGrantsUnsubscribe = null;
-    }
+    this.stopMyVideoGrantsListeners();
     if (this.gradingsUnsubscribe) {
       this.gradingsUnsubscribe();
       this.gradingsUnsubscribe = null;
@@ -3463,41 +3537,11 @@ export class DataManagerService {
   /**
    * Grants access to a video or entire series to a member or email address via Cloud Function.
    */
-  async grantVideoAccess(req: {
-    targetType: 'video' | 'series';
-    targetId: string;
-    recipientEmail: string;
-    recipientMemberDocId?: string;
-    recipientName?: string;
-    grantKind?: VideoGrantKind;
-    notes?: string;
-    expiresAt?: string;
-    sendNotification?: boolean;
-  }): Promise<{
-    success: boolean;
-    grantedCount: number;
-    recipientEmail: string;
-    recipientMemberDocId?: string;
-  }> {
-    const fn = httpsCallable<
-      {
-        targetType: 'video' | 'series';
-        targetId: string;
-        recipientEmail: string;
-        recipientMemberDocId?: string;
-        recipientName?: string;
-        grantKind?: VideoGrantKind;
-        notes?: string;
-        expiresAt?: string;
-        sendNotification?: boolean;
-      },
-      {
-        success: boolean;
-        grantedCount: number;
-        recipientEmail: string;
-        recipientMemberDocId?: string;
-      }
-    >(getFunctions(this.firebaseService.app), 'grantVideoAccess');
+  async grantVideoAccess(req: GrantVideoAccessRequest): Promise<GrantVideoAccessResponse> {
+    const fn = httpsCallable<GrantVideoAccessRequest, GrantVideoAccessResponse>(
+      getFunctions(this.firebaseService.app),
+      'grantVideoAccess',
+    );
 
     const result = await fn(req);
     return result.data;
@@ -3966,11 +4010,29 @@ export class DataManagerService {
    */
   async getMyVideoGrants(): Promise<VideoGrant[]> {
     const user = this.firebaseService.user();
-    if (!user?.member?.docId) return [];
+    if (!user) return [];
+    const memberDocId = user.member?.docId || '';
+    const email = (user.firebaseUser?.email || '').trim().toLowerCase();
 
-    const grantsRef = collection(this.db, 'members', user.member.docId, 'videoGrants');
-    const snap = await getDocs(grantsRef);
-    return snap.docs.map(firestoreDocToVideoGrant);
+    const memberGrantsPromise: Promise<VideoGrant[]> = memberDocId
+      ? getDocs(
+          collection(this.db, FirestoreCollection.Members, memberDocId, FirestoreSubcollection.VideoGrants),
+        ).then((snap) => snap.docs.map(firestoreDocToVideoGrant))
+      : Promise.resolve([]);
+
+    const emailGrantsPromise: Promise<VideoGrant[]> = email
+      ? getDocs(
+          query(collection(this.db, FirestoreCollection.VideoGrants), where('memberEmail', '==', email)),
+        )
+          .then((snap) => snap.docs.map(firestoreDocToVideoGrant))
+          .catch((error: unknown) => {
+            console.warn('Error fetching email-matched video grants:', error);
+            return [];
+          })
+      : Promise.resolve([]);
+
+    const [memberGrants, emailGrants] = await Promise.all([memberGrantsPromise, emailGrantsPromise]);
+    return mergeMyVideoGrants(memberGrants, emailGrants);
   }
 
   /**

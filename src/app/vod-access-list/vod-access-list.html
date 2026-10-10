@@ -70,8 +70,6 @@
               <option [value]="VideoGrantKind.StripePurchase">Purchased</option>
               <option [value]="VideoGrantKind.GiftPurchase">Gifted</option>
               <option [value]="VideoGrantKind.AdminGrant">Admin Grant</option>
-              <option [value]="VideoGrantKind.Complimentary">Complimentary</option>
-              <option [value]="VideoGrantKind.EventAttendance">Event Attendee</option>
             </select>
           </div>
 
@@ -107,15 +105,14 @@
             }
           </button>
 
-          <button
-            type="button"
-            class="primary-btn grant-btn"
-            (click)="openGrantModal()"
-            [title]="isVideoMode() ? 'Grant or gift this video to another person' : 'Grant or gift this series to another person'"
+          <a
+            class="button primary-button"
+            [href]="grantHref()"
+            [title]="isVideoMode() ? 'Grant someone access to this video' : 'Grant someone access to this series'"
           >
             <app-icon name="card_giftcard"></app-icon>
-            <span>+ Grant / Gift</span>
-          </button>
+            <span>Grant access</span>
+          </a>
         </div>
       </div>
 
@@ -142,14 +139,10 @@
             <app-icon name="group" class="empty-icon"></app-icon>
             <h4>No access records found</h4>
             <p>No one has purchased, been gifted, or been granted access to this {{ isVideoMode() ? 'video' : 'series' }} yet.</p>
-            <button
-              type="button"
-              class="primary-btn"
-              (click)="openGrantModal()"
-            >
+            <a class="button primary-button" [href]="grantHref()">
               <app-icon name="card_giftcard"></app-icon>
-              <span>Grant Access Now</span>
-            </button>
+              <span>Grant access</span>
+            </a>
           }
         </div>
       } @else {
@@ -277,8 +270,8 @@
                       }
 
                       @if (r.expiresAt) {
-                        <div class="expiry-note">
-                          Expires: {{ formatDate(r.expiresAt) }}
+                        <div class="expiry-note" [class.expired]="!isActive(r)">
+                          {{ isActive(r) ? 'Expires' : 'Expired' }}: {{ formatDate(r.expiresAt) }}
                         </div>
                       }
                     </div>
@@ -381,12 +374,3 @@
   </div>
 }
 
-<!-- Grant / Gift Dialog -->
-@if (grantModalOpen()) {
-  <app-grant-vod-modal
-    [video]="video()"
-    [series]="series()"
-    (closed)="closeGrantModal()"
-    (granted)="onAccessGranted()"
-  ></app-grant-vod-modal>
-}

@@ -92,6 +92,8 @@ export enum Views {
   ManageVodUpload = 'manageVodUpload',
   ManageVodVideo = 'manageVodVideo',
   ManageVodSeries = 'manageVodSeries',
+  ManageVodVideoGrant = 'manageVodVideoGrant',
+  ManageVodSeriesGrant = 'manageVodSeriesGrant',
   ManageVideoTags = 'manageVideoTags',
   BecomeAMember = 'becomeAMember',
   NextGrading = 'nextGrading',
@@ -309,7 +311,7 @@ export const initPathPatterns = {
   [Views.VideoView]: addUrlParams(pathPattern`videos/${pv('videoId')}`, []),
   [Views.ManageVod]: addUrlParams(pathPattern`manage-vod`, [
     'q', 'status', 'featured', 'accessTier', 'listing', 'year', 'instructorId', 'videoId',
-    'grantVideoId', 'grantSeriesId', { name: 'tab', default: 'series_collections' },
+    { name: 'tab', default: 'series_collections' },
   ]),
   [Views.ManageVodUpload]: pathPattern`manage-vod/upload`,
   [Views.ManageVodVideo]: addUrlParams(pathPattern`manage-vod/video/${pv('videoId')}`, [
@@ -318,6 +320,8 @@ export const initPathPatterns = {
   [Views.ManageVodSeries]: addUrlParams(pathPattern`manage-vod/series/${pv('seriesId')}`, [
     { name: 'tab', default: 'overview' },
   ]),
+  [Views.ManageVodVideoGrant]: pathPattern`manage-vod/video/${pv('videoId')}/grant`,
+  [Views.ManageVodSeriesGrant]: pathPattern`manage-vod/series/${pv('seriesId')}/grant`,
   [Views.ManageVideoTags]: pathPattern`manage-video-tags`,
   [Views.EventRegister]: pathPattern`events/${pv('eventId')}/register`,
   [Views.ManageEventRegistrations]: addUrlParams(pathPattern`manage-event-registrations`, ['q']),

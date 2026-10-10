@@ -109,6 +109,14 @@ describe('ManageVodSeriesPageComponent', () => {
     expect(component.thumbnailUrl()).toBe('https://example.com/ep1.jpg');
   });
 
+  it('offers only a standard primary Watch button on the overview (tabs cover the rest)', () => {
+    const actions = Array.from(el().querySelectorAll<HTMLAnchorElement>('.overview-actions a'));
+    expect(actions.length).toBe(1);
+    expect(actions[0].classList).toContain('button');
+    expect(actions[0].classList).toContain('primary-button');
+    expect(actions[0].getAttribute('href')).toBe(`/${Views.VideoView}/ep1?tab=`);
+  });
+
   it('lists episodes linking to each video admin page, flagging unready/unlisted ones', () => {
     const rows = Array.from(el().querySelectorAll<HTMLAnchorElement>('a.episode-row'));
     expect(rows.length).toBe(2);

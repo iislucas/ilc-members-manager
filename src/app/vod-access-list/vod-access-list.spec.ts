@@ -243,19 +243,28 @@ describe('VodAccessListComponent', () => {
     expect(mockRoutingService.hrefForView).not.toHaveBeenCalledWith(Views.ManageOrders, expect.anything());
   });
 
-  it('should open and close the inline grant dialog', () => {
-    expect(component.grantModalOpen()).toBe(false);
-    component.openGrantModal();
-    expect(component.grantModalOpen()).toBe(true);
-    component.closeGrantModal();
-    expect(component.grantModalOpen()).toBe(false);
+  it('should link Grant access to the grant page for the series', () => {
+    fixture.detectChanges();
+    expect(component.grantHref()).toBe('/test-href');
+    expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(Views.ManageVodSeriesGrant, { seriesId: 'series_spin' });
   });
 
-  it('should reload grants after access is granted', async () => {
-    mockDataManagerService.getSeriesGrants.mockClear();
-    component.onAccessGranted();
-    await fixture.whenStable();
-    expect(mockDataManagerService.getSeriesGrants).toHaveBeenCalledTimes(1);
+  it('should treat only paid gifts as gifts, not admin grants', () => {
+    const charlie = component.recipients().find((r) => r.memberEmail === 'charlie@example.com')!;
+    expect(charlie.isGift).toBe(false);
+    const bob = component.recipients().find((r) => r.memberEmail === 'bob@example.com')!;
+    expect(bob.isGift).toBe(true);
+  });
+
+  it('should include legacy complimentary grants under the Admin Grant filter', () => {
+    component.rawGrants.update((list) => [
+      ...list,
+      { ...initVideoGrant('series_spin', ''), memberEmail: 'dana@example.com', grantKind: VideoGrantKind.Complimentary },
+    ]);
+    component.grantKindFilter.set(VideoGrantKind.AdminGrant);
+    const emails = component.filteredRecipients().map((r) => r.memberEmail);
+    expect(emails).toEqual(expect.arrayContaining(['charlie@example.com', 'dana@example.com']));
+    expect(component.getGrantKindLabel(VideoGrantKind.Complimentary)).toBe('Admin Grant');
   });
 
   it('should not refetch when given an equivalent series object', async () => {

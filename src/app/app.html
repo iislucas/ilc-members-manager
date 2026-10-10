@@ -971,6 +971,24 @@
             <div></div>
           }
         }
+        @case (Views.ManageVodVideoGrant) {
+          @defer {
+            <app-manage-vod-grant-page></app-manage-vod-grant-page>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.ManageVodSeriesGrant) {
+          @defer {
+            <app-manage-vod-grant-page></app-manage-vod-grant-page>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
         @case (Views.ManageVideoTags) {
           @defer {
             <app-manage-video-tags></app-manage-video-tags>

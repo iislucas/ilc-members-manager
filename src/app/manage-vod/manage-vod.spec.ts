@@ -61,8 +61,6 @@ describe('ManageVodComponent', () => {
           year: WritableSignal<string | null>;
           instructorId: WritableSignal<string | null>;
           videoId: WritableSignal<string | null>;
-          grantVideoId: WritableSignal<string | null>;
-          grantSeriesId: WritableSignal<string | null>;
           tab: WritableSignal<string | null>;
         };
       };
@@ -191,8 +189,6 @@ describe('ManageVodComponent', () => {
             year: signal(null),
             instructorId: signal(null),
             videoId: signal(null),
-            grantVideoId: signal<string | null>(null),
-            grantSeriesId: signal<string | null>(null),
             tab: signal<string | null>(null),
           },
         },
@@ -517,32 +513,19 @@ describe('ManageVodComponent', () => {
     expect(dateEl?.textContent).not.toContain('Added');
   });
 
-  it('should open and close the grant modal for a video and sync URL params', () => {
-    const video = mockDataService.videos.entries()[0];
-    component.openGrantModal(video);
-    expect(component.grantingVideo()).toEqual(video);
-    expect(component.grantingSeries()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('v1');
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
+  it('should link grant actions to the dedicated grant pages', () => {
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const seriesGrant = compiled.querySelector<HTMLAnchorElement>(
+      '.series-manage-card a[href="/manageVodSeriesGrant?seriesId=series-1"]',
+    );
+    expect(seriesGrant?.textContent).toContain('Grant access');
 
-    component.closeGrantModal();
-    expect(component.grantingVideo()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
-  });
-
-  it('should open and close the grant modal for a series and sync URL params', () => {
-    const series = mockDataService.getVideoSeriesList()[0];
-    component.openGrantSeriesModal(series);
-    expect(component.grantingSeries()).toEqual(series);
-    expect(component.grantingVideo()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('series-1');
-    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
-
-    component.closeGrantModal();
-    expect(component.grantingSeries()).toBeNull();
-    expect(mockRoutingService.signals.manageVod.urlParams.grantSeriesId()).toBe('');
-    expect(mockRoutingService.signals.manageVod.urlParams.grantVideoId()).toBe('');
+    component.setViewMode('all_videos');
+    component.toggleMenu('v1', new MouseEvent('click'));
+    fixture.detectChanges();
+    const videoGrant = compiled.querySelector<HTMLAnchorElement>('.actions-menu a[href="/manageVodVideoGrant?videoId=v1"]');
+    expect(videoGrant?.textContent).toContain('Grant access');
   });
 
   it('should default to series_collections viewMode and sync tab changes with URL', () => {
@@ -555,22 +538,6 @@ describe('ManageVodComponent', () => {
     component.setViewMode('series_collections');
     expect(component.viewMode()).toBe('series_collections');
     expect(mockRoutingService.signals.manageVod.urlParams.tab()).toBe('series_collections');
-  });
-
-  it('should open grant modal when grantVideoId URL param is present on deep link', async () => {
-    mockRoutingService.signals.manageVod.urlParams.grantVideoId.set('v2');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.grantingVideo()?.docId).toBe('v2');
-  });
-
-  it('should open grant modal when grantSeriesId URL param is present on deep link', async () => {
-    mockRoutingService.signals.manageVod.urlParams.grantSeriesId.set('series-1');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.grantingSeries()?.seriesId).toBe('series-1');
   });
 
   describe('Series Autocomplete Filter', () => {

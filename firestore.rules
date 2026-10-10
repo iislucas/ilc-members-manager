@@ -478,11 +478,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Global video access grants
+    // Global video access grants.
+    // `memberEmail` is always stored lowercased by the server, so the token
+    // email is lowercased before comparison (auth emails may be mixed-case).
     match /video_grants/{grantId} {
       allow read: if isAdmin() || (
         request.auth != null && (
-          request.auth.token.email == resource.data.memberEmail ||
+          (request.auth.token.get('email', null) is string &&
+            request.auth.token.email.lower() == resource.data.memberEmail) ||
           resource.data.memberDocId in getUserMemberDocIds()
         )
       );

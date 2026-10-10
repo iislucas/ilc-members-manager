@@ -61,22 +61,14 @@
                 <dd><code>{{ s.seriesId }}</code></dd>
               </dl>
 
-              <div class="overview-actions">
-                @if (watchFirstEpisodeHref(); as watchUrl) {
-                  <a class="primary-button" [href]="watchUrl">
+              @if (watchFirstEpisodeHref(); as watchUrl) {
+                <div class="overview-actions">
+                  <a class="button primary-button" [href]="watchUrl">
                     <app-icon name="play_arrow"></app-icon>
                     <span>Watch</span>
                   </a>
-                }
-                <a class="subtle-button" [href]="tabHref('access')">
-                  <app-icon name="group"></app-icon>
-                  <span>Who has access</span>
-                </a>
-                <a class="subtle-button" [href]="tabHref('details')">
-                  <app-icon name="edit"></app-icon>
-                  <span>Edit details &amp; episodes</span>
-                </a>
-              </div>
+                </div>
+              }
             </div>
           </div>
 

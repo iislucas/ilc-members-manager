@@ -307,6 +307,8 @@ export class NavigationTreeService {
       view === Views.ManageVodUpload ||
       view === Views.ManageVodVideo ||
       view === Views.ManageVodSeries ||
+      view === Views.ManageVodVideoGrant ||
+      view === Views.ManageVodSeriesGrant ||
       view === Views.ManageVideoTags ||
       view === Views.Statistics ||
       view === Views.ImportExport ||
@@ -510,6 +512,26 @@ export class NavigationTreeService {
       case Views.ManageVodSeries:
       case Views.ManageVideoTags:
         return [this.node(Views.ManageVod, 'Manage VOD')];
+      case Views.ManageVodSeriesGrant: {
+        const seriesId = this.routing.signals[Views.ManageVodSeriesGrant].pathVars.seriesId();
+        const series = this.dataService.getVideoSeriesList().find((s) => s.seriesId === seriesId);
+        return [
+          this.node(Views.ManageVod, 'Manage VOD'),
+          this.node(Views.ManageVodSeries, series?.title || 'Series', { seriesId }, { tab: 'access' }),
+        ];
+      }
+      case Views.ManageVodVideoGrant: {
+        const videoId = this.routing.signals[Views.ManageVodVideoGrant].pathVars.videoId();
+        const video = this.dataService.videos.get(videoId);
+        const series = video ? findSeriesForVideo(this.dataService.getVideoSeriesList(), video) : null;
+        return [
+          this.node(Views.ManageVod, 'Manage VOD'),
+          ...(series
+            ? [this.node(Views.ManageVodSeries, series.title, { seriesId: series.seriesId }, { tab: 'overview' })]
+            : []),
+          this.node(Views.ManageVodVideo, video?.title || 'Video', { videoId }, { tab: 'access' }),
+        ];
+      }
       case Views.ManageVodVideo: {
         // Episodes sit under their series page; standalone videos directly under Manage VOD.
         const series = this.manageVodVideoSeries();
@@ -895,6 +917,9 @@ export class NavigationTreeService {
         const videoId = this.routing.signals[Views.ManageVodVideo].pathVars.videoId();
         return this.dataService.videos.get(videoId)?.title || 'Video';
       }
+      case Views.ManageVodVideoGrant:
+      case Views.ManageVodSeriesGrant:
+        return 'Grant access';
       case Views.ManageVodSeries: {
         const seriesId = this.routing.signals[Views.ManageVodSeries].pathVars.seriesId();
         return this.dataService.getVideoSeriesList().find((s) => s.seriesId === seriesId)?.title || 'Series';

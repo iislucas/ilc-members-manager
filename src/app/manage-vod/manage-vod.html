@@ -515,15 +515,15 @@
                         </button>
                       }
 
-                      <!-- Grant / Gift Video -->
-                      <button
-                        type="button"
+                      <!-- Grant access -->
+                      <a
                         class="menu-item"
-                        (click)="openGrantModal(video, $event)"
+                        [href]="routingService.hrefForView(Views.ManageVodVideoGrant, { videoId: video.docId })"
+                        (click)="closeMenu()"
                       >
                         <app-icon name="card_giftcard"></app-icon>
-                        <span>Grant Access / Gift</span>
-                      </button>
+                        <span>Grant access</span>
+                      </a>
 
                       <div class="menu-divider"></div>
 
@@ -640,15 +640,14 @@
               <app-icon name="group"></app-icon>
               <span>Who has access</span>
             </a>
-            <button
-              type="button"
+            <a
               class="secondary-btn"
-              (click)="openGrantSeriesModal(series, $event)"
-              title="Grant or gift access to all videos in this series"
+              [href]="routingService.hrefForView(Views.ManageVodSeriesGrant, { seriesId: series.seriesId })"
+              title="Grant someone access to all videos in this series"
             >
               <app-icon name="card_giftcard"></app-icon>
-              <span>Grant / Gift Series</span>
-            </button>
+              <span>Grant access</span>
+            </a>
           </div>
         </div>
 
@@ -803,15 +802,14 @@
                     </button>
                   }
 
-                  <!-- Grant / Gift Video -->
-                  <button
-                    type="button"
+                  <!-- Grant access -->
+                  <a
                     class="menu-item"
-                    (click)="openGrantModal(d, $event)"
+                    [href]="routingService.hrefForView(Views.ManageVodVideoGrant, { videoId: d.docId })"
                   >
                     <app-icon name="card_giftcard"></app-icon>
-                    <span>Grant Access / Gift</span>
-                  </button>
+                    <span>Grant access</span>
+                  </a>
 
                   <div class="menu-divider"></div>
 
@@ -1074,16 +1072,6 @@
         }
       </div>
     </div>
-  }
-
-  <!-- Grant / Gift VOD Access Modal -->
-  @if (grantingVideo() || grantingSeries()) {
-    <app-grant-vod-modal
-      [video]="grantingVideo()"
-      [series]="grantingSeries()"
-      (closed)="closeGrantModal()"
-      (granted)="onAccessGranted($event)"
-    ></app-grant-vod-modal>
   }
 
   <!-- Thumbnail Customization Modal -->

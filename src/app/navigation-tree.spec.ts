@@ -181,6 +181,21 @@ describe('NavigationTreeService', () => {
     expect(navTree.currentTitle()).toBe('Solo Drill');
   });
 
+  it('puts the grant page under the video it grants (and that video under its series)', () => {
+    goTo(Views.ManageVodVideoGrant, { videoId: 'vid_ep1' });
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage VOD', 'Understanding Spacing', 'Spacing Part 1']);
+    expect(navTree.parent()?.url).toContain('/manage-vod/video/vid_ep1');
+    expect(navTree.parent()?.url).toContain('tab=access');
+    expect(navTree.currentTitle()).toBe('Grant access');
+  });
+
+  it('puts the series grant page under the series access tab', () => {
+    goTo(Views.ManageVodSeriesGrant, { seriesId: 'series_spacing' });
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage VOD', 'Understanding Spacing']);
+    expect(navTree.parent()?.url).toContain('/manage-vod/series/series_spacing');
+    expect(navTree.parent()?.url).toContain('tab=access');
+  });
+
   it('falls back to generic titles when the video or series is not loaded', () => {
     goTo(Views.ManageVodVideo, { videoId: 'unknown' });
     expect(navTree.currentTitle()).toBe('Video');

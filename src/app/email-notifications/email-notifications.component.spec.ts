@@ -320,11 +320,11 @@ describe('EmailNotificationsComponent', () => {
     await fixture.whenStable();
 
     const subPills = fixture.nativeElement.querySelectorAll('.purchase-sub-tabs .pill-tab');
-    expect(subPills.length).toBe(6);
+    expect(subPills.length).toBe(7);
 
     const subSelect = fixture.nativeElement.querySelector('.purchase-sub-select') as HTMLSelectElement;
     expect(subSelect).toBeTruthy();
-    expect(subSelect.options.length).toBe(6);
+    expect(subSelect.options.length).toBe(7);
   });
 
   it('should render Onboarding sub-pill tabs and switch between New Members and New Instructors', () => {
@@ -372,6 +372,10 @@ describe('EmailNotificationsComponent', () => {
     component.setPurchaseSubtype('vod-gift');
     expect(subtabSignal()).toBe('vod-gift');
     expect(component.activePurchaseSubtype()).toBe('vod-gift');
+
+    component.setPurchaseSubtype('vod-access');
+    expect(subtabSignal()).toBe('vod-access');
+    expect(component.activePurchaseSubtype()).toBe('vod-access');
   });
 
   it('should feed template body into markdown editor on each onboarding sub-tab', () => {
@@ -561,12 +565,12 @@ describe('EmailNotificationsComponent', () => {
       await fixture.whenStable();
     });
 
-    it('renders all 4 control groups and 14 notification items', () => {
+    it('renders all 4 control groups and 15 notification items', () => {
       const groups = fixture.nativeElement.querySelectorAll('.control-group-block');
       expect(groups.length).toBe(4);
 
       const rows = fixture.nativeElement.querySelectorAll('.notification-control-row');
-      expect(rows.length).toBe(14);
+      expect(rows.length).toBe(15);
     });
 
     it('displays mixed overall status and summary chips when notifications have different states', async () => {
@@ -584,14 +588,14 @@ describe('EmailNotificationsComponent', () => {
       const counts = component.notificationStatusCounts();
       expect(counts.active).toBe(1);
       expect(counts.paused).toBe(1);
-      expect(counts.off).toBe(12);
+      expect(counts.off).toBe(13);
 
       const banner = fixture.nativeElement.querySelector('.settings-banner.banner-mixed');
       expect(banner).toBeTruthy();
       expect(banner.textContent).toContain('Current Status: CUSTOM / MIXED');
       expect(banner.textContent).toContain('1 Active');
       expect(banner.textContent).toContain('1 Paused');
-      expect(banner.textContent).toContain('12 Off');
+      expect(banner.textContent).toContain('13 Off');
 
       // The mixed state is spelled out as a dominant status plus exceptions.
       expect(component.mixedStatusSummary()).toBe(

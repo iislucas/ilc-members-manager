@@ -96,6 +96,7 @@ export class HeaderComponent {
     }
     if (view === Views.Notifications) return true;
     if (view === Views.Videos) return true;
+    if (view === Views.ManageVodVideo || view === Views.ManageVodSeries) return true;
     if (view === Views.AppNotificationSettings) return true;
     return false;
   });

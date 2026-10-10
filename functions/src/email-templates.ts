@@ -67,6 +67,13 @@ export interface VodGiftEmailParams extends BaseEmailParams {
   appBase?: string;
 }
 
+export interface VodAccessGrantedEmailParams extends BaseEmailParams {
+  videoTitle?: string;
+  videoUrl?: string;
+  // Recipient-facing message (markdown) written by the granting admin.
+  message?: string;
+}
+
 export interface GradingEmailParams extends BaseEmailParams {
   memberId?: string;
   gradingLevel?: string;
@@ -346,6 +353,35 @@ ${giftMessage}
 
 You have instant access to watch this video in your account:
 [Watch Video Now](${videoUrl})
+
+${footer}`;
+}
+
+// Subject for the email sent when an admin grants video access.
+export function vodAccessGrantedSubject(params?: VodAccessGrantedEmailParams): string {
+  const videoTitle = params?.videoTitle || '{videoTitle}';
+  return `You now have access to ${videoTitle}`;
+}
+
+// Body for the email sent when an admin grants video access. `message` is the
+// admin-authored recipient-facing text.
+export function vodAccessGrantedBody(params?: VodAccessGrantedEmailParams): string {
+  const name = params?.name || '{name}';
+  const videoUrl = params?.videoUrl || '{videoUrl}';
+  const message = params?.message || '{message}';
+  const appBase = params?.appBase || '{appBase}';
+  const footer = renderEmailFooter({
+    reason: 'You received this email because an I Liq Chuan administrator gave you access to a video.',
+    unsubscribeUrl: params?.unsubscribeUrl,
+    preferencesUrl: params?.preferencesUrl,
+    appBase,
+  });
+
+  return `Hi ${name},
+
+${message}
+
+[Watch now](${videoUrl})
 
 ${footer}`;
 }

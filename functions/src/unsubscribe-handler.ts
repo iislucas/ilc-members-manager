@@ -24,7 +24,9 @@ export function getCategoryLabel(kindOrCategory: string): string {
     case TransactionalEmailKey.VodPurchaseConfirmation:
       return 'Video on Demand Confirmations';
     case TransactionalEmailKey.VodGiftReceived:
-      return 'Video Gifts & Grants';
+      return 'Video Gifts';
+    case TransactionalEmailKey.VodAccessGranted:
+      return 'Video Access Granted by Admins';
     case TransactionalEmailKey.GradingPaymentConfirmation:
       return 'Grading Assessment Payment Confirmations';
     case TransactionalEmailKey.GradingRequestReceived:

@@ -1,0 +1,54 @@
+<div class="grant-page">
+  @if (result(); as r) {
+    <div class="note-box grant-done">
+      <div class="banner-header">
+        <app-icon name="check" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>Access granted</h3>
+          <p>
+            {{ r.recipientLabel }} now has access to <strong>{{ r.title }}</strong>
+            @if (r.expiresOn) {
+              until the end of {{ r.expiresOn }} (UTC).
+            } @else {
+              (no expiry).
+            }
+          </p>
+          @if (r.notificationRequested) {
+            @if (r.response.notifiedInApp && r.response.emailSent) {
+              <p>They were sent an in-app notification and an email.</p>
+            } @else if (r.response.notifiedInApp) {
+              <p>They were sent an in-app notification (email notifications are off).</p>
+            } @else if (r.response.emailSent) {
+              <p>They were sent an email.</p>
+            } @else {
+              <p><strong>They were not notified.</strong> Please contact them directly to let them know.</p>
+            }
+          } @else {
+            <p>Access was added silently; no notification was sent.</p>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="grant-done-actions">
+      <a class="button primary-button" [href]="grantedAccessHref(r)">View who has access</a>
+      <button type="button" class="subtle-button" (click)="grantAnother()">Grant to someone else</button>
+    </div>
+  } @else if (video() || series()) {
+    <app-grant-vod-form
+      [video]="video()"
+      [series]="series()"
+      [parentSeries]="parentSeries()"
+      [cancelHref]="accessHref()"
+      (granted)="onGranted($event)"
+    ></app-grant-vod-form>
+  } @else if (isSeriesPage() ? !dataService.videos.loading() : fetchFailed()) {
+    <div class="not-found-state">
+      <h3>{{ isSeriesPage() ? 'Series' : 'Video' }} not found</h3>
+      <a class="button subtle-button" [href]="routingService.hrefForView(Views.ManageVod, { tab: 'series_collections' })">
+        Go to Manage VOD
+      </a>
+    </div>
+  } @else {
+    <app-spinner>Loading...</app-spinner>
+  }
+</div>

@@ -28,6 +28,7 @@ import {
   VideoSeries,
   groupVideosIntoSeries,
   findSeriesForVideo,
+  isVideoGrantActive,
   VodAccessTier,
   VodStatus,
   VideoProgress,
@@ -234,28 +235,22 @@ export class VideoViewComponent implements OnInit {
     return (
       grants.find(
         (g) =>
-          g.videoId === v.docId ||
-          (Boolean(v.seriesId) && g.videoId === v.seriesId),
+          isVideoGrantActive(g) &&
+          (g.videoId === v.docId || (Boolean(v.seriesId) && g.videoId === v.seriesId)),
       ) || null
     );
   });
 
   giftProvenance = computed<{ from: string; message?: string } | null>(() => {
     const grant = this.activeVideoGrant();
-    if (!grant) return null;
-    if (
-      grant.grantKind === VideoGrantKind.GiftPurchase ||
-      Boolean(grant.giftedByName) ||
-      Boolean(grant.giftedByEmail) ||
-      Boolean(grant.giftMessage)
-    ) {
-      const from = grant.giftedByName || grant.giftedByEmail || 'A friend';
-      return {
-        from,
-        message: grant.giftMessage,
-      };
-    }
-    return null;
+    // Only gifts count: older admin grants also recorded the admin as "giver",
+    // but those were access grants, not gifts.
+    if (!grant || grant.grantKind !== VideoGrantKind.GiftPurchase) return null;
+    const from = grant.giftedByName || grant.giftedByEmail || 'A friend';
+    return {
+      from,
+      message: grant.giftMessage,
+    };
   });
 
   canGiftVideo = computed(() => {
