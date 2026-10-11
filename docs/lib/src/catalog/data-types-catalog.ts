@@ -329,12 +329,13 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     isSubcollection: false,
     sourceFile: 'functions/src/data-model/vod.ts',
     summary:
-      'Curated Video on Demand (VOD) catalog entry for instructional tutorials, workshops, and class video library recordings.',
+      'Curated Video on Demand (VOD) catalog entry for instructional tutorials, workshops, and class video library recordings. Supports standalone videos or episodes within a multi-part series.',
     cardinality: 'One document per video asset.',
     ownership: 'Curated and managed by HQ Admins.',
     keyRelations: [
       { targetTypeId: 'video-grant', targetTypeName: 'VideoGrant', relation: 'Grants playback access to individual users' },
       { targetTypeId: 'product', targetTypeName: 'Product', relation: 'Linked to Stripe product for direct purchase' },
+      { targetTypeId: 'video-series', targetTypeName: 'VideoSeries', relation: 'Optional parent series grouping via seriesId and seriesPartIndex' },
     ],
     readRoles: ['Public (metadata and trailer)', 'Authorized Purchasers (full playback)'],
     writeRoles: ['Admin only'],
@@ -345,26 +346,138 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     relatedFlows: ['media-transcoding'],
     relatedPersonas: ["student-practitioner","active-member","hq-admin"],
     enforcingPermissions: ["stream:vod","read:syllabus","transcoder:gcp","admin:all"],
-    tsInterface: `export interface VideoItem {
+    tsInterface: `export type VideoItem = {
   docId: string;
+  sourceUploadDocId: string;
+  sourceMemberDocId: string;
   title: string;
   description: string;
-  durationSeconds: number;
-  thumbnailUrl: string;
-  hlsMasterPlaylistUrl: string;
+  tags: string[];
+  instructorDocId: string;
+  instructorName: string;
+  instructorId: string;
+  eventDocId: string;
+  eventTitle: string;
+  recordedDate: string;
+  location: string;
   accessTier: VodAccessTier;
+  accessTiers: VodAccessTier[];
+  isBuyable: boolean;
+  isTrailer: boolean;
   trailerVideoId: string;
-  stripeProductId: string;
+  minLevel?: number;
+  priceCents?: number;
+  currency?: string;
+  stripeProductId?: string;
+  stripePriceId?: string;
+  seriesId?: string;
+  seriesTitle?: string;
+  seriesDescription?: string;
+  seriesPartIndex?: number;
+  seriesPriceCents?: number;
+  seriesStripeProductId?: string;
+  seriesStripePriceId?: string;
+  isPublished: boolean;
+  featured: boolean;
+  publishedAt: string;
+  publishedByMemberDocId: string;
+  vodStatus: VodStatus;
+  vodJobId?: string;
+  vodError?: string;
+  forVodPageId?: string;
+  forVodSeriesTitle?: string;
+  vimeoSourceId?: string;
+  vimeoLink?: string;
+  manifestUrl: string;
+  thumbnailUrl: string;
+  trailerUrl?: string;
+  durationSeconds: number;
+  resolutions: string[];
+  originalSize: number;
+  chapters?: { title: string; startSeconds: number }[];
+  createdAt: string;
   lastUpdated: string;
-}`,
+};`,
     initDefaults: 'initVideoItem(): accessTier: MembersOnly, duration: 0',
     converterFunction: 'firestoreDocToVideoItem',
     fields: [
       { name: 'docId', type: 'string', required: true, description: 'Video document ID' },
       { name: 'title', type: 'string', required: true, description: 'Video title' },
       { name: 'durationSeconds', type: 'number', required: true, description: 'Length in seconds' },
-      { name: 'accessTier', type: 'VodAccessTier', required: true, description: 'Public, MembersOnly, PurchaseRequired' },
+      { name: 'accessTier', type: 'VodAccessTier', required: true, description: 'Primary access tier' },
+      { name: 'accessTiers', type: 'VodAccessTier[]', required: true, description: 'Allowed access tiers' },
+      { name: 'isBuyable', type: 'boolean', required: true, description: 'Whether standalone purchase is enabled' },
+      { name: 'priceCents', type: 'number', required: false, description: 'Single video purchase price in cents' },
+      { name: 'seriesId', type: 'string', required: false, description: 'Parent series identifier/slug' },
+      { name: 'seriesTitle', type: 'string', required: false, description: 'Parent series display title' },
+      { name: 'seriesPartIndex', type: 'number', required: false, description: 'Sequential part index (1, 2, ...)' },
+      { name: 'seriesPriceCents', type: 'number', required: false, description: 'Entire series bundle purchase price in cents' },
+      { name: 'manifestUrl', type: 'string', required: true, description: 'Protected HLS master playlist URL' },
+      { name: 'thumbnailUrl', type: 'string', required: true, description: 'Poster image CDN URL' },
+      { name: 'vodStatus', type: 'VodStatus', required: true, description: 'Transcoding job status (Ready, Transcoding, Queued)' },
       { name: 'lastUpdated', type: 'string', required: true, description: 'ISO timestamp' },
+    ],
+  },
+  {
+    id: 'video-series',
+    name: 'VideoSeries',
+    domain: DataDomainGroup.MediaVod,
+    collectionPath: '/videos/{docId}#series',
+    isSubcollection: false,
+    sourceFile: 'functions/src/data-model/vod.ts',
+    summary:
+      'Virtual domain model aggregating multi-part video collections. Derived in-memory from VideoItem documents sharing a seriesId or title pattern, with series-level bundle pricing and ordered episodes.',
+    cardinality: 'Virtual aggregation computed from constituent VideoItem documents.',
+    ownership: 'Curated by HQ Admins; stored denormalized across constituent VideoItem docs.',
+    keyRelations: [
+      { targetTypeId: 'video-item', targetTypeName: 'VideoItem', relation: 'Constituent episode videos ordered by seriesPartIndex' },
+      { targetTypeId: 'video-grant', targetTypeName: 'VideoGrant', relation: 'Grants targeting seriesId unlock all episodes' },
+    ],
+    readRoles: ['Public (metadata)', 'Authorized Purchasers (streaming constituent episodes)'],
+    writeRoles: ['Admin only (via DataManagerService.updateVideoSeries batch write)'],
+    rulesSummary: 'Virtual aggregation. Constituent VideoItem docs updated in Firestore batch.',
+    affectedTriggers: [],
+    mirrorTargets: [],
+    relatedJourneys: ['vod-streaming'],
+    relatedFlows: ['media-transcoding', 'ecommerce-webhooks'],
+    relatedPersonas: ["student-practitioner","active-member","hq-admin"],
+    enforcingPermissions: ["stream:vod","admin:all","grant:vod-access"],
+    tsInterface: `export type VideoSeries = {
+  seriesId: string;
+  title: string;
+  description: string;
+  priceCents?: number;
+  currency?: string;
+  stripeProductId?: string;
+  stripePriceId?: string;
+  accessTier?: VodAccessTier;
+  accessTiers?: VodAccessTier[];
+  isPublished?: boolean;
+  featured?: boolean;
+  thumbnailUrl?: string;
+  trailerVideoId?: string;
+  instructorName?: string;
+  instructorDocId?: string;
+  instructorId?: string;
+  eventDocId?: string;
+  eventTitle?: string;
+  recordedDate?: string;
+  location?: string;
+  tags: string[];
+  videoCount: number;
+  totalDurationSeconds: number;
+  videos: VideoItem[]; // Ordered by seriesPartIndex ascending
+};`,
+    initDefaults: 'Derived via groupVideosIntoSeries(allVideos) & getVideoSeriesGroupingKey(video)',
+    converterFunction: 'groupVideosIntoSeries',
+    fields: [
+      { name: 'seriesId', type: 'string', required: true, description: 'Series identifier / slug' },
+      { name: 'title', type: 'string', required: true, description: 'Curated title of the video series' },
+      { name: 'description', type: 'string', required: true, description: 'Overview / description of the series' },
+      { name: 'priceCents', type: 'number', required: false, description: 'Direct purchase price in cents for the full bundle' },
+      { name: 'videoCount', type: 'number', required: true, description: 'Total number of constituent episodes' },
+      { name: 'totalDurationSeconds', type: 'number', required: true, description: 'Aggregated duration of all episodes' },
+      { name: 'videos', type: 'VideoItem[]', required: true, description: 'Constituent videos sorted by seriesPartIndex' },
     ],
   },
   {
@@ -376,11 +489,12 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     parentCollection: 'members',
     sourceFile: 'functions/src/data-model/vod.ts',
     summary:
-      'User access grant record verifying access to a specific VideoItem. Issued via Stripe purchases, gifts from peers, admin complimentary grants, or event attendance.',
-    cardinality: 'One document per user per granted video in member subcollection, mirrored to global /videoGrants collection.',
+      'User access grant record verifying access to a specific VideoItem or entire VideoSeries. Issued via Stripe purchases, gifts from peers, admin complimentary grants, or event attendance.',
+    cardinality: 'One document per user per granted video or series in member subcollection, mirrored to global /videoGrants collection.',
     ownership: 'Owned by member; granted via Stripe fulfillment (self/gift) or Admin direct grant callable.',
     keyRelations: [
-      { targetTypeId: 'video-item', targetTypeName: 'VideoItem', relation: 'Target video granted' },
+      { targetTypeId: 'video-item', targetTypeName: 'VideoItem', relation: 'Target video granted (if videoId matches VideoItem)' },
+      { targetTypeId: 'video-series', targetTypeName: 'VideoSeries', relation: 'Target series bundle granted (if videoId matches seriesId)' },
       { targetTypeId: 'member', targetTypeName: 'Member', relation: 'Parent member subcollection' },
       { targetTypeId: 'order', targetTypeName: 'Order', relation: 'Associated purchase or gift order' },
     ],

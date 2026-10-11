@@ -141,7 +141,7 @@
             type="email"
             name="email"
             [ngModel]="email()"
-            (ngModelChange)="email.set($event)"
+            (ngModelChange)="onEmailChange($event)"
             (keyup.enter)="checkEmail()"
             [disabled]="busy()"
             placeholder="you@example.com"
@@ -162,7 +162,7 @@
             <button
               id="continue-btn"
               (click)="checkEmail()"
-              [disabled]="!email().trim()"
+              [disabled]="!isEmailValid()"
             >
               Continue
             </button>
