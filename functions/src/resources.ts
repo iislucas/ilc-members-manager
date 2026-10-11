@@ -122,17 +122,11 @@ export async function assertResourceAccess(
     );
   }
 
-  const rawEmail = request.auth.token.email;
-  const email = normalizeEmail(rawEmail);
+  const email = normalizeEmail(request.auth.token.email);
   const db = admin.firestore();
 
-  // Look up the ACL document for this user. ACL ids are normalised emails; the
-  // raw-id fallback only matters for legacy mixed-case ACL docs that have not
-  // yet been merged by the normalize-emails backfill script.
-  let aclDoc = await db.collection(FirestoreCollection.Acl).doc(email).get();
-  if (!aclDoc.exists && rawEmail !== email) {
-    aclDoc = await db.collection(FirestoreCollection.Acl).doc(rawEmail).get();
-  }
+  // Look up the ACL document for this user. ACL ids are normalised emails.
+  const aclDoc = await db.collection(FirestoreCollection.Acl).doc(email).get();
   if (!aclDoc.exists) {
     throw new HttpsError(
       'permission-denied',
