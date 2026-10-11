@@ -360,6 +360,59 @@ describe('InlineAuthComponent', () => {
       await component.checkEmail();
       expect(check).not.toHaveBeenCalled();
     });
+
+    it('should reject an invalid email address and prevent submission', async () => {
+      const check = vi.spyOn(mockService, 'checkEmailStatus');
+      await createComponent();
+      component.email.set('notanemail');
+      await component.checkEmail();
+      expect(check).not.toHaveBeenCalled();
+      expect(component.step()).toBe(InlineAuthStep.Email);
+      expect(component.checkEmailError()).toBe(
+        "That doesn't look like a valid email address. Please check it and try again.",
+      );
+    });
+
+    it('should disable submit/continue button when email is invalid or empty, and enable when valid', async () => {
+      await createComponent();
+      const continueBtn = html().querySelector('#continue-btn') as HTMLButtonElement;
+
+      // Empty email -> disabled
+      expect(component.isEmailValid()).toBe(false);
+      expect(continueBtn.disabled).toBe(true);
+
+      // Invalid format -> disabled
+      component.onEmailChange('invalid-email');
+      fixture.detectChanges();
+      expect(component.isEmailValid()).toBe(false);
+      expect(continueBtn.disabled).toBe(true);
+
+      component.onEmailChange('test@');
+      fixture.detectChanges();
+      expect(component.isEmailValid()).toBe(false);
+      expect(continueBtn.disabled).toBe(true);
+
+      component.onEmailChange('test@example');
+      fixture.detectChanges();
+      expect(component.isEmailValid()).toBe(false);
+      expect(continueBtn.disabled).toBe(true);
+
+      // Valid format -> enabled
+      component.onEmailChange('valid@example.com');
+      fixture.detectChanges();
+      expect(component.isEmailValid()).toBe(true);
+      expect(continueBtn.disabled).toBe(false);
+    });
+
+    it('should clear checkEmailError when email is modified', async () => {
+      await createComponent();
+      component.email.set('bad-email');
+      await component.checkEmail();
+      expect(component.checkEmailError()).toBeTruthy();
+
+      component.onEmailChange('new@example.com');
+      expect(component.checkEmailError()).toBeNull();
+    });
   });
 
   // ---------------------------------------------------------------------------

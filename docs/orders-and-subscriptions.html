@@ -716,12 +716,12 @@
 }</code></pre>
         </div>
 
-        <!-- Tab 5: VOD & Video Grants -->
+        <!-- Tab 5: VOD, Video Series & Grants -->
         <div id="tab-vod" class="tab-pane">
           <div class="grid-2">
             <div class="card">
               <div class="card-title">
-                <span>VideoItem (Catalog Metadata)</span>
+                <span>VideoItem (Catalog Metadata &amp; Series Association)</span>
                 <span class="badge badge-purple">data-model/vod.ts</span>
               </div>
               <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoItem</span> = {
@@ -732,6 +732,16 @@
   priceCents?: <span class="code-type">number</span>;          <span class="code-comment">// e.g. 2500 ($25.00)</span>
   stripeProductId?: <span class="code-type">string</span>;
   stripePriceId?: <span class="code-type">string</span>;
+
+  <span class="code-comment">// Series / Collection Membership (Denormalized)</span>
+  seriesId?: <span class="code-type">string</span>;            <span class="code-comment">// e.g. 'understanding-spacing'</span>
+  seriesTitle?: <span class="code-type">string</span>;         <span class="code-comment">// Title of parent series</span>
+  seriesDescription?: <span class="code-type">string</span>;   <span class="code-comment">// Series synopsis</span>
+  seriesPartIndex?: <span class="code-type">number</span>;     <span class="code-comment">// Part number / order (1, 2, 3...)</span>
+  seriesPriceCents?: <span class="code-type">number</span>;    <span class="code-comment">// Bundle purchase price in cents</span>
+  seriesStripeProductId?: <span class="code-type">string</span>;
+  seriesStripePriceId?: <span class="code-type">string</span>;
+
   vodStatus: <span class="code-type">VodStatus</span>;         <span class="code-comment">// Ready, Transcoding, Queued</span>
   manifestUrl: <span class="code-type">string</span>;          <span class="code-comment">// HLS master playlist URL</span>
   durationSeconds: <span class="code-type">number</span>;
@@ -740,23 +750,31 @@
 
             <div class="card">
               <div class="card-title">
-                <span>VideoGrant &amp; VideoProgress</span>
+                <span>VideoSeries &amp; VideoGrant</span>
                 <span class="badge badge-purple">data-model/vod.ts</span>
               </div>
-              <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoGrant</span> = {
-  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches videoId</span>
-  videoId: <span class="code-type">string</span>;              <span class="code-comment">// Target video docId</span>
-  memberDocId: <span class="code-type">string</span>;          <span class="code-comment">// Owner Firestore ID</span>
-  memberEmail: <span class="code-type">string</span>;
-  grantKind: <span class="code-type">VideoGrantKind</span>;    <span class="code-comment">// StripePurchase, AdminGrant</span>
-  grantedAt: <span class="code-type">string</span>;            <span class="code-comment">// ISO timestamp</span>
+              <pre><code><span class="code-comment">// In-memory virtual aggregation (groupVideosIntoSeries)</span>
+<span class="code-keyword">export type</span> <span class="code-type">VideoSeries</span> = {
+  seriesId: <span class="code-type">string</span>;
+  title: <span class="code-type">string</span>;
+  description: <span class="code-type">string</span>;
+  priceCents?: <span class="code-type">number</span>;
+  stripeProductId?: <span class="code-type">string</span>;
+  stripePriceId?: <span class="code-type">string</span>;
+  videoCount: <span class="code-type">number</span>;
+  totalDurationSeconds: <span class="code-type">number</span>;
+  videos: <span class="code-type">VideoItem</span>[];          <span class="code-comment">// Ordered by seriesPartIndex ascending</span>
 };
 
-<span class="code-keyword">export type</span> <span class="code-type">VideoProgress</span> = {
-  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches videoId</span>
-  positionSeconds: <span class="code-type">number</span>;      <span class="code-comment">// Resume timestamp</span>
-  durationSeconds: <span class="code-type">number</span>;
-  lastWatchedAt: <span class="code-type">string</span>;
+<span class="code-keyword">export type</span> <span class="code-type">VideoGrant</span> = {
+  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches videoId or seriesId</span>
+  videoId: <span class="code-type">string</span>;              <span class="code-comment">// Target video docId OR seriesId</span>
+  memberDocId: <span class="code-type">string</span>;          <span class="code-comment">// Owner Firestore ID</span>
+  memberEmail: <span class="code-type">string</span>;
+  grantKind: <span class="code-type">VideoGrantKind</span>;    <span class="code-comment">// StripePurchase, AdminGrant, GiftPurchase</span>
+  amountPaidCents?: <span class="code-type">number</span>;
+  grantedAt: <span class="code-type">string</span>;            <span class="code-comment">// ISO timestamp</span>
+  expiresAt?: <span class="code-type">string</span>;
 };</code></pre>
             </div>
           </div>

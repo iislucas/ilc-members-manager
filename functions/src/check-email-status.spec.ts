@@ -99,6 +99,16 @@ describe('check-email-status', () => {
       });
     });
 
+    it('returns empty status when email is invalid format', async () => {
+      const req = { data: { email: 'not-an-email' }, rawRequest: { ip: '1.2.3.4' } } as CallableRequest<{ email: string }>;
+      const res = await checkEmailStatusHandler(req);
+      expect(res).toEqual({
+        hasMemberRecord: false,
+        hasAuthAccount: false,
+        isGoogleManaged: false,
+      });
+    });
+
     it('detects member record from ACL, auth account with password, and Google Workspace domain', async () => {
       vi.spyOn(dns.promises, 'resolveMx').mockResolvedValue([
         { exchange: 'aspmx.l.google.com', priority: 10 },

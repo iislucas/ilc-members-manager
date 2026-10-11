@@ -33,6 +33,7 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { environment } from '../../environments/environment';
 import { CheckEmailStatusResult } from '../../../functions/src/data-model/system';
+import { isValidEmail, normalizeEmail } from '../../../functions/src/data-model/email';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns } from '../app.config';
 import { SignInFlowService } from './sign-in-flow.service';
@@ -158,9 +159,17 @@ export class InlineAuthComponent implements OnInit {
 
   // Form state
   email = signal<string>('');
+  isEmailValid = computed(() => isValidEmail(this.email()));
   password = signal<string>('');
   showPassword = signal<boolean>(false);
   authLoading = signal<boolean>(false);
+
+  onEmailChange(value: string): void {
+    this.email.set(value);
+    if (this.checkEmailError()) {
+      this.checkEmailError.set(null);
+    }
+  }
 
   /**
    * What the in-flight auth request is actually doing, so the progress message
@@ -278,6 +287,11 @@ export class InlineAuthComponent implements OnInit {
     const emailVal = this.email().trim();
     if (!emailVal) return;
 
+    if (!this.isEmailValid()) {
+      this.checkEmailError.set("That doesn't look like a valid email address. Please check it and try again.");
+      return;
+    }
+
     this.dismissMessages();
     // A fresh lookup supersedes anything remembered from a previous visit.
     this.signupFoundExistingAccount.set(false);
@@ -286,9 +300,10 @@ export class InlineAuthComponent implements OnInit {
     this.step.set(InlineAuthStep.Checking);
 
     try {
-      const result = await this.firebaseService.checkEmailStatus(emailVal);
+      const normalizedEmail = normalizeEmail(emailVal);
+      const result = await this.firebaseService.checkEmailStatus(normalizedEmail);
       this.emailStatus.set(result);
-      this.signInFlow.record(emailVal, result);
+      this.signInFlow.record(normalizedEmail, result);
       this.step.set(this.stepForStatus(result));
     } catch (error) {
       console.error('checkEmailStatus failed:', error);

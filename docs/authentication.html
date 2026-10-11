@@ -32,6 +32,7 @@
           <div class="nav-group-title">Decisions</div>
           <a href="#providers" class="nav-link">Provider Preference</a>
           <a href="#switching" class="nav-link">Switching Provider</a>
+          <a href="#linking" class="nav-link">Account Linking &amp; Conflicts</a>
           <a href="#wording" class="nav-link">Wording</a>
         </div>
         <div class="nav-group">
@@ -257,12 +258,137 @@
         <div class="callout callout-success">
           <div class="callout-title">The asymmetry is deliberate</div>
           <p>
-            Google is not always a route: an account may simply have no Google link, and offering it
-            would be a dead end. A password always is — the account has one, or one can be created, or
-            one can be reset. That last case is the recovery path for someone locked out of their Google
-            account, so the button stays even for a Google-only account.
+            Google is not offered indiscriminately: if an address uses an unmanaged third-party domain
+            (e.g., Yahoo, Outlook) and has no existing Google credential, the secondary Google
+            button is omitted. For addresses with a known Google provider or Google-managed domains
+            (Gmail, Google Workspace via DNS MX check), Google is offered. Even if the account only
+            has a password today, clicking Google will initiate seamless account linking rather than
+            hitting a dead end (see <a href="#linking">Account Linking &amp; Credential Conflicts</a>).
+            A password is <em>always</em> an available route — the account has one, one can be created,
+            or one can be reset as a recovery path for someone locked out of their Google account.
           </p>
         </div>
+      </section>
+
+      <section id="linking">
+        <h2>Account linking &amp; credential conflicts</h2>
+        <p>
+          When a member who originally set up their account with an email and password attempts to
+          sign in with Google (using the same email address), Firebase Authentication throws
+          <code>auth/account-exists-with-different-credential</code> because the project enforces
+          the standard <em>"One account per email address"</em> policy.
+        </p>
+        <p>
+          Rather than displaying an unhelpful error or creating a duplicate account, the application
+          catches this error and guides the user through a <strong>seamless credential linking flow</strong>:
+        </p>
+
+        <div class="diagram-container">
+          <div class="diagram-header"><span class="diagram-title">Google sign-in credential conflict &amp; linking flow</span></div>
+          <svg class="diagram-svg" viewBox="0 0 820 280" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="Google sign-in credential conflict and password linking flow diagram">
+            <style>
+              .lt { font: 12px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; }
+              .lt-b { font: 12px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; font-weight: 600; }
+              .lt-s { font: 11px ui-monospace, Menlo, monospace; fill: #475569; }
+              .lbox { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; rx: 8; }
+              .lline { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#authArrow3); }
+            </style>
+            <defs>
+              <marker id="authArrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+              </marker>
+            </defs>
+
+            <!-- Step 1: User clicks Google -->
+            <rect x="16" y="20" width="170" height="70" class="lbox" fill="#eff6ff" stroke="#2563eb"/>
+            <text x="101" y="44" class="lt-b" text-anchor="middle">1. Google Sign-In</text>
+            <text x="101" y="62" class="lt-s" text-anchor="middle">signInWithPopup</text>
+            <text x="101" y="77" class="lt" text-anchor="middle">User selects Google acct</text>
+
+            <!-- Arrow 1 to 2 -->
+            <path d="M 186 55 L 226 55" class="lline"/>
+
+            <!-- Step 2: Firebase Conflict -->
+            <rect x="226" y="20" width="180" height="70" class="lbox" fill="#fef2f2" stroke="#dc2626"/>
+            <text x="316" y="42" class="lt-b" text-anchor="middle">2. Credential Conflict</text>
+            <text x="316" y="58" class="lt-s" text-anchor="middle">account-exists-with-</text>
+            <text x="316" y="73" class="lt-s" text-anchor="middle">different-credential</text>
+
+            <!-- Arrow 2 to 3 -->
+            <path d="M 406 55 L 446 55" class="lline"/>
+
+            <!-- Step 3: Catch & Store Credential -->
+            <rect x="446" y="20" width="180" height="70" class="lbox" fill="#fffbeb" stroke="#d97706"/>
+            <text x="536" y="42" class="lt-b" text-anchor="middle">3. Extract Credential</text>
+            <text x="536" y="58" class="lt-s" text-anchor="middle">credentialFromError</text>
+            <text x="536" y="75" class="lt" text-anchor="middle">pendingGoogleCredential</text>
+
+            <!-- Arrow 3 to 4 -->
+            <path d="M 626 55 L 666 55" class="lline"/>
+
+            <!-- Step 4: Step transition -->
+            <rect x="666" y="20" width="140" height="70" class="lbox" fill="#f5f3ff" stroke="#7c3aed"/>
+            <text x="736" y="42" class="lt-b" text-anchor="middle">4. Route to</text>
+            <text x="736" y="58" class="lt-s" text-anchor="middle">PasswordLogin</text>
+            <text x="736" y="75" class="lt" text-anchor="middle">Show linking notice</text>
+
+            <!-- Arrow down from 4 to 5 -->
+            <path d="M 736 90 L 736 140" class="lline"/>
+
+            <!-- Step 5: Password entered & Link -->
+            <rect x="440" y="140" width="366" height="110" class="lbox" fill="#f0fdf4" stroke="#16a34a"/>
+            <text x="623" y="165" class="lt-b" text-anchor="middle">5. User Confirms Password</text>
+            <text x="623" y="184" class="lt-s" text-anchor="middle">Button: "Sign In &amp; Connect Google"</text>
+            <text x="623" y="202" class="lt-s" text-anchor="middle">signInWithEmailAndPassword(email, pass)</text>
+            <text x="623" y="220" class="lt-s" text-anchor="middle">+ linkWithCredential(user, pendingCredential)</text>
+            <text x="623" y="238" class="lt" text-anchor="middle">Links google.com provider &amp; remembers method</text>
+
+            <!-- Cancel box -->
+            <rect x="40" y="160" width="320" height="70" class="lbox" fill="#f8fafc" stroke="#94a3b8"/>
+            <text x="200" y="185" class="lt-b" text-anchor="middle">User can click "Cancel connecting Google"</text>
+            <text x="200" y="205" class="lt" text-anchor="middle">Clears pendingGoogleCredential signal,</text>
+            <text x="200" y="220" class="lt" text-anchor="middle">reverting to standard password login.</text>
+
+            <path d="M 440 195 L 360 195" class="lline"/>
+          </svg>
+        </div>
+
+        <ol>
+          <li>
+            <strong>Conflict Interception:</strong>
+            In <code>FirebaseStateService.loginWithGoogle()</code>, the error
+            <code>auth/account-exists-with-different-credential</code> is caught and
+            <code>GoogleAuthProvider.credentialFromError(error)</code> extracts the pending Google credential.
+          </li>
+          <li>
+            <strong>Contextual Notice:</strong>
+            <code>InlineAuthComponent</code> stores the credential in the <code>pendingGoogleCredential</code>
+            signal and switches step to <code>InlineAuthStep.PasswordLogin</code>. An informational notice explains:
+            <div class="callout callout-info" style="margin: 10px 0;">
+              <p>An account already exists for <strong>you@example.com</strong> using a password. Enter your password once to connect Google Sign-In.</p>
+            </div>
+          </li>
+          <li>
+            <strong>Primary Action ("Sign In &amp; Connect Google"):</strong>
+            The submit button updates to <strong>"Sign In &amp; Connect Google"</strong>. Clicking it invokes
+            <code>FirebaseStateService.loginWithEmailAndLink()</code>, which authenticates via
+            <code>signInWithEmailAndPassword</code> and immediately executes
+            <code>linkWithCredential(userCredential.user, pendingCredential)</code>.
+          </li>
+          <li>
+            <strong>Remembered Preference:</strong>
+            Upon successful authentication and linking, <code>rememberSuccessfulLogin('google')</code> writes to
+            persistent <code>localStorage</code>. On future visits, this browser defaults to one-click Google Sign-In,
+            while the password remains fully functional as a fallback.
+          </li>
+          <li>
+            <strong>Cancellation:</strong>
+            If the user decides not to link Google, a secondary <strong>"Cancel connecting Google"</strong>
+            action clears <code>pendingGoogleCredential</code> and restores the standard single-provider password
+            login view.
+          </li>
+        </ol>
       </section>
 
       <section id="wording">
@@ -434,8 +560,8 @@
           <code>inline-auth.component.spec.ts</code> covers this against the in-memory mock from
           <code>createFirebaseStateServiceMock()</code>, grouped by concern: startup and malformed
           storage, lookup routing, what may be remembered and when, logout, changing the email, carrying
-          an attempt between pages, provider switching, progress wording, errors, and the no-member dead
-          end.
+          an attempt between pages, provider switching, Google account linking on credential conflict,
+          progress wording, errors, and the no-member dead end.
         </p>
         <p>Two habits worth keeping when adding to it:</p>
         <div class="grid-2">

@@ -16,7 +16,7 @@ import * as admin from 'firebase-admin';
 import * as dns from 'dns';
 import { allowedOrigins } from './common';
 import { CheckEmailStatusResult } from './data-model/system';
-import { normalizeEmail } from './data-model/email';
+import { normalizeEmail, isValidEmail } from './data-model/email';
 
 export const GOOGLE_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
 
@@ -120,7 +120,7 @@ export async function checkEmailStatusHandler(
   }
 
   const email = normalizeEmail(request.data?.email);
-  if (!email) {
+  if (!email || !isValidEmail(email)) {
     return { hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: false };
   }
 

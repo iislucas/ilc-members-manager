@@ -1,6 +1,6 @@
 /* Unit tests for the shared email normalisation helpers (data-model/email.ts). */
 import { describe, it, expect } from 'vitest';
-import { normalizeEmail, normalizeEmails, emailsMatch, emailListIncludes } from './email';
+import { normalizeEmail, normalizeEmails, emailsMatch, emailListIncludes, isValidEmail } from './email';
 
 describe('normalizeEmail', () => {
   it('trims and lower-cases', () => {
@@ -55,5 +55,32 @@ describe('emailListIncludes', () => {
     expect(emailListIncludes(['a@b.com'], 'x@b.com')).toBe(false);
     expect(emailListIncludes(['a@b.com'], '')).toBe(false);
     expect(emailListIncludes(undefined, 'a@b.com')).toBe(false);
+  });
+});
+
+describe('isValidEmail', () => {
+  it('accepts valid email addresses', () => {
+    expect(isValidEmail('test@example.com')).toBe(true);
+    expect(isValidEmail('member-us536@example.com')).toBe(true);
+    expect(isValidEmail('first.last+tag@sub.domain.co.uk')).toBe(true);
+    expect(isValidEmail('  user@domain.org  ')).toBe(true);
+    expect(isValidEmail("o'connor@example.com")).toBe(true);
+  });
+
+  it('rejects invalid email formats', () => {
+    expect(isValidEmail('')).toBe(false);
+    expect(isValidEmail('   ')).toBe(false);
+    expect(isValidEmail(undefined)).toBe(false);
+    expect(isValidEmail(null)).toBe(false);
+    expect(isValidEmail('plainaddress')).toBe(false);
+    expect(isValidEmail('test@')).toBe(false);
+    expect(isValidEmail('@example.com')).toBe(false);
+    expect(isValidEmail('test@example')).toBe(false);
+    expect(isValidEmail('test@example.')).toBe(false);
+    expect(isValidEmail('test@.com')).toBe(false);
+    expect(isValidEmail('test@example..com')).toBe(false);
+    expect(isValidEmail('test@example.c')).toBe(false);
+    expect(isValidEmail('test..test@example.com')).toBe(false);
+    expect(isValidEmail('test space@example.com')).toBe(false);
   });
 });
