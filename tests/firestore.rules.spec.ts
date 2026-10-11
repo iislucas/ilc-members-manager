@@ -2153,10 +2153,9 @@ describe('Firestore Rules', () => {
     });
   });
 
-  // Stored emails and /acl/{email} ids are normalised to lowercase, but the
+  // Stored emails and /acl/{email} ids are lowercase (invariant), but the
   // Firebase Auth token email may contain uppercase letters. The rules match
-  // on the lowercased token email, and (during the transition until the
-  // backfill has run) still accept the raw token email for legacy data.
+  // ONLY on the lowercased token email; raw-case data/ids are not honoured.
   describe('Case-insensitive email matching', () => {
     const MIXED = 'Mixed.Case@Example.com'; // stored as mixed.case@example.com
     const dbFor = (email: string) =>
@@ -2269,12 +2268,11 @@ describe('Firestore Rules', () => {
         await assertSucceeds(db.collection('members').doc('FirestoreDocID-member1').get());
       });
 
-      it('should allow reading own lowercase /acl doc (and deny the raw-case id when absent)', async () => {
+      it('should allow reading own lowercase /acl doc (and deny the raw-case id)', async () => {
         const db = dbFor(MIXED);
         await assertSucceeds(db.collection('acl').doc('mixed.case@example.com').get());
-        // The raw-case id is also "theirs" (transition support); reading a
-        // non-existent doc they own is allowed and simply returns no data.
-        await assertSucceeds(db.collection('acl').doc(MIXED).get());
+        // Only the lowercase id is "theirs"; the raw-case id is not readable.
+        await assertFails(db.collection('acl').doc(MIXED).get());
       });
 
       it('should allow member read via the lowercase emails array (no ACL)', async () => {
@@ -2369,14 +2367,15 @@ describe('Firestore Rules', () => {
       });
     });
 
-    describe('transition: legacy mixed-case stored data', () => {
+    describe('legacy mixed-case stored data is no longer accepted', () => {
       const LEGACY = 'Legacy.User@Example.com';
 
       beforeEach(async () => {
         await testEnv.withSecurityRulesDisabled(async (context) => {
           const db = context.firestore();
           // Legacy member doc with a mixed-case email and a raw-case ACL id
-          // (ACL links a different member doc so the ACL fallback is tested).
+          // (ACL links a different member doc so the ACL lookup is tested).
+          // The backfill has removed all such data; the rules must not honour it.
           await db.collection('members').doc('FirestoreDocID-legacy').set({
             docId: 'FirestoreDocID-legacy',
             emails: [LEGACY],
@@ -2419,36 +2418,36 @@ describe('Firestore Rules', () => {
         });
       });
 
-      it('should still allow exact raw-email matches on legacy data', async () => {
+      it('should deny raw-email matches on legacy mixed-case data', async () => {
         const db = dbFor(LEGACY);
         // emails array
-        await assertSucceeds(db.collection('members').doc('FirestoreDocID-legacy').get());
-        // raw-case ACL fallback (memberDocIds) incl. a subcollection
-        await assertSucceeds(db.collection('members').doc('FirestoreDocID-legacy-acl').get());
-        await assertSucceeds(
+        await assertFails(db.collection('members').doc('FirestoreDocID-legacy').get());
+        // raw-case ACL id (memberDocIds) incl. a subcollection
+        await assertFails(db.collection('members').doc('FirestoreDocID-legacy-acl').get());
+        await assertFails(
           db.collection('members').doc('FirestoreDocID-legacy-acl')
             .collection('notifications').doc('n1').get(),
         );
-        // own raw-case ACL doc
-        await assertSucceeds(db.collection('acl').doc(LEGACY).get());
+        // raw-case ACL doc id
+        await assertFails(db.collection('acl').doc(LEGACY).get());
         // ownerEmails, registration email, video_grants memberEmail
-        await assertSucceeds(
+        await assertFails(
           db.collection('events').doc('ev-legacy').collection('registrations').doc('reg-1').get(),
         );
-        await assertSucceeds(
+        await assertFails(
           db.collection('events').doc('ev-emails').collection('registrations').doc('reg-legacy').get(),
         );
-        await assertSucceeds(db.collection('video_grants').doc(`${LEGACY}_vid-1`).get());
+        await assertFails(db.collection('video_grants').doc(`${LEGACY}_vid-1`).get());
       });
 
-      it('should still treat a legacy raw-case admin ACL as admin', async () => {
+      it('should not treat a raw-case admin ACL id as admin', async () => {
         const db = dbFor('Legacy.Admin@Example.com');
-        await assertSucceeds(db.collection('orders').doc('order-1').get());
+        await assertFails(db.collection('orders').doc('order-1').get());
       });
 
-      it('should allow a legacy owner to normalise their emails to lowercase', async () => {
+      it('should not let a legacy mixed-case email list grant owner self-update', async () => {
         const db = dbFor(LEGACY);
-        await assertSucceeds(
+        await assertFails(
           db.collection('members').doc('FirestoreDocID-legacy').update({
             emails: ['legacy.user@example.com'],
             lastUpdated: serverTimestamp(),
@@ -2456,7 +2455,7 @@ describe('Firestore Rules', () => {
         );
       });
 
-      it('should prefer the canonical lowercase ACL over a stale raw-case ACL', async () => {
+      it('should use only the lowercase ACL even when a raw-case ACL also exists', async () => {
         await testEnv.withSecurityRulesDisabled(async (context) => {
           await context.firestore().collection('acl').doc('legacy.admin@example.com').set({
             isAdmin: false,

@@ -29,19 +29,11 @@
  * DEFAULTS TO A DRY RUN: it only reports what would change. Pass --apply to
  * write. Safe to re-run: a second run reports zero changes.
  *
- * REQUIRED order (see docs/email-normalisation.md):
- *   1. Deploy the new firestore.rules + storage.rules FIRST
- *      (`pnpm deploy:rules`). They accept both the raw and the lower-cased auth
- *      email, so nobody loses access while data is mixed.
- *   2. Deploy functions and hosting (these start normalising new writes; with
- *      the old rules still live they could lock out users whose auth email has
- *      capitals, hence step 1 first). This also deploys the order trigger's
- *      email-case-only guard, which MUST be live before the backfill rewrites
- *      /orders.
- *   3. Run this script as a dry run and review the report.
- *   4. Run it again with --apply. (Running it before step 1 would delete
- *      mixed-case ACL ids / rewrite emails that the OLD rules still match by
- *      exact case.)
+ * The original rollout (rules accepting both forms -> functions/hosting ->
+ * this backfill -> removing the rules' raw-email fallbacks) is complete; see
+ * docs/email-normalisation.md. The rules now ONLY accept lowercase emails, so
+ * if non-normalised data is ever imported again, re-run this script (dry run
+ * first) to fix it.
  *
  * Usage:
  *   cd functions
