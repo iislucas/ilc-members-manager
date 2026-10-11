@@ -9,13 +9,12 @@ service cloud.firestore {
     // ------------------------------------------------------------------
     // Auth email helpers (case-insensitive email matching).
     //
-    // Stored emails (members.emails, events.ownerEmails/managerEmails,
-    // registration `email`, video_grants `memberEmail`) and `/acl/{email}`
-    // doc ids are normalised to trimmed lowercase. Firebase Auth's
-    // `request.auth.token.email` may contain uppercase letters, so we match
-    // on the lowercased token email. During the transition (until the
-    // backfill has lowercased all legacy data) the raw token email is
-    // ALSO accepted wherever it was accepted before.
+    // Invariant: all stored emails (members.emails,
+    // events.ownerEmails/managerEmails, registration `email`, video_grants
+    // `memberEmail`) and `/acl/{email}` doc ids are trimmed lowercase.
+    // Firebase Auth's `request.auth.token.email` may contain uppercase
+    // letters, so rules ONLY ever compare against `token.email.lower()`.
+    // The raw (original-case) token email is never accepted.
     // ------------------------------------------------------------------
 
     // True when the request carries a non-empty string email claim. Every
@@ -27,48 +26,30 @@ service cloud.firestore {
         && request.auth.token.email.size() > 0;
     }
 
-    // The raw token email. Only call after hasAuthEmail().
-    function authEmailRaw() {
-      return request.auth.token.email;
-    }
-
     // The lowercased token email. Only call after hasAuthEmail().
     function authEmailLower() {
       return request.auth.token.email.lower();
     }
 
-    // The acceptable forms of the caller's email: [raw, lowercase], or []
-    // when there is no email claim (so `list.hasAny(authEmails())` and
-    // `value in authEmails()` are safely false for email-less tokens).
+    // The caller's lowercased email as a list, or [] when there is no email
+    // claim (so `list.hasAny(authEmails())` and `value in authEmails()` are
+    // safely false for email-less tokens).
     function authEmails() {
-      return hasAuthEmail() ? [authEmailRaw(), authEmailLower()] : [];
+      return hasAuthEmail() ? [authEmailLower()] : [];
     }
 
-    // True if `emailList` contains the caller's email (lowercase or raw form).
+    // True if `emailList` contains the caller's lowercased email.
     function isAuthEmailIn(emailList) {
       return emailList.hasAny(authEmails());
     }
 
-    // Resolves the caller's ACL document path. Only call after hasAuthEmail().
-    // The lowercase id (canonical, written by Cloud Functions) wins; the raw
-    // id is a transition fallback used only if the token email has uppercase
-    // letters, no lowercase ACL exists, and a raw-id ACL does exist.
-    // Cost: 1 doc access for lowercase tokens (unchanged from before), at most
-    // 2 (lowercase + raw) for mixed-case tokens. Repeated exists()/get() on the
-    // same path within one request are de-duplicated by the rules engine.
-    //
-    // Avoid ternary assignment with `null` for paths (e.g. `cond ? /... : null`),
-    // as the Firestore rules compiler expects both branches of a ternary to share
-    // the same type, emitting a type warning when evaluating `null` as a path.
+    // The caller's ACL document path: /acl/{lowercased token email}.
+    // Only call after hasAuthEmail().
     function aclPath() {
-      let raw = authEmailRaw();
-      let lower = authEmailLower();
-      let lowerPath = /databases/$(database)/documents/acl/$(lower);
-      let rawPath = /databases/$(database)/documents/acl/$(raw);
-      return (raw != lower && !exists(lowerPath) && exists(rawPath)) ? rawPath : lowerPath;
+      return /databases/$(database)/documents/acl/$(authEmailLower());
     }
 
-    // True if the caller has an ACL document (lowercase or raw-id fallback).
+    // True if the caller has an ACL document.
     function hasAcl() {
       return hasAuthEmail() && exists(aclPath());
     }
@@ -530,9 +511,7 @@ service cloud.firestore {
     match /video_grants/{grantId} {
       allow read: if isAdmin() || (
         request.auth != null && (
-          (hasAuthEmail() &&
-            (authEmailLower() == resource.data.memberEmail ||
-             authEmailRaw() == resource.data.memberEmail)) ||
+          (hasAuthEmail() && authEmailLower() == resource.data.memberEmail) ||
           resource.data.memberDocId in getUserMemberDocIds()
         )
       );
