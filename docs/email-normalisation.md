@@ -34,14 +34,13 @@ access to users whose auth email contains capitals.
 [firestore.rules](../firestore.rules) and [storage.rules](../storage.rules) compare the
 lower-cased auth email (guarded by `request.auth.token.get('email', null) is string`)
 everywhere the token email is matched against stored data or used as an ACL / grant doc id.
-During the transition they **also** accept the raw token email wherever it was accepted
-before, so no currently working user loses access while old data still has mixed case.
-ACL lookups use `/acl/{lowercase}` and only fall back to `/acl/{raw}` when the lowercase doc
-does not exist. Tests: "Case-insensitive email matching" in
-[tests/firestore.rules.spec.ts](../tests/firestore.rules.spec.ts).
+Only the lower-cased form is accepted, and ACL lookups use `/acl/{lowercase}` only. Tests:
+"Case-insensitive email matching" in [tests/firestore.rules.spec.ts](../tests/firestore.rules.spec.ts).
 
-Once the backfill has been applied in production, the raw-email fallbacks can be removed in a
-follow-up change.
+> [!NOTE]
+> During the rollout (October 2026) the rules temporarily also accepted the raw token email and
+> fell back to `/acl/{raw}`. Those fallbacks were removed once the backfill below had been applied
+> in production and a re-run reported zero remaining changes.
 
 ## Backfill of existing data
 
@@ -69,20 +68,20 @@ pnpm run normalize-emails --project <PROJECT_ID>           # dry run: review the
 pnpm run normalize-emails --project <PROJECT_ID> --apply   # write
 ```
 
-## Required deploy order
+## Rollout history
 
-1. **Deploy rules first**: `pnpm deploy:rules` (Firestore + Storage). They accept both email
-   forms, so this is safe on today's data.
-2. Deploy functions and hosting (`pnpm deploy:functions`, `pnpm deploy:hosting`). These start
-   normalising new writes. With the *old* rules still live, a user whose auth email has capitals
-   could be locked out of their own (now lower-cased) profile — hence rules first.
-   This also deploys the order trigger's email-case-only guard, which must be live before the
-   backfill rewrites `/orders`.
-3. Run the backfill dry run, review it, then run it with `--apply`. Re-running is safe; a second
-   dry run should report zero changes.
+The rollout (completed October 2026) ran in this order, which any similar future migration should
+follow:
 
-Running the backfill before step 1 would delete mixed-case ACL ids and lower-case emails that
-the old rules still match by exact case.
+1. Deploy rules that accept **both** the raw and lower-cased email (safe on mixed data).
+2. Deploy functions and hosting, which normalise new writes and include the order trigger's
+   email-case-only guard (must be live before the backfill rewrites `/orders`).
+3. Run the backfill dry run, review it, then `--apply`; a second dry run must report zero changes.
+4. Remove the raw-email fallbacks from the rules (and the raw-id ACL fallback in
+   `resources.ts`) and deploy rules + functions.
+
+The backfill script is kept: it is idempotent and can be re-run (dry run first) if non-normalised
+data is ever imported again.
 
 ## Related
 
