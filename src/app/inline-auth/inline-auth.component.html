@@ -99,8 +99,14 @@
     @if (firebaseService.verificationError(); as error) {
       <div class="error-container">
         <span class="error-message">{{ error }}</span>
-        <button class="icon-only-button" (click)="firebaseService.verificationError.set(null)">
-          <app-icon name="close"></app-icon>
+        <button
+          type="button"
+          class="close-btn"
+          (click)="firebaseService.verificationError.set(null)"
+          aria-label="Close error"
+          title="Close"
+        >
+          <app-icon name="close" width="12px" height="12px"></app-icon>
         </button>
       </div>
     }
@@ -153,8 +159,15 @@
           @if (checkEmailError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
-              <button class="icon-only-button" (click)="checkEmailError.set(null)">
-                <app-icon name="close"></app-icon>
+              <button
+                type="button"
+                id="close-error-btn"
+                class="close-btn"
+                (click)="checkEmailError.set(null)"
+                aria-label="Close error"
+                title="Close"
+              >
+                <app-icon name="close" width="12px" height="12px"></app-icon>
               </button>
             </div>
           }
@@ -162,7 +175,7 @@
             <button
               id="continue-btn"
               (click)="checkEmail()"
-              [disabled]="!isEmailValid()"
+              [disabled]="!email().trim()"
             >
               Continue
             </button>
@@ -187,8 +200,14 @@
             @if (loginWithGoogleError(); as message) {
               <div class="error-container">
                 <span class="error-message">{{ message }}</span>
-                <button class="icon-only-button" (click)="loginWithGoogleError.set(null)">
-                  <app-icon name="close"></app-icon>
+                <button
+                  type="button"
+                  class="close-btn"
+                  (click)="loginWithGoogleError.set(null)"
+                  aria-label="Close error"
+                  title="Close"
+                >
+                  <app-icon name="close" width="12px" height="12px"></app-icon>
                 </button>
               </div>
             }
@@ -262,8 +281,14 @@
           @if (loginError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
-              <button class="icon-only-button" (click)="loginError.set(null)">
-                <app-icon name="close"></app-icon>
+              <button
+                type="button"
+                class="close-btn"
+                (click)="loginError.set(null)"
+                aria-label="Close error"
+                title="Close"
+              >
+                <app-icon name="close" width="12px" height="12px"></app-icon>
               </button>
             </div>
           }
@@ -348,8 +373,14 @@
           @if (signupError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
-              <button class="icon-only-button" (click)="signupError.set(null)">
-                <app-icon name="close"></app-icon>
+              <button
+                type="button"
+                class="close-btn"
+                (click)="signupError.set(null)"
+                aria-label="Close error"
+                title="Close"
+              >
+                <app-icon name="close" width="12px" height="12px"></app-icon>
               </button>
             </div>
           }
@@ -419,8 +450,14 @@
           @if (signupError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
-              <button class="icon-only-button" (click)="signupError.set(null)">
-                <app-icon name="close"></app-icon>
+              <button
+                type="button"
+                class="close-btn"
+                (click)="signupError.set(null)"
+                aria-label="Close error"
+                title="Close"
+              >
+                <app-icon name="close" width="12px" height="12px"></app-icon>
               </button>
             </div>
           }
@@ -491,8 +528,14 @@
       <div class="error-container global-error">
         <div>Login error:</div>
         <div class="error-message">{{ firebaseService.loginError() }}</div>
-        <button class="icon-only-button" (click)="firebaseService.loginError.set(null)">
-          <app-icon name="close"></app-icon>
+        <button
+          type="button"
+          class="close-btn"
+          (click)="firebaseService.loginError.set(null)"
+          aria-label="Close error"
+          title="Close"
+        >
+          <app-icon name="close" width="12px" height="12px"></app-icon>
         </button>
       </div>
     }

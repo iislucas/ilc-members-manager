@@ -89,24 +89,14 @@ describe('check-email-status', () => {
   });
 
   describe('checkEmailStatusHandler', () => {
-    it('returns empty status when email is not provided', async () => {
+    it('throws invalid-argument when email is not provided', async () => {
       const req = { data: {}, rawRequest: { ip: '1.2.3.4' } } as CallableRequest<{ email: string }>;
-      const res = await checkEmailStatusHandler(req);
-      expect(res).toEqual({
-        hasMemberRecord: false,
-        hasAuthAccount: false,
-        isGoogleManaged: false,
-      });
+      await expect(checkEmailStatusHandler(req)).rejects.toThrow('A valid email address is required.');
     });
 
-    it('returns empty status when email is invalid format', async () => {
+    it('throws invalid-argument when email is invalid format', async () => {
       const req = { data: { email: 'not-an-email' }, rawRequest: { ip: '1.2.3.4' } } as CallableRequest<{ email: string }>;
-      const res = await checkEmailStatusHandler(req);
-      expect(res).toEqual({
-        hasMemberRecord: false,
-        hasAuthAccount: false,
-        isGoogleManaged: false,
-      });
+      await expect(checkEmailStatusHandler(req)).rejects.toThrow('A valid email address is required.');
     });
 
     it('detects member record from ACL, auth account with password, and Google Workspace domain', async () => {

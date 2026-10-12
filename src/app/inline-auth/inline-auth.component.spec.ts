@@ -373,35 +373,79 @@ describe('InlineAuthComponent', () => {
       );
     });
 
-    it('should disable submit/continue button when email is invalid or empty, and enable when valid', async () => {
+    it('should disable continue button only when email is empty, and enable when text is entered', async () => {
       await createComponent();
       const continueBtn = html().querySelector('#continue-btn') as HTMLButtonElement;
 
       // Empty email -> disabled
-      expect(component.isEmailValid()).toBe(false);
+      expect(component.email()).toBe('');
       expect(continueBtn.disabled).toBe(true);
 
-      // Invalid format -> disabled
+      // Non-empty (even invalid format) -> enabled so clicking can trigger validation message
       component.onEmailChange('invalid-email');
       fixture.detectChanges();
       expect(component.isEmailValid()).toBe(false);
-      expect(continueBtn.disabled).toBe(true);
+      expect(continueBtn.disabled).toBe(false);
 
-      component.onEmailChange('test@');
+      component.onEmailChange('   ');
       fixture.detectChanges();
-      expect(component.isEmailValid()).toBe(false);
       expect(continueBtn.disabled).toBe(true);
 
-      component.onEmailChange('test@example');
-      fixture.detectChanges();
-      expect(component.isEmailValid()).toBe(false);
-      expect(continueBtn.disabled).toBe(true);
-
-      // Valid format -> enabled
       component.onEmailChange('valid@example.com');
       fixture.detectChanges();
       expect(component.isEmailValid()).toBe(true);
       expect(continueBtn.disabled).toBe(false);
+    });
+
+    it('should show error and allow dismissing with small [x] close button when Continue is clicked with invalid email', async () => {
+      const check = vi.spyOn(mockService, 'checkEmailStatus');
+      await createComponent();
+
+      component.onEmailChange('Foo Bar');
+      fixture.detectChanges();
+
+      const continueBtn = html().querySelector('#continue-btn') as HTMLButtonElement;
+      expect(continueBtn.disabled).toBe(false);
+
+      continueBtn.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(check).not.toHaveBeenCalled();
+      expect(component.step()).toBe(InlineAuthStep.Email);
+      expect(component.checkEmailError()).toBe(
+        "That doesn't look like a valid email address. Please check it and try again.",
+      );
+
+      // Verify the small [x] close button is rendered and dismisses the error
+      const closeBtn = html().querySelector('#close-error-btn') as HTMLButtonElement;
+      expect(closeBtn).toBeTruthy();
+      expect(closeBtn.classList.contains('close-btn')).toBe(true);
+
+      closeBtn.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.checkEmailError()).toBeNull();
+      expect(html().querySelector('#close-error-btn')).toBeNull();
+    });
+
+    it('should show validation error if server rejects with invalid-argument', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockRejectedValue({
+        code: 'functions/invalid-argument',
+        message: 'A valid email address is required.',
+      });
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      await createComponent();
+
+      // Bypass client check to test backend error handling
+      component.email.set('valid-format@example.com');
+      await component.checkEmail();
+
+      expect(component.step()).toBe(InlineAuthStep.Email);
+      expect(component.checkEmailError()).toBe(
+        "That doesn't look like a valid email address. Please check it and try again.",
+      );
     });
 
     it('should clear checkEmailError when email is modified', async () => {
