@@ -50,6 +50,7 @@ to the relevant files instead of re-exploring.
 | "Who has access" panel (grants list, revoke) for a video or series | [src/app/vod-access-list/](../../src/app/vod-access-list/) |
 | Admin grant page (`/manage-vod/video/:videoId/grant`, `/manage-vod/series/:seriesId/grant`): one "admin grant" kind, optional editable notification, any-email recipients | [src/app/manage-vod-grant-page/](../../src/app/manage-vod-grant-page/) + [grant-vod-form](../../src/app/grant-vod-form/) → [functions/src/vod/grant-video.ts](../../functions/src/vod/grant-video.ts) |
 | Stripe Product & Price Sync Tool (`pnpm sync:video-products`) | [functions/scripts/sync-video-stripe-products.ts](../../functions/scripts/sync-video-stripe-products.ts) |
+| `recordedDate` backfill (string `YYYY-MM-DD` or month-only `YYYY-MM`; Vimeo import never set it). Seminar-list series dates + per-video dates mined from descriptions; no-clobber & idempotent planner | [functions/scripts/backfill-vod-recorded-dates/](../../functions/scripts/backfill-vod-recorded-dates/) (script, planner + spec, data JSON); display via `formatRecordedDate` / `formatRecordedDateRange` in [src/app/utils.ts](../../src/app/utils.ts) |
 
 ### Associations between concepts
 | Association | How it is represented |

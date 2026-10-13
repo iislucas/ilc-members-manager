@@ -307,9 +307,19 @@ export class InlineAuthComponent implements OnInit {
       this.step.set(this.stepForStatus(result));
     } catch (error) {
       console.error('checkEmailStatus failed:', error);
-      this.checkEmailError.set(
-        'Unable to check email status. Please check your connection and try again.',
-      );
+      const isInvalidArgument =
+        (error as { code?: string })?.code === 'functions/invalid-argument' ||
+        (error as { code?: string })?.code === 'invalid-argument' ||
+        (error as { message?: string })?.message?.includes('valid email');
+      if (isInvalidArgument) {
+        this.checkEmailError.set(
+          "That doesn't look like a valid email address. Please check it and try again.",
+        );
+      } else {
+        this.checkEmailError.set(
+          'Unable to check email status. Please check your connection and try again.',
+        );
+      }
       this.step.set(InlineAuthStep.Email);
     }
   }

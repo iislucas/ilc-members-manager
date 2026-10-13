@@ -121,7 +121,7 @@ export async function checkEmailStatusHandler(
 
   const email = normalizeEmail(request.data?.email);
   if (!email || !isValidEmail(email)) {
-    return { hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: false };
+    throw new HttpsError('invalid-argument', 'A valid email address is required.');
   }
 
   logger.info('checkEmailStatus called', { email });

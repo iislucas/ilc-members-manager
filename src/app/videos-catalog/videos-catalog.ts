@@ -29,6 +29,7 @@ import { AppPathPatterns, Views } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
+import { formatRecordedDate } from '../utils';
 
 export type CatalogMode = 'vod' | 'class_library' | 'auto';
 
@@ -690,24 +691,7 @@ export class VideosCatalogComponent {
   }
 
   formatVideoDate(video: VideoItem): string {
-    const raw = video.recordedDate || video.createdAt || video.publishedAt || '';
-    if (!raw) return '';
-    const dateStr = raw.split('T')[0];
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const d = new Date(year, month, day);
-      if (!isNaN(d.getTime())) {
-        return d.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-      }
-    }
-    return dateStr;
+    return formatRecordedDate(video.recordedDate || video.createdAt || video.publishedAt || '');
   }
 
   // --- CatalogEntry Helpers ---
@@ -759,24 +743,7 @@ export class VideosCatalogComponent {
   }
 
   formatEntryDate(entry: CatalogEntry): string {
-    const raw = entry.recordedDate || '';
-    if (!raw) return '';
-    const dateStr = raw.split('T')[0];
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const d = new Date(year, month, day);
-      if (!isNaN(d.getTime())) {
-        return d.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-      }
-    }
-    return dateStr;
+    return formatRecordedDate(entry.recordedDate);
   }
 
   getEntryTopAccessBadge(entry: CatalogEntry): {

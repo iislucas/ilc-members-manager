@@ -302,6 +302,34 @@
 .error-container {
   max-width: 400px;
   margin-top: 0.25em;
+
+  .close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid rgba($theme-error-border-color, 0.7);
+    border-radius: 3px;
+    background: transparent;
+    color: $theme-error-text-color;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+
+    &:hover {
+      background-color: rgba($theme-error-text-color, 0.1);
+      border-color: $theme-error-border-color;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $focus-ring-color;
+      outline-offset: 1px;
+    }
+  }
 }
 
 .spinner-row {
