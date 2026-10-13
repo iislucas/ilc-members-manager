@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { findMemberDocsForEmail } from './member-docs-for-email';
+import { emailHasMemberRecord, findMemberDocsForEmail } from './member-docs-for-email';
 import { InMemoryFirestore } from './testing/in-memory-firestore';
 
 describe('findMemberDocsForEmail', () => {
@@ -48,5 +48,20 @@ describe('findMemberDocsForEmail', () => {
     expect(res.memberDocs).toEqual([]);
     expect(res.aclNeedsRepair).toBe(false);
     expect(res.acl?.isAdmin).toBe(true);
+  });
+});
+
+describe('emailHasMemberRecord', () => {
+  it('is true only when an existing member is linked', async () => {
+    const fake = new InMemoryFirestore({
+      acl: {
+        'stale@x.com': { memberDocIds: ['gone'] },
+        'ok@x.com': { memberDocIds: ['m1'] },
+      },
+      members: { m1: { emails: ['ok@x.com'] } },
+    });
+    expect(await emailHasMemberRecord(fake.asFirestore(), 'ok@x.com')).toBe(true);
+    expect(await emailHasMemberRecord(fake.asFirestore(), 'stale@x.com')).toBe(false);
+    expect(await emailHasMemberRecord(fake.asFirestore(), 'nobody@x.com')).toBe(false);
   });
 });

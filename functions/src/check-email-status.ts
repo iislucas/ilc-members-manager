@@ -19,7 +19,7 @@ import * as dns from 'dns';
 import { allowedOrigins } from './common';
 import { CheckEmailStatusResult } from './data-model/system';
 import { normalizeEmail, isValidEmail } from './data-model/email';
-import { findMemberDocsForEmail } from './member-docs-for-email';
+import { emailHasMemberRecord } from './member-docs-for-email';
 
 export const GOOGLE_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
 
@@ -132,9 +132,9 @@ export async function checkEmailStatusHandler(
   const db = admin.firestore();
 
   // 1. Look for a member record, exactly as getUserDetails will after sign-in,
-  //    so "we found your membership" here is never contradicted later.
-  const { memberDocs } = await findMemberDocsForEmail(db, email, request.data?.email);
-  const hasMemberRecord = memberDocs.length > 0;
+  //    so "we found your membership" here is never contradicted later. Only a
+  //    boolean: this endpoint is unauthenticated and must not see member data.
+  const hasMemberRecord = await emailHasMemberRecord(db, email, request.data?.email);
 
   // 2. Check Firebase Auth for an existing account and providers.
   let hasAuthAccount = false;

@@ -13,6 +13,12 @@
  * 1. The member docs listed in /acl/{email}.memberDocIds that still exist.
  * 2. Otherwise, members whose `emails` array contains the address (the
  *    normalised form, then the raw form for legacy un-normalised data).
+ *
+ * Exposure: findMemberDocsForEmail returns full member documents and must only
+ * be used where the email comes from a verified, authenticated caller (e.g.
+ * getUserDetails). Unauthenticated code (checkEmailStatus) must use
+ * emailHasMemberRecord, which returns only a boolean, so member data cannot
+ * leak into a pre-auth response by accident.
  */
 
 import * as admin from 'firebase-admin';
@@ -65,4 +71,16 @@ export async function findMemberDocsForEmail(
     memberDocs: query.docs,
     aclNeedsRepair: !query.empty,
   };
+}
+
+// Whether any existing member document is linked to `email`, using the same
+// resolution as findMemberDocsForEmail. Returns only a boolean: this is the
+// entry point for unauthenticated callers (checkEmailStatus).
+export async function emailHasMemberRecord(
+  db: admin.firestore.Firestore,
+  email: string,
+  rawEmail?: string,
+): Promise<boolean> {
+  const { memberDocs } = await findMemberDocsForEmail(db, email, rawEmail);
+  return memberDocs.length > 0;
 }
