@@ -56,10 +56,11 @@ export interface AppEnvironment {
   // are built and deployed separately, and neither can import the other's config
   // (see the note on `email.contact`) — so keep them in step by hand.
   adminEmail: string;
-  // The 'From' address that password-reset emails are sent from. Display-only:
-  // shown to the user in the login page's reset-confirmation message so they
-  // know which sender to look for (e.g. in a spam folder). The actual send is
-  // performed by Firebase Auth, not this value.
+  // The 'From' address that Firebase Auth emails (password reset and email
+  // verification) are sent from. Display-only: shown in the login flow's
+  // reset-confirmation and verify-your-email messages so users know which
+  // sender to look for (e.g. in a spam folder). The actual send is performed
+  // by Firebase Auth, not this value.
   passwordResetEmailSender: string;
   // Base64url VAPID public key used by browser PushManager to subscribe to Web Push
   vapidPublicKey: string;

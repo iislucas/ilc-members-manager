@@ -1,3 +1,17 @@
+/* get-user-details.ts
+ *
+ * Callable run right after sign-in: returns the member profiles linked to the
+ * caller's verified auth email, plus their admin flag and managed schools.
+ *
+ * Profiles are resolved with findMemberDocsForEmail, the same lookup the
+ * pre-auth checkEmailStatus uses, so the login flow's "we found your
+ * membership" never turns into "we could not find your profile" here. For a
+ * verified user the profile list is never empty:
+ * - members found but /acl/{email} missing or stale -> the ACL is repaired;
+ * - no member found (no ACL, an ACL listing only deleted members, or an
+ *   admin-only ACL) -> a guest (NotYetAMember) profile is created.
+ */
+
 import {
   onCall,
   HttpsError,
@@ -7,8 +21,11 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
 import { Member, MembershipType, firestoreDocToMember, initMember } from './data-model/members';
-import { FetchUserDetailsResult } from './data-model/system';
+import { ACL, FetchUserDetailsResult } from './data-model/system';
 import { normalizeEmail } from './data-model/email';
+import { FirestoreCollection } from './data-model/collections';
+import { findMemberDocsForEmail } from './member-docs-for-email';
+import { refreshACLAdminStatus } from './on-member-update';
 
 export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
   if (!request.auth) {
@@ -41,96 +58,88 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       };
     }
 
-    let aclDoc = await db.collection('acl').doc(email).get();
-    if (!aclDoc.exists) {
-      // Check if any member document already lists this email.
-      let existingMembersQuery = await db.collection('members')
-        .where('emails', 'array-contains', email)
-        .get();
+    const { acl, memberDocs, aclNeedsRepair } = await findMemberDocsForEmail(db, email, user.email);
+    const aclRef = db.collection(FirestoreCollection.Acl).doc(email);
+    const isAdmin = acl?.isAdmin === true;
 
-      if (existingMembersQuery.empty && user.email !== email) {
-        existingMembersQuery = await db.collection('members')
-          .where('emails', 'array-contains', user.email.trim())
-          .get();
-      }
+    if (memberDocs.length === 0) {
+      // No existing member document for this email: the ACL is missing, or
+      // lists only deleted members (or none, e.g. an admin-only entry). Give
+      // the user a guest profile rather than an empty list, which the client
+      // can only answer with "We could not find your profile" and a sign-out.
+      logger.info('Creating guest profile for user', { email, hadAcl: !!acl });
 
-      if (!existingMembersQuery.empty) {
-        logger.info('Found existing members for email without ACL, creating ACL', { email });
-        const memberDocIds = existingMembersQuery.docs.map((doc) => doc.id);
+      const memberRef = db.collection(FirestoreCollection.Members).doc();
+      const memberDocId = memberRef.id;
 
-        const aclData = {
-          memberDocIds: memberDocIds,
-          instructorIds: [],
-          isAdmin: false,
-          notYetLinkedToMember: false,
+      const guestMember: Member = {
+        ...initMember(),
+        docId: memberDocId,
+        emails: [email],
+        membershipType: MembershipType.NotYetAMember,
+      };
+
+      const { docId, lastUpdated, ...dbData } = guestMember;
+      const memberFirestoreData = {
+        ...dbData,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const batch = db.batch();
+      batch.set(memberRef, memberFirestoreData);
+      if (acl) {
+        // Replace the stale IDs; keep everything else (notably isAdmin).
+        const aclUpdate: Partial<ACL> = {
+          memberDocIds: [memberDocId],
+          notYetLinkedToMember: true,
         };
-
-        await db.collection('acl').doc(email).set(aclData);
-        aclDoc = await db.collection('acl').doc(email).get(); // Refresh to continue normal flow
+        batch.update(aclRef, aclUpdate);
       } else {
-        logger.info('Creating guest profile for user', { email });
-
-        const memberRef = db.collection('members').doc();
-        const memberDocId = memberRef.id;
-
-        const guestMember: Member = {
-          ...initMember(),
-          docId: memberDocId,
-          emails: [email],
-          membershipType: MembershipType.NotYetAMember,
-        };
-
-        const { docId, lastUpdated, ...dbData } = guestMember;
-        const memberFirestoreData = {
-          ...dbData,
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-        };
-
-        const aclData = {
+        const aclData: Partial<ACL> = {
           memberDocIds: [memberDocId],
           instructorIds: [],
           isAdmin: false,
           notYetLinkedToMember: true,
         };
-
-        const batch = db.batch();
-        batch.set(memberRef, memberFirestoreData);
-        batch.set(db.collection('acl').doc(email), aclData);
-        await batch.commit();
-
-        return {
-          userMemberProfiles: [guestMember],
-          isAdmin: false,
-          schoolsManaged: [],
-        };
+        batch.set(aclRef, aclData);
       }
+      await batch.commit();
+
+      return {
+        userMemberProfiles: [guestMember],
+        isAdmin,
+        schoolsManaged: [],
+      };
     }
 
-    const aclData = aclDoc.data() as { memberDocIds: string[]; schoolDocIds?: string[]; isAdmin?: boolean };
-    const memberDocIds = aclData.memberDocIds || [];
-
-    const memberRefs = memberDocIds.map((id) => db.collection('members').doc(id));
-    const memberDocs =
-      memberRefs.length > 0 ? await db.getAll(...memberRefs) : [];
-
-    const userMemberProfiles: Member[] = memberDocs
-      .filter((doc) => doc.exists)
-      .map(firestoreDocToMember);
-
-    if (userMemberProfiles.length === 0) {
-      return { userMemberProfiles: [], isAdmin: aclData.isAdmin === true, schoolsManaged: [] };
+    if (aclNeedsRepair) {
+      // Members list this email but the ACL is missing or points elsewhere.
+      logger.info('Repairing ACL from members matching email', { email, hadAcl: !!acl });
+      const aclUpdate: Partial<ACL> = {
+        memberDocIds: memberDocs.map((doc) => doc.id),
+      };
+      if (!acl) {
+        aclUpdate.instructorIds = [];
+        aclUpdate.isAdmin = false;
+        aclUpdate.notYetLinkedToMember = false;
+      }
+      await aclRef.set(aclUpdate, { merge: true });
+      // Recompute instructorIds, schoolDocIds and expiries for the new links.
+      await refreshACLAdminStatus(email);
     }
 
-    const primaryMember = userMemberProfiles[0];
+    const userMemberProfiles: Member[] = memberDocs.map(firestoreDocToMember);
 
     // School docIds are now cached in the ACL document, so no
     // additional queries are needed.
-    const schoolsManaged = aclData.schoolDocIds || [];
+    const schoolsManaged = aclNeedsRepair
+      ? ((await aclRef.get()).data() as ACL | undefined)?.schoolDocIds ?? []
+      : acl?.schoolDocIds ?? [];
 
     return {
       userMemberProfiles,
       schoolsManaged,
-      isAdmin: aclData.isAdmin === true,
+      isAdmin,
     };
   } catch (error: unknown) {
     logger.error('Error getting members:', error);

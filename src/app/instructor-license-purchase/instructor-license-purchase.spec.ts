@@ -140,6 +140,7 @@ describe('InstructorLicensePurchaseComponent', () => {
           provide: FirebaseStateService,
           useValue: {
             user: userSignal,
+            loginError: signal<string | null>(null),
           },
         },
         { provide: DataManagerService, useValue: mockDataManager },

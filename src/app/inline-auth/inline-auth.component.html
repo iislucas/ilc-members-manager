@@ -89,8 +89,9 @@
       <span class="verification-title">Verify Your Email Address</span>
     </div>
     <p class="verification-text">
-      We sent a verification link to <strong>{{ unverifiedEmail() }}</strong>.
-      Please check your inbox and click the link to activate your account.
+      We sent a verification link to <strong>{{ unverifiedEmail() }}</strong>
+      from <strong>{{ passwordResetEmailSender }}</strong>. Please check your
+      inbox (and your spam folder) and click the link to activate your account.
     </p>
 
     @if (resendSuccess(); as message) {
@@ -244,6 +245,16 @@
             <div class="notice-text">
               An account already exists for <strong>{{ email() }}</strong> using a password.
               Enter your password once to connect Google Sign-In.
+            </div>
+          </div>
+        } @else if (accountNeedsVerification()) {
+          <div class="account-link-notice" id="unverified-account-notice">
+            <app-icon name="mail" width="20px" height="20px"></app-icon>
+            <div class="notice-text">
+              This account's email address hasn't been verified yet. After you
+              sign in, you'll be asked to click the verification link we email
+              you from <strong>{{ passwordResetEmailSender }}</strong> (check
+              your spam folder too).
             </div>
           </div>
         }
