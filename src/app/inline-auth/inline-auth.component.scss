@@ -59,6 +59,14 @@
 
   .notice-text {
     flex: 1;
+
+    p {
+      margin: 0;
+    }
+
+    p + p {
+      margin-top: 0.4rem;
+    }
   }
 }
 
