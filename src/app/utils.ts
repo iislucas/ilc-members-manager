@@ -39,6 +39,43 @@ export function stringToDate(dateString: string | null | undefined): Date {
 }
 
 /**
+ * Formats a VOD date for display. Accepts `YYYY-MM-DD`, ISO timestamps, or a
+ * month-precision `YYYY-MM` (some historic seminars only record the month).
+ * Returns e.g. "Apr 14, 2015" / "Nov 2009"; unparseable input is returned as-is.
+ */
+export function formatRecordedDate(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const clean = raw.split('T')[0];
+  const parts = clean.split('-').map((p) => parseInt(p, 10));
+  if (parts.some((n) => isNaN(n))) return clean;
+  if (parts.length === 3) {
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+  } else if (parts.length === 2 && parts[1] >= 1 && parts[1] <= 12) {
+    const d = new Date(parts[0], parts[1] - 1, 1);
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+  }
+  return clean;
+}
+
+/**
+ * Formats the span of a set of recorded dates (e.g. a series' episodes) as
+ * "first – last", or a single date when they are all the same. Empty values are
+ * ignored. `YYYY-MM[-DD]` strings sort chronologically as plain strings.
+ */
+export function formatRecordedDateRange(dates: ReadonlyArray<string | null | undefined>): string {
+  const sorted = dates.filter((d): d is string => !!d).map((d) => d.split('T')[0]).sort();
+  if (sorted.length === 0) return '';
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  return first === last
+    ? formatRecordedDate(first)
+    : `${formatRecordedDate(first)} – ${formatRecordedDate(last)}`;
+}
+
+/**
  * Converts a restricted subset of HTML to Markdown.
  * Specifically handles tags found in Google Calendar events.
  */

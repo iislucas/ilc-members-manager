@@ -24,6 +24,7 @@ import {
   hasClassVideoSubscriberAccess,
 } from '../../../functions/src/data-model/vod';
 import { VOD_ADMIN_TABS, VodAdminTab, formatVodDuration, parseVodAdminTab } from '../vod-admin-tabs';
+import { formatRecordedDate, formatRecordedDateRange } from '../utils';
 
 @Component({
   selector: 'app-manage-vod-series-page',
@@ -66,6 +67,12 @@ export class ManageVodSeriesPageComponent {
     const s = this.series();
     return s?.thumbnailUrl || s?.videos.find((v) => v.thumbnailUrl)?.thumbnailUrl || '';
   });
+  /** First–last recorded date across the episodes (single date if they all match). */
+  recordedRange = computed(() => {
+    const s = this.series();
+    return s ? formatRecordedDateRange([s.recordedDate, ...s.videos.map((v) => v.recordedDate)]) : '';
+  });
+  readonly formatRecordedDate = formatRecordedDate;
 
   setTab(tab: VodAdminTab): void {
     this.viewSignals.urlParams.tab.set(tab);

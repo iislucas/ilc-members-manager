@@ -1,7 +1,35 @@
 import { describe, it, expect } from 'vitest';
-import { htmlToMarkdown, looksLikeHtml, fitWithin, getAspectRatioLabel } from './utils';
+import { htmlToMarkdown, looksLikeHtml, fitWithin, getAspectRatioLabel, formatRecordedDate, formatRecordedDateRange } from './utils';
 
 describe('utils', () => {
+  describe('formatRecordedDate', () => {
+    it('formats full dates, ISO timestamps, and month-only dates', () => {
+      const opts = { year: 'numeric', month: 'short' } as const;
+      expect(formatRecordedDate('2015-04-14')).toBe(
+        new Date(2015, 3, 14).toLocaleDateString(undefined, { ...opts, day: 'numeric' }),
+      );
+      expect(formatRecordedDate('2015-04-14T10:00:00Z')).toBe(formatRecordedDate('2015-04-14'));
+      expect(formatRecordedDate('2009-11')).toBe(new Date(2009, 10, 1).toLocaleDateString(undefined, opts));
+    });
+
+    it('returns empty for missing input and passes through unparseable text', () => {
+      expect(formatRecordedDate('')).toBe('');
+      expect(formatRecordedDate(undefined)).toBe('');
+      expect(formatRecordedDate('circa 2009')).toBe('circa 2009');
+    });
+  });
+
+  describe('formatRecordedDateRange', () => {
+    it('shows one date when all match, first – last otherwise, ignoring blanks', () => {
+      expect(formatRecordedDateRange([])).toBe('');
+      expect(formatRecordedDateRange(['', undefined])).toBe('');
+      expect(formatRecordedDateRange(['2015-04-14', '', '2015-04-14'])).toBe(formatRecordedDate('2015-04-14'));
+      expect(formatRecordedDateRange(['2023-09-10', '2009-11', '2015-04-14'])).toBe(
+        `${formatRecordedDate('2009-11')} – ${formatRecordedDate('2023-09-10')}`,
+      );
+    });
+  });
+
   describe('htmlToMarkdown', () => {
     it('should convert standard tags to markdown', () => {
       const html = '<h4>Heading</h4><p>Paragraph with <strong>bold</strong> and <a href="http://example.com">link</a>.</p>';

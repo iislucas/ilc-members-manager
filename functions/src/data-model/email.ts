@@ -57,3 +57,17 @@ export function emailListIncludes(
   if (!target) return false;
   return (emails ?? []).some((e) => normalizeEmail(e) === target);
 }
+
+// Regular expression for validating standard email address format (RFC 5322 subset).
+// Requires a non-empty local-part (max 64 chars), an '@', and a domain with at least
+// one label and a minimum 2-character alphabetical top-level domain (max total 254 chars).
+export const EMAIL_REGEX =
+  /^(?=.{1,254}$)(?=.{1,64}@)[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/i;
+
+// True when `email` (after trimming) is a validly formatted email address.
+export function isValidEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const trimmed = email.trim();
+  if (!trimmed) return false;
+  return EMAIL_REGEX.test(trimmed);
+}

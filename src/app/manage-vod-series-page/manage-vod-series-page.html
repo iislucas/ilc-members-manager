@@ -49,9 +49,9 @@
                 <dd>{{ s.videoCount }}</dd>
                 <dt>Total length</dt>
                 <dd>{{ formatDuration(s.totalDurationSeconds) }}</dd>
-                @if (s.recordedDate) {
+                @if (recordedRange(); as range) {
                   <dt>Recorded</dt>
-                  <dd>{{ s.recordedDate }}</dd>
+                  <dd>{{ range }}</dd>
                 }
                 @if (s.instructorName) {
                   <dt>Instructor</dt>
@@ -90,6 +90,9 @@
                   }
                   @if (!vid.isPublished) {
                     <span class="listing-chip unlisted">Unlisted</span>
+                  }
+                  @if (vid.recordedDate) {
+                    <span class="episode-meta" title="Recorded">{{ formatRecordedDate(vid.recordedDate) }}</span>
                   }
                   <span class="episode-meta">{{ formatDuration(vid.durationSeconds) }}</span>
                 </a>

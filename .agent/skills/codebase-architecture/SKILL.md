@@ -50,6 +50,7 @@ to the relevant files instead of re-exploring.
 | "Who has access" panel (grants list, revoke) for a video or series | [src/app/vod-access-list/](../../src/app/vod-access-list/) |
 | Admin grant page (`/manage-vod/video/:videoId/grant`, `/manage-vod/series/:seriesId/grant`): one "admin grant" kind, optional editable notification, any-email recipients | [src/app/manage-vod-grant-page/](../../src/app/manage-vod-grant-page/) + [grant-vod-form](../../src/app/grant-vod-form/) → [functions/src/vod/grant-video.ts](../../functions/src/vod/grant-video.ts) |
 | Stripe Product & Price Sync Tool (`pnpm sync:video-products`) | [functions/scripts/sync-video-stripe-products.ts](../../functions/scripts/sync-video-stripe-products.ts) |
+| `recordedDate` backfill (string `YYYY-MM-DD` or month-only `YYYY-MM`; Vimeo import never set it). Seminar-list series dates + per-video dates mined from descriptions; no-clobber & idempotent planner | [functions/scripts/backfill-vod-recorded-dates/](../../functions/scripts/backfill-vod-recorded-dates/) (script, planner + spec, data JSON); display via `formatRecordedDate` / `formatRecordedDateRange` in [src/app/utils.ts](../../src/app/utils.ts) |
 
 ### Associations between concepts
 | Association | How it is represented |
@@ -60,6 +61,7 @@ to the relevant files instead of re-exploring.
 | Who accepted / who last changed status | Two pairs (member docId + name snapshot): `acceptedByMemberDocId`/`acceptedByName` (the acceptance milestone; cleared on decline; shown as "Accepted by X" and used to tell co-managers who accepted) and `statusChangedByMemberDocId`/`statusChangedByName` (the latest status transition of any kind. Set client-side in [grading-progress.ts](../../src/app/grading-progress/grading-progress.ts). Backfill: `pnpm --prefix functions run backfill-grading-status-actor`. |
 | Login email ↔ members/schools/instructor licences | `/acl/{email}` caches `memberDocIds`, `schoolDocIds`, `instructorIds`, expiry dates (built by member/school triggers; read by rules). |
 | Video ↔ Trailer | `VideoItem.trailerVideoId` references a preview clip (which has `isTrailer: true`). Trailed videos are automatically playable on `/videos/:id` for unauthorized users. Standalone trailers (`isTrailer: true`) are excluded from top-level catalog listings. |
+| Video ↔ Series | Series are **virtual aggregations**, NOT a standalone Firestore collection. Videos declare parent series affiliation via `VideoItem.seriesId`, `seriesTitle`, `seriesDescription`, `seriesPartIndex`, `seriesPriceCents`, `seriesStripeProductId`, and `seriesStripePriceId` (with legacy fallback `forVodPageId`/`forVodSeriesTitle` or title regex heuristics like `"Title : Part 1"`). Grouping is evaluated in-memory via `groupVideosIntoSeries()`. Updating a series via `DataManagerService.updateVideoSeries()` writes a batch across all constituent `VideoItem` docs. Grants can target a `seriesId`, which unlocks all constituent videos during playback authorization. |
 | Video ↔ Stripe Product & Price | `VideoItem.stripeProductId` and `VideoItem.stripePriceId` link purchasable videos to Stripe for instant one-click Checkout sessions. |
 
 ---

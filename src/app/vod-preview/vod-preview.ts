@@ -26,6 +26,7 @@ import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { VideoItem, VideoSeries } from '../../../functions/src/data-model/vod';
+import { formatRecordedDate } from '../utils';
 
 export interface VodPreviewDetails {
   id: string;
@@ -140,22 +141,6 @@ export class VodPreviewComponent {
   }
 
   private formatDate(dateStr?: string): string {
-    if (!dateStr) return '';
-    const clean = dateStr.split('T')[0];
-    const parts = clean.split('-');
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const d = new Date(year, month, day);
-      if (!isNaN(d.getTime())) {
-        return d.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-      }
-    }
-    return clean;
+    return formatRecordedDate(dateStr);
   }
 }
