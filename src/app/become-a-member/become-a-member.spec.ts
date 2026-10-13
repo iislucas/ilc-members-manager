@@ -169,6 +169,7 @@ describe('BecomeAMemberComponent', () => {
 
   let mockFirebaseService: {
     user: typeof userSignal;
+    loginError: ReturnType<typeof signal<string | null>>;
   };
 
   beforeEach(async () => {
@@ -193,6 +194,7 @@ describe('BecomeAMemberComponent', () => {
 
     mockFirebaseService = {
       user: userSignal,
+      loginError: signal<string | null>(null),
     };
 
     mockStripeProducts = {

@@ -17,7 +17,7 @@
  * corrected.
  */
 
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthCredential } from 'firebase/auth';
@@ -250,6 +250,29 @@ export class InlineAuthComponent implements OnInit {
   });
 
   /**
+   * Whether the lookup found an account whose email address has not been
+   * verified yet. A password sign-in to it lands on the "verify your email"
+   * step, so the password step says so up front rather than surprising them.
+   */
+  accountNeedsVerification = computed(() => {
+    const status = this.emailStatus();
+    return !!status?.hasAuthAccount && status.emailVerified === false;
+  });
+
+  passwordResetEmailSender = environment.passwordResetEmailSender;
+
+  /**
+   * `loginError` is only set when authentication succeeded but loading the
+   * user's profile then failed, leaving them signed out. That sign-in did not
+   * really succeed, so it must not be offered again on the next visit.
+   */
+  private forgetFailedSignIn = effect(() => {
+    if (this.firebaseService.loginError()) {
+      forgetRememberedLogin();
+    }
+  });
+
+  /**
    * Runs here rather than in the constructor because the opening step depends
    * on `showNoMemberOption`, and inputs are not set until after construction.
    */
@@ -351,6 +374,9 @@ export class InlineAuthComponent implements OnInit {
    * same route next time.
    */
   private rememberSuccessfulLogin(method: LoginMethod): void {
+    // The profile load may already have failed and signed the user out
+    // (see forgetFailedSignIn); errors are cleared when each attempt starts.
+    if (this.firebaseService.loginError()) return;
     const email =
       this.email().trim() || this.firebaseService.user()?.firebaseUser?.email || '';
     if (!email) return;

@@ -242,8 +242,9 @@ describe('App', () => {
       'Other pages you might be looking for',
     );
     const otherCards = otherPagesSection?.querySelectorAll('.service-link-card');
-    expect(otherCards?.length).toBe(6);
+    expect(otherCards?.length).toBe(7);
     expect(Array.from(otherCards || []).some((c) => c.textContent?.includes('Articles & Guides'))).toBe(true);
+    expect(Array.from(otherCards || []).some((c) => c.textContent?.includes('Video on Demand'))).toBe(true);
 
     // Should NOT show the generic login app-info welcome message
     expect(compiled.querySelector('.app-info')).toBeNull();
@@ -270,8 +271,9 @@ describe('App', () => {
     const loginSiteLinks = compiled.querySelector('.login-site-links');
     expect(loginSiteLinks).toBeTruthy();
     const siteCards = loginSiteLinks?.querySelectorAll('.service-link-card');
-    expect(siteCards?.length).toBe(6);
+    expect(siteCards?.length).toBe(7);
     expect(Array.from(siteCards || []).some((c) => c.textContent?.includes('Articles & Guides'))).toBe(true);
+    expect(Array.from(siteCards || []).some((c) => c.textContent?.includes('Video on Demand'))).toBe(true);
 
     // Should show login component
     expect(compiled.querySelector('app-login')).toBeTruthy();

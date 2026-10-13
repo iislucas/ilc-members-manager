@@ -176,7 +176,8 @@ export type FetchUserDetailsResult = {
 // Result from the pre-auth checkEmailStatus function. Guides the login UI
 // to show the appropriate step (Google sign-in, password, or account creation).
 export type CheckEmailStatusResult = {
-  // Whether this email has an ACL entry (is a known member).
+  // Whether an existing member document is linked to this email (resolved by
+  // findMemberDocsForEmail, the same lookup getUserDetails uses).
   hasMemberRecord: boolean;
   // Whether a Firebase Auth account exists for this email.
   hasAuthAccount: boolean;
@@ -187,4 +188,8 @@ export type CheckEmailStatusResult = {
   hasPasswordProvider?: boolean;
   // Whether the existing auth account has a google.com provider configured.
   hasGoogleProvider?: boolean;
+  // Whether the existing auth account's email address has been verified.
+  // Only meaningful when hasAuthAccount is true. A password sign-in to an
+  // unverified account lands on the "verify your email" step.
+  emailVerified?: boolean;
 };

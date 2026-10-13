@@ -1081,6 +1081,62 @@ describe('InlineAuthComponent', () => {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  //  Warning before sign-in about things that would otherwise surprise later
+  // ---------------------------------------------------------------------------
+  describe('early warnings', () => {
+    it('should warn on the password step that the account still needs verifying', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({ hasMemberRecord: true, hasAuthAccount: true, hasPasswordProvider: true, emailVerified: false }),
+      );
+      await createComponent();
+      component.email.set('jane@example.com');
+      await component.checkEmail();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
+      expect(html().querySelector('#unverified-account-notice')).toBeTruthy();
+    });
+
+    it('should not warn for a verified account', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({ hasMemberRecord: true, hasAuthAccount: true, hasPasswordProvider: true, emailVerified: true }),
+      );
+      await createComponent();
+      component.email.set('jane@example.com');
+      await component.checkEmail();
+      fixture.detectChanges();
+
+      expect(html().querySelector('#unverified-account-notice')).toBeNull();
+    });
+
+    it('should forget a sign-in whose profile then failed to load', async () => {
+      remember({ email: 'jane@example.com', method: 'password' });
+      await createComponent();
+      expect(readRemembered()).not.toBeNull();
+
+      mockService.loginError.set('We could not find your profile linked to that email address.');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(readRemembered()).toBeNull();
+    });
+
+    it('should not remember a sign-in when the profile load already failed', async () => {
+      vi.spyOn(mockService, 'loginWithEmail').mockImplementation(async () => {
+        // The profile fetch fails before the sign-in promise resumes.
+        mockService.loginError.set('permission-denied');
+        return { success: true, userCredential: {} as UserCredential };
+      });
+      await createComponent();
+      component.email.set('jane@example.com');
+      component.password.set('correct-horse');
+      await component.loginWithEmail();
+
+      expect(readRemembered()).toBeNull();
+    });
+  });
+
   describe('Google account linking on credential conflict', () => {
     it('should transition to password step and display linking notice when Google encounters password account', async () => {
       const mockCredential = { providerId: 'google.com' } as any;
