@@ -52,6 +52,27 @@
   </div>
 </ng-template>
 
+<!-- For an email with a membership record but no login yet. Said before the
+     user picks Google or a password: without it, "Sign up" read as starting
+     a second account rather than getting into the membership they have. -->
+<ng-template #membershipFoundGuidance>
+  <div class="account-link-notice" id="membership-found-notice">
+    <app-icon name="info" width="20px" height="20px"></app-icon>
+    <div class="notice-text">
+      <p>
+        <strong>We found your ILC membership record</strong> for this email,
+        but you haven't signed in to this app with it before.
+      </p>
+      <p>
+        Choose how you'd like to sign in from now on: with Google, or with a
+        password. Either way you'll be signed in to your
+        <em>existing</em> membership. This doesn't create a new membership
+        or a duplicate record.
+      </p>
+    </div>
+  </div>
+</ng-template>
+
 @if (isLoggedIn()) {
   <div class="logged-in-box">
     <div class="user-info">
@@ -93,6 +114,12 @@
       from <strong>{{ passwordResetEmailSender }}</strong>. Please check your
       inbox (and your spam folder) and click the link to activate your account.
     </p>
+    @if (connectsExistingMembership()) {
+      <p class="verification-text">
+        Once your email is verified, you'll be signed in to your existing ILC
+        membership.
+      </p>
+    }
 
     @if (resendSuccess(); as message) {
       <div class="success-message">{{ message }}</div>
@@ -195,6 +222,14 @@
       @case (InlineAuthStep.GoogleSignin) {
         <div class="google-signin-step">
           <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+          @if (connectsExistingMembership()) {
+            <ng-container *ngTemplateOutlet="membershipFoundGuidance"></ng-container>
+          } @else if (!hasKnownAuthAccount()) {
+            <p class="step-guidance">
+              There's no account for this email yet. Continue with Google, or
+              set a password, to create one.
+            </p>
+          }
           @if (busy()) {
             <ng-container *ngTemplateOutlet="busySpinner"></ng-container>
           } @else {
@@ -217,7 +252,9 @@
                 {{
                   hasKnownAuthAccount()
                     ? "Sign in with Google"
-                    : "Sign up with Google"
+                    : connectsExistingMembership()
+                      ? "Continue with Google"
+                      : "Sign up with Google"
                 }}
               </button>
               <!-- A password is always a route from here: the account has one,
@@ -342,14 +379,17 @@
       @case (InlineAuthStep.CreateAccount) {
         <ng-container *ngTemplateOutlet="emailChip"></ng-container>
 
-        <p class="step-guidance">
-          @if (emailStatus()?.hasMemberRecord) {
-            We found your membership record. Create a password to get started.
-          } @else {
+        @if (connectsExistingMembership()) {
+          <ng-container *ngTemplateOutlet="membershipFoundGuidance"></ng-container>
+          <p class="step-guidance">
+            Choose a password for signing in (minimum 6 characters).
+          </p>
+        } @else {
+          <p class="step-guidance">
             Create a password to finish setting up your account (minimum 6
             characters).
-          }
-        </p>
+          </p>
+        }
 
         <div class="input-field">
           <label for="new-password-input">Password</label>
@@ -414,7 +454,11 @@
               (click)="signupWithEmail()"
               [disabled]="!password() || password().length < 6"
             >
-              Create Account
+              {{
+                connectsExistingMembership()
+                  ? "Set Password & Continue"
+                  : "Create Account"
+              }}
             </button>
           </div>
         }

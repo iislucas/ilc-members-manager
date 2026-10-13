@@ -687,7 +687,7 @@ describe('InlineAuthComponent', () => {
       expect(html().querySelector('.more-options-btn')).toBeNull();
     });
 
-    it('should word both buttons as signing up when there is no account yet', async () => {
+    it('should explain that a found membership is being connected, not created', async () => {
       vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
         status({ hasMemberRecord: true, hasAuthAccount: false, isGoogleManaged: true }),
       );
@@ -696,13 +696,71 @@ describe('InlineAuthComponent', () => {
       await component.checkEmail();
       fixture.detectChanges();
 
-      // Nothing exists to sign in to yet, and "use" would imply a password
-      // the user does not have.
+      // The reported confusion: "Sign up with Google" for someone who is
+      // already a member read as starting a second, separate account.
+      const notice = html().querySelector('#membership-found-notice');
+      expect(notice).toBeTruthy();
+      expect(notice!.textContent).toContain('We found your ILC membership record');
+      expect(notice!.textContent).toContain("doesn't create a new membership");
+      expect(html().querySelector('#google-signin-btn')!.textContent!.trim()).toBe(
+        'Continue with Google',
+      );
+      // "Use" would imply a password the user does not have.
+      expect(html().querySelector('#use-password-btn')!.textContent!.trim()).toBe(
+        'Set a password',
+      );
+    });
+
+    it('should word both buttons as signing up when there is no account or membership', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({ hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: true }),
+      );
+      await createComponent();
+      component.email.set('new@gmail.com');
+      await component.checkEmail();
+      fixture.detectChanges();
+
+      expect(html().querySelector('#membership-found-notice')).toBeNull();
+      expect(html().textContent).toContain("There's no account for this email yet");
       expect(html().querySelector('#google-signin-btn')!.textContent!.trim()).toBe(
         'Sign up with Google',
       );
       expect(html().querySelector('#use-password-btn')!.textContent!.trim()).toBe(
         'Set a password',
+      );
+    });
+
+    it('should show the membership explainer on the set-password step too', async () => {
+      // Non-Google emails land on the password step directly, never seeing
+      // the Google step's explainer.
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({ hasMemberRecord: true, hasAuthAccount: false, isGoogleManaged: false }),
+      );
+      await createComponent();
+      component.email.set('jane@example.com');
+      await component.checkEmail();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe(InlineAuthStep.CreateAccount);
+      expect(html().querySelector('#membership-found-notice')).toBeTruthy();
+      expect(html().querySelector('#create-account-btn')!.textContent!.trim()).toBe(
+        'Set Password & Continue',
+      );
+    });
+
+    it('should keep "Create Account" for someone with no membership', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({ hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: false }),
+      );
+      await createComponent();
+      component.email.set('new@example.com');
+      await component.checkEmail();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe(InlineAuthStep.CreateAccount);
+      expect(html().querySelector('#membership-found-notice')).toBeNull();
+      expect(html().querySelector('#create-account-btn')!.textContent!.trim()).toBe(
+        'Create Account',
       );
     });
 
@@ -721,6 +779,7 @@ describe('InlineAuthComponent', () => {
       expect(html().querySelector('#use-password-btn')!.textContent!.trim()).toBe(
         'Use a password',
       );
+      expect(html().querySelector('#membership-found-notice')).toBeNull();
     });
 
     it('should let a both-providers account fall back to its password', async () => {
@@ -873,7 +932,7 @@ describe('InlineAuthComponent', () => {
 
     it('should say it is creating an account for a Google sign-up', async () => {
       vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
-        status({ hasMemberRecord: true, hasAuthAccount: false, isGoogleManaged: true }),
+        status({ hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: true }),
       );
       await createComponent();
       component.email.set('brand-new@gmail.com');
@@ -882,6 +941,24 @@ describe('InlineAuthComponent', () => {
       const text = await messageDuring('loginWithGoogle', () => component.loginWithGoogle());
       // No account exists yet, so this is a sign-up however Google frames it.
       expect(text).toContain('Creating your account with Google…');
+    });
+
+    it('should say it is connecting a found membership rather than creating', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({ hasMemberRecord: true, hasAuthAccount: false, isGoogleManaged: true }),
+      );
+      await createComponent();
+      component.email.set('member@gmail.com');
+      await component.checkEmail();
+
+      const google = await messageDuring('loginWithGoogle', () => component.loginWithGoogle());
+      expect(google).toContain('Connecting Google to your membership…');
+      expect(google).not.toContain('Creating');
+
+      component.usePasswordInstead();
+      component.password.set('abcdef');
+      const password = await messageDuring('signupWithEmail', () => component.signupWithEmail());
+      expect(password).toContain('Setting up sign-in for your membership…');
     });
 
     it('should fall back to signing in while a session is restored on load', async () => {
@@ -1078,6 +1155,21 @@ describe('InlineAuthComponent', () => {
       await createComponent();
       await component.resendVerificationEmail();
       expect(component.resendSuccess()).toContain('verification email has been sent');
+    });
+
+    it('should tell a found member verification leads to their existing membership', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({ hasMemberRecord: true, hasAuthAccount: false }),
+      );
+      await createComponent();
+      component.email.set('jane@example.com');
+      await component.checkEmail();
+      (mockService.loginStatus as unknown as { set: (v: LoginStatus) => void }).set(
+        LoginStatus.NeedsEmailVerification,
+      );
+      fixture.detectChanges();
+
+      expect(html().textContent).toContain("you'll be signed in to your existing ILC");
     });
   });
 

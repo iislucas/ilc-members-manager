@@ -195,6 +195,14 @@ export class InlineAuthComponent implements OnInit {
     // No pending action of ours: the session is being restored on load.
     if (!pending) return 'Signing in…';
     if (pending.creating) {
+      // For a known member this is the first login to an existing membership,
+      // not a new account; saying "creating" is what made people think they
+      // were starting a second, separate account.
+      if (this.connectsExistingMembership()) {
+        return pending.google
+          ? 'Connecting Google to your membership…'
+          : 'Setting up sign-in for your membership…';
+      }
       return pending.google
         ? 'Creating your account with Google…'
         : 'Creating your account…';
@@ -238,6 +246,17 @@ export class InlineAuthComponent implements OnInit {
   hasKnownAuthAccount = computed(
     () => this.emailStatus()?.hasAuthAccount ?? this.remembered() !== null,
   );
+
+  /**
+   * Whether the lookup found a membership record for this email but no login
+   * yet. Choosing Google or a password then sets up sign-in for that existing
+   * membership; it does not create a new member. The steps say so up front,
+   * because "Sign up" alone read as starting a second, separate account.
+   */
+  connectsExistingMembership = computed(() => {
+    const status = this.emailStatus();
+    return !!status?.hasMemberRecord && !status.hasAuthAccount;
+  });
 
   /**
    * Whether to offer Google as an alternative. A live lookup wins; otherwise
