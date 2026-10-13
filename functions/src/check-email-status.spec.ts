@@ -8,6 +8,7 @@ import {
   isCheckEmailRateLimited,
 } from './check-email-status';
 import { CallableRequest } from 'firebase-functions/v2/https';
+import { InMemoryFirestore } from './testing/in-memory-firestore';
 
 describe('check-email-status', () => {
   beforeEach(() => {
@@ -104,20 +105,17 @@ describe('check-email-status', () => {
         { exchange: 'aspmx.l.google.com', priority: 10 },
       ]);
 
-      const mockAclSnap = {
-        exists: true,
-        data: () => ({ memberDocIds: ['doc_123'] }),
-      };
-      const mockDoc = vi.fn().mockReturnValue({
-        get: vi.fn().mockResolvedValue(mockAclSnap),
+      const fake = new InMemoryFirestore({
+        acl: { 'yen@iliqchuan.com': { memberDocIds: ['doc_123'] } },
+        members: { doc_123: { emails: ['yen@iliqchuan.com'] } },
       });
-      const mockCollection = vi.fn().mockReturnValue({ doc: mockDoc });
-      vi.spyOn(admin, 'firestore').mockReturnValue({ collection: mockCollection } as any);
+      vi.spyOn(admin, 'firestore').mockReturnValue(fake.asFirestore());
 
       vi.spyOn(admin, 'auth').mockReturnValue({
         getUserByEmail: vi.fn().mockResolvedValue({
           providerData: [{ providerId: 'password' }],
           passwordHash: 'hashed',
+          emailVerified: true,
         }),
       } as any);
 
@@ -132,6 +130,7 @@ describe('check-email-status', () => {
       expect(res.hasPasswordProvider).toBe(true);
       expect(res.hasGoogleProvider).toBe(false);
       expect(res.isGoogleManaged).toBe(true); // From MX record!
+      expect(res.emailVerified).toBe(true);
     });
 
     it('sets isGoogleManaged to true if user has google provider even if domain is not google', async () => {
@@ -139,28 +138,12 @@ describe('check-email-status', () => {
         { exchange: 'mail.yahoo.com', priority: 10 },
       ]);
 
-      const mockAclSnap = { exists: false };
-      const mockDoc = vi.fn().mockReturnValue({
-        get: vi.fn().mockResolvedValue(mockAclSnap),
-      });
-      const mockQuery = {
-        empty: true,
-        docs: [],
-      };
-      const mockWhere = vi.fn().mockReturnValue({
-        limit: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue(mockQuery),
-        }),
-      });
-      const mockCollection = vi.fn().mockImplementation((name: string) => {
-        if (name === 'acl') return { doc: mockDoc };
-        return { where: mockWhere };
-      });
-      vi.spyOn(admin, 'firestore').mockReturnValue({ collection: mockCollection } as any);
+      vi.spyOn(admin, 'firestore').mockReturnValue(new InMemoryFirestore().asFirestore());
 
       vi.spyOn(admin, 'auth').mockReturnValue({
         getUserByEmail: vi.fn().mockResolvedValue({
           providerData: [{ providerId: 'google.com' }],
+          emailVerified: true,
         }),
       } as any);
 
@@ -172,6 +155,65 @@ describe('check-email-status', () => {
       const res = await checkEmailStatusHandler(req);
       expect(res.hasGoogleProvider).toBe(true);
       expect(res.isGoogleManaged).toBe(true);
+    });
+
+    it('reports no member record when the ACL lists only deleted members', async () => {
+      // Previously reported as a member, which then failed after sign-in with
+      // "We could not find your profile".
+      vi.spyOn(dns.promises, 'resolveMx').mockResolvedValue([]);
+      const fake = new InMemoryFirestore({
+        acl: { 'stale@example.com': { memberDocIds: ['deleted'] } },
+      });
+      vi.spyOn(admin, 'firestore').mockReturnValue(fake.asFirestore());
+      vi.spyOn(admin, 'auth').mockReturnValue({
+        getUserByEmail: vi.fn().mockRejectedValue(new Error('user-not-found')),
+      } as any);
+
+      const res = await checkEmailStatusHandler({
+        data: { email: 'stale@example.com' },
+        rawRequest: { ip: '10.0.0.3' },
+      } as CallableRequest<{ email: string }>);
+
+      expect(res.hasMemberRecord).toBe(false);
+      expect(res.hasAuthAccount).toBe(false);
+    });
+
+    it('finds a member by email when the ACL is stale', async () => {
+      vi.spyOn(dns.promises, 'resolveMx').mockResolvedValue([]);
+      const fake = new InMemoryFirestore({
+        acl: { 'moved@example.com': { memberDocIds: ['deleted'] } },
+        members: { m1: { emails: ['moved@example.com'] } },
+      });
+      vi.spyOn(admin, 'firestore').mockReturnValue(fake.asFirestore());
+      vi.spyOn(admin, 'auth').mockReturnValue({
+        getUserByEmail: vi.fn().mockRejectedValue(new Error('user-not-found')),
+      } as any);
+
+      const res = await checkEmailStatusHandler({
+        data: { email: 'moved@example.com' },
+        rawRequest: { ip: '10.0.0.4' },
+      } as CallableRequest<{ email: string }>);
+
+      expect(res.hasMemberRecord).toBe(true);
+    });
+
+    it('reports an existing account whose email is not yet verified', async () => {
+      vi.spyOn(dns.promises, 'resolveMx').mockResolvedValue([]);
+      vi.spyOn(admin, 'firestore').mockReturnValue(new InMemoryFirestore().asFirestore());
+      vi.spyOn(admin, 'auth').mockReturnValue({
+        getUserByEmail: vi.fn().mockResolvedValue({
+          providerData: [{ providerId: 'password' }],
+          emailVerified: false,
+        }),
+      } as any);
+
+      const res = await checkEmailStatusHandler({
+        data: { email: 'unverified@example.com' },
+        rawRequest: { ip: '10.0.0.5' },
+      } as CallableRequest<{ email: string }>);
+
+      expect(res.hasAuthAccount).toBe(true);
+      expect(res.emailVerified).toBe(false);
     });
   });
 

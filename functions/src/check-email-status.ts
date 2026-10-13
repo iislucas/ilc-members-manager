@@ -1,8 +1,10 @@
 /* Pre-auth cloud function: checks an email's status to guide the login flow.
  *
  * This is intentionally callable WITHOUT authentication. It determines:
- * 1. Whether the email has a member record (via the ACL collection).
- * 2. Whether a Firebase Auth account already exists.
+ * 1. Whether the email has a member record (via findMemberDocsForEmail, the
+ *    same lookup getUserDetails uses after sign-in).
+ * 2. Whether a Firebase Auth account already exists, its providers, and
+ *    whether its email address has been verified.
  * 3. Whether the email appears to be Google-managed.
  *
  * Security note: this reveals whether an email is in the member database.
@@ -17,6 +19,7 @@ import * as dns from 'dns';
 import { allowedOrigins } from './common';
 import { CheckEmailStatusResult } from './data-model/system';
 import { normalizeEmail, isValidEmail } from './data-model/email';
+import { findMemberDocsForEmail } from './member-docs-for-email';
 
 export const GOOGLE_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
 
@@ -128,39 +131,20 @@ export async function checkEmailStatusHandler(
 
   const db = admin.firestore();
 
-  // 1. Check ACL collection for a member record.
-  const aclDoc = await db.collection('acl').doc(email).get();
-  let hasMemberRecord =
-    aclDoc.exists &&
-    ((aclDoc.data() as { memberDocIds?: string[] })?.memberDocIds?.length ?? 0) > 0;
-
-  // Fallback: Check members collection directly if not found in ACL
-  if (!hasMemberRecord) {
-    const rawEmail = request.data?.email?.trim();
-    let memberQuery = await db.collection('members')
-      .where('emails', 'array-contains', email)
-      .limit(1)
-      .get();
-
-    if (memberQuery.empty && rawEmail && rawEmail !== email) {
-      memberQuery = await db.collection('members')
-        .where('emails', 'array-contains', rawEmail)
-        .limit(1)
-        .get();
-    }
-
-    if (!memberQuery.empty) {
-      hasMemberRecord = true;
-    }
-  }
+  // 1. Look for a member record, exactly as getUserDetails will after sign-in,
+  //    so "we found your membership" here is never contradicted later.
+  const { memberDocs } = await findMemberDocsForEmail(db, email, request.data?.email);
+  const hasMemberRecord = memberDocs.length > 0;
 
   // 2. Check Firebase Auth for an existing account and providers.
   let hasAuthAccount = false;
   let hasGoogleProvider = false;
   let hasPasswordProvider = false;
+  let emailVerified = false;
   try {
     const userRecord = await admin.auth().getUserByEmail(email);
     hasAuthAccount = true;
+    emailVerified = userRecord.emailVerified;
     hasGoogleProvider = userRecord.providerData.some(
       (p) => p.providerId === 'google.com',
     );
@@ -182,6 +166,7 @@ export async function checkEmailStatusHandler(
     isGoogleManaged,
     hasPasswordProvider,
     hasGoogleProvider,
+    emailVerified,
   };
 }
 
