@@ -1,6 +1,6 @@
 /* plan-recorded-date-backfill.ts
  *
- * Pure planning logic for scripts/backfill-vod-recorded-dates.ts, kept
+ * Pure planning logic for backfill-vod-recorded-dates.ts (same directory), kept
  * separate (and side-effect free) so its safety properties are unit-tested:
  *   - never overwrites an existing `recordedDate` unless `force` is set;
  *   - idempotent: once the planned updates are applied, re-planning yields none.

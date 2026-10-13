@@ -10,25 +10,26 @@
  * the series (episodes, trailers, previews) gets the date. Dates are
  * `YYYY-MM-DD`, or `YYYY-MM` when the source only gives the month.
  *
- * A second source, data/vod-recorded-dates-from-descriptions.json, holds
- * per-video dates mined from Vimeo titles/descriptions (mostly Class Library
- * videos); those win over the series-level list when both apply.
+ * A second source, recorded-dates-from-descriptions.json (alongside this
+ * script), holds per-video dates mined from Vimeo titles/descriptions (mostly
+ * Class Library videos); those win over the series-level list when both apply.
  *
  * Videos that already have a `recordedDate` are left alone unless --force.
+ * Planning lives in plan-recorded-date-backfill.ts (pure, unit-tested).
  *
  * Usage:
  *   cd functions
- *   pnpm exec ts-node scripts/backfill-vod-recorded-dates.ts            # dry run
- *   pnpm exec ts-node scripts/backfill-vod-recorded-dates.ts --commit   # write
- *   pnpm exec ts-node scripts/backfill-vod-recorded-dates.ts --commit --force
+ *   pnpm exec ts-node scripts/backfill-vod-recorded-dates/backfill-vod-recorded-dates.ts            # dry run
+ *   pnpm exec ts-node scripts/backfill-vod-recorded-dates/backfill-vod-recorded-dates.ts --commit   # write
+ *   pnpm exec ts-node scripts/backfill-vod-recorded-dates/backfill-vod-recorded-dates.ts --commit --force
  */
 
-import { createActionContext, listVideos, updateVideo } from '../src/actions';
+import { createActionContext, listVideos, updateVideo } from '../../src/actions';
 import {
   SeriesRecordedDate,
   VideoRecordedDate,
   planRecordedDateBackfill,
-} from '../src/vod/plan-recorded-date-backfill';
+} from './plan-recorded-date-backfill';
 
 const SEMINAR_DATES: SeriesRecordedDate[] = [
   { seriesId: '106038', recordedDate: '2004-10-09', sourceTitle: 'Iliqchuan Chi-Kung for Health. Chuang Yen Monastery' },
@@ -86,7 +87,7 @@ const SEMINAR_DATES: SeriesRecordedDate[] = [
  * These take precedence over the series-level seminar list dates.
  */
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const VIDEO_DATES: VideoRecordedDate[] = require('./data/vod-recorded-dates-from-descriptions.json');
+const VIDEO_DATES: VideoRecordedDate[] = require('./recorded-dates-from-descriptions.json');
 
 async function main() {
   const commit = process.argv.includes('--commit');
