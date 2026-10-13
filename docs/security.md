@@ -91,6 +91,7 @@ Storage paths enforce resource scoping and MIME-type restrictions:
   - Host headers (`X-Forwarded-Host`, `Host`) are validated via `resolveWhitelistedHost` against an approved domain whitelist (`app.iliqchuan.com`, `iliqchuan.com`, `localhost`, and project Firebase domains). Untrusted hosts fall back strictly to `app.iliqchuan.com`, preventing web cache poisoning and SSRF in SPA shell fetching.
 - **Rate Limiting (`checkEmailStatus`)**:
   - An in-memory sliding window rate limiter throttles calls per client IP (30 requests/min), preventing mass automated email scraping.
+  - As an accepted UX trade-off this unauthenticated call reveals, per email: whether a member record exists, whether an auth account exists, its providers, and whether its email is verified. Member records are resolved by `findMemberDocsForEmail` ([member-docs-for-email.ts](../functions/src/member-docs-for-email.ts)), the same lookup `getUserDetails` uses, so the pre- and post-sign-in answers agree.
 - **Event Product Association (`submitProposedEvent`)**:
   - Re-linking products requires verifying product ownership or admin rights, preventing organizers from re-assigning foreign products to newly created events.
 - **Event Updates Concurrency & Integrity (`firestore.rules`)**:
