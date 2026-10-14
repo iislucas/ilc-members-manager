@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter } from './data-model/curriculum';
-import { nextGradingPayment, unpaidGradingsInProgressionOrder, orderDisplayNumber, gradingDisplayId, isGradingPaid, PaymentStatus, GradingStatus } from './data-model/gradings';
+import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter, unachievedEarlierLevels } from './data-model/curriculum';
+import { nextGradingPayment, upcomingGradingPayments, unpaidGradingsInProgressionOrder, orderDisplayNumber, gradingDisplayId, isGradingPaid, PaymentStatus, GradingStatus } from './data-model/gradings';
 import { notificationStyle, NotificationKind } from './data-model/notifications';
 
 describe('grading progression helpers', () => {
@@ -119,6 +119,80 @@ describe('grading progression helpers', () => {
     it('treats Entry/unset instructor level as unqualified for application gradings', () => {
       expect(instructorCanAssessLevel('Entry', 'Application 1')).toBe(false);
       expect(instructorCanAssessLevel('', 'Application 1')).toBe(false);
+    });
+  });
+
+  describe('unachievedEarlierLevels', () => {
+    it('lists the earlier levels still to be achieved, in order', () => {
+      expect(unachievedEarlierLevels('Student 3', '1', '')).toEqual(['Student 2']);
+      expect(unachievedEarlierLevels('Student 4', '2', '')).toEqual([
+        'Student 3',
+        'Application 1',
+      ]);
+    });
+
+    it('is empty when the grading is the next level', () => {
+      expect(unachievedEarlierLevels('Student 2', '1', '')).toEqual([]);
+      expect(unachievedEarlierLevels('Student 4', '3', '1')).toEqual([]);
+    });
+
+    it('is empty for the first level or an unknown level', () => {
+      expect(unachievedEarlierLevels('Student Entry', '', '')).toEqual([]);
+      expect(unachievedEarlierLevels('Bogus 9', '', '')).toEqual([]);
+    });
+
+    it('normalises legacy bare-number levels', () => {
+      expect(unachievedEarlierLevels('3', '1', '')).toEqual(['Student 2']);
+    });
+  });
+
+  describe('upcomingGradingPayments', () => {
+    const unpaid = (level: string, status = GradingStatus.AwaitingRequest) => ({
+      level,
+      status,
+      paymentStatus: PaymentStatus.NotYetPaid,
+    });
+    const paid = (level: string, status = GradingStatus.AwaitingRequest) => ({
+      level,
+      status,
+      paymentStatus: PaymentStatus.PaidByStripe,
+    });
+
+    it('lists every remaining level in progression order', () => {
+      const levels = upcomingGradingPayments('9', '4', []).map((p) => p.level);
+      expect(levels).toEqual(['Student 10', 'Application 5', 'Student 11', 'Application 6']);
+    });
+
+    it('starts with nextGradingPayment', () => {
+      const gradings = [paid('Application 1'), unpaid('Student 5')];
+      expect(upcomingGradingPayments('3', '', gradings)[0]).toEqual(
+        nextGradingPayment('3', '', gradings),
+      );
+    });
+
+    it('settles unpaid gradings in place and skips levels already bought', () => {
+      const s5 = unpaid('Student 5');
+      const result = upcomingGradingPayments('3', '', [paid('Application 1'), s5]);
+      expect(result.slice(0, 3).map((p) => p.level)).toEqual([
+        'Student 4',
+        'Application 2',
+        'Student 5',
+      ]);
+      expect(result[0].grading).toBe(null);
+      expect(result[2].grading).toBe(s5);
+      // Student 5 appears once only, then the walk continues.
+      expect(result.filter((p) => p.level === 'Student 5').length).toBe(1);
+      expect(result[3].level).toBe('Student 6');
+    });
+
+    it('skips the free-retake level', () => {
+      const levels = upcomingGradingPayments('3', '', [], 'Application 1').map((p) => p.level);
+      expect(levels[0]).toBe('Student 4');
+      expect(levels).not.toContain('Application 1');
+    });
+
+    it('is empty once the progression is complete', () => {
+      expect(upcomingGradingPayments('11', '6', [])).toEqual([]);
     });
   });
 

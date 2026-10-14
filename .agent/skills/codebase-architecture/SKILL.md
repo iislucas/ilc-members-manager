@@ -120,6 +120,12 @@ When `gradingEventDocId` is set, the linked event's `ownerDocId` + `managerDocId
 managers (full edit/accept rights) — derived live, never cached on the grading. Students may change the
 linked event at any time until the grading is finalised (passed/not-passed/in-review).
 
+**Buying ahead / grading in order**: `/next-grading` can buy several levels in one checkout
+(`upcomingGradingPayments`; metadata `gradingLevels`). Gradings booked ahead may be requested and accepted
+immediately, but a result (passed/not-passed) is only allowed once `unachievedEarlierLevels(...)` is empty
+— enforced in `grading-progress` (UI) and reverted by `onGradingUpdated` (`GradingNeedsEarlierLevels`);
+admins are exempt. See [docs/gradings.md](../../docs/gradings.md).
+
 ---
 
 ## Firestore Security Rules

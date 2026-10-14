@@ -23,6 +23,11 @@ export enum NotificationKind {
   // date set. The result is reverted until the date is filled in, since the date
   // is part of the grading's reference (see `gradingDisplayId`).
   GradingNeedsEventDate = 'GradingNeedsEventDate',
+  // Sent to whoever tried to record a result on a grading booked ahead while an
+  // earlier level is still not achieved. The result is reverted: gradings may be
+  // bought and accepted ahead, but are graded in sequence (see
+  // `unachievedEarlierLevels`).
+  GradingNeedsEarlierLevels = 'GradingNeedsEarlierLevels',
   // A TODO surfaced (client-driven, on login) when a grading is completed
   // (passed/not-passed) but not yet paid. Shown to the student and to the
   // instructors responsible for that student's grading.
@@ -101,6 +106,7 @@ const ACTION_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set([
   NotificationKind.GradingPurchased,
   NotificationKind.GradingUnpaid,
   NotificationKind.GradingNeedsEventDate,
+  NotificationKind.GradingNeedsEarlierLevels,
   NotificationKind.UnpaidGradingsSummary,
   NotificationKind.PendingEventApproval,
   NotificationKind.PendingEventsSummary,
@@ -362,6 +368,10 @@ export type MemberNotification = MemberNotificationCommon & (
   }
   | {
     kind: NotificationKind.GradingNeedsEventDate;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingNeedsEarlierLevels;
     data: NotificationGradingData;
   }
   | {

@@ -135,6 +135,24 @@ export function previousGradingLevel(level: string): string {
   return gradingProgression[idx - 1];
 }
 
+// The levels before `level` in `gradingProgression` that a student holding the
+// given student/application levels has not yet achieved, in progression order.
+// A grading's result (passed / not passed) may only be recorded once this is
+// empty: gradings can be bought, requested and accepted ahead, but they are
+// graded in sequence. Returns [] when `level` is not in the progression.
+//
+//   unachievedEarlierLevels('Student 3', '1', '') → ['Student 2']
+export function unachievedEarlierLevels(
+  level: string,
+  studentLevel: string,
+  applicationLevel: string,
+): string[] {
+  const idx = gradingProgression.indexOf(normalizeGradingLevel(level));
+  if (idx <= 0) return [];
+  const achieved = achievedGradingLevels(studentLevel, applicationLevel);
+  return gradingProgression.slice(0, idx).filter((l) => !achieved.has(l));
+}
+
 // The grading level immediately after `level` in the canonical progression.
 // Returns '' when `level` is the last entry, not found, or empty.
 export function levelAfter(level: string): string {

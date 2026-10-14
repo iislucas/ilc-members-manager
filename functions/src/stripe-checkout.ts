@@ -94,6 +94,38 @@ export const createStripeCheckoutSession = onCall<
   const mode: Stripe.Checkout.SessionCreateParams.Mode =
     price.type === 'recurring' ? 'subscription' : 'payment';
 
+  // Further one-time prices bought in the same checkout (e.g. several grading
+  // levels). Each is checked server-side just like the main price.
+  const rawAdditional = request.data?.additionalPriceIds ?? [];
+  if (!Array.isArray(rawAdditional)) {
+    throw new HttpsError('invalid-argument', 'additionalPriceIds must be a list.');
+  }
+  const additionalPriceIds: string[] = [];
+  for (const id of rawAdditional) {
+    if (typeof id !== 'string' || !id.startsWith('price_')) {
+      throw new HttpsError('invalid-argument', 'A valid priceId is required.');
+    }
+    let extra: Stripe.Price;
+    try {
+      extra = await stripe.prices.retrieve(id);
+    } catch {
+      throw new HttpsError('not-found', 'Unknown price.');
+    }
+    if (!extra.active) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This item is not available for purchase.',
+      );
+    }
+    if (extra.type === 'recurring' || mode !== 'payment') {
+      throw new HttpsError(
+        'invalid-argument',
+        'Only one-time items can be bought together in one checkout.',
+      );
+    }
+    additionalPriceIds.push(id);
+  }
+
   const db = admin.firestore();
   let customerId: string | undefined;
   let memberDocId: string | undefined;
@@ -207,7 +239,10 @@ export const createStripeCheckoutSession = onCall<
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode,
-    line_items: [{ price: priceId, quantity }],
+    line_items: [
+      { price: priceId, quantity },
+      ...additionalPriceIds.map((id) => ({ price: id, quantity: 1 })),
+    ],
     allow_promotion_codes: true,
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -258,6 +293,7 @@ export const createStripeCheckoutSession = onCall<
   logger.info('createStripeCheckoutSession created session', {
     sessionId: session.id,
     priceId,
+    additionalPriceIds,
     mode,
     customerId,
     memberDocId,

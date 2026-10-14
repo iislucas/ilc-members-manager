@@ -446,10 +446,27 @@ async function reportGradingPaymentProblem(
 }
 
 /**
+ * The level the purchase page charged for on the `index`-th grading line item
+ * of an order, or '' when it did not record one (the line-item description is
+ * then used instead). A multi-level purchase records every level, in line-item
+ * order, as a comma-separated `gradingLevels`; a single-level purchase (and
+ * orders placed before multi-level purchases existed) records `gradingLevel`.
+ */
+export function gradingLevelForItem(order: StripeOrder, index: number): string {
+  const levels = (order.metadata?.['gradingLevels'] || '')
+    .split(',')
+    .map((l) => l.trim())
+    .filter((l) => !!l);
+  if (levels.length > 0) return levels[index] || '';
+  return index === 0 ? order.metadata?.['gradingLevel'] || '' : '';
+}
+
+/**
  * Fulfills a grading purchase. The payment applies to the level that was
  * bought: an unpaid grading record for that level is marked paid, and when no
  * record exists one is created. Buying a level above the student's current one
- * is normal — that is how a grading is booked in advance.
+ * is normal — that is how a grading is booked in advance. One order may buy
+ * several levels; this is called once per grading line item.
  *
  * Two cases cannot be fulfilled that way and raise an alert to both the student
  * and the admins instead: paying for a level already achieved, and paying for a
@@ -472,14 +489,20 @@ async function fulfillGradingForMember(
   const level = normalizeGradingLevel(rawLevel);
   const amountPaid = formatOrderAmount(lineItem);
 
-  // Check if a grading was already created for this order to prevent duplicates
+  // Check if a grading was already created (or settled) by this order for this
+  // level, to prevent duplicates when an order is reprocessed. An order may buy
+  // several levels, so the check is per level.
   const existingQuery = await db
     .collection('gradings')
     .where('orderId', '==', orderDocId)
-    .limit(1)
     .get();
-  if (!existingQuery.empty) {
-    return existingQuery.docs[0].id;
+  const existingForLevel = existingQuery.docs.find(
+    (d) =>
+      normalizeGradingLevel((d.data() as Grading).level || '') ===
+      (level || rawLevel),
+  );
+  if (existingForLevel) {
+    return existingForLevel.id;
   }
 
   const memberGradings = await db
@@ -1172,6 +1195,9 @@ export async function fulfillStripeOrder(
     memberUpdates.stripeCustomerId = order.stripeCustomerId;
   }
 
+  // Position of the next grading line item among the order's grading items,
+  // used to look up its level in the `gradingLevels` metadata.
+  let gradingItemIndex = 0;
   for (const item of order.lineItems) {
     const category = categorizeLineItem(item, order.metadata);
     const descLower = item.description.toLowerCase();
@@ -1460,8 +1486,9 @@ export async function fulfillStripeOrder(
         member,
         item,
         orderDocId,
-        order.metadata?.['gradingLevel'] || '',
+        gradingLevelForItem(order, gradingItemIndex),
       );
+      gradingItemIndex++;
     } else if (category === OrderItemCategory.Vod || order.metadata?.['videoId'] || order.metadata?.['seriesId']) {
       let videoId = (order.metadata?.['videoId'] || '').replace(/^prod_/, '');
       let seriesId = (order.metadata?.['seriesId'] || '').replace(/^prod_/, '');

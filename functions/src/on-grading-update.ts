@@ -9,7 +9,7 @@ import * as admin from 'firebase-admin';
 // which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
-import { StudentLevel } from './data-model/curriculum';
+import { StudentLevel, unachievedEarlierLevels } from './data-model/curriculum';
 import { Grading, GradingFsDoc, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model/gradings';
 import { NotificationKind, MemberNotification } from './data-model/notifications';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
@@ -805,6 +805,60 @@ export const onGradingUpdated = onDocumentUpdated(
       return;
     }
 
+    // Gradings may be bought, requested and accepted ahead, but they are graded
+    // in sequence: a result can only be recorded once every earlier level in the
+    // progression is achieved on the student's record. Revert otherwise and tell
+    // whoever tried. Admins are exempt (e.g. entering historical gradings). The
+    // student's levels read here are also the levels they held going into this
+    // result, so they refresh the level snapshot below.
+    let levelsAtResult:
+      | { studentLevelAtAcceptance: string; applicationLevelAtAcceptance: string }
+      | undefined;
+    if (becameFinalised && grading.studentMemberDocId) {
+      const studentSnap = await db
+        .collection('members')
+        .doc(grading.studentMemberDocId)
+        .get();
+      const student = studentSnap.data() as Member | undefined;
+      if (student) {
+        const missing = unachievedEarlierLevels(
+          grading.level,
+          student.studentLevel || '',
+          student.applicationLevel || '',
+        );
+        if (
+          missing.length > 0 &&
+          !(await isMemberAdmin(grading.statusChangedByMemberDocId))
+        ) {
+          await snap.after.ref.update({
+            status: previous.status,
+            lastUpdated: FieldValue.serverTimestamp(),
+          });
+          const actorDocId =
+            grading.statusChangedByMemberDocId || grading.studentMemberDocId;
+          await createNotification(actorDocId, {
+            markdown:
+              `The result for the **${grading.level}** grading could not be saved: ` +
+              `**${missing.join(', ')}** must be passed first. Gradings can be ` +
+              `booked ahead, but results are recorded in order.`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingNeedsEarlierLevels,
+            data: { gradingDocId, level: grading.level },
+          });
+          logger.info(
+            `Grading ${gradingDocId} result reverted to ${previous.status}: ` +
+              `earlier levels not yet achieved (${missing.join(', ')}).`,
+          );
+          return;
+        }
+        levelsAtResult = {
+          studentLevelAtAcceptance: student.studentLevel || '',
+          applicationLevelAtAcceptance: student.applicationLevel || '',
+        };
+      }
+    }
+
     // Re-resolve the cached display names from the current student/instructor so
     // they stay in sync on every update. Set on the in-memory grading first so
     // the sub-collection mirrors below carry the fresh names. Captured stored
@@ -1391,6 +1445,17 @@ export const onGradingUpdated = onDocumentUpdated(
     if (snapshotUpdate) {
       writeBack.studentLevelAtAcceptance = snapshotUpdate.studentLevelAtAcceptance;
       writeBack.applicationLevelAtAcceptance = snapshotUpdate.applicationLevelAtAcceptance;
+    }
+    // A grading accepted ahead was snapshotted before its earlier levels were
+    // passed; once its result is recorded, the levels held at that moment are
+    // the meaningful "going in" levels, so they replace the acceptance snapshot.
+    if (
+      levelsAtResult &&
+      (levelsAtResult.studentLevelAtAcceptance !== grading.studentLevelAtAcceptance ||
+        levelsAtResult.applicationLevelAtAcceptance !== grading.applicationLevelAtAcceptance)
+    ) {
+      writeBack.studentLevelAtAcceptance = levelsAtResult.studentLevelAtAcceptance;
+      writeBack.applicationLevelAtAcceptance = levelsAtResult.applicationLevelAtAcceptance;
     }
     if (Object.keys(writeBack).length > 0) {
       await snap.after.ref.update(writeBack);

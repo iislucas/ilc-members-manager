@@ -62,22 +62,36 @@ A level whose grading is **paid and still open** is stepped over, which is what
 lets a student buy their following grading in advance. `not-passed` attempts are
 ignored — that level is governed by the free-retake flow.
 
+`upcomingGradingPayments(...)` applies `nextGradingPayment` repeatedly — as if
+each level had just been paid for — to list **every** level the member can still
+buy, in the order payments would be applied.
+
 ## Purchasing a grading
 
 The purchase page
 ([`NextGradingComponent`](../src/app/next-grading/next-grading.ts), at
-`/next-grading`) offers exactly one level: the one `nextGradingPayment` returns.
-So a student at Student 3 is offered **Application 1**, and a student who
-requested a grading but never paid is offered **that same grading** rather than
-being pushed to the level after it. The page records the level it charged for in
-the Stripe order metadata (`gradingLevel`).
+`/next-grading`) lists the levels `upcomingGradingPayments` returns, each with
+its fee. The first — the one `nextGradingPayment` returns — is ticked by default,
+and the member can tick further levels to **buy several gradings ahead in one
+checkout**. The selection is always a prefix of the list: ticking a level ticks
+every earlier one, and unticking a level unticks every later one. So a student
+at Student 3 is offered **Application 1, Student 4, Application 2, …**, and a
+student who requested a grading but never paid is offered **that same grading**
+first rather than being pushed to the level after it.
+
+All selected levels go into one Stripe Checkout session, one line item per level
+in progression order (`additionalPriceIds` on `createStripeCheckoutSession`;
+multi-item checkouts must be one-time payments). The page records the levels in
+the order metadata: `gradingLevels` (comma-separated, in line-item order) and
+`gradingLevel` (the first, used by the order-complete page).
 
 ### How a payment is processed
 
 `fulfillGradingForMember` in
-[`stripe-fulfillment.ts`](../functions/src/stripe-fulfillment.ts) applies the
-payment to the level that was bought — read from the order metadata, falling
-back to parsing the line-item description for orders that come from elsewhere:
+[`stripe-fulfillment.ts`](../functions/src/stripe-fulfillment.ts) runs once per
+grading line item and applies each payment to the level that was bought — read
+from the order metadata (`gradingLevelForItem`), falling back to parsing the
+line-item description for orders that come from elsewhere:
 
 1. The member has an **unpaid grading at that level** → that record is marked
    `paid-by-stripe` against the order. No second record is created.
@@ -85,8 +99,9 @@ back to parsing the line-item description for orders that come from elsewhere:
    selection. Buying a level **above** the student's current one is normal —
    that is how a grading is booked in advance.
 
-Purchases are de-duplicated by `orderId`, so re-processing an order never
-creates a second grading.
+Purchases are de-duplicated per level by `orderId`, so re-processing an order
+never creates a second grading for a level, while a multi-level order still
+creates one grading per level.
 
 ### Grading and order references
 
@@ -236,6 +251,29 @@ no date cannot be placed in the student's history. The client disables the two
 result buttons until the date is set; `onGradingUpdated` is the authoritative
 check and reverts a result saved without one, notifying whoever recorded it
 (`GradingNeedsEventDate`). This applies to admins too.
+
+### Gradings booked ahead are graded in order
+
+A grading bought ahead (e.g. Student 3 while Student 2 is still open) can be
+**requested, accepted and scheduled straight away** — a student can sit Student
+2 and Student 3 at the same event. But **a result can only be recorded once
+every earlier level in the progression is achieved** on the student's record
+(`unachievedEarlierLevels(level, studentLevel, applicationLevel)` is empty). An
+earlier level is achieved once its grading is passed **and paid**, which is when
+the student's level is updated.
+
+- The progress view shows a **"Booked ahead"** notice naming the levels still to
+  pass, and disables **Mark as Passed / Not Passed** for non-admins until they
+  are achieved. It uses the student's live member record; when the viewer can't
+  read it, the client does not block.
+- `onGradingUpdated` is the authoritative check: a result recorded too early is
+  reverted and whoever recorded it is notified (`GradingNeedsEarlierLevels`).
+- **Admins are exempt** (judged by `statusChangedByMemberDocId`), e.g. to enter
+  historical gradings.
+- When a result is recorded, `studentLevelAtAcceptance` /
+  `applicationLevelAtAcceptance` are refreshed to the levels the student held at
+  that moment, so a grading accepted ahead isn't later flagged "out of order".
+  The "Out of order" warning is now only shown on recorded results.
 
 ### Trying again after a not-passed result
 

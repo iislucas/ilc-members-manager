@@ -407,6 +407,11 @@ export class GradingEditComponent {
         studentLevelAtAcceptance: this.form.studentLevelAtAcceptance().value(),
         applicationLevelAtAcceptance: this.form.applicationLevelAtAcceptance().value(),
       };
+      if (grading.status !== this.grading().status) {
+        const actor = this.firebaseState.user()?.member;
+        grading.statusChangedByMemberDocId = actor?.docId ?? '';
+        grading.statusChangedByName = actor?.name ?? '';
+      }
       if (grading.docId) {
         // Pass original grading for diff-based update so only changed
         // fields are sent. This is critical for non-admin users whose

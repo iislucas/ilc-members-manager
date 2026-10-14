@@ -101,6 +101,12 @@ export interface CreateCheckoutSessionRequest {
   origin: string;
   /** Optional quantity; defaults to 1. */
   quantity?: number;
+  /**
+   * Optional further one-time prices to add to the same checkout, one line item
+   * each (quantity 1), after `priceId`. Used to buy several grading levels at
+   * once. All prices in a multi-item checkout must be one-time payments.
+   */
+  additionalPriceIds?: string[];
   /** Optional custom success return URL. Must match an allowed origin. */
   successUrl?: string;
   /** Optional custom cancel return URL. Must match an allowed origin. */

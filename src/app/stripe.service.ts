@@ -62,6 +62,8 @@ export class StripeService {
       recipientEmail?: string;
       recipientName?: string;
       giftMessage?: string;
+      // Further one-time prices to buy in the same checkout (one each).
+      additionalPriceIds?: string[];
     },
   ): Promise<CreateCheckoutSessionResult> {
     if (this.networkState.isOffline()) {
@@ -75,6 +77,7 @@ export class StripeService {
       priceId,
       origin,
       quantity,
+      additionalPriceIds: options?.additionalPriceIds,
       successUrl: options?.successUrl,
       cancelUrl: options?.cancelUrl,
       metadata: options?.metadata,

@@ -142,6 +142,41 @@ export function nextGradingPayment<T extends UnpaidGradingCandidate>(
   return { level: '', grading: null };
 }
 
+// Every grading payment a member could still make, in the order they would be
+// applied: the first entry is `nextGradingPayment`, the second is what would be
+// next once the first is paid, and so on to the end of the progression. This is
+// what lets a member buy several levels ahead in one checkout — each level
+// offered is exactly the level that payment will settle or create.
+//
+// `skipLevel` is passed through to `nextGradingPayment` (a free retake the
+// caller handles separately). Returns [] once every level has been achieved.
+export function upcomingGradingPayments<T extends UnpaidGradingCandidate>(
+  studentLevel: string,
+  applicationLevel: string,
+  gradings: T[],
+  skipLevel = '',
+): NextGradingPayment<T>[] {
+  const result: NextGradingPayment<T>[] = [];
+  // The member's gradings as they would be after paying for each level so far:
+  // a settled unpaid grading is replaced by a paid one, and a new level gains a
+  // paid, open grading — exactly what fulfillment would leave behind.
+  let working: UnpaidGradingCandidate[] = [...gradings];
+  for (;;) {
+    const next = nextGradingPayment(studentLevel, applicationLevel, working, skipLevel);
+    if (!next.level) break;
+    // Simulated purchases are always paid, so an unpaid match is one of `gradings`.
+    const settled = gradings.find((g) => g === next.grading) ?? null;
+    result.push({ level: next.level, grading: settled });
+    working = working.filter((g) => g !== next.grading);
+    working.push({
+      level: next.level,
+      status: GradingStatus.AwaitingRequest,
+      paymentStatus: PaymentStatus.PaidByStripe,
+    });
+  }
+  return result;
+}
+
 // 32-bit FNV-1a. Deterministic across node and the browser, and good enough to
 // spread order references evenly over the four digits below.
 function fnv1aHash(input: string): number {
@@ -249,9 +284,11 @@ export type Grading = {
   // managers/instructors/admins only.
   paymentNote: string;
   // Snapshot of the student's student/application levels at the moment the
-  // grading was accepted (status → AwaitingGrading). Lets us show/validate the
-  // level the student held going in without re-inferring it from `level`. '' when
-  // not yet captured.
+  // grading was accepted (status → AwaitingGrading), refreshed when the result
+  // is recorded (a grading accepted ahead is graded only once earlier levels
+  // are achieved, so the levels held at result time are what it went in with).
+  // Lets us show/validate the level the student held going in without
+  // re-inferring it from `level`. '' when not yet captured.
   studentLevelAtAcceptance: string;
   applicationLevelAtAcceptance: string;
   schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.

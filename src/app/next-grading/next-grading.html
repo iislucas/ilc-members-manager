@@ -28,7 +28,7 @@
             <span class="detail-label">Amount</span>
             <span class="detail-value">{{ formatPrice(s.amountTotal, s.currency) }}</span>
           </div>
-          @if (s.lineItems[0]; as item) {
+          @for (item of s.lineItems; track $index) {
             <div class="detail-row">
               <span class="detail-label">Grading Level</span>
               <span class="detail-value">{{ item.description }}</span>
@@ -304,25 +304,64 @@
           <div class="error-container">
             <span class="error-message">{{ productsError() }}</span>
           </div>
-        } @else if (matchingGradingPrice(); as match) {
-          <div class="membership-options-grid">
-            <div class="option-card selected">
-              <div class="option-title">{{ targetLevel() }}</div>
-              <div class="rate-price">
-                {{ formatPrice(match.price.unitAmount, match.price.currency) }}
-              </div>
-              <div class="rate-desc">
-                One-time examination fee for {{ targetLevel() }}.
-                @if (isPayingForExistingGrading()) {
-                  <span class="option-subtext">
-                    This settles the outstanding fee on the {{ targetLevel() }} grading you already have — no extra grading record is created.
+        } @else if (purchaseOptions().length > 0) {
+          <p class="step-guidance">
+            Choose which gradings to buy. You can buy several levels ahead in one
+            payment: later gradings can be requested and scheduled straight away,
+            and their results are recorded once the earlier levels are passed.
+          </p>
+          <ul class="grading-choice-list">
+            @for (opt of purchaseOptions(); track opt.level; let i = $index) {
+              <li>
+                <label class="grading-choice" [class.selected]="opt.selected">
+                  <input
+                    type="checkbox"
+                    [checked]="opt.selected"
+                    (change)="toggleLevel(i)"
+                  />
+                  <span class="grading-choice-text">
+                    <span class="option-title">{{ opt.level }}</span>
+                    <span class="option-subtext">{{ opt.description }}</span>
                   </span>
-                }
-              </div>
+                  <span class="rate-price">
+                    @if (opt.match; as m) {
+                      {{ formatPrice(m.price.unitAmount, m.price.currency) }}
+                    } @else {
+                      Price unavailable
+                    }
+                  </span>
+                </label>
+              </li>
+            }
+          </ul>
+
+          @if (isPayingForExistingGrading() && purchaseOptions()[0].selected) {
+            <p class="option-subtext">
+              Paying for {{ targetLevel() }} settles the outstanding fee on the
+              {{ targetLevel() }} grading you already have — no extra grading record is created.
+            </p>
+          }
+
+          @if (selectedLevelsWithoutPrice().length > 0) {
+            <div class="empty-notice">
+              <p>
+                Grading fee information for
+                <strong>{{ selectedLevelsWithoutPrice().join(', ') }}</strong>
+                is currently being updated. Please contact your instructor or
+                headquarters at
+                <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>.
+              </p>
             </div>
-          </div>
+          }
 
           <div class="checkout-section">
+            @if (selectedTotal()) {
+              <div class="selected-total">
+                <span>Total ({{ selectedPurchases().length }} {{ selectedPurchases().length === 1 ? 'grading' : 'gradings' }})</span>
+                <strong class="rate-price">{{ selectedTotal() }}</strong>
+              </div>
+            }
+
             @if (checkoutError()) {
               <div class="error-container">
                 <span class="error-message">
@@ -343,11 +382,15 @@
                 <button
                   type="button"
                   class="button pay-btn"
-                  [disabled]="isOffline()"
+                  [disabled]="isOffline() || selectedPurchases().length === 0 || selectedLevelsWithoutPrice().length > 0"
                   [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="onPurchaseNextGrading()"
                 >
-                  <span>Purchase {{ targetLevel() }} Grading</span>
+                  @if (selectedPurchases().length > 1) {
+                    <span>Purchase {{ selectedPurchases().length }} Gradings</span>
+                  } @else {
+                    <span>Purchase {{ targetLevel() }} Grading</span>
+                  }
                   <app-icon name="arrow_forward"></app-icon>
                 </button>
               }

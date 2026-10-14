@@ -243,10 +243,11 @@ describe('NextGradingComponent', () => {
     expect(component.nextPurchasableLevel()).toBe('Student 3');
     expect(component.targetLevel()).toBe('Student 3');
 
-    // Selectable levels only includes unowned, unpending, unachieved levels
+    // Selectable levels start at the next level to buy and never include a
+    // level already bought (the pending Student 2).
     const options = component.selectableLevels();
-    expect(options.length).toBe(1);
     expect(options[0].level).toBe('Student 3');
+    expect(options[1].level).toBe('Application 1');
     expect(options.some((o) => o.level === 'Student 2')).toBe(false);
   });
 
@@ -357,8 +358,12 @@ describe('NextGradingComponent', () => {
       expect(component.unpaidPendingLevel()).toBe('Application 1');
       expect(component.targetLevel()).toBe('Application 1');
       expect(component.isPayingForExistingGrading()).toBe(true);
-      expect(component.selectableLevels().length).toBe(1);
-      expect(component.selectableLevels()[0].level).toBe('Application 1');
+      // Both unpaid gradings are offered, earliest first, each settling its record.
+      const options = component.selectableLevels();
+      expect(options.slice(0, 2).map((o) => o.level)).toEqual(['Application 1', 'Student 4']);
+      expect(options[0].settlesExisting).toBe(true);
+      expect(options[1].settlesExisting).toBe(true);
+      expect(options[2].settlesExisting).toBe(false);
     });
 
     it('moves to the remaining unpaid level once the earlier one is paid for', async () => {
@@ -483,10 +488,12 @@ describe('NextGradingComponent', () => {
       expect.objectContaining({
         successUrl: expect.stringContaining('/order-complete?session_id={CHECKOUT_SESSION_ID}'),
         cancelUrl: expect.stringContaining('/next-grading'),
+        additionalPriceIds: [],
         metadata: {
           memberDocId: 'mem_student_1',
           memberId: '',
           gradingLevel: 'Student 2',
+          gradingLevels: 'Student 2',
           orderType: 'grading',
         },
       }),
@@ -494,6 +501,83 @@ describe('NextGradingComponent', () => {
     expect(redirectSpy).toHaveBeenCalledWith(
       'https://checkout.stripe.com/pay/cs_test_grading',
     );
+  });
+
+  describe('buying several gradings ahead', () => {
+    it('selects only the next level by default', async () => {
+      await createComponent();
+      expect(component.selectedPurchases().map((o) => o.level)).toEqual(['Student 2']);
+      expect(component.selectedTotal()).toBe(component.formatPrice(8000, 'usd'));
+    });
+
+    it('keeps the selection a prefix of the levels on offer', async () => {
+      await createComponent();
+      // Ticking Student 4 (the 4th level from Student 2) ticks every earlier one.
+      component.toggleLevel(3);
+      expect(component.selectedPurchases().map((o) => o.level)).toEqual([
+        'Student 2',
+        'Student 3',
+        'Application 1',
+        'Student 4',
+      ]);
+      // Unticking Student 3 unticks it and everything after it.
+      component.toggleLevel(1);
+      expect(component.selectedPurchases().map((o) => o.level)).toEqual(['Student 2']);
+    });
+
+    it('blocks checkout while a selected level has no price', async () => {
+      await createComponent();
+      component.toggleLevel(1); // Student 2 + Student 3 (no Student 3 price in the catalogue)
+      expect(component.selectedLevelsWithoutPrice()).toEqual(['Student 3']);
+
+      await component.onPurchaseNextGrading();
+      expect(mockStripeService.createCheckoutSession).not.toHaveBeenCalled();
+      expect(component.checkoutError()).toBeTruthy();
+    });
+
+    it('buys every selected level in one checkout, in order', async () => {
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'g_stu_2',
+          level: 'Student 2',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+        {
+          docId: 'g_stu_3',
+          level: 'Student 3',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+      ]);
+      await createComponent();
+      vi.spyOn(component, 'redirectTo').mockImplementation(() => {});
+      // Application 1 is next, then Student 4.
+      component.toggleLevel(1);
+      expect(component.selectedTotal()).toBe(
+        component.formatPrice(
+          (component.findGradingPrice('Application 1')?.price.unitAmount ?? 0) +
+            (component.findGradingPrice('Student 4')?.price.unitAmount ?? 0),
+          'usd',
+        ),
+      );
+
+      await component.onPurchaseNextGrading();
+
+      expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
+        'price_app_1',
+        window.location.origin,
+        1,
+        expect.objectContaining({
+          additionalPriceIds: ['price_stu_4'],
+          metadata: expect.objectContaining({
+            gradingLevel: 'Application 1',
+            gradingLevels: 'Application 1,Student 4',
+            orderType: 'grading',
+          }),
+        }),
+      );
+    });
   });
 
   it('should offer a way forward when the account step is reopened while signed in', async () => {

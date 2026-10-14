@@ -24,7 +24,7 @@ import {
   signal,
   effect,
 } from '@angular/core';
-import { nextGradingLevel, previousGradingLevel, normalizeGradingLevel, instructorCanAssessLevel } from '../../../functions/src/data-model/curriculum';
+import { nextGradingLevel, previousGradingLevel, normalizeGradingLevel, instructorCanAssessLevel, unachievedEarlierLevels } from '../../../functions/src/data-model/curriculum';
 import { IlcEvent } from '../../../functions/src/data-model/events';
 import { Grading, GradingStatus, gradingManagerIdsOf, isGradingPaid, gradingDisplayId, PaymentStatus, PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from '../../../functions/src/data-model/gradings';
 import { InstructorPublicData, Member } from '../../../functions/src/data-model/members';
@@ -188,30 +188,80 @@ export class GradingProgressComponent {
     );
   });
 
-  // The student/application levels that the grading-out-of-order check is 
+  // Whether a result (passed / not passed) has been recorded.
+  isFinalised = computed(() => {
+    const status = this.grading().status;
+    return status === GradingStatus.Passed || status === GradingStatus.NotPassed;
+  });
+
+  // The student/application levels that the grading-out-of-order check is
   // measured against.
   //
-  // Once the grading has been accepted we use the snapshot captured at
-  // acceptance (`studentLevelAtAcceptance` / `applicationLevelAtAcceptance`) so a
-  // completed grading isn't flagged "out of order" just because the student has
-  // since levelled up. Before acceptance, there's no snapshot, so we fall back to
-  // the student's current member levels. undefined when neither is available.
+  // Once a result is recorded we use the snapshot on the grading
+  // (`studentLevelAtAcceptance` / `applicationLevelAtAcceptance`, refreshed
+  // server-side when the result is recorded) so a completed grading isn't
+  // flagged "out of order" just because the student has since levelled up.
+  // While the grading is in flight, the student's live member levels are used
+  // when known: a grading accepted ahead was snapshotted before its earlier
+  // levels were passed, so its snapshot is stale. undefined when neither is
+  // available.
   orderBasisLevels = computed<
     { studentLevel: string; applicationLevel: string } | undefined
   >(() => {
     const g = this.grading();
-    if (g.studentLevelAtAcceptance || g.applicationLevelAtAcceptance) {
+    const hasSnapshot = !!(g.studentLevelAtAcceptance || g.applicationLevelAtAcceptance);
+    const m = this.studentMember();
+    if (m && !this.isFinalised()) {
+      return {
+        studentLevel: m.studentLevel || '',
+        applicationLevel: m.applicationLevel || '',
+      };
+    }
+    if (hasSnapshot) {
       return {
         studentLevel: g.studentLevelAtAcceptance || '',
         applicationLevel: g.applicationLevelAtAcceptance || '',
       };
     }
-    const m = this.studentMember();
     if (!m) return undefined;
     return {
       studentLevel: m.studentLevel || '',
       applicationLevel: m.applicationLevel || '',
     };
+  });
+
+  // For a grading still in flight: the earlier levels in the progression the
+  // student has not yet achieved, from their live member record. Gradings may
+  // be bought, requested and accepted ahead, but a result can only be recorded
+  // once this is empty. [] when the grading is finalised or the member record
+  // isn't readable by this viewer — the acceptance snapshot may be stale, so it
+  // is never used to block; the server enforces the rule regardless.
+  earlierLevelsToPass = computed<string[]>(() => {
+    if (this.isFinalised()) return [];
+    const m = this.studentMember();
+    if (!m) return [];
+    return unachievedEarlierLevels(
+      this.grading().level,
+      m.studentLevel || '',
+      m.applicationLevel || '',
+    );
+  });
+
+  // Recording a result waits for earlier levels to be achieved. Admins are
+  // exempt (matching the server-side check in onGradingUpdated).
+  resultBlockedByEarlierLevels = computed(
+    () => !this.userIsAdmin() && this.earlierLevelsToPass().length > 0,
+  );
+
+  // Tooltip for the Mark as Passed / Not Passed buttons: why they are disabled,
+  // or '' when they are enabled.
+  resultButtonTitle = computed(() => {
+    if (this.isDirty()) return 'Save or discard your changes first';
+    if (this.gradingDateMissing()) return 'Set the grading date first';
+    if (this.resultBlockedByEarlierLevels()) {
+      return `${this.earlierLevelsToPass().join(', ')} must be passed first`;
+    }
+    return '';
   });
 
   // Formatted student level from orderBasisLevels
@@ -370,20 +420,20 @@ export class GradingProgressComponent {
     }
   }
 
-  // Whether to surface the grading "out of order" warning. The current-level-based
-  // check (before acceptance, no snapshot) is only actionable for — and only shown
-  // to — the grading instructor/manager who has to accept the request and the
-  // student when viewing an in-flight request. Once accepted, the check is snapshot-based
-  // and shown to anyone who can see the grading.
+  // Whether to surface the grading "out of order" warning. Only for a recorded
+  // result graded out of sequence (e.g. historical data entered by an admin),
+  // measured against the snapshot on the grading. In-flight gradings booked
+  // ahead are normal and get the `showBookedAheadNotice` instead.
   showGradingOutOfOrderWarning = computed(() => {
+    if (!this.isFinalised()) return false;
     if (this.isNextGrading()) return false;
     const g = this.grading();
-    const hasSnapshot = !!(g.studentLevelAtAcceptance || g.applicationLevelAtAcceptance);
-    if (hasSnapshot) return true;
-    if (this.canAccept()) return true;
-    // For student: show warning banner if not in AwaitingRequest / Declined (which has dedicated blocker in action panel)
-    return this.userIsStudent() && g.status !== GradingStatus.AwaitingRequest && g.status !== GradingStatus.Declined;
+    return !!(g.studentLevelAtAcceptance || g.applicationLevelAtAcceptance);
   });
+
+  // Whether to tell viewers this grading was booked ahead: it can be requested
+  // and accepted now, but its result waits for the earlier levels.
+  showBookedAheadNotice = computed(() => this.earlierLevelsToPass().length > 0);
 
   // The level the student holds just before this grading (the preceding entry in
   // the canonical progression). '' when grading for the first progression entry.
@@ -684,9 +734,9 @@ export class GradingProgressComponent {
     );
   });
 
-  // Step 1: Save student request fields
+  // Step 1: Save student request fields. Gradings booked ahead may be requested
+  // before earlier levels are passed; only recording the result waits for them.
   saveRequestFields() {
-    if (!this.isNextGrading()) return;
     const instructorId = this.editInstructorId();
     // Block requesting a grading from an instructor while the student has
     // outstanding unpaid completed gradings (non-admins only; mirrored server-side).
@@ -871,10 +921,10 @@ export class GradingProgressComponent {
   }
 
   acceptAndGradeMyself() {
-    // A grading can only be accepted when it's the student's next grading in the
-    // progression (guarded here as well as in the template), and not while the
-    // event input is in an invalid (unlinked free-text) state.
-    if (!this.isNextGrading() || this.eventBlocksSave()) return;
+    // A grading booked ahead may be accepted before earlier levels are passed
+    // (only its result waits for them), but not while the event input is in an
+    // invalid (unlinked free-text) state.
+    if (this.eventBlocksSave()) return;
     this.isSaving.set(true);
     const today = new Date().toISOString().split('T')[0];
     const actor = this.currentActor();
@@ -896,7 +946,13 @@ export class GradingProgressComponent {
 
   // Step 3: Mark result
   initiateMarkResult(status: GradingStatus.Passed | GradingStatus.NotPassed) {
-    if (this.eventBlocksSave() || this.gradingDateMissing()) return;
+    if (
+      this.eventBlocksSave() ||
+      this.gradingDateMissing() ||
+      this.resultBlockedByEarlierLevels()
+    ) {
+      return;
+    }
     this.showDeclineForm.set(false);
     this.confirmingResult.set(status);
   }
@@ -913,8 +969,15 @@ export class GradingProgressComponent {
   }
 
   markResult(status: GradingStatus.Passed | GradingStatus.NotPassed) {
-    // A grading date is mandatory (guarded here as well as in the template).
-    if (this.eventBlocksSave() || this.gradingDateMissing()) return;
+    // A grading date is mandatory, and earlier levels must be achieved first
+    // (guarded here as well as in the template, and enforced server-side).
+    if (
+      this.eventBlocksSave() ||
+      this.gradingDateMissing() ||
+      this.resultBlockedByEarlierLevels()
+    ) {
+      return;
+    }
     this.isSaving.set(true);
     const update: Partial<Grading> = {
       status,

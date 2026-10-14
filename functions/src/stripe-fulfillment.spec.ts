@@ -14,6 +14,7 @@ import {
   extendDateByMonths,
   syncSubscriptionStatusToMember,
   fulfillEventRegistration,
+  gradingLevelForItem,
 } from './stripe-fulfillment';
 import { sendTransactionalEmail } from './email-dispatcher.js';
 
@@ -343,10 +344,12 @@ describe('stripe-fulfillment', () => {
     expect(mockNotificationSet).not.toHaveBeenCalled();
   });
 
-  // Builds a gradings collection mock: the orderId de-duplication query finds
-  // nothing, and the per-member query returns `docs`.
+  // Builds a gradings collection mock: the orderId de-duplication query returns
+  // `orderDocs` (gradings this order already created; none by default), and the
+  // per-member query returns `docs`.
   function mockMemberGradings(
     docs: Array<{ id: string; update: any; data: Record<string, unknown> }>,
+    orderDocs: Array<{ id: string; data: Record<string, unknown> }> = [],
   ): void {
     mockGradingsCollection.where = vi.fn((field: string) => {
       if (field === 'studentMemberDocId') {
@@ -362,8 +365,9 @@ describe('stripe-fulfillment', () => {
         };
       }
       return {
-        limit: vi.fn().mockReturnValue({
-          get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+        get: vi.fn().mockResolvedValue({
+          empty: orderDocs.length === 0,
+          docs: orderDocs.map((d) => ({ id: d.id, data: () => d.data })),
         }),
       };
     });
@@ -645,6 +649,90 @@ describe('stripe-fulfillment', () => {
     );
     // Metadata level matches what is owed, so the odd description raises nothing.
     expect(mockNotificationSet).not.toHaveBeenCalled();
+  });
+
+  // An order buying several levels ahead: one line item per level, with the
+  // levels recorded in the same order in `gradingLevels`.
+  function multiLevelOrder(levels: string[], stripeObjectId: string): StripeOrder {
+    const order = gradingOrder('GRADING : Student Levels', stripeObjectId);
+    order.lineItems = levels.map((level, i) => ({
+      productId: 'prod_grading',
+      priceId: `price_grading_${i}`,
+      description: `GRADING : ${level}`,
+      quantity: 1,
+      amountTotal: 8000,
+      currency: 'usd',
+    }));
+    order.metadata = {
+      orderType: 'grading',
+      gradingLevel: levels[0],
+      gradingLevels: levels.join(','),
+    };
+    return order;
+  }
+
+  it('creates one grading per level when several levels are bought at once', async () => {
+    mockMemberGradings([]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      multiLevelOrder(['Student 2', 'Student 3', 'Application 1'], 'cs_multi'),
+      'order_doc_multi',
+    );
+
+    const created = mockGradingsCollection.add.mock.calls.map((c: any[]) => c[0]);
+    expect(created.map((g: { level: string }) => g.level)).toEqual([
+      'Student 2',
+      'Student 3',
+      'Application 1',
+    ]);
+    for (const g of created) {
+      expect(g.orderId).toBe('order_doc_multi');
+      expect(g.status).toBe(GradingStatus.AwaitingRequest);
+      expect(g.paymentStatus).toBe(PaymentStatus.PaidByStripe);
+    }
+    // Buying ahead is normal: nobody is alerted.
+    expect(mockNotificationSet).not.toHaveBeenCalled();
+  });
+
+  it('only creates the missing levels when a multi-level order is reprocessed', async () => {
+    mockMemberGradings(
+      [],
+      [{ id: 'already_made', data: { level: 'Student 2', orderId: 'order_doc_re' } }],
+    );
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      multiLevelOrder(['Student 2', 'Student 3'], 'cs_re'),
+      'order_doc_re',
+    );
+
+    expect(mockGradingsCollection.add).toHaveBeenCalledTimes(1);
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'Student 3', orderId: 'order_doc_re' }),
+    );
+  });
+
+  describe('gradingLevelForItem', () => {
+    it('reads each line item level from gradingLevels, in order', () => {
+      const order = multiLevelOrder(['Student 2', 'Student 3'], 'cs_x');
+      expect(gradingLevelForItem(order, 0)).toBe('Student 2');
+      expect(gradingLevelForItem(order, 1)).toBe('Student 3');
+      expect(gradingLevelForItem(order, 2)).toBe('');
+    });
+
+    it('falls back to gradingLevel for the only item of a single-level order', () => {
+      const order = gradingOrder('GRADING : Student Level 2', 'cs_y');
+      order.metadata = { gradingLevel: 'Student 2' };
+      expect(gradingLevelForItem(order, 0)).toBe('Student 2');
+      expect(gradingLevelForItem(order, 1)).toBe('');
+    });
+
+    it('returns "" when no level was recorded', () => {
+      expect(gradingLevelForItem(gradingOrder('x', 'cs_z'), 0)).toBe('');
+    });
   });
 
   it('fulfills monthly Class Video Library subscription on member doc', async () => {

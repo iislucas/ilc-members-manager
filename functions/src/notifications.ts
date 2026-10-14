@@ -46,6 +46,8 @@ export function gradingStageFromKind(kind: NotificationKind): string {
       return 'grading_not_passed';
     case NotificationKind.GradingNeedsEventDate:
       return 'grading_needs_event_date';
+    case NotificationKind.GradingNeedsEarlierLevels:
+      return 'grading_needs_earlier_levels';
     case NotificationKind.GradingUnpaid:
       return 'grading_unpaid';
     default:
