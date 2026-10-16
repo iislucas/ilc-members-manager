@@ -14,6 +14,7 @@ import {
   firestoreDocToGrading,
 } from '../data-model/gradings';
 import { firestoreDocToMember } from '../data-model/members';
+import { bareMemberLevel } from '../data-model/curriculum';
 import { firestoreDocToIlcEvent } from '../data-model/events';
 import { ActionActor, ActionContext, ActionResult } from './types';
 
@@ -336,10 +337,13 @@ export async function recordGradingResult(
       const memberPatch: Record<string, unknown> = {
         lastUpdated: FieldValue.serverTimestamp(),
       };
+      // Member level fields hold the bare value ('3', 'Entry'), as written by
+      // onGradingUpdated — not the grading's label ('Student 3').
+      const value = bareMemberLevel(grading.level);
       if (isAppLevel) {
-        memberPatch['applicationLevel'] = grading.level;
+        memberPatch['applicationLevel'] = value;
       } else {
-        memberPatch['studentLevel'] = grading.level;
+        memberPatch['studentLevel'] = value;
       }
       await studentRef.set(memberPatch, { merge: true });
       ctx.logger?.(`Awarded level "${grading.level}" to member ${grading.studentMemberDocId}`);

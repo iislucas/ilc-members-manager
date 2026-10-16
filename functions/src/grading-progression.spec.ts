@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter, unachievedEarlierLevels } from './data-model/curriculum';
+import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter, unachievedEarlierLevels, bareMemberLevel } from './data-model/curriculum';
 import { nextGradingPayment, upcomingGradingPayments, unpaidGradingsInProgressionOrder, orderDisplayNumber, gradingDisplayId, isGradingPaid, PaymentStatus, GradingStatus } from './data-model/gradings';
 import { notificationStyle, NotificationKind } from './data-model/notifications';
 
@@ -119,6 +119,27 @@ describe('grading progression helpers', () => {
     it('treats Entry/unset instructor level as unqualified for application gradings', () => {
       expect(instructorCanAssessLevel('Entry', 'Application 1')).toBe(false);
       expect(instructorCanAssessLevel('', 'Application 1')).toBe(false);
+    });
+  });
+
+  describe('prefixed member level values', () => {
+    it('reduces prefixed forms to the bare value', () => {
+      expect(bareMemberLevel('2')).toBe('2');
+      expect(bareMemberLevel('Student 2')).toBe('2');
+      expect(bareMemberLevel('Student Level 2')).toBe('2');
+      expect(bareMemberLevel('Level 2')).toBe('2');
+      expect(bareMemberLevel('Application Level 1')).toBe('1');
+      expect(bareMemberLevel('Entry Level')).toBe('Entry');
+      expect(bareMemberLevel('entry')).toBe('Entry');
+      expect(bareMemberLevel('')).toBe('');
+    });
+
+    it('treats a prefixed level as the same level when working out what is next', () => {
+      // Regression: 'Student 2' used to read as "nothing achieved", so a Student 3
+      // grading was flagged out of order (and its result blocked).
+      expect(nextGradingLevel('Student 2', '')).toBe('Student 3');
+      expect(nextGradingLevel('Student Level 3', 'Application 1')).toBe('Student 4');
+      expect(unachievedEarlierLevels('Student 3', 'Student 2', '')).toEqual([]);
     });
   });
 

@@ -618,6 +618,30 @@ describe('GradingProgressComponent', () => {
       expect(component.showBookedAheadNotice()).toBe(false);
     });
 
+    it('treats a Student 3 grading as in order for a student at Student 2, whatever the stored format', () => {
+      setUser(false);
+      for (const stored of ['2', 'Student 2', 'Student Level 2']) {
+        mockDataService.getMemberByDocId = (() => ({
+          ...initMember(),
+          studentLevel: stored,
+          applicationLevel: '',
+        })) as never;
+        for (const status of [GradingStatus.AwaitingAcceptance, GradingStatus.AwaitingGrading]) {
+          componentRef.setInput('grading', {
+            ...aheadGrading(status),
+            level: 'Student 3',
+            // A stale snapshot from accepting ahead must not matter in flight.
+            studentLevelAtAcceptance: status === GradingStatus.AwaitingGrading ? '1' : '',
+          });
+          fixture.detectChanges();
+          expect(component.isNextGrading()).toBe(true);
+          expect(component.showGradingOutOfOrderWarning()).toBe(false);
+          expect(component.showBookedAheadNotice()).toBe(false);
+          expect(component.resultBlockedByEarlierLevels()).toBe(false);
+        }
+      }
+    });
+
     it('does not block when the student record is not readable', () => {
       setUser(false);
       mockDataService.getMemberByDocId = (() => undefined) as never;

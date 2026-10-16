@@ -582,9 +582,10 @@ describe('Database Actions Library', () => {
       expect(resultRes.success).toBe(true);
       expect(resultRes.data?.status).toBe(GradingStatus.Passed);
 
-      // Verify member record was updated with the new level
+      // Verify member record was updated with the new level (bare value, as
+      // onGradingUpdated writes it).
       const student = await getMember(ctx, studentDocId);
-      expect(student?.studentLevel).toBe('Level 2');
+      expect(student?.studentLevel).toBe('2');
     });
 
     it('links and unlinks an event on a grading', async () => {

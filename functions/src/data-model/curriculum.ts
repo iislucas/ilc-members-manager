@@ -77,22 +77,43 @@ function isLevelAtOrBelow(
   return levelNum <= currentNum;
 }
 
+// The bare value of a member's level field: '3', 'Entry', or '' when unset.
+// Member records normally hold the bare value, but older or imported records
+// can hold a prefixed form — 'Student 3', 'Student Level 3', 'Application
+// Level 2', 'Level 2', 'Entry Level' — which must mean the same thing rather
+// than "nothing achieved".
+//
+//   bareMemberLevel('Student Level 3') → '3'
+//   bareMemberLevel('entry level')     → 'Entry'
+export function bareMemberLevel(raw: string): string {
+  const value = (raw || '')
+    .trim()
+    .replace(/^(student|application)\s*/i, '')
+    .replace(/^level\s*/i, '')
+    .trim();
+  if (/^entry(\s+level)?$/i.test(value)) return 'Entry';
+  return value;
+}
+
 // The set of `gradingProgression` entries a student with the given current
-// student/application levels has already achieved.
+// student/application levels has already achieved. Accepts bare ('3') or
+// prefixed ('Student 3') level values — see `bareMemberLevel`.
 export function achievedGradingLevels(
   studentLevel: string,
   applicationLevel: string,
 ): Set<string> {
+  const student = bareMemberLevel(studentLevel);
+  const application = bareMemberLevel(applicationLevel);
   const achieved = new Set<string>();
   for (const level of gradingProgression) {
     if (level.startsWith('Student ')) {
       const value = level.substring('Student '.length);
-      if (studentLevel && isLevelAtOrBelow(LevelTrack.Student, value, studentLevel)) {
+      if (student && isLevelAtOrBelow(LevelTrack.Student, value, student)) {
         achieved.add(level);
       }
     } else if (level.startsWith('Application ')) {
       const value = level.substring('Application '.length);
-      if (applicationLevel && isLevelAtOrBelow(LevelTrack.Application, value, applicationLevel)) {
+      if (application && isLevelAtOrBelow(LevelTrack.Application, value, application)) {
         achieved.add(level);
       }
     }
