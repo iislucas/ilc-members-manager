@@ -511,7 +511,7 @@ describe('Database Actions Library', () => {
         name: 'Grading Student',
         email: 'grading.student@example.com',
         countryCode: 'US',
-        studentLevel: 'Level 1' as any,
+        studentLevel: 'Level 1' as any, // legacy spelling: read as StudentLevel.Level1
       });
       studentDocId = s.data!.docId;
     });
@@ -526,7 +526,8 @@ describe('Database Actions Library', () => {
       expect(res.success).toBe(true);
       expect(res.data?.studentMemberDocId).toBe(studentDocId);
       expect(res.data?.studentName).toBe('Grading Student');
-      expect(res.data?.level).toBe('Level 2');
+      // Stored in canonical GradingLevel form.
+      expect(res.data?.level).toBe('Student 2');
       expect(res.data?.status).toBe(GradingStatus.AwaitingAcceptance);
     });
 
@@ -545,7 +546,8 @@ describe('Database Actions Library', () => {
       expect(acceptRes.success).toBe(true);
       expect(acceptRes.data?.status).toBe(GradingStatus.AwaitingGrading);
       expect(acceptRes.data?.acceptedByName).toBe('Sifu Sam');
-      expect(acceptRes.data?.studentLevelAtAcceptance).toBe('Level 1');
+      // Snapshot holds the canonical StudentLevel.
+      expect(acceptRes.data?.studentLevelAtAcceptance).toBe('1');
     });
 
     it('declines a grading request with notes', async () => {

@@ -26,7 +26,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, progressionIndex, toGradingLevel, studentLevelLabel, applicationLevelLabel } from '../../../functions/src/data-model/curriculum';
 import { Grading, GradingStatus, isGradingPaid, unpaidGradingsInProgressionOrder, upcomingGradingPayments, NextGradingPayment } from '../../../functions/src/data-model/gradings';
 import { MembershipType, hasActiveMembership } from '../../../functions/src/data-model/members';
 import {
@@ -90,28 +90,12 @@ export class NextGradingComponent {
   }
 
   /**
-   * The catalogue names a rate "Student Level 4" or "Entry Level"; the syllabus
-   * calls the same things "Student 4" and "Student Entry". Translate so a rate
-   * can be checked against `gradingProgression`.
+   * True when the rate is one of the syllabus levels rather than an extra. The
+   * catalogue names rates 'Entry Level', 'Student Level 4', …; `toGradingLevel`
+   * reads any of those spellings.
    */
-  private static progressionEntryFor(nickname: string): string {
-    const name = (nickname || '').trim();
-    if (/^entry level$/i.test(name)) return 'Student Entry';
-
-    const numbered = /^(student|application)\s+level\s+(\d+)$/i.exec(name);
-    if (numbered) {
-      const track =
-        numbered[1].toLowerCase() === 'student' ? 'Student' : 'Application';
-      return `${track} ${numbered[2]}`;
-    }
-    return normalizeGradingLevel(name);
-  }
-
-  /** True when the rate is one of the syllabus levels rather than an extra. */
   private static isSyllabusLevel(price: StripeProductPrice): boolean {
-    return gradingProgression.includes(
-      NextGradingComponent.progressionEntryFor(price.nickname || ''),
-    );
+    return toGradingLevel(price.nickname) !== null;
   }
 
   /**
@@ -202,7 +186,7 @@ export class NextGradingComponent {
 
   levelSummary = computed(() => {
     const target = this.targetLevel();
-    const from = `Student ${this.currentStudentLevel()}`;
+    const from = this.currentStudentLevel();
     if (!target) return `${from} — highest level achieved`;
     const isFreeRetake = this.retakeEligible() && !this.buyingAdvanceLevel();
     if (isFreeRetake) return `${from} → ${target} (free retake)`;
@@ -232,17 +216,15 @@ export class NextGradingComponent {
     return m ? hasActiveMembership(m, this.today()) : false;
   });
 
-  currentStudentLevel = computed(() => {
-    const lvl = this.user()?.member.studentLevel;
-    if (!lvl) return 'None';
-    return `${lvl}`;
-  });
+  // The member's current levels as display labels: 'Student 3' (or 'Student
+  // None'), and 'Application 1' or '' when they have no application level.
+  currentStudentLevel = computed(
+    () => studentLevelLabel(this.user()?.member.studentLevel) || 'Student None',
+  );
 
-  currentApplicationLevel = computed(() => {
-    const lvl = this.user()?.member.applicationLevel;
-    if (!lvl) return null;
-    return `${lvl}`;
-  });
+  currentApplicationLevel = computed(() =>
+    applicationLevelLabel(this.user()?.member.applicationLevel),
+  );
 
   // Achieved levels from member record
   achievedLevels = computed(() => {
@@ -270,8 +252,8 @@ export class NextGradingComponent {
         !!g.level,
     );
     return [...open].sort((a, b) => {
-      const idxA = gradingProgression.indexOf(normalizeGradingLevel(a.level));
-      const idxB = gradingProgression.indexOf(normalizeGradingLevel(b.level));
+      const idxA = progressionIndex(a.level);
+      const idxB = progressionIndex(b.level);
       const orderA = idxA === -1 ? 999 : idxA;
       const orderB = idxB === -1 ? 999 : idxB;
       return orderA - orderB;
@@ -492,69 +474,33 @@ export class NextGradingComponent {
     return this.findGradingPrice(target);
   });
 
-  // The Stripe product & price for grading `level` (e.g. 'Student 3'), or null
-  // when the catalogue has no active, priced rate for it. Reads the reactive
-  // catalogue, so it is safe to call from a `computed`.
+  // The Stripe product & price for grading `level` (any spelling, e.g.
+  // 'Student 3'), or null when the catalogue has no active, priced rate for it.
+  // A rate matches when its nickname ('Student Level 3', 'Entry Level', …) reads
+  // as the same `GradingLevel`. Grading products are preferred; products named
+  // for the student/application levels are a fallback. Reads the reactive catalogue, so it is safe to
+  // call from a `computed`.
   findGradingPrice(level: string): {
     product: StripeProduct;
     price: StripeProductPrice;
   } | null {
-    const nextLower = level.toLowerCase();
-    const products = this.allProducts();
-
-    for (const prod of products) {
-      const prodNameLower = prod.name.toLowerCase();
-      if (!prod.active || !prodNameLower.includes('grading')) continue;
-
-      for (const price of prod.prices) {
-        if (!price.active || price.unitAmount === null) continue;
-        const nickLower = (price.nickname || '').toLowerCase();
-
-        // Exact or fuzzy match for level name
-        // e.g. "student 1" matches "student level 1", "entry" matches "entry level", "application 1" matches "application level 1"
-        if (
-          nickLower === nextLower ||
-          nickLower.includes(nextLower) ||
-          (nextLower === 'student entry' && nickLower.includes('entry')) ||
-          (nextLower.startsWith('student ') &&
-            nickLower === `student level ${nextLower.replace('student ', '')}`) ||
-          (nextLower.startsWith('application ') &&
-            nickLower === `application level ${nextLower.replace('application ', '')}`)
-        ) {
-          return { product: prod, price };
-        }
-      }
-    }
-
-    // Fallback: look in student or application products
-    if (nextLower.includes('student') || nextLower.includes('entry')) {
-      const studentProd = products.find(
-        (p) => p.active && p.name.toLowerCase().includes('student'),
+    const wanted = toGradingLevel(level);
+    if (!wanted) return null;
+    const active = this.allProducts().filter((p) => p.active);
+    const named = (p: StripeProduct, ...words: string[]) =>
+      words.some((w) => p.name.toLowerCase().includes(w));
+    for (const prod of [
+      ...active.filter((p) => named(p, 'grading')),
+      ...active.filter((p) => !named(p, 'grading') && named(p, 'student', 'application')),
+    ]) {
+      const price = prod.prices.find(
+        (pr) =>
+          pr.active &&
+          pr.unitAmount !== null &&
+          toGradingLevel(pr.nickname) === wanted,
       );
-      if (studentProd) {
-        const pMatch = studentProd.prices.find((pr) => {
-          const n = (pr.nickname || '').toLowerCase();
-          return (
-            pr.active &&
-            (n.includes(nextLower) ||
-              (nextLower === 'student entry' && n.includes('entry')))
-          );
-        });
-        if (pMatch) return { product: studentProd, price: pMatch };
-      }
-    } else if (nextLower.includes('application')) {
-      const appProd = products.find(
-        (p) => p.active && p.name.toLowerCase().includes('application'),
-      );
-      if (appProd) {
-        const pMatch = appProd.prices.find((pr) => {
-          const n = (pr.nickname || '').toLowerCase();
-          return pr.active && n.includes(nextLower);
-        });
-        if (pMatch) return { product: appProd, price: pMatch };
-      }
+      if (price) return { product: prod, price };
     }
-
     return null;
   }
 

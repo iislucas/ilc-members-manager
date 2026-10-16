@@ -65,8 +65,8 @@ describe('parseGradingOrderInfo', () => {
 
     expect(parsed).toEqual({
       email: 'student@example.com',
-      currentStudentLevel: 'Student 6',
-      currentApplicationLevel: 'Application 3',
+      currentStudentLevel: '6', // canonical StudentLevel
+      currentApplicationLevel: '3', // canonical ApplicationLevel
       gradingInfo: expect.objectContaining({
         docId: '',
         lastUpdated: expect.any(String),

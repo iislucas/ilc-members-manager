@@ -13,8 +13,15 @@ import {
   initGrading,
   firestoreDocToGrading,
 } from '../data-model/gradings';
-import { firestoreDocToMember } from '../data-model/members';
-import { bareMemberLevel } from '../data-model/curriculum';
+import { firestoreDocToMember, MemberUpdates } from '../data-model/members';
+import {
+  LevelTrack,
+  applicationLevelOf,
+  normalizeGradingLevel,
+  studentLevelOf,
+  toGradingLevel,
+  trackOf,
+} from '../data-model/curriculum';
 import { firestoreDocToIlcEvent } from '../data-model/events';
 import { ActionActor, ActionContext, ActionResult } from './types';
 
@@ -157,6 +164,8 @@ export async function createGrading(
     gradingEventDate: eventDate,
     paymentStatus: input.paymentStatus || PaymentStatus.PaidOther,
     status: input.status || (input.gradingInstructorId ? GradingStatus.AwaitingAcceptance : GradingStatus.AwaitingRequest),
+    // Stored in canonical `GradingLevel` form whatever spelling was passed in.
+    level: normalizeGradingLevel(input.level || ''),
     lastUpdated: nowIso,
   };
 
@@ -246,8 +255,8 @@ export async function acceptGrading(
     const studentDoc = await ctx.db.collection(FirestoreCollection.Members).doc(grading.studentMemberDocId).get();
     if (studentDoc.exists) {
       const s = firestoreDocToMember(studentDoc);
-      studentLevel = s.studentLevel || '';
-      appLevel = s.applicationLevel || '';
+      studentLevel = s.studentLevel;
+      appLevel = s.applicationLevel;
     }
   }
 
@@ -333,20 +342,23 @@ export async function recordGradingResult(
       ctx.logger?.(`[DRY-RUN] Would award level "${grading.level}" to member ${grading.studentMemberDocId}`);
     } else {
       const studentRef = ctx.db.collection(FirestoreCollection.Members).doc(grading.studentMemberDocId);
-      const isAppLevel = grading.level.toLowerCase().startsWith('application');
-      const memberPatch: Record<string, unknown> = {
-        lastUpdated: FieldValue.serverTimestamp(),
-      };
-      // Member level fields hold the bare value ('3', 'Entry'), as written by
-      // onGradingUpdated — not the grading's label ('Student 3').
-      const value = bareMemberLevel(grading.level);
-      if (isAppLevel) {
-        memberPatch['applicationLevel'] = value;
+      // Member level fields hold the track position ('3', 'Entry'), as written
+      // by onGradingUpdated — not the grading's label ('Student 3').
+      const level = toGradingLevel(grading.level);
+      if (!level) {
+        ctx.logger?.(`"${grading.level}" is not a syllabus level; no level awarded to member ${grading.studentMemberDocId}`);
       } else {
-        memberPatch['studentLevel'] = value;
+        const memberPatch: MemberUpdates = {
+          lastUpdated: FieldValue.serverTimestamp(),
+        };
+        if (trackOf(level) === LevelTrack.Student) {
+          memberPatch.studentLevel = studentLevelOf(level);
+        } else {
+          memberPatch.applicationLevel = applicationLevelOf(level);
+        }
+        await studentRef.set(memberPatch, { merge: true });
+        ctx.logger?.(`Awarded level "${level}" to member ${grading.studentMemberDocId}`);
       }
-      await studentRef.set(memberPatch, { merge: true });
-      ctx.logger?.(`Awarded level "${grading.level}" to member ${grading.studentMemberDocId}`);
     }
   }
 

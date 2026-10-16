@@ -50,6 +50,35 @@ A member's position is held as two fields, `member.studentLevel` and
 `member.applicationLevel`, so "Student 3 with no application level" means
 everything up to Student 3 is achieved and Application 1 is next.
 
+### How levels are represented
+
+All level types live in
+[`functions/src/data-model/curriculum.ts`](../functions/src/data-model/curriculum.ts),
+and each is a TypeScript enum and the only form written to Firestore:
+
+| Concept | Enum | Values | Used for |
+|---|---|---|---|
+| A grading level (a rung of the progression) | `GradingLevel` | `Student Entry`, `Student 1`…`Student 11`, `Application 1`…`Application 6` | `Grading.level`, `gradingProgression`, order metadata (`gradingLevel(s)`), notices |
+| A member's student-track position | `StudentLevel` | `''`, `Entry`, `1`…`11` | `Member.studentLevel`, `Grading.studentLevelAtAcceptance` |
+| A member's application-track position | `ApplicationLevel` | `''`, `1`…`6` | `Member.applicationLevel`, `Grading.applicationLevelAtAcceptance` |
+
+`Student Entry` is in effect Student 0.
+
+Older and imported data uses many spellings (`Entry Level`, `Student Level 3`,
+`3`, `Level 2`, `App 2`, `Application Level 1`, …). **Never compare raw level
+strings.** Read through `toGradingLevel`, `toStudentLevel` and
+`toApplicationLevel`, which accept every known spelling and return the enum. The
+Firestore converters (`firestoreDocToGrading`, `firestoreDocToMember`) already do
+this on read, and every write path stores the canonical form, so no backfill is
+needed. Convert between the two representations with `studentLevelOf` /
+`applicationLevelOf` / `gradingLevelForStudent` / `gradingLevelForApplication`;
+compare positions with `studentLevelRank` / `applicationLevelRank`; display them
+with `studentLevelLabel` / `applicationLevelLabel`.
+
+`Grading.level` is typed as `string` only because a grading for something
+outside the syllabus keeps its own label; `normalizeGradingLevel` returns the
+`GradingLevel` for any syllabus spelling and leaves other labels unchanged.
+
 `nextGradingPayment(studentLevel, applicationLevel, gradings, skipLevel?)` is the
 single rule for what a member owes next. It walks the progression and stops at
 the first level that:

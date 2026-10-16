@@ -11,7 +11,7 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import Stripe from 'stripe';
-import { InstructorLicenseType, gradingProgression, achievedGradingLevels, normalizeGradingLevel } from './data-model/curriculum';
+import { InstructorLicenseType, achievedGradingLevels, normalizeGradingLevel, toGradingLevel } from './data-model/curriculum';
 import {
   EventRegistration,
   EventRegistrationUpgrade,
@@ -30,7 +30,6 @@ import { NotificationKind } from './data-model/notifications';
 import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderType, StripeOrderLineItem, StripeCheckoutMode, OrderStatus, OrderKind } from './data-model/orders';
 import { initSchool, School } from './data-model/schools';
 import { VideoGrant, VideoGrantKind, firestoreDocToVideoItem } from './data-model/vod';
-import { canonicalizeGradingLevel } from './level-utils';
 import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
@@ -301,20 +300,6 @@ export async function mirrorOrderToMemberSubcollection(
   });
 }
 
-/**
- * Extract grading level from line item description (e.g. "Student Level 3", "Application 2").
- */
-function extractGradingLevel(description: string): string {
-  const normalized = description.trim();
-  const match = normalized.match(
-    /(student\s*level\s*\d+|application\s*level\s*\d+|student\s*\d+|application\s*\d+|entry)/i,
-  );
-  if (match) {
-    return canonicalizeGradingLevel(match[1]);
-  }
-  return canonicalizeGradingLevel(normalized);
-}
-
 /** Human-readable amount for a line item, e.g. "USD 80.00", for alert text. */
 function formatOrderAmount(lineItem: StripeOrderLineItem): string {
   const amount = lineItem.amountTotal;
@@ -483,10 +468,10 @@ async function fulfillGradingForMember(
   const purchaseDate = new Date().toISOString().split('T')[0];
   // The purchase page records the level it charged for in the order metadata;
   // trust that over parsing the line-item description when it is present.
-  const rawLevel = metadataLevel.trim()
-    ? canonicalizeGradingLevel(metadataLevel.trim())
-    : extractGradingLevel(lineItem.description);
-  const level = normalizeGradingLevel(rawLevel);
+  const rawLevel = (metadataLevel.trim() || lineItem.description || '').trim();
+  // The syllabus level bought, read from any spelling ('Student Level 3',
+  // 'GRADING : Entry Level', …), or null when the item names none.
+  const level = toGradingLevel(rawLevel);
   const amountPaid = formatOrderAmount(lineItem);
 
   // Check if a grading was already created (or settled) by this order for this
@@ -499,7 +484,7 @@ async function fulfillGradingForMember(
   const existingForLevel = existingQuery.docs.find(
     (d) =>
       normalizeGradingLevel((d.data() as Grading).level || '') ===
-      (level || rawLevel),
+      (level ?? rawLevel),
   );
   if (existingForLevel) {
     return existingForLevel.id;
@@ -514,9 +499,9 @@ async function fulfillGradingForMember(
     ref: doc.ref,
     ...(doc.data() as Grading),
   }));
-  const atPurchasedLevel = gradings.filter(
-    (g) => normalizeGradingLevel(g.level) === level,
-  );
+  const atPurchasedLevel = level
+    ? gradings.filter((g) => toGradingLevel(g.level) === level)
+    : [];
 
   // The student already has a grading for this level that they had not paid
   // for: this payment settles it. (Failed attempts are excluded — that level is
@@ -541,7 +526,7 @@ async function fulfillGradingForMember(
   // Otherwise a grading is created for the level bought. Buying ahead of the
   // current level is fine; only these cases need a human to look.
   let problem: GradingPaymentProblem | null = null;
-  if (!level || !gradingProgression.includes(level)) {
+  if (!level) {
     problem = { kind: 'unknown-level', level: rawLevel };
   } else if (achievedGradingLevels(member.studentLevel, member.applicationLevel).has(level)) {
     problem = { kind: 'already-achieved', level };
@@ -558,7 +543,7 @@ async function fulfillGradingForMember(
     schoolId: member.primarySchoolId || '',
     orderId: orderDocId,
     gradingPurchaseDate: purchaseDate,
-    level: level || rawLevel,
+    level: level ?? rawLevel,
     // A flagged grading is held for admin review rather than presented to the
     // student as their next step (see onGradingCreated, which skips the
     // "grading purchased" notification for RequiresReview).
@@ -612,7 +597,7 @@ async function fulfillGradingForMember(
           replacements: {
             name: member.name || 'ILC Student',
             memberId: member.memberId || '',
-            gradingLevel: level || rawLevel || 'Grading Assessment',
+            gradingLevel: level ?? (rawLevel || 'Grading Assessment'),
             gradingEventName: 'Official ILC Grading',
             gradingDate: purchaseDate,
             amount: amountPaid,

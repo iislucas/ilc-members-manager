@@ -24,7 +24,7 @@ import {
   signal,
   effect,
 } from '@angular/core';
-import { nextGradingLevel, previousGradingLevel, normalizeGradingLevel, instructorCanAssessLevel, unachievedEarlierLevels } from '../../../functions/src/data-model/curriculum';
+import { nextGradingLevel, previousGradingLevel, normalizeGradingLevel, instructorCanAssessLevel, unachievedEarlierLevels, studentLevelLabel, applicationLevelLabel } from '../../../functions/src/data-model/curriculum';
 import { IlcEvent } from '../../../functions/src/data-model/events';
 import { Grading, GradingStatus, gradingManagerIdsOf, isGradingPaid, gradingDisplayId, PaymentStatus, PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from '../../../functions/src/data-model/gradings';
 import { InstructorPublicData, Member } from '../../../functions/src/data-model/members';
@@ -264,26 +264,15 @@ export class GradingProgressComponent {
     return '';
   });
 
-  // Formatted student level from orderBasisLevels
-  formattedBasisStudentLevel = computed(() => {
-    const basis = this.orderBasisLevels();
-    const sl = basis?.studentLevel;
-    if (!sl || sl.toLowerCase() === 'none' || sl.trim() === '') return 'Student None';
-    if (sl.toLowerCase().startsWith('student') || sl.toLowerCase().startsWith('application')) {
-      return sl;
-    }
-    if (sl.toLowerCase() === 'entry') return 'Student Entry';
-    return `Student ${sl}`;
-  });
+  // Formatted student level from orderBasisLevels, e.g. 'Student 3'.
+  formattedBasisStudentLevel = computed(
+    () => studentLevelLabel(this.orderBasisLevels()?.studentLevel) || 'Student None',
+  );
 
   // Formatted application level from orderBasisLevels (empty string if none)
-  formattedBasisApplicationLevel = computed(() => {
-    const basis = this.orderBasisLevels();
-    const al = basis?.applicationLevel;
-    if (!al || al.toLowerCase() === 'none' || al.trim() === '') return '';
-    if (al.toLowerCase().startsWith('application')) return al;
-    return `Application ${al}`;
-  });
+  formattedBasisApplicationLevel = computed(() =>
+    applicationLevelLabel(this.orderBasisLevels()?.applicationLevel),
+  );
 
   // e.g. "from: Student 1" or "from: Student 5, Application 1"
   fromLevelsDisplay = computed(() => {

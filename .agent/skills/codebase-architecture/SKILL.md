@@ -126,6 +126,12 @@ immediately, but a result (passed/not-passed) is only allowed once `unachievedEa
 — enforced in `grading-progress` (UI) and reverted by `onGradingUpdated` (`GradingNeedsEarlierLevels`);
 admins are exempt. See [docs/gradings.md](../../docs/gradings.md).
 
+**Levels**: use the enums in [curriculum.ts](../../functions/src/data-model/curriculum.ts) —
+`GradingLevel` ('Student Entry', 'Student N', 'Application N') for grading levels, and
+`StudentLevel` / `ApplicationLevel` ('Entry', 'N') for member track positions. Never parse or compare
+raw level strings: read any spelling with `toGradingLevel` / `toStudentLevel` / `toApplicationLevel`,
+convert with `studentLevelOf` / `gradingLevelForStudent` etc., display with `studentLevelLabel`.
+
 ---
 
 ## Firestore Security Rules

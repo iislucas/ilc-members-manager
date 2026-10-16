@@ -220,7 +220,7 @@ describe('NextGradingComponent', () => {
     await createComponent();
     expect(component.isLoggedIn()).toBe(true);
     expect(component.isActiveMember()).toBe(true);
-    expect(component.currentStudentLevel()).toBe('1');
+    expect(component.currentStudentLevel()).toBe('Student 1');
     expect(component.targetLevel()).toBe('Student 2');
 
     const match = component.matchingGradingPrice();

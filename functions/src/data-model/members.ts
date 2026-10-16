@@ -4,6 +4,8 @@ import {
   ApplicationLevel,
   MasterLevel,
   InstructorLicenseType,
+  toStudentLevel,
+  toApplicationLevel,
 } from './curriculum';
 import { MemberNotificationSettings } from './notifications';
 
@@ -126,8 +128,10 @@ export type Member = {
   publicBioMarkdown: string;
 
   // Level information
-  studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
-  applicationLevel: ApplicationLevel; // e.g., 'Level 1', 'Level 2'
+  // Position on each track: always a `StudentLevel` / `ApplicationLevel` value
+  // ('3', 'Entry', ''); legacy spellings are normalised on read.
+  studentLevel: StudentLevel;
+  applicationLevel: ApplicationLevel;
   // Saved as a string list to allow search within these.
   mastersLevels: MasterLevel[];
 
@@ -250,6 +254,9 @@ export function firestoreDocToMember(doc: GenericFsDoc): Member {
     ...initMember(),
     ...docData,
     emails: Array.isArray(docData.emails) ? docData.emails : [],
+    // Older/imported records may spell levels as 'Student 2', 'Level 2', …
+    studentLevel: toStudentLevel(docData.studentLevel),
+    applicationLevel: toApplicationLevel(docData.applicationLevel),
     lastUpdated,
     docId: doc.id,
   };
@@ -267,8 +274,10 @@ export type InstructorPublicData = {
   publicProfileImageThumbUrl: string; // Square profile thumbnail, used in cards.
   publicCoverImageUrl: string; // Cover/banner image (e.g. 1200x450).
   publicBioMarkdown: string; // Markdown self-description.
-  studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
-  applicationLevel: ApplicationLevel; // e.g., 'Level 1', 'Level 2'
+  // Position on each track: always a `StudentLevel` / `ApplicationLevel` value
+  // ('3', 'Entry', ''); legacy spellings are normalised on read.
+  studentLevel: StudentLevel;
+  applicationLevel: ApplicationLevel;
   mastersLevels: MasterLevel[];
   instructorId: string;
   instructorLicenseType: InstructorLicenseType;
@@ -318,5 +327,12 @@ export function firestoreDocToInstructorPublicData(
 ): InstructorPublicData {
   const docData = (doc.data() || {}) as Partial<InstructorPublicDataFsDoc> & { lastUpdated?: unknown };
   const lastUpdated = normalizeLastUpdated(docData?.lastUpdated);
-  return { ...initInstructor(), ...docData, lastUpdated, docId: doc.id };
+  return {
+    ...initInstructor(),
+    ...docData,
+    studentLevel: toStudentLevel(docData.studentLevel),
+    applicationLevel: toApplicationLevel(docData.applicationLevel),
+    lastUpdated,
+    docId: doc.id,
+  };
 }

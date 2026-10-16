@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter, unachievedEarlierLevels, bareMemberLevel } from './data-model/curriculum';
+import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter, unachievedEarlierLevels, GradingLevel, StudentLevel, ApplicationLevel, toGradingLevel, toStudentLevel, toApplicationLevel, studentLevelOf, applicationLevelOf, gradingLevelForStudent, gradingLevelForApplication, gradingProgression } from './data-model/curriculum';
 import { nextGradingPayment, upcomingGradingPayments, unpaidGradingsInProgressionOrder, orderDisplayNumber, gradingDisplayId, isGradingPaid, PaymentStatus, GradingStatus } from './data-model/gradings';
 import { notificationStyle, NotificationKind } from './data-model/notifications';
 
@@ -32,16 +32,16 @@ describe('grading progression helpers', () => {
 
   describe('achievedGradingLevels', () => {
     it('includes Student Entry once any student level is recorded', () => {
-      expect(achievedGradingLevels('', '').has('Student Entry')).toBe(false);
-      expect(achievedGradingLevels('1', '').has('Student Entry')).toBe(true);
+      expect(achievedGradingLevels('', '').has(GradingLevel.StudentEntry)).toBe(false);
+      expect(achievedGradingLevels('1', '').has(GradingLevel.StudentEntry)).toBe(true);
     });
 
     it('includes everything at or below the current levels', () => {
       const achieved = achievedGradingLevels('5', '2');
-      expect(achieved.has('Student 5')).toBe(true);
-      expect(achieved.has('Application 2')).toBe(true);
-      expect(achieved.has('Student 6')).toBe(false);
-      expect(achieved.has('Application 3')).toBe(false);
+      expect(achieved.has(GradingLevel.Student5)).toBe(true);
+      expect(achieved.has(GradingLevel.Application2)).toBe(true);
+      expect(achieved.has(GradingLevel.Student6)).toBe(false);
+      expect(achieved.has(GradingLevel.Application3)).toBe(false);
     });
   });
 
@@ -122,16 +122,66 @@ describe('grading progression helpers', () => {
     });
   });
 
-  describe('prefixed member level values', () => {
-    it('reduces prefixed forms to the bare value', () => {
-      expect(bareMemberLevel('2')).toBe('2');
-      expect(bareMemberLevel('Student 2')).toBe('2');
-      expect(bareMemberLevel('Student Level 2')).toBe('2');
-      expect(bareMemberLevel('Level 2')).toBe('2');
-      expect(bareMemberLevel('Application Level 1')).toBe('1');
-      expect(bareMemberLevel('Entry Level')).toBe('Entry');
-      expect(bareMemberLevel('entry')).toBe('Entry');
-      expect(bareMemberLevel('')).toBe('');
+  describe('level normalisation', () => {
+    it('reads every known spelling of a grading level as the enum', () => {
+      const cases: Array<[string, GradingLevel | null]> = [
+        ['Student Entry', GradingLevel.StudentEntry],
+        ['Entry', GradingLevel.StudentEntry],
+        ['Entry Level', GradingLevel.StudentEntry],
+        ['entry level', GradingLevel.StudentEntry],
+        ['Student 0', GradingLevel.StudentEntry],
+        ['Student 3', GradingLevel.Student3],
+        ['Student Level 3', GradingLevel.Student3],
+        ['student level 11', GradingLevel.Student11],
+        ['3', GradingLevel.Student3],
+        ['Level 3', GradingLevel.Student3],
+        ['Application 2', GradingLevel.Application2],
+        ['Application Level 2', GradingLevel.Application2],
+        ['GRADING : Application Level 6', GradingLevel.Application6],
+        ['GRADING : Entry Level', GradingLevel.StudentEntry],
+        ['Student 12', null],
+        ['Application 7', null],
+        ['Meditation & Philosophy', null],
+        ['', null],
+      ];
+      for (const [raw, expected] of cases) {
+        expect(toGradingLevel(raw), raw).toBe(expected);
+      }
+    });
+
+    it('reads member student levels in any spelling', () => {
+      expect(toStudentLevel('2')).toBe(StudentLevel.Level2);
+      expect(toStudentLevel('Student 2')).toBe(StudentLevel.Level2);
+      expect(toStudentLevel('Student Level 2')).toBe(StudentLevel.Level2);
+      expect(toStudentLevel('Level 2')).toBe(StudentLevel.Level2);
+      expect(toStudentLevel('Entry')).toBe(StudentLevel.Entry);
+      expect(toStudentLevel('Entry Level')).toBe(StudentLevel.Entry);
+      expect(toStudentLevel('Application 2')).toBe(StudentLevel.None);
+      expect(toStudentLevel('nonsense')).toBe(StudentLevel.None);
+      expect(toStudentLevel(undefined)).toBe(StudentLevel.None);
+    });
+
+    it('reads member application levels in any spelling, bare numbers as application', () => {
+      expect(toApplicationLevel('1')).toBe(ApplicationLevel.Level1);
+      expect(toApplicationLevel('Application 1')).toBe(ApplicationLevel.Level1);
+      expect(toApplicationLevel('Application Level 1')).toBe(ApplicationLevel.Level1);
+      expect(toApplicationLevel('Level 1')).toBe(ApplicationLevel.Level1);
+      expect(toApplicationLevel('7')).toBe(ApplicationLevel.None);
+      expect(toApplicationLevel('Student 2')).toBe(ApplicationLevel.None);
+      expect(toApplicationLevel('')).toBe(ApplicationLevel.None);
+    });
+
+    it('converts between grading levels and track positions both ways', () => {
+      for (const level of gradingProgression) {
+        const s = studentLevelOf(level);
+        const a = applicationLevelOf(level);
+        // Exactly one track.
+        expect(s === StudentLevel.None).not.toBe(a === ApplicationLevel.None);
+        const back = s !== StudentLevel.None ? gradingLevelForStudent(s) : gradingLevelForApplication(a);
+        expect(back).toBe(level);
+      }
+      expect(gradingLevelForStudent(StudentLevel.None)).toBe(null);
+      expect(gradingLevelForApplication(ApplicationLevel.None)).toBe(null);
     });
 
     it('treats a prefixed level as the same level when working out what is next', () => {

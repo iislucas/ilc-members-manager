@@ -9,10 +9,19 @@ import * as admin from 'firebase-admin';
 // which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
-import { StudentLevel, unachievedEarlierLevels } from './data-model/curriculum';
+import {
+  LevelTrack,
+  applicationLevelOf,
+  normalizeGradingLevel,
+  studentLevelOf,
+  toApplicationLevel,
+  toGradingLevel,
+  toStudentLevel,
+  trackOf,
+  unachievedEarlierLevels,
+} from './data-model/curriculum';
 import { Grading, GradingFsDoc, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model/gradings';
 import { NotificationKind, MemberNotification } from './data-model/notifications';
-import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import {
   DeletionSource,
@@ -21,7 +30,7 @@ import {
   CascadeCase,
   CascadedDeletionTrigger,
 } from './data-model/deletion-logs';
-import { Member } from './data-model/members';
+import { Member, MemberUpdates } from './data-model/members';
 import { recordTombstone, recordDeletionLog } from './common';
 import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher.js';
 import * as logger from 'firebase-functions/logger';
@@ -142,7 +151,7 @@ async function createFollowUpGradingAfterNotPassed(
     const g = doc.data() as Grading;
     return (
       doc.id !== gradingDocId &&
-      canonicalizeGradingLevel(g.level) === canonicalizeGradingLevel(grading.level) &&
+      normalizeGradingLevel(g.level) === normalizeGradingLevel(grading.level) &&
       g.status !== GradingStatus.Passed &&
       g.status !== GradingStatus.NotPassed
     );
@@ -853,8 +862,8 @@ export const onGradingUpdated = onDocumentUpdated(
           return;
         }
         levelsAtResult = {
-          studentLevelAtAcceptance: student.studentLevel || '',
-          applicationLevelAtAcceptance: student.applicationLevel || '',
+          studentLevelAtAcceptance: toStudentLevel(student.studentLevel),
+          applicationLevelAtAcceptance: toApplicationLevel(student.applicationLevel),
         };
       }
     }
@@ -996,7 +1005,7 @@ export const onGradingUpdated = onDocumentUpdated(
       isPaid &&
       (becamePassed || becamePaidWhilePassed) &&
       grading.studentMemberId &&
-      grading.level !== StudentLevel.None
+      grading.level
     ) {
       // Backend defense (CRIT-1): Verify the student did not self-promote to Passed (unless admin)
       const actorIsAdmin = await isMemberAdmin(grading.statusChangedByMemberDocId);
@@ -1023,24 +1032,29 @@ export const onGradingUpdated = onDocumentUpdated(
         : null;
       if (studentQuery && !studentQuery.empty) {
         const studentDoc = studentQuery.docs[0];
-        const { type, value } = extractLevelValue(grading.level);
-        const update: any = {
-          lastUpdated: FieldValue.serverTimestamp(),
-        };
-
-        if (type === 'Student') {
-          update.studentLevel = value;
-        } else if (type === 'Application') {
-          update.applicationLevel = value;
+        // Member level fields hold the track position ('3', 'Entry'), never the
+        // grading's label. A grading for something outside the syllabus awards
+        // no level.
+        const level = toGradingLevel(grading.level);
+        if (level) {
+          const update: MemberUpdates = {
+            lastUpdated: FieldValue.serverTimestamp(),
+          };
+          if (trackOf(level) === LevelTrack.Student) {
+            update.studentLevel = studentLevelOf(level);
+          } else {
+            update.applicationLevel = applicationLevelOf(level);
+          }
+          await studentDoc.ref.update(update);
+          logger.info(
+            `Student ${grading.studentMemberId} level updated to ${level} from grading ${gradingDocId}.`,
+          );
         } else {
-          // Fallback if type is null
-          update.studentLevel = grading.level;
+          logger.warn(
+            `Grading ${gradingDocId} passed for "${grading.level}", which is not a syllabus level; ` +
+              `student ${grading.studentMemberId} level not changed.`,
+          );
         }
-
-        await studentDoc.ref.update(update);
-        logger.info(
-          `Student ${grading.studentMemberId} ${type || 'student'}Level updated to ${value || grading.level} from grading ${gradingDocId}.`,
-        );
       } else {
         logger.warn(
           `Could not find student with memberId ${grading.studentMemberId} to update level.`,
@@ -1426,8 +1440,8 @@ export const onGradingUpdated = onDocumentUpdated(
       if (studentSnap.exists) {
         const d = studentSnap.data() || {};
         snapshotUpdate = {
-          studentLevelAtAcceptance: (d.studentLevel as string) || '',
-          applicationLevelAtAcceptance: (d.applicationLevel as string) || '',
+          studentLevelAtAcceptance: toStudentLevel(d.studentLevel as string),
+          applicationLevelAtAcceptance: toApplicationLevel(d.applicationLevel as string),
         };
       }
     }

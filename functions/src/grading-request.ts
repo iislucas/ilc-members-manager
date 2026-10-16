@@ -14,7 +14,7 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { FieldValue } from 'firebase-admin/firestore';
-import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels } from './data-model/curriculum';
+import { GradingLevel, nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, toGradingLevel } from './data-model/curriculum';
 import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid } from './data-model/gradings';
 import { Member } from './data-model/members';
 import {
@@ -159,7 +159,14 @@ export const requestGradingRetake = onCall(
     );
 
     // Determine target retake level
-    let targetLevel = request.data?.level ? normalizeGradingLevel(request.data.level) : '';
+    // Any spelling of the level is accepted; it is stored in canonical form.
+    let targetLevel: GradingLevel | '' = toGradingLevel(request.data?.level) ?? '';
+    if (request.data?.level && !targetLevel) {
+      throw new HttpsError(
+        'invalid-argument',
+        `"${request.data.level}" is not a grading level.`,
+      );
+    }
 
     if (targetLevel) {
       const notPassedAtLevel = allGradings.filter(
