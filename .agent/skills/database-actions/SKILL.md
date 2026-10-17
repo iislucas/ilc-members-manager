@@ -95,7 +95,7 @@ All actions and types are exported directly from `functions/src/actions` (or `fu
 | `listGradings(ctx, filter)` | Queries gradings by student, instructor, event, or status. | `studentMemberDocId`, `status`, `level` |
 | `acceptGrading(ctx, gradingDocId, actor?)` | Sets `status: AwaitingGrading`, records `acceptedBy*` and `statusChangedBy*`. | `gradingDocId`, `actor` |
 | `declineGrading(ctx, gradingDocId, notes, actor?)` | Sets `status: Declined`, records decline notes and resets acceptance. | `gradingDocId`, `notes` |
-| `recordGradingResult(ctx, gradingDocId, options, actor?)` | Records `Passed` or `NotPassed`. If passed and `awardLevel=true`, updates member's level! | `pass: boolean`, `resultNotes`, `awardLevel` |
+| `recordGradingResult(ctx, gradingDocId, options, actor?)` | Records `Passed` or `NotPassed`. Requires an actor with `memberDocId`. If passed and `awardLevel=true`, raises the member's level (transactional; never lowers it). | `pass: boolean`, `resultNotes`, `awardLevel` |
 | `linkGradingToEvent(ctx, gradingDocId, eventDocId)` | Links grading to `IlcEvent`, copying date and event title snapshot. | `gradingDocId`, `eventDocId` |
 | `unlinkGradingFromEvent(ctx, gradingDocId)` | Unlinks grading from event. | `gradingDocId` |
 
@@ -182,7 +182,17 @@ main().catch(console.error);
 
 ## 5. CLI Runner: `functions/scripts/run-action.ts`
 
-For quick manual executions from the terminal, use the built-in runner:
+For quick manual executions from the terminal, use the built-in runner.
+
+> [!IMPORTANT]
+> **Every action that writes must name the admin it acts as: `--as <admin docId | memberId | email>`.**
+> The runner uses Admin SDK credentials (so Firestore rules don't apply, and only people with IAM
+> access to the project can run it). It refuses to run if `--as` isn't an admin member. Writes then
+> carry that admin's identity, which server triggers rely on — e.g. `onGradingUpdated` only lets
+> admins record grading results out of order, judged by `statusChangedByMemberDocId`. Read-only
+> actions (`get-member`, `get-school`, `list-series`) don't need `--as`. Programmatic callers of the
+> library must likewise pass an `actor` with `memberDocId` (use `resolveAdminActor(db, idOrEmail)`);
+> `recordGradingResult` refuses to run without one.
 
 ```bash
 cd functions
@@ -194,23 +204,23 @@ pnpm exec ts-node scripts/run-action.ts --help
 pnpm exec ts-node scripts/run-action.ts --action get-member --member "sam@example.com"
 
 # Dry run creation of a member
-pnpm exec ts-node scripts/run-action.ts --action create-member --name "Alex Doe" --email "alex@example.com" --country US --dry-run
+pnpm exec ts-node scripts/run-action.ts --action create-member --name "Alex Doe" --email "alex@example.com" --country US --as admin@example.org --dry-run
 
 # Commit member creation
-pnpm exec ts-node scripts/run-action.ts --action create-member --name "Alex Doe" --email "alex@example.com" --country US
+pnpm exec ts-node scripts/run-action.ts --action create-member --name "Alex Doe" --email "alex@example.com" --country US --as admin@example.org
 
 # Renew membership
-pnpm exec ts-node scripts/run-action.ts --action renew-member --member <DOC_ID> --expires 2028-12-31
+pnpm exec ts-node scripts/run-action.ts --action renew-member --member <DOC_ID> --expires 2028-12-31 --as admin@example.org
 
 # Record grading result (awards level automatically on pass!)
-pnpm exec ts-node scripts/run-action.ts --action record-grading --grading <GRADING_DOC_ID> --pass true --notes "Excellent progress"
+pnpm exec ts-node scripts/run-action.ts --action record-grading --grading <GRADING_DOC_ID> --pass true --notes "Excellent progress" --as admin@example.org
 
 # List or search video series in catalog
 pnpm exec ts-node scripts/run-action.ts --action list-series --search "spinning"
 
 # Grant a single video or an entire series to a member
-pnpm exec ts-node scripts/run-action.ts --action grant-video --member "US658" --series 504000
-pnpm exec ts-node scripts/run-action.ts --action grant-video --member "sam@example.com" --video vimeo_123812468
+pnpm exec ts-node scripts/run-action.ts --action grant-video --member "US658" --series 504000 --as admin@example.org
+pnpm exec ts-node scripts/run-action.ts --action grant-video --member "sam@example.com" --video vimeo_123812468 --as admin@example.org
 ```
 
 > [!TIP]

@@ -6,7 +6,7 @@
  */
 
 import { Component, computed, inject, input } from '@angular/core';
-import { previousGradingLevel } from '../../../functions/src/data-model/curriculum';
+import { previousGradingLevel, normalizeGradingLevel } from '../../../functions/src/data-model/curriculum';
 import { Grading, GradingStatus, getPrettyGradingStatus, isGradingPaid } from '../../../functions/src/data-model/gradings';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
@@ -74,15 +74,9 @@ export class GradingRowHeaderComponent {
   // grading is for the first progression entry.
   previousLevel = computed(() => previousGradingLevel(this.grading().level));
 
+  // Display form of a grading level: canonical `GradingLevel` for syllabus
+  // levels (whatever spelling is stored), otherwise the label as stored.
   formatLevel(lvl: string): string {
-    if (!lvl) return '';
-    if (lvl.startsWith('Student ') || lvl.startsWith('Application ')) {
-      return lvl;
-    }
-    // Backward compatibility for data originally stored without prefix
-    if (lvl === 'Entry' || !isNaN(Number(lvl))) {
-      return 'Student ' + lvl;
-    }
-    return lvl;
+    return normalizeGradingLevel(lvl);
   }
 }

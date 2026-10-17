@@ -175,4 +175,38 @@ describe('createStripeCheckoutSession - Gifting', () => {
     expect(result.sessionId).toBe('cs_test_session');
     expect(mockStripeCheckoutSessionsCreate).toHaveBeenCalled();
   });
+
+  it('refuses grading prices: gradings are only sold by createGradingCheckoutSession', async () => {
+    mockStripePricesRetrieve.mockResolvedValue({
+      id: 'price_stu_2',
+      active: true,
+      type: 'one_time',
+      product: { id: 'prod_grading', name: 'GRADING : Student Levels' },
+    });
+    const req = makeRequest({ priceId: 'price_stu_2', origin: 'https://app.iliqchuan.com' });
+    await expect((createStripeCheckoutSession as any).run(req)).rejects.toThrow(
+      /grading page/,
+    );
+    expect(mockStripeCheckoutSessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it('drops client-supplied grading metadata, which only the server may set', async () => {
+    const req = makeRequest({
+      priceId: 'price_test_123',
+      origin: 'https://app.iliqchuan.com',
+      metadata: {
+        orderType: 'grading',
+        gradingLevel: 'Student 5',
+        gradingLevels: 'Student 5,Student 6',
+        campaign: 'spring',
+      },
+    });
+    await (createStripeCheckoutSession as any).run(req);
+    const params = mockStripeCheckoutSessionsCreate.mock.calls[0][0];
+    expect(params.metadata).toEqual(expect.objectContaining({ campaign: 'spring' }));
+    expect(params.metadata.orderType).toBeUndefined();
+    expect(params.metadata.gradingLevel).toBeUndefined();
+    expect(params.metadata.gradingLevels).toBeUndefined();
+    expect(params.line_items).toHaveLength(1);
+  });
 });

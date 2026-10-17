@@ -4,7 +4,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { GradingListComponent } from '../grading-list/grading-list';
 import { IconComponent } from '../icons/icon.component';
-import { nextGradingLevel } from '../../../functions/src/data-model/curriculum';
+import { nextGradingLevel, studentLevelLabel, applicationLevelLabel, toGradingLevel } from '../../../functions/src/data-model/curriculum';
 import { GradingStatus, isGradingPaid } from '../../../functions/src/data-model/gradings';
 import { hasActiveMembership } from '../../../functions/src/data-model/members';
 
@@ -118,15 +118,10 @@ export class MemberGradingsComponent {
   currentLevelDisplay = computed(() => {
     const u = this.user();
     if (!u) return 'None';
-    const parts: string[] = [];
-    const sl = u.member.studentLevel;
-    if (sl) {
-      parts.push('Student ' + sl);
-    }
-    const al = u.member.applicationLevel;
-    if (al) {
-      parts.push('Application ' + al);
-    }
+    const parts = [
+      studentLevelLabel(u.member.studentLevel),
+      applicationLevelLabel(u.member.applicationLevel),
+    ].filter((p) => !!p);
     return parts.length > 0 ? parts.join(', ') : 'None';
   });
 
@@ -148,7 +143,7 @@ export class MemberGradingsComponent {
     if (!next) return '';
     const grading = this.dataService.myGradings
       .entries()
-      .find((g) => g.level === next && g.status !== GradingStatus.NotPassed);
+      .find((g) => toGradingLevel(g.level) === next && g.status !== GradingStatus.NotPassed);
     return grading ? grading.docId : '';
   });
 

@@ -882,6 +882,8 @@ describe('Firestore Rules', () => {
       await assertSucceeds(
         db.collection('gradings').doc('grading-1').update({
           status: 'awaiting-instructor-acceptance',
+          // Non-admin status changes must stamp the caller's own member docId.
+          statusChangedByMemberDocId: 'FirestoreDocID-student1',
           lastUpdated: serverTimestamp(),
         }),
       );
@@ -1010,6 +1012,149 @@ describe('Firestore Rules', () => {
           lastUpdated: serverTimestamp(),
         }),
       );
+    });
+
+    describe('Status actor (statusChangedByMemberDocId) cannot be forged', () => {
+      // onGradingUpdate trusts statusChangedByMemberDocId (admin exemption,
+      // self-promotion and unpaid-request guards), so non-admins may only
+      // stamp their own member docId when status or the actor changes.
+      const instructor1 = () =>
+        testEnv
+          .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
+          .firestore();
+      const student1 = () =>
+        testEnv
+          .authenticatedContext('student1', { email: 'student1@ilc.com' })
+          .firestore();
+
+      // Simulate a prior status change made by an admin, leaving a stale actor.
+      async function stampStaleAdminActor() {
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await context
+            .firestore()
+            .collection('gradings')
+            .doc('grading-1')
+            .update({
+              status: 'awaiting-instructor-acceptance',
+              statusChangedByMemberDocId: 'FirestoreDocID-admin',
+              statusChangedByName: 'Admin',
+            });
+        });
+      }
+
+      it('allows a manager status change stamped with their own docId', async () => {
+        await assertSucceeds(
+          instructor1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-grading',
+            statusChangedByMemberDocId: 'FirestoreDocID-instructor1',
+            statusChangedByName: 'Sifu Jones',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it("denies a manager status change stamped with another member's (admin's) docId", async () => {
+        await assertFails(
+          instructor1().collection('gradings').doc('grading-1').update({
+            status: 'passed',
+            statusChangedByMemberDocId: 'FirestoreDocID-admin',
+            statusChangedByName: 'Admin',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a manager status change that leaves a stale other-member actor untouched', async () => {
+        await stampStaleAdminActor();
+        await assertFails(
+          instructor1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-grading',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a manager status change with an empty actor', async () => {
+        await assertFails(
+          instructor1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-grading',
+            statusChangedByMemberDocId: '',
+            statusChangedByName: '',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('allows a manager non-status edit (notes) with a stale actor untouched', async () => {
+        await stampStaleAdminActor();
+        await assertSucceeds(
+          instructor1().collection('gradings').doc('grading-1').update({
+            notes: 'Bring a uniform',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a manager changing only the actor field to someone else', async () => {
+        await assertFails(
+          instructor1().collection('gradings').doc('grading-1').update({
+            statusChangedByMemberDocId: 'FirestoreDocID-admin',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('allows a student request (-> awaiting-instructor-acceptance) stamped with their own docId', async () => {
+        await assertSucceeds(
+          student1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-acceptance',
+            statusChangedByMemberDocId: 'FirestoreDocID-student1',
+            statusChangedByName: 'Student One',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a student request stamped with another docId', async () => {
+        await assertFails(
+          student1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-acceptance',
+            statusChangedByMemberDocId: 'FirestoreDocID-instructor1',
+            statusChangedByName: 'Sifu Jones',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a student changing the actor field to someone else after acceptance', async () => {
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await context
+            .firestore()
+            .collection('gradings')
+            .doc('grading-1')
+            .update({ status: 'awaiting-instructor-grading' });
+        });
+        await assertFails(
+          student1().collection('gradings').doc('grading-1').update({
+            statusChangedByMemberDocId: 'FirestoreDocID-admin',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('still allows an admin to write any actor', async () => {
+        const db = testEnv
+          .authenticatedContext('admin', { email: 'admin@ilc.com' })
+          .firestore();
+        await assertSucceeds(
+          db.collection('gradings').doc('grading-1').update({
+            status: 'passed',
+            statusChangedByMemberDocId: 'FirestoreDocID-instructor1',
+            statusChangedByName: 'Sifu Jones',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
     });
 
     describe('Event-linked grading managers', () => {

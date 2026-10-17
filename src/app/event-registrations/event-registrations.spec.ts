@@ -335,6 +335,9 @@ describe('EventRegistrationsComponent', () => {
     expect(component.formatApplicationLevel('2')).toBe('App 2');
     expect(component.formatApplicationLevel('App 3')).toBe('App 3');
     expect(component.formatApplicationLevel('')).toBe('');
+    // Unrecognised values are shown as stored, never hidden.
+    expect(component.formatStudentLevel('Certified Instructor')).toBe('Certified Instructor');
+    expect(component.formatApplicationLevel('Level 9')).toBe('Level 9');
   });
 
   it('should search by Member ID', async () => {

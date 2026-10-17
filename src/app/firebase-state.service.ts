@@ -31,7 +31,7 @@ import {
   onSnapshot,
   Unsubscribe,
 } from 'firebase/firestore';
-import { firestoreDocToMember, initMember, Member } from '../../functions/src/data-model/members';
+import { firestoreDocToMember, initMember, Member, normalizeMemberLevels } from '../../functions/src/data-model/members';
 import { CheckEmailStatusResult, FetchUserDetailsResult } from '../../functions/src/data-model/system';
 import { IdbStorageService } from './idb-storage.service';
 import { NetworkStateService } from './network-state.service';
@@ -183,13 +183,14 @@ export class FirebaseStateService {
             photoURL: cached.photoURL,
             emailVerified: true,
           } as unknown as User;
+          // Cached copies skip the converter, so normalise their levels here.
+          const profiles = cached.userMemberProfiles.map(normalizeMemberLevels);
           const selected =
-            cached.userMemberProfiles.find((p) => p.docId === cached.selectedMemberDocId) ||
-            cached.userMemberProfiles[0];
+            profiles.find((p) => p.docId === cached.selectedMemberDocId) || profiles[0];
           const cachedDetails: UserDetails = {
             firebaseUser: mockUser,
             member: selected,
-            memberProfiles: cached.userMemberProfiles,
+            memberProfiles: profiles,
             isAdmin: cached.isAdmin,
             schoolsManaged: cached.schoolsManaged,
           };
@@ -307,13 +308,14 @@ export class FirebaseStateService {
       const cached = await this.idb.get<CachedUserDetails>(`cached_user_details_${user.uid}`);
       if (cached && Array.isArray(cached.userMemberProfiles) && cached.userMemberProfiles.length > 0) {
         console.log('FirebaseStateService: Recovered user profile from local IndexedDB cache for offline mode.');
+        // Cached copies skip the converter, so normalise their levels here.
+        const profiles = cached.userMemberProfiles.map(normalizeMemberLevels);
         const selected =
-          cached.userMemberProfiles.find((p) => p.docId === cached.selectedMemberDocId) ||
-          cached.userMemberProfiles[0];
+          profiles.find((p) => p.docId === cached.selectedMemberDocId) || profiles[0];
         const userDetails: UserDetails = {
           firebaseUser: user,
           member: selected,
-          memberProfiles: cached.userMemberProfiles,
+          memberProfiles: profiles,
           isAdmin: cached.isAdmin,
           schoolsManaged: cached.schoolsManaged,
         };
@@ -334,7 +336,7 @@ export class FirebaseStateService {
 
     const profiles = userDetailsResult.userMemberProfiles.map((p) => {
       // TODO: Remove this hack when we fix the data model.
-      const member = { ...initMember(), ...p } as Member & { id?: string };
+      const member = normalizeMemberLevels({ ...initMember(), ...p } as Member & { id?: string });
       if (member.id && !member.docId) {
         member.docId = member.id;
       }

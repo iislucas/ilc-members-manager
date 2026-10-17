@@ -30,10 +30,8 @@
     </div>
   }
 
-  <!-- Warn when this grading isn't the student's next grading in the
-       progression. Before acceptance this is measured against the student's
-       current level and shown only to the instructor/manager who must accept;
-       once accepted it's measured against the level snapshot taken at acceptance. -->
+  <!-- Warn when a recorded result was graded out of sequence (measured against
+       the level snapshot on the grading). -->
   @if (showGradingOutOfOrderWarning()) {
     <div class="warning-box grading-level-warning">
       <app-icon name="error" width="18" height="18" fill="#b06000"></app-icon>
@@ -43,6 +41,34 @@
         <ng-container *ngTemplateOutlet="studentNameTpl"></ng-container>'s next grading should be
         <strong>{{ studentNextGradingLevel() }}</strong>. Earlier levels should be
         completed first.
+      </span>
+    </div>
+  }
+
+  <!-- A grading booked ahead: it can be requested and accepted now, but its
+       result can only be recorded once the earlier levels are passed. -->
+  @if (showBookedAheadNotice()) {
+    <div class="warning-box booked-ahead-notice">
+      <app-icon name="info" width="18" height="18" fill="#b06000"></app-icon>
+      <span>
+        <strong>Booked ahead.</strong>
+        @if (userIsStudent()) {
+          You can request and schedule this grading now, but its result can only
+          be recorded once you have passed
+        } @else {
+          This grading can be requested, accepted and scheduled now, but its
+          result can only be recorded once the student has passed
+        }
+        <strong>{{ earlierLevelsToPass().join(', ') }}</strong>.
+        @if (userIsStudent()) {
+          <a class="out-of-order-link" [href]="nextGradingHref()">
+            @if (nextGradingDocId()) {
+              Go to your {{ studentNextGradingLevel() }} grading
+            } @else {
+              Purchase your {{ studentNextGradingLevel() }} grading
+            }
+          </a>
+        }
       </span>
     </div>
   }
@@ -108,34 +134,7 @@
 
       <!-- Context message -->
       @if (userIsStudent()) {
-        @if (!isNextGrading() && g.status !== GradingStatus.AwaitingAcceptance) {
-          <!-- Blocked: student must complete previous gradings first -->
-          <div class="out-of-order-notice">
-            <app-icon name="info" width="20" height="20" fill="#b06000"></app-icon>
-            <div class="out-of-order-content">
-              <p class="out-of-order-text">
-                You are not yet eligible to request an instructor evaluate you for this level.
-                Please complete
-                <a class="out-of-order-link" [href]="nextGradingHref()">
-                  your {{ studentNextGradingLevel() }} grading
-                </a>
-                first.
-              </p>
-              <div class="out-of-order-actions">
-                <a class="subtle-button next-grading-btn" [href]="nextGradingHref()">
-                  <app-icon name="arrow_forward" width="16" height="16"></app-icon>
-                  <span>
-                    @if (nextGradingDocId()) {
-                      Go to {{ studentNextGradingLevel() }} Grading
-                    } @else {
-                      Purchase {{ studentNextGradingLevel() }} Grading
-                    }
-                  </span>
-                </a>
-              </div>
-            </div>
-          </div>
-        } @else if (
+        @if (
           g.status === GradingStatus.AwaitingAcceptance && !isEditingRequest()
         ) {
           <!-- Read-only summary when request is sent -->
@@ -320,7 +319,7 @@
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || !isNextGrading() || eventBlocksSave()"
+              [disabled]="isSaving() || eventBlocksSave()"
             >
               Change to Accept
             </button>
@@ -375,7 +374,7 @@
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || isDirty() || !isNextGrading() || eventBlocksSave()"
+              [disabled]="isSaving() || isDirty() || eventBlocksSave()"
               [title]="isDirty() ? 'Save or discard your changes first' : ''"
             >
               Accept
@@ -754,16 +753,16 @@
             <button
               class="pass-button"
               (click)="initiateMarkResult(GradingStatus.Passed)"
-              [disabled]="isSaving() || isDirty() || eventBlocksSave() || gradingDateMissing()"
-              [title]="isDirty() ? 'Save or discard your changes first' : (gradingDateMissing() ? 'Set the grading date first' : '')"
+              [disabled]="isSaving() || isDirty() || eventBlocksSave() || gradingDateMissing() || resultBlockedByEarlierLevels()"
+              [title]="resultButtonTitle()"
             >
               Mark as Passed
             </button>
             <button
               class="not-pass-button"
               (click)="initiateMarkResult(GradingStatus.NotPassed)"
-              [disabled]="isSaving() || isDirty() || eventBlocksSave() || gradingDateMissing()"
-              [title]="isDirty() ? 'Save or discard your changes first' : (gradingDateMissing() ? 'Set the grading date first' : '')"
+              [disabled]="isSaving() || isDirty() || eventBlocksSave() || gradingDateMissing() || resultBlockedByEarlierLevels()"
+              [title]="resultButtonTitle()"
             >
               Mark as Not Passed
             </button>

@@ -23,6 +23,15 @@ export enum NotificationKind {
   // date set. The result is reverted until the date is filled in, since the date
   // is part of the grading's reference (see `gradingDisplayId`).
   GradingNeedsEventDate = 'GradingNeedsEventDate',
+  // Sent to whoever tried to record a result on a grading booked ahead while an
+  // earlier level is still not achieved. The result is reverted: gradings may be
+  // bought and accepted ahead, but are graded in sequence (see
+  // `unachievedEarlierLevels`).
+  GradingNeedsEarlierLevels = 'GradingNeedsEarlierLevels',
+  // Admin-only: a member record holds a student/application level that isn't
+  // any known spelling of a level. The app reads it as "no level" (it can't be
+  // used for grading), so an admin should correct it on the member record.
+  MemberLevelUnrecognised = 'MemberLevelUnrecognised',
   // A TODO surfaced (client-driven, on login) when a grading is completed
   // (passed/not-passed) but not yet paid. Shown to the student and to the
   // instructors responsible for that student's grading.
@@ -101,6 +110,8 @@ const ACTION_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set([
   NotificationKind.GradingPurchased,
   NotificationKind.GradingUnpaid,
   NotificationKind.GradingNeedsEventDate,
+  NotificationKind.GradingNeedsEarlierLevels,
+  NotificationKind.MemberLevelUnrecognised,
   NotificationKind.UnpaidGradingsSummary,
   NotificationKind.PendingEventApproval,
   NotificationKind.PendingEventsSummary,
@@ -135,6 +146,7 @@ export function notificationAudience(n: MemberNotification): NotificationAudienc
     case NotificationKind.ManualOrderFulfilled:
     case NotificationKind.NewUpload:
     case NotificationKind.NewUploadsSummary:
+    case NotificationKind.MemberLevelUnrecognised:
       return NotificationAudience.Admin;
 
     // Public notifications: public/everyone sees these
@@ -162,6 +174,16 @@ export function notificationAudience(n: MemberNotification): NotificationAudienc
     default:
       return NotificationAudience.You;
   }
+}
+
+/** Data for a MemberLevelUnrecognised notification. */
+export interface NotificationMemberLevelData {
+  memberDocId: string;
+  memberId: string;
+  // Which member field holds the unrecognised value.
+  field: 'studentLevel' | 'applicationLevel';
+  // The value as stored.
+  value: string;
 }
 
 export interface MemberNotificationCommon {
@@ -363,6 +385,14 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingNeedsEventDate;
     data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingNeedsEarlierLevels;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.MemberLevelUnrecognised;
+    data: NotificationMemberLevelData;
   }
   | {
     kind: NotificationKind.GradingNotPassed;

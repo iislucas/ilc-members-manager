@@ -6,7 +6,16 @@
  *
  * Usage:
  *   cd functions
- *   pnpm exec ts-node scripts/run-action.ts --action <action-name> [options]
+ *   pnpm exec ts-node scripts/run-action.ts --action <action-name> --as <admin> [options]
+ *
+ * Who can run this: it uses Admin SDK credentials (application-default login),
+ * so Firestore rules do not apply and only people with IAM access to the
+ * Firebase project can run it. Every action that writes must name the admin
+ * member it acts as with --as (docId, memberId or email); the script refuses
+ * to run if that member isn't an admin. Writes then carry that admin's
+ * identity, which server triggers rely on (e.g. admins may record grading
+ * results out of order). Read-only actions (get-member, get-school,
+ * list-series) don't need --as.
  *
  * Examples:
  *   # 1. Lookup member by email or memberId (dry-run not needed for reads):
@@ -19,14 +28,14 @@
  *   pnpm exec ts-node scripts/run-action.ts --action create-member --name "Jean Dupont" --email "jean@example.fr" --country FR
  *
  *   # 4. Renew membership:
- *   pnpm exec ts-node scripts/run-action.ts --action renew-member --member <DOC_ID> --expires 2028-12-31
+ *   pnpm exec ts-node scripts/run-action.ts --action renew-member --member <DOC_ID> --expires 2028-12-31 --as admin@example.org
  *
  *   # 5. Create a school:
  *   pnpm exec ts-node scripts/run-action.ts --action create-school --name "ILC Lyon" --country France
  *
  *   # 6. Create and record a grading result:
- *   pnpm exec ts-node scripts/run-action.ts --action create-grading --member <STUDENT_DOC_ID> --level "Level 1"
- *   pnpm exec ts-node scripts/run-action.ts --action record-grading --grading <GRADING_DOC_ID> --pass true --notes "Excellent understanding"
+ *   pnpm exec ts-node scripts/run-action.ts --action create-grading --member <STUDENT_DOC_ID> --level "Student 1" --as admin@example.org
+ *   pnpm exec ts-node scripts/run-action.ts --action record-grading --grading <GRADING_DOC_ID> --pass true --notes "Excellent understanding" --as admin@example.org
  *
  *   # 7. Grant video access:
  *   pnpm exec ts-node scripts/run-action.ts --action grant-video --video <VIDEO_ID> --member "jean@example.fr"
@@ -36,6 +45,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import {
   createActionContext,
+  resolveAdminActor,
   getMember,
   getMemberByMemberId,
   getMemberByEmail,
@@ -74,6 +84,10 @@ const argv = yargs(hideBin(process.argv))
     description: 'Preview changes without committing to Firestore',
     default: false,
   })
+  .option('as', {
+    type: 'string',
+    description: 'Admin member to act as (docId, memberId or email). Required for actions that write.',
+  })
   .option('project', {
     type: 'string',
     description: 'Firebase Project ID (optional)',
@@ -106,7 +120,7 @@ const argv = yargs(hideBin(process.argv))
   })
   .option('level', {
     type: 'string',
-    description: 'Grading level (e.g. "Level 1", "Application 2")',
+    description: 'Grading level (e.g. "Student 1", "Application 2")',
   })
   .option('instructor', {
     type: 'string',
@@ -157,11 +171,19 @@ async function main() {
   const ctx = createActionContext({
     projectId: argv.project,
     dryRun: isDryRun,
-    actor: {
-      name: 'CLI Action Runner',
-      isAdmin: true,
-    },
   });
+
+  // Every write is made as a named admin member (see the header comment).
+  const readOnlyActions = ['get-member', 'get-school', 'list-series'];
+  if (!readOnlyActions.includes(argv.action)) {
+    const actor = await resolveAdminActor(ctx.db, argv.as || '');
+    if (typeof actor === 'string') {
+      console.error(`❌ ${actor}`);
+      process.exit(1);
+    }
+    ctx.actor = actor;
+    console.log(`👤 Acting as admin ${actor.name} (${actor.memberId || actor.memberDocId})`);
+  }
 
   console.log(`\n🚀 Executing action: "${argv.action}" (Dry Run: ${isDryRun ? 'YES' : 'NO'})`);
 

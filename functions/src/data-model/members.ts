@@ -4,6 +4,8 @@ import {
   ApplicationLevel,
   MasterLevel,
   InstructorLicenseType,
+  toStudentLevel,
+  toApplicationLevel,
 } from './curriculum';
 import { MemberNotificationSettings } from './notifications';
 
@@ -126,8 +128,10 @@ export type Member = {
   publicBioMarkdown: string;
 
   // Level information
-  studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
-  applicationLevel: ApplicationLevel; // e.g., 'Level 1', 'Level 2'
+  // Position on each track: always a `StudentLevel` / `ApplicationLevel` value
+  // ('3', 'Entry', ''); legacy spellings are normalised on read.
+  studentLevel: StudentLevel;
+  applicationLevel: ApplicationLevel;
   // Saved as a string list to allow search within these.
   mastersLevels: MasterLevel[];
 
@@ -250,8 +254,61 @@ export function firestoreDocToMember(doc: GenericFsDoc): Member {
     ...initMember(),
     ...docData,
     emails: Array.isArray(docData.emails) ? docData.emails : [],
+    // Older/imported records may spell levels as 'Student 2', 'Level 2', …
+    studentLevel: toStudentLevel(docData.studentLevel),
+    applicationLevel: toApplicationLevel(docData.applicationLevel),
     lastUpdated,
     docId: doc.id,
+  };
+}
+
+/** A member level field holding a value that isn't any known spelling. */
+export type UnrecognisedMemberLevel = {
+  field: 'studentLevel' | 'applicationLevel';
+  // The value as stored.
+  value: string;
+};
+
+// How to put a stored member's level fields into canonical form. A recognised
+// legacy spelling ('Student 2', 'Level 2', 'Entry Level') gets a patch to the
+// canonical value ('2', 'Entry'). A non-empty value that isn't any known
+// spelling is NOT patched (it may mean something to a human) but is returned
+// in `unrecognised`, so an admin can be told to correct it. Takes the raw
+// stored document, not one read through `firestoreDocToMember`.
+export function memberLevelNormalization(stored: Partial<Member>): {
+  patch: Partial<Member>;
+  unrecognised: UnrecognisedMemberLevel[];
+} {
+  const patch: Partial<Member> = {};
+  const unrecognised: UnrecognisedMemberLevel[] = [];
+  const rawStudent = String(stored.studentLevel ?? '').trim();
+  if (rawStudent) {
+    const canonical = toStudentLevel(rawStudent);
+    if (canonical === StudentLevel.None) {
+      unrecognised.push({ field: 'studentLevel', value: rawStudent });
+    } else if (canonical !== stored.studentLevel) {
+      patch.studentLevel = canonical;
+    }
+  }
+  const rawApplication = String(stored.applicationLevel ?? '').trim();
+  if (rawApplication) {
+    const canonical = toApplicationLevel(rawApplication);
+    if (canonical === ApplicationLevel.None) {
+      unrecognised.push({ field: 'applicationLevel', value: rawApplication });
+    } else if (canonical !== stored.applicationLevel) {
+      patch.applicationLevel = canonical;
+    }
+  }
+  return { patch, unrecognised };
+}
+
+// A member with its level fields in canonical form, for member objects that
+// didn't come through `firestoreDocToMember` (e.g. a cached or callable copy).
+export function normalizeMemberLevels<T extends Member>(member: T): T {
+  return {
+    ...member,
+    studentLevel: toStudentLevel(member.studentLevel),
+    applicationLevel: toApplicationLevel(member.applicationLevel),
   };
 }
 
@@ -267,8 +324,10 @@ export type InstructorPublicData = {
   publicProfileImageThumbUrl: string; // Square profile thumbnail, used in cards.
   publicCoverImageUrl: string; // Cover/banner image (e.g. 1200x450).
   publicBioMarkdown: string; // Markdown self-description.
-  studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
-  applicationLevel: ApplicationLevel; // e.g., 'Level 1', 'Level 2'
+  // Position on each track: always a `StudentLevel` / `ApplicationLevel` value
+  // ('3', 'Entry', ''); legacy spellings are normalised on read.
+  studentLevel: StudentLevel;
+  applicationLevel: ApplicationLevel;
   mastersLevels: MasterLevel[];
   instructorId: string;
   instructorLicenseType: InstructorLicenseType;
@@ -318,5 +377,12 @@ export function firestoreDocToInstructorPublicData(
 ): InstructorPublicData {
   const docData = (doc.data() || {}) as Partial<InstructorPublicDataFsDoc> & { lastUpdated?: unknown };
   const lastUpdated = normalizeLastUpdated(docData?.lastUpdated);
-  return { ...initInstructor(), ...docData, lastUpdated, docId: doc.id };
+  return {
+    ...initInstructor(),
+    ...docData,
+    studentLevel: toStudentLevel(docData.studentLevel),
+    applicationLevel: toApplicationLevel(docData.applicationLevel),
+    lastUpdated,
+    docId: doc.id,
+  };
 }

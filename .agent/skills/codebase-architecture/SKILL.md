@@ -120,6 +120,24 @@ When `gradingEventDocId` is set, the linked event's `ownerDocId` + `managerDocId
 managers (full edit/accept rights) — derived live, never cached on the grading. Students may change the
 linked event at any time until the grading is finalised (passed/not-passed/in-review).
 
+**Buying ahead / grading in order**: `/next-grading` can buy several levels in one checkout via
+`createGradingCheckoutSession` ([grading-checkout.ts](../../functions/src/grading-checkout.ts)) — the server
+validates the levels and picks prices with `findGradingPrice`; the generic checkout refuses grading prices.
+Gradings booked ahead may be requested and accepted immediately, but a result (passed/not-passed) is only
+allowed once `levelsBlockingResult(...)` is empty (earlier levels achieved, or passed & paid) — enforced in
+`grading-progress` (UI) and reverted by `onGradingUpdated` (`GradingNeedsEarlierLevels`); admins are exempt.
+Level awards go through `awardGradingLevel` (transactional, only raises). One email/notification per order.
+See [docs/gradings.md](../../docs/gradings.md).
+
+**Client caches**: bump `CACHE_SCHEMA_VERSION` in `incremental-sync.service.ts` whenever a converter's output
+changes; older caches are discarded and re-fetched in full.
+
+**Levels**: use the enums in [curriculum.ts](../../functions/src/data-model/curriculum.ts) —
+`GradingLevel` ('Student Entry', 'Student N', 'Application N') for grading levels, and
+`StudentLevel` / `ApplicationLevel` ('Entry', 'N') for member track positions. Never parse or compare
+raw level strings: read any spelling with `toGradingLevel` / `toStudentLevel` / `toApplicationLevel`,
+convert with `studentLevelOf` / `gradingLevelForStudent` etc., display with `studentLevelLabel`.
+
 ---
 
 ## Firestore Security Rules

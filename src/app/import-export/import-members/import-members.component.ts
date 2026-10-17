@@ -360,7 +360,7 @@ export class ImportMembersComponent {
         if (member.studentLevel !== undefined) {
           const higherLevel = ensureHigherStudentLevel(existing.studentLevel, member.studentLevel);
           if (higherLevel !== undefined) {
-            newMember.studentLevel = higherLevel as any;
+            newMember.studentLevel = higherLevel;
           }
         }
 
@@ -368,7 +368,7 @@ export class ImportMembersComponent {
         if (member.applicationLevel !== undefined) {
           const higherLevel = ensureHigherApplicationLevel(existing.applicationLevel, member.applicationLevel);
           if (higherLevel !== undefined) {
-            newMember.applicationLevel = higherLevel as any;
+            newMember.applicationLevel = higherLevel;
           }
         }
 

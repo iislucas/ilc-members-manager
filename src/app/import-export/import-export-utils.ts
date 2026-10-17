@@ -1,5 +1,5 @@
 import { parse, isValid, format } from 'date-fns';
-import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { StudentLevel, ApplicationLevel, studentLevelRank, applicationLevelRank, toStudentLevel, toApplicationLevel } from '../../../functions/src/data-model/curriculum';
 
 export type ParsedRow = Record<string, string>;
 
@@ -175,33 +175,24 @@ export function ensureLaterDate(oldDate: string | undefined | null, newDate: str
   return oldDate;
 }
 
+// The higher of two student levels, in canonical `StudentLevel` form (any
+// spelling is accepted). undefined when neither is set.
 export function ensureHigherStudentLevel(
   oldLevel: StudentLevel | string | undefined | null,
   newLevel: StudentLevel | string | undefined | null
-): StudentLevel | string | undefined {
-  if (!newLevel) return oldLevel || undefined;
-  if (!oldLevel) return newLevel;
-
-  const score = (lvl: string) => {
-    if (lvl === 'Entry') return 0.5;
-    const n = parseInt(lvl, 10);
-    return isNaN(n) ? 0 : n;
-  };
-
-  return score(newLevel as string) > score(oldLevel as string) ? newLevel : oldLevel;
+): StudentLevel | undefined {
+  const higher = studentLevelRank(newLevel) > studentLevelRank(oldLevel) ? newLevel : oldLevel;
+  const level = toStudentLevel(higher);
+  return level === StudentLevel.None ? undefined : level;
 }
 
+// The higher of two application levels, in canonical `ApplicationLevel` form
+// (any spelling is accepted). undefined when neither is set.
 export function ensureHigherApplicationLevel(
   oldLevel: ApplicationLevel | string | undefined | null,
   newLevel: ApplicationLevel | string | undefined | null
-): ApplicationLevel | string | undefined {
-  if (!newLevel) return oldLevel || undefined;
-  if (!oldLevel) return newLevel;
-
-  const score = (lvl: string) => {
-    const n = parseInt(lvl, 10);
-    return isNaN(n) ? 0 : n;
-  };
-
-  return score(newLevel as string) > score(oldLevel as string) ? newLevel : oldLevel;
+): ApplicationLevel | undefined {
+  const higher = applicationLevelRank(newLevel) > applicationLevelRank(oldLevel) ? newLevel : oldLevel;
+  const level = toApplicationLevel(higher);
+  return level === ApplicationLevel.None ? undefined : level;
 }

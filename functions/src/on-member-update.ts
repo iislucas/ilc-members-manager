@@ -11,7 +11,7 @@ import * as admin from 'firebase-admin';
 // on-grading-update.ts.)
 import { FieldValue } from 'firebase-admin/firestore';
 import { Grading, gradingManagerIdsOf } from './data-model/gradings';
-import { Member, MembershipType } from './data-model/members';
+import { Member, MembershipType, UnrecognisedMemberLevel, memberLevelNormalization } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { ACL } from './data-model/system';
 import { normalizeEmail, normalizeEmails } from './data-model/email';
@@ -448,6 +448,51 @@ export async function handleInstructorActivation(
   }
 }
 
+/**
+ * Tells every admin that a member record holds a level value that isn't any
+ * known spelling (it reads as "no level" everywhere in the app). Keyed by the
+ * member and field, so repeated saves update one notification per admin.
+ */
+async function notifyAdminsOfUnrecognisedLevels(
+  member: Member,
+  unrecognised: UnrecognisedMemberLevel[],
+): Promise<void> {
+  if (unrecognised.length === 0) return;
+  const db = getDb();
+  const admins = await db.collection('members').where('isAdmin', '==', true).get();
+  const who = member.memberId ? `(${member.memberId}) ${member.name}` : member.name || member.docId;
+  for (const u of unrecognised) {
+    const label = u.field === 'studentLevel' ? 'student level' : 'application level';
+    logger.warn(`Member ${member.docId} has an unrecognised ${label}: "${u.value}"`);
+    for (const adminDoc of admins.docs) {
+      try {
+        await createMemberNotification(db, adminDoc.id, {
+          docId: `${member.docId}_${u.field}_unrecognised`,
+          kind: NotificationKind.MemberLevelUnrecognised,
+          markdown:
+            `⚠️ **${who}** has a ${label} of **"${u.value}"**, which isn't a recognised level ` +
+            `(expected e.g. "Entry" or "3"). The app treats it as no ${label}, so it can't be ` +
+            `used for gradings. [Open the member](/members/${member.docId}) to correct it.`,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          data: {
+            memberDocId: member.docId,
+            memberId: member.memberId || '',
+            field: u.field,
+            value: u.value,
+          },
+        });
+      } catch (err) {
+        logger.error('Failed to notify admin of unrecognised member level', {
+          err,
+          adminDocId: adminDoc.id,
+          memberDocId: member.docId,
+        });
+      }
+    }
+  }
+}
+
 export const onMemberCreated = onDocumentCreated(
   'members/{memberId}',
   async (event) => {
@@ -468,14 +513,18 @@ export const onMemberCreated = onDocumentCreated(
     const emailsNeedNormalization =
       cleanEmails !== undefined && JSON.stringify(cleanEmails) !== JSON.stringify(member.emails);
 
+    // Levels stored in canonical form; unrecognised values reported to admins.
+    const levels = memberLevelNormalization(member);
+
     const needsNormalization =
       (member.memberId && member.memberId !== cleanMemberId) ||
       (member.instructorId && member.instructorId !== cleanInstructorId) ||
       (member.primaryInstructorId && member.primaryInstructorId !== cleanPrimaryInstructorId) ||
-      emailsNeedNormalization;
+      emailsNeedNormalization ||
+      Object.keys(levels.patch).length > 0;
 
     if (needsNormalization) {
-      const normalizationPatch: Partial<Member> = {};
+      const normalizationPatch: Partial<Member> = { ...levels.patch };
       if (cleanMemberId !== undefined && member.memberId !== cleanMemberId) normalizationPatch.memberId = cleanMemberId;
       if (cleanInstructorId !== undefined && member.instructorId !== cleanInstructorId) normalizationPatch.instructorId = cleanInstructorId;
       if (cleanPrimaryInstructorId !== undefined && member.primaryInstructorId !== cleanPrimaryInstructorId) normalizationPatch.primaryInstructorId = cleanPrimaryInstructorId;
@@ -485,7 +534,10 @@ export const onMemberCreated = onDocumentCreated(
       if (cleanInstructorId !== undefined) member.instructorId = cleanInstructorId;
       if (cleanPrimaryInstructorId !== undefined) member.primaryInstructorId = cleanPrimaryInstructorId;
       if (cleanEmails !== undefined) member.emails = cleanEmails;
+      Object.assign(member, levels.patch);
     }
+
+    await notifyAdminsOfUnrecognisedLevels(member, levels.unrecognised);
 
     await updateMemberViewForSchoolAndInstrucor(snap.id, member);
     await updateInstructorPublicProfile({ previous: undefined, member });
@@ -524,14 +576,18 @@ export const onMemberUpdated = onDocumentUpdated(
     const emailsNeedNormalization =
       cleanEmails !== undefined && JSON.stringify(cleanEmails) !== JSON.stringify(member.emails);
 
+    // Levels stored in canonical form; unrecognised values reported to admins.
+    const levels = memberLevelNormalization(member);
+
     const needsNormalization =
       (member.memberId && member.memberId !== cleanMemberId) ||
       (member.instructorId && member.instructorId !== cleanInstructorId) ||
       (member.primaryInstructorId && member.primaryInstructorId !== cleanPrimaryInstructorId) ||
-      emailsNeedNormalization;
+      emailsNeedNormalization ||
+      Object.keys(levels.patch).length > 0;
 
     if (needsNormalization) {
-      const normalizationPatch: Partial<Member> = {};
+      const normalizationPatch: Partial<Member> = { ...levels.patch };
       if (cleanMemberId !== undefined && member.memberId !== cleanMemberId) normalizationPatch.memberId = cleanMemberId;
       if (cleanInstructorId !== undefined && member.instructorId !== cleanInstructorId) normalizationPatch.instructorId = cleanInstructorId;
       if (cleanPrimaryInstructorId !== undefined && member.primaryInstructorId !== cleanPrimaryInstructorId) normalizationPatch.primaryInstructorId = cleanPrimaryInstructorId;
@@ -541,7 +597,14 @@ export const onMemberUpdated = onDocumentUpdated(
       if (cleanInstructorId !== undefined) member.instructorId = cleanInstructorId;
       if (cleanPrimaryInstructorId !== undefined) member.primaryInstructorId = cleanPrimaryInstructorId;
       if (cleanEmails !== undefined) member.emails = cleanEmails;
+      Object.assign(member, levels.patch);
     }
+
+    // Only when the unrecognised value is new (not on every unrelated save).
+    await notifyAdminsOfUnrecognisedLevels(
+      member,
+      levels.unrecognised.filter((u) => String(previous[u.field] ?? '').trim() !== u.value),
+    );
 
     await updateMemberViewForSchoolAndInstrucor(snap.after.id, member, previous);
     await updateInstructorPublicProfile({ previous, member });

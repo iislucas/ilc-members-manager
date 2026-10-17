@@ -13,6 +13,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { studentLevelLabel, toApplicationLevel } from '../../../functions/src/data-model/curriculum';
 import { FormsModule } from '@angular/forms';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -498,16 +499,17 @@ export class EventRegistrationsComponent implements OnInit {
     };
   }
 
+  // 'Student 3' / 'Student Entry' for any recognised spelling; an
+  // unrecognised value is shown as stored rather than hidden; '' when none.
   formatStudentLevel(lvl?: string): string {
-    if (!lvl) return '';
-    if (lvl.toLowerCase().startsWith('student')) return lvl;
-    return `Student ${lvl}`;
+    return studentLevelLabel(lvl) || (lvl ?? '').trim();
   }
 
+  // Short application label, 'App 2', for any recognised spelling; an
+  // unrecognised value is shown as stored rather than hidden; '' when none.
   formatApplicationLevel(lvl?: string): string {
-    if (!lvl) return '';
-    if (lvl.toLowerCase().startsWith('app')) return lvl;
-    return `App ${lvl}`;
+    const level = toApplicationLevel(lvl);
+    return level ? `App ${level}` : (lvl ?? '').trim();
   }
 
   toggleSort(field: RegistrationSortField) {

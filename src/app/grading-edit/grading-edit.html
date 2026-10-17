@@ -46,21 +46,13 @@
       <div class="rhs">
         <select id="level" [formField]="form.level">
           <optgroup label="Student Levels">
-            @for (level of studentLevels; track level) {
-              @if (level !== "") {
-                <option [value]="'Student ' + level">
-                  Student {{ level }}
-                </option>
-              }
+            @for (level of studentGradingLevels; track level) {
+              <option [value]="level">{{ level }}</option>
             }
           </optgroup>
           <optgroup label="Application Levels">
-            @for (level of applicationLevels; track level) {
-              @if (level !== "") {
-                <option [value]="'Application ' + level">
-                  Application {{ level }}
-                </option>
-              }
+            @for (level of applicationGradingLevels; track level) {
+              <option [value]="level">{{ level }}</option>
             }
           </optgroup>
         </select>

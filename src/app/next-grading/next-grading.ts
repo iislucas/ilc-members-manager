@@ -1,10 +1,11 @@
 /* next-grading.ts
  *
- * Dedicated purchase page for a member's next grading:
+ * Dedicated purchase page for a member's gradings:
  *  1. Verifies login & active membership.
- *  2. Displays current level & next grading level.
- *  3. Finds matching Stripe product & price for the next grading level.
- *  4. Initiates Stripe Checkout redirect.
+ *  2. Displays current level & the levels still to buy.
+ *  3. Lets the member pick how many levels to buy ahead (always a prefix of the
+ *     remaining progression) and finds the Stripe price for each.
+ *  4. Initiates one Stripe Checkout redirect for all selected levels.
  *  5. On return with session_id, displays a setup spinner and order summary.
  */
 
@@ -25,8 +26,9 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
-import { Grading, GradingStatus, isGradingPaid, unpaidGradingsInProgressionOrder, nextGradingPayment } from '../../../functions/src/data-model/gradings';
+import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, progressionIndex, toGradingLevel, studentLevelLabel, applicationLevelLabel } from '../../../functions/src/data-model/curriculum';
+import { Grading, GradingStatus, isGradingPaid, unpaidGradingsInProgressionOrder, upcomingGradingPayments, NextGradingPayment, freeRetakeLevel } from '../../../functions/src/data-model/gradings';
+import { findGradingPrice, GradingPrice } from '../../../functions/src/data-model/grading-prices';
 import { MembershipType, hasActiveMembership } from '../../../functions/src/data-model/members';
 import {
   CheckoutSessionSummary,
@@ -89,28 +91,12 @@ export class NextGradingComponent {
   }
 
   /**
-   * The catalogue names a rate "Student Level 4" or "Entry Level"; the syllabus
-   * calls the same things "Student 4" and "Student Entry". Translate so a rate
-   * can be checked against `gradingProgression`.
+   * True when the rate is one of the syllabus levels rather than an extra. The
+   * catalogue names rates 'Entry Level', 'Student Level 4', …; `toGradingLevel`
+   * reads any of those spellings.
    */
-  private static progressionEntryFor(nickname: string): string {
-    const name = (nickname || '').trim();
-    if (/^entry level$/i.test(name)) return 'Student Entry';
-
-    const numbered = /^(student|application)\s+level\s+(\d+)$/i.exec(name);
-    if (numbered) {
-      const track =
-        numbered[1].toLowerCase() === 'student' ? 'Student' : 'Application';
-      return `${track} ${numbered[2]}`;
-    }
-    return normalizeGradingLevel(name);
-  }
-
-  /** True when the rate is one of the syllabus levels rather than an extra. */
   private static isSyllabusLevel(price: StripeProductPrice): boolean {
-    return gradingProgression.includes(
-      NextGradingComponent.progressionEntryFor(price.nickname || ''),
-    );
+    return toGradingLevel(price.nickname) !== null;
   }
 
   /**
@@ -201,10 +187,12 @@ export class NextGradingComponent {
 
   levelSummary = computed(() => {
     const target = this.targetLevel();
-    const from = `Student ${this.currentStudentLevel()}`;
+    const from = this.currentStudentLevel();
     if (!target) return `${from} — highest level achieved`;
     const isFreeRetake = this.retakeEligible() && !this.buyingAdvanceLevel();
-    return `${from} → ${target}${isFreeRetake ? ' (free retake)' : ''}`;
+    if (isFreeRetake) return `${from} → ${target} (free retake)`;
+    const selected = this.selectedPurchases().map((o) => o.level);
+    return `${from} → ${selected.length > 1 ? selected.join(', ') : target}`;
   });
 
   // Return landing state
@@ -229,17 +217,15 @@ export class NextGradingComponent {
     return m ? hasActiveMembership(m, this.today()) : false;
   });
 
-  currentStudentLevel = computed(() => {
-    const lvl = this.user()?.member.studentLevel;
-    if (!lvl) return 'None';
-    return `${lvl}`;
-  });
+  // The member's current levels as display labels: 'Student 3' (or 'Student
+  // None'), and 'Application 1' or '' when they have no application level.
+  currentStudentLevel = computed(
+    () => studentLevelLabel(this.user()?.member.studentLevel) || 'Student None',
+  );
 
-  currentApplicationLevel = computed(() => {
-    const lvl = this.user()?.member.applicationLevel;
-    if (!lvl) return null;
-    return `${lvl}`;
-  });
+  currentApplicationLevel = computed(() =>
+    applicationLevelLabel(this.user()?.member.applicationLevel),
+  );
 
   // Achieved levels from member record
   achievedLevels = computed(() => {
@@ -267,8 +253,8 @@ export class NextGradingComponent {
         !!g.level,
     );
     return [...open].sort((a, b) => {
-      const idxA = gradingProgression.indexOf(normalizeGradingLevel(a.level));
-      const idxB = gradingProgression.indexOf(normalizeGradingLevel(b.level));
+      const idxA = progressionIndex(a.level);
+      const idxB = progressionIndex(b.level);
       const orderA = idxA === -1 ? 999 : idxA;
       const orderB = idxB === -1 ? 999 : idxB;
       return orderA - orderB;
@@ -312,54 +298,37 @@ export class NextGradingComponent {
     return pending.length > 0 ? pending[0] : null;
   });
 
-  // Check if member is eligible for a free retake at any level (has a NotPassed grading and no open/passed grading)
+  // The level the member can retake for free ('' if none) — the same shared
+  // rule the server uses to skip it when checking a grading purchase.
   retakeEligibleLevel = computed(() => {
-    const user = this.user();
-    if (!user) return '';
-    const achieved = this.achievedLevels();
-    const pending = this.pendingLevelSet();
-    const gradings = this.dataService.myGradings.entries();
-
-    for (const lvl of gradingProgression) {
-      if (achieved.has(lvl)) continue;
-      if (pending.has(lvl)) continue;
-
-      // Only a paid failed attempt earns a free retake. An unpaid one still
-      // owes its fee; paying it creates the follow-up grading automatically
-      // (see onGradingUpdated), so it is offered as a purchase instead.
-      const hasPaidNotPassed = gradings.some(
-        (g) =>
-          normalizeGradingLevel(g.level) === lvl &&
-          g.status === GradingStatus.NotPassed &&
-          isGradingPaid(g),
-      );
-      if (hasPaidNotPassed) {
-        return lvl;
-      }
-    }
-    return '';
+    const m = this.user()?.member;
+    if (!m) return '';
+    return freeRetakeLevel(m.studentLevel, m.applicationLevel, this.dataService.myGradings.entries());
   });
 
   retakeEligible = computed(() => !!this.retakeEligibleLevel());
 
-  // Next level available for Stripe purchase: the first level along the
-  // progression that is NOT achieved, NOT already paid for, and NOT a free
-  // retake. A level with an unpaid grading record is still purchasable — that
-  // outstanding fee is what the member came here to pay.
-  // What the member's next grading payment applies to. This is the same
-  // `nextGradingPayment` rule Stripe fulfillment uses to decide which grading a
-  // payment settles, so the level offered here is always the level that gets
-  // paid. A free retake is handled separately, so it is skipped.
-  nextPayment = computed(() => {
+  // Every grading payment the member could still make, in the order they are
+  // applied. This is the same `nextGradingPayment` rule Stripe fulfillment uses
+  // to decide which grading a payment settles, applied repeatedly — so each
+  // level offered is exactly the level that payment will settle or create. A
+  // free retake is handled separately, so it is skipped.
+  upcomingPayments = computed<NextGradingPayment<Grading>[]>(() => {
     const m = this.user()?.member;
-    if (!m) return { level: '', grading: null };
-    return nextGradingPayment(
+    if (!m) return [];
+    return upcomingGradingPayments(
       m.studentLevel,
       m.applicationLevel,
       this.dataService.myGradings.entries(),
       this.retakeEligibleLevel(),
     );
   });
+
+  // What the member's next grading payment applies to (the first of
+  // `upcomingPayments`).
+  nextPayment = computed<NextGradingPayment<Grading>>(
+    () => this.upcomingPayments()[0] ?? { level: '', grading: null },
+  );
 
   nextPurchasableLevel = computed(() => this.nextPayment().level);
 
@@ -370,25 +339,85 @@ export class NextGradingComponent {
     return !!target && target === this.nextPayment().level && !!this.nextPayment().grading;
   });
 
-  // Selectable grading levels to purchase via Stripe
-  selectableLevels = computed<Array<{ level: string; description: string }>>(() => {
-    const purchasable = this.nextPurchasableLevel();
-    if (!purchasable) return [];
-
+  // Grading levels that can be purchased via Stripe, in the order they must be
+  // bought (and graded). `settlesExisting` marks a level whose payment settles
+  // an existing unpaid grading rather than creating a new one.
+  selectableLevels = computed<
+    Array<{ level: string; description: string; settlesExisting: boolean }>
+  >(() => {
     const retake = this.retakeEligibleLevel();
     const paidPending = this.pendingGradings().filter((g) => isGradingPaid(g));
 
+    return this.upcomingPayments().map((p, i, all) => {
+      let desc = 'Next target grading level in the curriculum';
+      if (p.grading) {
+        desc = `Outstanding fee for your existing ${p.level} grading`;
+      } else if (i > 0) {
+        desc = `In advance — graded after your ${all[i - 1].level} grading`;
+      } else if (retake) {
+        desc = `Subsequent progression level (in advance, after your ${retake} retake)`;
+      } else if (paidPending.length > 0) {
+        desc = `Subsequent progression level (after your pending ${paidPending[paidPending.length - 1].level} grading)`;
+      }
+      return { level: p.level, description: desc, settlesExisting: !!p.grading };
+    });
+  });
 
-    let desc = 'Next target grading level in the curriculum';
-    if (purchasable === this.unpaidPendingLevel()) {
-      desc = `Outstanding fee for your existing ${purchasable} grading`;
-    } else if (retake) {
-      desc = `Subsequent progression level (in advance, after your ${retake} retake)`;
-    } else if (paidPending.length > 0) {
-      desc = `Subsequent progression level (after your pending ${paidPending[0].level} grading)`;
-    }
+  // How many of `selectableLevels` (from the start) the member has chosen to
+  // buy. Levels are bought in order, so the selection is always a prefix.
+  selectedCount = signal(1);
 
-    return [{ level: purchasable, description: desc }];
+  // Tick or untick the level at `index`. Ticking a level also ticks every
+  // earlier one; unticking it also unticks every later one.
+  toggleLevel(index: number): void {
+    this.selectedCount.set(index < this.selectedCount() ? index : index + 1);
+  }
+
+  // The levels on offer with their Stripe price (null when no price is found),
+  // and whether each is currently selected.
+  purchaseOptions = computed(() =>
+    this.selectableLevels().map((opt, i) => ({
+      ...opt,
+      selected: i < this.selectedCount(),
+      match: this.findGradingPrice(opt.level),
+    })),
+  );
+
+  // The selected levels, in purchase order.
+  selectedPurchases = computed(() =>
+    this.purchaseOptions().filter((o) => o.selected),
+  );
+
+  // Selected levels the catalogue has no price for; checkout is blocked while
+  // any exist.
+  selectedLevelsWithoutPrice = computed(() =>
+    this.selectedPurchases()
+      .filter((o) => !o.match)
+      .map((o) => o.level),
+  );
+
+  // True when the selected levels are priced in more than one currency.
+  // Stripe can't charge mixed currencies in one checkout, so such a selection
+  // must be split into separate orders (the server refuses it too).
+  selectedMixedCurrencies = computed(() => {
+    const currencies = new Set(
+      this.selectedPurchases()
+        .filter((o) => !!o.match)
+        .map((o) => (o.match?.price.currency || '').toLowerCase()),
+    );
+    return currencies.size > 1;
+  });
+
+  // Total of the selected levels' fees, formatted (e.g. "$160.00"). '' when
+  // nothing priced is selected, or the prices are in different currencies.
+  selectedTotal = computed(() => {
+    const priced = this.selectedPurchases().filter((o) => !!o.match);
+    if (priced.length === 0 || this.selectedMixedCurrencies()) return '';
+    const cents = priced.reduce(
+      (sum, o) => sum + (o.match?.price.unitAmount ?? 0),
+      0,
+    );
+    return this.formatPrice(cents, priced[0].match?.price.currency);
   });
 
   // Target level for UI display & actions
@@ -435,65 +464,16 @@ export class NextGradingComponent {
 
     const target = this.targetLevel();
     if (!target) return null;
-
-    const nextLower = target.toLowerCase();
-    const products = this.allProducts();
-
-    for (const prod of products) {
-      const prodNameLower = prod.name.toLowerCase();
-      if (!prod.active || !prodNameLower.includes('grading')) continue;
-
-      for (const price of prod.prices) {
-        if (!price.active || price.unitAmount === null) continue;
-        const nickLower = (price.nickname || '').toLowerCase();
-
-        // Exact or fuzzy match for level name
-        // e.g. "student 1" matches "student level 1", "entry" matches "entry level", "application 1" matches "application level 1"
-        if (
-          nickLower === nextLower ||
-          nickLower.includes(nextLower) ||
-          (nextLower === 'student entry' && nickLower.includes('entry')) ||
-          (nextLower.startsWith('student ') &&
-            nickLower === `student level ${nextLower.replace('student ', '')}`) ||
-          (nextLower.startsWith('application ') &&
-            nickLower === `application level ${nextLower.replace('application ', '')}`)
-        ) {
-          return { product: prod, price };
-        }
-      }
-    }
-
-    // Fallback: look in student or application products
-    if (nextLower.includes('student') || nextLower.includes('entry')) {
-      const studentProd = products.find(
-        (p) => p.active && p.name.toLowerCase().includes('student'),
-      );
-      if (studentProd) {
-        const pMatch = studentProd.prices.find((pr) => {
-          const n = (pr.nickname || '').toLowerCase();
-          return (
-            pr.active &&
-            (n.includes(nextLower) ||
-              (nextLower === 'student entry' && n.includes('entry')))
-          );
-        });
-        if (pMatch) return { product: studentProd, price: pMatch };
-      }
-    } else if (nextLower.includes('application')) {
-      const appProd = products.find(
-        (p) => p.active && p.name.toLowerCase().includes('application'),
-      );
-      if (appProd) {
-        const pMatch = appProd.prices.find((pr) => {
-          const n = (pr.nickname || '').toLowerCase();
-          return pr.active && n.includes(nextLower);
-        });
-        if (pMatch) return { product: appProd, price: pMatch };
-      }
-    }
-
-    return null;
+    return this.findGradingPrice(target);
   });
+
+  // The Stripe product & price for grading `level`, or null when the
+  // catalogue has none — the shared rule the server also uses to charge
+  // (see `findGradingPrice`). Reads the reactive catalogue, so it is safe to
+  // call from a `computed`. Display only: the server picks the actual prices.
+  findGradingPrice(level: string): GradingPrice | null {
+    return findGradingPrice(this.allProducts(), level);
+  }
 
   // Check if member already has a pending or open grading for this target level
   alreadyHasGrading = computed(() => {
@@ -528,10 +508,19 @@ export class NextGradingComponent {
     return formatStripeAmount(unitAmount, currency);
   }
 
+  // Buys every selected level in one Stripe checkout. Only the levels are sent:
+  // the server checks they are the member's next levels and picks the prices
+  // and order metadata itself (see createGradingCheckoutSession).
   async onPurchaseNextGrading(): Promise<void> {
-    const match = this.matchingGradingPrice();
-    if (!match) {
+    const selected = this.selectedPurchases();
+    if (selected.length === 0 || this.selectedLevelsWithoutPrice().length > 0) {
       this.checkoutError.set('Grading pricing is currently unavailable.');
+      return;
+    }
+    if (this.selectedMixedCurrencies()) {
+      this.checkoutError.set(
+        'These gradings are priced in different currencies, so please buy them in separate orders.',
+      );
       return;
     }
 
@@ -545,26 +534,11 @@ export class NextGradingComponent {
     this.checkoutError.set(null);
 
     try {
-      const origin = window.location.origin;
-      const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${origin}/next-grading`;
-
-      const { checkoutUrl } = await this.stripeService.createCheckoutSession(
-        match.price.id,
-        origin,
-        1,
-        {
-          successUrl,
-          cancelUrl,
-          metadata: {
-            memberDocId: user.member.docId,
-            memberId: user.member.memberId || '',
-            gradingLevel: this.nextLevel() || '',
-            orderType: 'grading',
-          },
-        },
-      );
-
+      const { checkoutUrl } = await this.stripeService.createGradingCheckoutSession({
+        memberDocId: user.member.docId,
+        levels: selected.map((o) => o.level),
+        origin: window.location.origin,
+      });
       this.redirectTo(checkoutUrl);
     } catch (err) {
       this.isRedirecting.set(false);

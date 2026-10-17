@@ -171,6 +171,32 @@ describe('sessionToStripeOrder', () => {
     const order = sessionToStripeOrder(gradingSession);
     expect(order.lineItems[0].description).toBe('GRADING : Student Level 8');
   });
+
+  it('uses the full line-item list when given, not just the expanded first page', () => {
+    // An expanded session carries at most the first page of line items; the
+    // webhook lists them all separately and passes them in.
+    const session = {
+      id: 'cs_many',
+      created: 1747267200,
+      mode: 'payment',
+      status: 'complete',
+      payment_status: 'paid',
+      amount_total: 120000,
+      currency: 'usd',
+      metadata: {},
+      line_items: { data: [] },
+    } as unknown as Stripe.Checkout.Session;
+    const items = Array.from({ length: 15 }, (_, i) => ({
+      description: `GRADING : Student Level ${(i % 11) + 1}`,
+      quantity: 1,
+      amount_total: 8000,
+      currency: 'usd',
+      price: { id: `price_${i}`, product: 'prod_grading', nickname: null },
+    })) as unknown as Stripe.LineItem[];
+    const order = sessionToStripeOrder(session, items);
+    expect(order.lineItems).toHaveLength(15);
+    expect(order.lineItems[14].priceId).toBe('price_14');
+  });
 });
 
 describe('invoiceToStripeOrder', () => {

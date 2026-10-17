@@ -61,6 +61,7 @@ export {
 } from './stripe-products';
 
 export { createStripeCheckoutSession, getStripeCheckoutSession } from './stripe-checkout';
+export { createGradingCheckoutSession } from './grading-checkout';
 export {
   createProductCheckoutSession,
   updateProductRegistration,
