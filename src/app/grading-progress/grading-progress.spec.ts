@@ -39,6 +39,8 @@ describe('GradingProgressComponent', () => {
       members: new SearchableSet(['memberId'], 'memberId', []) as never,
       instructors: new SearchableSet(['instructorId'], 'instructorId', []) as never,
       myGradings: new SearchableSet(['docId'], 'docId', []) as never,
+      gradings: new SearchableSet(['docId'], 'docId', []) as never,
+      myGradingsAssessed: new SearchableSet(['docId'], 'docId', []) as never,
       getMemberByDocId: () => undefined,
       getMemberByMemberId: () => undefined,
       getMyStudent: () => undefined,
@@ -640,6 +642,44 @@ describe('GradingProgressComponent', () => {
           expect(component.resultBlockedByEarlierLevels()).toBe(false);
         }
       }
+    });
+
+    it('counts an earlier grading just passed and paid, before the member record catches up', () => {
+      // Student 2 and Student 3 graded at one event: the instructor records
+      // Student 2 Passed, then opens Student 3 before the member's level updates.
+      setUser(false);
+      mockDataService.getMemberByDocId = (() => ({
+        ...initMember(),
+        studentLevel: '1',
+        applicationLevel: '',
+      })) as never;
+      (mockDataService.myGradingsAssessed as SearchableSet<'docId', Grading>).setEntries([
+        {
+          ...initGrading(),
+          docId: 'g-s2',
+          studentMemberDocId: 'doc-student-1',
+          level: 'Student 2',
+          status: GradingStatus.Passed,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+      ]);
+      componentRef.setInput('grading', { ...aheadGrading(GradingStatus.AwaitingGrading), level: 'Student 3' });
+      fixture.detectChanges();
+      expect(component.resultBlockedByEarlierLevels()).toBe(false);
+
+      // Unpaid, it doesn't count yet.
+      (mockDataService.myGradingsAssessed as SearchableSet<'docId', Grading>).setEntries([
+        {
+          ...initGrading(),
+          docId: 'g-s2',
+          studentMemberDocId: 'doc-student-1',
+          level: 'Student 2',
+          status: GradingStatus.Passed,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      ]);
+      fixture.detectChanges();
+      expect(component.earlierLevelsToPass()).toEqual(['Student 2']);
     });
 
     it('does not block when the student record is not readable', () => {

@@ -308,6 +308,15 @@ function formatOrderAmount(lineItem: StripeOrderLineItem): string {
   return `${currency} ${(amount / 100).toFixed(2)}`;
 }
 
+/** Human-readable total of several line items, e.g. "USD 160.00". */
+function formatTotalAmount(items: StripeOrderLineItem[]): string {
+  const known = items.filter((i) => i.amountTotal !== undefined && i.amountTotal !== null);
+  if (known.length === 0) return 'an unknown amount';
+  const currency = (known[0].currency || 'usd').toUpperCase();
+  const total = known.reduce((sum, i) => sum + (i.amountTotal ?? 0), 0);
+  return `${currency} ${(total / 100).toFixed(2)}`;
+}
+
 /**
  * Flags an order for the admin team. Admin clients surface orders whose
  * `ilcAppOrderStatus` needs attention (see NotificationService.syncOrderIssueNotifications),
@@ -376,39 +385,52 @@ function describeGradingPaymentProblem(
   }
 }
 
-async function reportGradingPaymentProblem(
+/** A grading line item that could not be applied normally. */
+type GradingPaymentProblemReport = {
+  problem: GradingPaymentProblem;
+  amountPaid: string;
+  gradingDocId: string;
+};
+
+// Raises the alert for an order's grading payments that could not be applied
+// normally: every issue is recorded on the order (which puts it in front of the
+// admin team — see NotificationService.syncOrderIssueNotifications), and the
+// student gets ONE notification for the whole order, however many items it had.
+async function reportGradingPaymentProblems(
   db: admin.firestore.Firestore,
   member: Member,
   orderDocId: string,
-  problem: GradingPaymentProblem,
-  amountPaid: string,
-  gradingDocId: string,
+  reports: GradingPaymentProblemReport[],
 ): Promise<void> {
+  if (reports.length === 0) return;
   const contactEmail = environment.email.contact;
   const who = member.memberId || member.docId;
-  const { issue, explanation } = describeGradingPaymentProblem(problem, who, amountPaid);
+  const described = reports.map((r) => ({
+    ...r,
+    ...describeGradingPaymentProblem(r.problem, who, r.amountPaid),
+  }));
 
-  const held = gradingDocId
-    ? ' We have recorded the payment against a grading held for review, so nothing is lost.'
-    : '';
+  for (const d of described) {
+    logger.error('Grading payment needs review', {
+      memberDocId: member.docId,
+      memberId: member.memberId,
+      orderDocId,
+      gradingDocId: d.gradingDocId,
+      problem: d.problem.kind,
+      level: d.problem.level,
+    });
+    await flagOrderForAdmins(db, orderDocId, d.issue);
+  }
 
-  logger.error('Grading payment needs review', {
-    memberDocId: member.docId,
-    memberId: member.memberId,
-    orderDocId,
-    gradingDocId,
-    problem: problem.kind,
-    level: problem.level,
-  });
-
-  await flagOrderForAdmins(db, orderDocId, issue);
-
+  const lines = described.map(
+    (d) => `- You paid ${d.amountPaid} for **${d.problem.level || 'a grading'}**, but ${d.explanation}.`,
+  );
   try {
     await createMemberNotification(db, member.docId, {
       kind: NotificationKind.OrderNeedsAttention,
       markdown:
-        `⚠️ **Your grading payment needs checking.** You paid ${amountPaid} for ` +
-        `**${problem.level || 'a grading'}**, but ${explanation}.${held} ` +
+        `⚠️ **Your grading payment needs checking.**\n\n${lines.join('\n')}\n\n` +
+        `We have recorded the payment against a grading held for review, so nothing is lost. ` +
         `Our admin team has been alerted and will be in touch. ` +
         `If you do not hear back, or this does not look right, please contact ` +
         `[${contactEmail}](mailto:${contactEmail}) quoting order ${orderDocId}.`,
@@ -418,7 +440,7 @@ async function reportGradingPaymentProblem(
         orderDocId,
         orderRef: orderDocId,
         status: OrderStatus.NeedsManualProcessing,
-        issues: [issue],
+        issues: described.map((d) => d.issue),
       },
     });
   } catch (notifErr) {
@@ -427,6 +449,36 @@ async function reportGradingPaymentProblem(
       memberDocId: member.docId,
       orderDocId,
     });
+  }
+}
+
+// Sends the student ONE confirmation email for an order's grading purchases,
+// listing every level bought, however many there were.
+async function sendGradingConfirmationEmail(
+  db: admin.firestore.Firestore,
+  member: Member,
+  fulfilled: GradingFulfillment[],
+): Promise<void> {
+  const recipientEmail = member.emails?.[0];
+  if (!recipientEmail || fulfilled.length === 0) return;
+  const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
+  try {
+    await sendTransactionalEmail(db, {
+      to: recipientEmail,
+      templateKey: TransactionalEmailKey.GradingPaymentConfirmation,
+      replacements: {
+        name: member.name || 'ILC Student',
+        memberId: member.memberId || '',
+        gradingLevel: fulfilled.map((f) => f.level).join(', '),
+        gradingEventName: 'Official ILC Grading',
+        gradingDate: new Date().toISOString().split('T')[0],
+        amount: formatTotalAmount(fulfilled.map((f) => f.lineItem)),
+        gradingUrl: `${appBase}/gradings`,
+        appBase,
+      },
+    });
+  } catch (emailErr) {
+    logger.error('Failed to send grading payment confirmation email', { emailErr, memberDocId: member.docId });
   }
 }
 
@@ -458,13 +510,26 @@ export function gradingLevelForItem(order: StripeOrder, index: number): string {
  * level already paid for. The grading is still created in those cases, flagged
  * `RequiresReview` so the payment is never lost and an admin can resolve it.
  */
+/** What fulfilling one grading line item did. */
+type GradingFulfillment = {
+  gradingDocId: string;
+  // The level, canonical when recognised, else the purchased label.
+  level: string;
+  lineItem: StripeOrderLineItem;
+  // A grading was created by this run (false when settling an existing unpaid
+  // grading, or when the order was already processed).
+  created: boolean;
+  // Set when the payment couldn't be applied normally; reported per order.
+  problem: GradingPaymentProblemReport | null;
+};
+
 async function fulfillGradingForMember(
   db: admin.firestore.Firestore,
   member: Member,
   lineItem: StripeOrderLineItem,
   orderDocId: string,
   metadataLevel = '',
-): Promise<string> {
+): Promise<GradingFulfillment> {
   const purchaseDate = new Date().toISOString().split('T')[0];
   // The purchase page records the level it charged for in the order metadata;
   // trust that over parsing the line-item description when it is present.
@@ -487,7 +552,13 @@ async function fulfillGradingForMember(
       (level ?? rawLevel),
   );
   if (existingForLevel) {
-    return existingForLevel.id;
+    return {
+      gradingDocId: existingForLevel.id,
+      level: level ?? rawLevel,
+      lineItem,
+      created: false,
+      problem: null,
+    };
   }
 
   const memberGradings = await db
@@ -520,7 +591,13 @@ async function fulfillGradingForMember(
       level,
       orderDocId,
     });
-    return unpaidExisting.id;
+    return {
+      gradingDocId: unpaidExisting.id,
+      level: level ?? rawLevel,
+      lineItem,
+      created: false,
+      problem: null,
+    };
   }
 
   // Otherwise a grading is created for the level bought. Buying ahead of the
@@ -578,40 +655,14 @@ async function fulfillGradingForMember(
     heldForReview: !!problem,
   });
 
-  if (problem) {
-    await reportGradingPaymentProblem(
-      db,
-      member,
-      orderDocId,
-      problem,
-      amountPaid,
-      createdRef.id,
-    );
-  } else {
-    try {
-      const recipientEmail = member.emails?.[0];
-      if (recipientEmail) {
-        await sendTransactionalEmail(db, {
-          to: recipientEmail,
-          templateKey: TransactionalEmailKey.GradingPaymentConfirmation,
-          replacements: {
-            name: member.name || 'ILC Student',
-            memberId: member.memberId || '',
-            gradingLevel: level ?? (rawLevel || 'Grading Assessment'),
-            gradingEventName: 'Official ILC Grading',
-            gradingDate: purchaseDate,
-            amount: amountPaid,
-            gradingUrl: `${environment.links?.appBase || 'https://app.iliqchuan.com'}/gradings`,
-            appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
-          },
-        });
-      }
-    } catch (emailErr) {
-      logger.error('Failed to send grading payment confirmation email', { emailErr, memberDocId: member.docId });
-    }
-  }
-
-  return createdRef.id;
+  // Alerts and the confirmation email are sent once per order by the caller.
+  return {
+    gradingDocId: createdRef.id,
+    level: level ?? rawLevel,
+    lineItem,
+    created: true,
+    problem: problem ? { problem, amountPaid, gradingDocId: createdRef.id } : null,
+  };
 }
 
 /**
@@ -1183,6 +1234,8 @@ export async function fulfillStripeOrder(
   // Position of the next grading line item among the order's grading items,
   // used to look up its level in the `gradingLevels` metadata.
   let gradingItemIndex = 0;
+  // What each grading line item did, so the student is told once per order.
+  const gradingResults: GradingFulfillment[] = [];
   for (const item of order.lineItems) {
     const category = categorizeLineItem(item, order.metadata);
     const descLower = item.description.toLowerCase();
@@ -1466,12 +1519,14 @@ export async function fulfillStripeOrder(
         memberUpdates.primarySchoolId = newSchoolId;
       }
     } else if (category === OrderItemCategory.Grading) {
-      await fulfillGradingForMember(
-        db,
-        member,
-        item,
-        orderDocId,
-        gradingLevelForItem(order, gradingItemIndex),
+      gradingResults.push(
+        await fulfillGradingForMember(
+          db,
+          member,
+          item,
+          orderDocId,
+          gradingLevelForItem(order, gradingItemIndex),
+        ),
       );
       gradingItemIndex++;
     } else if (category === OrderItemCategory.Vod || order.metadata?.['videoId'] || order.metadata?.['seriesId']) {
@@ -1681,6 +1736,20 @@ export async function fulfillStripeOrder(
       [subKey]: newSubscription,
     };
   }
+
+  // One alert and one confirmation email per order, however many gradings it
+  // bought. Re-processing an order fulfills nothing new, so sends nothing.
+  await reportGradingPaymentProblems(
+    db,
+    member,
+    orderDocId,
+    gradingResults.flatMap((r) => (r.problem ? [r.problem] : [])),
+  );
+  await sendGradingConfirmationEmail(
+    db,
+    member,
+    gradingResults.filter((r) => r.created && !r.problem),
+  );
 
   await memberRef.update(memberUpdates);
   logger.info('FulfillStripeOrder updated member record', {

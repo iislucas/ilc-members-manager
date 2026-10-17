@@ -25,9 +25,31 @@ import { GenericFsDoc } from '../../functions/src/data-model/base';
 import { IdbStorageService } from './idb-storage.service';
 import { SearchableSet } from './searchable-set';
 
+// Version of what cached entries look like. Cached entries are stored
+// already converted (by each collection's `docConverter`), and a delta sync
+// only refreshes documents that changed — so when a converter starts producing
+// something different (e.g. levels normalised to the canonical enums), old
+// cached entries would otherwise keep the old shape indefinitely. Bump this
+// whenever that happens: caches written under another version are discarded
+// and fully re-fetched on the next sync.
+//
+//   1 (implicit, no field) — original.
+//   2 — levels normalised to GradingLevel / StudentLevel / ApplicationLevel.
+export const CACHE_SCHEMA_VERSION = 2;
+
 export interface CachedCollectionBundle<T> {
   entries: T[];
   lastSyncTimestamp: string; // ISO string
+  // CACHE_SCHEMA_VERSION when written; absent for caches from before versions.
+  schemaVersion?: number;
+}
+
+// True when a cached bundle was written under the current schema version (and
+// so can be used); false for missing or outdated caches.
+export function isCurrentCacheBundle<T>(
+  bundle: CachedCollectionBundle<T> | null | undefined,
+): bundle is CachedCollectionBundle<T> {
+  return !!bundle && bundle.schemaVersion === CACHE_SCHEMA_VERSION;
 }
 
 export interface CachedCollectionSummary {
@@ -75,7 +97,8 @@ export class IncrementalSyncService {
   ): Promise<boolean> {
     try {
       const bundle = await this.idb.get<CachedCollectionBundle<T>>(cacheKey);
-      if (bundle && Array.isArray(bundle.entries)) {
+      // An outdated cache is ignored; the next sync replaces it with a full fetch.
+      if (isCurrentCacheBundle(bundle) && Array.isArray(bundle.entries)) {
         const filtered = filterFn ? bundle.entries.filter(filterFn) : bundle.entries;
         const sorted = sortFn ? [...filtered].sort(sortFn) : filtered;
         targetSet.setEntries(sorted);
@@ -97,6 +120,7 @@ export class IncrementalSyncService {
   ): Promise<void> {
     try {
       await this.idb.set(cacheKey, {
+        schemaVersion: CACHE_SCHEMA_VERSION,
         entries,
         lastSyncTimestamp: lastSyncTimestamp || new Date().toISOString(),
       });
@@ -127,8 +151,9 @@ export class IncrementalSyncService {
     try {
       let cachedBundle = await this.idb.get<CachedCollectionBundle<T>>(cacheKey);
 
-      // If forceFullRefresh or no valid cache, do a full collection fetch
-      if (forceFullRefresh || !cachedBundle || !cachedBundle.lastSyncTimestamp) {
+      // If forceFullRefresh, no valid cache, or a cache written under an older
+      // schema version, do a full collection fetch (which rewrites the cache).
+      if (forceFullRefresh || !isCurrentCacheBundle(cachedBundle) || !cachedBundle.lastSyncTimestamp) {
         await this.performFullSync(config);
         return;
       }
@@ -235,6 +260,7 @@ export class IncrementalSyncService {
 
       // Update IndexedDB cache
       await this.idb.set(cacheKey, {
+        schemaVersion: CACHE_SCHEMA_VERSION,
         entries: sorted,
         lastSyncTimestamp: maxLastUpdated,
       });
@@ -292,6 +318,7 @@ export class IncrementalSyncService {
     targetSet.setEntries(sorted);
 
     await this.idb.set(cacheKey, {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       entries: sorted,
       lastSyncTimestamp: maxLastUpdated,
     });
@@ -369,7 +396,8 @@ export class IncrementalSyncService {
   ): Promise<void> {
     try {
       const bundle = await this.idb.get<CachedCollectionBundle<T>>(cacheKey);
-      if (bundle && Array.isArray(bundle.entries)) {
+      // An outdated cache is ignored; the next sync replaces it with a full fetch.
+      if (isCurrentCacheBundle(bundle) && Array.isArray(bundle.entries)) {
         const id = entry[idField];
         const idx = bundle.entries.findIndex((e) => e[idField] === id);
         const entries =
@@ -389,6 +417,7 @@ export class IncrementalSyncService {
 
         await this.idb.set(cacheKey, {
           ...bundle,
+          schemaVersion: CACHE_SCHEMA_VERSION,
           entries,
           lastSyncTimestamp,
         });
@@ -408,10 +437,12 @@ export class IncrementalSyncService {
   ): Promise<void> {
     try {
       const bundle = await this.idb.get<CachedCollectionBundle<T>>(cacheKey);
-      if (bundle && Array.isArray(bundle.entries)) {
+      // An outdated cache is ignored; the next sync replaces it with a full fetch.
+      if (isCurrentCacheBundle(bundle) && Array.isArray(bundle.entries)) {
         const entries = bundle.entries.filter((e) => e[idField] !== id);
         await this.idb.set(cacheKey, {
           ...bundle,
+          schemaVersion: CACHE_SCHEMA_VERSION,
           entries,
         });
       }

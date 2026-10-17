@@ -354,6 +354,16 @@
             </div>
           }
 
+          @if (selectedMixedCurrencies()) {
+            <div class="empty-notice">
+              <p>
+                The gradings you selected are priced in different currencies, and a
+                single payment can only be in one currency. Please buy them in
+                separate orders.
+              </p>
+            </div>
+          }
+
           <div class="checkout-section">
             @if (selectedTotal()) {
               <div class="selected-total">
@@ -382,7 +392,7 @@
                 <button
                   type="button"
                   class="button pay-btn"
-                  [disabled]="isOffline() || selectedPurchases().length === 0 || selectedLevelsWithoutPrice().length > 0"
+                  [disabled]="isOffline() || selectedPurchases().length === 0 || selectedLevelsWithoutPrice().length > 0 || selectedMixedCurrencies()"
                   [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="onPurchaseNextGrading()"
                 >

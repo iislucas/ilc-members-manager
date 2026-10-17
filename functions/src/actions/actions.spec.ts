@@ -79,6 +79,7 @@ class InMemoryFirestore {
   runTransaction<T>(updateFunction: (transaction: {
     get: (ref: { path: string }) => Promise<{ exists: boolean; data: () => Record<string, unknown> | undefined }>;
     set: (ref: { path: string }, data: Record<string, unknown>, options?: { merge?: boolean }) => void;
+    update: (ref: { path: string }, data: Record<string, unknown>) => void;
   }) => Promise<T>): Promise<T> {
     const tx = {
       get: async (ref: { path: string }) => {
@@ -95,6 +96,10 @@ class InMemoryFirestore {
         } else {
           this.data.set(ref.path, { ...docData });
         }
+      },
+      // Like Firestore: merges fields into an existing document.
+      update: (ref: { path: string }, docData: Record<string, unknown>) => {
+        this.data.set(ref.path, { ...(this.data.get(ref.path) || {}), ...docData });
       },
     };
     return updateFunction(tx);
@@ -578,7 +583,7 @@ describe('Database Actions Library', () => {
         ctx,
         grading.data!.docId,
         { pass: true, resultNotes: 'Exemplary form and understanding.', awardLevel: true },
-        { name: 'Grandmaster' },
+        { name: 'Grandmaster', memberDocId: 'admin_doc_1', isAdmin: true },
       );
 
       expect(resultRes.success).toBe(true);

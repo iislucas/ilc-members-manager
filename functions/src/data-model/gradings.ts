@@ -10,6 +10,11 @@ import {
   achievedGradingLevels,
   normalizeGradingLevel,
   toGradingLevel,
+  unachievedEarlierLevels,
+  studentLevelOf,
+  applicationLevelOf,
+  studentLevelRank,
+  applicationLevelRank,
 } from './curriculum';
 
 export enum GradingStatus {
@@ -147,6 +152,84 @@ export function nextGradingPayment<T extends UnpaidGradingCandidate>(
     return { level, grading: null };
   }
   return { level: '', grading: null };
+}
+
+// The level a member can retake for free, or '' if none: the earliest level
+// along the progression that isn't achieved, has no open grading, and has a
+// paid NotPassed attempt (the fee is charged once per level). An unpaid failed
+// attempt still owes its fee, so it doesn't count.
+export function freeRetakeLevel<T extends UnpaidGradingCandidate>(
+  studentLevel: string,
+  applicationLevel: string,
+  gradings: T[],
+): GradingLevel | '' {
+  const achieved = achievedGradingLevels(studentLevel, applicationLevel);
+  const atLevel = (level: GradingLevel) =>
+    gradings.filter((g) => toGradingLevel(g.level) === level);
+  for (const level of gradingProgression) {
+    if (achieved.has(level)) continue;
+    const here = atLevel(level);
+    const open = here.some(
+      (g) => g.status !== GradingStatus.Passed && g.status !== GradingStatus.NotPassed,
+    );
+    if (open) continue;
+    if (here.some((g) => g.status === GradingStatus.NotPassed && isGradingPaid(g))) {
+      return level;
+    }
+  }
+  return '';
+}
+
+// The earlier levels that still block recording a result (passed / not
+// passed) for a grading at `level`, in progression order; [] when it may be
+// recorded. Gradings can be bought, requested and accepted ahead, but they are
+// graded in order. An earlier level is satisfied when it is achieved on the
+// member record, or when one of the member's gradings for it is passed and
+// paid — the member record is only updated by a trigger after that, so
+// counting the grading itself avoids a race when two levels are graded at the
+// same event.
+//
+// A member whose record is out of sync with the progression (e.g. Student 5
+// with no application levels) is therefore always able to grade their next
+// level in the normal progression (here Application 1), and catches up level
+// by level until back in sync.
+export function levelsBlockingResult<T extends UnpaidGradingCandidate>(
+  level: string,
+  studentLevel: string,
+  applicationLevel: string,
+  gradings: T[],
+): GradingLevel[] {
+  const passedAndPaid = new Set(
+    gradings
+      .filter((g) => g.status === GradingStatus.Passed && isGradingPaid(g))
+      .map((g) => toGradingLevel(g.level)),
+  );
+  return unachievedEarlierLevels(level, studentLevel, applicationLevel).filter(
+    (earlier) => !passedAndPaid.has(earlier),
+  );
+}
+
+// The member's levels on each track, raised by any of `gradings` that is
+// passed and paid — i.e. the levels they effectively hold even if the trigger
+// that updates the member record hasn't run yet. Returned in canonical form.
+export function levelsIncludingPassedGradings<T extends UnpaidGradingCandidate>(
+  studentLevel: string,
+  applicationLevel: string,
+  gradings: T[],
+): { studentLevel: StudentLevel; applicationLevel: ApplicationLevel } {
+  let student = toStudentLevel(studentLevel);
+  let application = toApplicationLevel(applicationLevel);
+  for (const g of gradings) {
+    const level = toGradingLevel(g.level);
+    if (!level || g.status !== GradingStatus.Passed || !isGradingPaid(g)) continue;
+    const s = studentLevelOf(level);
+    const a = applicationLevelOf(level);
+    if (s !== StudentLevel.None && studentLevelRank(s) > studentLevelRank(student)) student = s;
+    if (a !== ApplicationLevel.None && applicationLevelRank(a) > applicationLevelRank(application)) {
+      application = a;
+    }
+  }
+  return { studentLevel: student, applicationLevel: application };
 }
 
 // Every grading payment a member could still make, in the order they would be

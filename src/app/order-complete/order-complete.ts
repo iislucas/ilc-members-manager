@@ -24,6 +24,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { CheckoutSessionSummary } from '../../../functions/src/stripe-types';
 import { Grading } from '../../../functions/src/data-model/gradings';
+import { normalizeGradingLevel } from '../../../functions/src/data-model/curriculum';
 import { School } from '../../../functions/src/data-model/schools';
 
 export type OrderKind =
@@ -72,7 +73,9 @@ export class OrderCompleteComponent {
     const targetLevel = summaryMeta?.['gradingLevel'];
 
     if (targetLevel) {
-      const match = gradings.find((g) => g.level === targetLevel);
+      const match = gradings.find(
+        (g) => normalizeGradingLevel(g.level) === normalizeGradingLevel(targetLevel),
+      );
       if (match) return match;
     }
 

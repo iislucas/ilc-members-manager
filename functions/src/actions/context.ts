@@ -57,3 +57,44 @@ export function createActionContext(options?: CreateActionContextOptions): Actio
     logger,
   };
 }
+
+/**
+ * Resolves the admin member a script acts as, from a member docId, memberId or
+ * email. Returns the actor to put on the ActionContext, or an error message.
+ *
+ * Why this exists: scripts run with Admin SDK credentials, so Firestore
+ * security rules do not apply to them — only people with IAM access to the
+ * Firebase project can run them at all. But server triggers still decide what
+ * a write means from who made it (e.g. `onGradingUpdated` lets admins record
+ * results out of order, judged by `statusChangedByMemberDocId`). Acting as a
+ * named admin member makes every write carry that admin's identity, so
+ * triggers treat it as the admin action it is, and the audit trail names them.
+ */
+export async function resolveAdminActor(
+  db: admin.firestore.Firestore,
+  idOrEmail: string,
+): Promise<ActionActor | string> {
+  const key = (idOrEmail || '').trim();
+  if (!key) return 'An admin member (--as) is required for this action.';
+  const members = db.collection('members');
+  let snap: admin.firestore.DocumentSnapshot | undefined = await members.doc(key).get();
+  if (!snap.exists) {
+    const field = key.includes('@') ? 'emails' : 'memberId';
+    const q = key.includes('@')
+      ? await members.where(field, 'array-contains', key.toLowerCase()).limit(1).get()
+      : await members.where(field, '==', key.toUpperCase()).limit(1).get();
+    snap = q.empty ? undefined : q.docs[0];
+  }
+  if (!snap || !snap.exists) return `No member found for "${key}".`;
+  const data = snap.data() as { isAdmin?: boolean; memberId?: string; name?: string; emails?: string[] };
+  if (data.isAdmin !== true) {
+    return `Member "${key}" is not an admin; scripts may only act as an admin.`;
+  }
+  return {
+    memberDocId: snap.id,
+    memberId: data.memberId || '',
+    name: data.name || '',
+    email: data.emails?.[0] || '',
+    isAdmin: true,
+  };
+}

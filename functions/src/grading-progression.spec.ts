@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter, unachievedEarlierLevels, GradingLevel, StudentLevel, ApplicationLevel, toGradingLevel, toStudentLevel, toApplicationLevel, studentLevelOf, applicationLevelOf, gradingLevelForStudent, gradingLevelForApplication, gradingProgression } from './data-model/curriculum';
-import { nextGradingPayment, upcomingGradingPayments, unpaidGradingsInProgressionOrder, orderDisplayNumber, gradingDisplayId, isGradingPaid, PaymentStatus, GradingStatus } from './data-model/gradings';
+import { nextGradingPayment, upcomingGradingPayments, freeRetakeLevel, levelsBlockingResult, levelsIncludingPassedGradings, unpaidGradingsInProgressionOrder, orderDisplayNumber, gradingDisplayId, isGradingPaid, PaymentStatus, GradingStatus } from './data-model/gradings';
 import { notificationStyle, NotificationKind } from './data-model/notifications';
+import { memberLevelNormalization } from './data-model/members';
 
 describe('grading progression helpers', () => {
   describe('nextGradingLevel', () => {
@@ -143,6 +144,13 @@ describe('grading progression helpers', () => {
         ['Application 7', null],
         ['Meditation & Philosophy', null],
         ['', null],
+        // Strict: free text containing a level-like word never matches.
+        ['Re-entry workshop', null],
+        ['Student 1 year', null],
+        ['Grading - Student Level 2', null],
+        ['Student Teacher Level 2', null],
+        ['Happ 2', null],
+        ['Level 2 Membership', null],
       ];
       for (const [raw, expected] of cases) {
         expect(toGradingLevel(raw), raw).toBe(expected);
@@ -190,6 +198,90 @@ describe('grading progression helpers', () => {
       expect(nextGradingLevel('Student 2', '')).toBe('Student 3');
       expect(nextGradingLevel('Student Level 3', 'Application 1')).toBe('Student 4');
       expect(unachievedEarlierLevels('Student 3', 'Student 2', '')).toEqual([]);
+    });
+  });
+
+  describe('levelsBlockingResult', () => {
+    const g = (level: string, status: GradingStatus, paymentStatus = PaymentStatus.PaidByStripe) => ({
+      level,
+      status,
+      paymentStatus,
+    });
+
+    it('blocks a grading booked ahead until the earlier level is passed', () => {
+      expect(levelsBlockingResult('Student 3', '1', '', [])).toEqual(['Student 2']);
+    });
+
+    it('counts an earlier grading passed and paid, before the member record catches up', () => {
+      // Race: Student 2 was just passed; its trigger hasn't updated the member yet.
+      expect(
+        levelsBlockingResult('Student 3', '1', '', [g('Student 2', GradingStatus.Passed)]),
+      ).toEqual([]);
+    });
+
+    it('does not count an earlier grading that is passed but unpaid, or not yet graded', () => {
+      expect(
+        levelsBlockingResult('Student 3', '1', '', [
+          g('Student 2', GradingStatus.Passed, PaymentStatus.NotYetPaid),
+        ]),
+      ).toEqual(['Student 2']);
+      expect(
+        levelsBlockingResult('Student 3', '1', '', [g('Student 2', GradingStatus.AwaitingGrading)]),
+      ).toEqual(['Student 2']);
+    });
+
+    it('lets an out-of-sync member grade their next level in the normal progression', () => {
+      // Student 5 with no application levels: Application 1 is next and allowed;
+      // Student 6 waits until Application 1 and 2 are passed.
+      expect(levelsBlockingResult('Application 1', '5', '', [])).toEqual([]);
+      expect(levelsBlockingResult('Student 6', '5', '', [])).toEqual([
+        'Application 1',
+        'Application 2',
+      ]);
+      expect(
+        levelsBlockingResult('Application 2', '5', '', [g('Application 1', GradingStatus.Passed)]),
+      ).toEqual([]);
+    });
+  });
+
+  describe('levelsIncludingPassedGradings', () => {
+    it('raises each track by passed and paid gradings only', () => {
+      expect(
+        levelsIncludingPassedGradings('1', '', [
+          { level: 'Student 2', status: GradingStatus.Passed, paymentStatus: PaymentStatus.PaidByStripe },
+          { level: 'Student 3', status: GradingStatus.Passed, paymentStatus: PaymentStatus.NotYetPaid },
+          { level: 'Application 1', status: GradingStatus.AwaitingGrading },
+        ]),
+      ).toEqual({ studentLevel: '2', applicationLevel: '' });
+    });
+
+    it('never lowers a level and normalises legacy spellings', () => {
+      expect(
+        levelsIncludingPassedGradings('Student 5', 'Application 2', [
+          { level: 'Student 2', status: GradingStatus.Passed, paymentStatus: PaymentStatus.PaidByStripe },
+        ]),
+      ).toEqual({ studentLevel: '5', applicationLevel: '2' });
+    });
+  });
+
+  describe('freeRetakeLevel', () => {
+    it('is the earliest unachieved level with a paid failed attempt and no open grading', () => {
+      const failed = { level: 'Student 2', status: GradingStatus.NotPassed, paymentStatus: PaymentStatus.PaidByStripe };
+      expect(freeRetakeLevel('1', '', [failed])).toBe('Student 2');
+    });
+
+    it('is empty when the failed attempt is unpaid, or a retake is already open', () => {
+      expect(
+        freeRetakeLevel('1', '', [
+          { level: 'Student 2', status: GradingStatus.NotPassed, paymentStatus: PaymentStatus.NotYetPaid },
+        ]),
+      ).toBe('');
+      expect(
+        freeRetakeLevel('1', '', [
+          { level: 'Student 2', status: GradingStatus.NotPassed, paymentStatus: PaymentStatus.PaidByStripe },
+          { level: 'Student 2', status: GradingStatus.AwaitingRequest, paymentStatus: PaymentStatus.PaidOther },
+        ]),
+      ).toBe('');
     });
   });
 
@@ -473,6 +565,32 @@ describe('grading progression helpers', () => {
       expect(isGradingPaid({ paymentStatus: PaymentStatus.PaidByCash })).toBe(true);
       expect(isGradingPaid({ paymentStatus: PaymentStatus.PaidOther })).toBe(true);
       expect(isGradingPaid({})).toBe(true);
+    });
+  });
+});
+
+describe('memberLevelNormalization', () => {
+  it('patches recognised legacy spellings to the canonical value', () => {
+    expect(
+      memberLevelNormalization({ studentLevel: 'Student Level 2' as never, applicationLevel: 'Application 1' as never }),
+    ).toEqual({ patch: { studentLevel: '2', applicationLevel: '1' }, unrecognised: [] });
+  });
+
+  it('leaves canonical and empty values alone', () => {
+    expect(
+      memberLevelNormalization({ studentLevel: '2' as never, applicationLevel: '' as never }),
+    ).toEqual({ patch: {}, unrecognised: [] });
+  });
+
+  it('reports unrecognised values without changing them', () => {
+    expect(
+      memberLevelNormalization({ studentLevel: 'Certified Instructor' as never, applicationLevel: 'Level 9' as never }),
+    ).toEqual({
+      patch: {},
+      unrecognised: [
+        { field: 'studentLevel', value: 'Certified Instructor' },
+        { field: 'applicationLevel', value: 'Level 9' },
+      ],
     });
   });
 });

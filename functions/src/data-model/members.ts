@@ -262,6 +262,56 @@ export function firestoreDocToMember(doc: GenericFsDoc): Member {
   };
 }
 
+/** A member level field holding a value that isn't any known spelling. */
+export type UnrecognisedMemberLevel = {
+  field: 'studentLevel' | 'applicationLevel';
+  // The value as stored.
+  value: string;
+};
+
+// How to put a stored member's level fields into canonical form. A recognised
+// legacy spelling ('Student 2', 'Level 2', 'Entry Level') gets a patch to the
+// canonical value ('2', 'Entry'). A non-empty value that isn't any known
+// spelling is NOT patched (it may mean something to a human) but is returned
+// in `unrecognised`, so an admin can be told to correct it. Takes the raw
+// stored document, not one read through `firestoreDocToMember`.
+export function memberLevelNormalization(stored: Partial<Member>): {
+  patch: Partial<Member>;
+  unrecognised: UnrecognisedMemberLevel[];
+} {
+  const patch: Partial<Member> = {};
+  const unrecognised: UnrecognisedMemberLevel[] = [];
+  const rawStudent = String(stored.studentLevel ?? '').trim();
+  if (rawStudent) {
+    const canonical = toStudentLevel(rawStudent);
+    if (canonical === StudentLevel.None) {
+      unrecognised.push({ field: 'studentLevel', value: rawStudent });
+    } else if (canonical !== stored.studentLevel) {
+      patch.studentLevel = canonical;
+    }
+  }
+  const rawApplication = String(stored.applicationLevel ?? '').trim();
+  if (rawApplication) {
+    const canonical = toApplicationLevel(rawApplication);
+    if (canonical === ApplicationLevel.None) {
+      unrecognised.push({ field: 'applicationLevel', value: rawApplication });
+    } else if (canonical !== stored.applicationLevel) {
+      patch.applicationLevel = canonical;
+    }
+  }
+  return { patch, unrecognised };
+}
+
+// A member with its level fields in canonical form, for member objects that
+// didn't come through `firestoreDocToMember` (e.g. a cached or callable copy).
+export function normalizeMemberLevels<T extends Member>(member: T): T {
+  return {
+    ...member,
+    studentLevel: toStudentLevel(member.studentLevel),
+    applicationLevel: toApplicationLevel(member.applicationLevel),
+  };
+}
+
 // Public information about instructors; mirrored from the member data into
 // firestore path /instructors/{instructorId}
 export type InstructorPublicData = {

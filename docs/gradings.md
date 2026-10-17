@@ -67,17 +67,32 @@ and each is a TypeScript enum and the only form written to Firestore:
 Older and imported data uses many spellings (`Entry Level`, `Student Level 3`,
 `3`, `Level 2`, `App 2`, `Application Level 1`, …). **Never compare raw level
 strings.** Read through `toGradingLevel`, `toStudentLevel` and
-`toApplicationLevel`, which accept every known spelling and return the enum. The
-Firestore converters (`firestoreDocToGrading`, `firestoreDocToMember`) already do
-this on read, and every write path stores the canonical form, so no backfill is
-needed. Convert between the two representations with `studentLevelOf` /
+`toApplicationLevel`, which accept every known spelling and return the enum.
+Matching is **strict**: the whole text must be one of the known forms (spacing
+and case are flexible, and Stripe's `GRADING :` prefix is allowed), so free text
+like "Re-entry workshop" or "Student 1 year" never matches.
+
+No backfill is needed:
+- the Firestore converters (`firestoreDocToGrading`, `firestoreDocToMember`)
+  normalise on read, and every write path stores the canonical form;
+- `onMemberCreated` / `onMemberUpdated` rewrite a recognised legacy spelling on a
+  member record to the canonical value. A value that isn't any known spelling
+  (e.g. "Certified Instructor") is left as stored and every admin gets a
+  `MemberLevelUnrecognised` notification to correct it — the app reads it as no
+  level;
+- client caches are versioned (`CACHE_SCHEMA_VERSION` in
+  [`incremental-sync.service.ts`](../src/app/incremental-sync.service.ts)): a cache
+  written before levels were normalised is discarded and re-fetched in full.
+  Bump the version whenever a converter's output changes. Convert between the two representations with `studentLevelOf` /
 `applicationLevelOf` / `gradingLevelForStudent` / `gradingLevelForApplication`;
 compare positions with `studentLevelRank` / `applicationLevelRank`; display them
 with `studentLevelLabel` / `applicationLevelLabel`.
 
-`Grading.level` is typed as `string` only because a grading for something
-outside the syllabus keeps its own label; `normalizeGradingLevel` returns the
-`GradingLevel` for any syllabus spelling and leaves other labels unchanged.
+Gradings are only for syllabus levels (student and application): online
+purchases, the retake request and the actions library all refuse anything
+else. `Grading.level` stays typed as `string` only so that a payment that
+couldn't be matched to a level can still be recorded on a grading held for
+admin review (see [When a payment needs a human](#when-a-payment-needs-a-human)).
 
 `nextGradingPayment(studentLevel, applicationLevel, gradings, skipLevel?)` is the
 single rule for what a member owes next. It walks the progression and stops at
@@ -108,11 +123,28 @@ at Student 3 is offered **Application 1, Student 4, Application 2, …**, and a
 student who requested a grading but never paid is offered **that same grading**
 first rather than being pushed to the level after it.
 
-All selected levels go into one Stripe Checkout session, one line item per level
-in progression order (`additionalPriceIds` on `createStripeCheckoutSession`;
-multi-item checkouts must be one-time payments). The page records the levels in
-the order metadata: `gradingLevels` (comma-separated, in line-item order) and
-`gradingLevel` (the first, used by the order-complete page).
+The page sends only the chosen **levels** to `createGradingCheckoutSession`
+([`grading-checkout.ts`](../functions/src/grading-checkout.ts)); the server decides
+everything else:
+
+- the caller must be signed in, manage the member profile, and that member must
+  have an active membership;
+- the levels must be exactly the member's next levels, in order (a prefix of
+  `upcomingGradingPayments`, skipping a free retake) — so only syllabus levels
+  can be bought;
+- the server looks up each level's price in the live Stripe catalogue with
+  `findGradingPrice` ([`grading-prices.ts`](../functions/src/data-model/grading-prices.ts)):
+  an active one-time price on a "GRADING" product whose nickname reads exactly as
+  the level (the newest wins if there are several). Prices never come from the
+  browser;
+- all prices must share one currency (Stripe can't mix them in one checkout).
+  The page blocks such a selection too and explains it must be split;
+- the server writes the order metadata grading fulfillment trusts:
+  `gradingLevels` (comma-separated, in line-item order) and `gradingLevel` (the
+  first, used by the order-complete page).
+
+The generic `createStripeCheckoutSession` refuses grading prices and drops any
+grading metadata a client sends, so this is the only way to buy a grading.
 
 ### How a payment is processed
 
@@ -130,7 +162,15 @@ line-item description for orders that come from elsewhere:
 
 Purchases are de-duplicated per level by `orderId`, so re-processing an order
 never creates a second grading for a level, while a multi-level order still
-creates one grading per level.
+creates one grading per level. The webhook pages through **all** of a
+session's line items (`listAllSessionLineItems`) — an expanded session only
+carries the first 10 — so a large order is never truncated.
+
+The student hears about an order **once**, however many levels it bought: one
+confirmation email listing every level and the total, one in-app "grading
+purchased" notification (keyed by the order and rewritten as each grading is
+created, so it ends up listing them all), and at most one "payment needs
+checking" alert covering every problem item.
 
 ### Grading and order references
 
@@ -286,23 +326,42 @@ check and reverts a result saved without one, notifying whoever recorded it
 A grading bought ahead (e.g. Student 3 while Student 2 is still open) can be
 **requested, accepted and scheduled straight away** — a student can sit Student
 2 and Student 3 at the same event. But **a result can only be recorded once
-every earlier level in the progression is achieved** on the student's record
-(`unachievedEarlierLevels(level, studentLevel, applicationLevel)` is empty). An
-earlier level is achieved once its grading is passed **and paid**, which is when
-the student's level is updated.
+every earlier level in the progression is passed**:
+`levelsBlockingResult(level, studentLevel, applicationLevel, gradings)` must be
+empty. An earlier level counts when it is achieved on the member record, **or**
+when one of the student's gradings for it is passed **and paid** — the member
+record is only updated by a trigger after that, so counting the grading itself
+means recording Student 3 straight after Student 2 at the same event works,
+with no race.
+
+**Members out of sync with the progression** (e.g. Student 5 with no
+application levels recorded) can always grade their next level in the normal
+progression (here Application 1), then the next, until they are back in sync.
+Later levels (Student 6 here) wait until the levels before them are passed.
 
 - The progress view shows a **"Booked ahead"** notice naming the levels still to
   pass, and disables **Mark as Passed / Not Passed** for non-admins until they
-  are achieved. It uses the student's live member record; when the viewer can't
-  read it, the client does not block.
+  are. It uses the student's live member record plus every grading of theirs the
+  viewer can see; when the viewer can't read the member record, the client does
+  not block (the server still checks).
 - `onGradingUpdated` is the authoritative check: a result recorded too early is
-  reverted and whoever recorded it is notified (`GradingNeedsEarlierLevels`).
+  reverted and whoever recorded it is notified (`GradingNeedsEarlierLevels`). A
+  write with no recorded actor is only logged — the student is not notified for
+  something they didn't do. Gradings that only carry a `studentMemberId` (older
+  data) are checked too.
 - **Admins are exempt** (judged by `statusChangedByMemberDocId`), e.g. to enter
-  historical gradings.
+  historical gradings. Scripts must act as a named admin (`run-action.ts --as`);
+  see the database-actions skill.
+- **Levels only ever go up.** The award (`awardGradingLevel` in
+  [`award-level.ts`](../functions/src/award-level.ts), shared by the trigger and the
+  actions library) runs in a Firestore transaction and writes only when the
+  awarded level is higher than the stored one, so two gradings passed close
+  together can't pull a member back down.
 - When a result is recorded, `studentLevelAtAcceptance` /
-  `applicationLevelAtAcceptance` are refreshed to the levels the student held at
-  that moment, so a grading accepted ahead isn't later flagged "out of order".
-  The "Out of order" warning is now only shown on recorded results.
+  `applicationLevelAtAcceptance` are refreshed to the levels the student held
+  going in (counting earlier gradings passed and paid), so a grading accepted
+  ahead isn't flagged "out of order". The "Out of order" warning is only shown
+  on recorded results.
 
 ### Trying again after a not-passed result
 

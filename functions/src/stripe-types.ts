@@ -101,12 +101,6 @@ export interface CreateCheckoutSessionRequest {
   origin: string;
   /** Optional quantity; defaults to 1. */
   quantity?: number;
-  /**
-   * Optional further one-time prices to add to the same checkout, one line item
-   * each (quantity 1), after `priceId`. Used to buy several grading levels at
-   * once. All prices in a multi-item checkout must be one-time payments.
-   */
-  additionalPriceIds?: string[];
   /** Optional custom success return URL. Must match an allowed origin. */
   successUrl?: string;
   /** Optional custom cancel return URL. Must match an allowed origin. */
@@ -121,6 +115,20 @@ export interface CreateCheckoutSessionRequest {
   recipientName?: string;
   /** Optional gift message for the recipient. */
   giftMessage?: string;
+}
+
+/**
+ * Request to buy one or more grading levels in a single checkout. The server
+ * checks the levels are the next ones this member can buy, in order, and picks
+ * the prices itself from the Stripe catalogue (see `findGradingPrice`).
+ */
+export interface CreateGradingCheckoutSessionRequest {
+  /** The member profile the gradings are for; must be managed by the caller. */
+  memberDocId: string;
+  /** Grading levels to buy, in progression order (any spelling; e.g. 'Student 3'). */
+  levels: string[];
+  /** The app origin to return the buyer to, e.g. `https://app.iliqchuan.com`. */
+  origin: string;
 }
 
 export interface CreateVodCheckoutSessionRequest {

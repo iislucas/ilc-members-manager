@@ -55,3 +55,16 @@ export function formatLineItemDescription(
 
   return `${desc} (${nick})`;
 }
+
+// Every line item of a Checkout Session, with prices and products expanded.
+// Retrieving a session with `expand: ['line_items']` only returns the first
+// page (10 items), so a large order would silently lose items; this pages
+// through them all.
+export async function listAllSessionLineItems(
+  stripe: Stripe,
+  sessionId: string,
+): Promise<Stripe.LineItem[]> {
+  return stripe.checkout.sessions
+    .listLineItems(sessionId, { limit: 100, expand: ['data.price.product'] })
+    .autoPagingToArray({ limit: 1000 });
+}

@@ -17,6 +17,7 @@ import {
   gradingLevelForItem,
 } from './stripe-fulfillment';
 import { sendTransactionalEmail } from './email-dispatcher.js';
+import { TransactionalEmailKey } from './data-model/mail';
 
 vi.mock('./email-dispatcher.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./email-dispatcher.js')>();
@@ -321,7 +322,8 @@ describe('stripe-fulfillment', () => {
         {
           productId: 'prod_grading',
           priceId: 'price_grading',
-          description: 'Grading - Student Level 2',
+          // How Stripe line items are described (see formatLineItemDescription).
+          description: 'GRADING : Student Level 2',
           quantity: 1,
           amountTotal: 5000,
           currency: 'usd',
@@ -713,6 +715,68 @@ describe('stripe-fulfillment', () => {
     expect(mockGradingsCollection.add).toHaveBeenCalledWith(
       expect.objectContaining({ level: 'Student 3', orderId: 'order_doc_re' }),
     );
+  });
+
+  it('sends ONE confirmation email for an order that bought several levels', async () => {
+    vi.mocked(sendTransactionalEmail).mockClear();
+    mockMemberGradings([]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      multiLevelOrder(['Student 2', 'Student 3', 'Application 1'], 'cs_one_email'),
+      'order_doc_one_email',
+    );
+
+    const gradingEmails = vi
+      .mocked(sendTransactionalEmail)
+      .mock.calls.filter(([, msg]) => msg.templateKey === TransactionalEmailKey.GradingPaymentConfirmation);
+    expect(gradingEmails).toHaveLength(1);
+    expect(gradingEmails[0][1].replacements?.['gradingLevel']).toBe(
+      'Student 2, Student 3, Application 1',
+    );
+    expect(gradingEmails[0][1].replacements?.['amount']).toBe('USD 240.00');
+  });
+
+  it('sends nothing more when an already-processed order is re-processed', async () => {
+    vi.mocked(sendTransactionalEmail).mockClear();
+    mockMemberGradings(
+      [],
+      [
+        { id: 'g2', data: { level: 'Student 2', orderId: 'order_doc_again' } },
+        { id: 'g3', data: { level: 'Student 3', orderId: 'order_doc_again' } },
+      ],
+    );
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      multiLevelOrder(['Student 2', 'Student 3'], 'cs_again'),
+      'order_doc_again',
+    );
+    expect(mockGradingsCollection.add).not.toHaveBeenCalled();
+    expect(
+      vi
+        .mocked(sendTransactionalEmail)
+        .mock.calls.filter(([, msg]) => msg.templateKey === TransactionalEmailKey.GradingPaymentConfirmation),
+    ).toHaveLength(0);
+  });
+
+  it('raises ONE student notification for an order with several problem items', async () => {
+    // Student 1 is already achieved and the second item names no level.
+    mockMemberGradings([]);
+    const order = multiLevelOrder(['Student 1', 'Mystery'], 'cs_problems');
+    order.metadata = { orderType: 'grading' };
+    order.lineItems[0].description = 'GRADING : Student Level 1';
+    order.lineItems[1].description = 'GRADING : Mystery Item';
+
+    await fulfillStripeOrder(mockDb, gradingMember, order, 'order_doc_problems');
+
+    expect(mockGradingsCollection.add).toHaveBeenCalledTimes(2);
+    expect(mockNotificationSet).toHaveBeenCalledTimes(1);
+    const notif = mockNotificationSet.mock.calls[0][0];
+    expect(notif.markdown).toContain('Student 1');
+    expect(notif.markdown).toContain('GRADING : Mystery Item');
+    expect(notif.data.issues).toHaveLength(2);
   });
 
   describe('gradingLevelForItem', () => {

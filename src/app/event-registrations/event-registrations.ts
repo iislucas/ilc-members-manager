@@ -499,15 +499,17 @@ export class EventRegistrationsComponent implements OnInit {
     };
   }
 
-  // 'Student 3' / 'Student Entry' for any stored spelling; '' when none.
+  // 'Student 3' / 'Student Entry' for any recognised spelling; an
+  // unrecognised value is shown as stored rather than hidden; '' when none.
   formatStudentLevel(lvl?: string): string {
-    return studentLevelLabel(lvl);
+    return studentLevelLabel(lvl) || (lvl ?? '').trim();
   }
 
-  // Short application label, 'App 2', for any stored spelling; '' when none.
+  // Short application label, 'App 2', for any recognised spelling; an
+  // unrecognised value is shown as stored rather than hidden; '' when none.
   formatApplicationLevel(lvl?: string): string {
     const level = toApplicationLevel(lvl);
-    return level ? `App ${level}` : '';
+    return level ? `App ${level}` : (lvl ?? '').trim();
   }
 
   toggleSort(field: RegistrationSortField) {

@@ -149,24 +149,43 @@ function gradingLevelFromParts(track: LevelTrack, num: string): GradingLevel | n
   return isGradingLevel(candidate) ? candidate : null;
 }
 
-// Reads any known spelling of a grading level as a `GradingLevel`, or null when
-// the text doesn't name a syllabus level (e.g. 'Meditation & Philosophy').
+// The complete grammar of grading-level spellings `toGradingLevel` accepts,
+// case-insensitive, matched against the WHOLE text (never a substring, so free
+// text such as 'Re-entry workshop' or 'Student 1 year' never matches):
+//
+//   [GRADING :] Student Entry | Entry | Entry Level | Student Level Entry
+//   [GRADING :] Student [Level] N        (N = 0…11; 0 is Student Entry)
+//   [GRADING :] App[lication] [Level] N  (N = 1…6)
+//   [GRADING :] [Level] N                (legacy bare student level)
+//
+// The optional 'GRADING :' prefix is how Stripe line items are described
+// (see formatLineItemDescription).
+const GRADING_PREFIX = String.raw`(?:grading\s*:\s*)?`;
+const ENTRY_RE = new RegExp(String.raw`^${GRADING_PREFIX}(?:student\s+(?:level\s+)?entry|entry(?:\s+level)?)$`, 'i');
+const STUDENT_RE = new RegExp(String.raw`^${GRADING_PREFIX}student\s+(?:level\s+)?(\d{1,2})$`, 'i');
+const APPLICATION_RE = new RegExp(String.raw`^${GRADING_PREFIX}app(?:lication)?\s+(?:level\s+)?(\d{1,2})$`, 'i');
+const BARE_RE = new RegExp(String.raw`^${GRADING_PREFIX}(?:level\s+)?(\d{1,2})$`, 'i');
+
+// Reads a known spelling of a grading level as a `GradingLevel`, or null when
+// the text is anything else (e.g. 'Meditation & Philosophy'). See the grammar
+// above; spacing and case are flexible, nothing else is.
 //
 //   toGradingLevel('Student Level 3')     → GradingLevel.Student3
 //   toGradingLevel('Entry Level')         → GradingLevel.StudentEntry
 //   toGradingLevel('GRADING : Application Level 2') → GradingLevel.Application2
 //   toGradingLevel('App 2')               → GradingLevel.Application2
 //   toGradingLevel('3')                   → GradingLevel.Student3 (legacy: bare = student)
+//   toGradingLevel('Student 1 year')      → null
 export function toGradingLevel(raw: string | null | undefined): GradingLevel | null {
-  const text = (raw ?? '').trim();
+  const text = (raw ?? '').trim().replace(/\s+/g, ' ');
   if (!text) return null;
   if (isGradingLevel(text)) return text;
-  const application = /\bapp(?:lication)?\s*(?:level\s*)?(\d+)/i.exec(text);
-  if (application) return gradingLevelFromParts(LevelTrack.Application, application[1]);
-  const student = /student\s*(?:level\s*)?(\d+)/i.exec(text);
+  if (ENTRY_RE.test(text)) return GradingLevel.StudentEntry;
+  const student = STUDENT_RE.exec(text);
   if (student) return gradingLevelFromParts(LevelTrack.Student, student[1]);
-  if (/\bentry\b/i.test(text)) return GradingLevel.StudentEntry;
-  const bare = /^(?:level\s*)?(\d+)$/i.exec(text);
+  const application = APPLICATION_RE.exec(text);
+  if (application) return gradingLevelFromParts(LevelTrack.Application, application[1]);
+  const bare = BARE_RE.exec(text);
   if (bare) return gradingLevelFromParts(LevelTrack.Student, bare[1]);
   return null;
 }

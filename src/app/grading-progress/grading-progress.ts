@@ -24,9 +24,9 @@ import {
   signal,
   effect,
 } from '@angular/core';
-import { nextGradingLevel, previousGradingLevel, normalizeGradingLevel, instructorCanAssessLevel, unachievedEarlierLevels, studentLevelLabel, applicationLevelLabel } from '../../../functions/src/data-model/curriculum';
+import { nextGradingLevel, previousGradingLevel, normalizeGradingLevel, instructorCanAssessLevel, studentLevelLabel, applicationLevelLabel } from '../../../functions/src/data-model/curriculum';
 import { IlcEvent } from '../../../functions/src/data-model/events';
-import { Grading, GradingStatus, gradingManagerIdsOf, isGradingPaid, gradingDisplayId, PaymentStatus, PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from '../../../functions/src/data-model/gradings';
+import { Grading, GradingStatus, gradingManagerIdsOf, isGradingPaid, gradingDisplayId, levelsBlockingResult, PaymentStatus, PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from '../../../functions/src/data-model/gradings';
 import { InstructorPublicData, Member } from '../../../functions/src/data-model/members';
 import { NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
@@ -240,11 +240,33 @@ export class GradingProgressComponent {
     if (this.isFinalised()) return [];
     const m = this.studentMember();
     if (!m) return [];
-    return unachievedEarlierLevels(
+    return levelsBlockingResult(
       this.grading().level,
       m.studentLevel || '',
       m.applicationLevel || '',
+      this.studentGradingsVisibleToViewer(),
     );
+  });
+
+  // The student's other gradings this viewer can see (their own gradings for a
+  // student, the gradings they manage for an instructor, all for an admin).
+  // An earlier level passed and paid here counts straight away, before its
+  // trigger has updated the member record — the same rule the server applies.
+  private studentGradingsVisibleToViewer = computed<Grading[]>(() => {
+    const g = this.grading();
+    const byId = new Map<string, Grading>();
+    for (const set of [
+      this.dataService.gradings,
+      this.dataService.myGradings,
+      this.dataService.myGradingsAssessed,
+    ]) {
+      for (const other of set.entries()) {
+        if (other.docId !== g.docId && other.studentMemberDocId === g.studentMemberDocId) {
+          byId.set(other.docId, other);
+        }
+      }
+    }
+    return [...byId.values()];
   });
 
   // Recording a result waits for earlier levels to be achieved. Admins are

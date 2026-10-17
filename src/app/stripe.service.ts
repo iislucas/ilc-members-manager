@@ -24,6 +24,7 @@ import {
   CreateCheckoutSessionResult,
   CreateCustomerPortalSessionRequest,
   CreateCustomerPortalSessionResult,
+  CreateGradingCheckoutSessionRequest,
   CreateProductCheckoutSessionRequest,
   CreateVodCheckoutSessionRequest,
   GetCheckoutSessionRequest,
@@ -62,8 +63,6 @@ export class StripeService {
       recipientEmail?: string;
       recipientName?: string;
       giftMessage?: string;
-      // Further one-time prices to buy in the same checkout (one each).
-      additionalPriceIds?: string[];
     },
   ): Promise<CreateCheckoutSessionResult> {
     if (this.networkState.isOffline()) {
@@ -77,7 +76,6 @@ export class StripeService {
       priceId,
       origin,
       quantity,
-      additionalPriceIds: options?.additionalPriceIds,
       successUrl: options?.successUrl,
       cancelUrl: options?.cancelUrl,
       metadata: options?.metadata,
@@ -86,6 +84,25 @@ export class StripeService {
       recipientName: options?.recipientName,
       giftMessage: options?.giftMessage,
     });
+    return result.data;
+  }
+
+  /**
+   * Create a Stripe Checkout Session for one or more grading levels. The server
+   * checks they are the next levels this member can buy and picks the prices
+   * itself; the browser only says which levels it wants.
+   */
+  async createGradingCheckoutSession(
+    request: CreateGradingCheckoutSessionRequest,
+  ): Promise<CreateCheckoutSessionResult> {
+    if (this.networkState.isOffline()) {
+      throw new Error('You are currently offline. Please connect to the internet to complete purchase.');
+    }
+    const fn = httpsCallable<
+      CreateGradingCheckoutSessionRequest,
+      CreateCheckoutSessionResult
+    >(this.functions, 'createGradingCheckoutSession');
+    const result = await fn(request);
     return result.data;
   }
 
