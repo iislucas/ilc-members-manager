@@ -19,7 +19,7 @@ import * as logger from 'firebase-functions/logger';
 import { FieldValue } from 'firebase-admin/firestore';
 import { canMarkMembershipInactive, Member, MembershipType } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
-import { allowedOrigins, getUserMemberDocIds } from './common';
+import { allowedOrigins, getUserMemberDocIds, verifiedAuthEmail } from './common';
 import { createMemberNotification } from './notifications';
 
 /**
@@ -112,13 +112,13 @@ async function resolveStudentAndInstructor(
   request: CallableRequest<{ studentMemberDocId: string }>,
   action: string,
 ): Promise<StudentAndInstructor> {
-  if (!request.auth || !request.auth.token.email) {
+  const email = verifiedAuthEmail(request);
+  if (!email) {
     throw new HttpsError(
       'unauthenticated',
-      `Must be authenticated to ${action}.`,
+      `Must be authenticated with a verified email to ${action}.`,
     );
   }
-  const email = request.auth.token.email;
   const studentMemberDocId = request.data?.studentMemberDocId;
   if (!studentMemberDocId) {
     throw new HttpsError('invalid-argument', 'studentMemberDocId is required.');

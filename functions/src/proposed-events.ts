@@ -29,7 +29,7 @@ import { FirestoreCollection, FirestoreSubcollection } from './data-model/collec
 import { Member } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { VideoGrant, VideoGrantKind } from './data-model/vod';
-import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone, recordDeletionLog } from './common';
+import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone, recordDeletionLog, verifiedAuthEmail } from './common';
 import { normalizeEmail, normalizeEmails } from './data-model/email';
 import {
   DeletionSource,
@@ -239,19 +239,19 @@ export function validateProposalStatus(
 export const submitProposedEvent = onCall(
   { cors: allowedOrigins },
   async (request: CallableRequest<SubmitProposedEventRequest>) => {
-    if (!request.auth || !request.auth.token.email) {
-      throw new HttpsError('unauthenticated', 'Must be authenticated to propose events.');
+    const callerEmail = verifiedAuthEmail(request);
+    if (!request.auth || !callerEmail) {
+      throw new HttpsError('unauthenticated', 'Must be authenticated with a verified email to propose events.');
     }
 
     const db = admin.firestore();
-    const member = await getMemberByEmail(request.auth.token.email, db);
+    const member = await getMemberByEmail(callerEmail, db);
 
     const error = validateProposal(member, request.data as unknown as Record<string, unknown>);
     if (error) {
       throw new HttpsError('permission-denied', error);
     }
 
-    const callerEmail = normalizeEmail(request.auth.token.email);
     const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
     const isAdmin = aclSnap.data()?.isAdmin === true;
 
@@ -367,7 +367,10 @@ export const submitProposedEvent = onCall(
           const existingEventDocId = prodData.eventDocId || '';
           let isAuthorized = !existingEventDocId;
           if (existingEventDocId) {
-            const callerEmail = normalizeEmail(request.auth?.token?.email);
+            const callerEmail = verifiedAuthEmail(request);
+            if (!callerEmail) {
+              throw new HttpsError('unauthenticated', 'Must be authenticated with a verified email.');
+            }
             const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
             const isAdmin = aclSnap.data()?.isAdmin === true;
             if (isAdmin) {

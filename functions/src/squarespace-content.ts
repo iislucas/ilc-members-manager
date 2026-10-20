@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import axios from 'axios';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { allowedOrigins, getMemberByEmail } from './common';
+import { allowedOrigins, getMemberByEmail, verifiedAuthEmail } from './common';
 
 // TODO: Replace with the actual Squarespace site URL when available or use an environment variable.
 // For now using a placeholder that clearly indicates it needs to be set.
@@ -41,13 +41,14 @@ export const getSquarespaceContent = onCall<SquarespaceContentRequest>(
         const requiredAccessLevel = accessLevels[cleanPath];
 
         if (requiredAccessLevel) {
-            if (!request.auth || !request.auth.token.email) {
-                throw new HttpsError('unauthenticated', 'You must be logged in to access this content.');
+            const callerEmail = verifiedAuthEmail(request);
+            if (!callerEmail) {
+                throw new HttpsError('unauthenticated', 'You must be logged in with a verified email to access this content.');
             }
 
             const db = admin.firestore();
             try {
-                const member = await getMemberByEmail(request.auth.token.email, db);
+                const member = await getMemberByEmail(callerEmail, db);
 
                 if (requiredAccessLevel === AccessLevel.Instructor) {
                     if (!member.instructorId) {

@@ -30,7 +30,7 @@ describe('assertResourceAccess', () => {
 
   const makeRequest = (email?: string) =>
     ({
-      auth: email ? { token: { email }, uid: 'user-1' } : undefined,
+      auth: email ? { token: { email_verified: true, email }, uid: 'user-1' } : undefined,
       data: {},
       rawRequest: {} as any,
       accepts: () => true,

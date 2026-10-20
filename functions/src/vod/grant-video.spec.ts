@@ -196,7 +196,7 @@ describe('grantVideoAccess', () => {
 
   const makeCallableRequest = (data: Partial<GrantVideoAccessRequest>, email = 'admin@example.com') =>
     ({
-      auth: email ? { token: { email }, uid: 'uid_admin' } : undefined,
+      auth: email ? { token: { email_verified: true, email }, uid: 'uid_admin' } : undefined,
       data,
       rawRequest: {},
       acceptsStreaming: false,

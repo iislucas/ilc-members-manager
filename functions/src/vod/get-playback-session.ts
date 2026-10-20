@@ -15,8 +15,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins, getMemberByEmail, hasActiveMembership, isActiveInstructor } from '../common';
-import { normalizeEmail } from '../data-model/email';
+import { allowedOrigins, getMemberByEmail, hasActiveMembership, isActiveInstructor, verifiedAuthEmail } from '../common';
 import { Member } from '../data-model/members';
 import { VideoItem, VodAccessTier, VodStatus, firestoreDocToVideoItem, isVideoGrantActive } from '../data-model/vod';
 
@@ -102,8 +101,9 @@ export const getVideoPlaybackSession = onCall(
       };
     }
 
-    // 3. Gated tiers require authentication
-    if (!request.auth || !request.auth.token.email) {
+    // 3. Gated tiers require authentication with a verified email
+    const email = verifiedAuthEmail(request);
+    if (!email) {
       return {
         authorized: false,
         reason: 'unauthenticated',
@@ -117,8 +117,6 @@ export const getVideoPlaybackSession = onCall(
         trailerManifestUrl,
       };
     }
-
-    const email = normalizeEmail(request.auth.token.email);
 
     // 4. Check if admin (admins have access to all videos)
     const aclDoc = await db.collection('acl').doc(email).get();

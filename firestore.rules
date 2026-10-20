@@ -17,13 +17,19 @@ service cloud.firestore {
     // The raw (original-case) token email is never accepted.
     // ------------------------------------------------------------------
 
-    // True when the request carries a non-empty string email claim. Every
-    // other helper below must only be evaluated behind this guard (or uses
-    // it internally), so `.lower()` is never called on a missing claim.
+    // True when the request carries a non-empty string email claim AND that
+    // email has been verified (`email_verified == true`). Every other helper
+    // below must only be evaluated behind this guard (or uses it internally),
+    // so `.lower()` is never called on a missing claim and no email-derived
+    // identity (member ownership, /acl lookups, admin) is ever granted for an
+    // unverified email. Without the verification check, anyone could create
+    // an email/password account for someone else's not-yet-registered email
+    // and be treated as its owner.
     function hasAuthEmail() {
       return request.auth != null
         && request.auth.token.get('email', null) is string
-        && request.auth.token.email.size() > 0;
+        && request.auth.token.email.size() > 0
+        && request.auth.token.get('email_verified', false) == true;
     }
 
     // The lowercased token email. Only call after hasAuthEmail().

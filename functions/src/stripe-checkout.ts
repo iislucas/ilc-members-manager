@@ -16,7 +16,7 @@
 import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import { allowedOrigins } from './common';
+import { allowedOrigins, verifiedAuthEmail } from './common';
 import {
   formatLineItemDescription,
   getStripeClient,
@@ -99,7 +99,7 @@ export const createStripeCheckoutSession = onCall<
   let memberDocId: string | undefined;
   let memberId: string | undefined;
 
-  const callerEmail = request.auth?.token?.email;
+  const callerEmail = verifiedAuthEmail(request) || undefined;
   if (callerEmail) {
     try {
       const member = await getMemberByEmail(callerEmail, db);

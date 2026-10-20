@@ -177,7 +177,7 @@ describe('mail-processor', () => {
 
       await expect(
         sendAdminTestEmail.run({
-          auth: { token: { email: 'user@example.com' } },
+          auth: { token: { email_verified: true, email: 'user@example.com' } },
           data: { to: 'test@example.com', subject: 'Hi', bodyMarkdown: 'Hello' },
         } as any),
       ).rejects.toThrow('Admin access required.');
@@ -188,7 +188,7 @@ describe('mail-processor', () => {
 
       await expect(
         sendAdminTestEmail.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { to: '', subject: 'Hi', bodyMarkdown: 'Hello' },
         } as any),
       ).rejects.toThrow('Recipient (to), subject, and bodyMarkdown are all required.');
@@ -199,7 +199,7 @@ describe('mail-processor', () => {
 
       await expect(
         sendAdminTestEmail.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { to: 'not-an-email', subject: 'Hi', bodyMarkdown: 'Hello' },
         } as any),
       ).rejects.toThrow('Invalid recipient email address');
@@ -212,7 +212,7 @@ describe('mail-processor', () => {
       try {
         await expect(
           sendAdminTestEmail.run({
-            auth: { token: { email: 'admin@iliqchuan.com' } },
+            auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
             data: { to: 'admin@iliqchuan.com', subject: 'Hi', bodyMarkdown: 'Hello' },
           } as any),
         ).rejects.toThrow('No sender "from" address configured in environment.email.from');
@@ -246,7 +246,7 @@ describe('mail-processor', () => {
       } as any);
 
       const res = await sendAdminTestEmail.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: {
           to: 'admin@iliqchuan.com',
           subject: 'Test Subject',
@@ -302,7 +302,7 @@ describe('mail-processor', () => {
       } as any);
 
       const res = await sendAdminTestEmail.run({
-        auth: { token: { email: 'admin@iliqchuan.com', name: 'Master Sam Chin' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com', name: 'Master Sam Chin' } },
         data: {
           to: 'test@example.com',
           name: 'Alex Chen',
@@ -346,7 +346,7 @@ describe('mail-processor', () => {
       } as any);
 
       const res = await sendAdminTestEmail.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: {
           to: 'admin@iliqchuan.com',
           subject: 'Test Subject',
@@ -368,7 +368,7 @@ describe('mail-processor', () => {
 
       await expect(
         retryMailItem.run({
-          auth: { token: { email: 'member@example.com' } },
+          auth: { token: { email_verified: true, email: 'member@example.com' } },
           data: { mailId: 'mail_123' },
         } as any),
       ).rejects.toThrow('Admin access required.');
@@ -379,7 +379,7 @@ describe('mail-processor', () => {
 
       await expect(
         retryMailItem.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { mailId: '' },
         } as any),
       ).rejects.toThrow('Document ID (mailId) is required.');
@@ -398,7 +398,7 @@ describe('mail-processor', () => {
 
       await expect(
         retryMailItem.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { mailId: 'nonexistent_mail' },
         } as any),
       ).rejects.toThrow('Mail document "nonexistent_mail" not found.');
@@ -420,7 +420,7 @@ describe('mail-processor', () => {
 
       await expect(
         retryMailItem.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { mailId: 'in_flight_mail' },
         } as any),
       ).rejects.toThrow('Mail document "in_flight_mail" is currently being processed.');
@@ -443,7 +443,7 @@ describe('mail-processor', () => {
       } as any);
 
       const res = await retryMailItem.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: { mailId: 'mail_retry_123' },
       } as any);
 
@@ -632,7 +632,7 @@ describe('mail-processor', () => {
 
       await expect(
         setMailSendingPaused.run({
-          auth: { token: { email: 'user@example.com' } },
+          auth: { token: { email_verified: true, email: 'user@example.com' } },
           data: { paused: true },
         } as any),
       ).rejects.toThrow('Admin access required.');
@@ -651,7 +651,7 @@ describe('mail-processor', () => {
       } as any);
 
       const result = await setMailSendingPaused.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: { paused: true },
       } as any);
 
@@ -705,7 +705,7 @@ describe('mail-processor', () => {
       } as any);
 
       const result = await setMailSendingPaused.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: { paused: false },
       } as any);
 
@@ -725,7 +725,7 @@ describe('mail-processor', () => {
 
       await expect(
         setMailSendingState.run({
-          auth: { token: { email: 'user@example.com' } },
+          auth: { token: { email_verified: true, email: 'user@example.com' } },
           data: { status: MailSendingStatus.Active },
         } as any),
       ).rejects.toThrow('Admin access required.');
@@ -736,7 +736,7 @@ describe('mail-processor', () => {
 
       await expect(
         setMailSendingState.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { status: 'invalid-status' },
         } as any),
       ).rejects.toThrow('Invalid status parameter');
@@ -755,7 +755,7 @@ describe('mail-processor', () => {
       } as any);
 
       const result = await setMailSendingState.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: { status: MailSendingStatus.Off },
       } as any);
 
@@ -785,7 +785,7 @@ describe('mail-processor', () => {
       } as any);
 
       const result = await setMailSendingState.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: { status: MailSendingStatus.Paused },
       } as any);
 
@@ -839,7 +839,7 @@ describe('mail-processor', () => {
       } as any);
 
       const result = await setMailSendingState.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: { status: MailSendingStatus.Active },
       } as any);
 
@@ -901,7 +901,7 @@ describe('mail-processor', () => {
       } as any);
 
       const result = await setMailSendingState.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: {
           status: MailSendingStatus.Active,
           templateKey: TransactionalEmailKey.GradingPassed,
@@ -941,7 +941,7 @@ describe('mail-processor', () => {
       } as any);
 
       const result = await setMailSendingState.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: {
           status: MailSendingStatus.Paused,
           templateKey: 'all',
@@ -994,7 +994,7 @@ describe('mail-processor', () => {
 
       await expect(
         deleteMailItems.run({
-          auth: { token: { email: 'user@example.com' } },
+          auth: { token: { email_verified: true, email: 'user@example.com' } },
           data: { mailIds: ['m1', 'm2'] },
         } as any),
       ).rejects.toThrow('Admin access required.');
@@ -1005,14 +1005,14 @@ describe('mail-processor', () => {
 
       await expect(
         deleteMailItems.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { mailIds: [] },
         } as any),
       ).rejects.toThrow('An array of "mailIds" is required.');
 
       await expect(
         deleteMailItems.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { mailIds: ['   '] },
         } as any),
       ).rejects.toThrow('No valid mail IDs provided.');
@@ -1020,7 +1020,7 @@ describe('mail-processor', () => {
       const excessiveIds = Array.from({ length: 501 }, (_, i) => `id_${i}`);
       await expect(
         deleteMailItems.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { mailIds: excessiveIds },
         } as any),
       ).rejects.toThrow('Cannot delete more than 500 mail items at once.');
@@ -1064,7 +1064,7 @@ describe('mail-processor', () => {
       } as any);
 
       const res = await deleteMailItems.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: { mailIds: ['doc1', 'doc2', 'doc3'] },
       } as any);
 
@@ -1086,7 +1086,7 @@ describe('mail-processor', () => {
 
       await expect(
         updateMailItem.run({
-          auth: { token: { email: 'user@example.com' } },
+          auth: { token: { email_verified: true, email: 'user@example.com' } },
           data: { mailId: 'doc1', subject: 'New Subject' },
         } as any),
       ).rejects.toThrow('Admin access required.');
@@ -1104,7 +1104,7 @@ describe('mail-processor', () => {
 
       await expect(
         updateMailItem.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { mailId: 'nonexistent' },
         } as any),
       ).rejects.toThrow('Mail document "nonexistent" not found.');
@@ -1125,7 +1125,7 @@ describe('mail-processor', () => {
 
       await expect(
         updateMailItem.run({
-          auth: { token: { email: 'admin@iliqchuan.com' } },
+          auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
           data: { mailId: 'in_flight' },
         } as any),
       ).rejects.toThrow('currently being processed and cannot be edited');
@@ -1147,7 +1147,7 @@ describe('mail-processor', () => {
       } as any);
 
       const res = await updateMailItem.run({
-        auth: { token: { email: 'admin@iliqchuan.com' } },
+        auth: { token: { email_verified: true, email: 'admin@iliqchuan.com' } },
         data: {
           mailId: 'mail_edit_1',
           to: 'fixed@example.com',

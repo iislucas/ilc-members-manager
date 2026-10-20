@@ -18,9 +18,8 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { assertAdmin, allowedOrigins } from './common';
+import { assertAdmin, allowedOrigins, verifiedAuthEmail } from './common';
 import { ResourceAccessLevel, RESOURCE_ACCESS_LEVELS } from './data-model/curriculum';
-import { normalizeEmail } from './data-model/email';
 import { FirestoreCollection } from './data-model/collections';
 
 export interface ResourceFileInfo {
@@ -115,14 +114,13 @@ export async function assertResourceAccess(
   if (accessLevel === ResourceAccessLevel.Public) return;
 
   // All other levels require authentication.
-  if (!request.auth || !request.auth.token.email) {
+  const email = verifiedAuthEmail(request);
+  if (!email) {
     throw new HttpsError(
       'unauthenticated',
-      'You must be logged in to access this resource.',
+      'You must be logged in with a verified email to access this resource.',
     );
   }
-
-  const email = normalizeEmail(request.auth.token.email);
   const db = admin.firestore();
 
   // Look up the ACL document for this user. ACL ids are normalised emails.
