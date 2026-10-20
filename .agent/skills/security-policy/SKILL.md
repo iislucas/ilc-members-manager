@@ -195,10 +195,23 @@ This skill records mandatory security principles, canonical authorization rules,
 
 ---
 
+### Anti-Pattern 9: Trusting an Unverified Token Email (`request.auth.token.email` without `email_verified`)
+- **The Pitfall**:
+  Using `request.auth.token.email` (in functions or rules) as the caller's identity without checking `email_verified`.
+- **Why It Is Dangerous**:
+  - Anyone can create an email/password account for an address they don't own via the public Auth API (bypassing our UI's verification gate). The resulting token carries the victim's email with `email_verified: false`.
+  - Without the check, that person is treated as the owner of the victim's member record / ACL — they can read it, edit it, or even schedule its deletion; if the email is an admin's, they'd be admin.
+- **The Correct Pattern**:
+  - Functions: `const email = verifiedAuthEmail(request); if (!email) throw new HttpsError('unauthenticated', ...)` (from `functions/src/common.ts`). `assertAdmin` / `assertAdminOrSchoolManager` already do this.
+  - Firestore rules: go through `hasAuthEmail()`; Storage rules: go through `getUserEmail()`. Both require `email_verified == true`.
+
+---
+
 ## 3. Pre-Commit Security Checklist
 
 Before finalizing any changes to Cloud Functions, rules, or authorization logic:
 
+- [ ] Is every email-derived identity taken from a **verified** email (`verifiedAuthEmail(request)` in functions, `hasAuthEmail()` / `getUserEmail()` in rules) — never raw `request.auth.token.email`?
 - [ ] Does any new or modified callable check permissions against `/acl/{email}` rather than `member.isAdmin` or `token.admin`?
 - [ ] Are all error handlers failing closed without fabricating synthetic user objects or default permissions?
 - [ ] Do client-side form permission bindings (`disabled()`) match the operational whitelist in `firestore.rules` and `docs/security.md`?

@@ -16,7 +16,7 @@
 import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import { allowedOrigins } from './common';
+import { allowedOrigins, verifiedAuthEmail } from './common';
 import {
   formatLineItemDescription,
   getStripeClient,
@@ -172,7 +172,7 @@ export const createStripeCheckoutSession = onCall<
   const { customerId, memberDocId, memberId } = await resolveCheckoutCustomer(
     stripe,
     db,
-    request.auth?.token?.email,
+    verifiedAuthEmail(request) || undefined,
   );
 
   let successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;

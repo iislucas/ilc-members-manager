@@ -23,7 +23,7 @@ import Stripe from 'stripe';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { allowedOrigins, getUserMemberDocIds } from './common';
+import { allowedOrigins, getUserMemberDocIds, verifiedAuthEmail } from './common';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
 import { fetchStripeProducts } from './stripe-products';
 import { requireAllowedOrigin, stripeCustomerForMember } from './stripe-checkout';
@@ -108,9 +108,9 @@ export const createGradingCheckoutSession = onCall<
   CreateGradingCheckoutSessionRequest,
   Promise<CreateCheckoutSessionResult>
 >({ cors: allowedOrigins, secrets: [stripeSecretKey] }, async (request) => {
-  const email = request.auth?.token?.email;
+  const email = verifiedAuthEmail(request);
   if (!email) {
-    throw new HttpsError('unauthenticated', 'You must be signed in to purchase a grading.');
+    throw new HttpsError('unauthenticated', 'You must be signed in with a verified email to purchase a grading.');
   }
   const origin = requireAllowedOrigin(request.data?.origin);
   const levels = parseRequestedLevels(request.data?.levels);

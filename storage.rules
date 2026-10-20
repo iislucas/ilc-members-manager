@@ -2,13 +2,19 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Raw Firebase Auth email ('' when there is no string email claim).
+    // Raw Firebase Auth email ('' when there is no string email claim, or
+    // when the email is not verified).
+    // Only a verified email identifies the caller: anyone can create an
+    // email/password account for an address they don't own, and until it is
+    // verified the token's email claim proves nothing. Every email-derived
+    // check below (ACL, admin, grants) goes through this function.
     // Invariant: stored emails and `/acl/{email}` / `/video_grants/{email}_{id}`
     // doc ids are lowercase. The token email may contain uppercase letters,
     // so every lookup uses ONLY the lowercased email (`.lower()`); the raw
     // email is never used as a doc id.
     function getUserEmail() {
-      return (request.auth != null && 'email' in request.auth.token && request.auth.token.email is string)
+      return (request.auth != null && 'email' in request.auth.token && request.auth.token.email is string
+          && request.auth.token.get('email_verified', false) == true)
         ? request.auth.token.email : '';
     }
 
