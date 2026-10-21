@@ -24,6 +24,19 @@ This document records the security architecture, authorization tiers, data acces
 - **Case-Insensitive Emails (normalisation invariant)**:
   - Emails are stored trimmed and lower-cased everywhere (`/acl/{email}` ids, `member.emails`, event `ownerEmails`/`managerEmails`, registration `email`, video grant `memberEmail`). Code compares with `normalizeEmail()` ([`functions/src/data-model/email.ts`](../functions/src/data-model/email.ts)); rules compare with `request.auth.token.email.lower()` behind a `token.get('email', null) is string` guard.
   - Only the lower-cased token email is matched (stored emails and `/acl` ids are always lowercase). See [email-normalisation.md](email-normalisation.md) for the invariant, the backfill script and the rollout history.
+- **Only Verified Emails Are Identities**:
+  - Anyone can create an email/password account for an address they don't own (directly via the public Auth API, bypassing our UI). Until the email is verified, the token's `email` claim proves nothing.
+  - Every email-derived identity check therefore requires `email_verified == true`:
+    - Firestore rules: `hasAuthEmail()` in [firestore.rules](../firestore.rules) (all other email helpers go through it).
+    - Storage rules: `getUserEmail()` in [storage.rules](../storage.rules) returns `''` for unverified emails.
+    - Cloud Functions: `verifiedAuthEmail(request)` in [common.ts](../functions/src/common.ts) returns the normalised email or `''`; `assertAdmin` / `assertAdminOrSchoolManager` use it. Never read `request.auth.token.email` directly for authorization.
+  - The client also gates unverified sessions (`LoginStatus.NeedsEmailVerification`) and `getUserDetails` refuses to link unverified accounts, but those are UX layers — the rules and functions are the enforcement.
+- **Email First, Password Second** ([auth-blocking.ts](../functions/src/auth-blocking.ts)):
+  - New email accounts are created only by clicking a sign-in link sent to the address (`sendSignInLinkToEmail`), so the email is proven before any password exists. A password can then be chosen in the app (`setAccountPassword` callable).
+  - `beforeUserCreated` (Identity Platform blocking function) rejects any account that doesn't arrive with a verified email, i.e. email/password sign-up, including direct API calls that skip the UI.
+  - `beforeUserSignedIn` rejects a password sign-in unless the email is verified **and** the account has the `passwordTrusted` custom claim. The claim is granted only by `setAccountPassword` (verified caller) or by the one-time migration [trust-verified-passwords-21-oct-2026.ts](../functions/scripts/data-migrations/trust-verified-passwords-21-oct-2026.ts) for accounts that were already verified password accounts. A password set before verification (possibly by someone else) never becomes usable, even if the owner later verifies; the owner signs in by link and chooses a new one.
+  - The blocking event can't tell whether a password predates verification (for an email-link sign-in the account is already marked verified when the function runs), which is why trust is granted explicitly rather than inferred.
+  - End-to-end coverage against the Auth + Functions emulators: [email-first-signup.spec.ts](../tests/e2e/email-first-signup.spec.ts).
 
 ---
 
