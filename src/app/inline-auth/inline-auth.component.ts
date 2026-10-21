@@ -8,9 +8,15 @@
  * 1. The user enters their email.
  * 2. checkEmailStatus reports whether a member record and/or auth account
  *    exists, and which providers that account has.
- * 3. The user is guided to Google Sign-In, a password login, or account
- *    creation, whichever actually applies.
+ * 3. The user is guided to Google Sign-In, a password login, or an email
+ *    sign-in link, whichever actually applies.
  * 4. Once signed in, the user badge and Log Out action are rendered instead.
+ *
+ * Email first, password second: a new email account can only be created by
+ * clicking a sign-in link sent to that address, so nobody can set a password
+ * for an email they don't control (enforced server-side by
+ * functions/src/auth-blocking.ts). Right after a link sign-in the user is
+ * offered to choose a password for next time.
  *
  * The email is never a dead end: at every step past the first it is a button
  * that returns to email entry, so a wrong address is always one tap from being
@@ -27,8 +33,10 @@ import {
   isPasswordResettable,
   passwordResetErrorMessage,
   signInErrorMessage,
-  signUpErrorMessage,
+  emailLinkErrorMessage,
+  PASSWORD_NOT_TRUSTED_MESSAGE,
 } from './auth-error-messages';
+import { AuthBlockReason, MIN_PASSWORD_LENGTH } from '../../../functions/src/data-model/auth';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { environment } from '../../environments/environment';
@@ -43,12 +51,18 @@ export enum InlineAuthStep {
   Checking = 'checking',
   GoogleSignin = 'google-signin',
   PasswordLogin = 'password-login',
-  CreateAccount = 'create-account',
+  // Ask for an email sign-in link: to create an account, to prove the email
+  // of an unverified account, or simply to sign in without a password.
+  EmailLink = 'email-link',
+  // The same, for someone creating an account without a membership.
   GuestCreateAccount = 'guest-create-account',
+  // A sign-in link has been sent; waiting for the user to click it.
+  LinkSent = 'link-sent',
   NoMember = 'no-member',
 }
 
-export type LoginMethod = 'password' | 'google';
+export type LoginMethod = 'password' | 'google' | 'emailLink';
+const LOGIN_METHODS: readonly string[] = ['password', 'google', 'emailLink'];
 
 /**
  * A sign-in this browser has actually completed before.
@@ -81,10 +95,10 @@ export function readRememberedLogin(): RememberedLogin | null {
     if (!parsed || typeof parsed.email !== 'string' || !parsed.email.trim()) {
       return null;
     }
-    if (parsed.method !== 'password' && parsed.method !== 'google') return null;
+    if (!parsed.method || !LOGIN_METHODS.includes(parsed.method)) return null;
     return {
       email: parsed.email,
-      method: parsed.method,
+      method: parsed.method as LoginMethod,
       canUseGoogle: parsed.canUseGoogle === true,
     };
   } catch {
@@ -146,6 +160,7 @@ export class InlineAuthComponent implements OnInit {
 
   InlineAuthStep = InlineAuthStep;
   LoginStatus = LoginStatus;
+  minPasswordLength = MIN_PASSWORD_LENGTH;
   adminEmail = environment.adminEmail;
 
   // Flow state
@@ -214,10 +229,25 @@ export class InlineAuthComponent implements OnInit {
   checkEmailError = signal<string | null>(null);
   loginError = signal<string | null>(null);
   loginWithGoogleError = signal<string | null>(null);
-  signupError = signal<string | null>(null);
+  emailLinkError = signal<string | null>(null);
+  /** The address the last sign-in link was sent to (LinkSent step). */
+  linkSentTo = signal<string>('');
+  /** True while a sign-in link is being requested. */
+  linkSending = signal<boolean>(false);
+  /**
+   * Whether the failure the user just hit is one an email link fixes (a
+   * password that can't be used until the email is proven), so the link
+   * offer on the password step is emphasised.
+   */
+  highlightEmailLink = signal<boolean>(false);
+
+  // Optional password setup offered right after an email-link sign-in.
+  newPassword = signal<string>('');
+  passwordSaving = signal<boolean>(false);
+  passwordSetupError = signal<string | null>(null);
+  passwordSaved = signal<boolean>(false);
   resetPasswordError = signal<string | null>(null);
   resetPasswordSuccess = signal<string | null>(null);
-  resendSuccess = signal<string | null>(null);
   /** True while a reset email is being requested, so the link can say so. */
   resetPasswordSending = signal<boolean>(false);
   /**
@@ -226,12 +256,6 @@ export class InlineAuthComponent implements OnInit {
    * it when it is the actual next step.
    */
   highlightPasswordReset = signal<boolean>(false);
-  /**
-   * Set when account creation reported that the account already exists — a
-   * lookup that said otherwise is out of date, and the user needs signing in,
-   * not signing up.
-   */
-  signupFoundExistingAccount = signal<boolean>(false);
   /**
    * Holds a pending Google credential when Google sign-in encounters an existing
    * account created with a password (auth/account-exists-with-different-credential).
@@ -291,6 +315,15 @@ export class InlineAuthComponent implements OnInit {
     }
   });
 
+  /** Remember an email-link sign-in so next time starts at the link step. */
+  private rememberEmailLinkSignIn = effect(() => {
+    const email = this.firebaseService.completedEmailLinkSignIn();
+    if (email) {
+      this.email.set(email);
+      writeRememberedLogin({ email, method: 'emailLink', canUseGoogle: false });
+    }
+  });
+
   /**
    * Runs here rather than in the constructor because the opening step depends
    * on `showNoMemberOption`, and inputs are not set until after construction.
@@ -320,7 +353,9 @@ export class InlineAuthComponent implements OnInit {
       this.step.set(
         remembered.method === 'google'
           ? InlineAuthStep.GoogleSignin
-          : InlineAuthStep.PasswordLogin,
+          : remembered.method === 'emailLink'
+            ? InlineAuthStep.EmailLink
+            : InlineAuthStep.PasswordLogin,
       );
     }
   }
@@ -336,7 +371,6 @@ export class InlineAuthComponent implements OnInit {
 
     this.dismissMessages();
     // A fresh lookup supersedes anything remembered from a previous visit.
-    this.signupFoundExistingAccount.set(false);
     this.remembered.set(null);
     this.emailStatus.set(null);
     this.step.set(InlineAuthStep.Checking);
@@ -378,6 +412,9 @@ export class InlineAuthComponent implements OnInit {
       // counts here — isGoogleManaged is also true for any gmail.com address,
       // including ones whose account has nothing but a password.
       if (result.hasGoogleProvider) return InlineAuthStep.GoogleSignin;
+      // An unverified account's password can't be used until the owner
+      // proves the email, which is exactly what the sign-in link does.
+      if (result.emailVerified === false) return InlineAuthStep.EmailLink;
       if (result.hasPasswordProvider) return InlineAuthStep.PasswordLogin;
       return result.isGoogleManaged
         ? InlineAuthStep.GoogleSignin
@@ -385,7 +422,7 @@ export class InlineAuthComponent implements OnInit {
     }
     return result.isGoogleManaged
       ? InlineAuthStep.GoogleSignin
-      : InlineAuthStep.CreateAccount;
+      : InlineAuthStep.EmailLink;
   }
 
   /**
@@ -445,6 +482,11 @@ export class InlineAuthComponent implements OnInit {
       if (result.success) {
         this.rememberSuccessfulLogin(pendingCredential ? 'google' : 'password');
         this.pendingGoogleCredential.set(null);
+      } else if (result.blockReason === AuthBlockReason.PasswordNotTrusted) {
+        // The password is right but can't be used until the email is proven;
+        // a reset wouldn't help, an email link does.
+        this.loginError.set(PASSWORD_NOT_TRUSTED_MESSAGE);
+        this.highlightEmailLink.set(true);
       } else {
         this.loginError.set(signInErrorMessage(result.errorCode));
         // A rejected password is the common case, and the reset link below is
@@ -457,28 +499,86 @@ export class InlineAuthComponent implements OnInit {
     }
   }
 
-  async signupWithEmail(): Promise<void> {
+  /** Email a sign-in link to the entered address, then wait for the click. */
+  async sendSignInLink(): Promise<void> {
     this.dismissMessages();
     const emailVal = this.email().trim();
-    const passVal = this.password();
-    if (!emailVal || !passVal) return;
-
-    this.pendingAuth.set({ creating: true, google: false });
-    this.authLoading.set(true);
+    if (!emailVal) return;
+    this.linkSending.set(true);
     try {
-      const result = await this.firebaseService.signupWithEmail(passVal, emailVal);
+      const result = await this.firebaseService.sendSignInLink(normalizeEmail(emailVal));
       if (result.success) {
-        this.rememberSuccessfulLogin('password');
+        this.linkSentTo.set(emailVal);
+        this.step.set(InlineAuthStep.LinkSent);
       } else {
-        this.signupError.set(signUpErrorMessage(result.errorCode));
-        this.signupFoundExistingAccount.set(
-          result.errorCode === 'auth/email-already-in-use',
-        );
+        this.emailLinkError.set(emailLinkErrorMessage(result.errorCode));
       }
     } finally {
-      this.authLoading.set(false);
-      this.pendingAuth.set(null);
+      this.linkSending.set(false);
     }
+  }
+
+  /**
+   * The current session's email isn't verified (an account from the old
+   * password-first sign-up). Send a sign-in link to it and sign the session
+   * out; clicking the link proves the address.
+   */
+  async sendLinkForUnverifiedSession(): Promise<void> {
+    this.dismissMessages();
+    const emailVal = this.unverifiedEmail();
+    this.linkSending.set(true);
+    try {
+      const result = await this.firebaseService.sendSignInLinkForUnverifiedUser();
+      if (result.success) {
+        this.email.set(emailVal);
+        this.linkSentTo.set(emailVal);
+        this.step.set(InlineAuthStep.LinkSent);
+      } else {
+        this.emailLinkError.set(emailLinkErrorMessage(result.errorCode));
+      }
+    } finally {
+      this.linkSending.set(false);
+    }
+  }
+
+  /**
+   * Finish an email-link sign-in that was opened on another device or
+   * browser, where we had to ask which address the link was sent to.
+   */
+  async finishEmailLinkSignIn(): Promise<void> {
+    this.dismissMessages();
+    const emailVal = this.email().trim();
+    if (!emailVal) return;
+    const result = await this.firebaseService.finishEmailLinkSignIn(normalizeEmail(emailVal));
+    if (!result.success) {
+      this.emailLinkError.set(emailLinkErrorMessage(result.errorCode));
+    }
+  }
+
+  /** Save the password chosen right after an email-link sign-in. */
+  async savePassword(): Promise<void> {
+    const password = this.newPassword();
+    if (password.length < MIN_PASSWORD_LENGTH) return;
+    this.passwordSetupError.set(null);
+    this.passwordSaving.set(true);
+    try {
+      const result = await this.firebaseService.setAccountPassword(password);
+      if (result.success) {
+        this.newPassword.set('');
+        this.passwordSaved.set(true);
+        this.rememberSuccessfulLogin('password');
+      } else {
+        this.passwordSetupError.set(result.message);
+      }
+    } finally {
+      this.passwordSaving.set(false);
+    }
+  }
+
+  skipPasswordSetup(): void {
+    this.newPassword.set('');
+    this.passwordSetupError.set(null);
+    this.firebaseService.offerPasswordSetup.set(false);
   }
 
   async resetPassword(): Promise<void> {
@@ -505,25 +605,19 @@ export class InlineAuthComponent implements OnInit {
     }
   }
 
-  /**
-   * Go to the password step after account creation found an existing account.
-   * Unlike `usePasswordInstead` this does not consult the email lookup, which
-   * we now know was out of date, and it keeps the typed password: it may well
-   * be the account's real one.
-   */
-  signInInstead(): void {
-    this.dismissMessages();
-    this.signupFoundExistingAccount.set(false);
-    this.step.set(InlineAuthStep.PasswordLogin);
-  }
-
   usePasswordInstead(): void {
     this.dismissMessages();
     this.step.set(
       this.hasKnownAuthAccount()
         ? InlineAuthStep.PasswordLogin
-        : InlineAuthStep.CreateAccount,
+        : InlineAuthStep.EmailLink,
     );
+  }
+
+  useEmailLinkInstead(): void {
+    this.dismissMessages();
+    this.pendingGoogleCredential.set(null);
+    this.step.set(InlineAuthStep.EmailLink);
   }
 
   useGoogleInstead(): void {
@@ -543,7 +637,6 @@ export class InlineAuthComponent implements OnInit {
   goBackToEmail(): void {
     this.password.set('');
     this.emailStatus.set(null);
-    this.signupFoundExistingAccount.set(false);
     this.pendingGoogleCredential.set(null);
     this.remembered.set(null);
     this.signInFlow.clear();
@@ -558,38 +651,13 @@ export class InlineAuthComponent implements OnInit {
     this.email.set('');
     this.password.set('');
     this.emailStatus.set(null);
-    this.signupFoundExistingAccount.set(false);
     this.pendingGoogleCredential.set(null);
     this.remembered.set(null);
     this.signInFlow.clear();
     this.step.set(InlineAuthStep.Email);
+    this.passwordSaved.set(false);
     this.dismissMessages();
     forgetRememberedLogin();
-  }
-
-  async checkEmailVerified(): Promise<void> {
-    this.dismissMessages();
-    this.authLoading.set(true);
-    try {
-      await this.firebaseService.checkEmailVerification();
-    } finally {
-      this.authLoading.set(false);
-    }
-  }
-
-  async resendVerificationEmail(): Promise<void> {
-    this.dismissMessages();
-    this.authLoading.set(true);
-    try {
-      const res = await this.firebaseService.resendVerificationEmail();
-      if (res.success) {
-        this.resendSuccess.set(
-          'A new verification email has been sent! Please check your inbox.',
-        );
-      }
-    } finally {
-      this.authLoading.set(false);
-    }
   }
 
   dismissMessages(): void {
@@ -597,11 +665,10 @@ export class InlineAuthComponent implements OnInit {
     this.loginError.set(null);
     this.highlightPasswordReset.set(false);
     this.loginWithGoogleError.set(null);
-    this.signupError.set(null);
+    this.emailLinkError.set(null);
+    this.highlightEmailLink.set(false);
     this.resetPasswordError.set(null);
     this.resetPasswordSuccess.set(null);
-    this.resendSuccess.set(null);
     this.firebaseService.loginError.set(null);
-    this.firebaseService.verificationError.set(null);
   }
 }

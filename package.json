@@ -29,7 +29,7 @@
     "start:find-instructor-wc": "ng serve --project find-an-instructor-wc",
     "start": "ng serve --project ilc-members-manager",
     "test:e2e:in_emulator": "vitest run --config vitest.e2e.config.ts --no-color",
-    "test:e2e": "pnpm build:functions && pnpm exec firebase emulators:exec --only firestore,functions --project demo-ilc-test \"pnpm test:e2e:in_emulator\"",
+    "test:e2e": "pnpm build:functions && pnpm exec firebase emulators:exec --only auth,firestore,functions --project demo-ilc-test \"pnpm test:e2e:in_emulator\"",
     "test:fixtures": "vitest run --config vitest.fixtures.config.ts --no-color",
     "test:functions": "pnpm --prefix functions test",
     "test:once": "vitest run --no-color",
