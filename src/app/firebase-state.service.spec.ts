@@ -78,18 +78,6 @@ describe('FirebaseStateService', () => {
     expect(loginSpy).toHaveBeenCalledWith('password', 'test@test.com');
   });
 
-  it('should call signupWithEmail when signupWithEmail is called', () => {
-    const successResult: AuthOperationResult = {
-      success: true,
-      userCredential: {} as UserCredential,
-    };
-    const signupSpy = vi.spyOn(service, 'signupWithEmail').mockResolvedValue(
-      successResult
-    );
-    service.signupWithEmail('password', 'test@test.com');
-    expect(signupSpy).toHaveBeenCalledWith('password', 'test@test.com');
-  });
-
   it('should call signOut when logout is called', () => {
     const successResult: LogoutResult = { success: true };
     const logoutSpy = vi.spyOn(service, 'logout').mockResolvedValue(

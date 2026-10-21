@@ -44,6 +44,7 @@ export { syncSquarespaceOrders, processSquarespaceOrder, manualSquarespaceSync, 
 export { computeStatistics, manualComputeStatistics } from './compute-statistics';
 
 export { checkEmailStatus } from './check-email-status';
+export { beforeCreate, beforeSignIn, setAccountPassword } from './auth-blocking';
 
 export { refreshContentCache, manualRefreshCache, clearContentCache } from './content-cache';
 

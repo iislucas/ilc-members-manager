@@ -13,7 +13,8 @@
   width: 100%;
 }
 
-.verification-box {
+.verification-box,
+.password-setup-box {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -285,7 +286,8 @@
 // The standing "forgotten your password?" offer. It is quiet until the sign-in
 // actually failed for a reason a reset would fix, at which point it becomes the
 // obvious next step rather than one more line of grey help text.
-.reset-password-offer {
+.reset-password-offer,
+.email-link-offer {
   &.emphasised {
     color: $text-primary;
     font-weight: 600;

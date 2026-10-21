@@ -7,8 +7,10 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
   setPersistence,
   browserLocalPersistence,
   User,
@@ -17,7 +19,6 @@ import {
   linkWithCredential,
   linkWithPopup,
   sendPasswordResetEmail,
-  sendEmailVerification,
   AuthErrorCodes,
 } from 'firebase/auth';
 import { environment } from '../environments/environment';
@@ -36,6 +37,8 @@ import { CheckEmailStatusResult, FetchUserDetailsResult } from '../../functions/
 import { IdbStorageService } from './idb-storage.service';
 import { NetworkStateService } from './network-state.service';
 import { RoutingService } from './routing.service';
+import { AuthBlockReason } from '../../functions/src/data-model/auth';
+import { authBlockReasonOf } from './inline-auth/auth-error-messages';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
@@ -48,7 +51,14 @@ export type AuthOperationResult =
     success: false;
     errorCode: AuthErrorCodeStr;
     pendingCredential?: AuthCredential;
+    // Set when an auth blocking function refused the request (see
+    // functions/src/auth-blocking.ts); errorCode is then auth/internal-error.
+    blockReason?: AuthBlockReason;
   };
+
+export type SimpleAuthResult =
+  | { success: true }
+  | { success: false; errorCode: AuthErrorCodeStr };
 
 export type LogoutResult =
   | {
@@ -101,6 +111,13 @@ export interface CachedUserDetails {
 
 export const LAST_ACTIVE_USER_UID_KEY = 'ilc_last_active_user_uid';
 
+// localStorage key for the address a sign-in link was sent to, so opening the
+// link on the same device finishes sign-in without retyping it.
+export const EMAIL_FOR_SIGN_IN_KEY = 'ilc-email-for-sign-in';
+
+// Query parameters Firebase adds to an email sign-in link's return URL.
+const EMAIL_LINK_PARAMS = ['apiKey', 'oobCode', 'mode', 'lang', 'continueUrl', 'tenantId'];
+
 @Injectable({
   providedIn: 'root',
 })
@@ -119,8 +136,22 @@ export class FirebaseStateService {
   public loginError = signal<string | null>(null);
   public user = signal<UserDetails | null>(null);
   public unverifiedUser = signal<User | null>(null);
-  public verificationEmailSent = signal<boolean>(false);
-  public verificationError = signal<string | null>(null);
+
+  /**
+   * The current URL, when it is an email sign-in link we can't finish yet
+   * because we don't know which address it was sent to (it was opened on a
+   * different device or browser). The sign-in form then asks for the email.
+   */
+  public pendingEmailLink = signal<string | null>(null);
+
+  /** The address just signed in by email link, so the form can remember it. */
+  public completedEmailLinkSignIn = signal<string | null>(null);
+
+  /**
+   * True right after an email-link sign-in: the user has just proven their
+   * email, which is the moment to offer choosing a password.
+   */
+  public offerPasswordSetup = signal<boolean>(false);
 
   /**
    * Indicates whether live Firebase Auth has completed initialization and settled.
@@ -160,6 +191,8 @@ export class FirebaseStateService {
         this.loggedInResolverFn = resolve;
       }),
     );
+
+    this.completeEmailLinkSignInIfPresent();
 
     // When coming back online, refresh user details in background
     this.networkState.registerOnlineHandler(async () => {
@@ -571,6 +604,7 @@ export class FirebaseStateService {
       return {
         success: false,
         errorCode: error.code,
+        blockReason: authBlockReasonOf(error.message) ?? undefined,
       };
     }
   }
@@ -610,87 +644,135 @@ export class FirebaseStateService {
       return {
         success: false,
         errorCode: error.code,
+        blockReason: authBlockReasonOf(error.message) ?? undefined,
       };
     }
   }
 
-  public async signupWithEmail(
-    pass: string,
-    email: string,
-  ): Promise<AuthOperationResult> {
-    this.loginStatus.set(LoginStatus.LoggingIn);
+  /**
+   * Email a sign-in link to `email`. Clicking it proves the address and signs
+   * the user in (creating the account if needed). This is the only way to
+   * create an email account: a password can be chosen afterwards. The link
+   * returns to the current page.
+   */
+  public async sendSignInLink(email: string): Promise<SimpleAuthResult> {
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        this.auth,
-        email,
-        pass,
-      );
+      await sendSignInLinkToEmail(this.auth, email, {
+        url: `${window.location.origin}${window.location.pathname}`,
+        handleCodeInApp: true,
+      });
       try {
-        await sendEmailVerification(userCredential.user);
-        this.verificationEmailSent.set(true);
-        this.verificationError.set(null);
-      } catch (err: any) {
-        console.warn('sendEmailVerification on signup error:', err);
-        this.verificationError.set(err?.message || 'Failed to send verification email. Please try clicking "Resend Email".');
+        localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, email);
+      } catch {
+        // Best effort: without it the user just confirms their email on return.
       }
-      return { success: true, userCredential };
+      return { success: true };
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
-      console.error('Email signup failed:', error);
-      console.error(error);
-      console.error(error.name);
-      console.error(error.message);
-      this.loginStatus.set(LoginStatus.SignedOut);
-      return {
-        success: false,
-        errorCode: error.code,
-      };
+      console.error('sendSignInLink failed:', error);
+      return { success: false, errorCode: error.code };
     }
   }
 
-  public async resendVerificationEmail(): Promise<{ success: boolean; message?: string }> {
-    const u = this.auth.currentUser || this.unverifiedUser();
-    if (!u) {
-      return { success: false, message: 'No user is currently signed in.' };
+  /**
+   * For a session whose email isn't verified (an account created under the
+   * old password-first sign-up): email a sign-in link to its address and sign
+   * the session out. The link is how the owner proves the address; the
+   * unverified session itself can't be used for anything.
+   */
+  public async sendSignInLinkForUnverifiedUser(): Promise<SimpleAuthResult> {
+    const email = this.unverifiedUser()?.email;
+    if (!email) {
+      return { success: false, errorCode: 'auth/invalid-email' as AuthErrorCodeStr };
     }
+    const result = await this.sendSignInLink(email);
+    if (result.success) {
+      await signOut(this.auth);
+    }
+    return result;
+  }
+
+  // If this page was opened from an email sign-in link, finish signing in,
+  // or ask for the email if we don't know which address the link was for.
+  private completeEmailLinkSignInIfPresent(): void {
+    if (typeof window === 'undefined') return;
+    const href = window.location.href;
+    if (!isSignInWithEmailLink(this.auth, href)) return;
+    let email: string | null = null;
     try {
-      await sendEmailVerification(u);
-      this.verificationEmailSent.set(true);
-      this.verificationError.set(null);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Failed to resend verification email:', error);
-      const msg = error?.message || 'Failed to send verification email. Please try again.';
-      this.verificationError.set(msg);
-      return { success: false, message: msg };
+      email = localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY);
+    } catch {
+      email = null;
+    }
+    this.pendingEmailLink.set(href);
+    if (email) {
+      void this.finishEmailLinkSignIn(email);
     }
   }
 
-  public async checkEmailVerification(): Promise<{ verified: boolean; message?: string }> {
-    const u = this.auth.currentUser || this.unverifiedUser();
-    if (!u) {
-      return { verified: false, message: 'No user is currently signed in.' };
+  /**
+   * Finish signing in with the pending email link, for `email` (which must be
+   * the address the link was sent to).
+   */
+  public async finishEmailLinkSignIn(email: string): Promise<SimpleAuthResult> {
+    const link = this.pendingEmailLink();
+    if (!link) {
+      return { success: false, errorCode: 'auth/invalid-action-code' as AuthErrorCodeStr };
     }
+    this.loginStatus.set(LoginStatus.LoggingIn);
     try {
-      await u.reload();
-      if (u.emailVerified) {
-        this.unverifiedUser.set(null);
-        this.verificationError.set(null);
-        await this.fetchUserDetails(u);
-        return { verified: true };
-      } else {
-        const msg = 'Your email address is not yet verified. Please click the link sent to your email inbox, then try again.';
-        this.verificationError.set(msg);
-        return {
-          verified: false,
-          message: msg,
-        };
+      await signInWithEmailLink(this.auth, email, link);
+      try {
+        localStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
+      } catch {
+        // ignore
       }
-    } catch (error: any) {
-      console.error('Failed to reload user verification status:', error);
-      const msg = error?.message || 'Unable to check verification status. Please try again.';
-      this.verificationError.set(msg);
-      return { verified: false, message: msg };
+      this.stripEmailLinkParams();
+      this.pendingEmailLink.set(null);
+      this.completedEmailLinkSignIn.set(email);
+      this.offerPasswordSetup.set(true);
+      return { success: true };
+    } catch (exception: unknown) {
+      const error = exception as FirebaseAuthError;
+      console.error('finishEmailLinkSignIn failed:', error);
+      this.loginStatus.set(LoginStatus.SignedOut);
+      if (error.code !== 'auth/invalid-email') {
+        // The link itself is unusable (expired, already used); asking for the
+        // email again won't help, the user needs a fresh link.
+        this.stripEmailLinkParams();
+        this.pendingEmailLink.set(null);
+      }
+      return { success: false, errorCode: error.code };
+    }
+  }
+
+  private stripEmailLinkParams(): void {
+    const url = new URL(window.location.href);
+    for (const param of EMAIL_LINK_PARAMS) {
+      url.searchParams.delete(param);
+    }
+    window.history.replaceState(window.history.state, '', url.toString());
+  }
+
+  /**
+   * Choose a password for the signed-in (verified) user. The server sets it
+   * and marks it trusted (see functions/src/auth-blocking.ts); we then sign in
+   * with it so this session carries on under the new credentials.
+   */
+  public async setAccountPassword(password: string): Promise<{ success: true } | { success: false; message: string }> {
+    const email = this.auth.currentUser?.email;
+    if (!email) {
+      return { success: false, message: 'You need to be signed in to set a password.' };
+    }
+    try {
+      await httpsCallable<{ password: string }, { success: true }>(this.functions, 'setAccountPassword')({ password });
+      await signInWithEmailAndPassword(this.auth, email, password);
+      this.offerPasswordSetup.set(false);
+      return { success: true };
+    } catch (error: unknown) {
+      console.error('setAccountPassword failed:', error);
+      const message = (error as { message?: string })?.message;
+      return { success: false, message: message || 'Could not save your password. Please try again.' };
     }
   }
 
@@ -759,8 +841,9 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
     isAdmin: () => false,
     user: signal(null),
     unverifiedUser: signal(null),
-    verificationEmailSent: signal(false),
-    verificationError: signal(null),
+    pendingEmailLink: signal(null),
+    completedEmailLinkSignIn: signal(null),
+    offerPasswordSetup: signal(false),
     loginStatus: signal(LoginStatus.SignedOut),
     loggedIn: signal(Promise.resolve({} as UserDetails)),
     loginError: signal(null),
@@ -782,13 +865,10 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
         success: true,
         userCredential: {} as UserCredential,
       }),
-    signupWithEmail: (): Promise<AuthOperationResult> =>
-      Promise.resolve({
-        success: true,
-        userCredential: {} as UserCredential,
-      }),
-    resendVerificationEmail: () => Promise.resolve({ success: true }),
-    checkEmailVerification: () => Promise.resolve({ verified: true }),
+    sendSignInLink: (): Promise<SimpleAuthResult> => Promise.resolve({ success: true }),
+    sendSignInLinkForUnverifiedUser: (): Promise<SimpleAuthResult> => Promise.resolve({ success: true }),
+    finishEmailLinkSignIn: (): Promise<SimpleAuthResult> => Promise.resolve({ success: true }),
+    setAccountPassword: () => Promise.resolve({ success: true as const }),
     logout: (): Promise<LogoutResult> => Promise.resolve({ success: true }),
     resetPassword: (): Promise<ResetPasswordResult> =>
       Promise.resolve({ success: true }),
