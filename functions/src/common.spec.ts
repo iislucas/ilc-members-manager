@@ -6,6 +6,7 @@ import {
   hasActiveInstructorLicense,
   assertAdmin,
   assertAdminOrSchoolManager,
+  verifiedAuthEmail,
 } from './common';
 import { Member, MembershipType } from './data-model/members';
 import { InstructorLicenseType } from './data-model/curriculum';
@@ -129,12 +130,36 @@ describe('assertAdmin and assertAdminOrSchoolManager', () => {
 
   const makeReq = (email?: string) =>
     ({
-      auth: email ? { token: { email }, uid: 'user-1' } : undefined,
+      auth: email ? { token: { email_verified: true, email }, uid: 'user-1' } : undefined,
       data: {},
     }) as any;
 
   it('assertAdmin throws unauthenticated when unauthenticated', async () => {
     await expect(assertAdmin(makeReq())).rejects.toThrowError(HttpsError);
+  });
+
+  it('assertAdmin rejects an admin email whose verification is false or missing', async () => {
+    mockAcl = { isAdmin: true, memberDocIds: ['mem-1'] };
+    mockMember = { name: 'Admin User', emails: ['admin@example.com'], isAdmin: true };
+    for (const token of [
+      { email: 'admin@example.com', email_verified: false },
+      { email: 'admin@example.com' },
+    ]) {
+      await expect(assertAdmin({ auth: { token, uid: 'u' }, data: {} } as any)).rejects.toThrow(
+        'The function must be called while authenticated with a verified email.',
+      );
+    }
+  });
+
+  it('assertAdminOrSchoolManager rejects an unverified school manager email', async () => {
+    mockAcl = { isAdmin: false, schoolDocIds: ['SCH-1'], memberDocIds: ['mem-1'] };
+    mockMember = { name: 'School Manager', emails: ['manager@example.com'] };
+    await expect(
+      assertAdminOrSchoolManager({
+        auth: { token: { email: 'manager@example.com', email_verified: false }, uid: 'u' },
+        data: {},
+      } as any),
+    ).rejects.toThrowError(HttpsError);
   });
 
   it('assertAdmin throws permission-denied when acl has isAdmin: false', async () => {
@@ -486,4 +511,24 @@ describe('normalizeDeletionTrigger and describeDeletionTrigger', () => {
   });
 });
 
+describe('verifiedAuthEmail', () => {
+  const req = (token?: Record<string, unknown>) =>
+    ({ auth: token ? { token, uid: 'u' } : undefined }) as any;
 
+  it('returns the normalized email when the email is verified', () => {
+    expect(verifiedAuthEmail(req({ email: ' Marco@Example.COM ', email_verified: true }))).toBe('marco@example.com');
+  });
+
+  it('returns empty when the email is not verified', () => {
+    expect(verifiedAuthEmail(req({ email: 'marco@example.com', email_verified: false }))).toBe('');
+  });
+
+  it('returns empty when the email_verified claim is missing', () => {
+    expect(verifiedAuthEmail(req({ email: 'marco@example.com' }))).toBe('');
+  });
+
+  it('returns empty when unauthenticated or there is no email claim', () => {
+    expect(verifiedAuthEmail(req())).toBe('');
+    expect(verifiedAuthEmail(req({ email_verified: true }))).toBe('');
+  });
+});

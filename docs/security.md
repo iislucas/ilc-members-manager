@@ -24,6 +24,13 @@ This document records the security architecture, authorization tiers, data acces
 - **Case-Insensitive Emails (normalisation invariant)**:
   - Emails are stored trimmed and lower-cased everywhere (`/acl/{email}` ids, `member.emails`, event `ownerEmails`/`managerEmails`, registration `email`, video grant `memberEmail`). Code compares with `normalizeEmail()` ([`functions/src/data-model/email.ts`](../functions/src/data-model/email.ts)); rules compare with `request.auth.token.email.lower()` behind a `token.get('email', null) is string` guard.
   - Only the lower-cased token email is matched (stored emails and `/acl` ids are always lowercase). See [email-normalisation.md](email-normalisation.md) for the invariant, the backfill script and the rollout history.
+- **Only Verified Emails Are Identities**:
+  - Anyone can create an email/password account for an address they don't own (directly via the public Auth API, bypassing our UI). Until the email is verified, the token's `email` claim proves nothing.
+  - Every email-derived identity check therefore requires `email_verified == true`:
+    - Firestore rules: `hasAuthEmail()` in [firestore.rules](../firestore.rules) (all other email helpers go through it).
+    - Storage rules: `getUserEmail()` in [storage.rules](../storage.rules) returns `''` for unverified emails.
+    - Cloud Functions: `verifiedAuthEmail(request)` in [common.ts](../functions/src/common.ts) returns the normalised email or `''`; `assertAdmin` / `assertAdminOrSchoolManager` use it. Never read `request.auth.token.email` directly for authorization.
+  - The client also gates unverified sessions (`LoginStatus.NeedsEmailVerification`) and `getUserDetails` refuses to link unverified accounts, but those are UX layers — the rules and functions are the enforcement.
 
 ---
 

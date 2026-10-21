@@ -38,19 +38,31 @@ describe('account-deletion', () => {
   });
 
   describe('scheduleAccountDeletionHandler', () => {
+    it('throws unauthenticated if the caller email is not verified, even if it matches the member', async () => {
+      // An unverified account registered with someone else's address must not
+      // be able to schedule deletion of that person's member record.
+      const request: any = {
+        auth: { token: { email_verified: false, email: 'member@example.com' } },
+        data: { memberDocId: 'member-1' },
+      };
+      await expect(scheduleAccountDeletionHandler(request)).rejects.toThrow(
+        'Must be authenticated with a verified email.',
+      );
+    });
+
     it('throws unauthenticated if request is not authenticated', async () => {
       const request: any = {
         auth: null,
         data: { memberDocId: 'member-1' },
       };
       await expect(scheduleAccountDeletionHandler(request)).rejects.toThrow(
-        'Must be authenticated.',
+        'Must be authenticated with a verified email.',
       );
     });
 
     it('throws invalid-argument if memberDocId is missing', async () => {
       const request: any = {
-        auth: { token: { email: 'admin@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin@example.com' } },
         data: {},
       };
       await expect(scheduleAccountDeletionHandler(request)).rejects.toThrow(
@@ -60,7 +72,7 @@ describe('account-deletion', () => {
 
     it('throws not-found if member doc does not exist', async () => {
       const request: any = {
-        auth: { token: { email: 'admin@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin@example.com' } },
         data: { memberDocId: 'member-not-found' },
       };
 
@@ -90,7 +102,7 @@ describe('account-deletion', () => {
 
     it('throws permission-denied if caller is neither owner nor admin', async () => {
       const request: any = {
-        auth: { token: { email: 'stranger@example.com' } },
+        auth: { token: { email_verified: true, email: 'stranger@example.com' } },
         data: { memberDocId: 'member-1' },
       };
 
@@ -121,7 +133,7 @@ describe('account-deletion', () => {
 
     it('successfully schedules deletion when called by the account owner (non-admin)', async () => {
       const request: any = {
-        auth: { token: { email: 'member@example.com' } },
+        auth: { token: { email_verified: true, email: 'member@example.com' } },
         data: { memberDocId: 'member-1' },
       };
 
@@ -159,7 +171,7 @@ describe('account-deletion', () => {
 
     it('successfully schedules deletion when called by an admin', async () => {
       const request: any = {
-        auth: { token: { email: 'admin@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin@example.com' } },
         data: { memberDocId: 'member-1' },
       };
 
@@ -203,13 +215,13 @@ describe('account-deletion', () => {
         data: { memberDocId: 'member-1' },
       };
       await expect(cancelAccountDeletionHandler(request)).rejects.toThrow(
-        'Must be authenticated.',
+        'Must be authenticated with a verified email.',
       );
     });
 
     it('throws permission-denied if caller is neither owner nor admin', async () => {
       const request: any = {
-        auth: { token: { email: 'stranger@example.com' } },
+        auth: { token: { email_verified: true, email: 'stranger@example.com' } },
         data: { memberDocId: 'member-1' },
       };
 
@@ -240,7 +252,7 @@ describe('account-deletion', () => {
 
     it('successfully cancels deletion when called by the account owner (non-admin)', async () => {
       const request: any = {
-        auth: { token: { email: 'member@example.com' } },
+        auth: { token: { email_verified: true, email: 'member@example.com' } },
         data: { memberDocId: 'member-1' },
       };
 
@@ -277,7 +289,7 @@ describe('account-deletion', () => {
 
     it('successfully cancels deletion when called by an admin', async () => {
       const request: any = {
-        auth: { token: { email: 'admin@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin@example.com' } },
         data: { memberDocId: 'member-1' },
       };
 

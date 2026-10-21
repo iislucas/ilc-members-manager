@@ -2,7 +2,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins } from './common';
+import { allowedOrigins, verifiedAuthEmail } from './common';
 import { InstructorLicenseType } from './data-model/curriculum';
 import { Member, MembershipType } from './data-model/members';
 import { normalizeEmail, emailListIncludes } from './data-model/email';
@@ -17,8 +17,9 @@ function addDays(date: Date, days: number): Date {
 export async function scheduleAccountDeletionHandler(
   request: CallableRequest<{ memberDocId: string }>,
 ): Promise<{ success: boolean; scheduledDeletionDate: string }> {
-  if (!request.auth || !request.auth.token.email) {
-    throw new HttpsError('unauthenticated', 'Must be authenticated.');
+  const userEmail = verifiedAuthEmail(request);
+  if (!userEmail) {
+    throw new HttpsError('unauthenticated', 'Must be authenticated with a verified email.');
   }
 
   const memberDocId = request.data?.memberDocId;
@@ -34,7 +35,6 @@ export async function scheduleAccountDeletionHandler(
   }
 
   const member = memberSnap.data() as Member;
-  const userEmail = normalizeEmail(request.auth.token.email);
   const isAdmin = await checkIsAdmin(userEmail);
   const isOwner = Boolean(
     emailListIncludes(member.emails, userEmail),
@@ -67,8 +67,9 @@ export const scheduleAccountDeletion = onCall<{ memberDocId: string }, Promise<{
 export async function cancelAccountDeletionHandler(
   request: CallableRequest<{ memberDocId: string }>,
 ): Promise<{ success: boolean }> {
-  if (!request.auth || !request.auth.token.email) {
-    throw new HttpsError('unauthenticated', 'Must be authenticated.');
+  const userEmail = verifiedAuthEmail(request);
+  if (!userEmail) {
+    throw new HttpsError('unauthenticated', 'Must be authenticated with a verified email.');
   }
 
   const memberDocId = request.data?.memberDocId;
@@ -84,7 +85,6 @@ export async function cancelAccountDeletionHandler(
   }
 
   const member = memberSnap.data() as Member;
-  const userEmail = normalizeEmail(request.auth.token.email);
   const isAdmin = await checkIsAdmin(userEmail);
   const isOwner = Boolean(
     emailListIncludes(member.emails, userEmail),

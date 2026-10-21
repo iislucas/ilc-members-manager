@@ -21,15 +21,16 @@ import {
   allowedOrigins,
   getUserMemberDocIds,
   hasActiveMembership,
+  verifiedAuthEmail,
 } from './common';
 
 export const requestGrading = onCall(
   { cors: allowedOrigins },
   async (request: CallableRequest<{ memberDocId: string }>) => {
-    if (!request.auth || !request.auth.token.email) {
-      throw new HttpsError('unauthenticated', 'Must be authenticated to request a grading.');
+    const email = verifiedAuthEmail(request);
+    if (!email) {
+      throw new HttpsError('unauthenticated', 'Must be authenticated with a verified email to request a grading.');
     }
-    const email = request.auth.token.email;
     const memberDocId = request.data?.memberDocId;
     if (!memberDocId) {
       throw new HttpsError('invalid-argument', 'memberDocId is required.');
@@ -115,10 +116,10 @@ export const requestGrading = onCall(
 export const requestGradingRetake = onCall(
   { cors: allowedOrigins },
   async (request: CallableRequest<{ memberDocId: string; level?: string }>) => {
-    if (!request.auth || !request.auth.token.email) {
-      throw new HttpsError('unauthenticated', 'Must be authenticated to request a grading retake.');
+    const email = verifiedAuthEmail(request);
+    if (!email) {
+      throw new HttpsError('unauthenticated', 'Must be authenticated with a verified email to request a grading retake.');
     }
-    const email = request.auth.token.email;
     const memberDocId = request.data?.memberDocId;
     if (!memberDocId) {
       throw new HttpsError('invalid-argument', 'memberDocId is required.');
