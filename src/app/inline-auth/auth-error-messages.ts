@@ -13,6 +13,8 @@
  * diagnosable.
  */
 
+import { AuthBlockReason } from '../../../functions/src/data-model/auth';
+
 /**
  * Failures a password reset can actually fix.
  *
@@ -61,23 +63,46 @@ export function signInErrorMessage(code: string | undefined): string {
   }
 }
 
-/** A human explanation of a failed account creation. */
-export function signUpErrorMessage(code: string | undefined): string {
+/**
+ * The reason an auth blocking function refused a request, if it did.
+ *
+ * Blocking-function rejections (functions/src/auth-blocking.ts) reach the
+ * client as `auth/internal-error`, with the reason embedded in the message.
+ */
+export function authBlockReasonOf(message: string | undefined): AuthBlockReason | null {
+  if (!message) return null;
+  for (const reason of Object.values(AuthBlockReason)) {
+    if (message.includes(reason)) return reason;
+  }
+  return null;
+}
+
+/**
+ * Shown when a password sign-in is refused because the email hasn't been
+ * proven yet, or the password was set before it was. The way forward is an
+ * email link, which the caller offers alongside this message.
+ */
+export const PASSWORD_NOT_TRUSTED_MESSAGE =
+  "For your security, this account needs to confirm its email address before a password " +
+  "can be used. We'll email you a sign-in link; once you're in, you can choose a new password.";
+
+/** A human explanation of a failure to send, or to finish, an email sign-in link. */
+export function emailLinkErrorMessage(code: string | undefined): string {
   switch (code) {
-    case 'auth/email-already-in-use':
-      return 'An account already exists for this email. Please sign in with your password, or reset it below.';
-    case 'auth/weak-password':
-      return 'That password is too short. Please use at least 6 characters.';
+    case 'auth/invalid-action-code':
+    case 'auth/expired-action-code':
+      return 'This sign-in link has expired or has already been used. Please request a new one.';
     case 'auth/invalid-email':
-      return "That doesn't look like a valid email address. Please check it and try again.";
+      return "That email doesn't match the address the sign-in link was sent to. Please check it and try again.";
     case 'auth/too-many-requests':
-      return 'Too many attempts from this device. Please wait a few minutes and try again.';
+    case 'auth/quota-exceeded':
+      return 'Too many sign-in emails have been requested. Please wait a few minutes and try again.';
     case 'auth/network-request-failed':
       return 'We could not reach the server. Please check your connection and try again.';
     case 'auth/operation-not-allowed':
-      return 'Creating an account with a password is not available right now. Please try signing in with Google, or contact us for help.';
+      return 'Email sign-in links are not available right now. Please try signing in with Google, or contact us for help.';
     default:
-      return `Account creation failed (${code || 'unknown error'}). Please check your connection and try again.`;
+      return `We could not complete email sign-in (${code || 'unknown error'}). Please try again in a moment.`;
   }
 }
 
@@ -89,7 +114,7 @@ export function googleSignInErrorMessage(code: string | undefined): string {
     case 'auth/popup-closed-by-user':
       return 'The Google sign-in window was closed before sign-in finished. Please try again.';
     case 'auth/account-exists-with-different-credential':
-      return 'An account already exists for this email with a different sign-in method. Please use a password instead.';
+      return 'An account already exists for this email with a different sign-in method. Please use a password or an email sign-in link instead.';
     case 'auth/user-disabled':
       return 'This account has been disabled. Please contact us for help.';
     case 'auth/network-request-failed':

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { IncrementalSyncService, CachedCollectionBundle, SyncCollectionConfig } from './incremental-sync.service';
+import { IncrementalSyncService, CachedCollectionBundle, SyncCollectionConfig, CACHE_SCHEMA_VERSION } from './incremental-sync.service';
 import { SearchableSet } from './searchable-set';
 import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
@@ -75,6 +75,7 @@ describe('IncrementalSyncService', () => {
 
   it('loadCachedData populates SearchableSet immediately when cache exists', async () => {
     const cachedData: CachedCollectionBundle<TestItem> = {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-01T12:00:00.000Z',
       entries: [
         { docId: '1', name: 'Alice', country: 'US', lastUpdated: '2026-08-01T10:00:00.000Z' },
@@ -100,8 +101,8 @@ describe('IncrementalSyncService', () => {
   });
 
   it('clearCache and clearAllCaches delete stored entries', async () => {
-    await mockIdb.set('k1', { entries: [{ docId: '1' }], lastSyncTimestamp: '2026-01-01' });
-    await mockIdb.set('k2', { entries: [{ docId: '2' }], lastSyncTimestamp: '2026-01-01' });
+    await mockIdb.set('k1', { schemaVersion: CACHE_SCHEMA_VERSION, entries: [{ docId: '1' }], lastSyncTimestamp: '2026-01-01' });
+    await mockIdb.set('k2', { schemaVersion: CACHE_SCHEMA_VERSION, entries: [{ docId: '2' }], lastSyncTimestamp: '2026-01-01' });
 
     await service.clearCache('k1');
     expect(await mockIdb.get('k1')).toBeUndefined();
@@ -114,10 +115,12 @@ describe('IncrementalSyncService', () => {
   it('getAllCachedCollectionSummaries and getCachedBundle return formatted inspection metadata', async () => {
     await mockIdb.set('public_instructors', {
       entries: [{ docId: 'inst1', name: 'Master Sam' }],
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-14T18:00:00.000Z',
     });
     await mockIdb.set('schools', {
       entries: [{ docId: 'sch1', name: 'Paris School' }, { docId: 'sch2', name: 'London School' }],
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-14T19:00:00.000Z',
     });
 
@@ -137,6 +140,7 @@ describe('IncrementalSyncService', () => {
   it('syncCollection merges delta updates and persists to cache', async () => {
     // Seed initial cache
     await mockIdb.set('test_items', {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
       entries: [
         { docId: '1', name: 'Alice', country: 'US', lastUpdated: '2026-08-14T09:00:00.000Z' },
@@ -191,6 +195,7 @@ describe('IncrementalSyncService', () => {
 
   it('loadCachedData populates SearchableSet and marks loaded when cache is an empty array', async () => {
     const emptyCache: CachedCollectionBundle<TestItem> = {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-01T12:00:00.000Z',
       entries: [],
     };
@@ -207,6 +212,7 @@ describe('IncrementalSyncService', () => {
 
   it('syncCollection sets loading to false when cache is empty and delta has no changes', async () => {
     await mockIdb.set('empty_delta_key', {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
       entries: [],
     });
@@ -233,6 +239,7 @@ describe('IncrementalSyncService', () => {
 
   it('upsertCachedEntry updates existing and appends new cached records', async () => {
     await mockIdb.set('test_upsert', {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
       entries: [{ docId: '1', name: 'Alice' }],
     });
@@ -264,6 +271,7 @@ describe('IncrementalSyncService', () => {
 
   it('deleteCachedEntry removes record from cache bundle', async () => {
     await mockIdb.set('test_delete', {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
       entries: [{ docId: '1', name: 'Alice' }, { docId: '2', name: 'Bob' }],
     });
@@ -276,6 +284,7 @@ describe('IncrementalSyncService', () => {
 
   it('syncCollection passes queryConstraints to delta query', async () => {
     await mockIdb.set('test_constraints', {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
       entries: [],
     });
@@ -304,6 +313,50 @@ describe('IncrementalSyncService', () => {
     );
   });
 
+  it('ignores a cache written under an older schema version', async () => {
+    // A cache from before versioning (no schemaVersion): its entries may have
+    // been converted differently, so it must not be used.
+    await mockIdb.set('outdated_key', {
+      lastSyncTimestamp: '2026-08-01T12:00:00.000Z',
+      entries: [{ docId: '1', name: 'Alice', country: 'US', lastUpdated: '2026-08-01T10:00:00.000Z' }],
+    });
+    expect(await service.loadCachedData('outdated_key', targetSet)).toBe(false);
+    expect(targetSet.entries().length).toBe(0);
+  });
+
+  it('fully re-fetches, and re-stamps, an outdated cache on sync', async () => {
+    vi.mocked(firestore.where).mockClear();
+    await mockIdb.set('outdated_sync_key', {
+      schemaVersion: CACHE_SCHEMA_VERSION - 1,
+      lastSyncTimestamp: '2026-08-01T12:00:00.000Z',
+      entries: [{ docId: 'stale', name: 'Old', country: 'US', lastUpdated: '2026-08-01T10:00:00.000Z' }],
+    });
+    vi.mocked(firestore.getDocs).mockResolvedValue({
+      empty: false,
+      docs: [
+        {
+          id: 'fresh',
+          data: () => ({ name: 'New', country: 'FR', lastUpdated: '2026-08-02T10:00:00.000Z' }),
+        },
+      ],
+    } as any);
+
+    await service.syncCollection({
+      cacheKey: 'outdated_sync_key',
+      collectionPath: 'members',
+      idField: 'docId',
+      targetSet,
+      docConverter: firestoreDocToTestItem,
+    });
+
+    // Full fetch: no delta (`lastUpdated >`) constraint, stale entry gone.
+    expect(firestore.where).not.toHaveBeenCalledWith('lastUpdated', '>', expect.anything());
+    expect(targetSet.get('stale')).toBeUndefined();
+    expect(targetSet.get('fresh')).toBeDefined();
+    const saved = await mockIdb.get<CachedCollectionBundle<TestItem>>('outdated_sync_key');
+    expect(saved?.schemaVersion).toBe(CACHE_SCHEMA_VERSION);
+  });
+
   it('performFullSync passes queryConstraints to full fetch query', async () => {
     vi.mocked(firestore.getDocs).mockResolvedValue({
       empty: true,
@@ -329,6 +382,7 @@ describe('IncrementalSyncService', () => {
 
   it('loadCachedData filters entries using filterFn when provided', async () => {
     const cachedData: CachedCollectionBundle<TestItem> = {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-01T12:00:00.000Z',
       entries: [
         { docId: '1', name: 'Alice', country: 'US', lastUpdated: '2026-08-01T10:00:00.000Z' },
@@ -353,6 +407,7 @@ describe('IncrementalSyncService', () => {
 
   it('syncCollection prunes cached entries that violate additionalFilter and updates IndexedDB', async () => {
     await mockIdb.set('test_prune_filter', {
+      schemaVersion: CACHE_SCHEMA_VERSION,
       lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
       entries: [
         { docId: '1', name: 'Alice', country: 'US', lastUpdated: '2026-08-14T09:00:00.000Z' },

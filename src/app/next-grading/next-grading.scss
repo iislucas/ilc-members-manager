@@ -427,37 +427,64 @@ app-step-track {
   }
 }
 
-.membership-options-grid {
+// The levels a member can buy, one selectable row each.
+.grading-choice-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.grading-choice {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
 
-  .option-card {
-    border: 1px solid v.$border-color-light;
-    background: v.$separator-color;
-    border-radius: 8px;
-    padding: 1.25rem 1.5rem;
+  &.selected {
+    background: v.$row-highlight-bg;
+    border-color: v.$row-highlight-border;
+  }
 
-    .option-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: v.$text-primary;
-      margin-bottom: 0.35rem;
-    }
+  .grading-choice-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
 
-    .rate-price {
-      font-size: 1.35rem;
-      font-weight: 700;
-      color: v.$primary-color;
-      margin-bottom: 0.4rem;
-    }
+  .option-title {
+    font-weight: 600;
+    color: v.$text-primary;
+  }
 
-    .rate-desc {
-      font-size: 0.95rem;
-      color: v.$text-secondary;
-      line-height: 1.4;
-    }
+  .option-subtext {
+    font-size: 0.9rem;
+    color: v.$text-secondary;
+  }
+
+  .rate-price {
+    font-weight: 700;
+    color: v.$primary-color;
+    white-space: nowrap;
+  }
+}
+
+.selected-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.5rem 1rem;
+  font-size: 1.05rem;
+
+  .rate-price {
+    font-size: 1.35rem;
+    color: v.$primary-color;
   }
 }
 

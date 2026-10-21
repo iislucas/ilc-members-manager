@@ -28,6 +28,7 @@ import {
 import { RoutingService } from '../routing.service';
 import { SignInFlowService } from './sign-in-flow.service';
 import { CheckEmailStatusResult } from '../../../functions/src/data-model/system';
+import { AuthBlockReason } from '../../../functions/src/data-model/auth';
 
 const LEGACY_LOGIN_KEY = 'ilc-login-info';
 
@@ -204,7 +205,7 @@ describe('InlineAuthComponent', () => {
 
       // The same lookup that is a dead end on the login page is an invitation
       // to sign up here, because this page is where accounts get created.
-      expect(component.step()).toBe(InlineAuthStep.CreateAccount);
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
     });
 
     it('should keep an attempt out of persistent storage', async () => {
@@ -227,7 +228,7 @@ describe('InlineAuthComponent', () => {
       await createComponent(false);
 
       expect(component.email()).toBe('new@example.com');
-      expect(component.step()).toBe(InlineAuthStep.CreateAccount);
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
     });
 
     it('should abandon the attempt when the user changes the email', async () => {
@@ -322,7 +323,7 @@ describe('InlineAuthComponent', () => {
 
     it('should offer account creation to a known member with no auth account', async () => {
       expect(await lookup({ hasMemberRecord: true, hasAuthAccount: false })).toBe(
-        InlineAuthStep.CreateAccount,
+        InlineAuthStep.EmailLink,
       );
     });
 
@@ -339,7 +340,7 @@ describe('InlineAuthComponent', () => {
     it('should let a stranger sign up where no-member guidance is switched off', async () => {
       // The purchase pages are where an account gets created, so sending
       // someone to "Become a Member" from there would be circular.
-      expect(await lookup({}, false)).toBe(InlineAuthStep.CreateAccount);
+      expect(await lookup({}, false)).toBe(InlineAuthStep.EmailLink);
     });
 
     it('should return to the email step with an error when the lookup fails', async () => {
@@ -514,14 +515,19 @@ describe('InlineAuthComponent', () => {
       });
     });
 
-    it('should remember a successful account creation', async () => {
+    it('should remember a sign-in completed by email link', async () => {
       await createComponent();
-      component.email.set('new@example.com');
-      component.password.set('abcdef');
-      await component.signupWithEmail();
+      (mockService.completedEmailLinkSignIn as unknown as { set: (v: string) => void }).set('new@example.com');
+      fixture.detectChanges();
+      await fixture.whenStable();
 
-      expect(readRemembered()?.method).toBe('password');
-      expect(readRemembered()?.email).toBe('new@example.com');
+      expect(readRemembered()).toEqual({ email: 'new@example.com', method: 'emailLink', canUseGoogle: false });
+    });
+
+    it('should resume a remembered email-link sign-in at the link step', async () => {
+      remember({ email: 'jane@example.com', method: 'emailLink' });
+      await createComponent();
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
     });
 
     it('should carry a looked-up Google option into what it remembers', async () => {
@@ -705,9 +711,9 @@ describe('InlineAuthComponent', () => {
       expect(html().querySelector('#google-signin-btn')!.textContent!.trim()).toBe(
         'Continue with Google',
       );
-      // "Use" would imply a password the user does not have.
+      // There's no password to "use" yet; the alternative is an email link.
       expect(html().querySelector('#use-password-btn')!.textContent!.trim()).toBe(
-        'Set a password',
+        'Use email instead',
       );
     });
 
@@ -726,12 +732,12 @@ describe('InlineAuthComponent', () => {
         'Sign up with Google',
       );
       expect(html().querySelector('#use-password-btn')!.textContent!.trim()).toBe(
-        'Set a password',
+        'Use email instead',
       );
     });
 
-    it('should show the membership explainer on the set-password step too', async () => {
-      // Non-Google emails land on the password step directly, never seeing
+    it('should show the membership explainer on the email-link step too', async () => {
+      // Non-Google emails land on the email-link step directly, never seeing
       // the Google step's explainer.
       vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
         status({ hasMemberRecord: true, hasAuthAccount: false, isGoogleManaged: false }),
@@ -741,14 +747,14 @@ describe('InlineAuthComponent', () => {
       await component.checkEmail();
       fixture.detectChanges();
 
-      expect(component.step()).toBe(InlineAuthStep.CreateAccount);
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
       expect(html().querySelector('#membership-found-notice')).toBeTruthy();
-      expect(html().querySelector('#create-account-btn')!.textContent!.trim()).toBe(
-        'Set Password & Continue',
-      );
+      expect(html().querySelector('#send-link-btn')).toBeTruthy();
+      // No password field before the email is proven.
+      expect(html().querySelector('#new-password-input')).toBeNull();
     });
 
-    it('should keep "Create Account" for someone with no membership', async () => {
+    it('should offer a sign-in link, not a password, to someone with no account', async () => {
       vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
         status({ hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: false }),
       );
@@ -757,11 +763,34 @@ describe('InlineAuthComponent', () => {
       await component.checkEmail();
       fixture.detectChanges();
 
-      expect(component.step()).toBe(InlineAuthStep.CreateAccount);
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
       expect(html().querySelector('#membership-found-notice')).toBeNull();
-      expect(html().querySelector('#create-account-btn')!.textContent!.trim()).toBe(
-        'Create Account',
-      );
+      expect(html().textContent).toContain('link to create your account');
+      expect(html().querySelector('input[type="password"]')).toBeNull();
+    });
+
+    it('should send the sign-in link and wait for the click', async () => {
+      const send = vi.spyOn(mockService, 'sendSignInLink');
+      await createComponent();
+      component.email.set('New@Example.com');
+      component.step.set(InlineAuthStep.EmailLink);
+      await component.sendSignInLink();
+      fixture.detectChanges();
+
+      expect(send).toHaveBeenCalledWith('new@example.com');
+      expect(component.step()).toBe(InlineAuthStep.LinkSent);
+      expect(html().querySelector('#link-sent-notice')!.textContent).toContain('New@Example.com');
+    });
+
+    it('should explain a failure to send the link', async () => {
+      vi.spyOn(mockService, 'sendSignInLink').mockResolvedValue({ success: false, errorCode: 'auth/too-many-requests' });
+      await createComponent();
+      component.email.set('new@example.com');
+      component.step.set(InlineAuthStep.EmailLink);
+      await component.sendSignInLink();
+
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
+      expect(component.emailLinkError()).toContain('Too many sign-in emails');
     });
 
     it('should word both buttons as signing in for an existing account', async () => {
@@ -832,7 +861,7 @@ describe('InlineAuthComponent', () => {
       expect(component.step()).toBe(InlineAuthStep.GoogleSignin);
 
       component.usePasswordInstead();
-      expect(component.step()).toBe(InlineAuthStep.CreateAccount);
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
     });
 
     it('should send someone with an account to the password step', async () => {
@@ -851,7 +880,7 @@ describe('InlineAuthComponent', () => {
      * Holds an auth call open so the in-flight UI can be inspected, and hands
      * back the release function to finish it.
      */
-    function suspend(method: 'loginWithGoogle' | 'loginWithEmail' | 'signupWithEmail') {
+    function suspend(method: 'loginWithGoogle' | 'loginWithEmail') {
       let release!: (result: AuthOperationResult) => void;
       const pending = new Promise<AuthOperationResult>((resolve) => {
         release = resolve;
@@ -866,7 +895,7 @@ describe('InlineAuthComponent', () => {
     }
 
     async function messageDuring(
-      method: 'loginWithGoogle' | 'loginWithEmail' | 'signupWithEmail',
+      method: 'loginWithGoogle' | 'loginWithEmail',
       start: () => Promise<void>,
     ) {
       const held = suspend(method);
@@ -920,16 +949,6 @@ describe('InlineAuthComponent', () => {
       expect(text).toContain('Signing in with Google…');
     });
 
-    it('should say it is creating an account for a password sign-up', async () => {
-      await createComponent();
-      component.email.set('new@example.com');
-      component.password.set('abcdef');
-
-      const text = await messageDuring('signupWithEmail', () => component.signupWithEmail());
-      expect(text).toContain('Creating your account…');
-      expect(text).not.toContain('Signing in');
-    });
-
     it('should say it is creating an account for a Google sign-up', async () => {
       vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
         status({ hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: true }),
@@ -954,11 +973,6 @@ describe('InlineAuthComponent', () => {
       const google = await messageDuring('loginWithGoogle', () => component.loginWithGoogle());
       expect(google).toContain('Connecting Google to your membership…');
       expect(google).not.toContain('Creating');
-
-      component.usePasswordInstead();
-      component.password.set('abcdef');
-      const password = await messageDuring('signupWithEmail', () => component.signupWithEmail());
-      expect(password).toContain('Setting up sign-in for your membership…');
     });
 
     it('should fall back to signing in while a session is restored on load', async () => {
@@ -1034,23 +1048,23 @@ describe('InlineAuthComponent', () => {
       expect(component.highlightPasswordReset()).toBe(false);
     });
 
-    it('should point an existing account at signing in instead', async () => {
-      vi.spyOn(mockService, 'signupWithEmail').mockResolvedValue({
+    it('should send a password that cannot be used yet to the email link', async () => {
+      vi.spyOn(mockService, 'loginWithEmail').mockResolvedValue({
         success: false,
-        errorCode: 'auth/email-already-in-use',
+        errorCode: 'auth/internal-error',
+        blockReason: AuthBlockReason.PasswordNotTrusted,
       });
       await createComponent();
       component.email.set('jane@example.com');
       component.password.set('abcdef');
-      await component.signupWithEmail();
+      await component.loginWithEmail();
 
-      expect(component.signupError()).toContain('An account already exists');
-      expect(component.signupFoundExistingAccount()).toBe(true);
-
-      // ...and the way there keeps the password already typed.
-      component.signInInstead();
-      expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
-      expect(component.password()).toBe('abcdef');
+      expect(component.loginError()).toContain('confirm its email address');
+      // A reset wouldn't help here; the email link does.
+      expect(component.highlightPasswordReset()).toBe(false);
+      expect(component.highlightEmailLink()).toBe(true);
+      component.useEmailLinkInstead();
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
     });
 
     it('should confirm where a reset link was sent', async () => {
@@ -1113,8 +1127,10 @@ describe('InlineAuthComponent', () => {
       fixture.detectChanges();
 
       expect(component.step()).toBe(InlineAuthStep.GuestCreateAccount);
-      expect(html().querySelector('#guest-password-input')).toBeTruthy();
+      expect(html().querySelector('#send-link-btn')).toBeTruthy();
+      expect(html().querySelector('input[type="password"]')).toBeNull();
     });
+
   });
 
   // ---------------------------------------------------------------------------
@@ -1134,7 +1150,7 @@ describe('InlineAuthComponent', () => {
       expect(html().textContent).toContain('ILC-1');
     });
 
-    it('should prompt for verification when the address is unconfirmed', async () => {
+    it('should offer a sign-in link when the address is unconfirmed', async () => {
       (mockService.loginStatus as unknown as { set: (v: LoginStatus) => void }).set(
         LoginStatus.NeedsEmailVerification,
       );
@@ -1144,17 +1160,61 @@ describe('InlineAuthComponent', () => {
       await createComponent();
       fixture.detectChanges();
 
-      expect(html().querySelector('#check-verified-btn')).toBeTruthy();
+      expect(html().querySelector('#send-link-unverified-btn')).toBeTruthy();
       expect(html().textContent).toContain('jane@example.com');
     });
 
-    it('should confirm that a new verification email went out', async () => {
+    it('should send the unverified session a link and wait for the click', async () => {
       (mockService.loginStatus as unknown as { set: (v: LoginStatus) => void }).set(
         LoginStatus.NeedsEmailVerification,
       );
+      (mockService.unverifiedUser as unknown as { set: (v: unknown) => void }).set({
+        email: 'jane@example.com',
+      });
+      const send = vi.spyOn(mockService, 'sendSignInLinkForUnverifiedUser');
       await createComponent();
-      await component.resendVerificationEmail();
-      expect(component.resendSuccess()).toContain('verification email has been sent');
+      await component.sendLinkForUnverifiedSession();
+
+      expect(send).toHaveBeenCalled();
+      expect(component.step()).toBe(InlineAuthStep.LinkSent);
+      expect(component.linkSentTo()).toBe('jane@example.com');
+    });
+
+    it('should ask for the email to finish a link opened on another device', async () => {
+      (mockService.pendingEmailLink as unknown as { set: (v: string) => void }).set('https://app/x?oobCode=1');
+      const finish = vi.spyOn(mockService, 'finishEmailLinkSignIn');
+      await createComponent();
+      fixture.detectChanges();
+      expect(html().querySelector('#link-email-input')).toBeTruthy();
+
+      component.email.set('Jane@Example.com');
+      await component.finishEmailLinkSignIn();
+      expect(finish).toHaveBeenCalledWith('jane@example.com');
+    });
+
+    it('should offer an optional password right after a link sign-in', async () => {
+      (mockService.user as unknown as { set: (v: unknown) => void }).set({
+        firebaseUser: { email: 'jane@example.com' } as never,
+        member: { emails: ['jane@example.com'], memberId: 'ILC-1' },
+      });
+      (mockService.offerPasswordSetup as unknown as { set: (v: boolean) => void }).set(true);
+      const setPassword = vi.spyOn(mockService, 'setAccountPassword');
+      await createComponent();
+      fixture.detectChanges();
+      expect(html().querySelector('#password-setup')).toBeTruthy();
+
+      component.newPassword.set('owner-password');
+      await component.savePassword();
+      expect(setPassword).toHaveBeenCalledWith('owner-password');
+      expect(component.passwordSaved()).toBe(true);
+      expect(readRemembered()?.method).toBe('password');
+    });
+
+    it('should let the user skip choosing a password', async () => {
+      (mockService.offerPasswordSetup as unknown as { set: (v: boolean) => void }).set(true);
+      await createComponent();
+      component.skipPasswordSetup();
+      expect(mockService.offerPasswordSetup()).toBe(false);
     });
 
     it('should tell a found member verification leads to their existing membership', async () => {
@@ -1177,7 +1237,7 @@ describe('InlineAuthComponent', () => {
   //  Warning before sign-in about things that would otherwise surprise later
   // ---------------------------------------------------------------------------
   describe('early warnings', () => {
-    it('should warn on the password step that the account still needs verifying', async () => {
+    it('should send an unverified account to the email link, not the password step', async () => {
       vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
         status({ hasMemberRecord: true, hasAuthAccount: true, hasPasswordProvider: true, emailVerified: false }),
       );
@@ -1186,7 +1246,8 @@ describe('InlineAuthComponent', () => {
       await component.checkEmail();
       fixture.detectChanges();
 
-      expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
+      // Its password can't be used until the email is proven.
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
       expect(html().querySelector('#unverified-account-notice')).toBeTruthy();
     });
 

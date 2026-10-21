@@ -10,7 +10,7 @@ import {
   linkedSignal,
   effect,
 } from '@angular/core';
-import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { StudentLevel, ApplicationLevel, normalizeGradingLevel, gradingProgression, trackOf, LevelTrack } from '../../../functions/src/data-model/curriculum';
 import { IlcEvent } from '../../../functions/src/data-model/events';
 import { Grading, GradingStatus, getPrettyGradingStatus, initGrading, gradingManagerIdsOf, PaymentStatus, PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from '../../../functions/src/data-model/gradings';
 import { Member, InstructorPublicData } from '../../../functions/src/data-model/members';
@@ -59,6 +59,12 @@ export class GradingEditComponent {
   getPrettyGradingStatus = getPrettyGradingStatus;
   studentLevels = Object.values(StudentLevel);
   applicationLevels = Object.values(ApplicationLevel);
+  // The grading levels on each track, for the "level the student is grading
+  // for" picker (values are canonical `GradingLevel`s).
+  studentGradingLevels = gradingProgression.filter((l) => trackOf(l) === LevelTrack.Student);
+  applicationGradingLevels = gradingProgression.filter(
+    (l) => trackOf(l) === LevelTrack.Application,
+  );
   paymentStatuses = PAYMENT_STATUSES;
   paymentStatusLabel = (s: string) => PAYMENT_STATUS_LABELS[s as PaymentStatus] ?? s;
 
@@ -257,16 +263,10 @@ export class GradingEditComponent {
     toName: (s: School) => s.schoolName,
   };
 
+  // Display form of a grading level: canonical `GradingLevel` for syllabus
+  // levels (whatever spelling is stored), otherwise the label as stored.
   formatLevel(lvl: string): string {
-    if (!lvl) return '';
-    if (lvl.startsWith('Student ') || lvl.startsWith('Application ')) {
-      return lvl;
-    }
-    // Backward compatibility for data originally stored without prefix
-    if (lvl === 'Entry' || !isNaN(Number(lvl))) {
-      return 'Student ' + lvl;
-    }
-    return lvl;
+    return normalizeGradingLevel(lvl);
   }
 
   selectedInstructor = computed(() => {
@@ -407,6 +407,11 @@ export class GradingEditComponent {
         studentLevelAtAcceptance: this.form.studentLevelAtAcceptance().value(),
         applicationLevelAtAcceptance: this.form.applicationLevelAtAcceptance().value(),
       };
+      if (grading.status !== this.grading().status) {
+        const actor = this.firebaseState.user()?.member;
+        grading.statusChangedByMemberDocId = actor?.docId ?? '';
+        grading.statusChangedByName = actor?.name ?? '';
+      }
       if (grading.docId) {
         // Pass original grading for diff-based update so only changed
         // fields are sent. This is critical for non-admin users whose

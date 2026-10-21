@@ -1,7 +1,17 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { gradingProgression, previousGradingLevel } from '../../src/data-model/curriculum';
+import {
+  ApplicationLevel,
+  LevelTrack,
+  StudentLevel,
+  applicationLevelOf,
+  gradingProgression,
+  previousGradingLevel,
+  progressionIndex,
+  studentLevelOf,
+  trackOf,
+} from '../../src/data-model/curriculum';
 import { PaymentStatus } from '../../src/data-model/gradings';
 
 /*
@@ -80,17 +90,15 @@ function deriveLevels(heldProgressionLevel: string): {
   studentLevel: string;
   applicationLevel: string;
 } {
-  let studentLevel = '';
-  let applicationLevel = '';
-  if (!heldProgressionLevel) return { studentLevel, applicationLevel };
-  const idx = gradingProgression.indexOf(heldProgressionLevel);
+  let studentLevel: string = StudentLevel.None;
+  let applicationLevel: string = ApplicationLevel.None;
+  const idx = progressionIndex(heldProgressionLevel);
   if (idx < 0) return { studentLevel, applicationLevel };
-  for (let i = 0; i <= idx; i++) {
-    const entry = gradingProgression[i];
-    if (entry.startsWith('Student ')) {
-      studentLevel = entry.substring('Student '.length); // 'Entry' or '1'..'11'
-    } else if (entry.startsWith('Application ')) {
-      applicationLevel = entry.substring('Application '.length); // '1'..'6'
+  for (const entry of gradingProgression.slice(0, idx + 1)) {
+    if (trackOf(entry) === LevelTrack.Student) {
+      studentLevel = studentLevelOf(entry); // 'Entry' or '1'..'11'
+    } else {
+      applicationLevel = applicationLevelOf(entry); // '1'..'6'
     }
   }
   return { studentLevel, applicationLevel };

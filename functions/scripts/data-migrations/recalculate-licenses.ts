@@ -9,6 +9,7 @@ pnpm exec ts-node functions/scripts/recalculate-licenses.ts --project <PROJECT_I
 import * as firebase from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { studentLevelRank, toStudentLevel } from '../../src/data-model/curriculum';
 
 // Provide basic Date logic because we can't easily import date-fns without ensuring it's in package.json
 function pad(n: number) {
@@ -51,20 +52,14 @@ function ensureLaterDate(oldDate: string | undefined | null, newDate: string | u
   return oldDate;
 }
 
+// The higher of two student levels (any spelling), in canonical
+// `StudentLevel` form; undefined when neither is set.
 function ensureHigherStudentLevel(
   oldLevel: string | undefined | null,
   newLevel: string | undefined | null
 ): string | undefined {
-  if (!newLevel) return oldLevel || undefined;
-  if (!oldLevel) return newLevel;
-
-  const score = (lvl: string) => {
-    if (lvl === 'Entry') return 0.5;
-    const n = parseInt(lvl, 10);
-    return isNaN(n) ? 0 : n;
-  };
-
-  return score(newLevel) > score(oldLevel) ? newLevel : oldLevel;
+  const higher = studentLevelRank(newLevel) > studentLevelRank(oldLevel) ? newLevel : oldLevel;
+  return toStudentLevel(higher) || undefined;
 }
 
 function calculateNewExpiry(

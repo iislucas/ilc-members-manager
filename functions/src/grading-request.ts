@@ -14,22 +14,23 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { FieldValue } from 'firebase-admin/firestore';
-import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels } from './data-model/curriculum';
+import { GradingLevel, nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, toGradingLevel } from './data-model/curriculum';
 import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid } from './data-model/gradings';
 import { Member } from './data-model/members';
 import {
   allowedOrigins,
   getUserMemberDocIds,
   hasActiveMembership,
+  verifiedAuthEmail,
 } from './common';
 
 export const requestGrading = onCall(
   { cors: allowedOrigins },
   async (request: CallableRequest<{ memberDocId: string }>) => {
-    if (!request.auth || !request.auth.token.email) {
-      throw new HttpsError('unauthenticated', 'Must be authenticated to request a grading.');
+    const email = verifiedAuthEmail(request);
+    if (!email) {
+      throw new HttpsError('unauthenticated', 'Must be authenticated with a verified email to request a grading.');
     }
-    const email = request.auth.token.email;
     const memberDocId = request.data?.memberDocId;
     if (!memberDocId) {
       throw new HttpsError('invalid-argument', 'memberDocId is required.');
@@ -115,10 +116,10 @@ export const requestGrading = onCall(
 export const requestGradingRetake = onCall(
   { cors: allowedOrigins },
   async (request: CallableRequest<{ memberDocId: string; level?: string }>) => {
-    if (!request.auth || !request.auth.token.email) {
-      throw new HttpsError('unauthenticated', 'Must be authenticated to request a grading retake.');
+    const email = verifiedAuthEmail(request);
+    if (!email) {
+      throw new HttpsError('unauthenticated', 'Must be authenticated with a verified email to request a grading retake.');
     }
-    const email = request.auth.token.email;
     const memberDocId = request.data?.memberDocId;
     if (!memberDocId) {
       throw new HttpsError('invalid-argument', 'memberDocId is required.');
@@ -159,7 +160,14 @@ export const requestGradingRetake = onCall(
     );
 
     // Determine target retake level
-    let targetLevel = request.data?.level ? normalizeGradingLevel(request.data.level) : '';
+    // Any spelling of the level is accepted; it is stored in canonical form.
+    let targetLevel: GradingLevel | '' = toGradingLevel(request.data?.level) ?? '';
+    if (request.data?.level && !targetLevel) {
+      throw new HttpsError(
+        'invalid-argument',
+        `"${request.data.level}" is not a grading level.`,
+      );
+    }
 
     if (targetLevel) {
       const notPassedAtLevel = allGradings.filter(

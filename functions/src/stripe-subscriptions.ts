@@ -11,7 +11,7 @@ import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins, getMemberByEmail } from './common';
+import { allowedOrigins, getMemberByEmail, verifiedAuthEmail } from './common';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
 import {
   CancelSubscriptionRenewalRequest,
@@ -108,7 +108,7 @@ export const cancelSubscriptionRenewal = onCall<
   }
 
   const db = admin.firestore();
-  const member = await getCallerMember(request.auth?.token?.email, db);
+  const member = await getCallerMember(verifiedAuthEmail(request), db);
   const stripe = getStripeClient();
 
   let subscription: Stripe.Subscription;
@@ -118,7 +118,7 @@ export const cancelSubscriptionRenewal = onCall<
     throw new HttpsError('not-found', 'Subscription not found in Stripe.');
   }
 
-  await verifySubscriptionOwnership(subscription, member, db, request.auth?.token?.email);
+  await verifySubscriptionOwnership(subscription, member, db, verifiedAuthEmail(request));
 
   const updatedSub = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: true,
@@ -185,7 +185,7 @@ export const resumeSubscriptionRenewal = onCall<
   }
 
   const db = admin.firestore();
-  const member = await getCallerMember(request.auth?.token?.email, db);
+  const member = await getCallerMember(verifiedAuthEmail(request), db);
   const stripe = getStripeClient();
 
   let subscription: Stripe.Subscription;
@@ -195,7 +195,7 @@ export const resumeSubscriptionRenewal = onCall<
     throw new HttpsError('not-found', 'Subscription not found in Stripe.');
   }
 
-  await verifySubscriptionOwnership(subscription, member, db, request.auth?.token?.email);
+  await verifySubscriptionOwnership(subscription, member, db, verifiedAuthEmail(request));
 
   const updatedSub = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: false,
@@ -255,7 +255,7 @@ export const createCustomerPortalSession = onCall<
   }
 
   const db = admin.firestore();
-  const member = await getCallerMember(request.auth?.token?.email, db);
+  const member = await getCallerMember(verifiedAuthEmail(request), db);
   const stripe = getStripeClient();
 
   let customerId = member.stripeCustomerId;
@@ -263,14 +263,14 @@ export const createCustomerPortalSession = onCall<
   // If the member doesn't have a recorded Stripe customer ID, look up or create one in Stripe
   if (!customerId) {
     const existing = await stripe.customers.list({
-      email: member.emails[0] || request.auth?.token?.email,
+      email: member.emails[0] || verifiedAuthEmail(request),
       limit: 1,
     });
     if (existing.data.length > 0) {
       customerId = existing.data[0].id;
     } else {
       const created = await stripe.customers.create({
-        email: member.emails[0] || request.auth?.token?.email,
+        email: member.emails[0] || verifiedAuthEmail(request),
         name: member.name || undefined,
         metadata: {
           memberDocId: member.docId,

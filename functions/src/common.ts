@@ -108,17 +108,31 @@ export async function getSchool(
   return schoolDoc.data() as School;
 }
 
+// Returns the caller's normalized (trimmed, lowercase) auth email, or '' if
+// the request is unauthenticated, has no email claim, or the email is NOT
+// verified. Anyone can create an email/password account for an address they
+// don't own; until it is verified, the token's email claim proves nothing.
+// Every identity/authorization decision based on the caller's email must use
+// this instead of reading `request.auth.token.email` directly.
+export function verifiedAuthEmail(request: Pick<CallableRequest<unknown>, 'auth'>): string {
+  const token = request.auth?.token;
+  if (!token || token.email_verified !== true) {
+    return '';
+  }
+  return normalizeEmail(token.email);
+}
+
 export async function assertAdmin(
   request: CallableRequest<unknown>,
 ): Promise<Member> {
-  if (!request.auth || !request.auth.token.email) {
+  const email = verifiedAuthEmail(request);
+  if (!email) {
     throw new HttpsError(
       'unauthenticated',
-      'The function must be called while authenticated.',
+      'The function must be called while authenticated with a verified email.',
     );
   }
   const db = admin.firestore();
-  const email = normalizeEmail(request.auth.token.email);
 
   // Canonical authorization check against /acl/{email}
   const aclSnap = await db.collection('acl').doc(email).get();
@@ -138,14 +152,14 @@ export async function assertAdmin(
 export async function assertAdminOrSchoolManager(
   request: CallableRequest<unknown>,
 ): Promise<Member> {
-  if (!request.auth || !request.auth.token.email) {
+  const email = verifiedAuthEmail(request);
+  if (!email) {
     throw new HttpsError(
       'unauthenticated',
-      'The function must be called while authenticated.',
+      'The function must be called while authenticated with a verified email.',
     );
   }
   const db = admin.firestore();
-  const email = normalizeEmail(request.auth.token.email);
 
   // Check the ACL for admin or cached schoolDocIds
   const aclDoc = await db.collection('acl').doc(email).get();

@@ -9,10 +9,16 @@ import * as admin from 'firebase-admin';
 // which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
-import { StudentLevel } from './data-model/curriculum';
-import { Grading, GradingFsDoc, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model/gradings';
+import {
+  normalizeGradingLevel,
+  progressionIndex,
+  toApplicationLevel,
+  toGradingLevel,
+  toStudentLevel,
+} from './data-model/curriculum';
+import { Grading, GradingFsDoc, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid, levelsBlockingResult, levelsIncludingPassedGradings } from './data-model/gradings';
+import { awardGradingLevel } from './award-level';
 import { NotificationKind, MemberNotification } from './data-model/notifications';
-import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import {
   DeletionSource,
@@ -31,7 +37,7 @@ const db = admin.firestore();
 // Thin wrapper around the shared helper, binding the module-level db handle.
 async function createNotification(
   memberDocId: string,
-  notification: Omit<MemberNotification, 'docId'>,
+  notification: Omit<MemberNotification, 'docId'> & { docId?: string },
 ): Promise<void> {
   await createMemberNotification(db, memberDocId, notification);
 }
@@ -142,7 +148,7 @@ async function createFollowUpGradingAfterNotPassed(
     const g = doc.data() as Grading;
     return (
       doc.id !== gradingDocId &&
-      canonicalizeGradingLevel(g.level) === canonicalizeGradingLevel(grading.level) &&
+      normalizeGradingLevel(g.level) === normalizeGradingLevel(grading.level) &&
       g.status !== GradingStatus.Passed &&
       g.status !== GradingStatus.NotPassed
     );
@@ -405,6 +411,23 @@ async function isMemberAdmin(memberDocId: string | undefined): Promise<boolean> 
 }
 
 /**
+ * The student's member document for a grading: by `studentMemberDocId`, or —
+ * for older gradings that only carry the human-readable id — by
+ * `studentMemberId`. undefined when neither resolves.
+ */
+async function resolveStudentRef(
+  grading: Grading,
+): Promise<admin.firestore.DocumentReference | undefined> {
+  if (grading.studentMemberDocId) {
+    return db.collection('members').doc(grading.studentMemberDocId);
+  }
+  const memberId = String(grading.studentMemberId || '').trim().toUpperCase();
+  if (!memberId) return undefined;
+  const q = await db.collection('members').where('memberId', '==', memberId).limit(1).get();
+  return q.empty ? undefined : q.docs[0].ref;
+}
+
+/**
  * Whether the student has any completed (passed/not-passed) gradings — other
  * than `excludeDocId` — that are not yet paid. Used to block requesting a new
  * grading until outstanding payments are settled.
@@ -554,6 +577,59 @@ async function notifyEventManagers(
   }
 }
 
+/**
+ * Tells the student their grading(s) are ready, ONE notification per order:
+ * an order that bought several levels creates several gradings (and fires this
+ * once per grading), so the notification is keyed by the order and rewritten
+ * each time to list every grading that order has created so far. Once all the
+ * order's gradings exist, it lists them all. A grading not from an order gets
+ * its own notification.
+ */
+async function notifyGradingsPurchased(grading: Grading, gradingDocId: string): Promise<void> {
+  let gradings: Array<Grading & { docId: string }> = [{ ...grading, docId: gradingDocId }];
+  if (grading.orderId) {
+    const snap = await db
+      .collection('gradings')
+      .where('orderId', '==', grading.orderId)
+      .get();
+    gradings = snap.docs
+      .map((d) => ({ ...(d.data() as Grading), docId: d.id }))
+      .filter(
+        (g) =>
+          g.studentMemberDocId === grading.studentMemberDocId &&
+          g.status !== GradingStatus.RequiresReview,
+      )
+      .sort((a, b) => progressionIndex(a.level) - progressionIndex(b.level));
+    if (!gradings.some((g) => g.docId === gradingDocId)) {
+      gradings.push({ ...grading, docId: gradingDocId });
+    }
+  }
+
+  const awaitingInstructor = gradings.every((g) => g.status === GradingStatus.AwaitingRequest);
+  const links = gradings
+    .map((g) => `[${g.level}](/gradings/${g.docId})`)
+    .join(', ');
+  const single = gradings.length === 1;
+  const msg = awaitingInstructor
+    ? `🥋 Your ${single ? 'grading' : 'gradings'} for ${links} ${single ? 'is' : 'are'} ready! ` +
+      `Next step: open ${single ? 'it' : 'each one'} to choose the instructor who will grade you and send your request.` +
+      (single ? '' : ' Gradings bought ahead can be requested now; results are recorded in order.')
+    : `🥋 Your ${single ? 'grading' : 'gradings'} for ${links} ${single ? 'has' : 'have'} been set up. ` +
+      `Open ${single ? 'it' : 'each one'} to track progress.`;
+  await createNotification(grading.studentMemberDocId, {
+    // Keyed by the order, so a multi-level order leaves one notification.
+    ...(grading.orderId ? { docId: `${grading.orderId}_grading_purchased` } : {}),
+    markdown: msg,
+    createdAt: new Date().toISOString(),
+    dismissed: false,
+    kind: NotificationKind.GradingPurchased,
+    data: {
+      gradingDocId: gradings[0].docId,
+      level: gradings.map((g) => g.level).join(', '),
+    },
+  });
+}
+
 // ---------------------------------------------------------------
 // Firestore triggers
 // ---------------------------------------------------------------
@@ -585,40 +661,31 @@ export const onGradingCreated = onDocumentCreated(
       await mirrorGradingToSchool(gradingDocId, grading, grading.schoolId);
     }
 
-    // Add grading to the student's gradingDocIds
+    // Add grading to the student's gradingDocIds. A grading whose student
+    // record doesn't exist (e.g. deleted, or a bad docId) is logged rather than
+    // left to throw: an unhandled error kills the function instance, taking
+    // any other in-flight trigger work down with it.
     if (grading.studentMemberDocId) {
-      await db
-        .collection('members')
-        .doc(grading.studentMemberDocId)
-        .update({
-          gradingDocIds: FieldValue.arrayUnion(gradingDocId),
-        });
+      try {
+        await db
+          .collection('members')
+          .doc(grading.studentMemberDocId)
+          .update({
+            gradingDocIds: FieldValue.arrayUnion(gradingDocId),
+          });
+      } catch (err) {
+        logger.warn(
+          `Grading ${gradingDocId}: could not add it to student ${grading.studentMemberDocId}'s gradingDocIds`,
+          { err },
+        );
+      }
     }
 
     // Notify the student that their grading was purchased, guiding them to the
     // next step. Skipped when the grading still needs admin review (it isn't
     // yet actionable by the student) or has no linked student.
     if (grading.studentMemberDocId && grading.status !== GradingStatus.RequiresReview) {
-      const awaitingInstructor = grading.status === GradingStatus.AwaitingRequest;
-      const gradingHref = `/gradings/${gradingDocId}`;
-      const msg = awaitingInstructor
-        ? `🥋 Your grading for **${grading.level}** is ready! Next step: choose the instructor who will grade you. ` +
-          `[Open your grading](${gradingHref}) to select your instructor and send your request.`
-        : `🥋 Your grading for **${grading.level}** has been set up and your request has been sent to your selected instructor. ` +
-          `[View your grading](${gradingHref}) to track its progress.`;
-      await createNotification(
-        grading.studentMemberDocId,
-        {
-          markdown: msg,
-          createdAt: new Date().toISOString(),
-          dismissed: false,
-          kind: NotificationKind.GradingPurchased,
-          data: {
-            gradingDocId,
-            level: grading.level,
-          },
-        }
-      );
+      await notifyGradingsPurchased(grading, gradingDocId);
     }
 
     // Notify the instructor of new request
@@ -805,6 +872,79 @@ export const onGradingUpdated = onDocumentUpdated(
       return;
     }
 
+    // Gradings may be bought, requested and accepted ahead, but they are graded
+    // in sequence: a result can only be recorded once every earlier level in the
+    // progression is achieved on the student's record. Revert otherwise and tell
+    // whoever tried. Admins are exempt (e.g. entering historical gradings). The
+    // student's levels read here are also the levels they held going into this
+    // result, so they refresh the level snapshot below.
+    let levelsAtResult:
+      | { studentLevelAtAcceptance: string; applicationLevelAtAcceptance: string }
+      | undefined;
+    if (becameFinalised) {
+      const studentRef = await resolveStudentRef(grading);
+      const studentSnap = studentRef ? await studentRef.get() : undefined;
+      const student = studentSnap?.data() as Member | undefined;
+      if (studentRef && student) {
+        // The member's other gradings: an earlier level passed and paid counts
+        // even before its trigger has updated the member record (two levels
+        // graded at the same event), see `levelsBlockingResult`.
+        const otherGradings = (
+          await db.collection('gradings').where('studentMemberDocId', '==', studentRef.id).get()
+        ).docs
+          .filter((d) => d.id !== gradingDocId)
+          .map((d) => d.data() as Grading);
+        const missing = levelsBlockingResult(
+          grading.level,
+          student.studentLevel || '',
+          student.applicationLevel || '',
+          otherGradings,
+        );
+        if (
+          missing.length > 0 &&
+          !(await isMemberAdmin(grading.statusChangedByMemberDocId))
+        ) {
+          await snap.after.ref.update({
+            status: previous.status,
+            lastUpdated: FieldValue.serverTimestamp(),
+          });
+          // Tell whoever recorded the result. A write with no recorded actor
+          // (e.g. a misconfigured script) is only logged — the student did
+          // nothing, so they are not notified.
+          if (grading.statusChangedByMemberDocId) {
+            await createNotification(grading.statusChangedByMemberDocId, {
+              markdown:
+                `The result for the **${grading.level}** grading could not be saved: ` +
+                `**${missing.join(', ')}** must be passed first. Gradings can be ` +
+                `booked ahead, but results are recorded in order.`,
+              createdAt: new Date().toISOString(),
+              dismissed: false,
+              kind: NotificationKind.GradingNeedsEarlierLevels,
+              data: { gradingDocId, level: grading.level },
+            });
+          }
+          logger.info(
+            `Grading ${gradingDocId} result reverted to ${previous.status}: ` +
+              `earlier levels not yet passed (${missing.join(', ')}); ` +
+              `actor "${grading.statusChangedByMemberDocId || '(none)'}".`,
+          );
+          return;
+        }
+        // The levels the student held going into this result, counting earlier
+        // gradings already passed and paid (their member update may still be
+        // in flight).
+        const held = levelsIncludingPassedGradings(
+          student.studentLevel || '',
+          student.applicationLevel || '',
+          otherGradings,
+        );
+        levelsAtResult = {
+          studentLevelAtAcceptance: held.studentLevel,
+          applicationLevelAtAcceptance: held.applicationLevel,
+        };
+      }
+    }
+
     // Re-resolve the cached display names from the current student/instructor so
     // they stay in sync on every update. Set on the in-memory grading first so
     // the sub-collection mirrors below carry the fresh names. Captured stored
@@ -942,7 +1082,7 @@ export const onGradingUpdated = onDocumentUpdated(
       isPaid &&
       (becamePassed || becamePaidWhilePassed) &&
       grading.studentMemberId &&
-      grading.level !== StudentLevel.None
+      grading.level
     ) {
       // Backend defense (CRIT-1): Verify the student did not self-promote to Passed (unless admin)
       const actorIsAdmin = await isMemberAdmin(grading.statusChangedByMemberDocId);
@@ -969,24 +1109,21 @@ export const onGradingUpdated = onDocumentUpdated(
         : null;
       if (studentQuery && !studentQuery.empty) {
         const studentDoc = studentQuery.docs[0];
-        const { type, value } = extractLevelValue(grading.level);
-        const update: any = {
-          lastUpdated: FieldValue.serverTimestamp(),
-        };
-
-        if (type === 'Student') {
-          update.studentLevel = value;
-        } else if (type === 'Application') {
-          update.applicationLevel = value;
+        // Member level fields hold the track position ('3', 'Entry'), never the
+        // grading's label. The award is transactional and only ever raises the
+        // level, so two gradings passed close together can't pull it down.
+        const level = toGradingLevel(grading.level);
+        if (level) {
+          const outcome = await awardGradingLevel(db, studentDoc.ref, level);
+          logger.info(
+            `Student ${grading.studentMemberId} awarded ${level} from grading ${gradingDocId}: ${outcome}.`,
+          );
         } else {
-          // Fallback if type is null
-          update.studentLevel = grading.level;
+          logger.warn(
+            `Grading ${gradingDocId} passed for "${grading.level}", which is not a syllabus level; ` +
+              `student ${grading.studentMemberId} level not changed.`,
+          );
         }
-
-        await studentDoc.ref.update(update);
-        logger.info(
-          `Student ${grading.studentMemberId} ${type || 'student'}Level updated to ${value || grading.level} from grading ${gradingDocId}.`,
-        );
       } else {
         logger.warn(
           `Could not find student with memberId ${grading.studentMemberId} to update level.`,
@@ -1372,8 +1509,8 @@ export const onGradingUpdated = onDocumentUpdated(
       if (studentSnap.exists) {
         const d = studentSnap.data() || {};
         snapshotUpdate = {
-          studentLevelAtAcceptance: (d.studentLevel as string) || '',
-          applicationLevelAtAcceptance: (d.applicationLevel as string) || '',
+          studentLevelAtAcceptance: toStudentLevel(d.studentLevel as string),
+          applicationLevelAtAcceptance: toApplicationLevel(d.applicationLevel as string),
         };
       }
     }
@@ -1391,6 +1528,17 @@ export const onGradingUpdated = onDocumentUpdated(
     if (snapshotUpdate) {
       writeBack.studentLevelAtAcceptance = snapshotUpdate.studentLevelAtAcceptance;
       writeBack.applicationLevelAtAcceptance = snapshotUpdate.applicationLevelAtAcceptance;
+    }
+    // A grading accepted ahead was snapshotted before its earlier levels were
+    // passed; once its result is recorded, the levels held at that moment are
+    // the meaningful "going in" levels, so they replace the acceptance snapshot.
+    if (
+      levelsAtResult &&
+      (levelsAtResult.studentLevelAtAcceptance !== grading.studentLevelAtAcceptance ||
+        levelsAtResult.applicationLevelAtAcceptance !== grading.applicationLevelAtAcceptance)
+    ) {
+      writeBack.studentLevelAtAcceptance = levelsAtResult.studentLevelAtAcceptance;
+      writeBack.applicationLevelAtAcceptance = levelsAtResult.applicationLevelAtAcceptance;
     }
     if (Object.keys(writeBack).length > 0) {
       await snap.after.ref.update(writeBack);

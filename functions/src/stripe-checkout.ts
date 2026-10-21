@@ -16,10 +16,11 @@
 import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import { allowedOrigins } from './common';
+import { allowedOrigins, verifiedAuthEmail } from './common';
 import {
   formatLineItemDescription,
   getStripeClient,
+  listAllSessionLineItems,
   stripeSecretKey,
 } from './stripe-common';
 import {
@@ -43,7 +44,7 @@ export {
   StripeCheckoutPaymentStatus,
 } from './stripe-types';
 
-function requireAllowedOrigin(origin: unknown): string {
+export function requireAllowedOrigin(origin: unknown): string {
   if (typeof origin !== 'string' || !allowedOrigins.includes(origin)) {
     throw new HttpsError(
       'invalid-argument',
@@ -58,6 +59,65 @@ import { getMemberByEmail } from './common';
 import { MailSettings, MailSendingStatus, TransactionalEmailKey, resolveNotificationStatus } from './data-model/mail';
 import { Member } from './data-model/members';
 import { normalizeEmail } from './data-model/email';
+
+// Metadata keys that grading fulfillment trusts; only the server sets them.
+const GRADING_METADATA_KEYS = ['gradingLevel', 'gradingLevels'];
+
+/** The Stripe customer and member a checkout is for (all undefined for a guest). */
+export type CheckoutCustomer = {
+  customerId?: string;
+  memberDocId?: string;
+  memberId?: string;
+};
+
+// Resolves the signed-in caller's member record and Stripe customer (creating
+// and caching the customer on first purchase). A caller with no member record,
+// or no email, checks out as a guest.
+export async function resolveCheckoutCustomer(
+  stripe: Stripe,
+  db: admin.firestore.Firestore,
+  callerEmail: string | undefined,
+): Promise<CheckoutCustomer> {
+  if (!callerEmail) return {};
+  try {
+    const member = await getMemberByEmail(callerEmail, db);
+    return {
+      customerId: await stripeCustomerForMember(stripe, db, member, callerEmail),
+      memberDocId: member.docId,
+      memberId: member.memberId,
+    };
+  } catch {
+    // If member lookup fails, continue as guest checkout
+    return {};
+  }
+}
+
+// The Stripe customer id for `member`: the cached one, else an existing Stripe
+// customer with `email`, else a newly created one. Caches it on the member.
+export async function stripeCustomerForMember(
+  stripe: Stripe,
+  db: admin.firestore.Firestore,
+  member: Member,
+  email: string,
+): Promise<string> {
+  if (member.stripeCustomerId) return member.stripeCustomerId;
+  const existing = await stripe.customers.list({ email, limit: 1 });
+  const customerId =
+    existing.data.length > 0
+      ? existing.data[0].id
+      : (
+          await stripe.customers.create({
+            email,
+            name: member.name || undefined,
+            metadata: { memberDocId: member.docId, memberId: member.memberId },
+          })
+        ).id;
+  await db.collection('members').doc(member.docId).update({
+    stripeCustomerId: customerId,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return customerId;
+}
 
 export const createStripeCheckoutSession = onCall<
   CreateCheckoutSessionRequest,
@@ -80,7 +140,7 @@ export const createStripeCheckoutSession = onCall<
   // and (b) derive the correct Checkout mode rather than trusting the client.
   let price: Stripe.Price;
   try {
-    price = await stripe.prices.retrieve(priceId);
+    price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
   } catch {
     throw new HttpsError('not-found', 'Unknown price.');
   }
@@ -90,51 +150,30 @@ export const createStripeCheckoutSession = onCall<
       'This item is not available for purchase.',
     );
   }
+  // Grading fees are only sold through createGradingCheckoutSession, where the
+  // server picks the prices from the member's progression. Refusing them here
+  // means a browser can never choose which grading price it is charged.
+  const product = price.product;
+  const productName =
+    product && typeof product !== 'string' && !('deleted' in product && product.deleted)
+      ? (product as Stripe.Product).name
+      : '';
+  if (/\bgrading\b/i.test(productName)) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Gradings are purchased from the grading page.',
+    );
+  }
 
   const mode: Stripe.Checkout.SessionCreateParams.Mode =
     price.type === 'recurring' ? 'subscription' : 'payment';
 
   const db = admin.firestore();
-  let customerId: string | undefined;
-  let memberDocId: string | undefined;
-  let memberId: string | undefined;
-
-  const callerEmail = request.auth?.token?.email;
-  if (callerEmail) {
-    try {
-      const member = await getMemberByEmail(callerEmail, db);
-      memberDocId = member.docId;
-      memberId = member.memberId;
-
-      if (member.stripeCustomerId) {
-        customerId = member.stripeCustomerId;
-      } else {
-        const existing = await stripe.customers.list({
-          email: callerEmail,
-          limit: 1,
-        });
-        if (existing.data.length > 0) {
-          customerId = existing.data[0].id;
-        } else {
-          const created = await stripe.customers.create({
-            email: callerEmail,
-            name: member.name || undefined,
-            metadata: {
-              memberDocId: member.docId,
-              memberId: member.memberId,
-            },
-          });
-          customerId = created.id;
-        }
-        await db.collection('members').doc(member.docId).update({
-          stripeCustomerId: customerId,
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-    } catch {
-      // If member lookup fails, continue as guest checkout
-    }
-  }
+  const { customerId, memberDocId, memberId } = await resolveCheckoutCustomer(
+    stripe,
+    db,
+    verifiedAuthEmail(request) || undefined,
+  );
 
   let successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
   if (typeof request.data?.successUrl === 'string' && request.data.successUrl.trim()) {
@@ -160,9 +199,16 @@ export const createStripeCheckoutSession = onCall<
     }
   }
 
-  const customMetadata = request.data?.metadata && typeof request.data.metadata === 'object'
-    ? request.data.metadata
-    : {};
+  // Client metadata is passed through, except the keys that drive grading
+  // fulfillment: only createGradingCheckoutSession may set those.
+  const customMetadata: Record<string, string> = {};
+  if (request.data?.metadata && typeof request.data.metadata === 'object') {
+    for (const [key, value] of Object.entries(request.data.metadata)) {
+      if (GRADING_METADATA_KEYS.includes(key)) continue;
+      if (key === 'orderType' && value === 'grading') continue;
+      customMetadata[key] = value;
+    }
+  }
 
   const isGift = Boolean(request.data?.isGift);
   const giftMetadata: Record<string, string> = {};
@@ -278,15 +324,18 @@ export const getStripeCheckoutSession = onCall<
   const stripe = getStripeClient();
 
   let session: Stripe.Checkout.Session;
+  let items: Stripe.LineItem[];
   try {
-    session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ['line_items.data.price'],
-    });
+    // All line items, paged: an expanded session only carries the first 10.
+    [session, items] = await Promise.all([
+      stripe.checkout.sessions.retrieve(sessionId),
+      listAllSessionLineItems(stripe, sessionId),
+    ]);
   } catch {
     throw new HttpsError('not-found', 'Unknown checkout session.');
   }
 
-  const lineItems: CheckoutLineItem[] = (session.line_items?.data ?? []).map(
+  const lineItems: CheckoutLineItem[] = items.map(
     (item) => ({
       description: formatLineItemDescription(
         item.description ?? '',

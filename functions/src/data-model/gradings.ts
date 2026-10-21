@@ -1,8 +1,20 @@
 import { FsTimestamp, GenericFsDoc, normalizeLastUpdated } from './base';
 import {
+  ApplicationLevel,
+  GradingLevel,
+  StudentLevel,
+  toApplicationLevel,
+  toStudentLevel,
   gradingProgression,
+  progressionIndex,
   achievedGradingLevels,
   normalizeGradingLevel,
+  toGradingLevel,
+  unachievedEarlierLevels,
+  studentLevelOf,
+  applicationLevelOf,
+  studentLevelRank,
+  applicationLevelRank,
 } from './curriculum';
 
 export enum GradingStatus {
@@ -75,8 +87,8 @@ export function unpaidGradingsInProgressionOrder<T extends UnpaidGradingCandidat
         !!g.level && !isGradingPaid(g) && g.status !== GradingStatus.NotPassed,
     )
     .sort((a, b) => {
-      const idxA = gradingProgression.indexOf(normalizeGradingLevel(a.level));
-      const idxB = gradingProgression.indexOf(normalizeGradingLevel(b.level));
+      const idxA = progressionIndex(a.level);
+      const idxB = progressionIndex(b.level);
       return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
     });
 }
@@ -85,7 +97,7 @@ export function unpaidGradingsInProgressionOrder<T extends UnpaidGradingCandidat
  * that level when one already exists (otherwise the record must be created). */
 export type NextGradingPayment<T> = {
   /** The level being paid for. '' when the whole progression is complete. */
-  level: string;
+  level: GradingLevel | '';
   /** The existing unpaid grading this payment settles, or null if none exists. */
   grading: T | null;
 };
@@ -113,33 +125,146 @@ export function nextGradingPayment<T extends UnpaidGradingCandidate>(
   const achieved = achievedGradingLevels(studentLevel, applicationLevel);
 
   // Earliest-first, so a level with several unpaid records settles the oldest.
-  const unpaidByLevel = new Map<string, T>();
+  const unpaidByLevel = new Map<GradingLevel, T>();
   for (const g of unpaidGradingsInProgressionOrder(gradings)) {
-    const lvl = normalizeGradingLevel(g.level);
-    if (!unpaidByLevel.has(lvl)) unpaidByLevel.set(lvl, g);
+    const lvl = toGradingLevel(g.level);
+    if (lvl && !unpaidByLevel.has(lvl)) unpaidByLevel.set(lvl, g);
   }
 
-  const paidAndOpen = new Set(
+  const paidAndOpen = new Set<GradingLevel | null>(
     gradings
       .filter(
         (g) =>
-          !!g.level &&
           isGradingPaid(g) &&
           g.status !== GradingStatus.Passed &&
           g.status !== GradingStatus.NotPassed,
       )
-      .map((g) => normalizeGradingLevel(g.level)),
+      .map((g) => toGradingLevel(g.level)),
   );
+  const skip = toGradingLevel(skipLevel);
 
   for (const level of gradingProgression) {
     const unpaid = unpaidByLevel.get(level);
     if (unpaid) return { level, grading: unpaid };
     if (achieved.has(level)) continue;
     if (paidAndOpen.has(level)) continue;
-    if (level === skipLevel) continue;
+    if (level === skip) continue;
     return { level, grading: null };
   }
   return { level: '', grading: null };
+}
+
+// The level a member can retake for free, or '' if none: the earliest level
+// along the progression that isn't achieved, has no open grading, and has a
+// paid NotPassed attempt (the fee is charged once per level). An unpaid failed
+// attempt still owes its fee, so it doesn't count.
+export function freeRetakeLevel<T extends UnpaidGradingCandidate>(
+  studentLevel: string,
+  applicationLevel: string,
+  gradings: T[],
+): GradingLevel | '' {
+  const achieved = achievedGradingLevels(studentLevel, applicationLevel);
+  const atLevel = (level: GradingLevel) =>
+    gradings.filter((g) => toGradingLevel(g.level) === level);
+  for (const level of gradingProgression) {
+    if (achieved.has(level)) continue;
+    const here = atLevel(level);
+    const open = here.some(
+      (g) => g.status !== GradingStatus.Passed && g.status !== GradingStatus.NotPassed,
+    );
+    if (open) continue;
+    if (here.some((g) => g.status === GradingStatus.NotPassed && isGradingPaid(g))) {
+      return level;
+    }
+  }
+  return '';
+}
+
+// The earlier levels that still block recording a result (passed / not
+// passed) for a grading at `level`, in progression order; [] when it may be
+// recorded. Gradings can be bought, requested and accepted ahead, but they are
+// graded in order. An earlier level is satisfied when it is achieved on the
+// member record, or when one of the member's gradings for it is passed and
+// paid — the member record is only updated by a trigger after that, so
+// counting the grading itself avoids a race when two levels are graded at the
+// same event.
+//
+// A member whose record is out of sync with the progression (e.g. Student 5
+// with no application levels) is therefore always able to grade their next
+// level in the normal progression (here Application 1), and catches up level
+// by level until back in sync.
+export function levelsBlockingResult<T extends UnpaidGradingCandidate>(
+  level: string,
+  studentLevel: string,
+  applicationLevel: string,
+  gradings: T[],
+): GradingLevel[] {
+  const passedAndPaid = new Set(
+    gradings
+      .filter((g) => g.status === GradingStatus.Passed && isGradingPaid(g))
+      .map((g) => toGradingLevel(g.level)),
+  );
+  return unachievedEarlierLevels(level, studentLevel, applicationLevel).filter(
+    (earlier) => !passedAndPaid.has(earlier),
+  );
+}
+
+// The member's levels on each track, raised by any of `gradings` that is
+// passed and paid — i.e. the levels they effectively hold even if the trigger
+// that updates the member record hasn't run yet. Returned in canonical form.
+export function levelsIncludingPassedGradings<T extends UnpaidGradingCandidate>(
+  studentLevel: string,
+  applicationLevel: string,
+  gradings: T[],
+): { studentLevel: StudentLevel; applicationLevel: ApplicationLevel } {
+  let student = toStudentLevel(studentLevel);
+  let application = toApplicationLevel(applicationLevel);
+  for (const g of gradings) {
+    const level = toGradingLevel(g.level);
+    if (!level || g.status !== GradingStatus.Passed || !isGradingPaid(g)) continue;
+    const s = studentLevelOf(level);
+    const a = applicationLevelOf(level);
+    if (s !== StudentLevel.None && studentLevelRank(s) > studentLevelRank(student)) student = s;
+    if (a !== ApplicationLevel.None && applicationLevelRank(a) > applicationLevelRank(application)) {
+      application = a;
+    }
+  }
+  return { studentLevel: student, applicationLevel: application };
+}
+
+// Every grading payment a member could still make, in the order they would be
+// applied: the first entry is `nextGradingPayment`, the second is what would be
+// next once the first is paid, and so on to the end of the progression. This is
+// what lets a member buy several levels ahead in one checkout — each level
+// offered is exactly the level that payment will settle or create.
+//
+// `skipLevel` is passed through to `nextGradingPayment` (a free retake the
+// caller handles separately). Returns [] once every level has been achieved.
+export function upcomingGradingPayments<T extends UnpaidGradingCandidate>(
+  studentLevel: string,
+  applicationLevel: string,
+  gradings: T[],
+  skipLevel = '',
+): NextGradingPayment<T>[] {
+  const result: NextGradingPayment<T>[] = [];
+  // The member's gradings as they would be after paying for each level so far:
+  // a settled unpaid grading is replaced by a paid one, and a new level gains a
+  // paid, open grading — exactly what fulfillment would leave behind.
+  let working: UnpaidGradingCandidate[] = [...gradings];
+  for (;;) {
+    const next = nextGradingPayment(studentLevel, applicationLevel, working, skipLevel);
+    if (!next.level) break;
+    // Simulated purchases are always paid, so an unpaid match is one of `gradings`.
+    const settled = gradings.find((g) => g === next.grading) ?? null;
+    result.push({ level: next.level, grading: settled });
+    working = working.filter((g) => g !== next.grading);
+    working.push({
+      level: next.level,
+      status: GradingStatus.AwaitingRequest,
+      paymentStatus: PaymentStatus.PaidByStripe,
+    });
+  }
+  return result;
 }
 
 // 32-bit FNV-1a. Deterministic across node and the browser, and good enough to
@@ -233,7 +358,12 @@ export type Grading = {
 
   gradingPurchaseDate: string; // YYYY-MM-DD, the date the grading was purchased.
   orderId: string; // The order ID that created this grading, or '' if manual.
-  level: string; // The level the grading is aimed for ('Student X' or 'Application X').
+  // The level the grading is aimed for: a `GradingLevel` ('Student Entry',
+  // 'Student 3', 'Application 2', …) for every syllabus grading — normalised on
+  // read and write (see `normalizeGradingLevel`). Typed as string only because
+  // a grading for something outside the syllabus keeps its own label; use
+  // `toGradingLevel(level)` wherever the syllabus level matters.
+  level: string;
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
   // The instructorIds (human readable) of the grading managers. Grading managers
   // have the same edit permissions as the primary instructor (they can accept,
@@ -249,11 +379,13 @@ export type Grading = {
   // managers/instructors/admins only.
   paymentNote: string;
   // Snapshot of the student's student/application levels at the moment the
-  // grading was accepted (status → AwaitingGrading). Lets us show/validate the
-  // level the student held going in without re-inferring it from `level`. '' when
-  // not yet captured.
-  studentLevelAtAcceptance: string;
-  applicationLevelAtAcceptance: string;
+  // grading was accepted (status → AwaitingGrading), refreshed when the result
+  // is recorded (a grading accepted ahead is graded only once earlier levels
+  // are achieved, so the levels held at result time are what it went in with).
+  // Lets us show/validate the level the student held going in without
+  // re-inferring it from `level`. '' when not yet captured.
+  studentLevelAtAcceptance: StudentLevel;
+  applicationLevelAtAcceptance: ApplicationLevel;
   schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.
   schoolDocId: string; // The Firestore doc ID of the school where the grading was conducted.
   studentMemberId: string; // The human-readable memberId of the student being graded.
@@ -305,8 +437,8 @@ export function initGrading(): Grading {
     gradingManagerIds: [],
     paymentStatus: PaymentStatus.PaidOther,
     paymentNote: '',
-    studentLevelAtAcceptance: '',
-    applicationLevelAtAcceptance: '',
+    studentLevelAtAcceptance: StudentLevel.None,
+    applicationLevelAtAcceptance: ApplicationLevel.None,
     schoolId: '',
     schoolDocId: '',
     studentMemberId: '',
@@ -334,12 +466,11 @@ export function firestoreDocToGrading(doc: GenericFsDoc): Grading {
   const docData = doc.data() as GradingFsDoc;
   const lastUpdated = normalizeLastUpdated(docData.lastUpdated);
   const grading = { ...initGrading(), ...docData, lastUpdated, docId: doc.id };
-  if (grading.level) {
-    const lower = grading.level.toLowerCase().trim();
-    if (lower === 'entry level' || lower === 'entry') {
-      grading.level = 'Student Entry';
-    }
-  }
+  // Legacy spellings ('Entry Level', 'Student Level 3', '3', …) read as the
+  // canonical `GradingLevel`.
+  grading.level = normalizeGradingLevel(grading.level || '');
+  grading.studentLevelAtAcceptance = toStudentLevel(grading.studentLevelAtAcceptance);
+  grading.applicationLevelAtAcceptance = toApplicationLevel(grading.applicationLevelAtAcceptance);
   const rawData = docData as unknown as Partial<Grading>;
   grading.gradingManagerIds = rawData.gradingManagerIds ?? [];
   // Undefined `paymentStatus` (un-backfilled docs) is treated as paid (PaidOther).

@@ -10,6 +10,7 @@ import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { Member, InstructorPublicData } from '../functions/src/data-model/members';
 import type { School } from '../functions/src/data-model/schools';
 import { MailDeliveryState } from '../functions/src/data-model/mail';
+import { defaultToVerifiedEmail } from './helpers/verified-email-auth';
 
 type Firestore = firebase.default.firestore.Firestore;
 
@@ -77,6 +78,9 @@ async function setupAdmin(db: Firestore, email: string) {
 
 describe('Firestore Rules', () => {
   let testEnv: RulesTestEnvironment;
+  // Unpatched authenticatedContext: does NOT default email_verified, so it can
+  // build tokens whose email_verified claim is missing entirely.
+  let rawAuthenticatedContext: RulesTestEnvironment['authenticatedContext'];
 
   beforeAll(async () => {
     // Load rules from the file
@@ -89,6 +93,9 @@ describe('Firestore Rules', () => {
         port: 8080, // Default emulator port
       },
     });
+    // Rules only trust verified emails; tokens with an email default to
+    // email_verified: true unless a test sets it explicitly.
+    rawAuthenticatedContext = defaultToVerifiedEmail(testEnv);
   });
 
   afterAll(async () => {
@@ -238,6 +245,125 @@ describe('Firestore Rules', () => {
           .get(),
       );
     });
+  });
+
+  // Firebase Auth lets anyone create an email/password account for an email
+  // they do not own (e.g. via the public REST API). Until that email is
+  // verified the token's `email` claim must not grant any email-derived
+  // identity: member ownership, /acl lookups, or admin.
+  describe('Unverified email claims', () => {
+    const unverifiedVariants: {
+      label: string;
+      db: (uid: string, email: string) => Firestore;
+    }[] = [
+      {
+        label: 'email_verified: false',
+        db: (uid, email) =>
+          testEnv
+            .authenticatedContext(uid, { email, email_verified: false })
+            .firestore(),
+      },
+      {
+        label: 'email_verified claim missing',
+        db: (uid, email) =>
+          rawAuthenticatedContext(uid, { email }).firestore(),
+      },
+    ];
+
+    beforeEach(async () => {
+      // A member doc linked ONLY via /acl/{email}.memberDocIds (its own
+      // `emails` list does not contain linked@ilc.com).
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context
+          .firestore()
+          .collection('acl')
+          .doc('linked@ilc.com')
+          .set({
+            memberDocIds: ['FirestoreDocID-student2'],
+            isAdmin: false,
+            schoolDocIds: [],
+          });
+      });
+    });
+
+    it('control: verified tokens are granted access', async () => {
+      const ownerDb = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com', email_verified: true })
+        .firestore();
+      await assertSucceeds(
+        ownerDb.collection('members').doc('FirestoreDocID-member1').get(),
+      );
+      const linkedDb = testEnv
+        .authenticatedContext('linked', { email: 'linked@ilc.com', email_verified: true })
+        .firestore();
+      await assertSucceeds(
+        linkedDb.collection('members').doc('FirestoreDocID-student2').get(),
+      );
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com', email_verified: true })
+        .firestore();
+      await assertSucceeds(adminDb.collection('statistics').doc('any').get());
+    });
+
+    for (const variant of unverifiedVariants) {
+      describe(variant.label, () => {
+        it('denies reading a member doc whose emails contain the token email', async () => {
+          const db = variant.db('attacker', 'member1@ilc.com');
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-member1').get(),
+          );
+        });
+
+        it('denies updating a member doc whose emails contain the token email', async () => {
+          const db = variant.db('attacker', 'member1@ilc.com');
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-member1').update({
+              phone: '123456',
+              lastUpdated: serverTimestamp(),
+            }),
+          );
+        });
+
+        it('denies reading a member subcollection via the emails match', async () => {
+          const db = variant.db('attacker', 'member1@ilc.com');
+          await assertFails(
+            db
+              .collection('members')
+              .doc('FirestoreDocID-member1')
+              .collection('orders')
+              .doc('any')
+              .get(),
+          );
+        });
+
+        it('denies reading a doc linked via /acl/{email}.memberDocIds', async () => {
+          const db = variant.db('attacker', 'linked@ilc.com');
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-student2').get(),
+          );
+        });
+
+        it('denies reading the /acl/{email} doc itself', async () => {
+          const db = variant.db('attacker', 'linked@ilc.com');
+          await assertFails(db.collection('acl').doc('linked@ilc.com').get());
+        });
+
+        it('denies admin-only access when /acl/{email}.isAdmin is true', async () => {
+          const db = variant.db('attacker', 'admin@ilc.com');
+          await assertFails(db.collection('statistics').doc('any').get());
+          await assertFails(db.collection('system').doc('mail-secrets').get());
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-member1').get(),
+          );
+          await assertFails(
+            db.collection('members').doc('FirestoreDocID-member1').update({
+              notes: 'unverified admin',
+              lastUpdated: serverTimestamp(),
+            }),
+          );
+        });
+      });
+    }
   });
 
   describe('Members Collection', () => {
@@ -882,6 +1008,8 @@ describe('Firestore Rules', () => {
       await assertSucceeds(
         db.collection('gradings').doc('grading-1').update({
           status: 'awaiting-instructor-acceptance',
+          // Non-admin status changes must stamp the caller's own member docId.
+          statusChangedByMemberDocId: 'FirestoreDocID-student1',
           lastUpdated: serverTimestamp(),
         }),
       );
@@ -1010,6 +1138,149 @@ describe('Firestore Rules', () => {
           lastUpdated: serverTimestamp(),
         }),
       );
+    });
+
+    describe('Status actor (statusChangedByMemberDocId) cannot be forged', () => {
+      // onGradingUpdate trusts statusChangedByMemberDocId (admin exemption,
+      // self-promotion and unpaid-request guards), so non-admins may only
+      // stamp their own member docId when status or the actor changes.
+      const instructor1 = () =>
+        testEnv
+          .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
+          .firestore();
+      const student1 = () =>
+        testEnv
+          .authenticatedContext('student1', { email: 'student1@ilc.com' })
+          .firestore();
+
+      // Simulate a prior status change made by an admin, leaving a stale actor.
+      async function stampStaleAdminActor() {
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await context
+            .firestore()
+            .collection('gradings')
+            .doc('grading-1')
+            .update({
+              status: 'awaiting-instructor-acceptance',
+              statusChangedByMemberDocId: 'FirestoreDocID-admin',
+              statusChangedByName: 'Admin',
+            });
+        });
+      }
+
+      it('allows a manager status change stamped with their own docId', async () => {
+        await assertSucceeds(
+          instructor1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-grading',
+            statusChangedByMemberDocId: 'FirestoreDocID-instructor1',
+            statusChangedByName: 'Sifu Jones',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it("denies a manager status change stamped with another member's (admin's) docId", async () => {
+        await assertFails(
+          instructor1().collection('gradings').doc('grading-1').update({
+            status: 'passed',
+            statusChangedByMemberDocId: 'FirestoreDocID-admin',
+            statusChangedByName: 'Admin',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a manager status change that leaves a stale other-member actor untouched', async () => {
+        await stampStaleAdminActor();
+        await assertFails(
+          instructor1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-grading',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a manager status change with an empty actor', async () => {
+        await assertFails(
+          instructor1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-grading',
+            statusChangedByMemberDocId: '',
+            statusChangedByName: '',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('allows a manager non-status edit (notes) with a stale actor untouched', async () => {
+        await stampStaleAdminActor();
+        await assertSucceeds(
+          instructor1().collection('gradings').doc('grading-1').update({
+            notes: 'Bring a uniform',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a manager changing only the actor field to someone else', async () => {
+        await assertFails(
+          instructor1().collection('gradings').doc('grading-1').update({
+            statusChangedByMemberDocId: 'FirestoreDocID-admin',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('allows a student request (-> awaiting-instructor-acceptance) stamped with their own docId', async () => {
+        await assertSucceeds(
+          student1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-acceptance',
+            statusChangedByMemberDocId: 'FirestoreDocID-student1',
+            statusChangedByName: 'Student One',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a student request stamped with another docId', async () => {
+        await assertFails(
+          student1().collection('gradings').doc('grading-1').update({
+            status: 'awaiting-instructor-acceptance',
+            statusChangedByMemberDocId: 'FirestoreDocID-instructor1',
+            statusChangedByName: 'Sifu Jones',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('denies a student changing the actor field to someone else after acceptance', async () => {
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await context
+            .firestore()
+            .collection('gradings')
+            .doc('grading-1')
+            .update({ status: 'awaiting-instructor-grading' });
+        });
+        await assertFails(
+          student1().collection('gradings').doc('grading-1').update({
+            statusChangedByMemberDocId: 'FirestoreDocID-admin',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('still allows an admin to write any actor', async () => {
+        const db = testEnv
+          .authenticatedContext('admin', { email: 'admin@ilc.com' })
+          .firestore();
+        await assertSucceeds(
+          db.collection('gradings').doc('grading-1').update({
+            status: 'passed',
+            statusChangedByMemberDocId: 'FirestoreDocID-instructor1',
+            statusChangedByName: 'Sifu Jones',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
     });
 
     describe('Event-linked grading managers', () => {

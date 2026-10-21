@@ -175,6 +175,9 @@ describe('SchoolLicensePurchaseComponent', () => {
           useValue: {
             user: userSignal,
             loginError: signal<string | null>(null),
+            completedEmailLinkSignIn: signal<string | null>(null),
+            offerPasswordSetup: signal<boolean>(false),
+            pendingEmailLink: signal<string | null>(null),
           },
         },
         { provide: DataManagerService, useValue: mockDataManager },

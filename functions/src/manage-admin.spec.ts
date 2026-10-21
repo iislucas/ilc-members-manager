@@ -39,12 +39,12 @@ describe('manage-admin', () => {
   describe('setAdminPrivilegeHelper', () => {
     it('throws unauthenticated if request is not authenticated', async () => {
       const request: any = { auth: null, data: { email: 'test@example.com', isAdmin: true } };
-      await expect(setAdminPrivilegeHelper(request)).rejects.toThrow('The function must be called while authenticated.');
+      await expect(setAdminPrivilegeHelper(request)).rejects.toThrow('The function must be called while authenticated with a verified email.');
     });
 
     it('throws permission-denied if caller is not an admin', async () => {
       const request: any = {
-        auth: { token: { email: 'user@example.com' } },
+        auth: { token: { email_verified: true, email: 'user@example.com' } },
         data: { email: 'target@example.com', isAdmin: true },
       };
 
@@ -65,7 +65,7 @@ describe('manage-admin', () => {
 
     it('throws invalid-argument if target email is invalid', async () => {
       const request: any = {
-        auth: { token: { email: 'admin@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin@example.com' } },
         data: { email: 'invalid-email', isAdmin: true },
       };
 
@@ -91,7 +91,7 @@ describe('manage-admin', () => {
 
     it('throws failed-precondition if caller attempts to revoke their own admin access', async () => {
       const request: any = {
-        auth: { token: { email: 'admin@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin@example.com' } },
         data: { email: 'admin@example.com', isAdmin: false },
       };
 
@@ -117,7 +117,7 @@ describe('manage-admin', () => {
 
     it('throws failed-precondition if attempting to revoke the last remaining admin', async () => {
       const request: any = {
-        auth: { token: { email: 'admin1@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin1@example.com' } },
         data: { email: 'admin2@example.com', isAdmin: false },
       };
 
@@ -153,7 +153,7 @@ describe('manage-admin', () => {
 
     it('grants admin status to an existing ACL document', async () => {
       const request: any = {
-        auth: { token: { email: 'admin@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin@example.com' } },
         data: { email: 'newadmin@example.com', isAdmin: true },
       };
 
@@ -201,7 +201,7 @@ describe('manage-admin', () => {
 
     it('creates new ACL document with matching memberDocIds if target has no prior ACL', async () => {
       const request: any = {
-        auth: { token: { email: 'admin@example.com' } },
+        auth: { token: { email_verified: true, email: 'admin@example.com' } },
         data: { email: 'freshadmin@example.com', isAdmin: true },
       };
 
@@ -263,7 +263,7 @@ describe('manage-admin', () => {
 
     it('revokes admin status and updates ACL if memberDocIds exist', async () => {
       const request: any = {
-        auth: { token: { email: 'superadmin@example.com' } },
+        auth: { token: { email_verified: true, email: 'superadmin@example.com' } },
         data: { email: 'demote@example.com', isAdmin: false },
       };
 
@@ -312,7 +312,7 @@ describe('manage-admin', () => {
 
     it('deletes ACL document on revocation if memberDocIds is empty', async () => {
       const request: any = {
-        auth: { token: { email: 'superadmin@example.com' } },
+        auth: { token: { email_verified: true, email: 'superadmin@example.com' } },
         data: { email: 'standalone@example.com', isAdmin: false },
       };
 

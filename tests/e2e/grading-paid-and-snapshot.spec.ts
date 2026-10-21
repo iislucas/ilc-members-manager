@@ -75,7 +75,8 @@ describe('story: grading level updates only once paid', () => {
     await seedMember(studentDocId, {
       name: 'Paid Gating Student',
       memberId,
-      studentLevel: '',
+      // Student 1 is the next level after Entry: results are recorded in order.
+      studentLevel: 'Entry',
       applicationLevel: '',
       primaryInstructorId: '',
       gradingDocIds: [],
@@ -102,7 +103,7 @@ describe('story: grading level updates only once paid', () => {
     // Give the trigger time to run, then assert the level is still unset.
     await new Promise((r) => setTimeout(r, 3000));
     const { studentLevel } = await memberLevel(studentDocId)();
-    expect(studentLevel).toBe('');
+    expect(studentLevel).toBe('Entry');
   });
 
   it('promotes the student once the grading is marked paid', async () => {
@@ -321,7 +322,7 @@ describe('story: a result cannot be recorded without a grading event date', () =
     await seedMember(studentDocId, {
       name: 'No Date Student',
       memberId: `ND-${suffix}`,
-      studentLevel: '',
+      studentLevel: 'Entry',
       gradingDocIds: [],
     });
     const ref = db.collection('gradings').doc();
@@ -366,7 +367,7 @@ describe('story: a result cannot be recorded without a grading event date', () =
 
     // The student's level is untouched by the reverted result.
     const { studentLevel } = await memberLevel(studentDocId)();
-    expect(studentLevel).toBe('');
+    expect(studentLevel).toBe('Entry');
   });
 
   it('accepts the result once the date is set', async () => {
@@ -415,7 +416,8 @@ describe('story: a not-passed grading creates a follow-up once it is paid', () =
       [paidStudentDocId, 'Retake Paid Student'],
       [unpaidStudentDocId, 'Retake Unpaid Student'],
     ] as const) {
-      await seedMember(docId, { name, memberId: docId, gradingDocIds: [] });
+      // Student 2 is their next level, so a result can be recorded.
+      await seedMember(docId, { name, memberId: docId, studentLevel: '1', gradingDocIds: [] });
     }
 
     const paidRef = db.collection('gradings').doc();
@@ -492,5 +494,215 @@ describe('story: a not-passed grading creates a follow-up once it is paid', () =
     );
     expect(open[0].status).toBe(GradingStatus.AwaitingRequest);
     expect(open[0].paymentStatus).toBe(PaymentStatus.PaidOther);
+  });
+});
+
+describe('story: a grading booked ahead is graded only after earlier levels', () => {
+  const suffix = Date.now().toString(36);
+  const studentDocId = `ba-student-${suffix}`;
+  const examinerDocId = `ba-examiner-${suffix}`;
+  const adminDocId = `ba-admin-${suffix}`;
+  let aheadDocId = '';
+
+  beforeAll(async () => {
+    await seedMember(studentDocId, {
+      name: 'Booked Ahead Student',
+      memberId: `BA-${suffix}`,
+      studentLevel: '1',
+      gradingDocIds: [],
+    });
+    await seedMember(examinerDocId, { name: 'Examiner E', memberId: `BAE-${suffix}` });
+    await seedMember(adminDocId, { name: 'Admin A', memberId: `BAA-${suffix}`, isAdmin: true });
+    // Student 3 bought and accepted ahead, while Student 2 is still to pass.
+    const ref = db.collection('gradings').doc();
+    aheadDocId = ref.id;
+    await ref.set({
+      ...initGrading(),
+      level: 'Student 3',
+      studentMemberId: `BA-${suffix}`,
+      studentMemberDocId: studentDocId,
+      status: GradingStatus.AwaitingGrading,
+      gradingEventDate: '2026-09-01',
+      paymentStatus: PaymentStatus.PaidByStripe,
+    });
+  });
+
+  it('reverts a result recorded before the earlier level is passed', async () => {
+    await db.collection('gradings').doc(aheadDocId).update({
+      status: GradingStatus.Passed,
+      statusChangedByMemberDocId: examinerDocId,
+      lastUpdated: ts(),
+    });
+
+    const reverted = await waitFor(
+      gradingDoc(aheadDocId),
+      (g) => g?.status === GradingStatus.AwaitingGrading,
+    );
+    expect(reverted?.status).toBe(GradingStatus.AwaitingGrading);
+
+    const notes = await waitFor(
+      async () =>
+        (
+          await db
+            .collection('members')
+            .doc(examinerDocId)
+            .collection('notifications')
+            .where('kind', '==', NotificationKind.GradingNeedsEarlierLevels)
+            .get()
+        ).docs.map((d) => d.data() as MemberNotification),
+      (n) => n.length > 0,
+    );
+    expect(notes[0].markdown).toContain('Student 2');
+
+    const { studentLevel } = await memberLevel(studentDocId)();
+    expect(studentLevel).toBe('1');
+  });
+
+  it('accepts the result once the earlier level is achieved', async () => {
+    await db.collection('members').doc(studentDocId).update({ studentLevel: '2' });
+    await db.collection('gradings').doc(aheadDocId).update({
+      status: GradingStatus.Passed,
+      statusChangedByMemberDocId: examinerDocId,
+      lastUpdated: ts(),
+    });
+
+    const { studentLevel } = await waitFor(
+      memberLevel(studentDocId),
+      (v) => v.studentLevel === '3',
+    );
+    expect(studentLevel).toBe('3');
+    // The level snapshot reflects the levels held when it was graded.
+    const g = await waitFor(gradingDoc(aheadDocId), (v) => v?.studentLevelAtAcceptance === '2');
+    expect(g?.studentLevelAtAcceptance).toBe('2');
+  });
+
+  it('lets an admin record a result out of order', async () => {
+    // Student 5 while Application 1 and Student 4 are still to pass.
+    const ref = db.collection('gradings').doc();
+    await ref.set({
+      ...initGrading(),
+      level: 'Student 5',
+      studentMemberId: `BA-${suffix}`,
+      studentMemberDocId: studentDocId,
+      status: GradingStatus.AwaitingGrading,
+      gradingEventDate: '2026-09-02',
+      paymentStatus: PaymentStatus.PaidOther,
+    });
+    await ref.update({
+      status: GradingStatus.Passed,
+      statusChangedByMemberDocId: adminDocId,
+      lastUpdated: ts(),
+    });
+
+    const { studentLevel } = await waitFor(
+      memberLevel(studentDocId),
+      (v) => v.studentLevel === '5',
+    );
+    expect(studentLevel).toBe('5');
+    expect((await gradingDoc(ref.id)())?.status).toBe(GradingStatus.Passed);
+  });
+});
+
+describe('story: two levels graded at the same event', () => {
+  const suffix = Date.now().toString(36);
+  const studentDocId = `ev-student-${suffix}`;
+  const examinerDocId = `ev-examiner-${suffix}`;
+  let s2DocId = '';
+  let s3DocId = '';
+
+  beforeAll(async () => {
+    await seedMember(studentDocId, {
+      name: 'Same Event Student',
+      memberId: `EV-${suffix}`,
+      studentLevel: '1',
+      gradingDocIds: [],
+    });
+    await seedMember(examinerDocId, { name: 'Examiner X', memberId: `EVX-${suffix}` });
+    for (const level of ['Student 2', 'Student 3']) {
+      const ref = db.collection('gradings').doc();
+      if (level === 'Student 2') s2DocId = ref.id;
+      else s3DocId = ref.id;
+      await ref.set({
+        ...initGrading(),
+        level,
+        studentMemberId: `EV-${suffix}`,
+        studentMemberDocId: studentDocId,
+        status: GradingStatus.AwaitingGrading,
+        gradingEventDate: '2026-09-05',
+        paymentStatus: PaymentStatus.PaidByStripe,
+      });
+    }
+  });
+
+  it('accepts Student 3 straight after Student 2 is passed, and ends at Student 3', async () => {
+    // Record both back to back: Student 3's trigger may run before Student
+    // 2's has updated the member record. The passed, paid Student 2 grading
+    // must count, and the level must never be pulled back down to 2.
+    await db.collection('gradings').doc(s2DocId).update({
+      status: GradingStatus.Passed,
+      statusChangedByMemberDocId: examinerDocId,
+      lastUpdated: ts(),
+    });
+    await db.collection('gradings').doc(s3DocId).update({
+      status: GradingStatus.Passed,
+      statusChangedByMemberDocId: examinerDocId,
+      lastUpdated: ts(),
+    });
+
+    const { studentLevel } = await waitFor(
+      memberLevel(studentDocId),
+      (v) => v.studentLevel === '3',
+    );
+    expect(studentLevel).toBe('3');
+    // Give any late trigger time to run, then check nothing reverted or lowered.
+    await new Promise((r) => setTimeout(r, 3000));
+    expect((await gradingDoc(s3DocId)())?.status).toBe(GradingStatus.Passed);
+    expect((await memberLevel(studentDocId)()).studentLevel).toBe('3');
+  });
+});
+
+describe('story: member levels are stored canonically; unrecognised ones reach admins', () => {
+  const suffix = Date.now().toString(36);
+  const memberDocId = `lv-member-${suffix}`;
+  const adminDocId = `lv-admin-${suffix}`;
+
+  beforeAll(async () => {
+    await seedMember(adminDocId, { name: 'Admin L', memberId: `LVA-${suffix}`, isAdmin: true });
+  });
+
+  it('rewrites a legacy spelling to the canonical value on save', async () => {
+    await seedMember(memberDocId, {
+      name: 'Legacy Level Member',
+      memberId: `LV-${suffix}`,
+      studentLevel: 'Student Level 4',
+      applicationLevel: 'Application 1',
+    });
+    const levels = await waitFor(
+      memberLevel(memberDocId),
+      (v) => v.studentLevel === '4' && v.applicationLevel === '1',
+    );
+    expect(levels).toEqual({ studentLevel: '4', applicationLevel: '1' });
+  });
+
+  it('keeps an unrecognised value and notifies admins', async () => {
+    await db.collection('members').doc(memberDocId).update({
+      studentLevel: 'Certified Instructor',
+      lastUpdated: ts(),
+    });
+    const notes = await waitFor(
+      async () =>
+        (
+          await db
+            .collection('members')
+            .doc(adminDocId)
+            .collection('notifications')
+            .where('kind', '==', NotificationKind.MemberLevelUnrecognised)
+            .get()
+        ).docs.map((d) => d.data() as MemberNotification),
+      (n) => n.some((x) => x.markdown.includes('Certified Instructor')),
+    );
+    expect(notes.some((x) => x.markdown.includes('Legacy Level Member'))).toBe(true);
+    // The stored value is left for a human to correct.
+    expect((await memberLevel(memberDocId)()).studentLevel).toBe('Certified Instructor');
   });
 });

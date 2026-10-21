@@ -7,6 +7,7 @@ import {
 import * as fs from 'fs';
 import { serverTimestamp } from 'firebase/firestore';
 import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
+import { defaultToVerifiedEmail } from './helpers/verified-email-auth';
 
 /**
  * These tests reproduce the member-edit permissions scenario for two real users:
@@ -175,6 +176,8 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
         port: 8080,
       },
     });
+    // Rules only trust verified emails; these fixtures model verified users.
+    defaultToVerifiedEmail(testEnv);
   });
 
   afterAll(async () => {

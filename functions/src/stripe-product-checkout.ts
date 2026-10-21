@@ -10,7 +10,7 @@ import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins, getMemberByEmail, hasActiveMembership, hasActiveInstructorLicense, isActiveInstructor, isRegistrationAllowed } from './common';
+import { allowedOrigins, getMemberByEmail, hasActiveMembership, hasActiveInstructorLicense, isActiveInstructor, isRegistrationAllowed, verifiedAuthEmail } from './common';
 import { environment } from './environment/environment';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
 import {
@@ -88,9 +88,7 @@ export const createProductCheckoutSession = onCall<
   let memberId: string | undefined;
   let member: Member | undefined;
 
-  const authEmail = request.auth?.token?.email
-    ? normalizeEmail(request.auth.token.email)
-    : undefined;
+  const authEmail = verifiedAuthEmail(request) || undefined;
   const emailToLookup = authEmail || (normalizeEmail(data.attendeeDetails?.email) || undefined);
   if (authEmail) {
     try {
@@ -203,11 +201,11 @@ export const createProductCheckoutSession = onCall<
       }
 
       existingReg = regSnap.data() as EventRegistration;
-      const verifiedAuthEmail = normalizeEmail(request.auth?.token?.email);
-      if (!verifiedAuthEmail) {
+      const callerEmail = verifiedAuthEmail(request);
+      if (!callerEmail) {
         throw new HttpsError(
           'unauthenticated',
-          'You must be authenticated to upgrade an existing registration.',
+          'You must be authenticated with a verified email to upgrade an existing registration.',
         );
       }
       const regEmail = normalizeEmail(existingReg.email);
@@ -215,7 +213,7 @@ export const createProductCheckoutSession = onCall<
       const regMemberDoc = existingReg.memberDocId || '';
 
       let isAdmin = false;
-      const aclSnap = await db.collection(FirestoreCollection.Acl).doc(verifiedAuthEmail).get();
+      const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
       isAdmin = aclSnap.data()?.isAdmin === true;
 
       let isEventManager = false;
@@ -230,7 +228,7 @@ export const createProductCheckoutSession = onCall<
       }
 
       const isAuthorized =
-        verifiedAuthEmail === regEmail ||
+        callerEmail === regEmail ||
         (callerMemberDoc && regMemberDoc && callerMemberDoc === regMemberDoc) ||
         isAdmin ||
         isEventManager;
@@ -649,11 +647,11 @@ export const updateProductRegistration = onCall<
   const existingReg = regSnap.data() as EventRegistration;
 
   // 3. Verify Authorization
-  if (!request.auth || !request.auth.token.email) {
-    throw new HttpsError('unauthenticated', 'You must be authenticated to update a registration.');
+  const authEmail = verifiedAuthEmail(request);
+  if (!authEmail) {
+    throw new HttpsError('unauthenticated', 'You must be authenticated with a verified email to update a registration.');
   }
 
-  const authEmail = normalizeEmail(request.auth.token.email);
   const regEmail = normalizeEmail(existingReg.email);
   let callerMemberDocId: string | undefined;
 
@@ -995,9 +993,7 @@ export const registerEventInPerson = onCall<
   let memberId: string | undefined;
   let member: Member | undefined;
 
-  const authEmail = request.auth?.token?.email
-    ? normalizeEmail(request.auth.token.email)
-    : undefined;
+  const authEmail = verifiedAuthEmail(request) || undefined;
   if (authEmail) {
     try {
       member = await getMemberByEmail(authEmail, db);
@@ -1256,7 +1252,7 @@ export const markEventRegistrationPaid = onCall<
     throw new HttpsError('not-found', 'Event not found.');
   }
   const event = eventSnap.data() as IlcEvent;
-  const callerEmail = normalizeEmail(request.auth?.token?.email);
+  const callerEmail = verifiedAuthEmail(request);
   let isAdmin = false;
   if (callerEmail) {
     const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
@@ -1331,7 +1327,10 @@ export const unmarkEventRegistrationPaid = onCall<
   }
 
   const db = admin.firestore();
-  const callerEmail = normalizeEmail(request.auth.token.email);
+  const callerEmail = verifiedAuthEmail(request);
+  if (!callerEmail) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated with a verified email.');
+  }
 
   // Verify caller permissions (admin, owner, or manager)
   const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();

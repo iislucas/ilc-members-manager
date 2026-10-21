@@ -12,7 +12,7 @@ import {
   firestoreDocToMember,
   MembershipType,
 } from '../data-model/members';
-import { StudentLevel, ApplicationLevel } from '../data-model/curriculum';
+import { StudentLevel, ApplicationLevel, toStudentLevel, toApplicationLevel } from '../data-model/curriculum';
 import { assignNextMemberId } from '../counters';
 import { normalizeEmail, normalizeEmails } from '../data-model/email';
 import { ActionContext, ActionResult } from './types';
@@ -214,8 +214,10 @@ export async function createMember(
     primarySchoolDocId: '',
     memberId: cleanMemberId,
     emails,
-    studentLevel: input.studentLevel || baseDefaults.studentLevel,
-    applicationLevel: input.applicationLevel || baseDefaults.applicationLevel,
+    // Normalised so callers passing a loose spelling ('Student 2') still store
+    // the canonical track position.
+    studentLevel: toStudentLevel(input.studentLevel),
+    applicationLevel: toApplicationLevel(input.applicationLevel),
     dateOfBirth: input.dateOfBirth || '',
     firstMembershipStarted: input.firstMembershipStarted || '',
     currentMembershipExpires: input.currentMembershipExpires || '',

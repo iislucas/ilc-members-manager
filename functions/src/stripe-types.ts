@@ -117,6 +117,20 @@ export interface CreateCheckoutSessionRequest {
   giftMessage?: string;
 }
 
+/**
+ * Request to buy one or more grading levels in a single checkout. The server
+ * checks the levels are the next ones this member can buy, in order, and picks
+ * the prices itself from the Stripe catalogue (see `findGradingPrice`).
+ */
+export interface CreateGradingCheckoutSessionRequest {
+  /** The member profile the gradings are for; must be managed by the caller. */
+  memberDocId: string;
+  /** Grading levels to buy, in progression order (any spelling; e.g. 'Student 3'). */
+  levels: string[];
+  /** The app origin to return the buyer to, e.g. `https://app.iliqchuan.com`. */
+  origin: string;
+}
+
 export interface CreateVodCheckoutSessionRequest {
   /** Optional video document ID if purchasing a single video. */
   videoId?: string;

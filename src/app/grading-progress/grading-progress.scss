@@ -78,76 +78,16 @@
   margin-top: 0.75em;
 }
 
-.out-of-order-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75em;
-  padding: 0.85em 1em;
-  background-color: #fff4e5;
-  border: 1px solid #f5a623;
-  border-left-width: 4px;
-  border-radius: 6px;
+// "Booked ahead" notice: a grading bought ahead whose result waits for earlier
+// levels. Uses the standard warning callout, plus a link to the earlier grading.
+.booked-ahead-notice .out-of-order-link {
+  margin-left: 0.25em;
+  font-weight: 600;
   color: #8a5200;
-  margin: 0.5em 0 1em;
+  text-decoration: underline;
 
-  app-icon {
-    flex-shrink: 0;
-    margin-top: 0.15em;
-  }
-
-  .out-of-order-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4em;
-    width: 100%;
-  }
-
-  .out-of-order-title {
-    margin: 0;
-    font-size: 1em;
+  &:hover {
     color: #6d3f00;
-  }
-
-  .out-of-order-text {
-    margin: 0;
-    font-size: 0.93em;
-    line-height: 1.45;
-    color: #8a5200;
-  }
-
-  .out-of-order-link {
-    font-weight: 600;
-    color: #8a5200;
-    text-decoration: underline;
-
-    &:hover {
-      color: #6d3f00;
-    }
-  }
-
-  .out-of-order-actions {
-    margin-top: 0.4em;
-    display: flex;
-    gap: 0.5em;
-  }
-
-  .next-grading-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4em;
-    background: #fff;
-    border: 1px solid #f5a623;
-    color: #8a5200;
-    font-weight: 600;
-    text-decoration: none;
-    padding: 0.35em 0.8em;
-    border-radius: 4px;
-
-    &:hover {
-      background: #fef8ed;
-      border-color: #d97706;
-      color: #6d3f00;
-    }
   }
 }
 

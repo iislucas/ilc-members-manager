@@ -10,7 +10,7 @@ import * as logger from 'firebase-functions/logger';
 import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid } from '../data-model/gradings';
 import { Member } from '../data-model/members';
 import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model/orders';
-import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from '../level-utils';
+import { ApplicationLevel, StudentLevel, normalizeGradingLevel, toApplicationLevel, toStudentLevel } from '../data-model/curriculum';
 import { GradingResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
 
@@ -18,7 +18,7 @@ export function parseGradingOrderInfo(
   orderData: SquareSpaceOrder,
   gradingItem: SquareSpaceLineItem,
   orderId?: string
-): { email: string; currentStudentLevel: string; currentApplicationLevel: string; gradingInfo: Grading } {
+): { email: string; currentStudentLevel: StudentLevel; currentApplicationLevel: ApplicationLevel; gradingInfo: Grading } {
   const customizations: SquareSpaceCustomization[] = gradingItem.customizations || [];
 
   let providedMemberId = '';
@@ -65,14 +65,14 @@ export function parseGradingOrderInfo(
   if (!level) {
     level = gradingItem.productName || 'Unknown Level';
   }
-  level = canonicalizeGradingLevel(level);
+  level = normalizeGradingLevel(level);
 
   const purchaseDate = orderData.createdOn ? orderData.createdOn.substring(0, 10) : new Date().toISOString().substring(0, 10);
 
   return {
     email,
-    currentStudentLevel: canonicalizeStudentLevel(currentStudentLevel),
-    currentApplicationLevel: canonicalizeApplicationLevel(currentApplicationLevel),
+    currentStudentLevel: toStudentLevel(currentStudentLevel),
+    currentApplicationLevel: toApplicationLevel(currentApplicationLevel),
     gradingInfo: {
       ...initGrading(),
       // Purchased through Squarespace, so it is paid. The student's level
@@ -101,13 +101,16 @@ export async function processGradingOrder(
   const level = gradingInfo.level || '';
 
   // Idempotency check: see if we already processed this order + level
+  // Compared after normalising, so a grading stored with a legacy spelling of
+  // the level still counts.
   const existingGradingsQuery = await db.collection('gradings')
     .where('orderId', '==', orderId)
-    .where('level', '==', level)
-    .limit(1)
     .get();
+  const alreadyExists = existingGradingsQuery.docs.some(
+    (d) => normalizeGradingLevel((d.data() as Grading).level || '') === level,
+  );
 
-  if (!existingGradingsQuery.empty) {
+  if (alreadyExists) {
     const issue = `[Grading] Grading for order ${orderId} and level ${level} already exists. Skipping.`;
     logger.warn(issue);
     return { kind: 'error', message: issue };
@@ -246,10 +249,10 @@ export async function processGradingOrder(
 
     const emailMatches = memberEmails.includes(providedEmailLower) || publicEmail === providedEmailLower;
 
-    // Member levels might be stored as "1" or "Student 1".
-    // canonicalize functions will ensure they are both in the "Student X" or "Application X" format.
-    const memberStudentLevel = canonicalizeStudentLevel(memberData.studentLevel || '');
-    const memberApplicationLevel = canonicalizeApplicationLevel(memberData.applicationLevel || '');
+    // Both sides read through the shared normalisers, so any spelling
+    // ('1', 'Student 1', 'Student Level 1') compares equal.
+    const memberStudentLevel = toStudentLevel(memberData.studentLevel);
+    const memberApplicationLevel = toApplicationLevel(memberData.applicationLevel);
 
     const studentLevelMatches = !currentStudentLevel || (memberStudentLevel === currentStudentLevel);
     const applicationLevelMatches = !currentApplicationLevel || (memberApplicationLevel === currentApplicationLevel);

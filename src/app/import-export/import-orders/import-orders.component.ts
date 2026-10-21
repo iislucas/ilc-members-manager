@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ImportMappingComponent } from '../import-mapping/import-mapping';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
-import { StudentLevel, InstructorLicenseType, MasterLevel } from '../../../../functions/src/data-model/curriculum';
+import { StudentLevel, InstructorLicenseType, MasterLevel, toGradingLevel, studentLevelOf } from '../../../../functions/src/data-model/curriculum';
 import { Member, initMember, MembershipType } from '../../../../functions/src/data-model/members';
 import { SheetsImportOrder, initSheetsImportOrder } from '../../../../functions/src/data-model/orders';
 import { School } from '../../../../functions/src/data-model/schools';
@@ -634,11 +634,12 @@ export class ImportOrdersComponent {
     // Checking for Gradings
     const isGrading = order.orderType?.toLowerCase() === 'grading' || paymentType.toLowerCase().includes('student level');
     if (isGrading) {
-      const levelMatch = paymentType.match(/Student Level\s*(\d+)/i);
-      if (levelMatch) {
-        const newLevel = levelMatch[1] as StudentLevel;
+      // Any spelling of a student level in the payment type ('Student Level 3', …).
+      const purchased = toGradingLevel(paymentType);
+      const newLevel = purchased ? studentLevelOf(purchased) : StudentLevel.None;
+      if (newLevel !== StudentLevel.None) {
         // Only update if it's a higher level or different
-        const higherLevel = ensureHigherStudentLevel(newMember.studentLevel, newLevel) as StudentLevel;
+        const higherLevel = ensureHigherStudentLevel(newMember.studentLevel, newLevel);
         if (higherLevel !== undefined && higherLevel !== newMember.studentLevel) {
           newMember.studentLevel = higherLevel;
           changed = true;

@@ -12,7 +12,7 @@ import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { allowedOrigins, getMemberByEmail } from '../common';
+import { allowedOrigins, getMemberByEmail, verifiedAuthEmail } from '../common';
 import { normalizeEmail } from '../data-model/email';
 import { getStripeClient, stripeSecretKey } from '../stripe-common';
 import {
@@ -164,9 +164,7 @@ export const createVodCheckoutSession = onCall<
   let memberDocId: string | undefined;
   let memberId: string | undefined;
 
-  const authEmail = request.auth?.token?.email
-    ? normalizeEmail(request.auth.token.email)
-    : undefined;
+  const authEmail = verifiedAuthEmail(request) || undefined;
 
   if (authEmail) {
     try {

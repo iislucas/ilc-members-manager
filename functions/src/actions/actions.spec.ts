@@ -79,6 +79,7 @@ class InMemoryFirestore {
   runTransaction<T>(updateFunction: (transaction: {
     get: (ref: { path: string }) => Promise<{ exists: boolean; data: () => Record<string, unknown> | undefined }>;
     set: (ref: { path: string }, data: Record<string, unknown>, options?: { merge?: boolean }) => void;
+    update: (ref: { path: string }, data: Record<string, unknown>) => void;
   }) => Promise<T>): Promise<T> {
     const tx = {
       get: async (ref: { path: string }) => {
@@ -95,6 +96,10 @@ class InMemoryFirestore {
         } else {
           this.data.set(ref.path, { ...docData });
         }
+      },
+      // Like Firestore: merges fields into an existing document.
+      update: (ref: { path: string }, docData: Record<string, unknown>) => {
+        this.data.set(ref.path, { ...(this.data.get(ref.path) || {}), ...docData });
       },
     };
     return updateFunction(tx);
@@ -511,7 +516,7 @@ describe('Database Actions Library', () => {
         name: 'Grading Student',
         email: 'grading.student@example.com',
         countryCode: 'US',
-        studentLevel: 'Level 1' as any,
+        studentLevel: 'Level 1' as any, // legacy spelling: read as StudentLevel.Level1
       });
       studentDocId = s.data!.docId;
     });
@@ -526,7 +531,8 @@ describe('Database Actions Library', () => {
       expect(res.success).toBe(true);
       expect(res.data?.studentMemberDocId).toBe(studentDocId);
       expect(res.data?.studentName).toBe('Grading Student');
-      expect(res.data?.level).toBe('Level 2');
+      // Stored in canonical GradingLevel form.
+      expect(res.data?.level).toBe('Student 2');
       expect(res.data?.status).toBe(GradingStatus.AwaitingAcceptance);
     });
 
@@ -545,7 +551,8 @@ describe('Database Actions Library', () => {
       expect(acceptRes.success).toBe(true);
       expect(acceptRes.data?.status).toBe(GradingStatus.AwaitingGrading);
       expect(acceptRes.data?.acceptedByName).toBe('Sifu Sam');
-      expect(acceptRes.data?.studentLevelAtAcceptance).toBe('Level 1');
+      // Snapshot holds the canonical StudentLevel.
+      expect(acceptRes.data?.studentLevelAtAcceptance).toBe('1');
     });
 
     it('declines a grading request with notes', async () => {
@@ -576,15 +583,16 @@ describe('Database Actions Library', () => {
         ctx,
         grading.data!.docId,
         { pass: true, resultNotes: 'Exemplary form and understanding.', awardLevel: true },
-        { name: 'Grandmaster' },
+        { name: 'Grandmaster', memberDocId: 'admin_doc_1', isAdmin: true },
       );
 
       expect(resultRes.success).toBe(true);
       expect(resultRes.data?.status).toBe(GradingStatus.Passed);
 
-      // Verify member record was updated with the new level
+      // Verify member record was updated with the new level (bare value, as
+      // onGradingUpdated writes it).
       const student = await getMember(ctx, studentDocId);
-      expect(student?.studentLevel).toBe('Level 2');
+      expect(student?.studentLevel).toBe('2');
     });
 
     it('links and unlinks an event on a grading', async () => {

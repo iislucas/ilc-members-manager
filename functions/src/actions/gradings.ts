@@ -14,6 +14,8 @@ import {
   firestoreDocToGrading,
 } from '../data-model/gradings';
 import { firestoreDocToMember } from '../data-model/members';
+import { normalizeGradingLevel, toGradingLevel } from '../data-model/curriculum';
+import { awardGradingLevel } from '../award-level';
 import { firestoreDocToIlcEvent } from '../data-model/events';
 import { ActionActor, ActionContext, ActionResult } from './types';
 
@@ -94,8 +96,10 @@ export async function listGradings(
   let gradings = snap.docs.map(firestoreDocToGrading);
 
   if (options?.level) {
-    const cleanLevel = options.level.toLowerCase().trim();
-    gradings = gradings.filter((g) => g.level.toLowerCase().trim() === cleanLevel);
+    // Compared in canonical form, so any spelling ('Level 2', 'Student 2', …)
+    // finds the same gradings.
+    const wanted = normalizeGradingLevel(options.level);
+    gradings = gradings.filter((g) => normalizeGradingLevel(g.level) === wanted);
   }
 
   return gradings;
@@ -113,6 +117,13 @@ export async function createGrading(
   }
   if (!input.level?.trim()) {
     return { success: false, error: 'Grading level is required.' };
+  }
+  // Gradings are only for syllabus levels (student and application).
+  if (!toGradingLevel(input.level)) {
+    return {
+      success: false,
+      error: `"${input.level}" is not a grading level (expected e.g. "Student 3" or "Application 1").`,
+    };
   }
 
   // Verify student exists
@@ -156,6 +167,8 @@ export async function createGrading(
     gradingEventDate: eventDate,
     paymentStatus: input.paymentStatus || PaymentStatus.PaidOther,
     status: input.status || (input.gradingInstructorId ? GradingStatus.AwaitingAcceptance : GradingStatus.AwaitingRequest),
+    // Stored in canonical `GradingLevel` form whatever spelling was passed in.
+    level: normalizeGradingLevel(input.level || ''),
     lastUpdated: nowIso,
   };
 
@@ -245,8 +258,8 @@ export async function acceptGrading(
     const studentDoc = await ctx.db.collection(FirestoreCollection.Members).doc(grading.studentMemberDocId).get();
     if (studentDoc.exists) {
       const s = firestoreDocToMember(studentDoc);
-      studentLevel = s.studentLevel || '';
-      appLevel = s.applicationLevel || '';
+      studentLevel = s.studentLevel;
+      appLevel = s.applicationLevel;
     }
   }
 
@@ -311,6 +324,15 @@ export async function recordGradingResult(
   }
 
   const act = actor || ctx.actor;
+  // The result must be attributed to a member: onGradingUpdated judges the
+  // write by `statusChangedByMemberDocId` (e.g. only admins may record results
+  // out of order), and an anonymous write would be treated as a non-admin's.
+  if (!act?.memberDocId) {
+    return {
+      success: false,
+      error: 'Recording a grading result requires an actor member (scripts: pass --as <admin>).',
+    };
+  }
   const status = options.pass ? GradingStatus.Passed : GradingStatus.NotPassed;
 
   const patch: Partial<Grading> = {
@@ -332,17 +354,15 @@ export async function recordGradingResult(
       ctx.logger?.(`[DRY-RUN] Would award level "${grading.level}" to member ${grading.studentMemberDocId}`);
     } else {
       const studentRef = ctx.db.collection(FirestoreCollection.Members).doc(grading.studentMemberDocId);
-      const isAppLevel = grading.level.toLowerCase().startsWith('application');
-      const memberPatch: Record<string, unknown> = {
-        lastUpdated: FieldValue.serverTimestamp(),
-      };
-      if (isAppLevel) {
-        memberPatch['applicationLevel'] = grading.level;
+      // Transactional and only ever raises the level (see awardGradingLevel);
+      // member fields hold the track position ('3'), not the label.
+      const level = toGradingLevel(grading.level);
+      if (!level) {
+        ctx.logger?.(`"${grading.level}" is not a syllabus level; no level awarded to member ${grading.studentMemberDocId}`);
       } else {
-        memberPatch['studentLevel'] = grading.level;
+        const outcome = await awardGradingLevel(ctx.db, studentRef, level);
+        ctx.logger?.(`Award of "${level}" to member ${grading.studentMemberDocId}: ${outcome}`);
       }
-      await studentRef.set(memberPatch, { merge: true });
-      ctx.logger?.(`Awarded level "${grading.level}" to member ${grading.studentMemberDocId}`);
     }
   }
 

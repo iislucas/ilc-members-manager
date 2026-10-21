@@ -46,6 +46,10 @@ export function gradingStageFromKind(kind: NotificationKind): string {
       return 'grading_not_passed';
     case NotificationKind.GradingNeedsEventDate:
       return 'grading_needs_event_date';
+    case NotificationKind.GradingNeedsEarlierLevels:
+      return 'grading_needs_earlier_levels';
+    case NotificationKind.MemberLevelUnrecognised:
+      return 'member_level_unrecognised';
     case NotificationKind.GradingUnpaid:
       return 'grading_unpaid';
     default:
@@ -163,10 +167,13 @@ export function generateBackendNotificationDocId(
  * Uses deterministic document IDs to guarantee idempotent writes without
  * race conditions.
  */
+// Writes a notification for a member. Pass `docId` to make it idempotent:
+// writing again with the same id replaces the notification instead of adding
+// another (e.g. one "grading purchased" notification per order).
 export async function createMemberNotification(
   db: admin.firestore.Firestore,
   memberDocId: string,
-  notification: Omit<MemberNotification, 'docId'>,
+  notification: Omit<MemberNotification, 'docId'> & { docId?: string },
 ): Promise<void> {
   const notifications = db
     .collection('members')

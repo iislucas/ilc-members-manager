@@ -26,6 +26,7 @@ import * as admin from 'firebase-admin';
 import { OrderKind, StripeCheckoutMode, StripeOrder, StripeOrderLineItem, StripeOrderType, StripePaymentStatus } from './data-model/orders';
 import {
   formatLineItemDescription,
+  listAllSessionLineItems,
   getStripeClient,
   stripeSecretKey,
   stripeWebhookSecret,
@@ -66,10 +67,7 @@ function metadataToRecord(
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
-function mapSessionLineItems(
-  session: Stripe.Checkout.Session,
-): StripeOrderLineItem[] {
-  const items = session.line_items?.data ?? [];
+function mapSessionLineItems(items: Stripe.LineItem[]): StripeOrderLineItem[] {
   return items.map((item) => {
     const price = item.price ?? null;
     const product = price?.product;
@@ -123,8 +121,12 @@ function mapSubscriptionLineItems(
 }
 
 /** Builds a 'checkout' order from a completed Checkout Session. */
+// Builds an order from a Checkout Session. `lineItems` should be the complete
+// list (see listAllSessionLineItems); it defaults to whatever is expanded on the
+// session, which Stripe caps at the first page.
 export function sessionToStripeOrder(
   session: Stripe.Checkout.Session,
+  lineItems: Stripe.LineItem[] = session.line_items?.data ?? [],
 ): StripeOrder {
   const created = unixSecondsToIso(session.created);
   const address = session.customer_details?.address ?? undefined;
@@ -158,7 +160,7 @@ export function sessionToStripeOrder(
     created,
     metadata: metadataToRecord(session.metadata),
     clientReferenceId: session.client_reference_id ?? null,
-    lineItems: mapSessionLineItems(session),
+    lineItems: mapSessionLineItems(lineItems),
   };
 }
 
@@ -319,12 +321,15 @@ async function handleCheckoutSession(
   session: Stripe.Checkout.Session,
   db: admin.firestore.Firestore,
 ): Promise<void> {
-  // Re-retrieve so we have expanded line items and product ids, which are not
-  // present on the object delivered in the event payload.
-  const full = await stripe.checkout.sessions.retrieve(session.id, {
-    expand: ['line_items.data.price.product'],
-  });
-  await upsertStripeOrder(db, sessionToStripeOrder(full));
+  // Re-retrieve the session and list ALL its line items (with product ids),
+  // which are not present on the object delivered in the event payload. The
+  // items are paged so an order with many items (e.g. several grading levels)
+  // is never truncated.
+  const [full, lineItems] = await Promise.all([
+    stripe.checkout.sessions.retrieve(session.id),
+    listAllSessionLineItems(stripe, session.id),
+  ]);
+  await upsertStripeOrder(db, sessionToStripeOrder(full, lineItems));
 }
 
 async function handleInvoicePaid(

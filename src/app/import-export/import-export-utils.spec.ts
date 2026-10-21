@@ -1,4 +1,5 @@
-import { parseDate } from './import-export-utils';
+import { parseDate, ensureHigherStudentLevel, ensureHigherApplicationLevel } from './import-export-utils';
+import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
 
 describe('parseDate', () => {
     it('should parse YYYY-MM-DD', () => {
@@ -42,5 +43,18 @@ describe('parseDate', () => {
 
     it('should parse dd-Sept-yyyy (handling Sept as Sep)', () => {
         expect(parseDate('04-Sept-1998')).toEqual({ success: true, value: '1998-09-04' });
+    });
+});
+
+describe('ensureHigherStudentLevel / ensureHigherApplicationLevel', () => {
+    it('keeps the higher level and returns it in canonical form, whatever the spelling', () => {
+        expect(ensureHigherStudentLevel('Student 2', '3')).toBe(StudentLevel.Level3);
+        expect(ensureHigherStudentLevel('Student Level 5', '3')).toBe(StudentLevel.Level5);
+        expect(ensureHigherStudentLevel('', 'Entry Level')).toBe(StudentLevel.Entry);
+        expect(ensureHigherStudentLevel('Entry', '1')).toBe(StudentLevel.Level1);
+        expect(ensureHigherStudentLevel('', '')).toBeUndefined();
+        expect(ensureHigherApplicationLevel('Application 1', '2')).toBe(ApplicationLevel.Level2);
+        expect(ensureHigherApplicationLevel('Application Level 3', '2')).toBe(ApplicationLevel.Level3);
+        expect(ensureHigherApplicationLevel(undefined, '')).toBeUndefined();
     });
 });

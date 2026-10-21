@@ -39,6 +39,8 @@ describe('GradingProgressComponent', () => {
       members: new SearchableSet(['memberId'], 'memberId', []) as never,
       instructors: new SearchableSet(['instructorId'], 'instructorId', []) as never,
       myGradings: new SearchableSet(['docId'], 'docId', []) as never,
+      gradings: new SearchableSet(['docId'], 'docId', []) as never,
+      myGradingsAssessed: new SearchableSet(['docId'], 'docId', []) as never,
       getMemberByDocId: () => undefined,
       getMemberByMemberId: () => undefined,
       getMyStudent: () => undefined,
@@ -413,9 +415,7 @@ describe('GradingProgressComponent', () => {
     expect(component.showGradingOutOfOrderWarning()).toBe(false);
   });
 
-  it('shows the current-level out-of-order warning to the requesting student', () => {
-    // Student viewing their own out-of-order request (no acceptance snapshot yet)
-    // should see the warning, as should the accepting instructor.
+  it('tells the student a grading booked ahead waits for earlier levels, without an out-of-order warning', () => {
     const studentMember = { ...initMember(), docId: 'doc-student-1', instructorId: '' };
     mockFirebaseState.user.set({
       member: studentMember,
@@ -439,12 +439,13 @@ describe('GradingProgressComponent', () => {
     });
     fixture.detectChanges();
     expect(component.isNextGrading()).toBe(false);
-    expect(component.canAccept()).toBe(false);
     expect(component.userIsStudent()).toBe(true);
-    expect(component.showGradingOutOfOrderWarning()).toBe(true);
+    // Booked ahead is normal: an informational notice, not an out-of-order warning.
+    expect(component.showGradingOutOfOrderWarning()).toBe(false);
+    expect(component.showBookedAheadNotice()).toBe(true);
   });
 
-  it('blocks the student from requesting an out-of-order grading in AwaitingRequest state and links to next grading', () => {
+  it('lets the student request a grading booked ahead and links to the earlier grading', () => {
     const studentMember = {
       ...initMember(),
       docId: 'doc-student-1',
@@ -470,7 +471,7 @@ describe('GradingProgressComponent', () => {
       },
     ];
 
-    // Viewing Student 7 (out of order)
+    // Viewing Student 7 (booked ahead)
     componentRef.setInput('grading', {
       ...initGrading(),
       docId: 'g1',
@@ -484,13 +485,15 @@ describe('GradingProgressComponent', () => {
     expect(component.userIsStudent()).toBe(true);
     expect(component.nextGradingDocId()).toBe('g-next-6');
     expect(component.studentNextGradingLevel()).toBe('Student 6');
+    expect(component.earlierLevelsToPass()).toEqual(['Student 6', 'Application 3']);
 
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.textContent).toContain('You are not yet eligible to request an instructor evaluate you for this level');
-    expect(el.textContent).toContain('your Student 6 grading');
-    expect(el.querySelector('.next-grading-btn')?.textContent).toContain('Go to Student 6 Grading');
-    // Ensure the normal submit form is hidden
-    expect(el.querySelector('app-instructor-selector')).toBeNull();
+    const notice = el.querySelector('.booked-ahead-notice');
+    expect(notice?.textContent).toContain('Booked ahead');
+    expect(notice?.textContent).toContain('Student 6');
+    expect(notice?.querySelector('a')?.textContent).toContain('Go to your Student 6 grading');
+    // The request form is available: gradings may be requested ahead.
+    expect(el.querySelector('app-instructor-selector')).not.toBeNull();
 
     // Out-of-order grading: isActiveNextGrading is false, so (from: ...) is omitted
     expect(component.isActiveNextGrading()).toBe(false);
@@ -513,7 +516,7 @@ describe('GradingProgressComponent', () => {
     expect(component.fromLevelsDisplay()).toBe('from: Student 5, Application 2');
     expect(el.querySelector('.grading-target')?.textContent).toContain('(from: Student 5, Application 2)');
 
-    // Verify saveRequestFields is blocked when out of order
+    // saveRequestFields is allowed for a grading booked ahead
     componentRef.setInput('grading', {
       ...initGrading(),
       docId: 'g1',
@@ -525,8 +528,172 @@ describe('GradingProgressComponent', () => {
 
     const emitted: Partial<Grading>[] = [];
     component.gradingUpdated.subscribe((u) => emitted.push(u));
+    component.editInstructorId.set('instr-1');
     component.saveRequestFields();
-    expect(emitted.length).toBe(0);
+    expect(emitted.length).toBe(1);
+    expect(emitted[0].status).toBe(GradingStatus.AwaitingAcceptance);
+  });
+
+  describe('gradings booked ahead (instructor view)', () => {
+    const instructor = { ...initMember(), docId: 'doc-instr-1', instructorId: 'instr-1' };
+    const setUser = (isAdmin: boolean) =>
+      mockFirebaseState.user.set({
+        member: instructor,
+        memberProfiles: [instructor],
+        isAdmin,
+        schoolsManaged: [],
+        firebaseUser: {} as never,
+      });
+    const aheadGrading = (status: GradingStatus): Grading => ({
+      ...initGrading(),
+      docId: 'g-ahead',
+      studentMemberDocId: 'doc-student-1',
+      gradingInstructorId: 'instr-1',
+      level: 'Student 7',
+      status,
+      gradingEventDate: '2026-09-01',
+    });
+
+    beforeEach(() => {
+      // Student is at Student 5 / Application 2: Student 6 and Application 3
+      // must be passed before Student 7.
+      mockDataService.getMemberByDocId = (() => ({
+        ...initMember(),
+        studentLevel: '5',
+        applicationLevel: '2',
+      })) as never;
+    });
+
+    it('lets the instructor accept a grading booked ahead', () => {
+      setUser(false);
+      componentRef.setInput('grading', aheadGrading(GradingStatus.AwaitingAcceptance));
+      fixture.detectChanges();
+      expect(component.canAccept()).toBe(true);
+
+      const emitted: Partial<Grading>[] = [];
+      component.gradingUpdated.subscribe((u) => emitted.push(u));
+      component.acceptAndGradeMyself();
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].status).toBe(GradingStatus.AwaitingGrading);
+    });
+
+    it('blocks recording a result until the earlier levels are achieved', () => {
+      setUser(false);
+      componentRef.setInput('grading', aheadGrading(GradingStatus.AwaitingGrading));
+      fixture.detectChanges();
+      expect(component.earlierLevelsToPass()).toEqual(['Student 6', 'Application 3']);
+      expect(component.resultBlockedByEarlierLevels()).toBe(true);
+      expect(component.resultButtonTitle()).toBe('Student 6, Application 3 must be passed first');
+
+      const el = fixture.nativeElement as HTMLElement;
+      const passBtn = el.querySelector('.pass-button') as HTMLButtonElement;
+      expect(passBtn.disabled).toBe(true);
+
+      const emitted: Partial<Grading>[] = [];
+      component.gradingUpdated.subscribe((u) => emitted.push(u));
+      component.markResult(GradingStatus.Passed);
+      expect(emitted.length).toBe(0);
+    });
+
+    it('lets an admin record the result regardless', () => {
+      setUser(true);
+      componentRef.setInput('grading', aheadGrading(GradingStatus.AwaitingGrading));
+      fixture.detectChanges();
+      expect(component.resultBlockedByEarlierLevels()).toBe(false);
+
+      const emitted: Partial<Grading>[] = [];
+      component.gradingUpdated.subscribe((u) => emitted.push(u));
+      component.markResult(GradingStatus.Passed);
+      expect(emitted.length).toBe(1);
+    });
+
+    it('allows the result once the student holds the previous level', () => {
+      setUser(false);
+      mockDataService.getMemberByDocId = (() => ({
+        ...initMember(),
+        studentLevel: '6',
+        applicationLevel: '3',
+      })) as never;
+      componentRef.setInput('grading', aheadGrading(GradingStatus.AwaitingGrading));
+      fixture.detectChanges();
+      expect(component.resultBlockedByEarlierLevels()).toBe(false);
+      expect(component.showBookedAheadNotice()).toBe(false);
+    });
+
+    it('treats a Student 3 grading as in order for a student at Student 2, whatever the stored format', () => {
+      setUser(false);
+      for (const stored of ['2', 'Student 2', 'Student Level 2']) {
+        mockDataService.getMemberByDocId = (() => ({
+          ...initMember(),
+          studentLevel: stored,
+          applicationLevel: '',
+        })) as never;
+        for (const status of [GradingStatus.AwaitingAcceptance, GradingStatus.AwaitingGrading]) {
+          componentRef.setInput('grading', {
+            ...aheadGrading(status),
+            level: 'Student 3',
+            // A stale snapshot from accepting ahead must not matter in flight.
+            studentLevelAtAcceptance: status === GradingStatus.AwaitingGrading ? '1' : '',
+          });
+          fixture.detectChanges();
+          expect(component.isNextGrading()).toBe(true);
+          expect(component.showGradingOutOfOrderWarning()).toBe(false);
+          expect(component.showBookedAheadNotice()).toBe(false);
+          expect(component.resultBlockedByEarlierLevels()).toBe(false);
+        }
+      }
+    });
+
+    it('counts an earlier grading just passed and paid, before the member record catches up', () => {
+      // Student 2 and Student 3 graded at one event: the instructor records
+      // Student 2 Passed, then opens Student 3 before the member's level updates.
+      setUser(false);
+      mockDataService.getMemberByDocId = (() => ({
+        ...initMember(),
+        studentLevel: '1',
+        applicationLevel: '',
+      })) as never;
+      (mockDataService.myGradingsAssessed as SearchableSet<'docId', Grading>).setEntries([
+        {
+          ...initGrading(),
+          docId: 'g-s2',
+          studentMemberDocId: 'doc-student-1',
+          level: 'Student 2',
+          status: GradingStatus.Passed,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+      ]);
+      componentRef.setInput('grading', { ...aheadGrading(GradingStatus.AwaitingGrading), level: 'Student 3' });
+      fixture.detectChanges();
+      expect(component.resultBlockedByEarlierLevels()).toBe(false);
+
+      // Unpaid, it doesn't count yet.
+      (mockDataService.myGradingsAssessed as SearchableSet<'docId', Grading>).setEntries([
+        {
+          ...initGrading(),
+          docId: 'g-s2',
+          studentMemberDocId: 'doc-student-1',
+          level: 'Student 2',
+          status: GradingStatus.Passed,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      ]);
+      fixture.detectChanges();
+      expect(component.earlierLevelsToPass()).toEqual(['Student 2']);
+    });
+
+    it('does not block when the student record is not readable', () => {
+      setUser(false);
+      mockDataService.getMemberByDocId = (() => undefined) as never;
+      // Stale snapshot from accepting ahead must not block the result.
+      componentRef.setInput('grading', {
+        ...aheadGrading(GradingStatus.AwaitingGrading),
+        studentLevelAtAcceptance: '5',
+        applicationLevelAtAcceptance: '2',
+      });
+      fixture.detectChanges();
+      expect(component.resultBlockedByEarlierLevels()).toBe(false);
+    });
   });
 
   it('displays free retake option for student viewing a Not-Passed grading and triggers retake', async () => {

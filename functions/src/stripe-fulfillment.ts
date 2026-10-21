@@ -11,7 +11,7 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import Stripe from 'stripe';
-import { InstructorLicenseType, gradingProgression, achievedGradingLevels, normalizeGradingLevel } from './data-model/curriculum';
+import { InstructorLicenseType, achievedGradingLevels, normalizeGradingLevel, toGradingLevel } from './data-model/curriculum';
 import {
   EventRegistration,
   EventRegistrationUpgrade,
@@ -30,7 +30,6 @@ import { NotificationKind } from './data-model/notifications';
 import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderType, StripeOrderLineItem, StripeCheckoutMode, OrderStatus, OrderKind } from './data-model/orders';
 import { initSchool, School } from './data-model/schools';
 import { VideoGrant, VideoGrantKind, firestoreDocToVideoItem } from './data-model/vod';
-import { canonicalizeGradingLevel } from './level-utils';
 import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
@@ -301,26 +300,21 @@ export async function mirrorOrderToMemberSubcollection(
   });
 }
 
-/**
- * Extract grading level from line item description (e.g. "Student Level 3", "Application 2").
- */
-function extractGradingLevel(description: string): string {
-  const normalized = description.trim();
-  const match = normalized.match(
-    /(student\s*level\s*\d+|application\s*level\s*\d+|student\s*\d+|application\s*\d+|entry)/i,
-  );
-  if (match) {
-    return canonicalizeGradingLevel(match[1]);
-  }
-  return canonicalizeGradingLevel(normalized);
-}
-
 /** Human-readable amount for a line item, e.g. "USD 80.00", for alert text. */
 function formatOrderAmount(lineItem: StripeOrderLineItem): string {
   const amount = lineItem.amountTotal;
   if (amount === undefined || amount === null) return 'an unknown amount';
   const currency = (lineItem.currency || 'usd').toUpperCase();
   return `${currency} ${(amount / 100).toFixed(2)}`;
+}
+
+/** Human-readable total of several line items, e.g. "USD 160.00". */
+function formatTotalAmount(items: StripeOrderLineItem[]): string {
+  const known = items.filter((i) => i.amountTotal !== undefined && i.amountTotal !== null);
+  if (known.length === 0) return 'an unknown amount';
+  const currency = (known[0].currency || 'usd').toUpperCase();
+  const total = known.reduce((sum, i) => sum + (i.amountTotal ?? 0), 0);
+  return `${currency} ${(total / 100).toFixed(2)}`;
 }
 
 /**
@@ -391,39 +385,52 @@ function describeGradingPaymentProblem(
   }
 }
 
-async function reportGradingPaymentProblem(
+/** A grading line item that could not be applied normally. */
+type GradingPaymentProblemReport = {
+  problem: GradingPaymentProblem;
+  amountPaid: string;
+  gradingDocId: string;
+};
+
+// Raises the alert for an order's grading payments that could not be applied
+// normally: every issue is recorded on the order (which puts it in front of the
+// admin team — see NotificationService.syncOrderIssueNotifications), and the
+// student gets ONE notification for the whole order, however many items it had.
+async function reportGradingPaymentProblems(
   db: admin.firestore.Firestore,
   member: Member,
   orderDocId: string,
-  problem: GradingPaymentProblem,
-  amountPaid: string,
-  gradingDocId: string,
+  reports: GradingPaymentProblemReport[],
 ): Promise<void> {
+  if (reports.length === 0) return;
   const contactEmail = environment.email.contact;
   const who = member.memberId || member.docId;
-  const { issue, explanation } = describeGradingPaymentProblem(problem, who, amountPaid);
+  const described = reports.map((r) => ({
+    ...r,
+    ...describeGradingPaymentProblem(r.problem, who, r.amountPaid),
+  }));
 
-  const held = gradingDocId
-    ? ' We have recorded the payment against a grading held for review, so nothing is lost.'
-    : '';
+  for (const d of described) {
+    logger.error('Grading payment needs review', {
+      memberDocId: member.docId,
+      memberId: member.memberId,
+      orderDocId,
+      gradingDocId: d.gradingDocId,
+      problem: d.problem.kind,
+      level: d.problem.level,
+    });
+    await flagOrderForAdmins(db, orderDocId, d.issue);
+  }
 
-  logger.error('Grading payment needs review', {
-    memberDocId: member.docId,
-    memberId: member.memberId,
-    orderDocId,
-    gradingDocId,
-    problem: problem.kind,
-    level: problem.level,
-  });
-
-  await flagOrderForAdmins(db, orderDocId, issue);
-
+  const lines = described.map(
+    (d) => `- You paid ${d.amountPaid} for **${d.problem.level || 'a grading'}**, but ${d.explanation}.`,
+  );
   try {
     await createMemberNotification(db, member.docId, {
       kind: NotificationKind.OrderNeedsAttention,
       markdown:
-        `⚠️ **Your grading payment needs checking.** You paid ${amountPaid} for ` +
-        `**${problem.level || 'a grading'}**, but ${explanation}.${held} ` +
+        `⚠️ **Your grading payment needs checking.**\n\n${lines.join('\n')}\n\n` +
+        `We have recorded the payment against a grading held for review, so nothing is lost. ` +
         `Our admin team has been alerted and will be in touch. ` +
         `If you do not hear back, or this does not look right, please contact ` +
         `[${contactEmail}](mailto:${contactEmail}) quoting order ${orderDocId}.`,
@@ -433,7 +440,7 @@ async function reportGradingPaymentProblem(
         orderDocId,
         orderRef: orderDocId,
         status: OrderStatus.NeedsManualProcessing,
-        issues: [issue],
+        issues: described.map((d) => d.issue),
       },
     });
   } catch (notifErr) {
@@ -445,41 +452,113 @@ async function reportGradingPaymentProblem(
   }
 }
 
+// Sends the student ONE confirmation email for an order's grading purchases,
+// listing every level bought, however many there were.
+async function sendGradingConfirmationEmail(
+  db: admin.firestore.Firestore,
+  member: Member,
+  fulfilled: GradingFulfillment[],
+): Promise<void> {
+  const recipientEmail = member.emails?.[0];
+  if (!recipientEmail || fulfilled.length === 0) return;
+  const appBase = environment.links?.appBase || 'https://app.iliqchuan.com';
+  try {
+    await sendTransactionalEmail(db, {
+      to: recipientEmail,
+      templateKey: TransactionalEmailKey.GradingPaymentConfirmation,
+      replacements: {
+        name: member.name || 'ILC Student',
+        memberId: member.memberId || '',
+        gradingLevel: fulfilled.map((f) => f.level).join(', '),
+        gradingEventName: 'Official ILC Grading',
+        gradingDate: new Date().toISOString().split('T')[0],
+        amount: formatTotalAmount(fulfilled.map((f) => f.lineItem)),
+        gradingUrl: `${appBase}/gradings`,
+        appBase,
+      },
+    });
+  } catch (emailErr) {
+    logger.error('Failed to send grading payment confirmation email', { emailErr, memberDocId: member.docId });
+  }
+}
+
+/**
+ * The level the purchase page charged for on the `index`-th grading line item
+ * of an order, or '' when it did not record one (the line-item description is
+ * then used instead). A multi-level purchase records every level, in line-item
+ * order, as a comma-separated `gradingLevels`; a single-level purchase (and
+ * orders placed before multi-level purchases existed) records `gradingLevel`.
+ */
+export function gradingLevelForItem(order: StripeOrder, index: number): string {
+  const levels = (order.metadata?.['gradingLevels'] || '')
+    .split(',')
+    .map((l) => l.trim())
+    .filter((l) => !!l);
+  if (levels.length > 0) return levels[index] || '';
+  return index === 0 ? order.metadata?.['gradingLevel'] || '' : '';
+}
+
 /**
  * Fulfills a grading purchase. The payment applies to the level that was
  * bought: an unpaid grading record for that level is marked paid, and when no
  * record exists one is created. Buying a level above the student's current one
- * is normal — that is how a grading is booked in advance.
+ * is normal — that is how a grading is booked in advance. One order may buy
+ * several levels; this is called once per grading line item.
  *
  * Two cases cannot be fulfilled that way and raise an alert to both the student
  * and the admins instead: paying for a level already achieved, and paying for a
  * level already paid for. The grading is still created in those cases, flagged
  * `RequiresReview` so the payment is never lost and an admin can resolve it.
  */
+/** What fulfilling one grading line item did. */
+type GradingFulfillment = {
+  gradingDocId: string;
+  // The level, canonical when recognised, else the purchased label.
+  level: string;
+  lineItem: StripeOrderLineItem;
+  // A grading was created by this run (false when settling an existing unpaid
+  // grading, or when the order was already processed).
+  created: boolean;
+  // Set when the payment couldn't be applied normally; reported per order.
+  problem: GradingPaymentProblemReport | null;
+};
+
 async function fulfillGradingForMember(
   db: admin.firestore.Firestore,
   member: Member,
   lineItem: StripeOrderLineItem,
   orderDocId: string,
   metadataLevel = '',
-): Promise<string> {
+): Promise<GradingFulfillment> {
   const purchaseDate = new Date().toISOString().split('T')[0];
   // The purchase page records the level it charged for in the order metadata;
   // trust that over parsing the line-item description when it is present.
-  const rawLevel = metadataLevel.trim()
-    ? canonicalizeGradingLevel(metadataLevel.trim())
-    : extractGradingLevel(lineItem.description);
-  const level = normalizeGradingLevel(rawLevel);
+  const rawLevel = (metadataLevel.trim() || lineItem.description || '').trim();
+  // The syllabus level bought, read from any spelling ('Student Level 3',
+  // 'GRADING : Entry Level', …), or null when the item names none.
+  const level = toGradingLevel(rawLevel);
   const amountPaid = formatOrderAmount(lineItem);
 
-  // Check if a grading was already created for this order to prevent duplicates
+  // Check if a grading was already created (or settled) by this order for this
+  // level, to prevent duplicates when an order is reprocessed. An order may buy
+  // several levels, so the check is per level.
   const existingQuery = await db
     .collection('gradings')
     .where('orderId', '==', orderDocId)
-    .limit(1)
     .get();
-  if (!existingQuery.empty) {
-    return existingQuery.docs[0].id;
+  const existingForLevel = existingQuery.docs.find(
+    (d) =>
+      normalizeGradingLevel((d.data() as Grading).level || '') ===
+      (level ?? rawLevel),
+  );
+  if (existingForLevel) {
+    return {
+      gradingDocId: existingForLevel.id,
+      level: level ?? rawLevel,
+      lineItem,
+      created: false,
+      problem: null,
+    };
   }
 
   const memberGradings = await db
@@ -491,9 +570,9 @@ async function fulfillGradingForMember(
     ref: doc.ref,
     ...(doc.data() as Grading),
   }));
-  const atPurchasedLevel = gradings.filter(
-    (g) => normalizeGradingLevel(g.level) === level,
-  );
+  const atPurchasedLevel = level
+    ? gradings.filter((g) => toGradingLevel(g.level) === level)
+    : [];
 
   // The student already has a grading for this level that they had not paid
   // for: this payment settles it. (Failed attempts are excluded — that level is
@@ -512,13 +591,19 @@ async function fulfillGradingForMember(
       level,
       orderDocId,
     });
-    return unpaidExisting.id;
+    return {
+      gradingDocId: unpaidExisting.id,
+      level: level ?? rawLevel,
+      lineItem,
+      created: false,
+      problem: null,
+    };
   }
 
   // Otherwise a grading is created for the level bought. Buying ahead of the
   // current level is fine; only these cases need a human to look.
   let problem: GradingPaymentProblem | null = null;
-  if (!level || !gradingProgression.includes(level)) {
+  if (!level) {
     problem = { kind: 'unknown-level', level: rawLevel };
   } else if (achievedGradingLevels(member.studentLevel, member.applicationLevel).has(level)) {
     problem = { kind: 'already-achieved', level };
@@ -535,7 +620,7 @@ async function fulfillGradingForMember(
     schoolId: member.primarySchoolId || '',
     orderId: orderDocId,
     gradingPurchaseDate: purchaseDate,
-    level: level || rawLevel,
+    level: level ?? rawLevel,
     // A flagged grading is held for admin review rather than presented to the
     // student as their next step (see onGradingCreated, which skips the
     // "grading purchased" notification for RequiresReview).
@@ -570,40 +655,14 @@ async function fulfillGradingForMember(
     heldForReview: !!problem,
   });
 
-  if (problem) {
-    await reportGradingPaymentProblem(
-      db,
-      member,
-      orderDocId,
-      problem,
-      amountPaid,
-      createdRef.id,
-    );
-  } else {
-    try {
-      const recipientEmail = member.emails?.[0];
-      if (recipientEmail) {
-        await sendTransactionalEmail(db, {
-          to: recipientEmail,
-          templateKey: TransactionalEmailKey.GradingPaymentConfirmation,
-          replacements: {
-            name: member.name || 'ILC Student',
-            memberId: member.memberId || '',
-            gradingLevel: level || rawLevel || 'Grading Assessment',
-            gradingEventName: 'Official ILC Grading',
-            gradingDate: purchaseDate,
-            amount: amountPaid,
-            gradingUrl: `${environment.links?.appBase || 'https://app.iliqchuan.com'}/gradings`,
-            appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
-          },
-        });
-      }
-    } catch (emailErr) {
-      logger.error('Failed to send grading payment confirmation email', { emailErr, memberDocId: member.docId });
-    }
-  }
-
-  return createdRef.id;
+  // Alerts and the confirmation email are sent once per order by the caller.
+  return {
+    gradingDocId: createdRef.id,
+    level: level ?? rawLevel,
+    lineItem,
+    created: true,
+    problem: problem ? { problem, amountPaid, gradingDocId: createdRef.id } : null,
+  };
 }
 
 /**
@@ -1172,6 +1231,11 @@ export async function fulfillStripeOrder(
     memberUpdates.stripeCustomerId = order.stripeCustomerId;
   }
 
+  // Position of the next grading line item among the order's grading items,
+  // used to look up its level in the `gradingLevels` metadata.
+  let gradingItemIndex = 0;
+  // What each grading line item did, so the student is told once per order.
+  const gradingResults: GradingFulfillment[] = [];
   for (const item of order.lineItems) {
     const category = categorizeLineItem(item, order.metadata);
     const descLower = item.description.toLowerCase();
@@ -1455,13 +1519,16 @@ export async function fulfillStripeOrder(
         memberUpdates.primarySchoolId = newSchoolId;
       }
     } else if (category === OrderItemCategory.Grading) {
-      await fulfillGradingForMember(
-        db,
-        member,
-        item,
-        orderDocId,
-        order.metadata?.['gradingLevel'] || '',
+      gradingResults.push(
+        await fulfillGradingForMember(
+          db,
+          member,
+          item,
+          orderDocId,
+          gradingLevelForItem(order, gradingItemIndex),
+        ),
       );
+      gradingItemIndex++;
     } else if (category === OrderItemCategory.Vod || order.metadata?.['videoId'] || order.metadata?.['seriesId']) {
       let videoId = (order.metadata?.['videoId'] || '').replace(/^prod_/, '');
       let seriesId = (order.metadata?.['seriesId'] || '').replace(/^prod_/, '');
@@ -1669,6 +1736,20 @@ export async function fulfillStripeOrder(
       [subKey]: newSubscription,
     };
   }
+
+  // One alert and one confirmation email per order, however many gradings it
+  // bought. Re-processing an order fulfills nothing new, so sends nothing.
+  await reportGradingPaymentProblems(
+    db,
+    member,
+    orderDocId,
+    gradingResults.flatMap((r) => (r.problem ? [r.problem] : [])),
+  );
+  await sendGradingConfirmationEmail(
+    db,
+    member,
+    gradingResults.filter((r) => r.created && !r.problem),
+  );
 
   await memberRef.update(memberUpdates);
   logger.info('FulfillStripeOrder updated member record', {

@@ -17,13 +17,19 @@ service cloud.firestore {
     // The raw (original-case) token email is never accepted.
     // ------------------------------------------------------------------
 
-    // True when the request carries a non-empty string email claim. Every
-    // other helper below must only be evaluated behind this guard (or uses
-    // it internally), so `.lower()` is never called on a missing claim.
+    // True when the request carries a non-empty string email claim AND that
+    // email has been verified (`email_verified == true`). Every other helper
+    // below must only be evaluated behind this guard (or uses it internally),
+    // so `.lower()` is never called on a missing claim and no email-derived
+    // identity (member ownership, /acl lookups, admin) is ever granted for an
+    // unverified email. Without the verification check, anyone could create
+    // an email/password account for someone else's not-yet-registered email
+    // and be treated as its owner.
     function hasAuthEmail() {
       return request.auth != null
         && request.auth.token.get('email', null) is string
-        && request.auth.token.email.size() > 0;
+        && request.auth.token.email.size() > 0
+        && request.auth.token.get('email_verified', false) == true;
     }
 
     // The lowercased token email. Only call after hasAuthEmail().
@@ -474,10 +480,27 @@ service cloud.firestore {
         return status == 'awaiting-instructor-grading' || status == 'passed' ||
                status == 'not-passed' || status == 'in-review';
       }
+      // The onGradingUpdate Cloud Function trusts `statusChangedByMemberDocId`
+      // to identify who changed the status (admin exemption from in-order
+      // grading, self-promotion and unpaid-request guards). For non-admin
+      // writes, whenever `status` or the actor field changes, the resulting
+      // actor must be one of the caller's own member docIds. This blocks
+      // forging another member's (e.g. an admin's) id, and also blocks a
+      // status change that leaves a stale previous actor in place (that value
+      // won't be the caller's), as well as empty/missing actors.
+      function actorIsCaller() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        let actor = request.resource.data.get('statusChangedByMemberDocId', null);
+        return !changed.hasAny(['status', 'statusChangedByMemberDocId']) ||
+          (actor is string && actor != '' && actor in getUserMemberDocIds());
+      }
       allow read: if isAdmin() || isGradingStudent() || isGradingManager() || isGradingSchoolManager() || isGradingEventManager();
       allow write: if hasValidEditUpdate() && isAdmin();
       allow delete: if isAdmin();
+      // Non-admin rules below all require actorIsCaller() so the status actor
+      // read by onGradingUpdate cannot be forged or left stale.
       allow update: if hasValidEditUpdate() && (isGradingManager() || isGradingEventManager()) &&
+          actorIsCaller() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'gradingEventDocId',
              'notes', 'instructorAcceptedDate', 'acceptedByMemberDocId', 'acceptedByName',
@@ -488,6 +511,7 @@ service cloud.firestore {
       // Before acceptance the student owns the linked event and request fields.
       // Students may only move status to pending or awaiting-instructor-acceptance.
       allow update: if hasValidEditUpdate() && isGradingStudent() && !gradingIsAccepted() &&
+          actorIsCaller() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingEvent', 'gradingEventDate', 'gradingEventDocId',
              'gradingInstructorId', 'studentNotes', 'declineNotes',
@@ -495,7 +519,9 @@ service cloud.firestore {
           request.resource.data.status in [resource.data.status, 'pending', 'awaiting-instructor-acceptance'];
       // After acceptance the event fields and status belong to the grading manager/admin,
       // so the student may update notes/instructors but no longer the linked event or status.
+      // (Status is not writable here, but the actor field is, so it must still be the caller.)
       allow update: if hasValidEditUpdate() && isGradingStudent() && gradingIsAccepted() &&
+          actorIsCaller() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'gradingInstructorId', 'studentNotes', 'declineNotes',
              'statusChangedByMemberDocId', 'statusChangedByName']);
