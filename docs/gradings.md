@@ -110,6 +110,30 @@ ignored — that level is governed by the free-retake flow.
 each level had just been paid for — to list **every** level the member can still
 buy, in the order payments would be applied.
 
+### The member's level-by-level view
+
+The "My Gradings" tab of `/my-gradings`
+([`GradingLevelsComponent`](../src/app/grading-levels/grading-levels.ts)) lays a
+member's gradings out along `gradingProgression`, one row per level. The rules
+live in the pure `buildGradingLevelRows`, built on the shared helpers above so
+the page always agrees with the purchase page:
+
+- **Achieved**: held on the member record, or awarded by a passed & paid grading
+  (`levelsIncludingPassedGradings`). The leading run of achieved levels is hidden
+  behind the "N levels achieved" toggle in the current-level summary line.
+- **Purchased** / **Requested**: an open grading for the level that is paid /
+  not yet paid. **Passed · fee not yet paid** and **Not passed** cover closed
+  attempts that didn't award the level.
+- **Next level**: the first level not yet held (highlighted).
+- The **Purchase** / **Pay now** button sits on the level `nextGradingPayment`
+  returns (skipping a free retake), and links to `/next-grading`. A free retake
+  (`freeRetakeLevel`) gets its own button. Members without an active membership
+  are pointed at the membership page instead.
+
+Under each level, its main grading (the open one, else the passed one, else the
+most recent) links to the grading page. Any other gradings for that level are in
+an unfoldable list under it. Gradings outside the syllabus are listed at the end.
+
 ## Purchasing a grading
 
 The purchase page
