@@ -1,0 +1,135 @@
+@let achieved = achievedRows();
+<div class="levels-summary">
+  <span>Current level: <strong>{{ currentLevelDisplay() }}</strong></span>
+  @if (achieved.length > 0) {
+    <button
+      type="button"
+      class="subtle-button"
+      [attr.aria-expanded]="showAchieved()"
+      (click)="toggleShowAchieved()"
+    >
+      {{ achieved.length }} {{ achieved.length === 1 ? 'level' : 'levels' }} achieved
+      <app-icon [name]="showAchieved() ? 'expand_less' : 'expand_more'" />
+    </button>
+  }
+</div>
+
+<div class="level-list">
+  @for (r of visibleRows(); track r.level) {
+    <div
+      class="level-row"
+      [class.next-level]="r.isNext"
+      [class.future-level]="r.state === LevelRowState.NotStarted && !r.isNext && !r.isNextPayment"
+    >
+      <div class="level-row-header">
+        <span class="level-marker">
+          @switch (r.state) {
+            @case (LevelRowState.Achieved) {
+              <app-icon name="check_circle" />
+            }
+            @case (LevelRowState.PassedUnpaid) {
+              <app-icon name="payments" />
+            }
+            @case (LevelRowState.Purchased) {
+              <app-icon name="shopping_cart" />
+            }
+            @case (LevelRowState.Requested) {
+              <app-icon name="pending_actions" />
+            }
+            @case (LevelRowState.NotPassed) {
+              <app-icon name="repeat" />
+            }
+            @default {
+              @if (r.isNext) {
+                <app-icon name="arrow_forward" />
+              }
+            }
+          }
+        </span>
+        <span class="level-name">{{ r.level }}</span>
+
+        @switch (r.state) {
+          @case (LevelRowState.PassedUnpaid) {
+            <span class="status-badge status-pending">Passed · fee not yet paid</span>
+          }
+          @case (LevelRowState.Purchased) {
+            <span class="status-badge paid">Purchased</span>
+          }
+          @case (LevelRowState.Requested) {
+            <span class="status-badge status-pending">Requested · not yet paid</span>
+          }
+          @case (LevelRowState.NotPassed) {
+            <span class="status-badge status-failed">Not passed</span>
+          }
+        }
+        @if (r.isFreeRetake) {
+          <span class="status-badge status-pending">Free retake available</span>
+        }
+        @if (r.isNext) {
+          <span class="badge-highlight">Next level</span>
+        }
+
+        @if (r.isNextPayment || r.isFreeRetake) {
+          <span class="level-actions">
+            @if (!isActiveMember()) {
+              <a class="button" [href]="membershipLink()">
+                <app-icon name="arrow_forward" /> Membership required
+              </a>
+            } @else if (r.isFreeRetake) {
+              <a class="button" [href]="nextGradingPurchaseLink()">
+                <app-icon name="repeat" /> Book free retake
+              </a>
+            } @else if (r.state === LevelRowState.Requested || r.state === LevelRowState.PassedUnpaid) {
+              <a class="button primary-button" [href]="nextGradingPurchaseLink()">
+                <app-icon name="payments" /> Pay now
+              </a>
+            } @else {
+              <a class="button primary-button" [href]="nextGradingPurchaseLink()">
+                <app-icon name="shopping_cart" /> Purchase
+              </a>
+            }
+          </span>
+        }
+      </div>
+
+      @if (r.mainGrading; as g) {
+        <a class="attempt-link" [href]="gradingLink(g)">
+          <app-grading-row-header [grading]="g" [hideStudent]="true" [hideLevel]="true" />
+        </a>
+      }
+
+      @if (r.otherGradings.length > 0) {
+        <button
+          type="button"
+          class="subtle-button attempts-toggle"
+          [attr.aria-expanded]="isUnfolded(r.level)"
+          (click)="toggleUnfolded(r.level)"
+        >
+          <app-icon [name]="isUnfolded(r.level) ? 'expand_less' : 'expand_more'" />
+          {{ isUnfolded(r.level) ? 'Hide' : 'Show' }} {{ r.otherGradings.length }} other
+          {{ r.otherGradings.length === 1 ? 'grading' : 'gradings' }} for this level
+        </button>
+        @if (isUnfolded(r.level)) {
+          <div class="other-attempts">
+            @for (g of r.otherGradings; track g.docId) {
+              <a class="attempt-link" [href]="gradingLink(g)">
+                <app-grading-row-header [grading]="g" [hideStudent]="true" [hideLevel]="true" />
+              </a>
+            }
+          </div>
+        }
+      }
+    </div>
+  }
+</div>
+
+@if (nonSyllabusGradings().length > 0) {
+  <h3 class="other-gradings-heading">Other gradings</h3>
+  <div class="level-list">
+    @for (g of nonSyllabusGradings(); track g.docId) {
+      <a class="attempt-link" [href]="gradingLink(g)">
+        <app-grading-row-header [grading]="g" [hideStudent]="true" />
+      </a>
+    }
+  </div>
+}

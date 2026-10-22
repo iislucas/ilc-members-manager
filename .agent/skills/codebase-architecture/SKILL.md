@@ -209,6 +209,7 @@ All application scripts (`*.js`, `*.css`) must be in the `app` asset group with 
 | `GradingEditComponent` | [src/app/grading-edit/](../../src/app/grading-edit/) | Full edit form with role-based field permissions |
 | `GradingViewComponent` | [src/app/grading-view/](../../src/app/grading-view/) | Detail page at `/gradings/{id}` |
 | `GradingProgressComponent` | [src/app/grading-progress/](../../src/app/grading-progress/) | Visual 3-step workflow indicator |
+| `GradingLevelsComponent` | [src/app/grading-levels/](../../src/app/grading-levels/) | "My Gradings" tab: one row per progression level (achieved / purchased / requested / not passed / next), other attempts unfold under the level. Rules in pure `buildGradingLevelRows` |
 
 ### GradingEditComponent form permission summary
 Uses Angular Signal Forms (`form()` from `@angular/forms/signals`). "Grading manager" (`userIsGradingInstructor`)

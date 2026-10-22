@@ -20,15 +20,17 @@
     </span>
   }
 
-  <span class="name">
-    @if (studentName()) {
-      {{ studentName() }}
-    } @else {
-      [New Grading]
-    }
-  </span>
+  @if (!hideStudent()) {
+    <span class="name">
+      @if (studentName()) {
+        {{ studentName() }}
+      } @else {
+        [New Grading]
+      }
+    </span>
+  }
 
-  @if (g.level) {
+  @if (!hideLevel() && g.level) {
     <span class="level-progression">
       @if (previousLevel()) {
         <span class="previous-level">{{ previousLevel() }}</span>
