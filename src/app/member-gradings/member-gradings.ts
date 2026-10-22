@@ -3,10 +3,8 @@ import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { GradingListComponent } from '../grading-list/grading-list';
-import { IconComponent } from '../icons/icon.component';
-import { nextGradingLevel, studentLevelLabel, applicationLevelLabel, toGradingLevel } from '../../../functions/src/data-model/curriculum';
-import { GradingStatus, isGradingPaid } from '../../../functions/src/data-model/gradings';
-import { hasActiveMembership } from '../../../functions/src/data-model/members';
+import { GradingLevelsComponent } from '../grading-levels/grading-levels';
+import { SpinnerComponent } from '../spinner/spinner.component';
 
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -19,7 +17,7 @@ const DEFAULT_TAB: GradingTab = 'mine';
 @Component({
   selector: 'app-member-gradings',
   standalone: true,
-  imports: [CommonModule, GradingListComponent, IconComponent],
+  imports: [CommonModule, GradingListComponent, GradingLevelsComponent, SpinnerComponent],
   templateUrl: './member-gradings.html',
   styleUrl: './member-gradings.scss',
 })
@@ -31,52 +29,10 @@ export class MemberGradingsComponent {
   Views = Views;
   user = this.firebaseStateService.user;
 
-  // Link to the membership purchase page, shown to non-active members.
-  membershipLink = computed(() => this.routingService.hrefForView(Views.BecomeAMember));
-
-  // Link to the dedicated Next Grading purchase page.
-  nextGradingPurchaseLink = computed(() => this.routingService.hrefForView(Views.NextGrading));
-
-  private today = computed(() => new Date().toISOString().split('T')[0]);
-
   isInstructor = computed(() => {
     const u = this.user();
     return !!(u && u.member.instructorId);
   });
-
-  // Whether the member's membership is currently active (required to grade).
-  isActiveMember = computed(() => {
-    const u = this.user();
-    if (!u) return false;
-    return hasActiveMembership(u.member, this.today());
-  });
-
-  // The docId of an existing open (unpaid, not-failed) grading the member can
-  // continue editing, or '' if none. A member may only have one at a time.
-  openUnpaidGradingId = computed(() => {
-    const grading = this.dataService.myGradings
-      .entries()
-      .find((g) => !isGradingPaid(g) && g.status !== GradingStatus.NotPassed);
-    return grading ? grading.docId : '';
-  });
-
-  // Link to continue an existing open grading request.
-  openUnpaidGradingLink = computed(() => {
-    const id = this.openUnpaidGradingId();
-    if (!id) return '';
-    return this.gradingLinkFromMyGradings(id);
-  });
-
-  // Whether the member can request a brand-new grading: active member, has a
-  // next level to grade, and doesn't already have an open request or a purchased
-  // grading for that level.
-  canRequestGrading = computed(
-    () =>
-      this.isActiveMember() &&
-      !!this.nextGrading() &&
-      !this.openUnpaidGradingId() &&
-      !this.nextGradingPurchased(),
-  );
 
   isRequesting = signal(false);
   requestError = signal<string>('');
@@ -113,55 +69,6 @@ export class MemberGradingsComponent {
     }
     return DEFAULT_TAB;
   });
-
-  // Display string for the current levels, e.g. "Student 6, Application 3".
-  currentLevelDisplay = computed(() => {
-    const u = this.user();
-    if (!u) return 'None';
-    const parts = [
-      studentLevelLabel(u.member.studentLevel),
-      applicationLevelLabel(u.member.applicationLevel),
-    ].filter((p) => !!p);
-    return parts.length > 0 ? parts.join(', ') : 'None';
-  });
-
-  // The next grading level from the canonical progression that the member
-  // hasn't yet achieved (derived from their current student/application levels).
-  nextGrading = computed(() => {
-    const u = this.user();
-    if (!u) return '';
-    return nextGradingLevel(u.member.studentLevel, u.member.applicationLevel);
-  });
-
-  // Whether a grading for the next level has already been purchased
-  // (ignoring gradings the student didn't pass).
-  nextGradingPurchased = computed(() => !!this.nextGradingPurchasedId());
-
-  // The docId of the purchased grading for the next level (if one exists)
-  nextGradingPurchasedId = computed(() => {
-    const next = this.nextGrading();
-    if (!next) return '';
-    const grading = this.dataService.myGradings
-      .entries()
-      .find((g) => toGradingLevel(g.level) === next && g.status !== GradingStatus.NotPassed);
-    return grading ? grading.docId : '';
-  });
-
-  // Href link to the progress view of the purchased grading
-  nextGradingLink = computed(() => {
-    const gradingId = this.nextGradingPurchasedId();
-    if (!gradingId) return '';
-    return this.gradingLinkFromMyGradings(gradingId);
-  });
-
-  // Build a link to a grading detail tagged with its origin so the detail page's
-  // back link / breadcrumb return here to "My Gradings".
-  private gradingLinkFromMyGradings(gradingId: string): string {
-    const href = this.routingService.hrefForView(Views.GradingView, { gradingId });
-    const sep = href.includes('?') ? '&' : '?';
-    return `${href}${sep}from=my-gradings`;
-  }
-
 
   setActiveTab(tab: GradingTab) {
     this.viewSignals().urlParams.tab.set(tab);

@@ -1,0 +1,78 @@
+@use "../../scss_variables" as v;
+
+.levels-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+// One level of the progression. The next level to grade is permanently
+// highlighted (row-highlight Pattern B); levels not yet reached are faded.
+.level-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  padding: 0.5em;
+  border-bottom: 1px solid v.$row-border-color;
+  @include v.row-highlight-base;
+
+  &.next-level {
+    @include v.row-highlight-active;
+  }
+
+  &.future-level .level-row-header {
+    opacity: 0.55;
+  }
+}
+
+.level-row-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em 0.75em;
+}
+
+// Fixed-width icon column so level names line up down the list.
+.level-marker {
+  display: inline-flex;
+  justify-content: center;
+  width: 1.5em;
+  color: v.$text-muted;
+}
+
+.level-name {
+  font-weight: bold;
+  min-width: 8em;
+}
+
+.level-actions {
+  margin-left: auto;
+}
+
+// The gradings under a level, indented past the icon column; each links to
+// the grading's page.
+.attempt-link {
+  display: block;
+  margin-left: 2.25em;
+  color: inherit;
+  text-decoration: none;
+  @include v.row-highlight-base;
+
+  &:hover {
+    @include v.row-highlight-active;
+  }
+}
+
+.attempts-toggle {
+  align-self: flex-start;
+  margin-left: 2.25em;
+}
+
+@media (max-width: 600px) {
+  .attempt-link,
+  .attempts-toggle {
+    margin-left: 0;
+  }
+}

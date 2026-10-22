@@ -30,6 +30,14 @@ export class GradingRowHeaderComponent {
   // heading that already shows it, so it isn't repeated for every grading).
   hideEvent = input<boolean>(false);
 
+  // Suppress the student name (set when the row is shown on the student's own
+  // gradings page, where every row is theirs).
+  hideStudent = input<boolean>(false);
+
+  // Suppress the level progression (set when the row is rendered under a level
+  // heading that already shows it).
+  hideLevel = input<boolean>(false);
+
   GradingStatus = GradingStatus;
   getPrettyGradingStatus = getPrettyGradingStatus;
 
