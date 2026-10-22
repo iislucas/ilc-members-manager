@@ -31,67 +31,21 @@
     </div>
   }
 
-  @if (activeTab() === 'mine') {
-    <div class="gradings-summary">
-      <div class="summary-item">
-        <span class="label">Current Level:</span>
-        <span class="value">{{ currentLevelDisplay() }}</span>
-      </div>
-      @if (nextGrading()) {
-        <div class="summary-item">
-          <span class="label">Next Grading:</span>
-          <span class="value">
-            {{ nextGrading() }}
-            @if (openUnpaidGradingId()) {
-              <a [href]="openUnpaidGradingLink()" class="purchased-badge clickable-badge">
-                <app-icon name="arrow_forward" class="link-icon" /> Continue your request
-              </a>
-            } @else if (nextGradingPurchased()) {
-              <a [href]="nextGradingLink()" class="purchased-badge clickable-badge">
-                <app-icon name="check" /> Purchased
-                <app-icon name="arrow_forward" class="link-icon" />
-              </a>
-            } @else if (canRequestGrading()) {
-              <a
-                [href]="nextGradingPurchaseLink()"
-                class="subtle-button purchase-btn"
-              >
-                <app-icon name="arrow_forward" /> Purchase next grading
-              </a>
-            } @else if (!isActiveMember()) {
-              <span class="needs-membership">
-                You must be an active member to grade.
-                <a
-                  [href]="membershipLink()"
-                  class="subtle-button purchase-btn"
-                >
-                  <app-icon name="arrow_forward" /> Membership
-                </a>
-              </span>
-            }
-          </span>
-        </div>
-        @if (requestError()) {
-          <div class="summary-item request-error">
-            <app-icon name="error" /> {{ requestError() }}
-          </div>
-        }
-      }
-    </div>
-  }
-
-  <div class="grading-list-wrapper">
-    @if (isInstructor() && activeTab() !== "mine") {
+  @if (isInstructor() && activeTab() !== "mine") {
+    <div class="grading-list-wrapper">
       <app-grading-list
         [gradingSet]="dataService.myGradingsAssessed"
         [viewMode]="'instructor'"
         [instructorTab]="activeTab()"
       ></app-grading-list>
-    } @else {
-      <app-grading-list
-        [gradingSet]="dataService.myGradings"
-        [viewMode]="'member'"
-      ></app-grading-list>
-    }
-  </div>
+    </div>
+  } @else if (dataService.myGradings.error(); as error) {
+    <div class="error-container">
+      <span class="error-message">Could not load your gradings: {{ error }}</span>
+    </div>
+  } @else if (dataService.myGradings.loading()) {
+    <app-spinner>Loading your gradings...</app-spinner>
+  } @else {
+    <app-grading-levels [member]="u.member" [gradings]="dataService.myGradings.entries()" />
+  }
 }
