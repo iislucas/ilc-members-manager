@@ -31,6 +31,11 @@
   object-fit: cover;
 }
 
+.default-event-image {
+  object-fit: contain;
+  padding: 0.5rem;
+}
+
 .event-content {
   flex: 1;
   min-width: 0;
