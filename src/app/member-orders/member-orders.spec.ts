@@ -463,4 +463,45 @@ describe('MemberOrdersComponent', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('cs_live_123');
     expect(component.copiedOrderId()).toBe('cs_live_123');
   });
+
+  it('should use standard primary-button for portal action and replace button with spinner when loading', async () => {
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const portalBtn = element.querySelector('.portal-btn');
+    expect(portalBtn).toBeTruthy();
+    expect(portalBtn?.classList.contains('primary-button')).toBe(true);
+
+    // Verify when portalLoading is true, spinner replaces button and no button contains app-spinner
+    component.portalLoading.set(true);
+    await fixture.whenStable();
+
+    const spinnerInButton = element.querySelector('button app-spinner');
+    expect(spinnerInButton).toBeNull();
+
+    const standaloneSpinner = element.querySelector('.portal-action app-spinner');
+    expect(standaloneSpinner).toBeTruthy();
+    expect(standaloneSpinner?.textContent).toContain('Redirecting to Stripe...');
+  });
+
+  it('should use standard primary-button for renew links', async () => {
+    mockFirebaseStateService.user.set({
+      member: {
+        ...sampleMember,
+        currentMembershipExpires: '2020-01-01',
+        membershipSubscriptionId: '',
+      },
+      memberProfiles: [{ ...sampleMember }],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: { uid: 'mem-123' } as never,
+    });
+    await fixture.whenStable();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const renewLink = element.querySelector('a.primary-button');
+    expect(renewLink).toBeTruthy();
+    expect(renewLink?.textContent).toContain('Renew Now');
+  });
 });
+

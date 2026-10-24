@@ -3,11 +3,13 @@
     <div class="title-text">{{ event().title }}</div>
   </div>
   <div class="detail-row">
-    @if (event().heroImageThumbUrl || event().heroImageUrl) {
-      <div class="event-image-container">
+    <div class="event-image-container">
+      @if (event().heroImageThumbUrl || event().heroImageUrl) {
         <img [src]="event().heroImageThumbUrl || event().heroImageUrl" alt="Event Image" class="event-image" />
-      </div>
-    }
+      } @else {
+        <img [src]="defaultImageUrl()" alt="ILC Logo" class="event-image default-event-image" />
+      }
+    </div>
     <div class="event-content">
       <div class="card-subtitle">
         <div class="subtitle-group">

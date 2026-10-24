@@ -32,6 +32,15 @@ export class EventItemComponent {
   // standalone WC), links point to the specified base URL.
   instructorLinkPrefix = input<string>('');
 
+  // URL of the ILC logo, shown when the event has no image of its own. In
+  // the app it's served from our own origin; when embedded elsewhere (the
+  // standalone WC sets an absolute instructorLinkPrefix) it is resolved
+  // against the app's origin so it doesn't 404 on the host site.
+  readonly defaultImageUrl = computed(() => {
+    const prefix = this.instructorLinkPrefix();
+    return prefix ? new URL('/ilc.svg', prefix).href : '/ilc.svg';
+  });
+
   // Resolve the leading instructor to a display label: "Name (InstructorId)".
   readonly instructorLabel = computed(() => {
     const id = this.event().leadingInstructorId;
