@@ -183,7 +183,7 @@
 
               @if (sub.canSubscribe) {
                 <a
-                  class="sub-btn renew-link"
+                  class="sub-btn primary-button"
                   [href]="sub.subscribeUrl"
                 >
                   Renew Now
@@ -376,19 +376,18 @@
       </div>
     </div>
     <div class="portal-action">
-      <button
-        type="button"
-        class="button portal-btn"
-        [disabled]="portalLoading()"
-        (click)="onOpenCustomerPortal()"
-      >
-        @if (portalLoading()) {
-          <app-spinner>Redirecting to Stripe...</app-spinner>
-        } @else {
+      @if (portalLoading()) {
+        <app-spinner>Redirecting to Stripe...</app-spinner>
+      } @else {
+        <button
+          type="button"
+          class="primary-button portal-btn"
+          (click)="onOpenCustomerPortal()"
+        >
           <app-icon name="link"></app-icon>
           <span>See your orders on Stripe</span>
-        }
-      </button>
+        </button>
+      }
     </div>
   </div>
 </div>
