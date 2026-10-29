@@ -40,7 +40,6 @@ import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
-import { ProductEditComponent } from '../product-edit/product-edit';
 import { SearchableSet } from '../searchable-set';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import {
@@ -194,7 +193,7 @@ import { VodPreviewComponent } from '../vod-preview/vod-preview';
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, MarkdownViewer, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, ProductEditComponent, VodPreviewComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, MarkdownViewer, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, VodPreviewComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -213,8 +212,36 @@ export class EventEditComponent implements OnInit {
 
   products = signal<Product[]>([]);
   protected readonly Views = Views;
-  isCreatingProduct = signal(false);
-  isEditingLinkedProduct = signal(false);
+  showUnsavedRegistrationPrompt = signal(false);
+
+  registrationSetupHref = computed(() => {
+    const id = this.event()?.docId || this.eventId();
+    if (!id) return '';
+    return this.routingService.hrefForView(Views.ManageEventRegistration, { eventId: id });
+  });
+
+  onNavigateToRegistrationSetup(event: MouseEvent): void {
+    // Allow modified/middle clicks to open a new tab without blocking.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+      return;
+    }
+    if (this.isDirty()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.showUnsavedRegistrationPrompt.set(true);
+    }
+  }
+
+  async saveAndNavigateToRegistrationSetup(): Promise<void> {
+    await this.saveEvent(new Event('submit'));
+    if (!this.isDirty() && !this.errorMessage()) {
+      this.showUnsavedRegistrationPrompt.set(false);
+      const href = this.registrationSetupHref();
+      if (href) {
+        this.routingService.navigateTo(href);
+      }
+    }
+  }
 
   linkedProduct = computed(() => {
     const pId = this.eventFormModel().productId;
@@ -269,7 +296,7 @@ export class EventEditComponent implements OnInit {
     }
 
     this.eventFormModel.update((m) => ({ ...m, productId: '' }));
-    this.isEditingLinkedProduct.set(false);
+    this.showUnsavedRegistrationPrompt.set(false);
 
     const evDocId = this.event()?.docId;
     if (evDocId) {
@@ -287,47 +314,6 @@ export class EventEditComponent implements OnInit {
 
   async unlinkProduct(): Promise<void> {
     await this.removeRegistration();
-  }
-
-  toggleEditLinkedProduct() {
-    this.isEditingLinkedProduct.update((v) => !v);
-  }
-
-  async onInlineProductCreated(productId: string) {
-    await this.refreshProducts();
-    if (productId) {
-      const prod = await this.productService.getProduct(productId);
-      this.eventFormModel.update((m) => ({
-        ...m,
-        productId,
-        onlineJoiningLink: prod?.onlineJoiningLink ?? m.onlineJoiningLink,
-        purchaseDetailsMarkdown: prod?.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
-        inPersonDetailsMarkdown: prod?.inPersonDetailsMarkdown ?? m.inPersonDetailsMarkdown,
-        recordedVideoId: prod?.recordedVideoId ?? m.recordedVideoId,
-        recordedVideoUrl: prod?.recordedVideoUrl ?? m.recordedVideoUrl,
-      }));
-    }
-    this.isCreatingProduct.set(false);
-  }
-
-  async onInlineProductSaved(productId: string) {
-    await this.refreshProducts();
-    if (!productId) {
-      this.eventFormModel.update((m) => ({ ...m, productId: '' }));
-    } else {
-      const prod = await this.productService.getProduct(productId);
-      if (prod) {
-        this.eventFormModel.update((m) => ({
-          ...m,
-          onlineJoiningLink: prod.onlineJoiningLink ?? m.onlineJoiningLink,
-          purchaseDetailsMarkdown: prod.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
-          inPersonDetailsMarkdown: prod.inPersonDetailsMarkdown ?? m.inPersonDetailsMarkdown,
-          recordedVideoId: prod.recordedVideoId ?? m.recordedVideoId,
-          recordedVideoUrl: prod.recordedVideoUrl ?? m.recordedVideoUrl,
-        }));
-      }
-    }
-    this.isEditingLinkedProduct.set(false);
   }
 
   // Constants for template

@@ -12,7 +12,7 @@ This document outlines the architecture, data models, security rules, Cloud Func
 
 2. **1:1 Event-to-Product Binding**:
    - Each event with online registration is paired 1:1 with a Firestore `Product` document (`eventDocId === event.docId` and `event.productId === product.docId`).
-   - Managed entirely within the event editor under **"Online Registration & Payment (HQ) (optional, Admin only)"**.
+   - Linked from the event editor and event detail page to the dedicated registration setup editor (`/manage-events/:eventId/registration`, or `/manage-event-registrations/:eventId` when accessed from the Registration Setups catalogue `/manage-event-registrations`).
    - If online registration is removed by an admin, the associated product is safely deleted.
 
 3. **Flexible Role & Participation Pricing Matrix**:
@@ -34,8 +34,8 @@ This document outlines the architecture, data models, security rules, Cloud Func
 ```mermaid
 flowchart TD
     subgraph Admin_Actions["1. HQ Admin Management"]
-        AE["Event Edit Page\n(/manage-events/:id/edit)"]
-        PE["ProductEditComponent\n(Embedded in Event)"]
+        AE["Event Edit / View Page\n(/manage-events/:id/edit, /manage-events/:id)"]
+        PE["ProductEditComponent\n(/manage-events/:id/registration)"]
     end
 
     subgraph User_Actions["2. Attendee Registration"]

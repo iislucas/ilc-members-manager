@@ -66,11 +66,16 @@ export class EventViewComponent implements OnInit {
 
   hasPaidRegistration = computed(() => !!this.registration());
 
+  registrationSetupUrl = computed(() => {
+    const eventId = this.eventId();
+    if (!eventId) return '';
+    return this.routingService.hrefForView(Views.ManageEventRegistration, { eventId });
+  });
+
   productEditUrl = computed(() => {
     const ev = this.event();
-    const eventId = this.eventId();
     if (!ev?.productId) return null;
-    return this.routingService.hrefForView(Views.ManageEventRegistration, { eventId });
+    return this.registrationSetupUrl() || null;
   });
 
   getProductPriceRange(product: Product): string {

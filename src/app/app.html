@@ -560,7 +560,20 @@
         }
         @case (Views.ManageEventRegistration) {
           @defer {
-            <app-product-edit></app-product-edit>
+            <app-product-edit
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-product-edit>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading registration editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.ManageEventRegistrationsEdit) {
+          @defer {
+            <app-product-edit
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-product-edit>
           } @loading (minimum 150ms) {
             <app-spinner class="view-loading">Loading registration editor...</app-spinner>
           } @placeholder {

@@ -129,6 +129,8 @@ describe('EventViewComponent', () => {
     expect(component.registerUrl()).toBe('/events/event-1/register');
     expect(component.videoWatchUrl()).toBe('/videos/video-123');
     expect(component.registrationsUrl()).toBe('/events/event-1/registrations');
+    expect(component.registrationSetupUrl()).toBe('/manage-events/event-1/registration');
+    expect(component.productEditUrl()).toBe('/manage-events/event-1/registration');
   });
 
   it('should resolve series ID in recordedVideoId to the first episode video URL', async () => {

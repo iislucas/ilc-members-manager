@@ -127,6 +127,30 @@ describe('NavigationTreeService', () => {
     expect(navTree.parent()?.url).toBe('/my-events/E1');
   });
 
+  it('hangs /manage-events/:eventId/registration off /manage-events/:eventId and /manage-event-registrations/:eventId off /manage-event-registrations', () => {
+    navTree.loadedEventTitle.set('Summer Camp');
+    goTo(Views.ManageEventRegistration, { eventId: 'E1' });
+    expect(ancestorLabels()).toEqual(['Admin', 'Events', 'Summer Camp']);
+    expect(navTree.parent()?.url).toBe('/manage-events/E1');
+    expect(breadcrumbLabels()).toEqual([
+      'ILC Portal',
+      'Admin',
+      'Events',
+      'Summer Camp',
+      'Edit Registration Setup',
+    ]);
+
+    goTo(Views.ManageEventRegistrationsEdit, { eventId: 'E1' });
+    expect(ancestorLabels()).toEqual(['Admin', 'Registration Setups']);
+    expect(navTree.parent()?.url).toBe('/manage-event-registrations');
+    expect(breadcrumbLabels()).toEqual([
+      'ILC Portal',
+      'Admin',
+      'Registration Setups',
+      'Edit Registration Setup',
+    ]);
+  });
+
   it('puts a class calendar under the instructor whose calendar it is', () => {
     goTo(Views.ClassCalendarView, { instructorId: 'I7' });
     expect(navTree.parent()?.url).toBe('/instructors/I7');

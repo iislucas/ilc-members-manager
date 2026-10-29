@@ -5,6 +5,7 @@ import { ProductEditComponent } from './product-edit';
 import { ProductService } from '../product.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
+import { Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AttendanceType, EventRegistrationStatus, initEventRegistration, initProduct } from '../../../functions/src/data-model/events';
 import { signal } from '@angular/core';
@@ -15,6 +16,7 @@ describe('ProductEditComponent', () => {
 
   const mockProductService = {
     getProduct: vi.fn().mockResolvedValue(initProduct()),
+    getProductByEventId: vi.fn().mockResolvedValue(undefined),
     saveProduct: vi.fn().mockResolvedValue('new-prod-id'),
     deleteProduct: vi.fn().mockResolvedValue(undefined),
     getEventRegistrations: vi.fn().mockResolvedValue([]),
@@ -22,6 +24,7 @@ describe('ProductEditComponent', () => {
 
   const mockDataManagerService = {
     getEvents: vi.fn().mockResolvedValue([]),
+    getEventById: vi.fn().mockResolvedValue(undefined),
     saveProduct: vi.fn().mockResolvedValue('saved-product-123'),
     deleteProduct: vi.fn().mockResolvedValue(undefined),
     videos: {
@@ -33,16 +36,25 @@ describe('ProductEditComponent', () => {
 
   const mockRoutingService = {
     signals: {
-      manageProductEdit: {
+      [Views.ManageEventRegistration]: {
         pathVars: {
-          productId: signal(''),
+          eventId: signal(''),
         },
+        urlParams: {},
+      },
+      [Views.ManageEventRegistrationsEdit]: {
+        pathVars: {
+          eventId: signal(''),
+        },
+        urlParams: {},
       },
     },
-    matchedPatternId: {
-      set: vi.fn(),
-    },
-    hrefForView: vi.fn().mockReturnValue('/products/mock-id'),
+    matchedPatternId: signal<Views | null>(null),
+    hrefForView: vi.fn().mockImplementation((view, params) => {
+      if (view === Views.ManageEventView) return `/manage-events/${params?.eventId || ''}`;
+      if (view === Views.ManageEventRegistrations) return '/manage-event-registrations';
+      return '/products/mock-id';
+    }),
     navigateTo: vi.fn(),
   };
 
@@ -415,5 +427,33 @@ describe('ProductEditComponent', () => {
     expect(mockDataManagerService.saveProduct).toHaveBeenCalled();
 
     confirmSpy.mockRestore();
+  });
+
+  it('navigates back to ManageEventView on save from ManageEventRegistration, and ManageEventRegistrations from ManageEventRegistrationsEdit', async () => {
+    mockRoutingService.navigateTo.mockClear();
+
+    mockRoutingService.matchedPatternId.set(Views.ManageEventRegistration);
+    mockRoutingService.signals[Views.ManageEventRegistration].pathVars.eventId.set('ev-99');
+    component.productModel.update((m) => ({
+      ...m,
+      title: 'Event Reg Setup',
+      eventDocId: 'ev-99',
+    }));
+
+    await component.saveProduct();
+    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-events/ev-99');
+
+    mockRoutingService.navigateTo.mockClear();
+    component.isSaving.set(false);
+    mockRoutingService.matchedPatternId.set(Views.ManageEventRegistrationsEdit);
+    mockRoutingService.signals[Views.ManageEventRegistrationsEdit].pathVars.eventId.set('ev-99');
+
+    await component.saveProduct();
+    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-event-registrations');
+
+    // Reset shared route state for subsequent runs
+    mockRoutingService.matchedPatternId.set(null);
+    mockRoutingService.signals[Views.ManageEventRegistration].pathVars.eventId.set('');
+    mockRoutingService.signals[Views.ManageEventRegistrationsEdit].pathVars.eventId.set('');
   });
 });

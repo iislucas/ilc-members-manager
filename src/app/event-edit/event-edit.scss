@@ -449,9 +449,31 @@
   }
 }
 
-.inline-product-editor-container {
-  margin-top: 1em;
-  width: 100%;
+.unsaved-registration-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  padding: 1em 1.25em;
+  border: 1px solid v.$border-color-light;
+  border-left: 4px solid v.$heading-accent-color;
+  border-radius: 6px;
+  background: v.$separator-color;
+
+  .unsaved-prompt-text {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin: 0;
+    color: v.$text-primary;
+    font-weight: 600;
+  }
+
+  .unsaved-prompt-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5em;
+  }
 }
 
 .unlinked-product-container {

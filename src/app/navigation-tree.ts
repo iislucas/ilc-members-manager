@@ -77,7 +77,9 @@ export class NavigationTreeService {
     // stale name never appears in the breadcrumb of the next page.
     effect(() => {
       const view = this.currentView();
-      if (!view || !EVENT_VIEWS.has(view)) this.loadedEventTitle.set(null);
+      if (!view || (!EVENT_VIEWS.has(view) && !EVENT_ANCESTOR_TITLE_VIEWS.has(view))) {
+        this.loadedEventTitle.set(null);
+      }
       if (view !== Views.OrderView) this.loadedOrderTitle.set(null);
       if (!view || !SCHOOL_TITLE_VIEWS.has(view)) this.loadedSchoolTitle.set(null);
       if (view !== Views.GradingView) this.loadedGradingTitle.set(null);
@@ -301,6 +303,7 @@ export class NavigationTreeService {
       view === Views.ManageEventView ||
       view === Views.ManageEventEdit ||
       view === Views.ManageEventRegistrations ||
+      view === Views.ManageEventRegistrationsEdit ||
       view === Views.ManageEventRegistration ||
       view === Views.ManageMaterials ||
       view === Views.ManageVod ||
@@ -396,7 +399,17 @@ export class NavigationTreeService {
       case Views.ManageEventRegistrations:
         return [];
 
-      case Views.ManageEventRegistration:
+      case Views.ManageEventRegistration: {
+        const eventId = this.routing.signals[Views.ManageEventRegistration].pathVars.eventId();
+        return [
+          ...this.subAncestorsOf(Views.ManageEventView),
+          this.node(Views.ManageEventView, this.loadedEventTitle() || 'Event Details', {
+            eventId,
+          }),
+        ];
+      }
+
+      case Views.ManageEventRegistrationsEdit:
         return [this.node(Views.ManageEventRegistrations, 'Registration Setups')];
 
       // --- Members, students and schools ---
@@ -888,6 +901,7 @@ export class NavigationTreeService {
       case Views.ManageEventRegistrations:
         return 'Registration Setups';
       case Views.ManageEventRegistration:
+      case Views.ManageEventRegistrationsEdit:
         return 'Edit Registration Setup';
       case Views.EventRegistrations:
         return 'Registered Attendees';
@@ -978,6 +992,12 @@ const EVENT_VIEWS: ReadonlySet<Views> = new Set([
   Views.EventEdit,
   Views.MyEventEdit,
   Views.ManageEventEdit,
+]);
+
+/** Subpages under an event whose ancestor breadcrumb shows the loaded event title. */
+const EVENT_ANCESTOR_TITLE_VIEWS: ReadonlySet<Views> = new Set([
+  Views.ManageEventRegistration,
+  Views.EventRegistrations,
 ]);
 
 /** Every page whose title is the school it shows. */
