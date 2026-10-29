@@ -320,8 +320,28 @@ When implementing work defined by a plan in `docs/plans/`:
 
 ### 6. Git Branching & Deployment Strategy
 
-- **Default / Development Branch (`dev`)**: The active base branch for all ongoing development. All new feature/fix branches branch off `dev`. All Pull Requests must target `dev` as the base branch.
-- **Production / Deployment Branch (`main`)**: Reserved for production releases and live deployments (Firebase, GitHub Pages). Changes from `dev` are merged into `main` only when ready to deploy.
+- **Core Invariant**: `dev` MUST ALWAYS be the latest branch, and `main` MUST ALWAYS be an older version of (or at most equal to) `dev`. `main` must NEVER be ahead of `dev`.
+- **Default / Development Branch (`dev`)**:
+  - The active base branch for all ongoing development.
+  - All new feature/fix branches must branch off `dev`.
+  - All Pull Requests must target `dev` as the base branch.
+  - Direct pushes or PR merges to `main` without first being on `dev` are strictly forbidden.
+- **Production / Deployment Branch (`main`)**:
+  - Reserved strictly for production releases and live deployments (Firebase, GitHub Pages).
+  - Production deployments are cut solely from `dev`.
+- **Release Synchronization Requirement**:
+  - When merging `dev` into `main` (e.g. via GitHub PR or CLI), GitHub creates a merge commit on `main`. If left un-synced, this makes `main` appear ahead of `dev`.
+  - **Immediate Fast-Forward**: Immediately after any merge into `main`, `dev` MUST be fast-forwarded to `main` (or `main` merged back into `dev`):
+    ```bash
+    git checkout dev
+    git fetch origin
+    git merge --ff-only origin/main
+    git push origin dev
+    ```
+  - Alternatively, if deploying locally without PR merge commits, fast-forward `main` to `dev` directly (`git checkout main && git merge --ff-only dev && git push origin main`).
+  - Always verify with `git log origin/dev..origin/main` (which must be empty) to guarantee `main` never gets ahead of `dev`.
+- **Static Assets & GitHub Pages (`ghpages-site/`)**:
+  - Even changes to documentation or `ghpages-site/` (e.g. Logo Maker) must be developed on a branch off `dev`, merged into `dev`, and released to `main`. Never edit or push directly to `main`.
 
 ---
 

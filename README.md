@@ -207,7 +207,7 @@ Deployment is handled automatically by the GitHub Actions workflow
 4. Pushes the result to the `gh-pages` branch via the
    `peaceiris/actions-gh-pages` action.
 
-To update the site, simply edit files in `ghpages-site/` and push to `main`.
+To update the site, make changes on a branch off `dev`, merge into `dev`, and release `dev` into `main` (per the branching policy where `dev` is always latest).
 
 
 

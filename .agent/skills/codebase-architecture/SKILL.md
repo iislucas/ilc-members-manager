@@ -316,3 +316,14 @@ Rules tests are in [tests/firestore.rules.spec.ts](../../tests/firestore.rules.s
 - **Ephemeral Implementation Plans (`docs/plans/`)**: Active design proposals, RFCs, and phase roadmaps live in `docs/plans/`.
 - **Plan Completion Rule**: When a plan in `docs/plans/` is implemented and verified, it **must be removed** (`git rm docs/plans/<plan-name>.md`) and the permanent architecture, user guides, data models, or setup documentation in `docs/` updated. Completed plans must not linger in `docs/plans/`.
 
+---
+
+## Git Branching Model & Release Invariant
+
+- **Invariant**: `dev` is ALWAYS the latest branch. `main` is ALWAYS an older version of (or equal to) `dev`. `main` must NEVER be ahead of `dev`.
+- All development and bug fixes branch off and merge into `dev`.
+- `main` is only updated when releasing `dev` to production.
+- Whenever `dev` is merged into `main` (e.g. via GitHub PR), `dev` must immediately be fast-forwarded (`git merge --ff-only origin/main`) and pushed to `origin/dev` so `dev` retains all release merge commits and remains the latest tip.
+- Full details in [`.agent/skills/generalist-project-developer/SKILL.md`](../generalist-project-developer/SKILL.md).
+
+
