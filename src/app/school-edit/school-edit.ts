@@ -421,6 +421,30 @@ export class SchoolEditComponent {
     return this.routingService.hrefForView(Views.SchoolView, { schoolId });
   });
 
+  // Link for school managers to the license purchase page with this school
+  // pre-selected for renewal; '' when not applicable (non-managers, new schools,
+  // or life licenses — an empty schoolLicenseExpires means a life license, as in
+  // the ACL builder in on-member-update.ts — which never need renewing).
+  licenseRenewalHref = computed(() => {
+    const school = this.school();
+    if (!school?.schoolId || !school.schoolLicenseExpires || !this.userIsSchoolManager()) {
+      return '';
+    }
+    return this.routingService.hrefForView(Views.SchoolLicensePurchase, {
+      schoolId: school.schoolId,
+    });
+  });
+
+  // Short human-readable license status shown on the renewal link, e.g.
+  // "License valid until 2027-01-01" or "License expired 2025-03-01".
+  licenseStatusText = computed(() => {
+    const expires = this.school()?.schoolLicenseExpires;
+    if (!expires) return 'Life license';
+    return expires >= this.todayIsoString()
+      ? `License valid until ${expires}`
+      : `License expired ${expires}`;
+  });
+
   constructor() {
     effect(async () => {
       const s = this.school();

@@ -15,6 +15,11 @@
   margin-bottom: 0.5em;
 }
 
+.license-status.expired {
+  color: v.$theme-error-text-color;
+  font-weight: 600;
+}
+
 .school-header {
   display: block;
   @include v.row-highlight-base;

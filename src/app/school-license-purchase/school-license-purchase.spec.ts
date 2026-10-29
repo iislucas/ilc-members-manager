@@ -31,6 +31,7 @@ describe('SchoolLicensePurchaseComponent', () => {
     getCheckoutSession: ReturnType<typeof vi.fn>;
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
+  let schoolIdParam: ReturnType<typeof signal<string | null>>;
   let mockStripeProducts: {
     products: ReturnType<typeof signal<StripeProduct[]>>;
     loading: ReturnType<typeof signal<boolean>>;
@@ -141,6 +142,7 @@ describe('SchoolLicensePurchaseComponent', () => {
     };
 
     userSignal = signal<UserDetails | null>(sampleUser);
+    schoolIdParam = signal<string | null>(null);
 
     mockStripeProducts = {
       products: signal(sampleProducts),
@@ -200,6 +202,7 @@ describe('SchoolLicensePurchaseComponent', () => {
               [Views.SchoolLicensePurchase]: {
                 urlParams: {
                   session_id: signal(null),
+                  schoolId: schoolIdParam,
                 },
               },
             },
@@ -222,6 +225,42 @@ describe('SchoolLicensePurchaseComponent', () => {
     expect(component.mySchools().length).toBe(1);
     expect(component.selectedSchoolDocId()).toBe('school_doc_1');
     expect(component.licenseAction()).toBe('renew');
+  });
+
+  it('isSchoolActive treats an empty expiry as a life license', async () => {
+    await createComponent();
+    expect(component.isSchoolActive({ ...sampleSchool, schoolLicenseExpires: '' })).toBe(true);
+    expect(component.isSchoolActive({ ...sampleSchool, schoolLicenseExpires: '2000-01-01' })).toBe(false);
+    expect(component.isSchoolActive({ ...sampleSchool, schoolLicenseExpires: '2999-01-01' })).toBe(true);
+  });
+
+  it('should pre-select the school named by the ?schoolId= URL param', async () => {
+    const secondSchool: School = {
+      ...sampleSchool,
+      docId: 'school_doc_2',
+      schoolId: 'SCH-NY-02',
+      schoolName: 'Brooklyn ILC Branch',
+    };
+    mockDataManager.schools.entries.mockReturnValue([sampleSchool, secondSchool]);
+    schoolIdParam.set('SCH-NY-02');
+    await createComponent();
+    expect(component.licenseAction()).toBe('renew');
+    expect(component.selectedSchoolDocId()).toBe('school_doc_2');
+  });
+
+  it('should select the URL school once the schools list loads after init', async () => {
+    mockDataManager.schools.entries.mockReturnValue([]);
+    schoolIdParam.set('SCH-NY-01');
+    await createComponent();
+    expect(component.licenseAction()).toBe('new');
+    expect(component.selectedSchoolDocId()).toBeNull();
+
+    // Schools arrive later (e.g. the Firestore snapshot lands after a deep link).
+    const schoolsSignal = signal<School[]>([sampleSchool]);
+    mockDataManager.schools.entries.mockImplementation(() => schoolsSignal());
+    userSignal.set({ ...sampleUser });
+    expect(component.licenseAction()).toBe('renew');
+    expect(component.selectedSchoolDocId()).toBe('school_doc_1');
   });
 
   it('should redirect to Stripe Checkout on purchase click with school metadata for renewal', async () => {
