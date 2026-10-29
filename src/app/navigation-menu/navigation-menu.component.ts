@@ -186,6 +186,9 @@ export class NavigationMenuComponent {
       case Views.MyMaterials: return 'Uploads';
       case Views.ManageMaterials: return 'Materials';
       case Views.ManageEventRegistrations: return 'Registration Setups';
+      case Views.ManageEventRegistration:
+      case Views.ManageEventRegistrationsEdit:
+        return 'Edit Registration Setup';
       default: return 'Unknown View';
     }
   }

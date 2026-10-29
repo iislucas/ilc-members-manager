@@ -88,12 +88,26 @@ export class ProductEditComponent implements OnInit {
 
   productSaved = output<string>();
   editCancelled = output<void>();
+  titleLoaded = output<string>();
 
-  // Route pathVars signal
-  private routeEventId = this.routingService.signals[Views.ManageEventRegistration]?.pathVars?.eventId;
+  isFromRegistrationsList = computed(
+    () => this.routingService.matchedPatternId() === Views.ManageEventRegistrationsEdit,
+  );
+
+  // Route pathVars signal across the two registration setup routes.
+  private routeEventId = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.ManageEventRegistrationsEdit) {
+      return this.routingService.signals[Views.ManageEventRegistrationsEdit].pathVars.eventId();
+    }
+    if (match === Views.ManageEventRegistration) {
+      return this.routingService.signals[Views.ManageEventRegistration].pathVars.eventId();
+    }
+    return '';
+  });
 
   effectiveEventId = computed(() => {
-    return this.embeddedEventDocId() || (this.routeEventId ? this.routeEventId() : '');
+    return this.embeddedEventDocId() || this.routeEventId();
   });
 
   effectiveProductId = computed(() => {
@@ -291,15 +305,24 @@ export class ProductEditComponent implements OnInit {
       const evId = this.effectiveEventId();
 
       let existing: Product | undefined;
+      let loadedEv: IlcEvent | undefined;
       if (id) {
         existing = await this.productService.getProduct(id);
       } else if (evId) {
-        const ev = await this.dataService.getEventById(evId);
-        if (ev?.productId) {
-          existing = await this.productService.getProduct(ev.productId);
+        loadedEv = await this.dataService.getEventById(evId);
+        if (loadedEv?.productId) {
+          existing = await this.productService.getProduct(loadedEv.productId);
         } else {
           existing = await this.productService.getProductByEventId(evId);
         }
+      }
+
+      const resolvedEvent =
+        loadedEv ||
+        (evId ? this.eventsSearchableSet.get(evId) : undefined) ||
+        (existing?.eventDocId ? this.eventsSearchableSet.get(existing.eventDocId) : undefined);
+      if (resolvedEvent?.title) {
+        this.titleLoaded.emit(resolvedEvent.title);
       }
 
       if (existing) {
@@ -315,9 +338,24 @@ export class ProductEditComponent implements OnInit {
         const newProduct = initProduct();
         if (evId) {
           newProduct.eventDocId = evId;
-          const ev = this.eventsSearchableSet.get(evId);
-          if (ev && !this.embeddedEventTitle()) {
-            newProduct.title = ev.title;
+          if (resolvedEvent) {
+            if (!this.embeddedEventTitle()) {
+              newProduct.title = resolvedEvent.title;
+            }
+            if (resolvedEvent.purchaseDetailsMarkdown) {
+              newProduct.purchaseDetailsMarkdown = resolvedEvent.purchaseDetailsMarkdown;
+            } else if (resolvedEvent.onlineJoiningLink) {
+              newProduct.purchaseDetailsMarkdown = resolvedEvent.onlineJoiningLink;
+            }
+            if (resolvedEvent.inPersonDetailsMarkdown) {
+              newProduct.inPersonDetailsMarkdown = resolvedEvent.inPersonDetailsMarkdown;
+            }
+            if (resolvedEvent.recordedVideoId) {
+              newProduct.recordedVideoId = resolvedEvent.recordedVideoId;
+            }
+            if (resolvedEvent.recordedVideoUrl) {
+              newProduct.recordedVideoUrl = resolvedEvent.recordedVideoUrl;
+            }
           }
         }
         if (this.embeddedEventDocId()) {
@@ -906,9 +944,12 @@ export class ProductEditComponent implements OnInit {
       if (this.embedded()) {
         this.productSaved.emit(savedDocId);
       } else {
-        const targetUrl = model.eventDocId
-          ? this.routingService.hrefForView(Views.EventRegister, { eventId: model.eventDocId })
-          : this.routingService.hrefForView(Views.ManageEventRegistrations);
+        const targetUrl =
+          !this.isFromRegistrationsList() && finalModel.eventDocId
+            ? this.routingService.hrefForView(Views.ManageEventView, {
+                eventId: finalModel.eventDocId,
+              })
+            : this.routingService.hrefForView(Views.ManageEventRegistrations);
         this.routingService.navigateTo(targetUrl);
       }
     } catch (err: unknown) {
@@ -926,13 +967,17 @@ export class ProductEditComponent implements OnInit {
       return;
     }
 
+    const eventDocId = this.productModel().eventDocId || this.effectiveEventId();
     this.isSaving.set(true);
     try {
       await this.dataService.deleteProduct(id);
       if (this.embedded()) {
         this.productSaved.emit('');
       } else {
-        const targetUrl = this.routingService.hrefForView(Views.ManageEventRegistrations);
+        const targetUrl =
+          !this.isFromRegistrationsList() && eventDocId
+            ? this.routingService.hrefForView(Views.ManageEventView, { eventId: eventDocId })
+            : this.routingService.hrefForView(Views.ManageEventRegistrations);
         this.routingService.navigateTo(targetUrl);
       }
     } catch (err) {

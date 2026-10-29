@@ -48,6 +48,7 @@ describe('EventEditComponent', () => {
       deleteProduct: vi.fn().mockResolvedValue(undefined),
     };
     mockRoutingService = {
+      navigateTo: vi.fn(),
       navigateToParts: vi.fn(),
       matchedPatternId: signal(Views.ManageEventEdit),
       hrefWithParams: vi.fn().mockReturnValue('#'),
@@ -56,6 +57,7 @@ describe('EventEditComponent', () => {
 
     mockDataManagerService = {
       getEventById: vi.fn().mockResolvedValue(undefined),
+      getEventUploads: vi.fn().mockResolvedValue([]),
       getMemberByMemberId: vi.fn().mockReturnValue(undefined),
       persistEventLocally: vi.fn().mockResolvedValue(undefined),
       removeEventLocally: vi.fn().mockResolvedValue(undefined),
@@ -691,7 +693,15 @@ describe('EventEditComponent', () => {
     expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeTruthy();
   });
 
-  it('handles creating, inline editing, and removing registrations', async () => {
+  it('links registration setup directly to ManageEventRegistration and guards unsaved event changes', async () => {
+    mockFirebaseState.user.set({
+      firebaseUser: { email: 'admin@example.com' } as any,
+      member: { docId: 'admin-doc-id', name: 'Admin User', memberId: 'ADM-1' } as any,
+      isAdmin: true,
+      memberProfiles: [],
+      schoolsManaged: [],
+    });
+
     const mockProd = {
       ...initProduct(),
       docId: 'prod-456',
@@ -707,26 +717,56 @@ describe('EventEditComponent', () => {
     mockProductService.getProduct.mockResolvedValue(mockProd);
     mockProductService.getAllProducts.mockResolvedValue([mockProd]);
 
-    // Initially no product linked
+    await renderEvent({
+      docId: 'ev-reg-1',
+      title: 'Original Event',
+      productId: '',
+    });
+
+    // When no product is linked, Set Up Online Registration links directly to ManageEventRegistration
     expect(component.linkedProduct()).toBeNull();
-    expect(component.isCreatingProduct()).toBe(false);
+    expect(component.registrationSetupHref()).toBe(`/${Views.ManageEventRegistration}/ev-reg-1`);
+    const setupLink = fixture.nativeElement.querySelector('.no-product-banner a.button') as HTMLAnchorElement;
+    expect(setupLink).toBeTruthy();
+    expect(setupLink.getAttribute('href')).toBe(`/${Views.ManageEventRegistration}/ev-reg-1`);
+    expect(setupLink.textContent).toContain('Set Up Online Registration');
 
-    // Trigger creating product
-    component.isCreatingProduct.set(true);
-    expect(component.isCreatingProduct()).toBe(true);
+    // When clean (!isDirty), normal click is not blocked
+    const cleanClick = new MouseEvent('click', { button: 0, cancelable: true });
+    component.onNavigateToRegistrationSetup(cleanClick);
+    expect(cleanClick.defaultPrevented).toBe(false);
+    expect(component.showUnsavedRegistrationPrompt()).toBe(false);
 
-    // Simulate inline product created
-    await component.onInlineProductCreated('prod-456');
-    expect(component.eventFormModel().productId).toBe('prod-456');
+    // When dirty, normal click intercepts navigation and shows unsaved prompt
+    component.eventFormModel.update((m) => ({ ...m, title: 'Edited Event Title' }));
+    fixture.detectChanges();
+    expect(component.isDirty()).toBe(true);
+
+    const dirtyClick = new MouseEvent('click', { button: 0, cancelable: true });
+    component.onNavigateToRegistrationSetup(dirtyClick);
+    expect(dirtyClick.defaultPrevented).toBe(true);
+    expect(component.showUnsavedRegistrationPrompt()).toBe(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.unsaved-registration-prompt')).toBeTruthy();
+
+    // Save Event & Continue saves the event and navigates to registration setup
+    await component.saveAndNavigateToRegistrationSetup();
+    expect(component.isDirty()).toBe(false);
+    expect(component.showUnsavedRegistrationPrompt()).toBe(false);
+    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith(`/${Views.ManageEventRegistration}/ev-reg-1`);
+
+    // When product is linked, Edit Registration Setup also links directly to ManageEventRegistration
+    await component.refreshProducts();
+    component.event.update((ev) => (ev ? { ...ev, productId: 'prod-456' } : null));
+    component.eventFormModel.update((m) => ({ ...m, productId: 'prod-456' }));
+    fixture.detectChanges();
+
     expect(component.linkedProduct()?.title).toBe('Workshop Registration');
     expect(component.getProductPriceRange(mockProd)).toBe('100.00 USD');
-    expect(component.isCreatingProduct()).toBe(false);
-
-    // Toggle edit linked product
-    component.toggleEditLinkedProduct();
-    expect(component.isEditingLinkedProduct()).toBe(true);
-    component.toggleEditLinkedProduct();
-    expect(component.isEditingLinkedProduct()).toBe(false);
+    const editLink = fixture.nativeElement.querySelector('.linked-product-actions a.subtle-button') as HTMLAnchorElement;
+    expect(editLink).toBeTruthy();
+    expect(editLink.getAttribute('href')).toBe(`/${Views.ManageEventRegistration}/ev-reg-1`);
+    expect(editLink.textContent).toContain('Edit Registration Setup');
 
     // Remove registration (deletes product)
     vi.spyOn(window, 'confirm').mockReturnValue(true);

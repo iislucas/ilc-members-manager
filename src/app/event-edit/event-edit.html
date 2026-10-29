@@ -256,10 +256,12 @@
                     }
                   </div>
                   <div class="linked-product-actions">
-                    <button type="button" class="subtle-button" (click)="toggleEditLinkedProduct()">
-                      <app-icon [name]="isEditingLinkedProduct() ? 'close' : 'edit'" />
-                      <span>{{ isEditingLinkedProduct() ? 'Close Setup' : 'Edit Registration Setup' }}</span>
-                    </button>
+                    <a class="subtle-button"
+                       [href]="registrationSetupHref()"
+                       (click)="onNavigateToRegistrationSetup($event)">
+                      <app-icon name="edit" />
+                      <span>Edit Registration Setup</span>
+                    </a>
                     <a class="subtle-button"
                        [href]="routingService.hrefForView(Views.EventRegister, { eventId: event()?.docId || '' })"
                        target="_blank">
@@ -272,56 +274,49 @@
                     </button>
                   </div>
                 </div>
-
-                @if (isEditingLinkedProduct()) {
-                  <div class="inline-product-editor-container">
-                    <app-product-edit
-                      [productId]="prod.docId"
-                      [embedded]="true"
-                      [embeddedEventDocId]="event()?.docId || ''"
-                      [embeddedEventTitle]="eventFormModel().title"
-                      [embeddedOnlineJoiningLink]="eventFormModel().onlineJoiningLink || ''"
-                      [embeddedPurchaseDetailsMarkdown]="eventFormModel().purchaseDetailsMarkdown || ''"
-                      [embeddedInPersonDetailsMarkdown]="eventFormModel().inPersonDetailsMarkdown || ''"
-                      [embeddedRecordedVideoId]="eventFormModel().recordedVideoId || ''"
-                      [embeddedRecordedVideoUrl]="eventFormModel().recordedVideoUrl || ''"
-                      (productSaved)="onInlineProductSaved($event)"
-                      (editCancelled)="isEditingLinkedProduct.set(false)"
-                    ></app-product-edit>
-                  </div>
-                }
               </div>
             } @else {
               <!-- No Registration Configured -->
               <div class="unlinked-product-container">
-                @if (isCreatingProduct()) {
-                  <div class="inline-product-editor-container">
-                    <app-product-edit
-                      [embedded]="true"
-                      [embeddedEventDocId]="event()?.docId || ''"
-                      [embeddedEventTitle]="eventFormModel().title"
-                      [embeddedOnlineJoiningLink]="eventFormModel().onlineJoiningLink || ''"
-                      [embeddedPurchaseDetailsMarkdown]="eventFormModel().purchaseDetailsMarkdown || ''"
-                      [embeddedInPersonDetailsMarkdown]="eventFormModel().inPersonDetailsMarkdown || ''"
-                      [embeddedRecordedVideoId]="eventFormModel().recordedVideoId || ''"
-                      [embeddedRecordedVideoUrl]="eventFormModel().recordedVideoUrl || ''"
-                      (productSaved)="onInlineProductCreated($event)"
-                      (editCancelled)="isCreatingProduct.set(false)"
-                    ></app-product-edit>
+                <div class="no-product-banner">
+                  <p class="no-product-note">
+                    Online registration and payment is not enabled for this event. Set up online registration with HQ to enable ticketing, pricing tiers, and attendee payments.
+                  </p>
+                  <div class="product-choice-buttons">
+                    <a class="button"
+                       [href]="registrationSetupHref()"
+                       (click)="onNavigateToRegistrationSetup($event)">
+                      <app-icon name="add" />
+                      <span>Set Up Online Registration</span>
+                    </a>
                   </div>
-                } @else {
-                  <div class="no-product-banner">
-                    <p class="no-product-note">
-                      Online registration and payment is not enabled for this event. Set up online registration with HQ to enable ticketing, pricing tiers, and attendee payments.
-                    </p>
-                    <div class="product-choice-buttons">
-                      <button type="button" class="button" (click)="isCreatingProduct.set(true)">
-                        <app-icon name="add" />
-                        <span>Set Up Online Registration</span>
-                      </button>
-                    </div>
-                  </div>
-                }
+                </div>
+              </div>
+            }
+
+            @if (showUnsavedRegistrationPrompt() && isDirty()) {
+              <div class="unsaved-registration-prompt">
+                <p class="unsaved-prompt-text">
+                  <app-icon name="warning" />
+                  <span>You have unsaved changes to this event. Save before opening registration setup?</span>
+                </p>
+                <div class="unsaved-prompt-actions">
+                  @if (isSaving()) {
+                    <app-spinner>Saving event...</app-spinner>
+                  } @else {
+                    <button type="button" class="primary-button" (click)="saveAndNavigateToRegistrationSetup()">
+                      <app-icon name="save" />
+                      <span>Save Event &amp; Continue</span>
+                    </button>
+                    <a class="subtle-button" [href]="registrationSetupHref()">
+                      <span>Discard Changes &amp; Continue</span>
+                    </a>
+                    <button type="button" class="subtle-button" (click)="showUnsavedRegistrationPrompt.set(false)">
+                      <app-icon name="close" />
+                      <span>Cancel</span>
+                    </button>
+                  }
+                </div>
               </div>
             }
           </div>

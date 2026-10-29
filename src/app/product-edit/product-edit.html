@@ -2,31 +2,42 @@
   @if (isLoading()) {
     <app-spinner>Loading product editor...</app-spinner>
   } @else {
-    @if (!embedded() && !isNew() && productModel().eventDocId) {
+    @if (!embedded() && ((!isNew() && productModel().eventDocId) || !isFromRegistrationsList())) {
       <div class="page-top-actions">
-        <a
-          class="subtle-button"
-          [href]="
-            routingService.hrefForView(Views.EventRegistrations, {
-              eventId: productModel().eventDocId,
-            })
-          "
-        >
-          <app-icon name="group"></app-icon>
-          <span>View Registered Attendees</span>
-        </a>
-        <a
-          class="subtle-button"
-          [href]="
-            routingService.hrefForView(Views.EventRegister, {
-              eventId: productModel().eventDocId,
-            })
-          "
-          target="_blank"
-        >
-          <app-icon name="visibility"></app-icon>
-          <span>View Registration Page</span>
-        </a>
+        @if (!isFromRegistrationsList()) {
+          <a
+            class="subtle-button"
+            [href]="routingService.hrefForView(Views.ManageEventRegistrations)"
+          >
+            <app-icon name="inventory_2"></app-icon>
+            <span>All Registration Setups</span>
+          </a>
+        }
+        @if (!isNew() && productModel().eventDocId) {
+          <a
+            class="subtle-button"
+            [href]="
+              routingService.hrefForView(Views.EventRegistrations, {
+                eventId: productModel().eventDocId,
+              })
+            "
+          >
+            <app-icon name="group"></app-icon>
+            <span>View Registered Attendees</span>
+          </a>
+          <a
+            class="subtle-button"
+            [href]="
+              routingService.hrefForView(Views.EventRegister, {
+                eventId: productModel().eventDocId,
+              })
+            "
+            target="_blank"
+          >
+            <app-icon name="visibility"></app-icon>
+            <span>View Registration Page</span>
+          </a>
+        }
       </div>
     }
 

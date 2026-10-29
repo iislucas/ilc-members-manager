@@ -188,6 +188,7 @@ export class App {
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent) {
+    if (event.defaultPrevented) return;
     const target = event.target as HTMLElement;
     const anchor = target.closest('a');
     if (!anchor) return;
