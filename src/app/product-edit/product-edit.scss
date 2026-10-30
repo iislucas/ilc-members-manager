@@ -134,13 +134,15 @@
     color: v.$text-muted;
   }
 
-  input, select {
+  input,
+  select {
     padding: 0.6em 0.75em;
     border: 1px solid v.$border-color-light;
     border-radius: 6px;
     background: v.$theme-bg-color;
     color: v.$text-primary;
     font-size: 0.95em;
+    min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -150,6 +152,11 @@
       @include v.input-focus-ring;
     }
   }
+
+  select:not([multiple]):not([size]) {
+    padding-right: 2.35em;
+    text-overflow: ellipsis;
+  }
 }
 
 .form-grid {
@@ -157,7 +164,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 1.25em;
 
-  @media (max-width: 650px) {
+  @media (max-width: 600px) {
     grid-template-columns: 1fr;
   }
 
@@ -166,127 +173,10 @@
   }
 }
 
-.toggle-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2em;
-
-  @media (max-width: 700px) {
-    grid-template-columns: 1fr;
-  }
-
-  .toggle-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75em;
-
-    h3 {
-      margin: 0 0 0.25em;
-      font-size: 1.05em;
-      border-bottom: 1px solid v.$border-color-light;
-      padding-bottom: 0.3em;
-
-      &.subsection-header {
-        margin-top: 1em;
-      }
-    }
-
-    .toggle-item {
-      display: flex;
-      align-items: center;
-      gap: 0.75em;
-      font-size: 0.95em;
-      cursor: pointer;
-
-      input[type="checkbox"] {
-        width: 1.1em;
-        height: 1.1em;
-        accent-color: v.$heading-accent-color;
-      }
-    }
-
-    .nested-field {
-      margin-left: 1.85em;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5em;
-      padding: 0.5em 0.75em;
-      background: rgba(0, 0, 0, 0.02);
-      border-radius: 6px;
-      border-left: 3px solid v.$brand-red;
-
-      label {
-        font-size: 0.85em;
-        font-weight: 500;
-        color: v.$text-secondary;
-      }
-
-      input[type="date"],
-      input[type="number"] {
-        padding: 0.45em 0.6em;
-        border: 1px solid v.$border-color-light;
-        border-radius: 4px;
-        font-size: 0.9em;
-        max-width: 220px;
-        background: v.$theme-bg-color;
-      }
-
-      .field-hint {
-        font-size: 0.8em;
-        color: v.$text-muted;
-      }
-
-      .nested-subfield {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35em;
-        margin-top: 0.35em;
-      }
-    }
-
-    .radio-options-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75em;
-    }
-
-    .radio-option-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75em;
-      cursor: pointer;
-
-      input[type="radio"] {
-        margin-top: 0.25em;
-        accent-color: v.$heading-accent-color;
-        cursor: pointer;
-      }
-
-      div {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15em;
-
-        strong {
-          font-size: 0.95em;
-          color: v.$text-primary;
-        }
-
-        .option-desc {
-          font-size: 0.85em;
-          color: v.$text-muted;
-        }
-      }
-    }
-  }
-}
-
 .delivery-resources-grid {
   display: flex;
   flex-direction: column;
   gap: 1.25em;
-  padding-top: 0.5em;
-  border-top: 1px dashed v.$border-color-light;
 
   .purchase-details-editor-container {
     min-height: 140px;
@@ -310,6 +200,19 @@
     gap: 0.5em;
     margin-top: 0.25em;
 
+    ::ng-deep {
+      .autocomplete-container {
+        width: 100%;
+      }
+
+      input[type='text'] {
+        width: 100%;
+        box-sizing: border-box;
+        background-color: v.$theme-bg-color;
+        color: v.$text-primary;
+      }
+    }
+
     .manual-vod-input {
       display: flex;
       align-items: center;
@@ -324,6 +227,8 @@
       input {
         flex: 1;
         min-width: 180px;
+        background: v.$theme-bg-color;
+        color: v.$text-primary;
       }
     }
   }
@@ -409,243 +314,12 @@
   }
 }
 
-.matrix-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1em;
-  margin-bottom: 0.5em;
-
-  .matrix-header-info {
-    flex: 1;
-    min-width: 240px;
-  }
-
-  .section-help {
-    margin-bottom: 0.5em;
-  }
-
-  .matrix-header-controls {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1em;
-  }
-
-  .currency-selector-inline {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-
-    label {
-      font-size: 0.9em;
-      font-weight: 600;
-      color: v.$text-primary;
-    }
-
-    select {
-      padding: 0.4em 0.6em;
-      border: 1px solid v.$border-color-light;
-      border-radius: 6px;
-      background: v.$theme-bg-color;
-      color: v.$text-primary;
-      font-size: 0.95em;
-      font-weight: 500;
-
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-
-      &:focus,
-      &:focus-visible {
-        @include v.input-focus-ring;
-      }
-    }
-  }
-
-  .matrix-special-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
-  }
-}
-
-.matrix-table-wrapper {
-  overflow-x: auto;
-  border: 1px solid v.$border-color-light;
-  border-radius: 8px;
-}
-
-.matrix-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9em;
-
-  th, td {
-    padding: 0.75em 0.85em;
-    border: 1px solid v.$border-color-light;
-    text-align: center;
-  }
-
-  th {
-    background: v.$separator-color;
-    font-weight: 600;
-    color: v.$text-primary;
-    white-space: nowrap;
-
-    &.role-th {
-      text-align: left;
-      min-width: 180px;
-    }
-
-    &.price-col-th {
-      min-width: 150px;
-    }
-  }
-
-  .th-special-header {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4em;
-  }
-
-  td.role-td {
-    text-align: left;
-    background: v.$theme-bg-color;
-  }
-
-  td.cell-td {
-    background: v.$theme-bg-color;
-    vertical-align: middle;
-
-    &.disabled-cell {
-      background: rgba(0, 0, 0, 0.02);
-    }
-  }
-
-  .cell-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.4em;
-
-    .cell-enable-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3em;
-      font-size: 0.8em;
-      color: v.$text-muted;
-      cursor: pointer;
-
-      input[type="checkbox"] {
-        accent-color: v.$heading-accent-color;
-      }
-    }
-
-    .price-input-box {
-      display: flex;
-      align-items: center;
-      gap: 0.25em;
-
-      .currency-symbol {
-        font-weight: bold;
-        color: v.$text-muted;
-      }
-
-      input {
-        width: 75px;
-        padding: 0.3em 0.4em;
-        border: 1px solid v.$border-color-light;
-        border-radius: 4px;
-        background: v.$theme-bg-color;
-        color: v.$text-primary;
-        font-size: 0.95em;
-        text-align: right;
-
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-
-        &:focus,
-        &:focus-visible {
-          @include v.input-focus-ring;
-        }
-
-        &:disabled {
-          background: transparent;
-          border-color: transparent;
-          color: v.$text-muted;
-        }
-      }
-    }
-  }
-}
-
-.tiers-preview-container {
-  margin-top: 1.5em;
-  padding-top: 1.25em;
-  border-top: 1px solid v.$border-color-light;
-
-  .tiers-preview-header {
-    margin-bottom: 0.75em;
-
-    h4 {
-      margin: 0 0 0.25em 0;
-      font-size: 1em;
-      font-weight: 600;
-      color: v.$text-primary;
-    }
-
-    .preview-hint {
-      font-size: 0.85em;
-      color: v.$text-muted;
-    }
-  }
-
-  .tiers-preview-table-wrapper {
-    overflow-x: auto;
-    border: 1px solid v.$border-color-light;
-    border-radius: 6px;
-  }
-
-  .preview-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.88em;
-
-    th {
-      background: v.$separator-color;
-      padding: 0.5em 0.85em;
-      text-align: left;
-      font-weight: 600;
-      color: v.$text-muted;
-      border-bottom: 1px solid v.$border-color-light;
-    }
-
-    td {
-      padding: 0.5em 0.85em;
-      border-bottom: 1px solid v.$border-color-light;
-      color: v.$text-primary;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    .tier-pill {
-      display: inline-block;
-      padding: 0.2em 0.5em;
-      border-radius: 4px;
-      font-size: 0.82em;
-      background: rgba(v.$primary-color, 0.1);
-      color: v.$primary-color;
-      font-weight: 500;
-    }
-  }
-}
-
 .form-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75em;
   padding-top: 1em;
   border-top: 1px solid v.$border-color-light;
 
@@ -653,7 +327,19 @@
     margin-left: auto;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.75em;
+  }
+
+  @media (max-width: 600px) {
+    flex-direction: column-reverse;
+    align-items: stretch;
+
+    .save-group {
+      margin-left: 0;
+      width: 100%;
+      justify-content: flex-end;
+    }
   }
 }
 
@@ -662,8 +348,8 @@
   align-items: center;
   gap: 0.75em;
   padding: 1em;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid #ef4444;
+  background: v.$theme-error-bg-color;
+  border: 1px solid v.$theme-error-border-color;
   border-radius: 6px;
-  color: #ef4444;
+  color: v.$theme-error-text-color;
 }

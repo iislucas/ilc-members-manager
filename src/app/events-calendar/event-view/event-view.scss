@@ -325,6 +325,49 @@
     }
   }
 
+  .registered-responses-box {
+    margin-top: 0.65rem;
+    padding: 0.85rem 1.15rem;
+    background: v.$theme-bg-color;
+    border: 1px solid #ceead6;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .registered-responses-heading {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #1e4620;
+    }
+
+    .registered-responses-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .registered-response-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.12rem;
+      font-size: 0.9rem;
+
+      .registered-response-label {
+        font-weight: 600;
+        color: v.$text-secondary;
+      }
+
+      .registered-response-value {
+        color: v.$text-primary;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    }
+  }
+
   .registration-closed-badge {
     display: flex;
     align-items: center;

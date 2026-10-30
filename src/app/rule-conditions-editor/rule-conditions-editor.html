@@ -1,0 +1,174 @@
+@let c = conditions();
+@let prefix = idPrefix();
+@let ebDate = normalizedEarlyBirdDate();
+@let evDate = normalizedEventStartDate();
+@let earlyBirdSuffix = ebDate ? ' (' + ebDate + ')' : '';
+@let eventStartSuffix = evDate ? ' (' + evDate + ')' : '';
+@let tWarn = timingWarning();
+@let rWarn = registrationWarning();
+
+<div class="conditions-box">
+  <div class="conditions-header">
+    <span class="conditions-heading">{{ heading() }}</span>
+    @if (!hasAnyActiveCondition()) {
+      <span class="note conditions-empty-note">{{ emptySummary() }}</span>
+    }
+  </div>
+
+  @if (hasAnyActiveCondition()) {
+    <div class="conditions-active-list">
+      <!-- 1. Who Condition (Members, Instructors) -->
+      @if (c.who.kind === WhoConditionKind.Status) {
+        <div class="condition-row">
+          <label class="condition-axis-label" [for]="prefix + '-who'">Who</label>
+          <div class="condition-control">
+            <select
+              [id]="prefix + '-who'"
+              [name]="prefix + '-who'"
+              [ngModel]="c.who.status"
+              (ngModelChange)="updateWhoStatus($event)"
+              [ngModelOptions]="{ standalone: true }"
+            >
+              <option [ngValue]="PersonStatusKind.Member">Members (incl. Instructors)</option>
+              <option [ngValue]="PersonStatusKind.Instructor">Instructors</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            class="icon-only-button condition-remove-btn"
+            (click)="removeWhoCondition()"
+            title="Remove Who condition"
+            aria-label="Remove Who condition"
+          >
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+      }
+
+      <!-- 2. Timing Condition (Early Bird {date}, Before Event starts {event date}) -->
+      @if (c.timing.kind === TimingConditionKind.Window) {
+        <div class="condition-row">
+          <label class="condition-axis-label" [for]="prefix + '-timing'">Timing</label>
+          <div class="condition-control">
+            @if (tWarn) {
+              <span class="note condition-warning-note" [id]="prefix + '-timing-warn'">
+                {{ tWarn }}
+              </span>
+            }
+            <select
+              [id]="prefix + '-timing'"
+              [name]="prefix + '-timing'"
+              [attr.aria-describedby]="tWarn ? prefix + '-timing-warn' : null"
+              [ngModel]="c.timing.window"
+              (ngModelChange)="updateTimingWindow($event)"
+              [ngModelOptions]="{ standalone: true }"
+            >
+              <option [ngValue]="TimingWindow.OnOrBeforeEarlyBird">
+                On or before Early Bird{{ earlyBirdSuffix }}
+              </option>
+              <option [ngValue]="TimingWindow.AfterEarlyBird">
+                After Early Bird{{ earlyBirdSuffix }}
+              </option>
+              <option [ngValue]="TimingWindow.BeforeEventStart">
+                Before Event starts{{ eventStartSuffix }}
+              </option>
+            </select>
+          </div>
+          <button
+            type="button"
+            class="icon-only-button condition-remove-btn"
+            (click)="removeTimingCondition()"
+            title="Remove Timing condition"
+            aria-label="Remove Timing condition"
+          >
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+      }
+
+      <!-- 3. Registration Condition (selected registration options; implicit when allowRegistrationCondition is false) -->
+      @if (allowRegistrationCondition() && c.registration.kind === RegistrationConditionKind.SpecificOptions) {
+        <fieldset
+          class="condition-row condition-row-options condition-options-fieldset"
+          [attr.aria-describedby]="rWarn ? prefix + '-reg-warn' : null"
+        >
+          <legend class="condition-axis-label">Registration</legend>
+          <div class="condition-control">
+            @if (registrationOptions().length === 0) {
+              <span class="note">No registration options configured yet.</span>
+            } @else {
+              @if (rWarn) {
+                <span class="note condition-warning-note" [id]="prefix + '-reg-warn'">
+                  {{ rWarn }}
+                </span>
+              }
+              <div class="condition-scope-pills">
+                @for (opt of registrationOptions(); track opt.id) {
+                  @let checked = isOptionChecked(opt.id);
+                  @let cbId = prefix + '-opt-' + opt.id;
+                  <label class="condition-scope-pill" [class.checked]="checked" [for]="cbId">
+                    <input
+                      [id]="cbId"
+                      [name]="cbId"
+                      type="checkbox"
+                      [checked]="checked"
+                      (change)="onOptionCheckboxChange(opt.id, $event)"
+                    />
+                    <span>{{ opt.label || opt.id }}</span>
+                  </label>
+                }
+              </div>
+            }
+          </div>
+          <button
+            type="button"
+            class="icon-only-button condition-remove-btn"
+            (click)="removeRegistrationCondition()"
+            title="Remove Registration condition"
+            aria-label="Remove Registration condition"
+          >
+            <app-icon name="close"></app-icon>
+          </button>
+        </fieldset>
+      }
+    </div>
+  }
+
+  @if (canAddMore()) {
+    <div class="conditions-add-bar">
+      <span class="conditions-add-label">Add condition:</span>
+      <div class="conditions-add-buttons">
+        @if (!hasWho()) {
+          <button
+            type="button"
+            class="subtle-button condition-add-btn"
+            (click)="addWhoCondition()"
+          >
+            <app-icon name="add"></app-icon>
+            <span>Who</span>
+          </button>
+        }
+        @if (!hasTiming()) {
+          <button
+            type="button"
+            class="subtle-button condition-add-btn"
+            (click)="addTimingCondition()"
+          >
+            <app-icon name="add"></app-icon>
+            <span>Timing</span>
+          </button>
+        }
+        @if (allowRegistrationCondition() && !hasRegistrationCondition()) {
+          <button
+            type="button"
+            class="subtle-button condition-add-btn"
+            (click)="addRegistrationCondition()"
+          >
+            <app-icon name="add"></app-icon>
+            <span>Registration</span>
+          </button>
+        }
+      </div>
+    </div>
+  }
+</div>

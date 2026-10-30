@@ -10,7 +10,21 @@ import { RoutingService } from '../../routing.service';
 import { AppPathPatterns, Views } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts, EventRegistration, Product, isEventPast, AttendanceType } from '../../../../functions/src/data-model/events';
+import {
+  IlcEvent,
+  EventStatus,
+  eventStatusLabel,
+  initEvent,
+  eventContacts,
+  EventRegistration,
+  EventRegistrationQuestionResponse,
+  formatQuestionResponseValue,
+  hasQuestionResponseValue,
+  Product,
+  isEventPast,
+  AttendanceType,
+  formatProductPriceRange,
+} from '../../../../functions/src/data-model/events';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { ProductService } from '../../product.service';
@@ -65,6 +79,13 @@ export class EventViewComponent implements OnInit {
   imageLoaded = signal(false);
 
   hasPaidRegistration = computed(() => !!this.registration());
+  protected readonly formatQuestionResponseValue = formatQuestionResponseValue;
+
+  answeredQuestionResponses = computed<EventRegistrationQuestionResponse[]>(() => {
+    const reg = this.registration();
+    if (!reg) return [];
+    return reg.questionResponses.filter((r) => hasQuestionResponseValue(r));
+  });
 
   registrationSetupUrl = computed(() => {
     const eventId = this.eventId();
@@ -79,16 +100,7 @@ export class EventViewComponent implements OnInit {
   });
 
   getProductPriceRange(product: Product): string {
-    const enabledTiers = Object.values(product.tiers || {}).filter((t) => t.enabled && t.price > 0);
-    if (enabledTiers.length === 0) return 'Free / Custom';
-    const prices = enabledTiers.map((t) => t.price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const currency = (product.currency || 'usd').toUpperCase();
-    if (min === max) {
-      return `${min.toFixed(2)} ${currency}`;
-    }
-    return `${min.toFixed(2)} – ${max.toFixed(2)} ${currency}`;
+    return formatProductPriceRange(product);
   }
 
   canAccessInPerson = computed(() => {

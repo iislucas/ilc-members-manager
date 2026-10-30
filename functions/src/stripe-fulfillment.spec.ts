@@ -6,6 +6,10 @@ import { initMember, MembershipType } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
 import { initMemberOrder, OrderKind, MemberOrderKind, MemberOrderPaymentStatus, StripeOrder, StripeOrderType, StripeCheckoutMode, StripePaymentStatus, OrderStatus } from './data-model/orders';
 import {
+  encodeQuestionResponsesToMetadata,
+  RegistrationQuestionKind,
+} from './data-model/events';
+import {
   fulfillStripeOrder,
   fulfillSpouseLifeMembership,
   mirrorOrderToMemberSubcollection,
@@ -2079,6 +2083,15 @@ describe('stripe-fulfillment', () => {
         hasVideoAccess: true,
         stripeSessionId: 'cs_initial_session',
         upgradeHistory: [],
+        questionResponses: [
+          {
+            questionId: 'q_exp',
+            questionLabel: 'Experience Level',
+            kind: RegistrationQuestionKind.Select,
+            answerText: 'Intermediate',
+            selectedOptions: [],
+          },
+        ],
       };
 
       const eventRegistrationDoc = {
@@ -2161,6 +2174,22 @@ describe('stripe-fulfillment', () => {
           upgradeAmountCents: '1000',
           previouslyPaidCents: '4500',
           totalAmountPaidCents: '5500',
+          ...encodeQuestionResponsesToMetadata([
+            {
+              questionId: 'q_exp',
+              questionLabel: 'Experience Level',
+              kind: RegistrationQuestionKind.Select,
+              answerText: 'Overwritten Attempt',
+              selectedOptions: [],
+            },
+            {
+              questionId: 'q_zoom',
+              questionLabel: 'Zoom Display Name',
+              kind: RegistrationQuestionKind.ShortText,
+              answerText: 'Alex Practitioner',
+              selectedOptions: [],
+            },
+          ]),
         },
         lineItems: [],
       };
@@ -2172,6 +2201,22 @@ describe('stripe-fulfillment', () => {
       expect(savedRegistration).toBeDefined();
       expect(savedRegistration.amountPaidCents).toBe(5500);
       expect(savedRegistration.attendance).toBe('online');
+      expect(savedRegistration.questionResponses).toEqual([
+        {
+          questionId: 'q_exp',
+          questionLabel: 'Experience Level',
+          kind: RegistrationQuestionKind.Select,
+          answerText: 'Intermediate', // Preserved read-only!
+          selectedOptions: [],
+        },
+        {
+          questionId: 'q_zoom',
+          questionLabel: 'Zoom Display Name',
+          kind: RegistrationQuestionKind.ShortText,
+          answerText: 'Alex Practitioner',
+          selectedOptions: [],
+        },
+      ]);
       expect(savedRegistration.upgradeHistory).toHaveLength(1);
       expect(savedRegistration.upgradeHistory[0].stripeSessionId).toBe('cs_upgrade_session');
       expect(savedRegistration.upgradeHistory[0].upgradeAmountCents).toBe(1000);
@@ -2183,6 +2228,231 @@ describe('stripe-fulfillment', () => {
       expect(batchCommitMock).toHaveBeenCalledTimes(1);
       expect(savedRegistration.amountPaidCents).toBe(5500);
       expect(savedRegistration.upgradeHistory).toHaveLength(1);
+    });
+
+    it('transactionally fulfills deposit registration, increments named capacityCounts on event & product, and grants catalog add-on VOD', async () => {
+      let savedEventReg: Record<string, unknown> | null = null;
+      let eventUpdatePayload: Record<string, unknown> | null = null;
+      let productUpdatePayload: Record<string, unknown> | null = null;
+      const globalGrantSet = vi.fn().mockResolvedValue({});
+
+      const regDocRef = {
+        kind: 'eventReg',
+        get: vi.fn().mockImplementation(async () => ({
+          id: 'order_dep_1',
+          exists: Boolean(savedEventReg),
+          data: () => savedEventReg || {},
+        })),
+      };
+
+      const eventDocRef = {
+        kind: 'eventDoc',
+        get: vi.fn().mockResolvedValue({
+          id: 'event_cap_1',
+          exists: true,
+          data: () => ({
+            title: '4-Day Intensive',
+            capacities: [{ id: 'hall_spots', label: 'Training Hall', description: '', limit: 20 }],
+            capacityCounts: { hall_spots: 4 },
+            inPersonRegistrationsCount: 4,
+          }),
+        }),
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue(regDocRef),
+        }),
+      };
+
+      const prodDocRef = {
+        kind: 'prodDoc',
+        get: vi.fn().mockResolvedValue({
+          id: 'prod_cap_1',
+          exists: true,
+          data: () => ({
+            title: '4-Day Intensive',
+            eventDocId: 'event_cap_1',
+            inPersonRegistrationsCount: 4,
+            capacityCounts: { hall_spots: 4 },
+            pricingRules: {
+              capacities: [{ id: 'hall_spots', label: 'Training Hall', description: '', limit: 20 }],
+              earlyRegistration: { kind: 'disabled' },
+              baseOptions: [
+                {
+                  id: 'two_day_pass',
+                  label: '2-Day Pass',
+                  description: '',
+                  attendanceType: 'in_person',
+                  eligibility: 'anyone',
+                  capacityUsage: { hall_spots: 1 },
+                  subSelection: {
+                    kind: 'pick_suboptions',
+                    pickCount: 2,
+                    availableSuboptions: ['Friday', 'Saturday', 'Sunday'],
+                  },
+                  priceCents: 10000,
+                  earlyRegistration: { kind: 'none' },
+                },
+              ],
+              personDiscounts: [],
+              addOns: [
+                {
+                  id: 'prep_video',
+                  label: 'Prep Curriculum Video',
+                  description: '',
+                  spec: { kind: 'catalog_video', videoId: 'vid_prep_101' },
+                  optionScope: { kind: 'all_options' },
+                  priceCents: 1500,
+                  earlyRegistration: { kind: 'none' },
+                  onlyBeforeEventStart: false,
+                },
+              ],
+              payment: {
+                allowFullPayment: true,
+                allowZeroDepositInPerson: true,
+                depositPolicy: {
+                  kind: 'enabled',
+                  depositCents: 2000,
+                  offlineInstructions: 'Cash at door',
+                  refundPolicy: { kind: 'non_refundable' },
+                },
+              },
+            },
+          }),
+        }),
+      };
+
+      const txMock = {
+        get: vi.fn(async (ref: { get: () => Promise<unknown> }) => ref.get()),
+        set: vi.fn((ref: { kind?: string }, data: Record<string, unknown>) => {
+          if (ref.kind === 'eventReg') {
+            savedEventReg = data;
+          }
+        }),
+        update: vi.fn((ref: { kind?: string }, data: Record<string, unknown>) => {
+          if (ref.kind === 'eventDoc') {
+            eventUpdatePayload = data;
+          } else if (ref.kind === 'prodDoc') {
+            productUpdatePayload = data;
+          }
+        }),
+      };
+
+      const txDb: any = {
+        runTransaction: vi.fn(async (fn: (tx: typeof txMock) => Promise<void>) => fn(txMock)),
+        collection: vi.fn((colName: string) => {
+          if (colName === 'events') {
+            return { doc: vi.fn().mockReturnValue(eventDocRef) };
+          }
+          if (colName === 'products') {
+            return { doc: vi.fn().mockReturnValue(prodDocRef) };
+          }
+          if (colName === 'videos') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({ title: 'Prep 101' }),
+                }),
+              }),
+            };
+          }
+          if (colName === 'video_grants') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                set: globalGrantSet,
+              }),
+            };
+          }
+          return {};
+        }),
+      };
+
+      const longBio = 'Training notes: '.repeat(35).trim();
+      const depositOrder: StripeOrder = {
+        docId: 'order_dep_1',
+        lastUpdated: '2026-10-01T10:00:00Z',
+        ilcAppOrderKind: OrderKind.Stripe,
+        stripeOrderType: StripeOrderType.Checkout,
+        stripeObjectId: 'cs_deposit_1',
+        checkoutSessionId: 'cs_deposit_1',
+        created: '2026-10-01T10:00:00Z',
+        customerEmail: 'guest@example.com',
+        amountTotal: 3500, // $20 deposit + $15 catalog video add-on
+        currency: 'usd',
+        metadata: {
+          orderType: 'event_registration',
+          eventDocId: 'event_cap_1',
+          productId: 'prod_cap_1',
+          attendeeName: 'Guest Practitioner',
+          attendeeEmail: 'guest@example.com',
+          role: 'non_member',
+          attendance: 'in_person',
+          includeVideo: 'false',
+          optionId: 'two_day_pass',
+          optionLabel: '2-Day Pass',
+          selectedSuboptions: JSON.stringify(['Friday', 'Saturday']),
+          selectedAddOnIds: JSON.stringify(['prep_video']),
+          selectedAddOnLabels: JSON.stringify(['Prep Curriculum Video']),
+          capacityUsage: JSON.stringify({ hall_spots: 1 }),
+          paymentChoice: 'deposit',
+          agreedTotalCents: '8500',
+          depositCents: '2000',
+          cashDueAtDoorCents: '5000',
+          ...encodeQuestionResponsesToMetadata([
+            {
+              questionId: 'q_bio',
+              questionLabel: 'Training Notes',
+              kind: RegistrationQuestionKind.LongText,
+              answerText: longBio,
+              selectedOptions: [],
+            },
+          ]),
+        },
+        lineItems: [],
+      };
+
+      await fulfillEventRegistration(txDb, depositOrder, 'order_dep_1', null);
+
+      expect(txDb.runTransaction).toHaveBeenCalledTimes(1);
+      expect(savedEventReg).toMatchObject({
+        docId: 'order_dep_1',
+        status: 'deposit_paid',
+        paymentChoice: 'deposit',
+        optionId: 'two_day_pass',
+        optionLabel: '2-Day Pass',
+        selectedSuboptions: ['Friday', 'Saturday'],
+        selectedAddOnIds: ['prep_video'],
+        capacityUsage: { hall_spots: 1 },
+        agreedTotalCents: 8500,
+        depositPaidCents: 2000,
+        amountPaidCents: 3500,
+        amountDueCents: 5000,
+        paidAt: '',
+        questionResponses: [
+          {
+            questionId: 'q_bio',
+            questionLabel: 'Training Notes',
+            kind: RegistrationQuestionKind.LongText,
+            answerText: longBio,
+            selectedOptions: [],
+          },
+        ],
+      });
+      expect(eventUpdatePayload).toMatchObject({
+        capacityCounts: { hall_spots: 5 },
+        inPersonRegistrationsCount: 5,
+      });
+      expect(productUpdatePayload).toMatchObject({
+        capacityCounts: { hall_spots: 5 },
+        inPersonRegistrationsCount: 5,
+      });
+      expect(globalGrantSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          docId: 'vid_prep_101',
+          videoId: 'vid_prep_101',
+          memberEmail: 'guest@example.com',
+        }),
+        { merge: true },
+      );
     });
   });
 });

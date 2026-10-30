@@ -9,7 +9,7 @@ import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { ProductService } from '../../product.service';
-import { EventDocument, EventStatus, eventStatusLabel, Product } from '../../../../functions/src/data-model/events';
+import { EventDocument, EventStatus, eventStatusLabel, formatProductPriceRange, Product } from '../../../../functions/src/data-model/events';
 import { InstructorPublicData } from '../../../../functions/src/data-model/members';
 import { PublicInstructorSelectorComponent } from '../../public-instructor-selector/public-instructor-selector';
 import { InstructorSelectorComponent } from '../../instructor-selector/instructor-selector';
@@ -482,16 +482,7 @@ export class ProposeEventComponent {
   }
 
   getProductPriceRange(product: Product): string {
-    const enabledTiers = Object.values(product.tiers || {}).filter((t) => t.enabled && t.price > 0);
-    if (enabledTiers.length === 0) return 'Free / Custom';
-    const prices = enabledTiers.map((t) => t.price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const currency = (product.currency || 'usd').toUpperCase();
-    if (min === max) {
-      return `${min.toFixed(2)} ${currency}`;
-    }
-    return `${min.toFixed(2)} – ${max.toFixed(2)} ${currency}`;
+    return formatProductPriceRange(product);
   }
 
   async refreshProducts(): Promise<void> {

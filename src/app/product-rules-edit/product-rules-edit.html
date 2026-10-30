@@ -1,0 +1,1676 @@
+<div class="rules-editor-container">
+  @let r = rules();
+  @let sym = currencySymbol();
+  @let earlyBirdEnabled = r.earlyBird.kind === EarlyBirdPolicyKind.Enabled;
+  @let earlyDeadline =
+    r.earlyBird.kind === EarlyBirdPolicyKind.Enabled
+      ? r.earlyBird.deadlineDate
+      : '';
+
+  <!-- 1. Early Bird Pricing & Currency -->
+  <section class="rules-section">
+    <div class="rules-section-header">
+      <div>
+        <h2>Early Bird Pricing &amp; Currency</h2>
+        <p class="note">
+          Configure registration currency and an optional Early Bird pricing cutoff date.
+        </p>
+      </div>
+      <div class="rules-header-actions">
+        <div class="rules-currency-inline">
+          <label for="rulesCurrency">Currency:</label>
+          <select
+            id="rulesCurrency"
+            [ngModel]="currency() || 'usd'"
+            (ngModelChange)="currencyChange.emit($event)"
+            [ngModelOptions]="{ standalone: true }"
+          >
+            <option value="usd">USD ($)</option>
+            <option value="eur">EUR (€)</option>
+            <option value="gbp">GBP (£)</option>
+            <option value="aud">AUD ($)</option>
+            <option value="cad">CAD ($)</option>
+          </select>
+        </div>
+        <button
+          type="button"
+          class="admin-button"
+          (click)="loadMultiDayIntensiveExample()"
+          title="Populate with a 4-day workshop + capacities + suboptions + add-ons + deposit example"
+        >
+          <app-icon name="event"></app-icon>
+          <span>Load 4-Day Intensive Example</span>
+        </button>
+      </div>
+    </div>
+
+    <fieldset class="rules-policy-fieldset">
+      <legend>Early Bird Pricing</legend>
+      <label class="rules-checkbox-row">
+        <input
+          type="checkbox"
+          name="enableEarlyBird"
+          [checked]="earlyBirdEnabled"
+          (change)="toggleEarlyBirdPolicy($any($event.target).checked)"
+        />
+        <span>Enable Early Bird Pricing</span>
+      </label>
+
+      @if (r.earlyBird.kind === EarlyBirdPolicyKind.Enabled) {
+        <div class="rules-nested-box">
+          <label for="earlyRegDeadline">Early Bird Cutoff Date (Inclusive):</label>
+          <input
+            id="earlyRegDeadline"
+            name="earlyRegDeadline"
+            type="date"
+            [value]="r.earlyBird.deadlineDate"
+            (input)="updateEarlyBirdDeadline($any($event.target).value)"
+            required
+          />
+          <span class="note">
+            Evaluated Anywhere-on-Earth (UTC-12): Early Bird pricing holds until this calendar date ends everywhere on Earth.
+          </span>
+        </div>
+      } @else {
+        <p class="note">
+          Early Bird pricing is off. Enable to configure Early Bird discounts or Early-Bird-only options and add-ons.
+        </p>
+      }
+    </fieldset>
+  </section>
+
+  <!-- 2. Capacity Limits (Configured Before Registration Options) -->
+  <section class="rules-section">
+    <div class="rules-section-header">
+      <div>
+        <h2>Capacity Limits</h2>
+        <p class="note">
+          Optional shared resource limits for this event. By default there are no capacity limits; add one or more named capacities so each registration option can count units toward them.
+        </p>
+      </div>
+    </div>
+
+    <div class="rules-capacity-example-box">
+      <span class="rules-example-label">Worked Example — Daily Participant Limits</span>
+      <span class="note">
+        A capacity can limit the number of participants for a given day or venue: for example, define
+        <strong>Friday Participants</strong> (max <code>25</code>) and <strong>Saturday Participants</strong> (max <code>25</code>).
+        Then set <em>Full Weekend</em> to use <code>1</code> of each, <em>Friday Only</em> to use <code>1</code> of Friday Participants, and <em>Online / Recording Only</em> to use <code>0</code>.
+      </span>
+    </div>
+
+    @if (r.capacities.length === 0) {
+      <p class="note">No capacity limits configured (unlimited registrations).</p>
+    } @else {
+      <div class="rules-items-stack">
+        @for (cap of r.capacities; track cap.id) {
+          <div class="rules-item-row compact-row">
+            <div class="rules-capacity-row-grid">
+              <div class="rules-field">
+                <label [for]="'cap-label-' + cap.id">Capacity Name *</label>
+                <input
+                  [id]="'cap-label-' + cap.id"
+                  type="text"
+                  placeholder="e.g. Friday Participants or Main Hall"
+                  [value]="cap.label"
+                  (input)="updateCapacityLabel(cap.id, $any($event.target).value)"
+                  required
+                />
+              </div>
+
+              <div class="rules-field">
+                <label [for]="'cap-limit-' + cap.id">Max Limit *</label>
+                <input
+                  [id]="'cap-limit-' + cap.id"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="25"
+                  [value]="cap.limit"
+                  (input)="updateCapacityLimit(cap.id, $any($event.target).value)"
+                  required
+                />
+              </div>
+
+              <div class="rules-field">
+                <label [for]="'cap-desc-' + cap.id">Optional Description</label>
+                <input
+                  [id]="'cap-desc-' + cap.id"
+                  type="text"
+                  placeholder="e.g. Max floor spots for Friday session"
+                  [value]="cap.description"
+                  (input)="updateCapacityDescription(cap.id, $any($event.target).value)"
+                />
+              </div>
+
+              <div class="rules-discount-remove">
+                <button
+                  type="button"
+                  class="icon-only-button delete-button"
+                  (click)="removeCapacity(cap.id)"
+                  title="Remove capacity limit"
+                >
+                  <app-icon name="delete"></app-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="rules-section-footer">
+      <button type="button" class="outlined-button" (click)="addCapacity()">
+        <app-icon name="add"></app-icon>
+        <span>Add Capacity Limit</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 3. Registration Options -->
+  <section class="rules-section">
+    <div class="rules-section-header">
+      <div>
+        <h2>Registration Options</h2>
+        <p class="note">
+          Attendees pick <strong>one</strong> registration option (including live attendance or standalone video recording). Use the arrow buttons to order how options appear on the registration page.
+        </p>
+      </div>
+    </div>
+
+    <div class="rules-items-stack">
+      @for (opt of r.registrationOptions; track opt.id; let idx = $index) {
+        <div class="rules-item-row">
+          <div class="rules-item-topbar">
+            <div class="level-info">
+              @if (opt.priceCents === 0) {
+                <span class="badge-highlight">FREE</span>
+              }
+              <span class="level-chip">Option {{ idx + 1 }}</span>
+            </div>
+
+            <div class="rules-item-actions">
+              <button
+                type="button"
+                class="icon-only-button"
+                [disabled]="idx === 0"
+                (click)="moveRegistrationOption(idx, -1)"
+                title="Move option up"
+              >
+                <app-icon name="arrow_upward"></app-icon>
+              </button>
+              <button
+                type="button"
+                class="icon-only-button"
+                [disabled]="idx === r.registrationOptions.length - 1"
+                (click)="moveRegistrationOption(idx, 1)"
+                title="Move option down"
+              >
+                <app-icon name="arrow_downward"></app-icon>
+              </button>
+              <button
+                type="button"
+                class="icon-only-button delete-button"
+                [disabled]="r.registrationOptions.length <= 1"
+                (click)="removeRegistrationOption(opt.id)"
+                title="Remove option"
+              >
+                <app-icon name="delete"></app-icon>
+              </button>
+            </div>
+          </div>
+
+          <div class="rules-option-grid">
+            <div class="rules-primary-fields span-full">
+              <div class="rules-field">
+                <label [for]="'opt-label-' + opt.id">Option Label *</label>
+                <input
+                  [id]="'opt-label-' + opt.id"
+                  [name]="'opt-label-' + opt.id"
+                  type="text"
+                  placeholder="e.g. Full Workshop, Fri - Mon"
+                  [value]="opt.label"
+                  (input)="updateOptionLabel(opt.id, $any($event.target).value)"
+                  required
+                />
+              </div>
+
+              <div class="rules-field">
+                <label [for]="'opt-price-' + opt.id">Price ({{ sym }}, 0 = Free)</label>
+                <input
+                  [id]="'opt-price-' + opt.id"
+                  [name]="'opt-price-' + opt.id"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  [value]="centsToMajorInput(opt.priceCents)"
+                  (input)="updateOptionStandardPrice(opt.id, $any($event.target).value)"
+                />
+              </div>
+
+              <div class="rules-field">
+                <label [for]="'opt-att-' + opt.id">Participation Mode</label>
+                <select
+                  [id]="'opt-att-' + opt.id"
+                  [ngModel]="opt.attendanceType"
+                  (ngModelChange)="updateOptionAttendance(opt.id, $event)"
+                  [ngModelOptions]="{ standalone: true }"
+                >
+                  <option [ngValue]="AttendanceType.InPerson">In-Person</option>
+                  <option [ngValue]="AttendanceType.Online">Online (Zoom)</option>
+                  <option [ngValue]="AttendanceType.InPersonAndOnline">In-Person &amp; Online</option>
+                  <option [ngValue]="AttendanceType.VideoOnly">Recording Only</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Per-Option Capacity Usage (shown when capacities are defined) -->
+            @if (r.capacities.length > 0) {
+              <div class="rules-option-capacities-box span-full">
+                <span class="rules-option-capacities-title">
+                  Capacity used per registration (0 = does not count toward limit):
+                </span>
+                <div class="rules-option-capacities-inputs">
+                  @for (cap of r.capacities; track cap.id) {
+                    <div class="rules-capacity-unit-field">
+                      <label [for]="'opt-cap-use-' + opt.id + '-' + cap.id">
+                        {{ cap.label || cap.id }}
+                        <span class="note">(/ {{ cap.limit }})</span>
+                      </label>
+                      <input
+                        [id]="'opt-cap-use-' + opt.id + '-' + cap.id"
+                        type="number"
+                        min="0"
+                        step="1"
+                        [value]="getOptionCapacityUnits(opt, cap.id)"
+                        (input)="updateOptionCapacityUsage(opt.id, cap.id, $any($event.target).value)"
+                      />
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Suboption Selection & Optional Notes -->
+            <div class="rules-field">
+              <label [for]="'opt-sub-' + opt.id">Suboption Selection (e.g. Specific Days)</label>
+              <select
+                [id]="'opt-sub-' + opt.id"
+                [ngModel]="opt.subSelection.kind"
+                (ngModelChange)="updateOptionSubSelectionKind(opt.id, $event)"
+                [ngModelOptions]="{ standalone: true }"
+              >
+                <option [ngValue]="SubSelectionKind.None">No sub-options</option>
+                <option [ngValue]="SubSelectionKind.PickSuboptions">
+                  Pick Suboptions (e.g. pick 2 of Fri, Sat, Sun)
+                </option>
+              </select>
+
+              @if (opt.subSelection.kind === SubSelectionKind.PickSuboptions) {
+                <div class="rules-suboptions-editor">
+                  <div class="rules-pick-count-row">
+                    <label [for]="'opt-pick-count-' + opt.id">Attendee must pick:</label>
+                    <input
+                      [id]="'opt-pick-count-' + opt.id"
+                      type="number"
+                      min="1"
+                      [max]="opt.subSelection.availableSuboptions.length || 1"
+                      [value]="opt.subSelection.pickCount"
+                      (input)="updateOptionPickCount(opt.id, $any($event.target).value)"
+                    />
+                    <span class="note">
+                      of {{ opt.subSelection.availableSuboptions.length }} choices
+                    </span>
+                  </div>
+
+                  <div class="level-info">
+                    @for (sub of opt.subSelection.availableSuboptions; track sub) {
+                      <span class="active-tag-chip">
+                        {{ sub }}
+                        <button
+                          type="button"
+                          class="tag-clear-btn"
+                          (click)="removeSuboption(opt.id, sub)"
+                          [title]="'Remove ' + sub"
+                        >
+                          <app-icon name="close"></app-icon>
+                        </button>
+                      </span>
+                    }
+                  </div>
+
+                  <div class="rules-suboption-add-row">
+                    <input
+                      type="text"
+                      placeholder="Add day/session (comma-separated, e.g. Friday, Saturday)..."
+                      [value]="suboptionDrafts()[opt.id] || ''"
+                      (input)="setSuboptionDraft(opt.id, $any($event.target).value)"
+                      (keydown.enter)="$event.preventDefault(); addSuboptionsFromDraft(opt.id)"
+                    />
+                    <button
+                      type="button"
+                      class="subtle-button"
+                      (click)="addSuboptionsFromDraft(opt.id)"
+                    >
+                      <app-icon name="add"></app-icon>
+                      <span>Add</span>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="rules-field">
+              <label [for]="'opt-desc-' + opt.id">Optional Subtitle / Notes</label>
+              <input
+                [id]="'opt-desc-' + opt.id"
+                [name]="'opt-desc-' + opt.id"
+                type="text"
+                placeholder="Optional note shown under this option"
+                [value]="opt.description"
+                (input)="updateOptionDescription(opt.id, $any($event.target).value)"
+              />
+            </div>
+
+            <app-rule-conditions-editor
+              class="span-full"
+              [idPrefix]="'opt-cond-' + opt.id"
+              heading="Eligibility Conditions"
+              emptySummary="Open to everyone, anytime."
+              [allowRegistrationCondition]="false"
+              [registrationOptions]="r.registrationOptions"
+              [earlyBirdEnabled]="earlyBirdEnabled"
+              [earlyBirdDeadline]="earlyDeadline"
+              [eventStartDate]="eventStartDate()"
+              [conditions]="opt.conditions"
+              (conditionsChange)="updateOptionConditions(opt.id, $event)"
+            />
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="rules-section-footer">
+      <button type="button" class="outlined-button" (click)="addRegistrationOption()">
+        <app-icon name="add"></app-icon>
+        <span>Add Another Registration Option</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 4. Discounts -->
+  <section class="rules-section">
+    <div class="rules-section-header">
+      <div>
+        <h2>Discounts</h2>
+        <p class="note">
+          Optional registration discounts for Early Bird / timing windows, ILC Members, Certified Instructors, or specific registration options. Every discount applies when all of its conditions match; multiple matching discounts sum together (capped at the option price).
+        </p>
+      </div>
+    </div>
+
+    @if (r.discounts.length === 0) {
+      <p class="note">No discounts configured.</p>
+    } @else {
+      <div class="rules-items-stack">
+        @for (disc of r.discounts; track disc.id; let idx = $index) {
+          <div class="rules-item-row">
+            <div class="rules-item-topbar">
+              <div class="level-info">
+                <span class="level-chip">Discount {{ idx + 1 }}</span>
+                @if (disc.discountCents > 0) {
+                  <span class="badge-highlight">−{{ formatCents(disc.discountCents) }}</span>
+                }
+              </div>
+
+              <div class="rules-item-actions">
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  [disabled]="idx === 0"
+                  (click)="moveDiscount(idx, -1)"
+                  title="Move discount up"
+                >
+                  <app-icon name="arrow_upward"></app-icon>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  [disabled]="idx === r.discounts.length - 1"
+                  (click)="moveDiscount(idx, 1)"
+                  title="Move discount down"
+                >
+                  <app-icon name="arrow_downward"></app-icon>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button delete-button"
+                  (click)="removeDiscount(disc.id)"
+                  title="Remove discount"
+                >
+                  <app-icon name="delete"></app-icon>
+                </button>
+              </div>
+            </div>
+
+            <div class="rules-discount-grid">
+              <div class="rules-field">
+                <label [for]="'disc-label-' + disc.id">Discount Label *</label>
+                <input
+                  [id]="'disc-label-' + disc.id"
+                  type="text"
+                  placeholder="e.g. Early Bird Discount or ILC Member Discount"
+                  [value]="disc.label"
+                  (input)="updateDiscountLabel(disc.id, $any($event.target).value)"
+                  required
+                />
+              </div>
+
+              <div class="rules-field">
+                <label [for]="'disc-val-' + disc.id">Discount Amount ({{ sym }})</label>
+                <input
+                  [id]="'disc-val-' + disc.id"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  [value]="centsToMajorInput(disc.discountCents)"
+                  (input)="updateDiscountAmount(disc.id, $any($event.target).value)"
+                />
+              </div>
+
+              <app-rule-conditions-editor
+                class="span-full"
+                [idPrefix]="'disc-cond-' + disc.id"
+                heading="Conditions"
+                emptySummary="Applies to everyone, anytime, across all registration options."
+                [allowRegistrationCondition]="true"
+                [registrationOptions]="r.registrationOptions"
+                [earlyBirdEnabled]="earlyBirdEnabled"
+                [earlyBirdDeadline]="earlyDeadline"
+                [eventStartDate]="eventStartDate()"
+                [conditions]="disc.conditions"
+                (conditionsChange)="updateDiscountConditions(disc.id, $event)"
+              />
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="rules-section-footer">
+      <button type="button" class="outlined-button" (click)="addDiscount()">
+        <app-icon name="add"></app-icon>
+        <span>Add Discount</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 5. Event Add-Ons -->
+  <section class="rules-section">
+    <div class="rules-section-header">
+      <div>
+        <h2>Event Add-Ons</h2>
+        <p class="note">
+          Optional videos, VOD series, or extra items (such as Personal Video Review) enabled by selected registration options. To sell a standalone recording without attending, add a <strong>Recording Only</strong> Registration Option above.
+        </p>
+      </div>
+    </div>
+
+    @if (r.addOns.length > 0) {
+      <div class="rules-items-stack">
+        @for (addOn of r.addOns; track addOn.id; let idx = $index) {
+          <div class="rules-item-row">
+            <div class="rules-item-topbar">
+              <div class="level-info">
+                @if (addOn.priceCents === 0) {
+                  <span class="badge-highlight">FREE</span>
+                }
+                <span class="level-chip">
+                  @switch (addOn.spec.kind) {
+                    @case (EventAddOnKind.EventRecording) {
+                      This Event's Recording
+                    }
+                    @case (EventAddOnKind.CatalogVideo) {
+                      Catalog Video
+                    }
+                    @case (EventAddOnKind.CatalogSeries) {
+                      Catalog VOD Series
+                    }
+                    @case (EventAddOnKind.Other) {
+                      General Add-On
+                    }
+                  }
+                </span>
+              </div>
+
+              <div class="rules-item-actions">
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  [disabled]="idx === 0"
+                  (click)="moveEventAddOn(idx, -1)"
+                  title="Move add-on up"
+                >
+                  <app-icon name="arrow_upward"></app-icon>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  [disabled]="idx === r.addOns.length - 1"
+                  (click)="moveEventAddOn(idx, 1)"
+                  title="Move add-on down"
+                >
+                  <app-icon name="arrow_downward"></app-icon>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button delete-button"
+                  (click)="removeEventAddOn(addOn.id)"
+                  title="Remove add-on"
+                >
+                  <app-icon name="delete"></app-icon>
+                </button>
+              </div>
+            </div>
+
+            <div class="rules-option-grid">
+              <div class="rules-primary-fields span-full">
+                <div class="rules-field">
+                  <label [for]="'addon-label-' + addOn.id">Add-On Label *</label>
+                  <input
+                    [id]="'addon-label-' + addOn.id"
+                    type="text"
+                    placeholder="e.g. Intensive Videos or Personal Video Review"
+                    [value]="addOn.label"
+                    (input)="updateAddOnLabel(addOn.id, $any($event.target).value)"
+                    required
+                  />
+                </div>
+
+                <div class="rules-field">
+                  <label [for]="'addon-price-' + addOn.id">Price ({{ sym }}, 0 = Free)</label>
+                  <input
+                    [id]="'addon-price-' + addOn.id"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    [value]="centsToMajorInput(addOn.priceCents)"
+                    (input)="updateAddOnPrice(addOn.id, $any($event.target).value)"
+                  />
+                </div>
+
+                <div class="rules-field">
+                  <label [for]="'addon-kind-' + addOn.id">Add-On Type</label>
+                  <select
+                    [id]="'addon-kind-' + addOn.id"
+                    [ngModel]="addOn.spec.kind"
+                    (ngModelChange)="updateAddOnSpecKind(addOn.id, $event)"
+                    [ngModelOptions]="{ standalone: true }"
+                  >
+                    <option [ngValue]="EventAddOnKind.EventRecording">
+                      This Event's Video Recording
+                    </option>
+                    <option [ngValue]="EventAddOnKind.CatalogVideo">Existing Catalog Video</option>
+                    <option [ngValue]="EventAddOnKind.CatalogSeries">Existing VOD Series</option>
+                    <option [ngValue]="EventAddOnKind.Other">Other (Label &amp; Description)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Spec-specific configuration -->
+              @switch (addOn.spec.kind) {
+                @case (EventAddOnKind.EventRecording) {
+                  <div class="rules-recording-spec-box span-full">
+                    <div class="rules-spec-note">
+                      <app-icon name="play_circle"></app-icon>
+                      <span class="note">
+                        Grants access to this event's recording
+                        @if (recordedVideoId()) {
+                          (currently linked to <span class="identifier-chip">{{ recordedVideoId() }}</span>).
+                        } @else {
+                          (can be filmed and linked in Delivery Resources after the event).
+                        }
+                      </span>
+                    </div>
+                  </div>
+                }
+                @case (EventAddOnKind.CatalogVideo) {
+                  <div class="rules-field span-full">
+                    <label>Target Catalog Video</label>
+                    @if (addOn.spec.videoId) {
+                      <app-vod-preview
+                        [videoId]="addOn.spec.videoId"
+                        [showUnlink]="true"
+                        (unlink)="updateAddOnCatalogVideoId(addOn.id, '')"
+                      />
+                    } @else {
+                      <div class="rules-vod-autocomplete-wrapper">
+                        <app-autocomplete
+                          [name]="'addon-video-' + addOn.id"
+                          [searchableSet]="vodVideoOptionsSet"
+                          [displayFns]="vodDisplayFns"
+                          [inputBoxIsChip]="true"
+                          placeholder="Search catalog video by title or videoId..."
+                          (itemSelected)="$event && updateAddOnCatalogVideoId(addOn.id, $event.id)"
+                          (textUpdated)="onCatalogVideoTextUpdated(addOn.id, $event)"
+                        ></app-autocomplete>
+                      </div>
+                    }
+                  </div>
+                }
+                @case (EventAddOnKind.CatalogSeries) {
+                  <div class="rules-field span-full">
+                    <label>Target Catalog VOD Series</label>
+                    @if (addOn.spec.seriesId) {
+                      <app-vod-preview
+                        [videoId]="addOn.spec.seriesId"
+                        [showUnlink]="true"
+                        (unlink)="updateAddOnCatalogSeriesId(addOn.id, '')"
+                      />
+                    } @else {
+                      <div class="rules-vod-autocomplete-wrapper">
+                        <app-autocomplete
+                          [name]="'addon-series-' + addOn.id"
+                          [searchableSet]="vodSeriesOptionsSet"
+                          [displayFns]="vodDisplayFns"
+                          [inputBoxIsChip]="true"
+                          placeholder="Search VOD series by title or seriesId..."
+                          (itemSelected)="$event && updateAddOnCatalogSeriesId(addOn.id, $event.id)"
+                          (textUpdated)="onCatalogSeriesTextUpdated(addOn.id, $event)"
+                        ></app-autocomplete>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+
+              <div class="rules-field span-full">
+                <label [for]="'addon-desc-' + addOn.id">Description</label>
+                <input
+                  [id]="'addon-desc-' + addOn.id"
+                  type="text"
+                  placeholder="Optional description shown next to add-on"
+                  [value]="addOn.description"
+                  (input)="updateAddOnDescription(addOn.id, $any($event.target).value)"
+                />
+              </div>
+
+              <app-rule-conditions-editor
+                class="span-full"
+                [idPrefix]="'addon-cond-' + addOn.id"
+                heading="Eligibility Conditions"
+                emptySummary="Available to everyone, anytime, across all registration options."
+                [allowRegistrationCondition]="true"
+                [registrationOptions]="r.registrationOptions"
+                [earlyBirdEnabled]="earlyBirdEnabled"
+                [earlyBirdDeadline]="earlyDeadline"
+                [eventStartDate]="eventStartDate()"
+                [conditions]="addOn.conditions"
+                (conditionsChange)="updateAddOnConditions(addOn.id, $event)"
+              />
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="rules-section-footer">
+      <button type="button" class="outlined-button" (click)="addEventAddOn()">
+        <app-icon name="add"></app-icon>
+        <span>Add Event Add-On</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 6. Registration Form Questions -->
+  <section class="rules-section">
+    <div class="rules-section-header">
+      <div>
+        <h2>Registration Form Questions</h2>
+        <p class="note">
+          Add custom form questions for registrants to complete during checkout (single-line text, multi-line text area, dropdown menu, or checkboxes). Submitted responses are shown to both registrants and event organizers.
+        </p>
+      </div>
+    </div>
+
+    @if (r.questions.length === 0) {
+      <p class="note">
+        No custom form questions configured yet. Click "Add Form Question" below if you need extra registrant details (e.g. dietary notes, T-shirt size, or training focus).
+      </p>
+    } @else {
+      <div class="rules-items-stack">
+        @for (q of r.questions; track q.id; let idx = $index) {
+          <div class="rules-item-row">
+            <div class="rules-item-topbar">
+              <div class="level-info">
+                @if (q.required) {
+                  <span class="badge-highlight">Required</span>
+                } @else {
+                  <span class="level-chip">Optional</span>
+                }
+                <span class="level-chip">{{ questionKindBadge(q) }}</span>
+              </div>
+
+              <div class="rules-item-actions">
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  [disabled]="idx === 0"
+                  (click)="moveQuestion(idx, -1)"
+                  title="Move question up"
+                >
+                  <app-icon name="arrow_upward"></app-icon>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  [disabled]="idx === r.questions.length - 1"
+                  (click)="moveQuestion(idx, 1)"
+                  title="Move question down"
+                >
+                  <app-icon name="arrow_downward"></app-icon>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button delete-button"
+                  (click)="removeQuestion(q.id)"
+                  title="Remove question"
+                >
+                  <app-icon name="delete"></app-icon>
+                </button>
+              </div>
+            </div>
+
+            <div class="rules-option-grid">
+              <div class="rules-question-primary-fields span-full">
+                <div class="rules-field">
+                  <label [for]="'question-label-' + q.id">Question Prompt *</label>
+                  <input
+                    [id]="'question-label-' + q.id"
+                    type="text"
+                    placeholder="e.g. Dietary restrictions, T-shirt size, or Emergency contact"
+                    [value]="q.label"
+                    (input)="updateQuestionLabel(q.id, $any($event.target).value)"
+                    required
+                  />
+                </div>
+
+                <div class="rules-field">
+                  <label [for]="'question-kind-' + q.id">Response Type</label>
+                  <select
+                    [id]="'question-kind-' + q.id"
+                    [ngModel]="q.spec.kind"
+                    (ngModelChange)="updateQuestionKind(q.id, $event)"
+                    [ngModelOptions]="{ standalone: true }"
+                  >
+                    <option [ngValue]="RegistrationQuestionKind.ShortText">
+                      Single-Line Text Input
+                    </option>
+                    <option [ngValue]="RegistrationQuestionKind.LongText">
+                      Multi-Line Text Area
+                    </option>
+                    <option [ngValue]="RegistrationQuestionKind.Select">
+                      Dropdown Menu (Select One)
+                    </option>
+                    <option [ngValue]="RegistrationQuestionKind.Checkboxes">
+                      Checkboxes (Select Multiple)
+                    </option>
+                  </select>
+                </div>
+
+                <div class="rules-field rules-question-required-field">
+                  <span class="rules-field-spacer-label" aria-hidden="true">&nbsp;</span>
+                  <label class="rules-checkbox-row" [for]="'question-req-' + q.id">
+                    <input
+                      [id]="'question-req-' + q.id"
+                      type="checkbox"
+                      [checked]="q.required"
+                      (change)="updateQuestionRequired(q.id, $any($event.target).checked)"
+                    />
+                    <span><strong>Required response</strong></span>
+                  </label>
+                </div>
+              </div>
+
+              @switch (q.spec.kind) {
+                @case (RegistrationQuestionKind.ShortText) {
+                  <div class="rules-field">
+                    <label [for]="'question-desc-' + q.id">Helper Text / Instructions</label>
+                    <input
+                      [id]="'question-desc-' + q.id"
+                      type="text"
+                      placeholder="Optional guidance shown above the input"
+                      [value]="q.description"
+                      (input)="updateQuestionDescription(q.id, $any($event.target).value)"
+                    />
+                  </div>
+                  <div class="rules-field">
+                    <label [for]="'question-ph-' + q.id">Input Placeholder</label>
+                    <input
+                      [id]="'question-ph-' + q.id"
+                      type="text"
+                      placeholder="e.g. None, Vegetarian, etc."
+                      [value]="q.spec.placeholder"
+                      (input)="updateQuestionPlaceholder(q.id, $any($event.target).value)"
+                    />
+                  </div>
+                }
+                @case (RegistrationQuestionKind.LongText) {
+                  <div class="rules-field">
+                    <label [for]="'question-desc-' + q.id">Helper Text / Instructions</label>
+                    <input
+                      [id]="'question-desc-' + q.id"
+                      type="text"
+                      placeholder="Optional guidance shown above the text area"
+                      [value]="q.description"
+                      (input)="updateQuestionDescription(q.id, $any($event.target).value)"
+                    />
+                  </div>
+                  <div class="rules-field">
+                    <label [for]="'question-ph-' + q.id">Text Area Placeholder</label>
+                    <input
+                      [id]="'question-ph-' + q.id"
+                      type="text"
+                      placeholder="e.g. Share any details for the organizer..."
+                      [value]="q.spec.placeholder"
+                      (input)="updateQuestionPlaceholder(q.id, $any($event.target).value)"
+                    />
+                  </div>
+                }
+                @case (RegistrationQuestionKind.Select) {
+                  <div class="rules-field span-full">
+                    <label [for]="'question-desc-' + q.id">Helper Text / Instructions</label>
+                    <input
+                      [id]="'question-desc-' + q.id"
+                      type="text"
+                      placeholder="Optional guidance shown above the menu"
+                      [value]="q.description"
+                      (input)="updateQuestionDescription(q.id, $any($event.target).value)"
+                    />
+                  </div>
+                  <div class="rules-field span-full">
+                    <label [for]="'question-choice-draft-' + q.id">Menu Choices *</label>
+                    <div class="rules-suboptions-editor">
+                      @if (q.spec.options.length === 0) {
+                        <span class="note">Add at least one choice below.</span>
+                      } @else {
+                        <div class="level-info">
+                          @for (choice of q.spec.options; track choice) {
+                            <span class="active-tag-chip">
+                              {{ choice }}
+                              <button
+                                type="button"
+                                class="tag-clear-btn"
+                                (click)="removeQuestionChoice(q.id, choice)"
+                                [title]="'Remove ' + choice"
+                              >
+                                <app-icon name="close"></app-icon>
+                              </button>
+                            </span>
+                          }
+                        </div>
+                      }
+                      <div class="rules-suboption-add-row">
+                        <input
+                          [id]="'question-choice-draft-' + q.id"
+                          type="text"
+                          placeholder="Add choice(s) (comma-separated, e.g. Small, Medium, Large)..."
+                          [value]="questionChoiceDrafts()[q.id] || ''"
+                          (input)="setQuestionChoiceDraft(q.id, $any($event.target).value)"
+                          (keydown.enter)="$event.preventDefault(); addQuestionChoicesFromDraft(q.id)"
+                        />
+                        <button
+                          type="button"
+                          class="subtle-button"
+                          (click)="addQuestionChoicesFromDraft(q.id)"
+                        >
+                          <app-icon name="add"></app-icon>
+                          <span>Add</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                }
+                @case (RegistrationQuestionKind.Checkboxes) {
+                  <div class="rules-field span-full">
+                    <label [for]="'question-desc-' + q.id">Helper Text / Instructions</label>
+                    <input
+                      [id]="'question-desc-' + q.id"
+                      type="text"
+                      placeholder="Optional guidance shown above the checkboxes"
+                      [value]="q.description"
+                      (input)="updateQuestionDescription(q.id, $any($event.target).value)"
+                    />
+                  </div>
+                  <div class="rules-field span-full">
+                    <label [for]="'question-choice-draft-' + q.id">Checkbox Choices *</label>
+                    <div class="rules-suboptions-editor">
+                      @if (q.spec.options.length === 0) {
+                        <span class="note">Add at least one choice below.</span>
+                      } @else {
+                        <div class="level-info">
+                          @for (choice of q.spec.options; track choice) {
+                            <span class="active-tag-chip">
+                              {{ choice }}
+                              <button
+                                type="button"
+                                class="tag-clear-btn"
+                                (click)="removeQuestionChoice(q.id, choice)"
+                                [title]="'Remove ' + choice"
+                              >
+                                <app-icon name="close"></app-icon>
+                              </button>
+                            </span>
+                          }
+                        </div>
+                      }
+                      <div class="rules-suboption-add-row">
+                        <input
+                          [id]="'question-choice-draft-' + q.id"
+                          type="text"
+                          placeholder="Add choice(s) (comma-separated, e.g. Spinning Hands, Chin Na)..."
+                          [value]="questionChoiceDrafts()[q.id] || ''"
+                          (input)="setQuestionChoiceDraft(q.id, $any($event.target).value)"
+                          (keydown.enter)="$event.preventDefault(); addQuestionChoicesFromDraft(q.id)"
+                        />
+                        <button
+                          type="button"
+                          class="subtle-button"
+                          (click)="addQuestionChoicesFromDraft(q.id)"
+                        >
+                          <app-icon name="add"></app-icon>
+                          <span>Add</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                }
+              }
+
+              <app-rule-conditions-editor
+                class="span-full"
+                [idPrefix]="'question-cond-' + q.id"
+                heading="When to Ask (Conditions)"
+                emptySummary="Asked for everyone, anytime, across all registration options."
+                [allowRegistrationCondition]="true"
+                [registrationOptions]="r.registrationOptions"
+                [earlyBirdEnabled]="earlyBirdEnabled"
+                [earlyBirdDeadline]="earlyDeadline"
+                [eventStartDate]="eventStartDate()"
+                [conditions]="q.conditions"
+                (conditionsChange)="updateQuestionConditions(q.id, $event)"
+              />
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="rules-section-footer">
+      <button type="button" class="outlined-button" (click)="addQuestion()">
+        <app-icon name="add"></app-icon>
+        <span>Add Form Question</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 7. Payment & Deposit Rules -->
+  <section class="rules-section">
+    <div class="rules-section-header">
+      <div>
+        <h2>Payment &amp; Deposit Policy</h2>
+        <p class="note">
+          Configure full online payment vs. online deposit + cash balance due at registration. Card and cash total prices are identical.
+        </p>
+      </div>
+    </div>
+
+    <div class="rules-payment-stack">
+      <label class="rules-checkbox-row">
+        <input
+          type="checkbox"
+          [checked]="r.payment.allowFullPayment"
+          (change)="updateAllowFullPayment($any($event.target).checked)"
+        />
+        <span><strong>Allow Full Payment Online</strong> (Attendee pays 100% now via Stripe)</span>
+      </label>
+
+      <label class="rules-checkbox-row">
+        <input
+          type="checkbox"
+          [checked]="r.payment.depositPolicy.kind === DepositPolicyKind.Enabled"
+          (change)="toggleDepositPolicy($any($event.target).checked)"
+        />
+        <span>
+          <strong>Allow Online Deposit + Cash Balance at Door</strong> (Deposit + 100% of selected Add-Ons charged online now)
+        </span>
+      </label>
+
+      @if (r.payment.depositPolicy.kind === DepositPolicyKind.Enabled) {
+        <div class="rules-nested-box rules-deposit-grid">
+          <div class="rules-field">
+            <label for="depositAmountInput">Attendance Deposit Amount ({{ sym }})</label>
+            <input
+              id="depositAmountInput"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="50.00"
+              [value]="centsToMajorInput(r.payment.depositPolicy.depositCents)"
+              (input)="updateDepositModifierValue($any($event.target).value)"
+            />
+          </div>
+
+          <div class="rules-field">
+            <label for="depositRefundSelect">Deposit Refund Policy</label>
+            <select
+              id="depositRefundSelect"
+              [ngModel]="r.payment.depositPolicy.refundPolicy.kind"
+              (ngModelChange)="updateDepositRefundKind($event)"
+              [ngModelOptions]="{ standalone: true }"
+            >
+              <option [ngValue]="DepositRefundPolicyKind.NonRefundable">Non-refundable</option>
+              <option [ngValue]="DepositRefundPolicyKind.RefundableBefore">
+                Refundable on or before date (AoE)
+              </option>
+            </select>
+          </div>
+
+          @if (
+            r.payment.depositPolicy.refundPolicy.kind === DepositRefundPolicyKind.RefundableBefore
+          ) {
+            <div class="rules-field">
+              <label for="depositRefundDeadline">Refundable Through Date</label>
+              <input
+                id="depositRefundDeadline"
+                type="date"
+                [value]="r.payment.depositPolicy.refundPolicy.deadlineDate"
+                (input)="updateDepositRefundDeadline($any($event.target).value)"
+                required
+              />
+            </div>
+          }
+
+          <div class="rules-field span-full">
+            <label for="depositInstructionsInput">Cash Balance Instructions</label>
+            <input
+              id="depositInstructionsInput"
+              type="text"
+              placeholder="e.g. the rest by cash/check at registration on Friday"
+              [value]="r.payment.depositPolicy.offlineInstructions"
+              (input)="updateDepositOfflineInstructions($any($event.target).value)"
+            />
+          </div>
+        </div>
+      }
+
+      <label class="rules-checkbox-row">
+        <input
+          type="checkbox"
+          [checked]="r.payment.allowZeroDepositInPerson"
+          (change)="updateAllowZeroDepositInPerson($any($event.target).checked)"
+        />
+        <span>
+          <strong>Allow $0-Upfront Pay at Door</strong> (In-person options only; full balance due at registration)
+        </span>
+      </label>
+    </div>
+  </section>
+
+  <!-- 8. Interactive Registration Simulator -->
+  <section class="rules-section rules-simulator-section">
+    @let quote = simulatedQuote();
+    @let simQValidation = simQuestionValidation();
+
+    <div class="rules-section-header">
+      <div>
+        <h2>Interactive Registration Simulator</h2>
+        <p class="note">
+          Test your rules live across dates, member statuses, capacities, suboptions, add-ons, form questions, and payment choices before saving.
+        </p>
+      </div>
+      <div class="level-info">
+        @if (earlyBirdEnabled) {
+          <span
+            class="status-badge"
+            [class.status-active]="quote.isEarlyBird"
+            [class.status-pending]="!quote.isEarlyBird"
+          >
+            {{ quote.isEarlyBird ? 'Early Bird Active' : 'After Early Bird Cutoff' }}
+          </span>
+        }
+        @if (eventStartDate()) {
+          <span
+            class="status-badge"
+            [class.status-active]="quote.isBeforeEventStart"
+            [class.status-expired]="!quote.isBeforeEventStart"
+          >
+            {{ quote.isBeforeEventStart ? 'Before Event Start' : 'Event Started / Past' }}
+          </span>
+        }
+      </div>
+    </div>
+
+    <div class="rules-sim-controls">
+      <div class="rules-sim-control-group">
+        <label for="simDateInput">Simulated Date (AoE):</label>
+        <div class="rules-sim-date-row">
+          <input
+            id="simDateInput"
+            name="simDateInput"
+            type="date"
+            [value]="simDateAoE()"
+            (input)="simDateAoE.set($any($event.target).value)"
+          />
+          <div class="rules-sim-date-presets" role="group" aria-label="Simulated date presets">
+            @for (preset of simDatePresets(); track preset.id) {
+              <button
+                type="button"
+                class="subtle-button sim-date-preset-btn"
+                [class.active]="simDateAoE() === preset.date"
+                [attr.aria-pressed]="simDateAoE() === preset.date"
+                [title]="preset.date"
+                (click)="simDateAoE.set(preset.date)"
+              >
+                {{ preset.label }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="rules-sim-control-group">
+        <label>Simulated Registrant:</label>
+        <div class="pill-tabs rules-sim-pills">
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Public"
+            [class.active]="simRole() === SimulatedPersonRole.Public"
+            (click)="simRole.set(SimulatedPersonRole.Public)"
+          >
+            Public
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="ILC Member"
+            [class.active]="simRole() === SimulatedPersonRole.ActiveMember"
+            (click)="simRole.set(SimulatedPersonRole.ActiveMember)"
+          >
+            ILC Member
+          </button>
+          <button
+            type="button"
+            class="pill-tab"
+            data-label="Instructor"
+            [class.active]="simRole() === SimulatedPersonRole.ActiveInstructor"
+            (click)="simRole.set(SimulatedPersonRole.ActiveInstructor)"
+          >
+            Instructor
+          </button>
+        </div>
+      </div>
+
+      @if (r.capacities.length > 0) {
+        <div class="rules-sim-control-group span-full">
+          <label>Simulated Already-Booked Capacities (test Sold Out limits):</label>
+          <div class="rules-option-capacities-inputs">
+            @for (cap of r.capacities; track cap.id) {
+              <div class="rules-capacity-unit-field">
+                <label [for]="'sim-cap-' + cap.id">
+                  {{ cap.label || cap.id }}
+                  <span class="note">(/ {{ cap.limit }})</span>
+                </label>
+                <input
+                  [id]="'sim-cap-' + cap.id"
+                  type="number"
+                  min="0"
+                  step="1"
+                  [value]="simCapacityCounts()[cap.id] || 0"
+                  (input)="updateSimCapacityCount(cap.id, $any($event.target).value)"
+                />
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="rules-simulator-body">
+      <!-- Simulated Attendee Choices -->
+      <div class="rules-sim-panel">
+        <h3>1. Choose Registration Option</h3>
+        @if (quote.allEvaluatedOptions.length === 0) {
+          <p class="note">No options available on {{ quote.evaluationDateAoE }}.</p>
+        } @else {
+          <div class="rules-sim-options-list">
+            @for (evalOpt of quote.allEvaluatedOptions; track evalOpt.option.id) {
+              @let isDisabled = !evalOpt.isEligibleForPerson || evalOpt.isSoldOut;
+              @let isSelected = !isDisabled && quote.selectedOption?.option?.id === evalOpt.option.id;
+
+              <label
+                class="rules-sim-option"
+                [class.selected]="isSelected"
+                [class.disabled]="isDisabled"
+              >
+                <input
+                  type="radio"
+                  name="simSelectedOption"
+                  [checked]="isSelected"
+                  [disabled]="isDisabled"
+                  (change)="selectSimOption(evalOpt.option.id)"
+                />
+                <div class="rules-sim-opt-main">
+                  <div class="rules-sim-opt-title">
+                    <span class="rules-sim-standalone-label">
+                      <strong>{{ evalOpt.option.label || evalOpt.option.id }}</strong>
+                      @if (evalOpt.option.attendanceType === AttendanceType.VideoOnly) {
+                        <span class="level-chip">Recording Only</span>
+                      }
+                      @if (evalOpt.isSoldOut) {
+                        <span class="status-badge status-expired">Sold Out</span>
+                      } @else if (!evalOpt.isEligibleForPerson) {
+                        <span class="level-chip">
+                          {{
+                            evalOpt.ineligibleReason === PricingValidationErrorCode.InstructorRequired
+                              ? 'Instructors Only'
+                              : 'Members Only'
+                          }}
+                        </span>
+                      }
+                    </span>
+                    <span>
+                      @if (evalOpt.netPriceCents < evalOpt.standardPriceCents) {
+                        <span class="rules-strike-price">{{
+                          formatCents(evalOpt.standardPriceCents)
+                        }}</span>
+                      }
+                      <strong>{{ formatCents(evalOpt.netPriceCents) }}</strong>
+                    </span>
+                  </div>
+                  @if (evalOpt.option.description) {
+                    <span class="note">{{ evalOpt.option.description }}</span>
+                  }
+                  @if (evalOpt.capacityBreakdown.length > 0) {
+                    <div class="rules-sim-cap-tags">
+                      @for (capItem of evalOpt.capacityBreakdown; track capItem.capacityId) {
+                        @if (capItem.optionUses > 0) {
+                          <span class="note">
+                            Uses {{ capItem.optionUses }} of {{ capItem.label }} ({{ capItem.remaining }} of {{ capItem.limit }} left)
+                          </span>
+                        }
+                      }
+                    </div>
+                  }
+                </div>
+              </label>
+
+              @if (
+                isSelected &&
+                evalOpt.option.subSelection.kind === SubSelectionKind.PickSuboptions
+              ) {
+                <div class="rules-sim-suboptions">
+                  <span class="note">
+                    <strong>Pick {{ evalOpt.option.subSelection.pickCount }}:</strong>
+                  </span>
+                  <div class="rules-scope-checks">
+                    @for (sub of evalOpt.option.subSelection.availableSuboptions; track sub) {
+                      @let subChecked = simSelectedSuboptions().includes(sub);
+                      @let subDisabled = isSimSuboptionDisabled(evalOpt.option, sub);
+                      <label
+                        class="rules-scope-pill"
+                        [class.selected]="subChecked"
+                        [class.disabled]="subDisabled"
+                      >
+                        <input
+                          type="checkbox"
+                          [checked]="subChecked"
+                          [disabled]="subDisabled"
+                          (change)="toggleSimSuboption(sub, $any($event.target).checked)"
+                        />
+                        <span>{{ sub }}</span>
+                      </label>
+                    }
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+
+        <h3 class="rules-sim-subheading">2. Available Add-Ons</h3>
+        @if (r.addOns.length === 0) {
+          <p class="note">
+            No add-ons configured yet — click "Add Event Add-On" above to preview add-on selection here.
+          </p>
+        } @else {
+          <div class="rules-sim-options-list">
+            @for (evalAddOn of quote.availableAddOns; track evalAddOn.addOn.id) {
+              @let kindBadge = addOnKindBadge(evalAddOn.addOn);
+              <label class="rules-sim-option" [class.selected]="evalAddOn.selected">
+                <input
+                  type="checkbox"
+                  [checked]="evalAddOn.selected"
+                  (change)="toggleSimAddOn(evalAddOn.addOn.id, $any($event.target).checked)"
+                />
+                <div class="rules-sim-opt-main">
+                  <div class="rules-sim-opt-title">
+                    <span class="rules-sim-standalone-label">
+                      <strong>{{ evalAddOn.addOn.label || evalAddOn.addOn.id }}</strong>
+                      @if (kindBadge) {
+                        <span class="level-chip">{{ kindBadge }}</span>
+                      }
+                    </span>
+                    <span>
+                      @if (evalAddOn.priceCents === 0) {
+                        <span class="badge-highlight">FREE</span>
+                      } @else {
+                        <strong>+{{ formatCents(evalAddOn.priceCents) }}</strong>
+                      }
+                    </span>
+                  </div>
+                  @if (evalAddOn.addOn.description) {
+                    <span class="note">{{ evalAddOn.addOn.description }}</span>
+                  }
+                </div>
+              </label>
+            }
+
+            @for (unavail of unavailableSimAddOns(); track unavail.addOn.id) {
+              <label class="rules-sim-option disabled" [title]="unavail.reason">
+                <input type="checkbox" disabled />
+                <div class="rules-sim-opt-main">
+                  <div class="rules-sim-opt-title">
+                    <strong>{{ unavail.addOn.label || unavail.addOn.id }}</strong>
+                    <span class="note">
+                      {{
+                        unavail.addOn.priceCents === 0
+                          ? 'FREE'
+                          : '+' + formatCents(unavail.addOn.priceCents)
+                      }}
+                    </span>
+                  </div>
+                  <span class="note">{{ unavail.reason }}</span>
+                </div>
+              </label>
+            }
+          </div>
+        }
+
+        @if (r.questions.length > 0) {
+          <h3 class="rules-sim-subheading">3. Registration Questions</h3>
+          <div class="rules-sim-questions-list">
+            @for (q of quote.applicableQuestions; track q.id) {
+              @let qPrompt = q.label || q.id;
+              @let descId = 'sim-q-desc-' + q.id;
+              @switch (q.spec.kind) {
+                @case (RegistrationQuestionKind.ShortText) {
+                  <div class="rules-field">
+                    <label [for]="'sim-q-' + q.id">
+                      {{ qPrompt }}{{ q.required ? ' *' : '' }}
+                    </label>
+                    @if (q.description) {
+                      <span class="note" [id]="descId">{{ q.description }}</span>
+                    }
+                    <input
+                      [id]="'sim-q-' + q.id"
+                      type="text"
+                      [placeholder]="q.spec.placeholder"
+                      [maxLength]="MAX_SHORT_TEXT_ANSWER_LENGTH"
+                      [required]="q.required"
+                      [attr.aria-describedby]="q.description ? descId : null"
+                      [value]="getSimQuestionText(q.id)"
+                      (input)="updateSimQuestionText(q.id, $any($event.target).value)"
+                    />
+                  </div>
+                }
+                @case (RegistrationQuestionKind.LongText) {
+                  <div class="rules-field">
+                    <label [for]="'sim-q-' + q.id">
+                      {{ qPrompt }}{{ q.required ? ' *' : '' }}
+                    </label>
+                    @if (q.description) {
+                      <span class="note" [id]="descId">{{ q.description }}</span>
+                    }
+                    <textarea
+                      [id]="'sim-q-' + q.id"
+                      rows="3"
+                      [placeholder]="q.spec.placeholder"
+                      [maxLength]="MAX_LONG_TEXT_ANSWER_LENGTH"
+                      [required]="q.required"
+                      [attr.aria-describedby]="q.description ? descId : null"
+                      [value]="getSimQuestionText(q.id)"
+                      (input)="updateSimQuestionText(q.id, $any($event.target).value)"
+                    ></textarea>
+                  </div>
+                }
+                @case (RegistrationQuestionKind.Select) {
+                  <div class="rules-field">
+                    <label [for]="'sim-q-' + q.id">
+                      {{ qPrompt }}{{ q.required ? ' *' : '' }}
+                    </label>
+                    @if (q.description) {
+                      <span class="note" [id]="descId">{{ q.description }}</span>
+                    }
+                    <select
+                      [id]="'sim-q-' + q.id"
+                      [required]="q.required"
+                      [attr.aria-describedby]="q.description ? descId : null"
+                      [ngModel]="getSimQuestionText(q.id)"
+                      (ngModelChange)="updateSimQuestionSelect(q.id, $event)"
+                      [ngModelOptions]="{ standalone: true }"
+                    >
+                      <option value="">Select an option...</option>
+                      @for (choice of q.spec.options; track choice) {
+                        <option [value]="choice">{{ choice }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+                @case (RegistrationQuestionKind.Checkboxes) {
+                  <fieldset
+                    class="rules-sim-question-fieldset"
+                    [attr.aria-describedby]="q.description ? descId : null"
+                  >
+                    <legend>{{ qPrompt }}{{ q.required ? ' *' : '' }}</legend>
+                    @if (q.description) {
+                      <span class="note" [id]="descId">{{ q.description }}</span>
+                    }
+                    <div class="rules-question-checkboxes">
+                      @for (choice of q.spec.options; track choice; let cIdx = $index) {
+                        @let cbId = 'sim-q-cb-' + q.id + '-' + cIdx;
+                        @let isChecked = getSimQuestionSelectedOptions(q.id).includes(choice);
+                        <label class="rules-checkbox-row" [for]="cbId">
+                          <input
+                            [id]="cbId"
+                            type="checkbox"
+                            [checked]="isChecked"
+                            (change)="toggleSimQuestionCheckbox(q.id, choice, $any($event.target).checked)"
+                          />
+                          <span>{{ choice }}</span>
+                        </label>
+                      }
+                    </div>
+                  </fieldset>
+                }
+              }
+            }
+
+            @for (unavailQ of unavailableSimQuestions(); track unavailQ.question.id) {
+              <div class="rules-sim-option disabled" [title]="unavailQ.reason">
+                <div class="rules-sim-opt-main">
+                  <div class="rules-sim-opt-title">
+                    <strong>{{ unavailQ.question.label || unavailQ.question.id }}</strong>
+                    <span class="note">{{ questionKindBadge(unavailQ.question) }}</span>
+                  </div>
+                  <span class="note">{{ unavailQ.reason }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (quote.availablePaymentChoices.length > 1) {
+          <h3 class="rules-sim-subheading">
+            {{ r.questions.length > 0 ? '4.' : '3.' }} Payment Settlement
+          </h3>
+          <div class="pill-tabs rules-sim-pills">
+            @for (choice of quote.availablePaymentChoices; track choice) {
+              @let choiceLabel =
+                choice === PaymentChoice.Full
+                  ? 'Pay Full Online'
+                  : choice === PaymentChoice.Deposit
+                    ? 'Pay Deposit Online'
+                    : 'Pay at Door';
+              <button
+                type="button"
+                class="pill-tab"
+                [attr.data-label]="choiceLabel"
+                [class.active]="quote.effectivePaymentChoice === choice"
+                (click)="simPaymentChoice.set(choice)"
+              >
+                {{ choiceLabel }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Simulated Live Quote Breakdown -->
+      <div class="rules-sim-panel" aria-live="polite">
+        <h3>Live Quote Summary</h3>
+
+        @if (quote.validationErrors.length > 0 || simQValidation.errors.length > 0) {
+          <div class="error-container with-details">
+            <span class="error-message"><strong>Validation Requirements:</strong></span>
+            <ul class="error-details">
+              @for (err of quote.validationErrors; track err.code + err.message) {
+                <li>{{ err.message }}</li>
+              }
+              @for (qErr of simQValidation.errors; track qErr.code + qErr.message) {
+                <li>{{ qErr.message }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="rules-receipt-lines">
+          <div class="rules-receipt-row">
+            <span>Option Standard Price</span>
+            <span>{{ formatCents(quote.attendanceStandardCents) }}</span>
+          </div>
+
+          @for (
+            applied of quote.selectedOption?.appliedDiscounts ?? [];
+            track applied.discount.id
+          ) {
+            <div class="rules-receipt-row discount-line">
+              <span>{{ applied.discount.label || 'Discount' }}</span>
+              <span>−{{ formatCents(applied.savedCents) }}</span>
+            </div>
+          }
+
+          <div class="rules-receipt-row subtotal-line">
+            <span>Net Option Price</span>
+            <strong>{{ formatCents(quote.attendanceNetCents) }}</strong>
+          </div>
+
+          @for (selAddOn of quote.selectedAddOns; track selAddOn.addOn.id) {
+            <div class="rules-receipt-row">
+              <span>+ {{ selAddOn.addOn.label }}</span>
+              <span>
+                {{ selAddOn.priceCents === 0 ? 'FREE' : formatCents(selAddOn.priceCents) }}
+              </span>
+            </div>
+          }
+
+          <div class="rules-receipt-row total-line">
+            <span>Agreed Total</span>
+            <strong>{{ formatCents(quote.agreedTotalCents) }}</strong>
+          </div>
+
+          <div class="charge-now-box">
+            @if (quote.effectivePaymentChoice === PaymentChoice.Deposit) {
+              <div class="charge-now-breakdown">
+                <div class="rules-receipt-row">
+                  <span>Event Deposit (Paid Online Now)</span>
+                  <span>{{ formatCents(quote.depositCents) }}</span>
+                </div>
+                @for (selAddOn of quote.selectedAddOns; track selAddOn.addOn.id) {
+                  <div class="rules-receipt-row">
+                    <span>
+                      Add-On: {{ selAddOn.addOn.label
+                      }}{{ selAddOn.priceCents > 0 ? ' (Paid Online Now)' : '' }}
+                    </span>
+                    <span>
+                      {{ selAddOn.priceCents === 0 ? 'FREE' : formatCents(selAddOn.priceCents) }}
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+            <div class="rules-receipt-row charge-now-line">
+              <span>Charged Online Now (Stripe)</span>
+              <strong>{{ formatCents(quote.chargeNowCents) }}</strong>
+            </div>
+          </div>
+
+          @if (quote.cashDueAtDoorCents > 0) {
+            <div class="rules-receipt-row cash-due-line">
+              <span>
+                {{
+                  quote.effectivePaymentChoice === PaymentChoice.Deposit
+                    ? 'Event Balance Due at Door'
+                    : 'Cash Balance Due at Door'
+                }}
+              </span>
+              <strong>{{ formatCents(quote.cashDueAtDoorCents) }}</strong>
+            </div>
+            @if (
+              r.payment.depositPolicy.kind === DepositPolicyKind.Enabled &&
+              quote.effectivePaymentChoice === PaymentChoice.Deposit
+            ) {
+              <p class="note">
+                @let refundPol = quote.depositRefundPolicy;
+                @if (refundPol && refundPol.kind === DepositRefundPolicyKind.RefundableBefore) {
+                  Deposit ({{ formatCents(quote.depositCents) }}) is
+                  {{
+                    quote.isDepositCurrentlyRefundable
+                      ? 'refundable through ' + refundPol.deadlineDate
+                      : 'now past its refund deadline (' + refundPol.deadlineDate + ')'
+                  }}.
+                } @else {
+                  Deposit ({{ formatCents(quote.depositCents) }}) is non-refundable.
+                }
+                @if (r.payment.depositPolicy.offlineInstructions) {
+                  {{ r.payment.depositPolicy.offlineInstructions }}
+                }
+              </p>
+            }
+          }
+
+          @if (quote.evaluatedCapacities.length > 0) {
+            <div class="rules-sim-capacity-summary">
+              <span class="rules-option-capacities-title">Event Capacities Overview:</span>
+              @for (evCap of quote.evaluatedCapacities; track evCap.capacity.id) {
+                <div class="rules-receipt-row">
+                  <span>{{ evCap.capacity.label }}</span>
+                  <span>
+                    {{ evCap.remaining }} / {{ evCap.capacity.limit }} left
+                    @if (evCap.selectedOptionUses > 0) {
+                      (this uses {{ evCap.selectedOptionUses }})
+                    }
+                  </span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

@@ -1361,22 +1361,14 @@ export class DataManagerService {
     if (product.eventDocId) {
       const eventUpdates: Partial<IlcEvent> = {
         productId: docId,
+        capacities: product.pricingRules.capacities,
+        maxInPersonAttendees: product.maxInPersonAttendees,
+        onlineJoiningLink: product.onlineJoiningLink,
+        purchaseDetailsMarkdown: product.purchaseDetailsMarkdown,
+        inPersonDetailsMarkdown: product.inPersonDetailsMarkdown,
+        recordedVideoId: product.recordedVideoId,
+        recordedVideoUrl: product.recordedVideoUrl,
       };
-      if (product.onlineJoiningLink !== undefined) {
-        eventUpdates.onlineJoiningLink = product.onlineJoiningLink;
-      }
-      if (product.purchaseDetailsMarkdown !== undefined) {
-        eventUpdates.purchaseDetailsMarkdown = product.purchaseDetailsMarkdown;
-      }
-      if (product.inPersonDetailsMarkdown !== undefined) {
-        eventUpdates.inPersonDetailsMarkdown = product.inPersonDetailsMarkdown;
-      }
-      if (product.recordedVideoId !== undefined) {
-        eventUpdates.recordedVideoId = product.recordedVideoId;
-      }
-      if (product.recordedVideoUrl !== undefined) {
-        eventUpdates.recordedVideoUrl = product.recordedVideoUrl;
-      }
       await this.events.update(product.eventDocId, eventUpdates);
     }
     return docId;
@@ -1386,7 +1378,11 @@ export class DataManagerService {
     if (!productId) return;
     const product = this.products.get(productId) || (await this.products.getById(productId));
     if (product?.eventDocId) {
-      await this.events.update(product.eventDocId, { productId: '' });
+      await this.events.update(product.eventDocId, {
+        productId: '',
+        capacities: [],
+        maxInPersonAttendees: 0,
+      });
     }
     await this.products.delete(productId);
   }

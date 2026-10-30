@@ -6,7 +6,12 @@
  * server can assign Stripe values to them without casting.
  */
 
-import { AttendeeRole, AttendanceType } from './data-model/events';
+import {
+  AttendeeRole,
+  AttendanceType,
+  PaymentChoice,
+  QuestionAnswerInput,
+} from './data-model/events';
 
 export enum StripePriceType {
   OneTime = 'one_time',
@@ -213,9 +218,14 @@ export interface CreateCustomerPortalSessionResult {
 
 export interface CreateProductCheckoutSessionRequest {
   productId: string;
-  role: AttendeeRole;
-  attendance: AttendanceType;
-  includeVideo: boolean;
+  optionId?: string;
+  selectedSuboptions?: string[];
+  selectedAddOnIds?: string[];
+  paymentChoice?: PaymentChoice;
+  questionAnswers?: QuestionAnswerInput[];
+  role?: AttendeeRole;
+  attendance?: AttendanceType;
+  includeVideo?: boolean;
   origin: string;
   isUpgrade?: boolean;
   existingRegistrationDocId?: string;
@@ -230,9 +240,14 @@ export interface CreateProductCheckoutSessionRequest {
 export interface UpdateProductRegistrationRequest {
   productId: string;
   existingRegistrationDocId: string;
-  role: AttendeeRole;
-  attendance: AttendanceType;
-  includeVideo: boolean;
+  optionId?: string;
+  selectedSuboptions?: string[];
+  selectedAddOnIds?: string[];
+  paymentChoice?: PaymentChoice;
+  questionAnswers?: QuestionAnswerInput[];
+  role?: AttendeeRole;
+  attendance?: AttendanceType;
+  includeVideo?: boolean;
   attendeeDetails: {
     name: string;
     email: string;
@@ -248,9 +263,14 @@ export interface UpdateProductRegistrationResult {
 
 export interface RegisterEventInPersonRequest {
   productId: string;
-  role: AttendeeRole;
-  attendance: AttendanceType;
-  includeVideo: boolean;
+  optionId?: string;
+  selectedSuboptions?: string[];
+  selectedAddOnIds?: string[];
+  paymentChoice?: PaymentChoice;
+  questionAnswers?: QuestionAnswerInput[];
+  role?: AttendeeRole;
+  attendance?: AttendanceType;
+  includeVideo?: boolean;
   attendeeDetails: {
     name: string;
     email: string;

@@ -8,7 +8,8 @@ import { FIREBASE_APP } from '../../app.config';
 import { SearchableSet } from '../../searchable-set';
 
 import { ProductService } from '../../product.service';
-import { Product } from '../../../../functions/src/data-model/events';
+import { initProduct, Product } from '../../../../functions/src/data-model/events';
+import { initEventPricingRules } from '../../../../functions/src/data-model/event-pricing-rules';
 
 describe('ProposeEventComponent', () => {
   let component: ProposeEventComponent;
@@ -274,11 +275,18 @@ describe('ProposeEventComponent', () => {
 
   it('supports linking and removing an online registration product for admins', async () => {
     const sampleProduct: Product = {
+      ...initProduct(),
       docId: 'prod-123',
       title: 'HQ Workshop Registration',
       currency: 'eur',
-      tiers: {
-        standard: { id: 'standard', name: 'Standard', price: 50, enabled: true },
+      pricingRules: {
+        ...initEventPricingRules(),
+        registrationOptions: [
+          {
+            ...initEventPricingRules().registrationOptions[0],
+            priceCents: 5000,
+          },
+        ],
       },
       allowInPerson: true,
       allowOnline: true,

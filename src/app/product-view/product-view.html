@@ -2,7 +2,7 @@
   @if (isLoading()) {
     <app-spinner>Loading registration details...</app-spinner>
   } @else if (errorMessage(); as msg) {
-    <div class="error-banner">
+    <div class="error-banner" role="alert">
       <app-icon name="error"></app-icon>
       <span>{{ msg }}</span>
     </div>
@@ -85,12 +85,27 @@
           <h2>
             {{
               isUpgrade()
-                ? "Upgrade Your Registration"
+                ? "Upgrade or Update Your Registration"
                 : "Select Your Registration"
             }}
           </h2>
 
-          @if (isUpgrade()) {
+          @if (successMessage(); as okMsg) {
+            <div class="success-banner" role="status">
+              <app-icon name="check_circle"></app-icon>
+              <span>{{ okMsg }}</span>
+            </div>
+          }
+
+          @if (formErrorMessage(); as formErr) {
+            <div class="error-banner" role="alert">
+              <app-icon name="error"></app-icon>
+              <span>{{ formErr }}</span>
+            </div>
+          }
+
+          @let existingReg = existingRegistration();
+          @if (existingReg) {
             <div
               class="current-registration-card"
               [class.pending-in-person]="isPendingInPerson()"
@@ -100,16 +115,18 @@
                   [name]="isPendingInPerson() ? 'schedule' : 'check_circle'"
                 ></app-icon>
                 <div class="current-reg-title-wrap">
-                  <span class="current-reg-title"
-                    >Your Current Registration</span
-                  >
+                  <span class="current-reg-title">Your Current Registration</span>
                   <span
                     class="current-reg-status-badge"
                     [class.badge-pending]="isPendingInPerson()"
                   >
-                    {{
-                      isPendingInPerson() ? "Pending Payment at Door" : "Active"
-                    }}
+                    @if (isPendingInPerson()) {
+                      Pending Payment at Door
+                    } @else if (isDepositPaid()) {
+                      Deposit Paid
+                    } @else {
+                      Active
+                    }
                   </span>
                 </div>
               </div>
@@ -118,66 +135,78 @@
                 <div class="reg-detail-row">
                   <span class="detail-label">Attendee</span>
                   <span class="detail-value"
-                    >{{ existingRegistration()?.name }} ({{
-                      existingRegistration()?.email
-                    }})</span
+                    >{{ existingReg.name }} ({{ existingReg.email }})</span
                   >
                 </div>
                 <div class="reg-detail-row">
-                  <span class="detail-label">Current Attendance</span>
+                  <span class="detail-label">Selected Option</span>
                   <span class="detail-value">
-                    <strong>{{ currentAttendanceLabel() }}</strong>
-                  </span>
-                </div>
-                <div class="reg-detail-row">
-                  <span class="detail-label">Class Video</span>
-                  <span class="detail-value">
-                    @if (existingRegistration()?.hasVideoAccess) {
-                      <span class="status-included"
-                        ><app-icon name="check_circle"></app-icon>
-                        Included</span
-                      >
-                    } @else {
-                      <span class="status-not-included">Not Included</span>
+                    <strong>{{ currentRegistrationOptionLabel() }}</strong>
+                    @if (existingReg.selectedSuboptions.length > 0) {
+                      <span> ({{ existingReg.selectedSuboptions.join(", ") }})</span>
                     }
                   </span>
                 </div>
-                @if (isPendingInPerson()) {
+                @if (existingReg.selectedAddOnLabels.length > 0 || existingReg.hasVideoAccess) {
                   <div class="reg-detail-row">
-                    <span class="detail-label">Payment Method</span>
-                    <span class="detail-value">Pay In-Person at Door</span>
+                    <span class="detail-label">Included Add-Ons</span>
+                    <span class="detail-value">
+                      <span class="status-included">
+                        <app-icon name="check_circle"></app-icon>
+                        {{
+                          existingReg.selectedAddOnLabels.length > 0
+                            ? existingReg.selectedAddOnLabels.join(", ")
+                            : "Event Video Recording"
+                        }}
+                      </span>
+                    </span>
                   </div>
-                  @if (existingRegistration()?.amountDueCents; as due) {
-                    <div class="reg-detail-row">
-                      <span class="detail-label">Amount Due at Event</span>
-                      <span class="detail-value paid-amount">{{
-                        inPersonPriceFormatted()
-                      }}</span>
-                    </div>
-                  }
-                } @else {
+                }
+                @if (existingReg.amountPaidCents > 0) {
                   <div class="reg-detail-row">
-                    <span class="detail-label">Amount Paid</span>
+                    <span class="detail-label">Paid Online</span>
                     <span class="detail-value paid-amount">{{
-                      amountAlreadyPaidFormatted()
+                      formatCents(existingReg.amountPaidCents)
+                    }}</span>
+                  </div>
+                }
+                @if (existingReg.amountDueCents > 0) {
+                  <div class="reg-detail-row">
+                    <span class="detail-label">Balance Due at Event</span>
+                    <span class="detail-value paid-amount">{{
+                      formatCents(existingReg.amountDueCents)
                     }}</span>
                   </div>
                 }
               </div>
+
+              @let existingAnswered = answeredExistingResponses();
+              @if (existingAnswered.length > 0) {
+                <div class="current-reg-responses">
+                  <span class="current-reg-responses-heading">Submitted Form Responses</span>
+                  @for (resp of existingAnswered; track resp.questionId) {
+                    <div class="reg-response-item">
+                      <span class="detail-label">{{ resp.questionLabel }}</span>
+                      <span class="reg-response-value">{{
+                        formatQuestionResponseValue(resp)
+                      }}</span>
+                    </div>
+                  }
+                </div>
+              }
 
               <div class="current-reg-footer">
                 <app-icon name="info"></app-icon>
                 @if (isPendingInPerson()) {
                   <span
                     >You are registered to pay at the event. You can pay online
-                    in advance below to secure your registration and skip the
-                    line.</span
+                    below or update your registration details.</span
                   >
                 } @else {
                   <span
-                    >Select an upgrade option below. Your existing registration
-                    (<strong>{{ amountAlreadyPaidFormatted() }}</strong
-                    >) and entitlements are automatically applied.</span
+                    >Your previous payment of
+                    <strong>{{ formatCents(existingReg.amountPaidCents) }}</strong>
+                    is automatically credited toward any upgrade.</span
                   >
                 }
               </div>
@@ -189,58 +218,705 @@
               <app-icon name="info"></app-icon>
               <span
                 >This event has already taken place. Live attendance is closed,
-                but you can purchase access to the recorded class video.</span
+                but any recording options remain available below.</span
               >
             </div>
           }
 
-          <!-- 1. Attendee Status (Preselected & Verified, only listed if special pricing exists) -->
-          @if (hasSpecialPricing()) {
-            <div class="option-group">
-              <label class="group-label">1. Attendee Status</label>
-              <div class="attendee-status-card">
-                <div class="status-main-row">
-                  <div
-                    class="status-badge-chip"
-                    [class.badge-instructor]="
-                      selectedRole() === AttendeeRole.Instructor
-                    "
-                    [class.badge-member]="
-                      selectedRole() === AttendeeRole.Member
-                    "
-                  >
-                    <app-icon
-                      [name]="
+          @let q = quote();
+          @if (q) {
+            <!-- Live Event Capacities Banner -->
+            @if (q.evaluatedCapacities.length > 0 && !isPastEvent()) {
+              <div class="capacities-banner">
+                <div class="capacities-banner-header">
+                  <app-icon name="group"></app-icon>
+                  <strong>Available Event Capacity</strong>
+                </div>
+                <div class="capacities-banner-list">
+                  @for (capEval of q.evaluatedCapacities; track capEval.capacity.id) {
+                    <div
+                      class="capacity-status-row"
+                      [class.capacity-full]="capEval.isFull"
+                      [class.capacity-exceeded]="capEval.exceedsLimit"
+                    >
+                      <div class="capacity-status-main">
+                        <span class="capacity-label">{{ capEval.capacity.label }}</span>
+                        @if (capEval.capacity.description) {
+                          <span class="capacity-desc">{{ capEval.capacity.description }}</span>
+                        }
+                      </div>
+                      <div class="capacity-status-metrics">
+                        @if (capEval.isFull) {
+                          <span class="chip-sold-out-badge">Full (0 / {{ capEval.capacity.limit }})</span>
+                        } @else {
+                          <span
+                            class="chip-spaces-badge"
+                            [class.urgent]="capEval.remaining <= 5"
+                          >
+                            {{ capEval.remaining }} of {{ capEval.capacity.limit }} left
+                          </span>
+                        }
+                        @if (capEval.selectedOptionUses > 0) {
+                          <span class="capacity-use-note">
+                            Uses {{ capEval.selectedOptionUses }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Attendee Status (shown when member/instructor discounts or restrictions exist) -->
+            @if (hasPersonStatusRelevance()) {
+              <div class="option-group">
+                <label class="group-label">Attendee Status</label>
+                <div class="attendee-status-card">
+                  <div class="status-main-row">
+                    <div
+                      class="status-badge-chip"
+                      [class.badge-instructor]="
                         selectedRole() === AttendeeRole.Instructor
-                          ? 'military_tech'
-                          : selectedRole() === AttendeeRole.Member
-                            ? 'check_circle'
-                            : 'public'
                       "
-                    ></app-icon>
-                    <span class="status-name">{{ attendeeStatusLabel() }}</span>
+                      [class.badge-member]="selectedRole() === AttendeeRole.Member"
+                    >
+                      <app-icon
+                        [name]="
+                          selectedRole() === AttendeeRole.Instructor
+                            ? 'military_tech'
+                            : selectedRole() === AttendeeRole.Member
+                              ? 'check_circle'
+                              : 'public'
+                        "
+                      ></app-icon>
+                      <span class="status-name">{{ attendeeStatusLabel() }}</span>
+                    </div>
+                    @if (!user()) {
+                      <button
+                        type="button"
+                        class="inline-link-button signin-member-link"
+                        (click)="toggleInlineLogin()"
+                      >
+                        <span>{{
+                          showInlineLogin() ? "Hide Sign In" : "Sign in for member rates"
+                        }}</span>
+                      </button>
+                    } @else if (
+                      selectedRole() !== AttendeeRole.Instructor && !isLifeMember()
+                    ) {
+                      <a
+                        [href]="routingService.hrefForView(Views.MyOrders)"
+                        class="upgrade-membership-link"
+                        title="Manage subscription & upgrade membership"
+                      >
+                        <span>Upgrade membership</span>
+                        <app-icon name="launch"></app-icon>
+                      </a>
+                    }
+                  </div>
+                  <p class="status-description">{{ attendeeStatusSubtitle() }}</p>
+                  @if (q.isEligibleToRegister && !user() && showInlineLogin()) {
+                    <div class="inline-auth-panel card">
+                      <div class="inline-auth-header">
+                        <strong>Sign in to your ILC Account</strong>
+                        <button
+                          type="button"
+                          class="icon-only-button"
+                          (click)="showInlineLogin.set(false)"
+                          title="Close sign in"
+                        >
+                          <app-icon name="close"></app-icon>
+                        </button>
+                      </div>
+                      <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Early-Bird Banner (if active) -->
+            @if (q.isEarlyBird) {
+              <div class="early-bird-banner">
+                <div class="early-bird-content">
+                  <app-icon name="event"></app-icon>
+                  <div class="early-bird-text">
+                    <span class="early-bird-title">Early Bird Rate Active</span>
+                    <span class="early-bird-sub"
+                      >Valid until {{ earlyBirdDeadlineFormatted() }}</span
+                    >
+                  </div>
+                </div>
+                @if (totalEarlySavingsCents() > 0) {
+                  <span class="early-bird-pill"
+                    >Save {{ formatCents(totalEarlySavingsCents()) }}</span
+                  >
+                }
+              </div>
+            }
+
+            <!-- Registration Options -->
+            @if (q.allEvaluatedOptions.length > 0) {
+              <div class="option-group">
+                <label class="group-label">Registration Options</label>
+                <div class="registration-options-list">
+                  @for (optEval of q.allEvaluatedOptions; track optEval.option.id) {
+                    @let isOptDisabled = !optEval.isEligibleForPerson || optEval.isSoldOut;
+                    @let isSelected = q.selectedOption?.option?.id === optEval.option.id;
+                    <label
+                      class="reg-option-card"
+                      [class.active]="isSelected && !isOptDisabled"
+                      [class.disabled]="isOptDisabled"
+                    >
+                      <input
+                        type="radio"
+                        name="registrationOption"
+                        [value]="optEval.option.id"
+                        [checked]="isSelected"
+                        [disabled]="isOptDisabled"
+                        (change)="selectOption(optEval)"
+                      />
+                      <div class="reg-option-main">
+                        <div class="reg-option-title-row">
+                          <strong>{{ optEval.option.label }}</strong>
+                          <span class="level-chip">{{
+                            formatAttendanceLabel(optEval.option.attendanceType)
+                          }}</span>
+                          @if (optEval.isSoldOut) {
+                            <span class="chip-sold-out-badge">Sold Out</span>
+                          }
+                          @if (!optEval.isEligibleForPerson) {
+                            <span class="chip-restricted-badge">
+                              {{
+                                optEval.ineligibleReason ===
+                                PricingValidationErrorCode.InstructorRequired
+                                  ? "Instructors Only"
+                                  : "Members Only"
+                              }}
+                            </span>
+                          }
+                          @if (
+                            existingReg &&
+                            (existingReg.optionId === optEval.option.id ||
+                              (!existingReg.optionId &&
+                                existingReg.attendance === optEval.option.attendanceType))
+                          ) {
+                            <span class="chip-current-badge">Current</span>
+                          }
+                        </div>
+                        @if (optEval.option.description) {
+                          <span class="reg-option-desc">{{ optEval.option.description }}</span>
+                        }
+                        @if (optEval.appliedDiscounts.length > 0) {
+                          <span class="reg-option-discount-note">
+                            Includes {{ formatAppliedDiscountsSummary(optEval.appliedDiscounts) }}
+                          </span>
+                        }
+                        @if (optEval.capacityBreakdown.length > 0) {
+                          <div class="reg-option-capacities">
+                            @for (cb of optEval.capacityBreakdown; track cb.capacityId) {
+                              @if (cb.optionUses > 0) {
+                                <span
+                                  class="reg-option-cap-tag"
+                                  [class.exceeded]="cb.exceeds"
+                                >
+                                  Uses {{ cb.optionUses }} {{ cb.label }} ({{ cb.remaining }}/{{
+                                    cb.limit
+                                  }}
+                                  left)
+                                </span>
+                              }
+                            }
+                          </div>
+                        }
+                      </div>
+                      <div class="reg-option-price">
+                        @if (optEval.standardPriceCents > optEval.netPriceCents) {
+                          <span class="price-strikethrough">{{
+                            formatCents(optEval.standardPriceCents)
+                          }}</span>
+                        }
+                        <strong>{{ formatCents(optEval.netPriceCents) }}</strong>
+                      </div>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Sub-Option Picker (e.g. Specific Days) -->
+            @let selOpt = q.selectedOption;
+            @if (selOpt && selOpt.option.subSelection.kind === SubSelectionKind.PickSuboptions) {
+              @let subRule = selOpt.option.subSelection;
+              <div class="option-group">
+                <label class="group-label">
+                  Choose {{ subRule.pickCount }} Sub-Option{{
+                    subRule.pickCount === 1 ? "" : "s"
+                  }}
+                  ({{ selectedSuboptions().length }}/{{ subRule.pickCount }} selected)
+                </label>
+                <div class="suboptions-pill-list">
+                  @for (sub of subRule.availableSuboptions; track sub) {
+                    @let subChecked = isSuboptionSelected(sub);
+                    @let subDisabled = isSuboptionDisabled(sub, subRule.pickCount);
+                    <label
+                      class="suboption-pill"
+                      [class.checked]="subChecked"
+                      [class.disabled]="subDisabled"
+                    >
+                      <input
+                        type="checkbox"
+                        [checked]="subChecked"
+                        [disabled]="subDisabled"
+                        (change)="
+                          toggleSuboption(
+                            sub,
+                            subRule.pickCount,
+                            $any($event.target).checked
+                          )
+                        "
+                      />
+                      <span>{{ sub }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Optional Add-Ons -->
+            @if (q.availableAddOns.length > 0) {
+              <div class="option-group">
+                <label class="group-label">Optional Add-Ons</label>
+                <div class="addons-list">
+                  @for (addOnEval of q.availableAddOns; track addOnEval.addOn.id) {
+                    @let locked = isAddOnLocked(addOnEval.addOn.id);
+                    <label
+                      class="addon-toggle-card selectable"
+                      [class.checked]="addOnEval.selected"
+                      [class.locked]="locked"
+                    >
+                      <div class="checkbox-label">
+                        <input
+                          type="checkbox"
+                          [checked]="addOnEval.selected"
+                          [disabled]="locked"
+                          (change)="toggleAddOn(addOnEval, $any($event.target).checked)"
+                        />
+                        <span class="checkbox-text">
+                          <span class="addon-title-row">
+                            <strong>{{ addOnEval.addOn.label }}</strong>
+                            @if (locked) {
+                              <span class="chip-current-badge">Already Included</span>
+                            } @else if (addOnEval.priceCents === 0) {
+                              <span class="chip-free-badge">Included Free</span>
+                            } @else {
+                              <span class="chip-addon-badge"
+                                >+{{ formatCents(addOnEval.priceCents) }}</span
+                              >
+                            }
+                          </span>
+                          @if (addOnEval.addOn.description) {
+                            <span class="subtext">{{ addOnEval.addOn.description }}</span>
+                          }
+                        </span>
+                      </div>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Payment Settlement Choice -->
+            @if (availablePaymentChoicesForUser().length > 1) {
+              <div class="option-group">
+                <label class="group-label">Payment Method</label>
+                <div class="payment-choices-list">
+                  @for (choice of availablePaymentChoicesForUser(); track choice) {
+                    <label
+                      class="payment-choice-card"
+                      [class.active]="q.effectivePaymentChoice === choice"
+                    >
+                      <input
+                        type="radio"
+                        name="paymentChoice"
+                        [value]="choice"
+                        [checked]="q.effectivePaymentChoice === choice"
+                        (change)="selectedPaymentChoice.set(choice)"
+                      />
+                      <div class="payment-choice-body">
+                        <strong>{{ formatPaymentChoiceLabel(choice) }}</strong>
+                        @if (choice === PaymentChoice.Deposit && q.depositCents > 0) {
+                          <span class="payment-choice-sub">
+                            Pay {{ formatCents(q.depositCents) }} event deposit online today (any
+                            add-ons are also paid in full today); pay remaining event balance at the
+                            door.
+                          </span>
+                        } @else if (choice === PaymentChoice.PayAtDoor) {
+                          <span class="payment-choice-sub">
+                            Reserve your spot now and pay in person upon arrival.
+                          </span>
+                        }
+                      </div>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Checkout Quote Breakdown -->
+            <div class="price-summary-box">
+              <div class="summary-rows">
+                @if (
+                  q.selectedAddOns.length > 0 ||
+                  q.effectivePaymentChoice === PaymentChoice.Deposit
+                ) {
+                  <div class="summary-row">
+                    <span>
+                      Event Option ({{ q.selectedOption?.option?.label || "Registration" }})
+                    </span>
+                    <span>{{ formatCents(q.attendanceNetCents) }}</span>
+                  </div>
+                  @for (selAddOn of q.selectedAddOns; track selAddOn.addOn.id) {
+                    <div class="summary-row">
+                      <span>+ {{ selAddOn.addOn.label }}</span>
+                      <span>
+                        {{
+                          selAddOn.priceCents === 0
+                            ? "FREE"
+                            : formatCents(selAddOn.priceCents)
+                        }}
+                      </span>
+                    </div>
+                  }
+                }
+                <div
+                  class="summary-row"
+                  [class.subtotal-row]="
+                    q.selectedAddOns.length > 0 ||
+                    q.effectivePaymentChoice === PaymentChoice.Deposit
+                  "
+                >
+                  <span>Agreed Registration Total</span>
+                  <strong>{{ formatCents(q.agreedTotalCents) }}</strong>
+                </div>
+                @if (q.effectivePaymentChoice === PaymentChoice.Deposit) {
+                  <div class="summary-deposit-breakdown">
+                    <div class="summary-row">
+                      <span>Event Deposit (Paid Online Today)</span>
+                      <span>{{ formatCents(q.depositCents) }}</span>
+                    </div>
+                    @for (selAddOn of q.selectedAddOns; track selAddOn.addOn.id) {
+                      <div class="summary-row">
+                        <span>
+                          Add-On: {{ selAddOn.addOn.label
+                          }}{{ selAddOn.priceCents > 0 ? " (Paid Online Today)" : "" }}
+                        </span>
+                        <span>
+                          {{
+                            selAddOn.priceCents === 0
+                              ? "FREE"
+                              : formatCents(selAddOn.priceCents)
+                          }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+                @if (effectiveCreditCents() > 0) {
+                  <div class="summary-row credit-row">
+                    <span>Previous Registration Credit</span>
+                    <span>&minus;{{ formatCents(effectiveCreditCents()) }}</span>
+                  </div>
+                }
+                <div class="summary-row primary-due-row">
+                  <span>{{
+                    onlineDueNowCents() > 0
+                      ? "Charged Online Today"
+                      : q.effectivePaymentChoice === PaymentChoice.PayAtDoor && !isUpgrade()
+                        ? "Charged Online Today"
+                        : "Online Balance Due"
+                  }}</span>
+                  <span class="price-amount">{{ formatCents(onlineDueNowCents()) }}</span>
+                </div>
+                @if (doorBalanceDueCents() > 0) {
+                  <div class="summary-row door-due-row">
+                    <span>{{
+                      q.effectivePaymentChoice === PaymentChoice.Deposit
+                        ? "Event Balance Due at Door"
+                        : "Cash Balance Due at Door"
+                    }}</span>
+                    <strong>{{ formatCents(doorBalanceDueCents()) }}</strong>
+                  </div>
+                }
+              </div>
+
+              @if (
+                q.effectivePaymentChoice === PaymentChoice.Deposit &&
+                q.depositRefundPolicy;
+                as refundPol
+              ) {
+                <div class="deposit-policy-note">
+                  <app-icon name="info"></app-icon>
+                  <span>
+                    @if (refundPol.kind === DepositRefundPolicyKind.RefundableBefore) {
+                      Deposit is refundable through
+                      <strong>{{ formatIsoDate(refundPol.deadlineDate) }}</strong
+                      >, and non-refundable thereafter.
+                    } @else {
+                      Deposit is non-refundable.
+                    }
+                  </span>
+                </div>
+              }
+
+              @if (doorBalanceDueCents() > 0 && offlineInstructions()) {
+                <div class="deposit-policy-note">
+                  <app-icon name="payments"></app-icon>
+                  <span>{{ offlineInstructions() }}</span>
+                </div>
+              }
+
+              @if (!q.isValid && q.isEligibleToRegister) {
+                <div class="quote-validation-errors">
+                  @for (err of q.validationErrors; track err.code + err.message) {
+                    <div class="quote-error-item">
+                      <app-icon name="error"></app-icon>
+                      <span>{{ err.message }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Attendee Information Form -->
+            @if (q.isEligibleToRegister) {
+              <div class="form-section">
+                <h3>Attendee Information</h3>
+                <div class="form-field">
+                  <label for="attendeeName">Full Name *</label>
+                  <input
+                    id="attendeeName"
+                    type="text"
+                    autocomplete="name"
+                    placeholder="First and Last Name"
+                    [value]="attendeeName()"
+                    (input)="attendeeName.set($any($event.target).value)"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label for="attendeeEmail">Email Address *</label>
+                  <input
+                    id="attendeeEmail"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="Where to send receipt &amp; event access"
+                    [value]="attendeeEmail()"
+                    (input)="attendeeEmail.set($any($event.target).value)"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label for="attendeePhone">Phone Number</label>
+                  <input
+                    id="attendeePhone"
+                    type="tel"
+                    autocomplete="tel"
+                    placeholder="Optional"
+                    [value]="attendeePhone()"
+                    (input)="attendeePhone.set($any($event.target).value)"
+                  />
+                </div>
+
+                @for (fq of q.applicableQuestions; track fq.id) {
+                  @let locked = isQuestionLocked(fq.id);
+                  @let descId = "reg-q-desc-" + fq.id;
+                  @let fqPrompt = fq.label || fq.id;
+                  @switch (fq.spec.kind) {
+                    @case (RegistrationQuestionKind.ShortText) {
+                      <div class="form-field" [class.question-locked]="locked">
+                        <label [for]="'reg-q-' + fq.id"
+                          >{{ fqPrompt }}{{ fq.required ? " *" : "" }}</label
+                        >
+                        @if (fq.description) {
+                          <span class="question-hint" [id]="descId">{{ fq.description }}</span>
+                        }
+                        <input
+                          [id]="'reg-q-' + fq.id"
+                          type="text"
+                          [placeholder]="fq.spec.placeholder"
+                          [maxLength]="MAX_SHORT_TEXT_ANSWER_LENGTH"
+                          [required]="fq.required && !locked"
+                          [disabled]="locked"
+                          [attr.aria-describedby]="fq.description ? descId : null"
+                          [value]="getQuestionText(fq.id)"
+                          (input)="updateQuestionText(fq.id, $any($event.target).value)"
+                        />
+                        @if (locked) {
+                          <span class="question-locked-note"
+                            >Submitted with your registration (read-only)</span
+                          >
+                        }
+                      </div>
+                    }
+                    @case (RegistrationQuestionKind.LongText) {
+                      <div class="form-field" [class.question-locked]="locked">
+                        <label [for]="'reg-q-' + fq.id"
+                          >{{ fqPrompt }}{{ fq.required ? " *" : "" }}</label
+                        >
+                        @if (fq.description) {
+                          <span class="question-hint" [id]="descId">{{ fq.description }}</span>
+                        }
+                        <textarea
+                          [id]="'reg-q-' + fq.id"
+                          rows="3"
+                          [placeholder]="fq.spec.placeholder"
+                          [maxLength]="MAX_LONG_TEXT_ANSWER_LENGTH"
+                          [required]="fq.required && !locked"
+                          [disabled]="locked"
+                          [attr.aria-describedby]="fq.description ? descId : null"
+                          [value]="getQuestionText(fq.id)"
+                          (input)="updateQuestionText(fq.id, $any($event.target).value)"
+                        ></textarea>
+                        @if (locked) {
+                          <span class="question-locked-note"
+                            >Submitted with your registration (read-only)</span
+                          >
+                        }
+                      </div>
+                    }
+                    @case (RegistrationQuestionKind.Select) {
+                      <div class="form-field" [class.question-locked]="locked">
+                        <label [for]="'reg-q-' + fq.id"
+                          >{{ fqPrompt }}{{ fq.required ? " *" : "" }}</label
+                        >
+                        @if (fq.description) {
+                          <span class="question-hint" [id]="descId">{{ fq.description }}</span>
+                        }
+                        <select
+                          [id]="'reg-q-' + fq.id"
+                          [required]="fq.required && !locked"
+                          [disabled]="locked"
+                          [attr.aria-describedby]="fq.description ? descId : null"
+                          [ngModel]="getQuestionText(fq.id)"
+                          (ngModelChange)="updateQuestionSelect(fq.id, $event)"
+                          [ngModelOptions]="{ standalone: true }"
+                        >
+                          <option value="">Select an option...</option>
+                          @for (choice of fq.spec.options; track choice) {
+                            <option [value]="choice">{{ choice }}</option>
+                          }
+                        </select>
+                        @if (locked) {
+                          <span class="question-locked-note"
+                            >Submitted with your registration (read-only)</span
+                          >
+                        }
+                      </div>
+                    }
+                    @case (RegistrationQuestionKind.Checkboxes) {
+                      <fieldset
+                        class="question-fieldset"
+                        [class.question-locked]="locked"
+                        [disabled]="locked"
+                        [attr.aria-describedby]="fq.description ? descId : null"
+                      >
+                        <legend>{{ fqPrompt }}{{ fq.required ? " *" : "" }}</legend>
+                        @if (fq.description) {
+                          <span class="question-hint" [id]="descId">{{ fq.description }}</span>
+                        }
+                        <div class="question-checkboxes-list">
+                          @for (choice of fq.spec.options; track choice; let cIdx = $index) {
+                            @let cbId = "reg-q-cb-" + fq.id + "-" + cIdx;
+                            <label class="question-checkbox-row" [for]="cbId">
+                              <input
+                                [id]="cbId"
+                                type="checkbox"
+                                [checked]="getQuestionSelectedOptions(fq.id).includes(choice)"
+                                [disabled]="locked"
+                                (change)="
+                                  toggleQuestionCheckbox(
+                                    fq.id,
+                                    choice,
+                                    $any($event.target).checked
+                                  )
+                                "
+                              />
+                              <span>{{ choice }}</span>
+                            </label>
+                          }
+                        </div>
+                        @if (locked) {
+                          <span class="question-locked-note"
+                            >Submitted with your registration (read-only)</span
+                          >
+                        }
+                      </fieldset>
+                    }
+                  }
+                }
+
+                <div class="form-field">
+                  <label for="attendeeNotes">Notes or Questions</label>
+                  <textarea
+                    id="attendeeNotes"
+                    rows="2"
+                    placeholder="Any special requests or info for the organizer"
+                    [value]="attendeeNotes()"
+                    (input)="attendeeNotes.set($any($event.target).value)"
+                  ></textarea>
+                </div>
+              </div>
+            }
+
+            <!-- Submit Action Section -->
+            <div class="submit-section">
+              @if (isSubmitting()) {
+                <app-spinner>{{
+                  isFreeOrInPlaceUpdate()
+                    ? "Updating your registration..."
+                    : "Processing registration..."
+                }}</app-spinner>
+              } @else if (!q.isEligibleToRegister) {
+                <div class="role-ineligible-notice">
+                  <app-icon name="lock"></app-icon>
+                  <div class="role-ineligible-text">
+                    <strong>Registration Restricted</strong>
+                    @if (!user()) {
+                      <p>
+                        This event requires an active ILC Membership or Instructor certification.
+                        If you are an active member, sign in to register.
+                      </p>
+                    } @else {
+                      <p>
+                        {{
+                          q.validationErrors[0]?.message ||
+                            "This event requires an active ILC Membership. Join or upgrade your membership to register."
+                        }}
+                      </p>
+                    }
                   </div>
                   @if (!user()) {
                     <button
                       type="button"
-                      class="inline-link-button signin-member-link"
+                      class="primary-button inline-btn"
                       (click)="toggleInlineLogin()"
                     >
-                      <span>{{ showInlineLogin() ? 'Hide Sign In' : 'Sign in for member rates' }}</span>
+                      <span>{{ showInlineLogin() ? "Hide Sign In" : "Sign In" }}</span>
                     </button>
-                  } @else if (selectedRole() !== AttendeeRole.Instructor && !isLifeMember()) {
+                  } @else {
                     <a
-                      [href]="routingService.hrefForView(Views.MyOrders)"
-                      class="upgrade-membership-link"
-                      title="Manage subscription & upgrade membership"
+                      [href]="routingService.hrefForView(Views.BecomeAMember)"
+                      class="primary-button inline-btn"
                     >
-                      <span>Upgrade membership</span>
-                      <app-icon name="launch"></app-icon>
+                      <span>Join / Upgrade</span>
                     </a>
                   }
                 </div>
-                <p class="status-description">{{ attendeeStatusSubtitle() }}</p>
-                @if (isRoleEligible() && !user() && showInlineLogin()) {
+                @if (!user() && showInlineLogin()) {
                   <div class="inline-auth-panel card">
                     <div class="inline-auth-header">
                       <strong>Sign in to your ILC Account</strong>
@@ -256,489 +932,61 @@
                     <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
                   </div>
                 }
-              </div>
-            </div>
-          }
-
-          <!-- 2. Attendance Mode Selection -->
-          <div class="option-group">
-            <label class="group-label">{{ attendanceModeStepLabel() }}</label>
-            <div class="pill-tabs">
-              @if (prod.allowInPerson) {
-                <button
-                  type="button"
-                  class="pill-tab"
-                  data-label="In-Person"
-                  [class.active]="
-                    selectedAttendance() === AttendanceType.InPerson
-                  "
-                  [disabled]="
-                    isPastEvent() ||
-                    (isInPersonSoldOut() && !isPendingInPerson())
-                  "
-                  (click)="selectedAttendance.set(AttendanceType.InPerson)"
-                >
-                  <span class="tab-content">
-                    <app-icon name="person"></app-icon>
-                    <span>In-Person</span>
-                    @if (isInPersonSoldOut() && !isPendingInPerson()) {
-                      <span class="chip-sold-out-badge">Sold Out</span>
-                    } @else if (
-                      hasInPersonLimit() && inPersonSpacesLeft();
-                      as spaces
-                    ) {
-                      @if (!isUpgrade()) {
-                        <span
-                          class="chip-spaces-badge"
-                          [class.urgent]="spaces <= 5"
-                          >{{ spaces }} left</span
-                        >
-                      }
-                    }
-                    @if (isUpgrade()) {
-                      @if (isCurrentAttendance(AttendanceType.InPerson)) {
-                        <span class="chip-current-badge">Current</span>
-                      } @else if (
-                        getAttendanceUpgradeBadge(AttendanceType.InPerson);
-                        as badge
-                      ) {
-                        <span class="chip-upgrade-badge">{{ badge }}</span>
-                      }
-                    }
-                  </span>
-                </button>
-              }
-              @if (prod.allowOnline) {
-                <button
-                  type="button"
-                  class="pill-tab"
-                  data-label="Online"
-                  [class.active]="
-                    selectedAttendance() === AttendanceType.Online
-                  "
-                  [disabled]="isPastEvent()"
-                  (click)="selectedAttendance.set(AttendanceType.Online)"
-                >
-                  <span class="tab-content">
-                    <app-icon name="videocam"></app-icon>
-                    <span>Online</span>
-                    @if (isUpgrade()) {
-                      @if (isCurrentAttendance(AttendanceType.Online)) {
-                        <span class="chip-current-badge">Current</span>
-                      } @else if (
-                        getAttendanceUpgradeBadge(AttendanceType.Online);
-                        as badge
-                      ) {
-                        <span class="chip-upgrade-badge">{{ badge }}</span>
-                      }
-                    }
-                  </span>
-                </button>
-              }
-              @if (prod.allowVideoOnly || prod.allowVideo) {
-                <button
-                  type="button"
-                  class="pill-tab"
-                  data-label="Video Only"
-                  [class.active]="
-                    selectedAttendance() === AttendanceType.VideoOnly
-                  "
-                  (click)="selectedAttendance.set(AttendanceType.VideoOnly)"
-                >
-                  <span class="tab-content">
-                    <app-icon name="live_tv"></app-icon>
-                    <span>Video Only</span>
-                    @if (isUpgrade()) {
-                      @if (isCurrentAttendance(AttendanceType.VideoOnly)) {
-                        <span class="chip-current-badge">Current</span>
-                      } @else if (
-                        getAttendanceUpgradeBadge(AttendanceType.VideoOnly);
-                        as badge
-                      ) {
-                        <span class="chip-upgrade-badge">{{ badge }}</span>
-                      }
-                    }
-                  </span>
-                </button>
-              }
-            </div>
-            @if (selectedAttendance() === AttendanceType.VideoOnly) {
-              <div class="capacity-hint" style="margin-top: 0.75em">
-                <app-icon name="info"></app-icon>
-                <span
-                  >You are ordering the video recording of this class/workshop
-                  (no live attendance). Video access will automatically appear
-                  in your account once the recording is processed.</span
-                >
-              </div>
-            }
-            @if (
-              hasInPersonLimit() &&
-              !isPastEvent() &&
-              selectedAttendance() === AttendanceType.InPerson
-            ) {
-              <div class="capacity-hint" [class.sold-out]="isInPersonSoldOut()">
-                <app-icon
-                  [name]="isInPersonSoldOut() ? 'event_busy' : 'info'"
-                ></app-icon>
-                <span>
-                  @if (isInPersonSoldOut()) {
-                    In-person attendance has reached maximum capacity ({{
-                      prod.maxInPersonAttendees
-                    }}
-                    attendees). Online attendance remains available.
-                  } @else {
-                    {{ inPersonSpacesLeft() }} of
-                    {{ prod.maxInPersonAttendees }} in-person spaces remaining.
-                  }
-                </span>
-              </div>
-            }
-          </div>
-
-          <!-- 3. Video Recording Add-on (for in-person or online) -->
-          @if (
-            prod.allowVideo &&
-            selectedAttendance() !== AttendanceType.VideoOnly &&
-            !isPastEvent()
-          ) {
-            <div class="option-group">
-              <label class="group-label">{{ videoStepLabel() }}</label>
-              <div class="video-toggle-group">
-                @if (
-                  existingRegistration()?.hasVideoAccess && !isPendingInPerson()
-                ) {
-                  <div class="video-already-included">
-                    <app-icon name="check_circle"></app-icon>
-                    <div class="video-included-text">
-                      <strong>Class Video Recording Included</strong>
-                      <span class="subtext"
-                        >You already have access to the recorded session in your
-                        current registration.</span
-                      >
-                    </div>
-                  </div>
-                } @else if (isVideoIncludedForFree()) {
-                  <div class="video-already-included">
-                    <app-icon name="check_circle"></app-icon>
-                    <div class="video-included-text">
-                      <strong>Class Video Recording Included</strong>
-                      <span class="subtext"
-                        >All attendees receive access to the recorded session
-                        after the event at no extra cost.</span
-                      >
-                    </div>
-                  </div>
-                } @else {
-                  <label class="checkbox-label">
-                    <input
-                      type="checkbox"
-                      [checked]="includeVideo()"
-                      (change)="includeVideo.set(!includeVideo())"
-                    />
-                    <span class="checkbox-text">
-                      <span class="video-checkbox-title-row">
-                        <strong>Include Class Video Recording</strong>
-                        @if (
-                          isUpgrade() &&
-                            !isPendingInPerson() &&
-                            videoUpgradeDeltaFormatted();
-                          as delta
-                        ) {
-                          <span class="chip-upgrade-badge">{{ delta }}</span>
-                        } @else if (videoAddonPriceFormatted(); as price) {
-                          <span class="chip-addon-badge">{{ price }}</span>
-                        }
-                      </span>
-                      <span class="subtext"
-                        >Watch the recorded session anytime after the
-                        event.</span
-                      >
-                    </span>
-                  </label>
-                }
-              </div>
-            </div>
-          }
-
-          <!-- Early-Bird Banner (if active) -->
-          @if (isEarlyBirdActive()) {
-            <div class="early-bird-banner">
-              <div class="early-bird-content">
-                <app-icon name="event"></app-icon>
-                <div class="early-bird-text">
-                  <span class="early-bird-title">Early-Bird Rate Active</span>
-                  <span class="early-bird-sub"
-                    >Discount valid online until
-                    {{ earlyBirdDeadlineFormatted() }}</span
-                  >
-                </div>
-              </div>
-              @if (hasEarlyBirdSavings()) {
-                <span class="early-bird-pill"
-                  >Save {{ earlyBirdSavingsFormatted() }}</span
-                >
-              }
-            </div>
-          }
-
-          <!-- Price Summary Box -->
-          <div class="price-summary-box">
-            <div class="price-label-col">
-              <div class="price-label">
-                {{
-                  isPendingInPerson()
-                    ? "Online Payment Total:"
-                    : isUpgrade()
-                      ? "Upgrade Balance Due:"
-                      : "Registration Total:"
-                }}
-              </div>
-              @if (isUpgrade() && isTierAvailable()) {
-                <div class="price-sublabel">
-                  @if (isPendingInPerson()) {
-                    Currently registered for pay-at-door. Pay online now in
-                    advance.
-                  } @else if (upgradeDifference() > 0) {
-                    Tier total: {{ originalPriceFormatted() }} &minus; Credit
-                    paid: {{ amountAlreadyPaidFormatted() }}
-                  } @else {
-                    Covered by previous payment ({{
-                      amountAlreadyPaidFormatted()
-                    }}
-                    paid)
-                  }
-                </div>
-              }
-            </div>
-            @if (hasFullRegistration() && upgradeDifference() > 0) {
-              <div class="price-notice-complete">
-                <app-icon name="check_circle"></app-icon>
-                <span>Full Registration Active</span>
-              </div>
-            } @else if (isTierAvailable()) {
-              <div class="price-amount-wrap">
-                @if (hasEarlyBirdSavings() && !isUpgrade()) {
-                  <span class="price-original-strikethrough">{{
-                    standardPriceFormatted()
-                  }}</span>
-                }
-                <div class="price-amount">{{ priceFormatted() }}</div>
-              </div>
-            } @else {
-              <div class="price-unavailable">Option unavailable</div>
-            }
-          </div>
-
-          <!-- Attendee Information Form -->
-          <div class="form-section">
-            <h3>Attendee Information</h3>
-            <div class="form-field">
-              <label for="attendeeName">Full Name *</label>
-              <input
-                id="attendeeName"
-                type="text"
-                placeholder="First and Last Name"
-                [value]="attendeeName()"
-                (input)="attendeeName.set($any($event.target).value)"
-                required
-              />
-            </div>
-
-            <div class="form-field">
-              <label for="attendeeEmail">Email Address *</label>
-              <input
-                id="attendeeEmail"
-                type="email"
-                placeholder="Where to send receipt & Zoom links"
-                [value]="attendeeEmail()"
-                (input)="attendeeEmail.set($any($event.target).value)"
-                required
-              />
-            </div>
-
-            <div class="form-field">
-              <label for="attendeePhone">Phone Number</label>
-              <input
-                id="attendeePhone"
-                type="tel"
-                placeholder="Optional"
-                [value]="attendeePhone()"
-                (input)="attendeePhone.set($any($event.target).value)"
-              />
-            </div>
-
-            <div class="form-field">
-              <label for="attendeeNotes">Notes or Questions</label>
-              <textarea
-                id="attendeeNotes"
-                rows="2"
-                placeholder="Any special requests or info for the organizer"
-                [value]="attendeeNotes()"
-                (input)="attendeeNotes.set($any($event.target).value)"
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="submit-section">
-            @if (isSubmitting()) {
-              <app-spinner>{{
-                isFreeUpdate()
-                  ? "Updating your registration..."
-                  : "Processing registration..."
-              }}</app-spinner>
-            } @else if (!isRoleEligible()) {
-              <div class="role-ineligible-notice">
-                <app-icon name="lock"></app-icon>
-                <div class="role-ineligible-text">
-                  <strong>Registration Restricted</strong>
-                  @if (!user()) {
-                    <p>
-                      This event requires an active ILC Membership. If you are an active member, sign in to register.
-                    </p>
-                  } @else {
-                    <p>
-                      This event requires an active ILC Membership. Join or
-                      upgrade your membership to register.
-                    </p>
-                  }
-                </div>
-                @if (!user()) {
-                  <button
-                    type="button"
-                    class="primary-button inline-btn"
-                    (click)="toggleInlineLogin()"
-                  >
-                    <span>{{ showInlineLogin() ? 'Hide Sign In' : 'Sign In' }}</span>
-                  </button>
-                } @else {
-                  <a
-                    [href]="routingService.hrefForView(Views.BecomeAMember)"
-                    class="primary-button inline-btn"
-                  >
-                    <span>Join / Upgrade</span>
-                  </a>
-                }
-              </div>
-              @if (!user() && showInlineLogin()) {
-                <div class="inline-auth-panel card">
-                  <div class="inline-auth-header">
-                    <strong>Sign in to your ILC Account</strong>
-                    <button
-                      type="button"
-                      class="icon-only-button"
-                      (click)="showInlineLogin.set(false)"
-                      title="Close sign in"
-                    >
-                      <app-icon name="close"></app-icon>
-                    </button>
-                  </div>
-                  <app-inline-auth [showNoMemberOption]="true"></app-inline-auth>
-                </div>
-              }
-            } @else if (hasFullRegistration() && upgradeDifference() > 0) {
-              <div class="full-package-info">
-                <p>
-                  You have already purchased the full registration package
-                  (attendance and class recording access) for this event.
-                </p>
-                <a
-                  class="subtle-button"
-                  [href]="
-                    routingService.hrefForView(Views.EventView, {
-                      eventId: linkedEvent()?.docId || effectiveEventId(),
-                    })
-                  "
-                >
-                  <app-icon name="arrow_back"></app-icon>
-                  <span>Back to Event</span>
-                </a>
-              </div>
-            } @else if (isPendingInPerson()) {
-              <div class="pending-in-person-actions">
+              } @else if (isFreeOrInPlaceUpdate()) {
                 <button
                   type="button"
                   class="checkout-btn primary-button"
-                  [disabled]="
-                    !isTierAvailable() || !attendeeName() || !attendeeEmail() || isOffline()
-                  "
-                  [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
-                  (click)="proceedToCheckout()"
-                >
-                  <app-icon name="lock"></app-icon>
-                  <span>Pay {{ priceFormatted() }} Online with Stripe</span>
-                </button>
-                <button
-                  type="button"
-                  class="secondary-action-btn"
-                  [disabled]="!attendeeName() || !attendeeEmail()"
+                  [disabled]="!canSubmit()"
                   (click)="saveRegistrationUpdate()"
                 >
-                  <app-icon name="edit"></app-icon>
-                  <span
-                    >Update In-Person Registration ({{
-                      inPersonPriceFormatted()
-                    }}
-                    due at door)</span
-                  >
+                  <app-icon name="check"></app-icon>
+                  <span>{{
+                    doorBalanceDueCents() > 0
+                      ? "Update Registration (" +
+                        formatCents(doorBalanceDueCents()) +
+                        " due at door)"
+                      : "Update Registration"
+                  }}</span>
                 </button>
-              </div>
-            } @else if (isFreeUpdate()) {
-              <button
-                type="button"
-                class="checkout-btn primary-button"
-                [disabled]="
-                  !isTierAvailable() || !attendeeName() || !attendeeEmail()
-                "
-                (click)="saveRegistrationUpdate()"
-              >
-                <app-icon name="check"></app-icon>
-                <span>Update Registration</span>
-              </button>
-            } @else {
-              <div class="checkout-actions-group">
+              } @else if (
+                !isUpgrade() && q.effectivePaymentChoice === PaymentChoice.PayAtDoor
+              ) {
                 <button
                   type="button"
                   class="checkout-btn primary-button"
-                  [disabled]="
-                    !isTierAvailable() || !attendeeName() || !attendeeEmail() || isOffline()
+                  [disabled]="!canSubmit()"
+                  (click)="registerInPerson()"
+                >
+                  <app-icon name="payments"></app-icon>
+                  <span>
+                    Register &amp; Pay at Door ({{ formatCents(doorBalanceDueCents()) }} due at
+                    event)
+                  </span>
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="checkout-btn primary-button"
+                  [disabled]="!canSubmit()"
+                  [title]="
+                    isOffline() ? 'Checkout requires an active internet connection' : ''
                   "
-                  [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="proceedToCheckout()"
                 >
                   <app-icon name="lock"></app-icon>
-                  <span>{{
-                    isUpgrade()
-                      ? "Pay " + priceFormatted() + " Upgrade with Stripe"
-                      : "Pay " + priceFormatted() + " with Stripe"
-                  }}</span>
+                  <span>
+                    @if (q.effectivePaymentChoice === PaymentChoice.Deposit) {
+                      Pay {{ formatCents(onlineDueNowCents()) }} Deposit Online with Stripe
+                    } @else if (isUpgrade() && !isPendingInPerson()) {
+                      Pay {{ formatCents(onlineDueNowCents()) }} Upgrade with Stripe
+                    } @else {
+                      Pay {{ formatCents(onlineDueNowCents()) }} with Stripe
+                    }
+                  </span>
                 </button>
-
-                @if (canPayInPerson()) {
-                  <div class="actions-divider">
-                    <span>or pay at the door</span>
-                  </div>
-                  <button
-                    type="button"
-                    class="in-person-btn secondary-button"
-                    [disabled]="!attendeeName() || !attendeeEmail()"
-                    (click)="registerInPerson()"
-                  >
-                    <app-icon name="payments"></app-icon>
-                    <span
-                      >Register &amp; Pay In-Person ({{
-                        inPersonPriceFormatted()
-                      }}
-                      at event)</span
-                    >
-                  </button>
-                  <p class="in-person-hint">
-                    Cash will be accepted upon arrival at the event.
-                  </p>
-                }
-              </div>
-            }
-          </div>
+              }
+            </div>
+          }
         </div>
       </div>
     </div>

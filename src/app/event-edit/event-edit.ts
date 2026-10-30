@@ -26,7 +26,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, initEventContact, EventContact, EventDocument, Product } from '../../../functions/src/data-model/events';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, initEventContact, EventContact, EventDocument, Product, formatProductPriceRange } from '../../../functions/src/data-model/events';
 import { UploadItem, UploadItemSource } from '../../../functions/src/data-model/materials';
 import { InstructorPublicData, Member } from '../../../functions/src/data-model/members';
 import { School } from '../../../functions/src/data-model/schools';
@@ -250,16 +250,7 @@ export class EventEditComponent implements OnInit {
   });
 
   getProductPriceRange(product: Product): string {
-    const enabledTiers = Object.values(product.tiers || {}).filter((t) => t.enabled && t.price > 0);
-    if (enabledTiers.length === 0) return 'Free / Custom';
-    const prices = enabledTiers.map((t) => t.price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const currency = (product.currency || 'usd').toUpperCase();
-    if (min === max) {
-      return `${min.toFixed(2)} ${currency}`;
-    }
-    return `${min.toFixed(2)} – ${max.toFixed(2)} ${currency}`;
+    return formatProductPriceRange(product);
   }
 
   async refreshProducts(): Promise<void> {
@@ -329,6 +320,8 @@ export class EventEditComponent implements OnInit {
   event = signal<IlcEvent | null>(null);
   isLoadingEvent = signal(true);
   loadError = signal<string | null>(null);
+  initialDescription = signal<string>('');
+  private descriptionEditedByUser = false;
 
   // The form model signal.
   eventFormModel = signal<EventFormModel>({
@@ -587,42 +580,53 @@ export class EventEditComponent implements OnInit {
   async loadEvent() {
     this.isLoadingEvent.set(true);
     this.loadError.set(null);
+    this.descriptionEditedByUser = false;
     try {
       const id = this.eventId();
       const data = await this.dataService.getEventById(id);
+      await this.refreshProducts();
+
       if (data) {
-        if (data.descriptionMarkdown) {
-          if (looksLikeHtml(data.descriptionMarkdown)) {
-            data.descriptionMarkdown = htmlToMarkdown(data.descriptionMarkdown);
+        let loadedEvent: IlcEvent = { ...data };
+        if (loadedEvent.descriptionMarkdown) {
+          if (looksLikeHtml(loadedEvent.descriptionMarkdown)) {
+            loadedEvent.descriptionMarkdown = htmlToMarkdown(loadedEvent.descriptionMarkdown);
           }
-        } else if (data.description) {
-          data.descriptionMarkdown = htmlToMarkdown(data.description);
+        } else if (loadedEvent.description) {
+          loadedEvent.descriptionMarkdown = htmlToMarkdown(loadedEvent.description);
         }
-        this.event.set(data);
-        this.eventFormModel.set(toFormModel(data));
-        this.titleLoaded.emit(data.title);
-        if (data.docId && this.canManageMaterials()) {
-          this.loadMaterials(data.docId);
+
+        if (loadedEvent.productId) {
+          const existing = await this.productService.getProduct(loadedEvent.productId);
+          if (existing && !this.products().some((p) => p.docId === existing.docId)) {
+            this.products.update((list) => [existing, ...list]);
+          }
+          if (existing) {
+            loadedEvent = {
+              ...loadedEvent,
+              onlineJoiningLink:
+                loadedEvent.onlineJoiningLink || existing.onlineJoiningLink || '',
+              purchaseDetailsMarkdown:
+                loadedEvent.purchaseDetailsMarkdown || existing.purchaseDetailsMarkdown || '',
+              inPersonDetailsMarkdown:
+                loadedEvent.inPersonDetailsMarkdown || existing.inPersonDetailsMarkdown || '',
+              recordedVideoId: loadedEvent.recordedVideoId || existing.recordedVideoId || '',
+              recordedVideoUrl: loadedEvent.recordedVideoUrl || existing.recordedVideoUrl || '',
+            };
+          }
+        }
+
+        const initialModel = toFormModel(loadedEvent);
+        this.initialDescription.set(initialModel.description);
+        this.event.set(loadedEvent);
+        this.eventFormModel.set(initialModel);
+        this.titleLoaded.emit(loadedEvent.title);
+        if (loadedEvent.docId && this.canManageMaterials()) {
+          this.loadMaterials(loadedEvent.docId);
         }
       } else {
         this.loadError.set('Event not found.');
         this.titleLoaded.emit('Event Not Found');
-      }
-      await this.refreshProducts();
-      if (data?.productId) {
-        const existing = await this.productService.getProduct(data.productId);
-        if (existing && !this.products().some((p) => p.docId === existing.docId)) {
-          this.products.update((list) => [existing, ...list]);
-        }
-        if (existing) {
-          this.eventFormModel.update((m) => ({
-            ...m,
-            onlineJoiningLink: m.onlineJoiningLink || existing.onlineJoiningLink || '',
-            purchaseDetailsMarkdown: m.purchaseDetailsMarkdown || existing.purchaseDetailsMarkdown || '',
-            recordedVideoId: m.recordedVideoId || existing.recordedVideoId || '',
-            recordedVideoUrl: m.recordedVideoUrl || existing.recordedVideoUrl || '',
-          }));
-        }
       }
     } catch (error) {
       console.error('Error loading event:', error);
@@ -1512,7 +1516,25 @@ export class EventEditComponent implements OnInit {
     }
   }
 
+  onDescriptionInitialized(canonical: string) {
+    if (this.descriptionEditedByUser) return;
+    this.event.update((ev) =>
+      ev
+        ? {
+            ...ev,
+            descriptionMarkdown: canonical,
+            description: canonical ? ev.description : '',
+          }
+        : null,
+    );
+    this.eventFormModel.update((m) => ({ ...m, description: canonical }));
+  }
+
   onDescriptionChanged(markdown: string) {
+    if (this.eventFormModel().description === markdown) {
+      return;
+    }
+    this.descriptionEditedByUser = true;
     this.eventFormModel.update((m) => ({ ...m, description: markdown }));
   }
 }

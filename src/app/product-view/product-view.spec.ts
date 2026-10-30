@@ -1,104 +1,279 @@
 /* product-view.spec.ts */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { ProductViewComponent } from './product-view';
 import { ProductService } from '../product.service';
 import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService } from '../firebase-state.service';
-import { AttendeeRole, initProduct, Product } from '../../../functions/src/data-model/events';
+import {
+  AttendeeRole,
+  AttendanceType,
+  DepositPolicyKind,
+  DepositRefundPolicyKind,
+  EarlyBirdPolicyKind,
+  EventAddOnKind,
+  EventRegistration,
+  EventRegistrationStatus,
+  firestoreDocToProduct,
+  IlcEvent,
+  initEvent,
+  initEventAddOn,
+  initEventCapacity,
+  initEventDiscount,
+  initEventPricingRules,
+  initEventRegistration,
+  initEventRegistrationOption,
+  initEventRegistrationQuestion,
+  initEventRuleConditions,
+  initProduct,
+  PaymentChoice,
+  PersonStatusKind,
+  Product,
+  RegistrationConditionKind,
+  RegistrationPaymentMethod,
+  RegistrationQuestionKind,
+  SubSelectionKind,
+  TimingConditionKind,
+  TimingWindow,
+  WhoConditionKind,
+} from '../../../functions/src/data-model/events';
 import { MembershipType } from '../../../functions/src/data-model/members';
-import { signal } from '@angular/core';
 
 describe('ProductViewComponent', () => {
   let component: ProductViewComponent;
   let fixture: ComponentFixture<ProductViewComponent>;
+  let capturedEventWatcher: ((event: IlcEvent) => void) | null = null;
 
-  const mockProduct: Product = {
-    ...initProduct(),
-    docId: 'test-prod-1',
-    title: 'Autumn Kung Fu Workshop',
-    description: 'An intensive 2-day workshop.',
-    currency: 'usd',
-    allowNonMembers: true,
-    allowMembers: true,
-    allowInstructors: true,
-    allowInPerson: true,
-    allowOnline: true,
-    allowVideo: true,
-    hasMemberPrice: true,
-    hasInstructorPrice: true,
-    tiers: {
-      'non_member_in_person_novideo': { enabled: true, price: 100 },
-      'non_member_in_person_video': { enabled: true, price: 120 },
-      'member_in_person_novideo': { enabled: true, price: 80 },
-      'member_in_person_video': { enabled: true, price: 100 },
-      'instructor_in_person_novideo': { enabled: true, price: 60 },
-      'instructor_in_person_video': { enabled: true, price: 80 },
-      'non_member_online_novideo': { enabled: true, price: 50 },
-      'non_member_online_video': { enabled: true, price: 70 },
-      'member_online_novideo': { enabled: true, price: 40 },
-      'member_online_video': { enabled: true, price: 60 },
-      'instructor_online_novideo': { enabled: true, price: 30 },
-      'instructor_online_video': { enabled: true, price: 50 },
-      'non_member_video_only': { enabled: false, price: 0 },
-      'member_video_only': { enabled: false, price: 0 },
-      'instructor_video_only': { enabled: false, price: 0 },
-    },
-  };
+  function buildWorkshopProduct(): Product {
+    const rules = initEventPricingRules();
+    rules.capacities = [
+      initEventCapacity({
+        id: 'hall_spots',
+        label: 'Training Hall Spots',
+        limit: 20,
+        description: 'Maximum in-person spots on the floor',
+      }),
+    ];
+    rules.earlyBird = {
+      kind: EarlyBirdPolicyKind.Enabled,
+      deadlineDate: '2099-09-15',
+    };
+    rules.registrationOptions = [
+      initEventRegistrationOption({
+        id: 'full_in_person',
+        label: 'Full Workshop (In-Person)',
+        description: 'All 4 days on the training floor',
+        attendanceType: AttendanceType.InPerson,
+        conditions: initEventRuleConditions(),
+        capacityUsage: { hall_spots: 1 },
+        priceCents: 10000,
+        subSelection: { kind: SubSelectionKind.None },
+      }),
+      initEventRegistrationOption({
+        id: 'two_day_pass',
+        label: '2-Day Pass',
+        description: 'Pick any 2 days in person',
+        attendanceType: AttendanceType.InPerson,
+        conditions: initEventRuleConditions(),
+        capacityUsage: { hall_spots: 1 },
+        priceCents: 7000,
+        subSelection: {
+          kind: SubSelectionKind.PickSuboptions,
+          pickCount: 2,
+          availableSuboptions: ['Friday', 'Saturday', 'Sunday', 'Monday'],
+        },
+      }),
+      initEventRegistrationOption({
+        id: 'online_zoom',
+        label: 'Online Live (Zoom)',
+        description: 'Join remotely via Zoom',
+        attendanceType: AttendanceType.Online,
+        conditions: initEventRuleConditions(),
+        capacityUsage: {},
+        priceCents: 5000,
+        subSelection: { kind: SubSelectionKind.None },
+      }),
+      initEventRegistrationOption({
+        id: 'instructor_clinic',
+        label: 'Instructor Clinic',
+        description: 'Certified instructors session',
+        attendanceType: AttendanceType.InPerson,
+        conditions: initEventRuleConditions({
+          who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Instructor },
+        }),
+        capacityUsage: { hall_spots: 1 },
+        priceCents: 6000,
+        subSelection: { kind: SubSelectionKind.None },
+      }),
+      initEventRegistrationOption({
+        id: 'recording_only',
+        label: 'Recording Only',
+        description: 'Post-event recording access',
+        attendanceType: AttendanceType.VideoOnly,
+        conditions: initEventRuleConditions(),
+        capacityUsage: {},
+        priceCents: 4000,
+        subSelection: { kind: SubSelectionKind.None },
+      }),
+    ];
+    rules.discounts = [
+      initEventDiscount({
+        id: 'early_full_disc',
+        label: 'Early Bird Discount',
+        discountCents: 1500,
+        conditions: initEventRuleConditions({
+          timing: {
+            kind: TimingConditionKind.Window,
+            window: TimingWindow.OnOrBeforeEarlyBird,
+          },
+          registration: {
+            kind: RegistrationConditionKind.SpecificOptions,
+            optionIds: ['full_in_person'],
+          },
+        }),
+      }),
+      initEventDiscount({
+        id: 'member_disc',
+        label: 'Active Member Discount',
+        discountCents: 2000,
+        conditions: initEventRuleConditions({
+          who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Member },
+          registration: {
+            kind: RegistrationConditionKind.SpecificOptions,
+            optionIds: ['full_in_person', 'two_day_pass', 'online_zoom'],
+          },
+        }),
+      }),
+      initEventDiscount({
+        id: 'inst_disc',
+        label: 'Extra Instructor Discount',
+        discountCents: 1000,
+        conditions: initEventRuleConditions({
+          who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Instructor },
+          registration: {
+            kind: RegistrationConditionKind.SpecificOptions,
+            optionIds: ['full_in_person', 'two_day_pass', 'online_zoom'],
+          },
+        }),
+      }),
+    ];
+    rules.addOns = [
+      initEventAddOn({
+        id: 'event_recording',
+        label: 'Event Video Recording',
+        description: 'Stream the edited recording',
+        spec: { kind: EventAddOnKind.EventRecording },
+        priceCents: 2000,
+        conditions: initEventRuleConditions({
+          registration: {
+            kind: RegistrationConditionKind.SpecificOptions,
+            optionIds: ['full_in_person', 'two_day_pass', 'online_zoom'],
+          },
+        }),
+      }),
+    ];
+    rules.payment = {
+      allowFullPayment: true,
+      allowZeroDepositInPerson: true,
+      depositPolicy: {
+        kind: DepositPolicyKind.Enabled,
+        depositCents: 3000,
+        offlineInstructions: 'Bring remaining balance in cash on Friday morning.',
+        refundPolicy: {
+          kind: DepositRefundPolicyKind.RefundableBefore,
+          deadlineDate: '2099-09-20',
+        },
+      },
+    };
 
-  const mockProductService = {
-    getProduct: vi.fn().mockResolvedValue(mockProduct),
-    getProductByEventId: vi.fn().mockResolvedValue(mockProduct),
-    getUserRegistrationForEvent: vi.fn().mockResolvedValue(undefined),
-  };
+    return {
+      ...initProduct(),
+      docId: 'test-prod-1',
+      eventDocId: 'event-1',
+      title: 'Autumn Kung Fu Workshop',
+      description: 'An intensive 4-day workshop.',
+      currency: 'usd',
+      pricingRules: rules,
+      maxInPersonAttendees: 20,
+    };
+  }
 
-  const mockDataManagerService = {
-    getEventById: vi.fn().mockResolvedValue({
+  function buildMockEvent(): IlcEvent {
+    return {
+      ...initEvent(),
       docId: 'event-1',
       title: 'Autumn Kung Fu Workshop',
       productId: 'test-prod-1',
-      start: '2028-10-01T10:00:00Z',
-      end: '2028-10-02T16:00:00Z',
-    }),
+      start: '2099-10-01T10:00:00Z',
+      end: '2099-10-04T16:00:00Z',
+      capacities: [
+        initEventCapacity({
+          id: 'hall_spots',
+          label: 'Training Hall Spots',
+          limit: 20,
+          description: 'Maximum in-person spots on the floor',
+        }),
+      ],
+      capacityCounts: { hall_spots: 5 },
+      inPersonRegistrationsCount: 5,
+    };
+  }
+
+  let mockProductService: {
+    getProduct: ReturnType<typeof vi.fn>;
+    getProductByEventId: ReturnType<typeof vi.fn>;
+    getUserRegistrationForEvent: ReturnType<typeof vi.fn>;
+    watchEvent: ReturnType<typeof vi.fn>;
+    watchProduct: ReturnType<typeof vi.fn>;
   };
 
-  const mockStripeService = {
-    createProductCheckoutSession: vi.fn(),
-    updateProductRegistration: vi.fn().mockResolvedValue({ success: true, registrationDocId: 'reg-123' }),
-    registerEventInPerson: vi.fn().mockResolvedValue({ success: true, registrationDocId: 'reg-in-person-123' }),
+  let mockDataManagerService: {
+    getEventById: ReturnType<typeof vi.fn>;
   };
 
-  const mockRoutingService = {
+  let mockStripeService: {
+    createProductCheckoutSession: ReturnType<typeof vi.fn>;
+    updateProductRegistration: ReturnType<typeof vi.fn>;
+    registerEventInPerson: ReturnType<typeof vi.fn>;
+  };
+
+  let mockRoutingService: {
     signals: {
       eventRegister: {
         pathVars: {
-          eventId: signal('event-1'),
-        },
-      },
-    },
-    hrefForView: vi.fn().mockReturnValue('/mock-link'),
-    navigateToParts: vi.fn(),
+          eventId: ReturnType<typeof signal<string>>;
+        };
+      };
+    };
+    hrefForView: ReturnType<typeof vi.fn>;
+    navigateToParts: ReturnType<typeof vi.fn>;
   };
 
   const mockFirebaseState = {
     loginStatus: signal('SignedIn'),
     loggedIn: signal(Promise.resolve({})),
     loginError: signal<string | null>(null),
-    unverifiedUser: signal<any>(null),
+    unverifiedUser: signal<unknown>(null),
     completedEmailLinkSignIn: signal<string | null>(null),
     offerPasswordSetup: signal<boolean>(false),
     pendingEmailLink: signal<string | null>(null),
-    checkEmailStatus: vi.fn().mockResolvedValue({ hasMemberRecord: true, hasAuthAccount: true, isGoogleManaged: false }),
+    checkEmailStatus: vi.fn().mockResolvedValue({
+      hasMemberRecord: true,
+      hasAuthAccount: true,
+      isGoogleManaged: false,
+    }),
     clearLoginError: vi.fn(),
     signInWithEmailAndPassword: vi.fn(),
     signInWithGoogle: vi.fn(),
     createUserWithEmailAndPassword: vi.fn(),
     sendPasswordResetEmail: vi.fn(),
     sendEmailVerification: vi.fn(),
-    user: signal<any>({
+    user: signal<unknown>({
       email: 'member@example.com',
+      firebaseUser: { email: 'member@example.com' },
       isAdmin: false,
       isFullMember: true,
       isInstructor: false,
@@ -107,6 +282,7 @@ describe('ProductViewComponent', () => {
         memberId: 'US100',
         name: 'Test Member',
         emails: ['member@example.com'],
+        phone: '555-0100',
         membershipType: MembershipType.Annual,
         currentMembershipExpires: '2999-01-01',
       },
@@ -114,6 +290,69 @@ describe('ProductViewComponent', () => {
   };
 
   beforeEach(async () => {
+    capturedEventWatcher = null;
+    const prod = buildWorkshopProduct();
+    const ev = buildMockEvent();
+
+    mockFirebaseState.user.set({
+      email: 'member@example.com',
+      firebaseUser: { email: 'member@example.com' },
+      isAdmin: false,
+      isFullMember: true,
+      isInstructor: false,
+      member: {
+        docId: 'mem-1',
+        memberId: 'US100',
+        name: 'Test Member',
+        emails: ['member@example.com'],
+        phone: '555-0100',
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2999-01-01',
+      },
+    });
+
+    mockProductService = {
+      getProduct: vi.fn().mockResolvedValue(prod),
+      getProductByEventId: vi.fn().mockResolvedValue(prod),
+      getUserRegistrationForEvent: vi.fn().mockResolvedValue(undefined),
+      watchEvent: vi.fn().mockImplementation((_id: string, cb: (e: IlcEvent) => void) => {
+        capturedEventWatcher = cb;
+        return () => {};
+      }),
+      watchProduct: vi.fn().mockReturnValue(() => {}),
+    };
+
+    mockDataManagerService = {
+      getEventById: vi.fn().mockResolvedValue(ev),
+    };
+
+    mockStripeService = {
+      createProductCheckoutSession: vi.fn().mockResolvedValue({
+        checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_test_123',
+        sessionId: 'cs_test_123',
+      }),
+      updateProductRegistration: vi.fn().mockResolvedValue({
+        success: true,
+        registrationDocId: 'reg-123',
+      }),
+      registerEventInPerson: vi.fn().mockResolvedValue({
+        success: true,
+        registrationDocId: 'reg-door-123',
+      }),
+    };
+
+    mockRoutingService = {
+      signals: {
+        eventRegister: {
+          pathVars: {
+            eventId: signal('event-1'),
+          },
+        },
+      },
+      hrefForView: vi.fn().mockReturnValue('/mock-link'),
+      navigateToParts: vi.fn(),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ProductViewComponent],
       providers: [
@@ -127,707 +366,565 @@ describe('ProductViewComponent', () => {
 
     fixture = TestBed.createComponent(ProductViewComponent);
     component = fixture.componentInstance;
+    vi.spyOn(
+      component as unknown as { redirectToCheckout: (url: string) => void },
+      'redirectToCheckout',
+    ).mockImplementation(() => {});
     fixture.detectChanges();
   });
 
-  it('should create and load product', async () => {
-    expect(component).toBeTruthy();
+  it('loads product, starts live event/product watchers, and evaluates member early-bird quote', async () => {
     await component.loadProduct();
+    fixture.detectChanges();
+
     expect(component.product()?.title).toBe('Autumn Kung Fu Workshop');
+    expect(mockProductService.watchEvent).toHaveBeenCalledWith('event-1', expect.any(Function));
+    expect(mockProductService.watchProduct).toHaveBeenCalledWith(
+      'test-prod-1',
+      expect.any(Function),
+    );
+
+    // Base $100 - $15 early bird - $20 member discount = $65 (6500 cents)
+    const q = component.quote()!;
+    expect(q.isEarlyBird).toBe(true);
+    expect(q.selectedOption?.option.id).toBe('full_in_person');
+    expect(q.agreedTotalCents).toBe(6500);
+    expect(component.onlineDueNowCents()).toBe(6500);
+    expect(component.canSubmit()).toBe(true);
   });
 
-  it('should calculate member in-person price correctly', async () => {
+  it('updates live capacities via watchEvent and blocks submission when selected option becomes sold out', async () => {
     await component.loadProduct();
-    component.selectedAttendance.set('in_person');
-    component.includeVideo.set(false);
+    fixture.detectChanges();
 
-    expect(component.currentTierKey()).toBe('member_in_person_novideo');
-    expect(component.currentTier()?.price).toBe(80);
-  });
+    expect(component.quote()?.evaluatedCapacities[0].remaining).toBe(15); // 20 - 5
 
-  it('should add video add-on correctly', async () => {
-    await component.loadProduct();
-    component.selectedAttendance.set('in_person');
-    component.includeVideo.set(true);
-
-    expect(component.currentTierKey()).toBe('member_in_person_video');
-    expect(component.currentTier()?.price).toBe(100);
-  });
-
-  it('should correctly handle upgrade state when existing registration is loaded', async () => {
-    await component.loadProduct();
-
-    // Simulate existing registration: Member with In-Person, no video, paid $80 (8000 cents)
-    component.existingRegistration.set({
-      docId: 'reg-123',
-      eventDocId: 'event-1',
-      productId: 'test-prod-1',
-      registeredAt: '2026-09-01T10:00:00Z',
-      name: 'Test Member',
-      email: 'member@example.com',
-      role: 'member' as any,
-      attendance: 'in_person' as any,
-      hasVideoAccess: false,
-      amountPaidCents: 8000,
+    // Simulate live Firestore snapshot filling all 20 hall_spots
+    expect(capturedEventWatcher).toBeTruthy();
+    capturedEventWatcher!({
+      ...buildMockEvent(),
+      capacityCounts: { hall_spots: 20 },
+      inPersonRegistrationsCount: 20,
     });
+    fixture.detectChanges();
 
-    expect(component.isUpgrade()).toBe(true);
-    expect(component.amountAlreadyPaid()).toBe(80);
-    expect(component.isCurrentAttendance('in_person' as any)).toBe(true);
-    expect(component.currentAttendanceLabel()).toBe('In-Person Attendance');
+    // Force selecting the in-person option explicitly to verify sold-out validation
+    component.selectedOptionId.set('full_in_person');
+    fixture.detectChanges();
 
-    // If staying In-Person without video, diff is $0 and available as a free registration update
-    component.selectedAttendance.set('in_person' as any);
-    component.includeVideo.set(false);
-    expect(component.upgradeDifference()).toBe(0);
-    expect(component.isFreeUpdate()).toBe(true);
-    expect(component.isTierAvailable()).toBe(true);
-    expect(component.priceFormatted()).toContain('0');
+    const fullOptEval = component
+      .quote()!
+      .allEvaluatedOptions.find((o) => o.option.id === 'full_in_person')!;
+    expect(fullOptEval.isSoldOut).toBe(true);
+    expect(component.quote()!.isValid).toBe(false);
+    expect(component.canSubmit()).toBe(false);
 
-    // If upgrading to include video ($100 tier), diff is $20
-    component.includeVideo.set(true);
-    expect(component.upgradeDifference()).toBe(20);
-    expect(component.isFreeUpdate()).toBe(false);
-    expect(component.isTierAvailable()).toBe(true);
-    expect(component.priceFormatted()).toContain('20');
+    // Switching to Online Live (0 hall_spots usage) remains available and valid
+    const onlineEval = component
+      .quote()!
+      .allEvaluatedOptions.find((o) => o.option.id === 'online_zoom')!;
+    component.selectOption(onlineEval);
+    fixture.detectChanges();
+
+    expect(onlineEval.isSoldOut).toBe(false);
+    expect(component.quote()!.isValid).toBe(true);
+    expect(component.canSubmit()).toBe(true);
   });
 
-  it('should detect when user already has full registration package and prevent paid upgrade', async () => {
+  it('enforces PickSuboptions count and greys out unselected pills once pickCount is reached', async () => {
     await component.loadProduct();
+    fixture.detectChanges();
 
-    component.existingRegistration.set({
-      docId: 'reg-full',
-      eventDocId: 'event-1',
-      productId: 'test-prod-1',
-      registeredAt: '2026-09-01T10:00:00Z',
-      name: 'Test Member',
-      email: 'member@example.com',
-      role: 'member' as any,
-      attendance: 'in_person_and_online' as any,
-      hasVideoAccess: true,
-      amountPaidCents: 12000,
-    });
+    const twoDayEval = component
+      .quote()!
+      .allEvaluatedOptions.find((o) => o.option.id === 'two_day_pass')!;
+    component.selectOption(twoDayEval);
+    fixture.detectChanges();
 
-    expect(component.isUpgrade()).toBe(true);
-    expect(component.hasFullRegistration()).toBe(true);
-    expect(component.isFreeUpdate()).toBe(true); // price difference <= 0 is update, not an error
+    // 0 of 2 selected -> invalid
+    expect(component.selectedSuboptions()).toEqual([]);
+    expect(component.canSubmit()).toBe(false);
+
+    component.toggleSuboption('Friday', 2, true);
+    expect(component.canSubmit()).toBe(false);
+
+    component.toggleSuboption('Sunday', 2, true);
+    fixture.detectChanges();
+
+    expect(component.selectedSuboptions()).toEqual(['Friday', 'Sunday']);
+    expect(component.isSuboptionDisabled('Saturday', 2)).toBe(true);
+    expect(component.isSuboptionDisabled('Friday', 2)).toBe(false);
+    expect(component.canSubmit()).toBe(true);
+
+    // Trying to add a 3rd sub-option is ignored
+    component.toggleSuboption('Saturday', 2, true);
+    expect(component.selectedSuboptions()).toEqual(['Friday', 'Sunday']);
   });
 
-  it('should consider existing tier entitlements when changing attendance mode with video access (no extra charge when switching equal tiers)', async () => {
+  it('applies cumulative Member + Instructor + Early Bird discounts on scoped options and restricts Instructor-only options for non-instructors', async () => {
     await component.loadProduct();
+    fixture.detectChanges();
 
-    component.existingRegistration.set({
-      docId: 'reg-inst-1',
-      eventDocId: 'event-1',
-      productId: 'test-prod-1',
-      registeredAt: '2026-09-01T10:00:00Z',
-      name: 'Test Instructor',
-      email: 'member@example.com',
-      role: 'instructor' as any,
-      attendance: 'in_person' as any,
-      hasVideoAccess: true,
-      amountPaidCents: 8000,
-    });
+    // Regular member cannot select Instructor Clinic
+    const instClinicAsMember = component
+      .quote()!
+      .allEvaluatedOptions.find((o) => o.option.id === 'instructor_clinic')!;
+    expect(instClinicAsMember.isEligibleForPerson).toBe(false);
 
-    // In mockProduct: instructor_in_person_video is 80, instructor_online_video is 50
-    component.selectedAttendance.set('online' as any);
-    expect(component.existingTierPrice()).toBe(80);
-    expect(component.upgradeDifference()).toBe(-30);
-    expect(component.isFreeUpdate()).toBe(true);
-    expect(component.isTierAvailable()).toBe(true);
-    expect(component.priceFormatted()).toContain('0');
-    expect(component.getAttendanceUpgradeBadge('online' as any)).toBe('Included');
-  });
-
-  it('should treat switching attendance between equally priced tiers as free even if event prices were updated', async () => {
-    await component.loadProduct();
-
-    const customProduct: Product = {
-      ...mockProduct,
-      tiers: {
-        ...mockProduct.tiers,
-        'instructor_in_person_novideo': { enabled: true, price: 90 },
-        'instructor_in_person_video': { enabled: true, price: 110 },
-        'instructor_online_novideo': { enabled: true, price: 90 },
-        'instructor_online_video': { enabled: true, price: 110 },
+    // Switch logged-in user to Certified Instructor
+    mockFirebaseState.user.set({
+      email: 'instructor@example.com',
+      firebaseUser: { email: 'instructor@example.com' },
+      isAdmin: false,
+      isFullMember: true,
+      isInstructor: true,
+      member: {
+        docId: 'inst-1',
+        memberId: 'US001',
+        name: 'Test Instructor',
+        emails: ['instructor@example.com'],
+        phone: '555-0200',
+        membershipType: MembershipType.Life,
+        currentMembershipExpires: '',
+        instructorId: 'INST-1',
+        instructorLicenseType: 'Annual',
+        instructorLicenseExpires: '2999-01-01',
       },
-    };
-    component.product.set(customProduct);
-
-    // Attendee paid $90 originally when in-person with video was $90
-    component.existingRegistration.set({
-      docId: 'reg-lucas',
-      eventDocId: 'event-1',
-      productId: 'test-prod-1',
-      registeredAt: '2026-09-06T22:08:36.000Z',
-      name: 'Lucas Dixon',
-      email: 'member@example.com',
-      role: 'instructor' as any,
-      attendance: 'in_person' as any,
-      hasVideoAccess: true,
-      amountPaidCents: 9000,
     });
+    fixture.detectChanges();
 
-    expect(component.existingTierPrice()).toBe(110); // Current value of in-person + video is $110
+    // Full Workshop ($100) - $15 Early Bird - $20 Member - $10 Extra Instructor = $55 (5500 cents)
+    expect(component.quote()!.agreedTotalCents).toBe(5500);
 
-    // Switching to Online
-    component.selectedAttendance.set('online' as any);
-    expect(component.getAttendanceUpgradeBadge('online' as any)).toBe('Included');
-    expect(component.upgradeDifference()).toBe(0);
-    expect(component.isFreeUpdate()).toBe(true);
-    expect(component.priceFormatted()).toContain('0');
+    // Instructor Clinic is now eligible ($60, no discounts scoped to instructor_clinic)
+    const instClinicAsInst = component
+      .quote()!
+      .allEvaluatedOptions.find((o) => o.option.id === 'instructor_clinic')!;
+    expect(instClinicAsInst.isEligibleForPerson).toBe(true);
+    component.selectOption(instClinicAsInst);
+    fixture.detectChanges();
+    expect(component.quote()!.agreedTotalCents).toBe(6000);
   });
 
-  it('should call updateProductRegistration when saving free update', async () => {
+  it('calculates optional add-on price and deposit vs pay-at-door settlement', async () => {
     await component.loadProduct();
-    component.existingRegistration.set({
+    fixture.detectChanges();
+
+    const addOnEval = component.quote()!.availableAddOns[0];
+    expect(addOnEval.priceCents).toBe(2000); // $20 recording add-on
+
+    component.toggleAddOn(addOnEval, true);
+    fixture.detectChanges();
+
+    // Full online: $65 attendance + $20 recording = $85
+    expect(component.quote()!.agreedTotalCents).toBe(8500);
+    expect(component.onlineDueNowCents()).toBe(8500);
+    expect(component.doorBalanceDueCents()).toBe(0);
+
+    // Deposit choice: $30 deposit + $20 add-on = $50 online today, $35 due at door
+    component.selectedPaymentChoice.set(PaymentChoice.Deposit);
+    fixture.detectChanges();
+
+    expect(component.onlineDueNowCents()).toBe(5000);
+    expect(component.doorBalanceDueCents()).toBe(3500);
+    const summaryBox = fixture.nativeElement.querySelector('.price-summary-box') as HTMLElement;
+    expect(summaryBox.textContent).toContain('Event Deposit (Paid Online Today)');
+    expect(summaryBox.textContent).toContain('$30');
+    expect(summaryBox.textContent).toContain('Add-On: Event Video Recording (Paid Online Today)');
+    expect(summaryBox.textContent).toContain('$20');
+    expect(summaryBox.textContent).toContain('Charged Online Today');
+    expect(summaryBox.textContent).toContain('$50');
+    expect(summaryBox.textContent).toContain('Event Balance Due at Door');
+    expect(summaryBox.textContent).toContain('$35');
+    expect(fixture.nativeElement.textContent).toContain('Bring remaining balance in cash');
+
+    // Pay at Door choice: $0 online today, $85 due at door -> calls registerEventInPerson
+    component.selectedPaymentChoice.set(PaymentChoice.PayAtDoor);
+    fixture.detectChanges();
+
+    expect(component.onlineDueNowCents()).toBe(0);
+    expect(component.doorBalanceDueCents()).toBe(8500);
+
+    await component.submitRegistration();
+    expect(mockStripeService.registerEventInPerson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: 'test-prod-1',
+        optionId: 'full_in_person',
+        selectedAddOnIds: ['event_recording'],
+        paymentChoice: PaymentChoice.PayAtDoor,
+      }),
+    );
+  });
+
+  it('handles upgrades: locks owned add-ons, credits prior payment, and differentiates free updates from paid upgrades', async () => {
+    await component.loadProduct();
+
+    const existingReg: EventRegistration = {
+      ...initEventRegistration(),
       docId: 'reg-123',
       eventDocId: 'event-1',
       productId: 'test-prod-1',
-      registeredAt: '2026-09-01T10:00:00Z',
+      registeredAt: '2099-08-01T10:00:00Z',
       name: 'Test Member',
       email: 'member@example.com',
-      role: 'member' as any,
-      attendance: 'in_person' as any,
+      role: AttendeeRole.Member,
+      attendance: AttendanceType.Online,
+      optionId: 'online_zoom',
+      optionLabel: 'Online Live (Zoom)',
       hasVideoAccess: false,
-      amountPaidCents: 8000,
-    });
-    component.selectedAttendance.set('online' as any); // $40 tier, paid $80 -> diff is -40, free update
-    expect(component.isFreeUpdate()).toBe(true);
-    expect(component.isTierAvailable()).toBe(true);
+      amountPaidCents: 3000, // Online ($50) - Member ($20) = $30
+      agreedTotalCents: 3000,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
+      status: EventRegistrationStatus.Paid,
+    };
+    component.existingRegistration.set(existingReg);
+    fixture.detectChanges();
 
-    await component.saveRegistrationUpdate();
+    expect(component.isUpgrade()).toBe(true);
+    expect(component.effectiveCreditCents()).toBe(3000);
+    expect(component.onlineDueNowCents()).toBe(0);
+    expect(component.isFreeOrInPlaceUpdate()).toBe(true);
+
+    // Saving in-place update calls updateProductRegistration
+    await component.submitRegistration();
     expect(mockStripeService.updateProductRegistration).toHaveBeenCalledWith(
       expect.objectContaining({
         productId: 'test-prod-1',
         existingRegistrationDocId: 'reg-123',
-        attendance: 'online',
+        optionId: 'online_zoom',
       }),
     );
-  });
 
-  it('should recognize existing registration as upgrade even if amountPaidCents is 0', async () => {
-    await component.loadProduct();
-    component.existingRegistration.set({
-      docId: 'reg-zero',
-      eventDocId: 'event-1',
-      productId: 'test-prod-1',
-      registeredAt: '2026-09-01T10:00:00Z',
-      name: 'Test Member',
-      email: 'member@example.com',
-      role: 'member' as any,
-      attendance: 'in_person' as any,
-      hasVideoAccess: true,
-      amountPaidCents: 0,
-    });
+    // Upgrading to Full Workshop ($65) -> $65 - $30 credit = $35 due online
+    const fullEval = component
+      .quote()!
+      .allEvaluatedOptions.find((o) => o.option.id === 'full_in_person')!;
+    component.selectOption(fullEval);
+    fixture.detectChanges();
 
-    expect(component.isUpgrade()).toBe(true);
-    expect(component.isCurrentAttendance('in_person' as any)).toBe(true);
-    expect(component.includeVideo()).toBe(true);
-  });
+    expect(component.onlineDueNowCents()).toBe(3500);
+    expect(component.isFreeOrInPlaceUpdate()).toBe(false);
 
-  it('should handle early-bird pricing when deadline is in the future', async () => {
-    await component.loadProduct();
-    component.product.set({
-      ...mockProduct,
-      hasEarlyBird: true,
-      earlyBirdDeadline: '2099-12-31',
-      tiers: {
-        ...mockProduct.tiers,
-        'member_in_person_novideo_early_bird': { enabled: true, price: 65 },
-      },
-    });
-
-    component.selectedAttendance.set('in_person');
-    component.includeVideo.set(false);
-
-    expect(component.isEarlyBirdActive()).toBe(true);
-    expect(component.currentTierKey()).toBe('member_in_person_novideo_early_bird');
-    expect(component.rawPrice()).toBe(65);
-    expect(component.hasEarlyBirdSavings()).toBe(true);
-    expect(component.earlyBirdSavingsFormatted()).toContain('15');
-  });
-
-  it('should handle in-person capacity limit and sold-out state', async () => {
-    await component.loadProduct();
-    component.product.set({
-      ...mockProduct,
-      maxInPersonAttendees: 20,
-      inPersonRegistrationsCount: 20,
-    });
-
-    component.selectedAttendance.set('in_person');
-    expect(component.hasInPersonLimit()).toBe(true);
-    expect(component.inPersonSpacesLeft()).toBe(0);
-    expect(component.isInPersonSoldOut()).toBe(true);
-    expect(component.isTierAvailable()).toBe(false);
-  });
-
-  it('should allow registering in-person when permitted', async () => {
-    await component.loadProduct();
-    component.product.set({
-      ...mockProduct,
-      allowPayInPerson: true,
-      tiers: {
-        ...mockProduct.tiers,
-        'member_in_person_novideo_in_person': { enabled: true, price: 85 },
-      },
-    });
-
-    component.selectedAttendance.set('in_person');
-    expect(component.canPayInPerson()).toBe(true);
-    expect(component.inPersonPriceFormatted()).toContain('85');
-
-    component.attendeeName.set('Test Attendee');
-    component.attendeeEmail.set('test@example.com');
-
-    await component.registerInPerson();
-    expect(mockStripeService.registerEventInPerson).toHaveBeenCalledWith(
+    await component.proceedToCheckout();
+    expect(mockStripeService.createProductCheckoutSession).toHaveBeenCalledWith(
       expect.objectContaining({
         productId: 'test-prod-1',
-        attendance: 'in_person',
-        role: 'member',
+        optionId: 'full_in_person',
+        isUpgrade: true,
+        existingRegistrationDocId: 'reg-123',
       }),
     );
   });
 
-  it('should allow pending in-person attendee to pay online with Stripe', async () => {
+  it('allows pending in-person registrant to pay online via Stripe', async () => {
     await component.loadProduct();
+
     component.existingRegistration.set({
+      ...initEventRegistration(),
       docId: 'reg-door',
       eventDocId: 'event-1',
       productId: 'test-prod-1',
-      registeredAt: '2026-09-01T10:00:00Z',
+      registeredAt: '2099-08-01T10:00:00Z',
       name: 'Test Member',
       email: 'member@example.com',
-      role: 'member' as any,
-      attendance: 'in_person' as any,
-      hasVideoAccess: false,
+      role: AttendeeRole.Member,
+      attendance: AttendanceType.InPerson,
+      optionId: 'full_in_person',
+      capacityUsage: { hall_spots: 1 },
       amountPaidCents: 0,
-      amountDueCents: 8000,
-      paymentMethod: 'in_person' as any,
-      status: 'pending_in_person' as any,
+      amountDueCents: 6500,
+      agreedTotalCents: 6500,
+      paymentMethod: RegistrationPaymentMethod.InPerson,
+      status: EventRegistrationStatus.PendingInPerson,
     });
+    fixture.detectChanges();
 
     expect(component.isPendingInPerson()).toBe(true);
-    // Paying an unpaid in-person registration online is allowed even without adding video
-    expect(component.isTierAvailable()).toBe(true);
-    expect(component.isFreeUpdate()).toBe(false);
+    expect(component.effectiveCreditCents()).toBe(0);
+    expect(component.onlineDueNowCents()).toBe(6500);
+    expect(component.isFreeOrInPlaceUpdate()).toBe(false);
+    expect(component.canSubmit()).toBe(true);
   });
 
-  it('should render three pill tabs (in-person, online, video only) and show video add-on checkbox only for in-person and online', async () => {
-    await component.loadProduct();
-    fixture.detectChanges();
-
-    const pillTabs = fixture.nativeElement.querySelectorAll('.pill-tab');
-    expect(pillTabs.length).toBe(3);
-    const labels = Array.from(pillTabs).map((el: any) => el.getAttribute('data-label'));
-    expect(labels).toEqual(['In-Person', 'Online', 'Video Only']);
-
-    // When In-Person is selected: Section 3 video add-on checkbox is shown
-    component.selectedAttendance.set('in_person' as any);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.video-toggle-group')).toBeTruthy();
-
-    // When Online is selected: Section 3 video add-on checkbox is shown
-    component.selectedAttendance.set('online' as any);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.video-toggle-group')).toBeTruthy();
-
-    // When Video Only is selected: Section 3 video add-on checkbox is NOT shown
-    component.selectedAttendance.set('video_only' as any);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.video-toggle-group')).toBeFalsy();
-
-    // When attendee already has an existing registration, all 3 tabs remain available
-    component.existingRegistration.set({
-      docId: 'reg-existing',
+  it('converts legacy Matrix Firestore product docs seamlessly into Rule-Based Pricing', async () => {
+    const rawLegacyData = {
       eventDocId: 'event-1',
-      productId: 'test-prod-1',
-      registeredAt: '2026-09-01T10:00:00Z',
-      name: 'Test Member',
-      email: 'member@example.com',
-      role: 'member' as any,
-      attendance: 'in_person' as any,
-      hasVideoAccess: false,
-      amountPaidCents: 8000,
-      paymentMethod: 'stripe' as any,
-      status: 'paid' as any,
+      title: 'Legacy Matrix Seminar',
+      currency: 'usd',
+      allowNonMembers: true,
+      allowMembers: true,
+      allowInstructors: true,
+      allowInPerson: true,
+      allowOnline: true,
+      allowVideo: true,
+      hasMemberPrice: true,
+      hasInstructorPrice: false,
+      maxInPersonAttendees: 15,
+      tiers: {
+        non_member_in_person_novideo: { enabled: true, price: 100 },
+        non_member_in_person_video: { enabled: true, price: 120 },
+        member_in_person_novideo: { enabled: true, price: 80 },
+        member_in_person_video: { enabled: true, price: 100 },
+        non_member_online_novideo: { enabled: true, price: 60 },
+        non_member_online_video: { enabled: true, price: 80 },
+        member_online_novideo: { enabled: true, price: 40 },
+        member_online_video: { enabled: true, price: 60 },
+      },
+    };
+    const legacyProduct = firestoreDocToProduct({
+      id: 'legacy-prod-1',
+      data: () => rawLegacyData,
+    });
+
+    component.product.set(legacyProduct);
+    component.linkedEvent.set({
+      ...buildMockEvent(),
+      capacities: [],
+      capacityCounts: {},
+      inPersonRegistrationsCount: 3,
     });
     fixture.detectChanges();
-    const upgradePillTabs = fixture.nativeElement.querySelectorAll('.pill-tab');
-    expect(upgradePillTabs.length).toBe(3);
+
+    // Member In-Person should evaluate to $80 (8000 cents), with 12 of 15 spots left
+    const q = component.quote()!;
+    expect(q.agreedTotalCents).toBe(8000);
+    expect(q.evaluatedCapacities[0].remaining).toBe(12);
   });
 
-  it('should display +$10 badge and checkbox when tiers have a $10 video difference even if videoDeltaPrice is undefined', async () => {
-    await component.loadProduct();
-    // Simulate event bYNhrIRH0VfdgctHt6AO configuration
-    const eventProduct: Product = {
-      ...mockProduct,
-      videoDeltaPrice: undefined,
-      tiers: {
-        'member_online_novideo': { enabled: true, price: 45 },
-        'member_online_video': { enabled: true, price: 55 },
-        'member_in_person_novideo': { enabled: true, price: 70 },
-        'member_in_person_video': { enabled: true, price: 80 },
-        'non_member_online_novideo': { enabled: true, price: 45 },
-        'non_member_online_video': { enabled: true, price: 55 },
-      },
-    };
-    component.product.set(eventProduct);
-    component.selectedAttendance.set('online' as any);
-    fixture.detectChanges();
-
-    expect(component.videoDelta()).toBe(10);
-    expect(component.isVideoIncludedForFree()).toBe(false);
-    expect(component.videoAddonPriceFormatted()).toBe('+$10');
-
-    // UI should render checkbox and badge with +$10, not (+Free)
-    const toggleGroup = fixture.nativeElement.querySelector('.video-toggle-group');
-    expect(toggleGroup).toBeTruthy();
-    expect(toggleGroup.querySelector('input[type="checkbox"]')).toBeTruthy();
-    const addonBadge = toggleGroup.querySelector('.chip-addon-badge');
-    expect(addonBadge?.textContent?.trim()).toBe('+$10');
-    expect(toggleGroup.textContent).not.toContain('Free');
-  });
-
-  it('should display included notice and no checkbox when video is free for everyone', async () => {
-    await component.loadProduct();
-    // Event with video allowed and no extra charge (equal tier prices or videoDeltaPrice = 0)
-    const freeVideoProduct: Product = {
-      ...mockProduct,
-      videoDeltaPrice: 0,
-      tiers: {
-        'member_in_person_novideo': { enabled: true, price: 80 },
-        'member_in_person_video': { enabled: true, price: 80 },
-        'non_member_in_person_novideo': { enabled: true, price: 100 },
-        'non_member_in_person_video': { enabled: true, price: 100 },
-      },
-    };
-    component.product.set(freeVideoProduct);
-    component.selectedAttendance.set('in_person' as any);
-    fixture.detectChanges();
-
-    expect(component.videoDelta()).toBe(0);
-    expect(component.isVideoIncludedForFree()).toBe(true);
-    expect(component.includeVideo()).toBe(true);
-
-    // UI should display video-already-included notice and NO checkbox
-    const toggleGroup = fixture.nativeElement.querySelector('.video-toggle-group');
-    expect(toggleGroup).toBeTruthy();
-    expect(toggleGroup.querySelector('input[type="checkbox"]')).toBeFalsy();
-    expect(toggleGroup.querySelector('.video-already-included')).toBeTruthy();
-    expect(toggleGroup.textContent).toContain('Class Video Recording Included');
-    expect(toggleGroup.textContent).toContain('All attendees receive access to the recorded session after the event at no extra cost');
-    expect(toggleGroup.textContent).not.toContain('(+Free)');
-  });
-
-  describe('role resolution based on active status', () => {
-    it('sets role to Member if user is an instructor whose instructor license has expired but membership is active', () => {
+  describe('role resolution & restricted option inline login', () => {
+    it('resolves active vs expired instructor and Life member roles accurately', () => {
+      // Instructor with expired license but active membership -> Member
       mockFirebaseState.user.set({
-        email: 'instructor@example.com',
+        email: 'inst@example.com',
         isAdmin: false,
-        isFullMember: true,
-        isInstructor: true,
         member: {
-          docId: 'mem-inst-expired',
+          docId: 'mem-2',
           memberId: 'US200',
-          instructorId: '5',
-          instructorLicenseExpires: '2020-01-01', // expired license!
-          membershipType: MembershipType.Annual,
-          currentMembershipExpires: '2999-01-01', // active membership
-          name: 'Expired Instructor',
-          emails: ['instructor@example.com'],
-        } as any,
-      });
-
-      expect(component.userRole()).toBe(AttendeeRole.Member);
-    });
-
-    it('sets role to NonMember if user is an instructor whose instructor license AND membership have expired', () => {
-      mockFirebaseState.user.set({
-        email: 'expired@example.com',
-        isAdmin: false,
-        isFullMember: false,
-        isInstructor: false,
-        member: {
-          docId: 'mem-all-expired',
-          memberId: 'US300',
           instructorId: '5',
           instructorLicenseExpires: '2020-01-01',
           membershipType: MembershipType.Annual,
-          currentMembershipExpires: '2020-01-01', // expired membership!
-          name: 'All Expired User',
-          emails: ['expired@example.com'],
-        } as any,
-      });
-
-      expect(component.userRole()).toBe(AttendeeRole.NonMember);
-    });
-
-    it('sets role to Instructor if user has an active instructor license', () => {
-      mockFirebaseState.user.set({
-        email: 'active-inst@example.com',
-        isAdmin: false,
-        isFullMember: true,
-        isInstructor: true,
-        member: {
-          docId: 'mem-inst-active',
-          memberId: 'US400',
-          instructorId: '12',
-          instructorLicenseExpires: '2999-01-01', // active license
-          membershipType: MembershipType.Annual,
           currentMembershipExpires: '2999-01-01',
-          name: 'Active Instructor',
-          emails: ['active-inst@example.com'],
-        } as any,
-      });
-
-      expect(component.userRole()).toBe(AttendeeRole.Instructor);
-    });
-
-    it('sets role to NonMember if user has an active instructor license but expired membership', () => {
-      mockFirebaseState.user.set({
-        email: 'active-inst-expired-mem@example.com',
-        isAdmin: false,
-        isFullMember: false,
-        isInstructor: true,
-        member: {
-          docId: 'mem-inst-expired-mem',
-          memberId: 'US500',
-          instructorId: '15',
-          instructorLicenseExpires: '2999-01-01', // active license
-          membershipType: MembershipType.Annual,
-          currentMembershipExpires: '2020-01-01', // expired membership!
-          name: 'Instructor Expired Membership',
-          emails: ['active-inst-expired-mem@example.com'],
-        } as any,
-      });
-
-      // Because being considered an active instructor requires active membership,
-      // an instructor whose membership has expired is not considered an active instructor.
-      expect(component.userRole()).toBe(AttendeeRole.NonMember);
-    });
-  });
-
-  describe('events without special member or instructor pricing', () => {
-    it('does not list attendee status card and retains verified member role', async () => {
-      await component.loadProduct();
-
-      // Product with NO special member or instructor price (standard pricing for all)
-      const uniformPriceProduct: Product = {
-        ...mockProduct,
-        hasMemberPrice: false,
-        hasInstructorPrice: false,
-        videoDeltaPrice: 20,
-        tiers: {
-          'non_member_in_person_novideo': { enabled: true, price: 100 },
-          'member_in_person_novideo': { enabled: true, price: 100 },
-          'instructor_in_person_novideo': { enabled: true, price: 100 },
+          name: 'Expired Inst',
+          emails: ['inst@example.com'],
         },
-      };
-
-      // Set user as active member
-      mockFirebaseState.user.set({
-        email: 'member@example.com',
-        isAdmin: false,
-        isFullMember: true,
-        isInstructor: false,
-        member: {
-          docId: 'mem-1',
-          memberId: 'US100',
-          name: 'Test Member',
-          emails: ['member@example.com'],
-          membershipType: MembershipType.Annual,
-          currentMembershipExpires: '2999-01-01',
-        } as any,
       });
+      expect(component.userRole()).toBe(AttendeeRole.Member);
 
-      component.product.set(uniformPriceProduct);
-      fixture.detectChanges();
-
-      expect(component.hasSpecialPricing()).toBe(false);
-      expect(component.selectedRole()).toBe(AttendeeRole.Member);
-      expect(component.isRoleEligible()).toBe(true);
-      expect(component.attendanceModeStepLabel()).toBe('1. Attendance Mode');
-      expect(component.videoStepLabel()).toBe('2. Video Recording Add-on');
-
-      // The Attendee Status section must NOT be rendered in the DOM
-      const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
-      expect(statusCard).toBeFalsy();
-    });
-
-    it('lists attendee status when product has special member or instructor pricing', async () => {
-      await component.loadProduct();
-
-      component.product.set(mockProduct); // hasMemberPrice: true
-      fixture.detectChanges();
-
-      expect(component.hasSpecialPricing()).toBe(true);
-      expect(component.attendanceModeStepLabel()).toBe('2. Attendance Mode');
-      expect(component.videoStepLabel()).toBe('3. Video Recording Add-on');
-
-      // The Attendee Status section MUST be rendered in the DOM
-      const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
-      expect(statusCard).toBeTruthy();
-    });
-
-    it('allows Life members to register for members-only events with no special member discount', async () => {
-      await component.loadProduct();
-
-      // Members-only event (allowNonMembers: false, hasMemberPrice: false)
-      const membersOnlyEventProduct: Product = {
-        ...mockProduct,
-        allowNonMembers: false,
-        allowMembers: true,
-        allowInstructors: true,
-        hasMemberPrice: false,
-        hasInstructorPrice: false,
-        tiers: {
-          'member_in_person_novideo': { enabled: true, price: 545 },
-          'instructor_in_person_novideo': { enabled: true, price: 545 },
-        },
-      };
-
-      // Set user as Life member (with empty expiration date)
+      // Life member with past expiry date -> still active Member
       mockFirebaseState.user.set({
-        email: 'life-member@example.com',
+        email: 'life@example.com',
         isAdmin: false,
-        isFullMember: true,
-        isInstructor: false,
         member: {
           docId: 'mem-life',
           memberId: 'US999',
+          membershipType: MembershipType.Life,
+          currentMembershipExpires: '2020-01-01',
           name: 'Life Member',
-          emails: ['life-member@example.com'],
-          membershipType: MembershipType.Life,
-          currentMembershipExpires: '',
-        } as any,
+          emails: ['life@example.com'],
+        },
       });
+      expect(component.userRole()).toBe(AttendeeRole.Member);
+      expect(component.isLifeMember()).toBe(true);
+    });
 
-      component.product.set(membersOnlyEventProduct);
+    it('shows inline Sign In panel when unauthenticated user views a members-only event', async () => {
+      await component.loadProduct();
+
+      mockFirebaseState.user.set(null);
+      const prod = buildWorkshopProduct();
+      prod.pricingRules.registrationOptions = prod.pricingRules.registrationOptions.map((o) => ({
+        ...o,
+        conditions: initEventRuleConditions({
+          who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Member },
+        }),
+      }));
+      component.product.set(prod);
       fixture.detectChanges();
 
-      expect(component.userRole()).toBe(AttendeeRole.Member);
-      expect(component.selectedRole()).toBe(AttendeeRole.Member);
-      expect(component.isRoleEligible()).toBe(true);
-
+      expect(component.quote()!.isEligibleToRegister).toBe(false);
       const notice = fixture.nativeElement.querySelector('.role-ineligible-notice');
-      expect(notice).toBeFalsy();
-    });
+      expect(notice).toBeTruthy();
 
-    it('considers Life member active even if currentMembershipExpires is an old date', async () => {
-      await component.loadProduct();
+      const signInBtn = notice.querySelector('button.primary-button') as HTMLButtonElement;
+      expect(signInBtn).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
 
-      mockFirebaseState.user.set({
-        email: 'life-old@example.com',
-        isAdmin: false,
-        isFullMember: true,
-        isInstructor: false,
-        member: {
-          docId: 'mem-life-old',
-          memberId: 'US998',
-          name: 'Old Life Member',
-          emails: ['life-old@example.com'],
-          membershipType: MembershipType.Life,
-          currentMembershipExpires: '2020-01-01', // old past date
-        } as any,
-      });
-
-      expect(component.userRole()).toBe(AttendeeRole.Member);
-      expect(component.selectedRole()).toBe(AttendeeRole.Member);
-    });
-
-    it('does not display upgrade membership link to Life members in attendee status card', async () => {
-      await component.loadProduct();
-
-      mockFirebaseState.user.set({
-        email: 'life-card@example.com',
-        isAdmin: false,
-        isFullMember: true,
-        isInstructor: false,
-        member: {
-          docId: 'mem-life-card',
-          memberId: 'US997',
-          name: 'Life Member Card',
-          emails: ['life-card@example.com'],
-          membershipType: MembershipType.Life,
-          currentMembershipExpires: '',
-        } as any,
-      });
-
-      component.product.set(mockProduct); // hasMemberPrice: true -> status card shown
+      signInBtn.click();
       fixture.detectChanges();
 
-      const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
-      expect(statusCard).toBeTruthy();
-      const upgradeLink = statusCard.querySelector('.upgrade-membership-link');
-      expect(upgradeLink).toBeFalsy();
+      expect(component.showInlineLogin()).toBe(true);
+      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeTruthy();
     });
   });
 
-  describe('unauthenticated user inline login', () => {
-    it('shows sign-in button and unfolds inline login when event requires membership', async () => {
+  describe('registration form questions & read-only upgrade locking', () => {
+    it('renders accessible form questions, enforces required answers before submit, and sends questionAnswers to Stripe checkout', async () => {
+      const prod = buildWorkshopProduct();
+      prod.pricingRules.questions = [
+        initEventRegistrationQuestion({
+          id: 'q_shirt',
+          label: 'T-Shirt Size',
+          description: 'Included for in-person attendees',
+          required: true,
+          spec: { kind: RegistrationQuestionKind.Select, options: ['Small', 'Medium', 'Large'] },
+          conditions: initEventRuleConditions({
+            registration: {
+              kind: RegistrationConditionKind.SpecificOptions,
+              optionIds: ['full_in_person', 'two_day_pass'],
+            },
+          }),
+        }),
+        initEventRegistrationQuestion({
+          id: 'q_focus',
+          label: 'Focus Topics',
+          description: 'Pick one or more areas',
+          required: true,
+          spec: {
+            kind: RegistrationQuestionKind.Checkboxes,
+            options: ['Spinning Hands', 'Chin Na'],
+          },
+          conditions: initEventRuleConditions(),
+        }),
+        initEventRegistrationQuestion({
+          id: 'q_diet',
+          label: 'Dietary Notes',
+          required: false,
+          spec: { kind: RegistrationQuestionKind.ShortText, placeholder: 'Optional' },
+          conditions: initEventRuleConditions(),
+        }),
+      ];
+      mockProductService.getProduct.mockResolvedValue(prod);
+      mockRoutingService.signals.eventRegister.pathVars.eventId.set('event-1');
+
+      const redirectSpy = vi
+        .spyOn(component as unknown as { redirectToCheckout: (url: string) => void }, 'redirectToCheckout')
+        .mockImplementation(() => {});
+
       await component.loadProduct();
-
-      mockFirebaseState.user.set(null as any);
-      const memberOnlyProduct: Product = {
-        ...mockProduct,
-        allowNonMembers: false,
-        allowMembers: true,
-      };
-      component.product.set(memberOnlyProduct);
+      fixture.detectChanges();
+      await fixture.whenStable();
       fixture.detectChanges();
 
-      expect(component.isRoleEligible()).toBe(false);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('select#reg-q-q_shirt')).toBeTruthy();
+      expect(el.querySelector('fieldset.question-fieldset legend')?.textContent).toContain(
+        'Focus Topics',
+      );
+      expect(
+        el.querySelector('select#reg-q-q_shirt')?.getAttribute('aria-describedby'),
+      ).toBe('reg-q-desc-q_shirt');
 
-      const notice = fixture.nativeElement.querySelector('.role-ineligible-notice');
-      expect(notice).toBeTruthy();
-      expect(notice.textContent).toContain('If you are an active member, sign in to register');
+      // Required questions unanswered -> canSubmit is false
+      expect(component.canSubmit()).toBe(false);
 
-      const signInBtn = notice.querySelector('button.primary-button');
-      expect(signInBtn).toBeTruthy();
-      expect(signInBtn.textContent).toContain('Sign In');
-      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
+      // Switching to Online Zoom hides In-Person-only T-Shirt Size question
+      component.selectedOptionId.set('online_zoom');
+      fixture.detectChanges();
+      expect(el.querySelector('select#reg-q-q_shirt')).toBeNull();
+      expect(component.canSubmit()).toBe(false); // Focus Topics still required
 
-      // Click Sign In button to unfold
-      signInBtn.click();
+      // Switch back to Full In-Person and answer required questions
+      component.selectedOptionId.set('full_in_person');
+      component.updateQuestionSelect('q_shirt', 'Large');
+      component.toggleQuestionCheckbox('q_focus', 'Spinning Hands', true);
+      component.updateQuestionText('q_diet', 'Vegetarian');
       fixture.detectChanges();
 
-      expect(component.showInlineLogin()).toBe(true);
-      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeTruthy();
+      expect(component.canSubmit()).toBe(true);
+      await component.proceedToCheckout();
 
-      // Click again to fold
-      signInBtn.click();
-      fixture.detectChanges();
-
-      expect(component.showInlineLogin()).toBe(false);
-      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
+      expect(mockStripeService.createProductCheckoutSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          questionAnswers: expect.arrayContaining([
+            { questionId: 'q_shirt', answerText: 'Large', selectedOptions: [] },
+            { questionId: 'q_focus', answerText: '', selectedOptions: ['Spinning Hands'] },
+            { questionId: 'q_diet', answerText: 'Vegetarian', selectedOptions: [] },
+          ]),
+        }),
+      );
+      redirectSpy.mockRestore();
     });
 
-    it('shows "Sign in for member rates" button and toggles inline login in attendee status card', async () => {
+    it('displays previously submitted responses in Your Current Registration and locks them read-only while allowing newly unlocked upgrade questions', async () => {
+      const prod = buildWorkshopProduct();
+      prod.pricingRules.questions = [
+        initEventRegistrationQuestion({
+          id: 'q_focus',
+          label: 'Focus Topics',
+          required: true,
+          spec: {
+            kind: RegistrationQuestionKind.Checkboxes,
+            options: ['Spinning Hands', 'Chin Na'],
+          },
+          conditions: initEventRuleConditions(),
+        }),
+        initEventRegistrationQuestion({
+          id: 'q_shirt',
+          label: 'T-Shirt Size',
+          required: true,
+          spec: { kind: RegistrationQuestionKind.Select, options: ['Small', 'Medium', 'Large'] },
+          conditions: initEventRuleConditions({
+            registration: {
+              kind: RegistrationConditionKind.SpecificOptions,
+              optionIds: ['full_in_person'],
+            },
+          }),
+        }),
+      ];
+
+      const existingOnlineReg: EventRegistration = {
+        ...initEventRegistration(),
+        docId: 'reg-existing-1',
+        eventDocId: 'event-1',
+        productId: 'test-prod-1',
+        name: 'Test Member',
+        email: 'member@example.com',
+        role: AttendeeRole.Member,
+        optionId: 'online_zoom',
+        optionLabel: 'Online Live (Zoom)',
+        attendance: AttendanceType.Online,
+        amountPaidCents: 3000,
+        agreedTotalCents: 3000,
+        status: EventRegistrationStatus.Paid,
+        paymentMethod: RegistrationPaymentMethod.Stripe,
+        questionResponses: [
+          {
+            questionId: 'q_focus',
+            questionLabel: 'Focus Topics',
+            kind: RegistrationQuestionKind.Checkboxes,
+            answerText: '',
+            selectedOptions: ['Chin Na'],
+          },
+        ],
+      };
+
+      mockProductService.getProduct.mockResolvedValue(prod);
+      mockProductService.getUserRegistrationForEvent.mockResolvedValue(existingOnlineReg);
+      mockRoutingService.signals.eventRegister.pathVars.eventId.set('event-1');
+
       await component.loadProduct();
-
-      mockFirebaseState.user.set(null as any);
-      component.product.set(mockProduct); // allowNonMembers: true, hasMemberPrice: true
+      fixture.detectChanges();
+      await fixture.whenStable();
       fixture.detectChanges();
 
-      expect(component.isRoleEligible()).toBe(true);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.current-reg-responses')?.textContent).toContain('Focus Topics');
+      expect(el.querySelector('.current-reg-responses')?.textContent).toContain('Chin Na');
 
-      const statusCard = fixture.nativeElement.querySelector('.attendee-status-card');
-      expect(statusCard).toBeTruthy();
+      // Existing question q_focus is locked read-only
+      expect(component.isQuestionLocked('q_focus')).toBe(true);
+      component.toggleQuestionCheckbox('q_focus', 'Spinning Hands', true);
+      expect(component.getQuestionSelectedOptions('q_focus')).toEqual(['Chin Na']);
 
-      const memberRateBtn = statusCard.querySelector('.signin-member-link');
-      expect(memberRateBtn).toBeTruthy();
-      expect(memberRateBtn.textContent).toContain('Sign in for member rates');
-      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeFalsy();
-
-      memberRateBtn.click();
+      // Upgrading to Full Workshop unlocks T-Shirt Size (which has no recorded response yet)
+      component.selectedOptionId.set('full_in_person');
       fixture.detectChanges();
+      expect(component.isQuestionLocked('q_shirt')).toBe(false);
+      expect(component.canSubmit()).toBe(false);
 
-      expect(component.showInlineLogin()).toBe(true);
-      expect(fixture.nativeElement.querySelector('app-inline-auth')).toBeTruthy();
+      component.updateQuestionSelect('q_shirt', 'Medium');
+      fixture.detectChanges();
+      expect(component.canSubmit()).toBe(true);
     });
   });
 });
-

@@ -42,7 +42,7 @@
     }
 
     @if (errorMessage(); as msg) {
-      <div class="error-banner">
+      <div class="error-banner" role="alert">
         <app-icon name="error"></app-icon>
         <span>{{ msg }}</span>
       </div>
@@ -112,7 +112,7 @@
           }
 
           <div class="form-field full-width">
-            <label>Description & Overview</label>
+            <label>Description &amp; Overview</label>
             <div class="description-editor-container">
               <app-markdown-editor
                 [bordered]="true"
@@ -128,198 +128,27 @@
         </div>
       </div>
 
-      <!-- 2. Participation & Eligibility -->
-      <div class="form-card">
-        <h2>Forms of Participation & Eligibility</h2>
+      <!-- 2. Unified Rule-Based Pricing & Capacities -->
+      <app-product-rules-edit
+        [rules]="productModel().pricingRules"
+        [currency]="productModel().currency"
+        [currencySymbol]="currencySymbol()"
+        [eventStartDate]="linkedEvent()?.start || ''"
+        [recordedVideoId]="productModel().recordedVideoId"
+        [vodOptionsSet]="vodOptionsSet"
+        (rulesChange)="onPricingRulesChange($event)"
+        (currencyChange)="updateCurrency($event)"
+      />
 
-        <div class="toggle-columns">
-          <div class="toggle-group">
-            <h3>Forms of Participation</h3>
-            <label class="toggle-item">
-              <input
-                type="checkbox"
-                [checked]="productModel().allowInPerson"
-                (change)="toggleAttendanceMode('in_person')"
-              />
-              <span>Allow In-Person Attendance</span>
-            </label>
-            @if (productModel().allowInPerson) {
-              <div class="nested-field">
-                <label class="toggle-item">
-                  <input
-                    type="checkbox"
-                    [checked]="productModel().allowPayInPerson"
-                    (change)="togglePayInPerson()"
-                  />
-                  <span>Allow Paying In-Person (Cash/Card at door)</span>
-                </label>
-                @if (productModel().allowPayInPerson) {
-                  <div class="nested-subfield">
-                    <label for="maxInPerson">Max In-Person Attendees (Optional limit):</label>
-                    <input
-                      id="maxInPerson"
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 30 (0 or blank for unlimited)"
-                      [value]="productModel().maxInPersonAttendees || ''"
-                      (input)="updateMaxInPersonAttendees($any($event.target).value)"
-                    />
-                    <span class="field-hint">Displays remaining spaces and prevents in-person registrations when full.</span>
-                  </div>
-                  <label class="toggle-item" style="margin-top: 0.5em;">
-                    <input
-                      type="checkbox"
-                      [checked]="hasDoorDelta()"
-                      (change)="toggleDoorDelta()"
-                    />
-                    <span>Charge an extra fee for paying at the door</span>
-                  </label>
-                  @if (hasDoorDelta()) {
-                    <div class="nested-subfield">
-                      <label for="doorDelta">Door Payment Extra (+ {{ currencySymbol() }}):</label>
-                      <input
-                        id="doorDelta"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="10.00"
-                        [value]="doorDeltaPrice() || ''"
-                        (input)="updateDoorDeltaPrice($any($event.target).value)"
-                      />
-                      <span class="field-hint">Added to the standard price for attendees paying at the event.</span>
-                    </div>
-                  }
-                }
-              </div>
-            }
-            <label class="toggle-item">
-              <input
-                type="checkbox"
-                [checked]="productModel().allowOnline"
-                (change)="toggleAttendanceMode('online')"
-              />
-              <span>Allow Online Attendance (Zoom)</span>
-            </label>
-            <label class="toggle-item">
-              <input
-                type="checkbox"
-                [checked]="productModel().allowVideo"
-                (change)="toggleAttendanceMode('video')"
-              />
-              <span>Offer Class Video Recording (Add-on)</span>
-            </label>
-            @if (productModel().allowVideo) {
-              <div class="nested-field">
-                <label for="videoDelta">Video Add-on Price (+ {{ currencySymbol() }}):</label>
-                <input
-                  id="videoDelta"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="25.00"
-                  [value]="videoDeltaPrice() || ''"
-                  (input)="updateVideoDeltaPrice($any($event.target).value)"
-                />
-                <span class="field-hint">Added to registration price when attendee includes class video recording.</span>
-              </div>
-            }
-            <label class="toggle-item">
-              <input
-                type="checkbox"
-                [checked]="productModel().allowVideoOnly"
-                (change)="toggleAttendanceMode('video_only')"
-              />
-              <span>Allow pre-ordering video recording only (not attending)</span>
-            </label>
-
-            <h3 class="subsection-header">Early-Bird Discount</h3>
-            <label class="toggle-item">
-              <input
-                type="checkbox"
-                [checked]="productModel().hasEarlyBird"
-                (change)="toggleEarlyBird()"
-              />
-              <span>Enable Early-Bird Pricing</span>
-            </label>
-            @if (productModel().hasEarlyBird) {
-              <div class="nested-field">
-                <label for="earlyBirdDeadline">Early-Bird Cutoff Date:</label>
-                <input
-                  id="earlyBirdDeadline"
-                  type="date"
-                  [value]="productModel().earlyBirdDeadline || ''"
-                  (input)="updateEarlyBirdDeadline($any($event.target).value)"
-                />
-                <div class="nested-subfield" style="margin-top: 0.6em;">
-                  <label for="lateDelta">Price increase after early-bird date (+ {{ currencySymbol() }}):</label>
-                  <input
-                    id="lateDelta"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="20.00"
-                    [value]="lateDeltaPrice() || ''"
-                    (input)="updateLateDeltaPrice($any($event.target).value)"
-                  />
-                  <span class="field-hint">Standard advance price after cutoff date will be Early-Bird price + this extra.</span>
-                </div>
-              </div>
-            }
-          </div>
-
-          <div class="toggle-group">
-            <h3>Who can register?</h3>
-            <div class="radio-options-list">
-              <label class="radio-option-item">
-                <input
-                  type="radio"
-                  name="registrationAudience"
-                  value="anyone"
-                  [checked]="registrationAudience() === 'anyone'"
-                  (change)="setRegistrationAudience('anyone')"
-                />
-                <div>
-                  <strong>Anyone</strong>
-                  <span class="option-desc"
-                    >Open to the general public, members, and instructors</span
-                  >
-                </div>
-              </label>
-
-              <label class="radio-option-item">
-                <input
-                  type="radio"
-                  name="registrationAudience"
-                  value="members"
-                  [checked]="registrationAudience() === 'members'"
-                  (change)="setRegistrationAudience('members')"
-                />
-                <div>
-                  <strong>Members</strong>
-                  <span class="option-desc"
-                    >ILC Members and Certified Instructors</span
-                  >
-                </div>
-              </label>
-
-              <label class="radio-option-item">
-                <input
-                  type="radio"
-                  name="registrationAudience"
-                  value="instructors"
-                  [checked]="registrationAudience() === 'instructors'"
-                  (change)="setRegistrationAudience('instructors')"
-                />
-                <div>
-                  <strong>Instructors</strong>
-                  <span class="option-desc">Certified Instructors only</span>
-                </div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        @if (productModel().allowInPerson || productModel().allowOnline || productModel().allowVideo) {
+      <!-- 3. Shared Delivery Resources & Attendee Instructions -->
+      @if (
+        productModel().allowInPerson ||
+        productModel().allowOnline ||
+        productModel().allowVideo ||
+        productModel().allowVideoOnly
+      ) {
+        <div class="form-card">
+          <h2>Delivery Resources &amp; Attendee Instructions</h2>
           <div class="delivery-resources-grid">
             @if (productModel().allowInPerson) {
               <div class="form-field full-width">
@@ -330,7 +159,7 @@
                 <div class="purchase-details-editor-container">
                   <app-markdown-editor
                     [bordered]="true"
-                    [initialValue]="productModel().inPersonDetailsMarkdown || ''"
+                    [initialValue]="productModel().inPersonDetailsMarkdown"
                     (changed)="updateInPersonDetailsMarkdown($event)"
                   ></app-markdown-editor>
                 </div>
@@ -353,8 +182,7 @@
                     [bordered]="true"
                     [initialValue]="
                       productModel().purchaseDetailsMarkdown ||
-                      productModel().onlineJoiningLink ||
-                      ''
+                      productModel().onlineJoiningLink
                     "
                     (changed)="updatePurchaseDetailsMarkdown($event)"
                   ></app-markdown-editor>
@@ -367,14 +195,14 @@
               </div>
             }
 
-            @if (productModel().allowVideo) {
+            @if (productModel().allowVideo || productModel().allowVideoOnly) {
               <div class="form-field full-width">
                 <label>Video Recording for Attendees</label>
 
                 @if (productModel().recordedVideoId) {
                   <div class="linked-vod-wrapper">
                     <app-vod-preview
-                      [videoId]="productModel().recordedVideoId || ''"
+                      [videoId]="productModel().recordedVideoId"
                       [showUnlink]="true"
                       (unlink)="updateRecordedVideoId('')"
                     />
@@ -392,7 +220,7 @@
                       <input
                         type="text"
                         placeholder="e.g. series_123 or vid_456"
-                        [value]="productModel().recordedVideoId || ''"
+                        [value]="productModel().recordedVideoId"
                         (input)="updateRecordedVideoId($any($event.target).value)"
                       />
                     </div>
@@ -404,7 +232,7 @@
                   <input
                     type="url"
                     placeholder="https://vimeo.com/... or https://youtube.com/..."
-                    [value]="productModel().recordedVideoUrl || ''"
+                    [value]="productModel().recordedVideoUrl"
                     (input)="updateRecordedVideoUrl($any($event.target).value)"
                   />
                   <span class="field-hint"
@@ -413,22 +241,32 @@
                 </div>
 
                 <!-- Attendee Notification & Access Impact Info -->
-                <div class="video-notification-info" [class.has-recipients]="attendeesWithVideoAccess().length > 0">
+                <div
+                  class="video-notification-info"
+                  [class.has-recipients]="attendeesWithVideoAccess().length > 0"
+                >
                   <div class="info-icon">
                     <app-icon name="mail" width="18px" height="18px" />
                   </div>
                   <div class="info-content">
                     <div class="info-header">
-                      <strong>Notification & Access Impact</strong>
-                      <span class="impact-badge" [class.impact-badge-active]="attendeesWithVideoAccess().length > 0">
-                        {{ attendeesWithVideoAccess().length }} attendee{{ attendeesWithVideoAccess().length === 1 ? '' : 's' }}
+                      <strong>Notification &amp; Access Impact</strong>
+                      <span
+                        class="impact-badge"
+                        [class.impact-badge-active]="attendeesWithVideoAccess().length > 0"
+                      >
+                        {{ attendeesWithVideoAccess().length }} attendee{{
+                          attendeesWithVideoAccess().length === 1 ? "" : "s"
+                        }}
                       </span>
                     </div>
                     <p class="info-desc">
                       @if (attendeesWithVideoAccess().length > 0) {
                         Saving a new or changed video recording will grant VOD access and send release notification emails to
                         <strong>{{ attendeesWithVideoAccess().length }}</strong> attendee(s):
-                        <strong>{{ videoOnlyAttendeesCount() }}</strong> video-only pre-order{{ videoOnlyAttendeesCount() === 1 ? '' : 's' }}
+                        <strong>{{ videoOnlyAttendeesCount() }}</strong> video-only pre-order{{
+                          videoOnlyAttendeesCount() === 1 ? "" : "s"
+                        }}
                         and <strong>{{ includedVideoAttendeesCount() }}</strong> with video included in registration.
                       } @else {
                         No registered attendees currently have video access for this event. No release emails will be sent.
@@ -439,248 +277,8 @@
               </div>
             }
           </div>
-        }
-      </div>
-
-      <!-- 3. Pricing Matrix Table -->
-      <div class="form-card matrix-card">
-        <div class="matrix-card-header">
-          <div class="matrix-header-info">
-            <h2>Pricing Matrix</h2>
-            <p class="section-help">
-              Specify pricing in
-              <strong>{{
-                (productModel().currency || "usd").toUpperCase()
-              }}</strong
-              >. By default a single standard price is set for all attendees.
-            </p>
-          </div>
-          <div class="matrix-header-controls">
-            <div class="currency-selector-inline">
-              <label for="matrixCurrency">Currency:</label>
-              <select
-                id="matrixCurrency"
-                [value]="productModel().currency || 'usd'"
-                (change)="updateCurrency($any($event.target).value)"
-              >
-                <option value="usd">USD ($)</option>
-                <option value="eur">EUR (€)</option>
-                <option value="gbp">GBP (£)</option>
-                <option value="aud">AUD ($)</option>
-                <option value="cad">CAD ($)</option>
-              </select>
-            </div>
-            <div class="matrix-special-actions">
-              @if (registrationAudience() === "anyone" && !hasMemberPrice()) {
-                <button
-                  type="button"
-                  class="subtle-button"
-                  (click)="addMemberPrice()"
-                >
-                  <app-icon name="add"></app-icon>
-                  <span>Add special price for members</span>
-                </button>
-              }
-              @if (
-                registrationAudience() !== "instructors" &&
-                !hasInstructorPrice()
-              ) {
-                <button
-                  type="button"
-                  class="subtle-button"
-                  (click)="addInstructorPrice()"
-                >
-                  <app-icon name="add"></app-icon>
-                  <span>Add special price for instructors</span>
-                </button>
-              }
-            </div>
-          </div>
         </div>
-
-        <div class="matrix-table-wrapper">
-          <table class="matrix-table">
-            <thead>
-              <tr>
-                <th class="role-th">Attendance Option</th>
-                <th class="price-col-th">
-                  {{ standardRoleLabel() }} ({{ currencySymbol() }})
-                </th>
-                @if (hasMemberPrice() && registrationAudience() === "anyone") {
-                  <th class="price-col-th">
-                    <div class="th-special-header">
-                      <span>Member Price ({{ currencySymbol() }})</span>
-                      <button
-                        type="button"
-                        class="icon-only-button delete-button"
-                        (click)="removeMemberPrice()"
-                        title="Remove special price for members"
-                      >
-                        <app-icon name="close"></app-icon>
-                      </button>
-                    </div>
-                  </th>
-                }
-                @if (
-                  hasInstructorPrice() &&
-                  registrationAudience() !== "instructors"
-                ) {
-                  <th class="price-col-th">
-                    <div class="th-special-header">
-                      <span>Instructor Price ({{ currencySymbol() }})</span>
-                      <button
-                        type="button"
-                        class="icon-only-button delete-button"
-                        (click)="removeInstructorPrice()"
-                        title="Remove special price for instructors"
-                      >
-                        <app-icon name="close"></app-icon>
-                      </button>
-                    </div>
-                  </th>
-                }
-              </tr>
-            </thead>
-            <tbody>
-              @for (
-                row of visibleRows();
-                track row.attendance
-              ) {
-                <tr>
-                  <td class="role-td">
-                    <strong>{{ row.getLabel(productModel()) }}</strong>
-                  </td>
-
-                  <!-- Standard Price -->
-                  <td class="cell-td">
-                    <div class="cell-content">
-                      <div class="price-input-box">
-                        <span class="currency-symbol">{{
-                          currencySymbol()
-                        }}</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          [value]="getBasePrice(standardRole(), row.attendance) || ''"
-                          (input)="
-                            setBasePrice(
-                              standardRole(),
-                              row.attendance,
-                              $any($event.target).value
-                            )
-                          "
-                        />
-                      </div>
-                    </div>
-                  </td>
-
-                  <!-- Member Special Price -->
-                  @if (
-                    hasMemberPrice() && registrationAudience() === "anyone"
-                  ) {
-                    <td class="cell-td">
-                      <div class="cell-content">
-                        <div class="price-input-box">
-                          <span class="currency-symbol">{{
-                            currencySymbol()
-                          }}</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            [value]="getBasePrice(AttendeeRole.Member, row.attendance) || ''"
-                            (input)="
-                              setBasePrice(
-                                AttendeeRole.Member,
-                                row.attendance,
-                                $any($event.target).value
-                              )
-                            "
-                          />
-                        </div>
-                      </div>
-                    </td>
-                  }
-
-                  <!-- Instructor Special Price -->
-                  @if (
-                    hasInstructorPrice() &&
-                    registrationAudience() !== "instructors"
-                  ) {
-                    <td class="cell-td">
-                      <div class="cell-content">
-                        <div class="price-input-box">
-                          <span class="currency-symbol">{{
-                            currencySymbol()
-                          }}</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            [value]="getBasePrice(AttendeeRole.Instructor, row.attendance) || ''"
-                            (input)="
-                              setBasePrice(
-                                AttendeeRole.Instructor,
-                                row.attendance,
-                                $any($event.target).value
-                              )
-                            "
-                          />
-                        </div>
-                      </div>
-                    </td>
-                  }
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        @if (calculatedTiersPreview().length > 0) {
-          <div class="tiers-preview-container">
-            <div class="tiers-preview-header">
-              <h4>Calculated Price Tier Summary</h4>
-              <span class="preview-hint">Live preview of all rates (base price + applicable deltas):</span>
-            </div>
-            <div class="tiers-preview-table-wrapper">
-              <table class="preview-table">
-                <thead>
-                  <tr>
-                    <th>Option</th>
-                    <th>Tier</th>
-                    <th>{{ standardRoleLabel() }}</th>
-                    @if (hasMemberPrice() && registrationAudience() === "anyone") {
-                      <th>Member</th>
-                    }
-                    @if (hasInstructorPrice() && registrationAudience() !== "instructors") {
-                      <th>Instructor</th>
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (item of calculatedTiersPreview(); track item.category + '_' + item.tierLabel) {
-                    <tr>
-                      <td>{{ item.attendance }}</td>
-                      <td><span class="tier-pill">{{ item.tierLabel }}</span></td>
-                      <td><strong>{{ currencySymbol() }}{{ item.stdPrice.toFixed(2) }}</strong></td>
-                      @if (hasMemberPrice() && registrationAudience() === "anyone") {
-                        <td>{{ currencySymbol() }}{{ (item.memPrice ?? item.stdPrice).toFixed(2) }}</td>
-                      }
-                      @if (hasInstructorPrice() && registrationAudience() !== "instructors") {
-                        <td>{{ currencySymbol() }}{{ (item.instPrice ?? item.stdPrice).toFixed(2) }}</td>
-                      }
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        }
-      </div>
+      }
 
       <!-- Action Bar -->
       <div class="form-actions">

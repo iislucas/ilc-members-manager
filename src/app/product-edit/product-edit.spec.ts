@@ -7,7 +7,28 @@ import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
-import { AttendanceType, EventRegistrationStatus, initEventRegistration, initProduct } from '../../../functions/src/data-model/events';
+import {
+  AttendanceType,
+  EarlyBirdPolicyKind,
+  EventAddOnKind,
+  EventRegistrationStatus,
+  initEvent,
+  initEventAddOn,
+  initEventCapacity,
+  initEventDiscount,
+  initEventPricingRules,
+  initEventRegistration,
+  initEventRegistrationOption,
+  initEventRegistrationQuestion,
+  initEventRuleConditions,
+  initProduct,
+  PersonStatusKind,
+  RegistrationConditionKind,
+  RegistrationQuestionKind,
+  TimingConditionKind,
+  TimingWindow,
+  WhoConditionKind,
+} from '../../../functions/src/data-model/events';
 import { signal } from '@angular/core';
 
 describe('ProductEditComponent', () => {
@@ -83,60 +104,25 @@ describe('ProductEditComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create in new product mode', () => {
+  it('creates directly in unified Rule-Based Pricing mode without legacy Matrix switcher', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
     expect(component).toBeTruthy();
     expect(component.isNew()).toBe(true);
+    expect(fixture.nativeElement.querySelector('app-product-rules-edit')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).not.toContain('Standard Matrix');
+    expect(fixture.nativeElement.textContent).not.toContain('Pricing Configuration Mode');
   });
 
-  it('should update tier price in pricing matrix', () => {
-    component.setTierPrice('member', 'in_person', false, '99.50');
-    const tier = component.getTier('member', 'in_person', false);
-    expect(tier.price).toBe(99.50);
-  });
-
-  it('should default to single standard price column and allow adding special prices for members and instructors', async () => {
+  it('does not render redundant header or back button, and hides Associated Calendar Event when embedded', async () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    // Default: hasMemberPrice and hasInstructorPrice are false
-    expect(component.hasMemberPrice()).toBe(false);
-    expect(component.hasInstructorPrice()).toBe(false);
-
-    // Only 1 row visible by default (In-Person Attendance)
-    expect(component.visibleRows().length).toBe(1);
-    expect(component.visibleRows()[0].getLabel(component.productModel())).toBe('In-Person Attendance');
-
-    // UI contains buttons to add special prices
-    const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Standard Price');
-    expect(text).toContain('Add special price for members');
-    expect(text).toContain('Add special price for instructors');
-    expect(text).not.toContain('Member Price');
-
-    // Add special price for members
-    component.addMemberPrice();
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.hasMemberPrice()).toBe(true);
-    expect(fixture.nativeElement.textContent).toContain('Member Price');
-
-    // Remove member special price
-    component.removeMemberPrice();
-    fixture.detectChanges();
-    expect(component.hasMemberPrice()).toBe(false);
-  });
-
-  it('should not render redundant header or back button, and hide Associated Calendar Event when embedded', async () => {
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    // In standalone new mode: no redundant header text or backlink
     expect(fixture.nativeElement.textContent).not.toContain('Create New Class / Workshop Product');
     expect(fixture.nativeElement.textContent).not.toContain('All Products');
     expect(fixture.nativeElement.textContent).toContain('Associated Calendar Event');
 
-    // In embedded mode: Associated Calendar Event is hidden
     fixture.componentRef.setInput('embedded', true);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -144,80 +130,46 @@ describe('ProductEditComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Associated Calendar Event');
   });
 
-  it('should show delivery resources when online or video modes are enabled', async () => {
+  it('shows delivery resources dynamically when options or add-ons enable online or video modes', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('In-person attendance instructions');
     expect(fixture.nativeElement.textContent).not.toContain('Online Joining Link');
     expect(fixture.nativeElement.textContent).not.toContain('Video Recording for Attendees');
 
-    component.toggleAttendanceMode('online');
+    const rules = initEventPricingRules();
+    rules.registrationOptions.push(
+      initEventRegistrationOption({
+        id: 'online_opt',
+        label: 'Online Zoom',
+        attendanceType: AttendanceType.Online,
+      }),
+    );
+    rules.addOns.push(
+      initEventAddOn({
+        id: 'rec_addon',
+        label: 'Event Recording',
+        spec: { kind: EventAddOnKind.EventRecording },
+      }),
+    );
+    component.onPricingRulesChange(rules);
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).toContain('Online Joining Link');
-
-    component.toggleAttendanceMode('video');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
     expect(fixture.nativeElement.textContent).toContain('Video Recording for Attendees');
   });
 
-  it('should handle registration audience changes correctly', () => {
-    // Default audience is 'anyone'
-    expect(component.registrationAudience()).toBe('anyone');
-    expect(component.standardRole()).toBe('non_member');
-    expect(component.standardRoleLabel()).toBe('Standard Price');
-
-    // Change to 'members'
-    component.setRegistrationAudience('members');
-    expect(component.registrationAudience()).toBe('members');
-    expect(component.productModel().allowNonMembers).toBe(false);
-    expect(component.productModel().allowMembers).toBe(true);
-    expect(component.productModel().allowInstructors).toBe(true);
-    expect(component.standardRole()).toBe('member');
-    expect(component.standardRoleLabel()).toBe('Member Price');
-
-    // Change to 'instructors'
-    component.setRegistrationAudience('instructors');
-    expect(component.registrationAudience()).toBe('instructors');
-    expect(component.productModel().allowNonMembers).toBe(false);
-    expect(component.productModel().allowMembers).toBe(false);
-    expect(component.productModel().allowInstructors).toBe(true);
-    expect(component.standardRole()).toBe('instructor');
-    expect(component.standardRoleLabel()).toBe('Instructor Price');
-  });
-
-  it('should dynamically update visible rows when forms of participation are toggled', () => {
-    // Initial state: only allowInPerson is true -> 1 row
-    expect(component.productModel().allowInPerson).toBe(true);
-    expect(component.productModel().allowOnline).toBe(false);
-    expect(component.productModel().allowVideo).toBe(false);
-    expect(component.productModel().allowVideoOnly).toBe(false);
-    expect(component.visibleRows().length).toBe(1);
-
-    // Toggle allowOnline -> 2 rows (In-Person, Online)
-    component.toggleAttendanceMode('online');
-    expect(component.productModel().allowOnline).toBe(true);
-    expect(component.visibleRows().length).toBe(2);
-
-    // Toggle allowVideoOnly -> 3 rows (In-Person, Online, Video Only)
-    component.toggleAttendanceMode('video_only');
-    expect(component.productModel().allowVideoOnly).toBe(true);
-    expect(component.visibleRows().length).toBe(3);
-
-    // Toggle off allowInPerson -> 2 rows (Online, Video Only)
-    component.toggleAttendanceMode('in_person');
-    expect(component.productModel().allowInPerson).toBe(false);
-    expect(component.visibleRows().length).toBe(2);
-  });
-
-  it('should link and unlink calendar events via autocomplete', () => {
+  it('links and unlinks calendar events via autocomplete', () => {
     const dummyEvent = {
+      ...initEvent(),
       docId: 'ev-123',
       title: 'Spring Intensive',
       start: '2026-05-10T10:00:00Z',
       end: '2026-05-12T17:00:00Z',
       location: 'Boulder, CO',
-    } as any;
+    };
 
     component.eventsSearchableSet.setEntries([dummyEvent]);
 
@@ -230,56 +182,18 @@ describe('ProductEditComponent', () => {
     expect(component.linkedEvent()).toBeNull();
   });
 
-  it('should support early-bird and pay-in-person toggles and delta calculations', () => {
-    // Initially false
-    expect(component.productModel().hasEarlyBird).toBe(false);
-    expect(component.productModel().allowPayInPerson).toBe(false);
-    expect(component.visibleRows().length).toBe(1);
-
-    // Set standard base price
-    component.setBasePrice('non_member' as any, 'in_person' as any, '100.00');
-    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'standard' as any).price).toBe(100);
-
-    // Toggle early bird
-    component.toggleEarlyBird();
-    expect(component.productModel().hasEarlyBird).toBe(true);
-    component.updateEarlyBirdDeadline('2026-10-01T23:59:59');
-    expect(component.productModel().earlyBirdDeadline).toBe('2026-10-01T23:59:59');
-    component.updateLateDeltaPrice('25.00');
-    expect(component.lateDeltaPrice()).toBe(25);
-
-    // Base price in table now acts as early bird base price
-    component.setBasePrice('non_member' as any, 'in_person' as any, '80.00');
-    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'early_bird' as any).price).toBe(80);
-    // Standard price is early bird + lateDeltaPrice (80 + 25 = 105)
-    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'standard' as any).price).toBe(105);
-
-    // Toggle pay in person
-    component.togglePayInPerson();
-    expect(component.productModel().allowPayInPerson).toBe(true);
-    component.updateMaxInPersonAttendees('35');
-    expect(component.productModel().maxInPersonAttendees).toBe(35);
-    // Door price matches standard price by default when hasDoorDelta is false
-    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'in_person' as any).price).toBe(105);
-
-    // Enable door delta
-    component.toggleDoorDelta();
-    expect(component.hasDoorDelta()).toBe(true);
-    component.updateDoorDeltaPrice('10.00');
-    expect(component.doorDeltaPrice()).toBe(10);
-    // Door price is standard price + doorDeltaPrice (105 + 10 = 115)
-    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'in_person' as any).price).toBe(115);
-
-    // Video delta
-    component.updateVideoDeltaPrice('15.00');
-    expect(component.getTier('non_member' as any, 'in_person' as any, true, 'standard' as any).price).toBe(120);
-  });
-
-  it('should populate vodOptionsSet from series and videos and allow selecting/unlinking', async () => {
-    component.productModel.update((m) => ({ ...m, allowVideo: true }));
+  it('populates vodOptionsSet from series and videos and allows selecting/unlinking', async () => {
+    const rules = initEventPricingRules();
+    rules.addOns.push(
+      initEventAddOn({
+        id: 'rec_addon',
+        label: 'Event Recording',
+        spec: { kind: EventAddOnKind.EventRecording },
+      }),
+    );
+    component.onPricingRulesChange(rules);
     fixture.detectChanges();
 
-    // Select an option
     component.onVodOptionSelected({
       id: 'series_spring_2026',
       type: 'series',
@@ -291,11 +205,8 @@ describe('ProductEditComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    // Preview component should be rendered
-    const previewEl = fixture.nativeElement.querySelector('app-vod-preview');
-    expect(previewEl).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('app-vod-preview')).toBeTruthy();
 
-    // Unlinking clears the recordedVideoId
     component.updateRecordedVideoId('');
     expect(component.productModel().recordedVideoId).toBe('');
     fixture.detectChanges();
@@ -304,7 +215,7 @@ describe('ProductEditComponent', () => {
     expect(fixture.nativeElement.querySelector('app-vod-preview')).toBeNull();
   });
 
-  it('should calculate video access impact correctly for video-only vs included registrations', () => {
+  it('calculates video access impact accurately for video-only vs included registrations', () => {
     const regVideoOnly = {
       ...initEventRegistration(),
       docId: 'reg-1',
@@ -334,14 +245,19 @@ describe('ProductEditComponent', () => {
       status: EventRegistrationStatus.Cancelled,
     };
 
-    component.eventRegistrations.set([regVideoOnly, regInPersonWithVideo, regInPersonNoVideo, regCancelled]);
+    component.eventRegistrations.set([
+      regVideoOnly,
+      regInPersonWithVideo,
+      regInPersonNoVideo,
+      regCancelled,
+    ]);
 
     expect(component.attendeesWithVideoAccess().length).toBe(2);
     expect(component.videoOnlyAttendeesCount()).toBe(1);
     expect(component.includedVideoAttendeesCount()).toBe(1);
   });
 
-  it('should prompt confirmation when saving with new or modified video and attendees have video access', async () => {
+  it('prompts confirmation when saving with new or modified video and attendees have video access', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     component.initialRecordedVideoId.set('');
 
@@ -362,9 +278,7 @@ describe('ProductEditComponent', () => {
 
     await component.saveProduct();
 
-    expect(confirmSpy).toHaveBeenCalledWith(
-      expect.stringContaining('1 attendee(s)'),
-    );
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('1 attendee(s)'));
     expect(confirmSpy).toHaveBeenCalledWith(
       expect.stringContaining('1 video-only pre-order attendee(s)'),
     );
@@ -373,7 +287,7 @@ describe('ProductEditComponent', () => {
     confirmSpy.mockRestore();
   });
 
-  it('should abort saving if admin cancels the notification confirmation dialog', async () => {
+  it('aborts saving if admin cancels the notification confirmation dialog', async () => {
     mockDataManagerService.saveProduct.mockClear();
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     component.initialRecordedVideoId.set('');
@@ -401,34 +315,6 @@ describe('ProductEditComponent', () => {
     confirmSpy.mockRestore();
   });
 
-  it('should not prompt confirmation when video recording is unchanged on save', async () => {
-    mockDataManagerService.saveProduct.mockClear();
-    const confirmSpy = vi.spyOn(window, 'confirm');
-    component.initialRecordedVideoId.set('series_123');
-
-    const reg = {
-      ...initEventRegistration(),
-      docId: 'reg-1',
-      attendance: AttendanceType.VideoOnly,
-      hasVideoAccess: true,
-      status: EventRegistrationStatus.Paid,
-    };
-    component.eventRegistrations.set([reg]);
-
-    component.productModel.update((m) => ({
-      ...m,
-      title: 'Spring Workshop 2026',
-      recordedVideoId: 'series_123', // unchanged
-    }));
-
-    await component.saveProduct();
-
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(mockDataManagerService.saveProduct).toHaveBeenCalled();
-
-    confirmSpy.mockRestore();
-  });
-
   it('navigates back to ManageEventView on save from ManageEventRegistration, and ManageEventRegistrations from ManageEventRegistrationsEdit', async () => {
     mockRoutingService.navigateTo.mockClear();
 
@@ -451,9 +337,166 @@ describe('ProductEditComponent', () => {
     await component.saveProduct();
     expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-event-registrations');
 
-    // Reset shared route state for subsequent runs
     mockRoutingService.matchedPatternId.set(null);
     mockRoutingService.signals[Views.ManageEventRegistration].pathVars.eventId.set('');
     mockRoutingService.signals[Views.ManageEventRegistrationsEdit].pathVars.eventId.set('');
+  });
+
+  it('validates pricing rules (capacities, Early Bird deadline) and saves synced summary flags', async () => {
+    mockDataManagerService.saveProduct.mockClear();
+    component.updateTitle('Flushing NY 4-Day Intensive');
+
+    // Validation error when a capacity limit has an empty label
+    const unlabeledCapRules = initEventPricingRules();
+    unlabeledCapRules.capacities = [initEventCapacity({ id: 'cap_1', label: '   ', limit: 25 })];
+    component.onPricingRulesChange(unlabeledCapRules);
+    await component.saveProduct();
+    expect(component.errorMessage()).toContain('Every Capacity Limit must have a name');
+    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
+
+    // Validation error when Early Bird is enabled without a deadline date
+    const invalidEarlyRules = initEventPricingRules();
+    invalidEarlyRules.earlyBird = {
+      kind: EarlyBirdPolicyKind.Enabled,
+      deadlineDate: '',
+    };
+    component.onPricingRulesChange(invalidEarlyRules);
+    await component.saveProduct();
+    expect(component.errorMessage()).toContain('Early Bird cutoff date is required');
+
+    // Valid rules with Main Hall capacity (30), Instructors-only In-Person option, and Members-only Recording Only option
+    const validRules = initEventPricingRules();
+    validRules.capacities = [initEventCapacity({ id: 'hall', label: 'Main Hall', limit: 30 })];
+    validRules.earlyBird = {
+      kind: EarlyBirdPolicyKind.Enabled,
+      deadlineDate: '2026-12-31',
+    };
+    validRules.registrationOptions = [
+      initEventRegistrationOption({
+        id: 'full_event',
+        label: 'Full Workshop',
+        priceCents: 49000,
+        attendanceType: AttendanceType.InPerson,
+        conditions: initEventRuleConditions({
+          who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Instructor },
+        }),
+        capacityUsage: { hall: 1 },
+      }),
+      initEventRegistrationOption({
+        id: 'recording_only',
+        label: 'Recording Pre-Order',
+        priceCents: 6000,
+        attendanceType: AttendanceType.VideoOnly,
+        conditions: initEventRuleConditions({
+          who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Member },
+        }),
+        capacityUsage: {},
+      }),
+    ];
+    component.onPricingRulesChange(validRules);
+    fixture.detectChanges();
+
+    await component.saveProduct();
+    expect(component.errorMessage()).toBeNull();
+    expect(mockDataManagerService.saveProduct).toHaveBeenCalledTimes(1);
+
+    const saved = mockDataManagerService.saveProduct.mock.calls[0][0];
+    expect(saved.allowInPerson).toBe(true);
+    expect(saved.allowVideo).toBe(true);
+    expect(saved.allowVideoOnly).toBe(true);
+    expect(saved.allowNonMembers).toBe(false);
+    expect(saved.allowMembers).toBe(true);
+    expect(saved.allowInstructors).toBe(true);
+    expect(saved.hasEarlyBird).toBe(true);
+    expect(saved.earlyBirdDeadline).toBe('2026-12-31');
+    expect(saved.maxInPersonAttendees).toBe(30);
+  });
+
+  it('validates Registration Form Questions (non-empty prompt and at least one choice for select/checkboxes)', async () => {
+    mockDataManagerService.saveProduct.mockClear();
+    component.updateTitle('Workshop With Questions');
+
+    const emptyLabelRules = initEventPricingRules();
+    emptyLabelRules.questions = [
+      initEventRegistrationQuestion({
+        id: 'q_1',
+        label: '   ',
+        spec: { kind: RegistrationQuestionKind.ShortText, placeholder: '' },
+      }),
+    ];
+    component.onPricingRulesChange(emptyLabelRules);
+    await component.saveProduct();
+    expect(component.errorMessage()).toContain('Every Registration Form Question must have a prompt');
+    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
+
+    const emptyChoicesRules = initEventPricingRules();
+    emptyChoicesRules.questions = [
+      initEventRegistrationQuestion({
+        id: 'q_2',
+        label: 'Meal Choice',
+        spec: { kind: RegistrationQuestionKind.Select, options: [] },
+      }),
+    ];
+    component.onPricingRulesChange(emptyChoicesRules);
+    await component.saveProduct();
+    expect(component.errorMessage()).toContain('Form question "Meal Choice" must have at least one choice');
+    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
+
+    const validQuestionRules = initEventPricingRules();
+    validQuestionRules.questions = [
+      initEventRegistrationQuestion({
+        id: 'q_2',
+        label: 'Meal Choice',
+        spec: { kind: RegistrationQuestionKind.Select, options: ['Standard', 'Vegetarian'] },
+      }),
+    ];
+    component.onPricingRulesChange(validQuestionRules);
+    await component.saveProduct();
+    expect(component.errorMessage()).toBeNull();
+    expect(mockDataManagerService.saveProduct).toHaveBeenCalledTimes(1);
+  });
+
+  it('validates rule conditions on save (Early Bird timing requires Early Bird Pricing enabled; Registration condition requires >= 1 option)', async () => {
+    mockDataManagerService.saveProduct.mockClear();
+    component.updateTitle('Workshop With Rule Conditions');
+
+    // 1. Early Bird timing condition when Early Bird Pricing is disabled
+    const ebCondWithoutPolicy = initEventPricingRules();
+    ebCondWithoutPolicy.discounts = [
+      initEventDiscount({
+        id: 'd_eb',
+        label: 'Early Bird $30 Off',
+        discountCents: 3000,
+        conditions: initEventRuleConditions({
+          timing: {
+            kind: TimingConditionKind.Window,
+            window: TimingWindow.OnOrBeforeEarlyBird,
+          },
+        }),
+      }),
+    ];
+    component.onPricingRulesChange(ebCondWithoutPolicy);
+    await component.saveProduct();
+    expect(component.errorMessage()).toContain('Enable Early Bird Pricing');
+    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
+
+    // 2. SpecificOptions with 0 selected options on an add-on
+    const emptyRegCondRules = initEventPricingRules();
+    emptyRegCondRules.addOns = [
+      initEventAddOn({
+        id: 'addon_1',
+        label: 'Bonus Review',
+        priceCents: 2500,
+        conditions: initEventRuleConditions({
+          registration: { kind: RegistrationConditionKind.SpecificOptions, optionIds: [] },
+        }),
+      }),
+    ];
+    component.onPricingRulesChange(emptyRegCondRules);
+    await component.saveProduct();
+    expect(component.errorMessage()).toContain(
+      'Select at least one registration option in the Registration condition for "Bonus Review"',
+    );
+    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
   });
 });
