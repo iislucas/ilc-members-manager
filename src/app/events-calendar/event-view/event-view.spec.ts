@@ -7,7 +7,12 @@ import { DataManagerService } from '../../data-manager.service';
 import { RoutingService } from '../../routing.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { FIREBASE_APP, Views } from '../../app.config';
-import { initEvent, initEventRegistration, initProduct } from '../../../../functions/src/data-model/events';
+import {
+  initEvent,
+  initEventRegistration,
+  initProduct,
+  RegistrationQuestionKind,
+} from '../../../../functions/src/data-model/events';
 import { signal } from '@angular/core';
 
 describe('EventViewComponent', () => {
@@ -241,6 +246,45 @@ describe('EventViewComponent', () => {
       expect(component.showInPersonLogin()).toBe(true);
       expect(inPersonCard.querySelector('app-inline-auth')).toBeTruthy();
     });
+  });
+
+  it('displays answered registration form responses for registered attendees', async () => {
+    await component.loadEvent();
+    component.registration.set({
+      ...mockRegistration,
+      questionResponses: [
+        {
+          questionId: 'q_diet',
+          questionLabel: 'Dietary Notes',
+          kind: RegistrationQuestionKind.ShortText,
+          answerText: 'Gluten-free',
+          selectedOptions: [],
+        },
+        {
+          questionId: 'q_focus',
+          questionLabel: 'Focus Topics',
+          kind: RegistrationQuestionKind.Checkboxes,
+          answerText: '',
+          selectedOptions: ['Spinning Hands', 'Chin Na'],
+        },
+        {
+          questionId: 'q_empty_opt',
+          questionLabel: 'Optional Blank Question',
+          kind: RegistrationQuestionKind.ShortText,
+          answerText: '',
+          selectedOptions: [],
+        },
+      ],
+    });
+    fixture.detectChanges();
+
+    const responsesBox = fixture.nativeElement.querySelector('.registered-responses-box') as HTMLElement;
+    expect(responsesBox).toBeTruthy();
+    expect(responsesBox.textContent).toContain('Your Registration Responses');
+    expect(responsesBox.textContent).toContain('Dietary Notes');
+    expect(responsesBox.textContent).toContain('Gluten-free');
+    expect(responsesBox.textContent).toContain('Spinning Hands, Chin Na');
+    expect(responsesBox.textContent).not.toContain('Optional Blank Question');
   });
 });
 

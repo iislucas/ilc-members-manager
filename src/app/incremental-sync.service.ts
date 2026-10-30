@@ -35,7 +35,12 @@ import { SearchableSet } from './searchable-set';
 //
 //   1 (implicit, no field) — original.
 //   2 — levels normalised to GradingLevel / StudentLevel / ApplicationLevel.
-export const CACHE_SCHEMA_VERSION = 2;
+//   3 — Product normalised with pricingMode and compositional pricingRules.
+//   7 — Unified Product pricingRules & IlcEvent named capacities/capacityCounts.
+//   8 — EventPricingRules.questions & EventRegistration.questionResponses.
+//   9 — Unified EventRuleConditions (Who: Members/Instructors, Timing, Registration).
+//  10 — EventPricingRules aligned with UI terminology (earlyBird, registrationOptions, EventRegistrationOption, conditions.registration).
+export const CACHE_SCHEMA_VERSION = 10;
 
 export interface CachedCollectionBundle<T> {
   entries: T[];

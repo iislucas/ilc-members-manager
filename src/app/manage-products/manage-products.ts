@@ -12,7 +12,6 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -21,12 +20,12 @@ import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { IlcEvent, Product } from '../../../functions/src/data-model/events';
+import { formatProductPriceRange, IlcEvent, Product } from '../../../functions/src/data-model/events';
 
 @Component({
   selector: 'app-manage-products',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent],
+  imports: [FormsModule, IconComponent, SpinnerComponent],
   templateUrl: './manage-products.html',
   styleUrl: './manage-products.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -86,5 +85,9 @@ export class ManageProductsComponent implements OnInit {
     if (!eventDocId) return 'None';
     const ev = this.eventsMap().get(eventDocId);
     return ev ? ev.title : eventDocId;
+  }
+
+  getPriceRange(product: Product): string {
+    return formatProductPriceRange(product);
   }
 }

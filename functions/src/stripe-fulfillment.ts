@@ -13,15 +13,26 @@ import * as logger from 'firebase-functions/logger';
 import Stripe from 'stripe';
 import { InstructorLicenseType, achievedGradingLevels, normalizeGradingLevel, toGradingLevel } from './data-model/curriculum';
 import {
-  EventRegistration,
-  EventRegistrationUpgrade,
   AttendeeRole,
   AttendanceType,
+  computeEffectiveCapacityUsage,
+  decodeQuestionResponsesFromMetadata,
+  EventAddOnKind,
+  EventCapacity,
+  EventRegistration,
   EventRegistrationStatus,
-  PricingTierType,
-  RegistrationPaymentMethod,
+  EventRegistrationUpgrade,
+  firestoreDocToEventRegistration,
+  firestoreDocToIlcEvent,
+  firestoreDocToProduct,
   IlcEvent,
+  initEventRegistration,
+  mergeImmutableQuestionResponses,
+  normalizeCapacityMap,
+  PaymentChoice,
+  PricingTierType,
   Product,
+  RegistrationPaymentMethod,
 } from './data-model/events';
 import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
 import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, unpaidGradingsInProgressionOrder } from './data-model/gradings';
@@ -860,11 +871,42 @@ export async function fulfillSpouseLifeMembership(
   return newSpouseDocRef.id;
 }
 
+function parseJsonStringArray(raw: string | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function parseJsonCapacityMap(raw: string | undefined): Record<string, number> {
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return normalizeCapacityMap(parsed);
+  } catch {
+    return {};
+  }
+}
+
+function parseMetadataNonNegInt(raw: string | undefined): number {
+  if (!raw) return 0;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 /**
  * Fulfills an event registration purchased through Stripe Checkout.
- * Records registration in /events/{eventDocId}/registrations.
- * If a member is associated, also saves to /members/{memberDocId}/registrations,
- * sends an online Zoom link confirmation notification, and grants video access if included.
+ * Atomically records registration in /events/{eventDocId}/registrations and updates
+ * live capacityCounts + inPersonRegistrationsCount on /events/{eventDocId}.
+ * If a member is associated, also mirrors to /members/{memberDocId}/registrations,
+ * sends confirmation notification/email, and provisions VOD grants for event recordings
+ * and any catalog video/series add-ons.
  */
 export async function fulfillEventRegistration(
   db: admin.firestore.Firestore,
@@ -876,7 +918,8 @@ export async function fulfillEventRegistration(
   const productId = order.metadata?.['productId'] || '';
   const role = (order.metadata?.['role'] || AttendeeRole.NonMember) as AttendeeRole;
   const attendance = (order.metadata?.['attendance'] || AttendanceType.InPerson) as AttendanceType;
-  const hasVideoAccess = order.metadata?.['includeVideo'] === 'true' || attendance === AttendanceType.VideoOnly;
+  const hasVideoAccess =
+    order.metadata?.['includeVideo'] === 'true' || attendance === AttendanceType.VideoOnly;
   const name = order.metadata?.['attendeeName'] || order.customerName || '';
   const email = normalizeEmail(order.metadata?.['attendeeEmail'] || order.customerEmail);
   const phone = order.metadata?.['attendeePhone'] || '';
@@ -884,65 +927,91 @@ export async function fulfillEventRegistration(
   const amountPaidCents = order.amountTotal || 0;
   const currency = order.currency || 'usd';
 
+  const optionId = order.metadata?.['optionId'] || '';
+  const optionLabel = order.metadata?.['optionLabel'] || '';
+  const selectedSuboptions = parseJsonStringArray(order.metadata?.['selectedSuboptions']);
+  const selectedAddOnIds = parseJsonStringArray(order.metadata?.['selectedAddOnIds']);
+  const selectedAddOnLabels = parseJsonStringArray(order.metadata?.['selectedAddOnLabels']);
+  const metadataCapacityUsage = parseJsonCapacityMap(order.metadata?.['capacityUsage']);
+  const paymentChoice =
+    order.metadata?.['paymentChoice'] === PaymentChoice.Deposit
+      ? PaymentChoice.Deposit
+      : PaymentChoice.Full;
+  const metaAgreedTotalCents = parseMetadataNonNegInt(order.metadata?.['agreedTotalCents']);
+  const metaDepositCents = parseMetadataNonNegInt(order.metadata?.['depositCents']);
+  const cashDueAtDoorCents = parseMetadataNonNegInt(order.metadata?.['cashDueAtDoorCents']);
+  const metadataQuestionResponses = decodeQuestionResponsesFromMetadata(order.metadata);
+
   const memberDocId = member?.docId || order.metadata?.['memberDocId'] || '';
   const memberId = member?.memberId || order.metadata?.['memberId'] || '';
 
   const isUpgrade = order.metadata?.['isUpgrade'] === 'true';
   const existingRegistrationDocId = order.metadata?.['existingRegistrationDocId'] || '';
+  const targetDocId =
+    isUpgrade && existingRegistrationDocId ? existingRegistrationDocId : orderDocId;
 
-  let finalAttendance = attendance;
-  let finalHasVideoAccess = hasVideoAccess;
-  let finalAmountPaidCents = amountPaidCents;
-  let targetDocId = orderDocId;
-  let upgradeHistory: EventRegistrationUpgrade[] = [];
-
-  if (isUpgrade && existingRegistrationDocId && eventDocId) {
-    targetDocId = existingRegistrationDocId;
+  // Load Product up front if available so we know rule capacities & catalog add-on specs
+  let product: Product | undefined;
+  let prodExists = false;
+  if (productId) {
     try {
-      const existingSnap = await db
-        .collection('events')
-        .doc(eventDocId)
-        .collection('registrations')
-        .doc(existingRegistrationDocId)
-        .get();
+      const prodSnap = await db.collection(FirestoreCollection.Products).doc(productId).get();
+      if (prodSnap.exists) {
+        prodExists = true;
+        product = firestoreDocToProduct(prodSnap);
+      }
+    } catch (e) {
+      logger.warn('Failed to load product for fulfillment', { productId, error: e });
+    }
+  }
 
-      if (existingSnap.exists) {
-        const existing = existingSnap.data() as EventRegistration;
+  const pricingTierType =
+    (order.metadata?.['pricingTierType'] as PricingTierType) || PricingTierType.Standard;
+  const paymentMethod = RegistrationPaymentMethod.Stripe;
+  const nowIso = new Date().toISOString();
 
-        // Idempotency check: If this Stripe session has already been recorded in upgradeHistory or matches stripeSessionId,
-        // do not re-apply the upgrade or re-add the upgrade payment amount.
-        const alreadyApplied = Boolean(
-          order.checkoutSessionId &&
-          (
-            existing.stripeSessionId === order.checkoutSessionId ||
-            (existing.upgradeHistory || []).some(
-              (u) => u.stripeSessionId && u.stripeSessionId === order.checkoutSessionId,
-            )
-          ),
-        );
+  let alreadyProcessed = false;
+  let savedRegistration: EventRegistration | null = null;
+  let loadedEvent: IlcEvent | null = null;
 
-        if (alreadyApplied) {
-          logger.info('Event registration upgrade already applied for Stripe session, skipping duplicate processing', {
-            existingRegistrationDocId,
-            checkoutSessionId: order.checkoutSessionId,
-            eventDocId,
-          });
-          return;
-        }
+  const buildMergedRegistrationAndCounts = (
+    existing: EventRegistration | null,
+    currentEvent: IlcEvent | null,
+  ): {
+    registration: EventRegistration;
+    updatedCapacityCounts: Record<string, number>;
+    inPersonDelta: number;
+  } => {
+    let finalAttendance = attendance;
+    let finalHasVideoAccess = hasVideoAccess;
+    let finalAmountPaidCents = amountPaidCents;
+    let finalSelectedAddOnIds = [...selectedAddOnIds];
+    let finalSelectedAddOnLabels = [...selectedAddOnLabels];
+    let upgradeHistory: EventRegistrationUpgrade[] = [];
 
-        const metaTotal = order.metadata?.['totalAmountPaidCents']
-          ? parseInt(order.metadata['totalAmountPaidCents'], 10)
-          : undefined;
-        finalAmountPaidCents =
-          typeof metaTotal === 'number' && !isNaN(metaTotal)
-            ? metaTotal
-            : (existing.amountPaidCents || 0) + amountPaidCents;
+    if (isUpgrade && existing) {
+      const metaTotal = order.metadata?.['totalAmountPaidCents']
+        ? parseInt(order.metadata['totalAmountPaidCents'], 10)
+        : undefined;
+      finalAmountPaidCents =
+        typeof metaTotal === 'number' && !isNaN(metaTotal)
+          ? metaTotal
+          : (existing.amountPaidCents || 0) + amountPaidCents;
 
-        finalHasVideoAccess = existing.hasVideoAccess || hasVideoAccess;
+      finalHasVideoAccess = existing.hasVideoAccess || hasVideoAccess;
+      finalSelectedAddOnIds = Array.from(
+        new Set([...existing.selectedAddOnIds, ...selectedAddOnIds]),
+      );
+      finalSelectedAddOnLabels = Array.from(
+        new Set([...existing.selectedAddOnLabels, ...selectedAddOnLabels]),
+      );
 
+      if (!optionId) {
         if (
-          (existing.attendance === AttendanceType.InPerson && attendance === AttendanceType.Online) ||
-          (existing.attendance === AttendanceType.Online && attendance === AttendanceType.InPerson) ||
+          (existing.attendance === AttendanceType.InPerson &&
+            attendance === AttendanceType.Online) ||
+          (existing.attendance === AttendanceType.Online &&
+            attendance === AttendanceType.InPerson) ||
           existing.attendance === AttendanceType.InPersonAndOnline ||
           attendance === AttendanceType.InPersonAndOnline
         ) {
@@ -952,78 +1021,274 @@ export async function fulfillEventRegistration(
         } else {
           finalAttendance = attendance;
         }
-
-        upgradeHistory = [
-          ...(existing.upgradeHistory || []),
-          {
-            timestamp: new Date().toISOString(),
-            previousAttendance: existing.attendance,
-            previousHasVideoAccess: existing.hasVideoAccess,
-            upgradeAmountCents: amountPaidCents,
-            stripeSessionId: order.checkoutSessionId || '',
-          },
-        ];
+      } else {
+        finalAttendance = attendance;
       }
-    } catch (err) {
-      logger.warn('Error reading existing registration for upgrade in fulfillment:', err);
+
+      upgradeHistory = [
+        ...(existing.upgradeHistory || []),
+        {
+          timestamp: nowIso,
+          previousAttendance: existing.attendance,
+          previousHasVideoAccess: existing.hasVideoAccess,
+          upgradeAmountCents: amountPaidCents,
+          stripeSessionId: order.checkoutSessionId || '',
+        },
+      ];
+    }
+
+    const status =
+      cashDueAtDoorCents > 0
+        ? EventRegistrationStatus.DepositPaid
+        : EventRegistrationStatus.Paid;
+    const agreedTotalCents =
+      metaAgreedTotalCents > 0
+        ? metaAgreedTotalCents
+        : finalAmountPaidCents + cashDueAtDoorCents;
+    const depositPaidCents =
+      cashDueAtDoorCents > 0
+        ? metaDepositCents > 0
+          ? metaDepositCents
+          : finalAmountPaidCents
+        : existing?.depositPaidCents || 0;
+
+    const registration: EventRegistration = {
+      ...initEventRegistration(),
+      docId: targetDocId,
+      eventDocId,
+      productId,
+      orderDocId: targetDocId,
+      stripeSessionId: order.checkoutSessionId || existing?.stripeSessionId || '',
+      registeredAt: existing?.registeredAt || order.created || nowIso,
+      name,
+      email,
+      phone,
+      notes,
+      memberDocId,
+      memberId,
+      studentLevel: member?.studentLevel || existing?.studentLevel || '',
+      applicationLevel: member?.applicationLevel || existing?.applicationLevel || '',
+      role,
+      attendance: finalAttendance,
+      hasVideoAccess: finalHasVideoAccess,
+      optionId: optionId || existing?.optionId || '',
+      optionLabel: optionLabel || existing?.optionLabel || '',
+      selectedSuboptions:
+        selectedSuboptions.length > 0
+          ? selectedSuboptions
+          : existing && existing.optionId === optionId
+            ? existing.selectedSuboptions
+            : [],
+      selectedAddOnIds: finalSelectedAddOnIds,
+      selectedAddOnLabels: finalSelectedAddOnLabels,
+      capacityUsage: metadataCapacityUsage,
+      paymentChoice,
+      agreedTotalCents,
+      depositPaidCents,
+      questionResponses: mergeImmutableQuestionResponses(
+        existing?.questionResponses ?? [],
+        metadataQuestionResponses,
+      ),
+      amountPaidCents: finalAmountPaidCents,
+      amountDueCents: cashDueAtDoorCents,
+      currency,
+      status,
+      paymentMethod,
+      pricingTierType,
+      paidAt: cashDueAtDoorCents > 0 ? '' : order.created || nowIso,
+      lastUpdated: nowIso,
+      upgradeHistory,
+    };
+
+    const capacities: EventCapacity[] =
+      currentEvent && currentEvent.capacities.length > 0
+        ? currentEvent.capacities
+        : product?.pricingRules.capacities || [];
+
+    const currentCounts = normalizeCapacityMap(
+      currentEvent && Object.keys(currentEvent.capacityCounts).length > 0
+        ? currentEvent.capacityCounts
+        : product?.capacityCounts || {},
+    );
+
+    const prevActive =
+      existing &&
+      existing.status !== EventRegistrationStatus.Cancelled &&
+      existing.status !== EventRegistrationStatus.Refunded;
+    const prevHeld = prevActive ? computeEffectiveCapacityUsage(existing, capacities) : {};
+    const nextHeld = computeEffectiveCapacityUsage(registration, capacities);
+
+    const updatedCapacityCounts: Record<string, number> = { ...currentCounts };
+    for (const cap of capacities) {
+      const used = updatedCapacityCounts[cap.id] || 0;
+      const prevUnits = prevHeld[cap.id] || 0;
+      const nextUnits = nextHeld[cap.id] || 0;
+      const projected = Math.max(0, used - prevUnits) + nextUnits;
+      if (nextUnits > prevUnits && projected > cap.limit) {
+        logger.warn('Fulfilling paid Stripe event registration that exceeded capacity limit', {
+          eventDocId,
+          capacityId: cap.id,
+          limit: cap.limit,
+          projected,
+          orderDocId: targetDocId,
+        });
+      }
+      if (projected > 0) {
+        updatedCapacityCounts[cap.id] = projected;
+      } else {
+        delete updatedCapacityCounts[cap.id];
+      }
+    }
+
+    const wasInPerson = Boolean(
+      prevActive &&
+        (existing.attendance === AttendanceType.InPerson ||
+          existing.attendance === AttendanceType.InPersonAndOnline),
+    );
+    const willBeInPerson =
+      finalAttendance === AttendanceType.InPerson ||
+      finalAttendance === AttendanceType.InPersonAndOnline;
+    const inPersonDelta = (willBeInPerson ? 1 : 0) - (wasInPerson ? 1 : 0);
+
+    return { registration, updatedCapacityCounts, inPersonDelta };
+  };
+
+  const isDuplicateSession = (existing: EventRegistration): boolean => {
+    if (!order.checkoutSessionId) return false;
+    return (
+      existing.stripeSessionId === order.checkoutSessionId ||
+      (existing.upgradeHistory || []).some(
+        (u) => u.stripeSessionId && u.stripeSessionId === order.checkoutSessionId,
+      )
+    );
+  };
+
+  if (typeof db.runTransaction === 'function') {
+    await db.runTransaction(async (tx) => {
+      let existing: EventRegistration | null = null;
+      let txEvent: IlcEvent | null = null;
+      let eventSnapExists = false;
+
+      if (eventDocId) {
+        const eventRef = db.collection(FirestoreCollection.Events).doc(eventDocId);
+        const eventRegRef = eventRef
+          .collection(FirestoreSubcollection.Registrations)
+          .doc(targetDocId);
+        const [evSnap, regSnap] = await Promise.all([tx.get(eventRef), tx.get(eventRegRef)]);
+        if (evSnap.exists) {
+          eventSnapExists = true;
+          txEvent = firestoreDocToIlcEvent(evSnap);
+          loadedEvent = txEvent;
+        }
+        if (regSnap.exists) {
+          existing = firestoreDocToEventRegistration(regSnap);
+          if (isDuplicateSession(existing)) {
+            alreadyProcessed = true;
+            return;
+          }
+        }
+      }
+
+      const { registration, updatedCapacityCounts, inPersonDelta } =
+        buildMergedRegistrationAndCounts(existing, txEvent);
+      savedRegistration = registration;
+
+      if (eventDocId) {
+        const eventRef = db.collection(FirestoreCollection.Events).doc(eventDocId);
+        const eventRegRef = eventRef
+          .collection(FirestoreSubcollection.Registrations)
+          .doc(targetDocId);
+        tx.set(eventRegRef, registration, { merge: true });
+
+        if (eventSnapExists && txEvent) {
+          tx.update(eventRef, {
+            capacityCounts: updatedCapacityCounts,
+            inPersonRegistrationsCount: Math.max(
+              0,
+              (txEvent.inPersonRegistrationsCount ?? 0) + inPersonDelta,
+            ),
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      if (prodExists && productId && product) {
+        const prodRef = db.collection(FirestoreCollection.Products).doc(productId);
+        tx.update(prodRef, {
+          capacityCounts: updatedCapacityCounts,
+          inPersonRegistrationsCount: Math.max(
+            0,
+            product.inPersonRegistrationsCount + inPersonDelta,
+          ),
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (memberDocId) {
+        const memberRegRef = db
+          .collection(FirestoreCollection.Members)
+          .doc(memberDocId)
+          .collection(FirestoreSubcollection.Registrations)
+          .doc(targetDocId);
+        tx.set(memberRegRef, registration, { merge: true });
+      }
+    });
+  } else {
+    // Fallback for lightweight mocks without db.runTransaction
+    let existing: EventRegistration | null = null;
+    if (eventDocId) {
+      try {
+        const regSnap = await db
+          .collection(FirestoreCollection.Events)
+          .doc(eventDocId)
+          .collection(FirestoreSubcollection.Registrations)
+          .doc(targetDocId)
+          .get();
+        if (regSnap.exists) {
+          existing = firestoreDocToEventRegistration(regSnap);
+          if (isDuplicateSession(existing)) {
+            alreadyProcessed = true;
+          }
+        }
+      } catch (err) {
+        logger.warn('Error reading existing registration in fulfillment fallback:', err);
+      }
+    }
+
+    if (!alreadyProcessed) {
+      const { registration } = buildMergedRegistrationAndCounts(existing, null);
+      savedRegistration = registration;
+      const batch = db.batch();
+      if (eventDocId) {
+        const eventRegRef = db
+          .collection(FirestoreCollection.Events)
+          .doc(eventDocId)
+          .collection(FirestoreSubcollection.Registrations)
+          .doc(targetDocId);
+        batch.set(eventRegRef, registration, { merge: true });
+      }
+      if (memberDocId) {
+        const memberRegRef = db
+          .collection(FirestoreCollection.Members)
+          .doc(memberDocId)
+          .collection(FirestoreSubcollection.Registrations)
+          .doc(targetDocId);
+        batch.set(memberRegRef, registration, { merge: true });
+      }
+      await batch.commit();
     }
   }
 
-  const pricingTierType =
-    (order.metadata?.['pricingTierType'] as PricingTierType) ||
-    PricingTierType.Standard;
-  const paymentMethod = RegistrationPaymentMethod.Stripe;
-
-  const registration: EventRegistration = {
-    docId: targetDocId,
-    eventDocId,
-    productId,
-    orderDocId: targetDocId,
-    stripeSessionId: order.checkoutSessionId || '',
-    registeredAt: order.created || new Date().toISOString(),
-    name,
-    email,
-    phone,
-    notes,
-    memberDocId,
-    memberId,
-    studentLevel: member?.studentLevel || '',
-    applicationLevel: member?.applicationLevel || '',
-    role,
-    attendance: finalAttendance,
-    hasVideoAccess: finalHasVideoAccess,
-    amountPaidCents: finalAmountPaidCents,
-    amountDueCents: 0,
-    currency,
-    status: EventRegistrationStatus.Paid,
-    paymentMethod,
-    pricingTierType,
-    paidAt: order.created || new Date().toISOString(),
-    lastUpdated: new Date().toISOString(),
-    ...(upgradeHistory.length > 0 ? { upgradeHistory } : {}),
-  };
-
-  const batch = db.batch();
-
-  if (eventDocId) {
-    const eventRegRef = db
-      .collection(FirestoreCollection.Events)
-      .doc(eventDocId)
-      .collection(FirestoreSubcollection.Registrations)
-      .doc(targetDocId);
-    batch.set(eventRegRef, registration, { merge: true });
+  if (alreadyProcessed || !savedRegistration) {
+    logger.info('Event registration already applied for Stripe session, skipping duplicate', {
+      targetDocId,
+      checkoutSessionId: order.checkoutSessionId,
+      eventDocId,
+    });
+    return;
   }
 
-  if (memberDocId) {
-    const memberRegRef = db
-      .collection(FirestoreCollection.Members)
-      .doc(memberDocId)
-      .collection(FirestoreSubcollection.Registrations)
-      .doc(targetDocId);
-    batch.set(memberRegRef, registration, { merge: true });
-  }
-
-  await batch.commit();
+  const finalReg: EventRegistration = savedRegistration;
 
   logger.info('Recorded EventRegistration', {
     orderDocId: targetDocId,
@@ -1031,41 +1296,111 @@ export async function fulfillEventRegistration(
     eventDocId,
     email,
     memberDocId,
-    attendance: finalAttendance,
-    hasVideoAccess: finalHasVideoAccess,
-    totalAmountPaidCents: finalAmountPaidCents,
+    optionId: finalReg.optionId,
+    attendance: finalReg.attendance,
+    status: finalReg.status,
+    hasVideoAccess: finalReg.hasVideoAccess,
+    totalAmountPaidCents: finalReg.amountPaidCents,
+    amountDueCents: finalReg.amountDueCents,
   });
 
-  // Handle Event Zoom link and Video Grants if event exists
-  let product: Product | undefined;
-  if (productId) {
-    try {
-      const prodSnap = await db.collection(FirestoreCollection.Products).doc(productId).get();
-      if (prodSnap.exists) {
-        product = prodSnap.data() as Product;
+  // Helper to write a VideoGrant for a resolved set of target video/series IDs
+  const writeVideoGrantsForTargetIds = async (
+    targetDocIds: string[],
+    grantPaidCents: number,
+  ): Promise<void> => {
+    for (const targetId of targetDocIds) {
+      const grant: VideoGrant = {
+        docId: targetId,
+        videoId: targetId,
+        memberDocId: memberDocId || '',
+        memberEmail: email,
+        grantKind: VideoGrantKind.StripePurchase,
+        orderDocId,
+        stripeSessionId: order.checkoutSessionId,
+        amountPaidCents: grantPaidCents,
+        grantedAt: nowIso,
+      };
+
+      if (memberDocId) {
+        await db
+          .collection(FirestoreCollection.Members)
+          .doc(memberDocId)
+          .collection(FirestoreSubcollection.VideoGrants)
+          .doc(targetId)
+          .set(grant, { merge: true });
+        await db
+          .collection(FirestoreCollection.VideoGrants)
+          .doc(`${memberDocId}_${targetId}`)
+          .set(grant, { merge: true });
+      } else if (email) {
+        const cleanEmail = email.replace(/[^a-zA-Z0-9@._-]/g, '_');
+        await db
+          .collection(FirestoreCollection.VideoGrants)
+          .doc(`${cleanEmail}_${targetId}`)
+          .set(grant, { merge: true });
       }
-    } catch (e) {
-      logger.warn('Failed to load product for fulfillment', { productId, error: e });
+    }
+  };
+
+  // Provision any CatalogVideo / CatalogSeries add-ons immediately
+  if (product && finalReg.selectedAddOnIds.length > 0 && (memberDocId || email)) {
+    for (const addOnId of finalReg.selectedAddOnIds) {
+      const addOn = product.pricingRules.addOns.find((a) => a.id === addOnId);
+      if (!addOn) continue;
+      let catalogTargetId = '';
+      if (addOn.spec.kind === EventAddOnKind.CatalogVideo && addOn.spec.videoId) {
+        catalogTargetId = addOn.spec.videoId;
+      } else if (addOn.spec.kind === EventAddOnKind.CatalogSeries && addOn.spec.seriesId) {
+        catalogTargetId = addOn.spec.seriesId;
+      }
+      if (!catalogTargetId) continue;
+
+      try {
+        const { targetDocIds } = await resolveEventVideoGrantTargets(db, catalogTargetId);
+        await writeVideoGrantsForTargetIds(targetDocIds, 0);
+      } catch (catalogErr) {
+        logger.error('Failed to provision catalog VOD add-on grant', {
+          catalogErr,
+          addOnId,
+          catalogTargetId,
+          orderDocId,
+        });
+      }
     }
   }
 
   if (eventDocId) {
     try {
-      const eventSnap = await db.collection(FirestoreCollection.Events).doc(eventDocId).get();
-      if (eventSnap.exists) {
-        const event = eventSnap.data() as IlcEvent;
+      let event: IlcEvent | null = loadedEvent;
+      if (!event) {
+        const eventSnap = await db.collection(FirestoreCollection.Events).doc(eventDocId).get();
+        if (eventSnap.exists) {
+          event = firestoreDocToIlcEvent(eventSnap);
+        }
+      }
+
+      if (event) {
         const eventTitle = event.title || product?.title || 'Event';
-        const purchaseDetailsMarkdown = product?.purchaseDetailsMarkdown || event.purchaseDetailsMarkdown || '';
-        const inPersonDetailsMarkdown = product?.inPersonDetailsMarkdown || event.inPersonDetailsMarkdown || '';
-        const onlineJoiningLink = product?.onlineJoiningLink || event.onlineJoiningLink || '';
+        const purchaseDetailsMarkdown =
+          product?.purchaseDetailsMarkdown || event.purchaseDetailsMarkdown || '';
+        const inPersonDetailsMarkdown =
+          product?.inPersonDetailsMarkdown || event.inPersonDetailsMarkdown || '';
+        const onlineJoiningLink =
+          product?.onlineJoiningLink || event.onlineJoiningLink || '';
         const recordedVideoId = product?.recordedVideoId || event.recordedVideoId || '';
 
-        // 1. Send confirmation notification to member (with Zoom/joining details if online and in-person details)
+        // 1. Send confirmation notification & email to member
         if (memberDocId) {
-          let message = `You are registered for **[${eventTitle}](/events/${eventDocId})**!`;
+          const optSummary = finalReg.optionLabel ? ` (${finalReg.optionLabel})` : '';
+          let message = `You are registered for **[${eventTitle}](/events/${eventDocId})**${optSummary}!`;
+          if (finalReg.amountDueCents > 0) {
+            const dueFormatted = (finalReg.amountDueCents / 100).toFixed(2);
+            message += `\n\n**Remaining Balance Due at Door:** ${currency.toUpperCase()} ${dueFormatted}.`;
+          }
           if (
-            attendance === AttendanceType.Online ||
-            attendance === AttendanceType.InPersonAndOnline
+            finalReg.attendance === AttendanceType.Online ||
+            finalReg.attendance === AttendanceType.InPersonAndOnline
           ) {
             if (purchaseDetailsMarkdown) {
               message += `\n\n### Online Joining Details\n${purchaseDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${eventDocId}).`;
@@ -1076,8 +1411,8 @@ export async function fulfillEventRegistration(
             }
           }
           if (
-            attendance === AttendanceType.InPerson ||
-            attendance === AttendanceType.InPersonAndOnline
+            finalReg.attendance === AttendanceType.InPerson ||
+            finalReg.attendance === AttendanceType.InPersonAndOnline
           ) {
             if (inPersonDetailsMarkdown) {
               message += `\n\n### In-Person Instructions\n${inPersonDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${eventDocId}).`;
@@ -1089,12 +1424,12 @@ export async function fulfillEventRegistration(
           await createMemberNotification(db, memberDocId, {
             kind: NotificationKind.EventRegistrationConfirmed,
             markdown: message,
-            createdAt: new Date().toISOString(),
+            createdAt: nowIso,
             dismissed: false,
             data: {
               orderDocId,
               eventId: eventDocId,
-              attendance,
+              attendance: finalReg.attendance,
               purchaseDetailsMarkdown,
               inPersonDetailsMarkdown,
               onlineJoiningLink,
@@ -1110,11 +1445,14 @@ export async function fulfillEventRegistration(
                   ? startDate || ''
                   : `${startDate} - ${endDate}`;
               const formattedAttendance =
-                attendance === AttendanceType.InPersonAndOnline
+                finalReg.optionLabel ||
+                (finalReg.attendance === AttendanceType.InPersonAndOnline
                   ? 'In-Person & Online'
-                  : attendance === AttendanceType.Online
-                  ? 'Online'
-                  : 'In-Person';
+                  : finalReg.attendance === AttendanceType.Online
+                    ? 'Online'
+                    : finalReg.attendance === AttendanceType.VideoOnly
+                      ? 'Recording Only'
+                      : 'In-Person');
               const hasOnline = Boolean(event.onlineJoiningLink && event.onlineJoiningLink.trim());
               await sendTransactionalEmail(db, {
                 to: email,
@@ -1126,57 +1464,32 @@ export async function fulfillEventRegistration(
                   eventLocation: event.location || (hasOnline ? 'Online' : 'TBD'),
                   attendanceType: formattedAttendance,
                   onlineJoiningLink: onlineJoiningLink || 'Details on event page',
-                  specialInstructions: inPersonDetailsMarkdown || purchaseDetailsMarkdown || 'See event page for full details.',
-                  amount: ((finalAmountPaidCents || 0) / 100).toFixed(2),
+                  specialInstructions:
+                    inPersonDetailsMarkdown ||
+                    purchaseDetailsMarkdown ||
+                    'See event page for full details.',
+                  amount: ((finalReg.amountPaidCents || 0) / 100).toFixed(2),
                   receiptUrl: '',
                   appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
                 },
               });
             } catch (emailErr) {
-              logger.error('Failed to send event registration confirmation email', { emailErr, email, eventDocId });
+              logger.error('Failed to send event registration confirmation email', {
+                emailErr,
+                email,
+                eventDocId,
+              });
             }
           }
         }
 
-        // 2. Provision video grant if video is available right now
-        if (hasVideoAccess && recordedVideoId && (memberDocId || email)) {
+        // 2. Provision EventRecording video grant if recording is already uploaded
+        if (finalReg.hasVideoAccess && recordedVideoId && (memberDocId || email)) {
           const { targetDocIds, primaryWatchVideoId } = await resolveEventVideoGrantTargets(
             db,
             recordedVideoId,
           );
-
-          for (const targetId of targetDocIds) {
-            const grant: VideoGrant = {
-              docId: targetId,
-              videoId: targetId,
-              memberDocId: memberDocId || '',
-              memberEmail: email,
-              grantKind: VideoGrantKind.StripePurchase,
-              orderDocId,
-              stripeSessionId: order.checkoutSessionId,
-              amountPaidCents,
-              grantedAt: new Date().toISOString(),
-            };
-
-            if (memberDocId) {
-              await db
-                .collection(FirestoreCollection.Members)
-                .doc(memberDocId)
-                .collection(FirestoreSubcollection.VideoGrants)
-                .doc(targetId)
-                .set(grant, { merge: true });
-              await db
-                .collection(FirestoreCollection.VideoGrants)
-                .doc(`${memberDocId}_${targetId}`)
-                .set(grant, { merge: true });
-            } else if (email) {
-              const cleanEmail = email.replace(/[^a-zA-Z0-9@._-]/g, '_');
-              await db
-                .collection(FirestoreCollection.VideoGrants)
-                .doc(`${cleanEmail}_${targetId}`)
-                .set(grant, { merge: true });
-            }
-          }
+          await writeVideoGrantsForTargetIds(targetDocIds, amountPaidCents);
 
           logger.info('Auto-provisioned VideoGrant for event registration', {
             memberDocId,
@@ -1185,11 +1498,11 @@ export async function fulfillEventRegistration(
             eventDocId,
           });
 
-          if (memberDocId) {
+          if (memberDocId && primaryWatchVideoId) {
             await createMemberNotification(db, memberDocId, {
               kind: NotificationKind.EventVideoAvailable,
               markdown: `The class video recording for **[${eventTitle}](/events/${eventDocId})** is ready! You can [watch it now](/videos/${encodeURIComponent(primaryWatchVideoId)}).`,
-              createdAt: new Date().toISOString(),
+              createdAt: nowIso,
               dismissed: false,
               data: {
                 eventId: eventDocId,

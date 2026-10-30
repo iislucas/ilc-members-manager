@@ -282,6 +282,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   });
 
   changed = output<string>();
+  initialized = output<string>();
   menuOpen = signal<boolean>(true);
   isFullscreen = signal<boolean>(false);
   showDescriptions = signal<boolean>(false);
@@ -601,6 +602,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
           if (this.editor) {
             this.setMarkdown(value);
             this.isFirstLoad = false; // Only set initially
+            this.initialized.emit(this.getMarkdown());
           }
         } else {
           // If value was changed externally (e.g. Reset to default or programmatic change)
@@ -1017,6 +1019,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     if (value !== undefined && value !== null && this.isFirstLoad) {
       this.setMarkdown(value);
       this.isFirstLoad = false;
+      this.initialized.emit(this.getMarkdown());
     }
   }
 

@@ -1,476 +1,455 @@
 import { describe, it, expect } from 'vitest';
 import {
-  getPricingTierKey,
-  initProduct,
-  Product,
+  assertValidQuoteOrThrow,
+  buildUnmarkedRegistrationUpdates,
+  computeCapacityUpdateOrThrow,
+  computePriorPaidCreditCents,
+  resolveEffectiveRulesAndCapacities,
+  resolveRequestRuleSelection,
+} from './stripe-product-checkout';
+import {
   AttendeeRole,
   AttendanceType,
-  hasSpecialRolePrice,
-  hasAnySpecialPricing,
+  EarlyBirdPolicyKind,
+  evaluateEventPricingQuote,
+  EventAddOnKind,
+  EventRegistration,
+  EventRegistrationStatus,
+  firestoreDocToProduct,
+  initEvent,
+  initEventAddOn,
+  initEventCapacity,
+  initEventDiscount,
+  initEventPricingRules,
+  initEventRegistration,
+  initEventRegistrationOption,
+  initEventRuleConditions,
+  initProduct,
+  PersonStatusKind,
+  Product,
+  RegistrationConditionKind,
+  RegistrationPaymentMethod,
+  SubSelectionKind,
+  TimingConditionKind,
+  TimingWindow,
+  WhoConditionKind,
 } from './data-model/events';
+import {
+  MembershipType,
+  PUBLIC_MEMBER_STATUS_CONTEXT,
+  toMemberStatusContext,
+} from './data-model/member-status';
+import { InstructorLicenseType } from './data-model/curriculum';
 
-describe('stripe-product-checkout tier resolution', () => {
-  it('correctly maps pricing tier keys', () => {
-    expect(getPricingTierKey(AttendeeRole.NonMember, AttendanceType.InPerson, false)).toBe('non_member_in_person_novideo');
-    expect(getPricingTierKey(AttendeeRole.NonMember, AttendanceType.InPerson, true)).toBe('non_member_in_person_video');
-    expect(getPricingTierKey(AttendeeRole.Member, AttendanceType.InPerson, false)).toBe('member_in_person_novideo');
-    expect(getPricingTierKey(AttendeeRole.Member, AttendanceType.Online, false)).toBe('member_online_novideo');
-    expect(getPricingTierKey(AttendeeRole.Instructor, AttendanceType.VideoOnly, false)).toBe('instructor_video_only');
-    expect(getPricingTierKey(AttendeeRole.Instructor, AttendanceType.VideoOnly, true)).toBe('instructor_video_only');
+function buildSampleRulesProduct(): Product {
+  const rules = initEventPricingRules();
+  rules.capacities = [
+    initEventCapacity({ id: 'hall', label: 'Main Hall', limit: 10 }),
+    initEventCapacity({ id: 'friday', label: 'Friday Spots', limit: 5 }),
+  ];
+  rules.earlyBird = {
+    kind: EarlyBirdPolicyKind.Enabled,
+    deadlineDate: '2099-09-01',
+  };
+  rules.registrationOptions = [
+    initEventRegistrationOption({
+      id: 'full_in_person',
+      label: 'Full Event (In-Person)',
+      attendanceType: AttendanceType.InPerson,
+      conditions: initEventRuleConditions(),
+      capacityUsage: { hall: 1, friday: 1 },
+      priceCents: 10000,
+    }),
+    initEventRegistrationOption({
+      id: 'two_day',
+      label: '2-Day Pass',
+      attendanceType: AttendanceType.InPerson,
+      conditions: initEventRuleConditions(),
+      capacityUsage: { hall: 1 },
+      priceCents: 7000,
+      subSelection: {
+        kind: SubSelectionKind.PickSuboptions,
+        pickCount: 2,
+        availableSuboptions: ['Fri', 'Sat', 'Sun'],
+      },
+    }),
+    initEventRegistrationOption({
+      id: 'online_live',
+      label: 'Online (Zoom)',
+      attendanceType: AttendanceType.Online,
+      conditions: initEventRuleConditions(),
+      capacityUsage: {},
+      priceCents: 6000,
+    }),
+    initEventRegistrationOption({
+      id: 'inst_clinic',
+      label: 'Instructor Clinic',
+      attendanceType: AttendanceType.InPerson,
+      conditions: initEventRuleConditions({
+        who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Instructor },
+      }),
+      capacityUsage: { hall: 1 },
+      priceCents: 5000,
+    }),
+  ];
+  rules.discounts = [
+    initEventDiscount({
+      id: 'eb_disc',
+      label: 'Early Bird Discount',
+      discountCents: 1500,
+      conditions: initEventRuleConditions({
+        timing: {
+          kind: TimingConditionKind.Window,
+          window: TimingWindow.OnOrBeforeEarlyBird,
+        },
+        registration: {
+          kind: RegistrationConditionKind.SpecificOptions,
+          optionIds: ['full_in_person'],
+        },
+      }),
+    }),
+    initEventDiscount({
+      id: 'mem_disc',
+      label: 'Member Discount',
+      discountCents: 2000,
+      conditions: initEventRuleConditions({
+        who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Member },
+        registration: { kind: RegistrationConditionKind.AllOptions },
+      }),
+    }),
+    initEventDiscount({
+      id: 'inst_disc',
+      label: 'Extra Instructor Discount',
+      discountCents: 1000,
+      conditions: initEventRuleConditions({
+        who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Instructor },
+        registration: { kind: RegistrationConditionKind.AllOptions },
+      }),
+    }),
+  ];
+  rules.addOns = [
+    initEventAddOn({
+      id: 'event_recording',
+      label: 'Event Video Recording',
+      description: 'Edited class video',
+      spec: { kind: EventAddOnKind.EventRecording },
+      conditions: initEventRuleConditions({
+        registration: { kind: RegistrationConditionKind.AllOptions },
+      }),
+      priceCents: 2000,
+    }),
+  ];
+
+  return {
+    ...initProduct(),
+    docId: 'prod_rules_1',
+    eventDocId: 'event_1',
+    title: 'Autumn Seminar',
+    pricingRules: rules,
+  };
+}
+
+describe('stripe-product-checkout rule resolution & capacity transactions', () => {
+  it('resolves legacy attendance + includeVideo inputs and locks paid add-ons on upgrade', () => {
+    const product = buildSampleRulesProduct();
+
+    // Legacy caller specifying attendance + includeVideo without optionId / selectedAddOnIds
+    const resolvedLegacy = resolveRequestRuleSelection(
+      product.pricingRules,
+      {
+        attendance: AttendanceType.Online,
+        includeVideo: true,
+      },
+      null,
+    );
+    expect(resolvedLegacy.selectedOptionId).toBe('online_live');
+    expect(resolvedLegacy.selectedAddOnIds).toEqual(['event_recording']);
+
+    // Paid upgrade retains previously purchased recording add-on even if client omits it
+    const existingPaidReg: EventRegistration = {
+      ...initEventRegistration(),
+      docId: 'reg_1',
+      optionId: 'online_live',
+      attendance: AttendanceType.Online,
+      hasVideoAccess: true,
+      selectedAddOnIds: ['event_recording'],
+      status: EventRegistrationStatus.Paid,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
+      amountPaidCents: 6000,
+    };
+    const resolvedUpgrade = resolveRequestRuleSelection(
+      product.pricingRules,
+      {
+        optionId: 'full_in_person',
+        selectedAddOnIds: [],
+      },
+      existingPaidReg,
+    );
+    expect(resolvedUpgrade.selectedOptionId).toBe('full_in_person');
+    expect(resolvedUpgrade.selectedAddOnIds).toEqual(['event_recording']);
   });
 
-  it('validates product tier configuration fallback logic', () => {
-    const product: Product = {
-      ...initProduct(),
-      docId: 'prod_test_1',
-      allowNonMembers: true,
-      allowMembers: true,
-      allowInPerson: true,
-      tiers: {
-        non_member_in_person_novideo: { enabled: true, price: 100 },
-      },
+  it('enforces named EventCapacity limits transactionally and frees capacity when switching to online', () => {
+    const product = buildSampleRulesProduct();
+    const capacities = product.pricingRules.capacities;
+
+    // 1. Exceeding Friday limit (5/5 used, requesting +1) throws failed-precondition
+    expect(() =>
+      computeCapacityUpdateOrThrow(
+        capacities,
+        { hall: 5, friday: 5 },
+        {},
+        { hall: 1, friday: 1 },
+      ),
+    ).toThrow(/Friday Spots.*reached capacity/);
+
+    // 2. Existing attendee already holding { hall: 1, friday: 1 } updating their registration at 5/5 succeeds!
+    const keptCounts = computeCapacityUpdateOrThrow(
+      capacities,
+      { hall: 5, friday: 5 },
+      { hall: 1, friday: 1 },
+      { hall: 1, friday: 1 },
+    );
+    expect(keptCounts).toEqual({ hall: 5, friday: 5 });
+
+    // 3. Existing attendee switching from Full In-Person ({ hall: 1, friday: 1 }) to Online ({}) releases units
+    const releasedCounts = computeCapacityUpdateOrThrow(
+      capacities,
+      { hall: 5, friday: 1 },
+      { hall: 1, friday: 1 },
+      {},
+    );
+    expect(releasedCounts).toEqual({ hall: 4 });
+  });
+
+  it('resolves live capacities from linked event and falls back to legacy inPersonRegistrationsCount for single capacity', () => {
+    const product = buildSampleRulesProduct();
+    product.pricingRules.capacities = [
+      initEventCapacity({ id: 'venue_capacity', label: 'In-Person Spots', limit: 15 }),
+    ];
+
+    const legacyEvent = {
+      ...initEvent(),
+      docId: 'event_1',
+      inPersonRegistrationsCount: 7,
+      capacityCounts: {},
     };
 
-    // Member with no dedicated member tier falls back to non_member tier
-    const memberTierKey = getPricingTierKey(AttendeeRole.Member, AttendanceType.InPerson, false);
-    let resolvedTier = product.tiers[memberTierKey];
-    if (!resolvedTier || !resolvedTier.enabled) {
-      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, AttendanceType.InPerson, false);
-      resolvedTier = product.tiers[fallbackKey];
-    }
-    expect(resolvedTier).toBeDefined();
-    expect(resolvedTier?.price).toBe(100);
+    const resolved = resolveEffectiveRulesAndCapacities(product, legacyEvent);
+    expect(resolved.capacityCounts).toEqual({ venue_capacity: 7 });
   });
 
-  it('validates instructor tier falls back to member tier before non_member tier', () => {
-    const product: Product = {
-      ...initProduct(),
-      docId: 'prod_test_inst_fallback',
-      allowNonMembers: true,
-      allowMembers: true,
-      allowInstructors: true,
-      allowInPerson: true,
-      tiers: {
-        member_in_person_novideo: { enabled: true, price: 80 },
-        non_member_in_person_novideo: { enabled: true, price: 100 },
+  it('maps eligibility errors to permission-denied and capacity/suboption errors to failed-precondition', () => {
+    const product = buildSampleRulesProduct();
+
+    // Non-member attempting Instructor-only option -> permission-denied
+    const instQuote = evaluateEventPricingQuote({
+      rules: product.pricingRules,
+      memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+      selectedOptionId: 'inst_clinic',
+      evaluationDateAoE: '2099-08-01',
+    });
+    expect(() => assertValidQuoteOrThrow(instQuote)).toThrowError(
+      expect.objectContaining({ code: 'permission-denied' }),
+    );
+
+    // Selecting 2-Day Pass with only 1 suboption -> failed-precondition
+    const suboptQuote = evaluateEventPricingQuote({
+      rules: product.pricingRules,
+      memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+      selectedOptionId: 'two_day',
+      selectedSuboptions: ['Fri'],
+      evaluationDateAoE: '2099-08-01',
+    });
+    expect(() => assertValidQuoteOrThrow(suboptQuote)).toThrowError(
+      expect.objectContaining({ code: 'failed-precondition' }),
+    );
+  });
+
+  it('values prior paid registration at max(amountPaidCents, current option + add-on value) for upgrades', () => {
+    const product = buildSampleRulesProduct();
+    // Make full_in_person and online_live equal standard price ($100)
+    product.pricingRules.earlyBird = { kind: EarlyBirdPolicyKind.Disabled };
+    product.pricingRules.registrationOptions = [
+      initEventRegistrationOption({
+        id: 'in_person',
+        label: 'In-Person',
+        attendanceType: AttendanceType.InPerson,
+        priceCents: 10000,
+      }),
+      initEventRegistrationOption({
+        id: 'online',
+        label: 'Online',
+        attendanceType: AttendanceType.Online,
+        priceCents: 10000,
+      }),
+    ];
+
+    const instContext = toMemberStatusContext({
+      member: {
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2999-01-01',
+        instructorId: '10',
+        instructorLicenseType: InstructorLicenseType.Annual,
+        instructorLicenseExpires: '2999-01-01',
       },
+      isAdmin: false,
+    });
+
+    // Attendee paid $60 originally (before price rose to $70 instructor rate + $20 video = $90)
+    const existingPaid: EventRegistration = {
+      ...initEventRegistration(),
+      docId: 'reg_inst',
+      optionId: 'in_person',
+      attendance: AttendanceType.InPerson,
+      hasVideoAccess: true,
+      selectedAddOnIds: ['event_recording'],
+      amountPaidCents: 6000,
+      status: EventRegistrationStatus.Paid,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
     };
 
-    const instTierKey = getPricingTierKey(AttendeeRole.Instructor, AttendanceType.InPerson, false);
-    let resolvedTier = product.tiers[instTierKey];
-    if (!resolvedTier || !resolvedTier.enabled) {
-      const memberFallbackKey = getPricingTierKey(AttendeeRole.Member, AttendanceType.InPerson, false);
-      resolvedTier = product.tiers[memberFallbackKey];
-    }
-    if (!resolvedTier || !resolvedTier.enabled) {
-      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, AttendanceType.InPerson, false);
-      resolvedTier = product.tiers[fallbackKey];
-    }
-    expect(resolvedTier).toBeDefined();
-    expect(resolvedTier?.price).toBe(80);
-  });
+    const credit = computePriorPaidCreditCents(
+      existingPaid,
+      product.pricingRules,
+      instContext,
+      false,
+      '2099-10-01',
+    );
+    expect(credit).toBe(9000);
 
-  it('validates upgrade delta and entitlement logic', () => {
-    // Entitlement check helper reproducing server-side check
-    function checkUpgradeEntitlement(
-      existing: { attendance: AttendanceType; hasVideoAccess?: boolean },
-      requested: { attendance: AttendanceType; includeVideo: boolean },
-    ): boolean {
-      const addsVideo = Boolean(requested.includeVideo && !existing.hasVideoAccess);
-      const hadInPerson =
-        existing.attendance === AttendanceType.InPerson ||
-        existing.attendance === AttendanceType.InPersonAndOnline;
-      const hadOnline =
-        existing.attendance === AttendanceType.Online ||
-        existing.attendance === AttendanceType.InPersonAndOnline;
-      const requestingInPerson =
-        requested.attendance === AttendanceType.InPerson ||
-        requested.attendance === AttendanceType.InPersonAndOnline;
-      const requestingOnline =
-        requested.attendance === AttendanceType.Online ||
-        requested.attendance === AttendanceType.InPersonAndOnline;
-      const addsInPerson = requestingInPerson && !hadInPerson;
-      const addsOnline = requestingOnline && !hadOnline;
-      const upgradesFromVideoOnly =
-        existing.attendance === AttendanceType.VideoOnly &&
-        requested.attendance !== AttendanceType.VideoOnly;
-
-      return addsVideo || addsInPerson || addsOnline || upgradesFromVideoOnly;
-    }
-
-    // 1. In-person adding video is a valid upgrade
-    expect(
-      checkUpgradeEntitlement(
-        { attendance: AttendanceType.InPerson, hasVideoAccess: false },
-        { attendance: AttendanceType.InPerson, includeVideo: true },
-      ),
-    ).toBe(true);
-
-    // 2. In-person selecting in-person with no video is NOT an upgrade (no new entitlement)
-    expect(
-      checkUpgradeEntitlement(
-        { attendance: AttendanceType.InPerson, hasVideoAccess: false },
-        { attendance: AttendanceType.InPerson, includeVideo: false },
-      ),
-    ).toBe(false);
-
-    // 3. Online upgrading to InPerson is a valid upgrade
-    expect(
-      checkUpgradeEntitlement(
-        { attendance: AttendanceType.Online, hasVideoAccess: false },
-        { attendance: AttendanceType.InPerson, includeVideo: false },
-      ),
-    ).toBe(true);
-
-    // 4. VideoOnly upgrading to live attendance is a valid upgrade
-    expect(
-      checkUpgradeEntitlement(
-        { attendance: AttendanceType.VideoOnly, hasVideoAccess: true },
-        { attendance: AttendanceType.InPerson, includeVideo: true },
-      ),
-    ).toBe(true);
-
-    // 5. Full package (both live + video) cannot add any further entitlement
-    expect(
-      checkUpgradeEntitlement(
-        { attendance: AttendanceType.InPersonAndOnline, hasVideoAccess: true },
-        { attendance: AttendanceType.InPersonAndOnline, includeVideo: true },
-      ),
-    ).toBe(false);
-  });
-
-  it('validates video-only pre-order tier keys and constraints', () => {
-    // VideoOnly tier keys
-    expect(getPricingTierKey(AttendeeRole.NonMember, AttendanceType.VideoOnly, true)).toBe('non_member_video_only');
-    expect(getPricingTierKey(AttendeeRole.Member, AttendanceType.VideoOnly, true)).toBe('member_video_only');
-    expect(getPricingTierKey(AttendeeRole.Instructor, AttendanceType.VideoOnly, true)).toBe('instructor_video_only');
-
-    const product: Product = {
-      ...initProduct(),
-      allowVideoOnly: true,
-      tiers: {
-        non_member_video_only: { enabled: true, price: 45 },
-      },
+    // Pending in-person registration receives 0 credit when paying online
+    const pendingDoor: EventRegistration = {
+      ...existingPaid,
+      amountPaidCents: 0,
+      amountDueCents: 9000,
+      status: EventRegistrationStatus.PendingInPerson,
+      paymentMethod: RegistrationPaymentMethod.InPerson,
     };
-
-    const key = getPricingTierKey(AttendeeRole.NonMember, AttendanceType.VideoOnly, true);
-    expect(product.tiers[key]?.price).toBe(45);
-    expect(product.allowVideoOnly).toBe(true);
+    expect(
+      computePriorPaidCreditCents(
+        pendingDoor,
+        product.pricingRules,
+        instContext,
+        false,
+        '2099-10-01',
+      ),
+    ).toBe(0);
   });
 
-  it('validates unmark in-person paid registration business logic', () => {
-    // Helper replicating unmark validation & state transition
-    function unmarkRegistration(reg: {
-      status: string;
-      paymentMethod?: string;
-      amountPaidCents?: number;
-      amountDueCents?: number;
-    }) {
-      if (reg.paymentMethod !== 'in_person') {
-        throw new Error('Only in-person door payments can be unmarked.');
-      }
-      const restoredDue = reg.amountPaidCents || reg.amountDueCents || 0;
-      return {
-        ...reg,
-        status: 'pending_in_person',
-        amountDueCents: restoredDue,
-        amountPaidCents: 0,
-        paidAt: null,
-      };
-    }
-
-    // 1. Successful unmark of in-person paid registration
-    const paidInPerson = {
-      status: 'paid',
-      paymentMethod: 'in_person',
+  it('unmarks in-person and deposit-paid door balances cleanly with strictly defined fields', () => {
+    // 1. In-person door payment -> PendingInPerson with paidAt: ''
+    const paidDoor: EventRegistration = {
+      ...initEventRegistration(),
+      docId: 'reg_door',
+      status: EventRegistrationStatus.Paid,
+      paymentMethod: RegistrationPaymentMethod.InPerson,
+      agreedTotalCents: 6500,
       amountPaidCents: 6500,
       amountDueCents: 0,
       paidAt: '2026-09-08T10:00:00Z',
     };
-    const reverted = unmarkRegistration(paidInPerson);
-    expect(reverted.status).toBe('pending_in_person');
-    expect(reverted.amountDueCents).toBe(6500);
-    expect(reverted.amountPaidCents).toBe(0);
-    expect(reverted.paidAt).toBeNull();
+    const revertedDoor = buildUnmarkedRegistrationUpdates(paidDoor, '2026-09-09T00:00:00Z');
+    expect(revertedDoor).toEqual({
+      status: EventRegistrationStatus.PendingInPerson,
+      amountDueCents: 6500,
+      amountPaidCents: 0,
+      paidAt: '',
+      lastUpdated: '2026-09-09T00:00:00Z',
+    });
 
-    // 2. Safeguard: Stripe online payment throws error
-    const paidStripe = {
-      status: 'paid',
-      paymentMethod: 'stripe',
-      amountPaidCents: 6500,
+    // 2. Deposit-paid registration whose remaining door balance was marked paid -> reverts to DepositPaid
+    const paidDeposit: EventRegistration = {
+      ...initEventRegistration(),
+      docId: 'reg_dep',
+      status: EventRegistrationStatus.Paid,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
+      agreedTotalCents: 8000,
+      depositPaidCents: 2500,
+      amountPaidCents: 8000,
+      amountDueCents: 0,
+      paidAt: '2026-09-08T10:00:00Z',
+    };
+    const revertedDeposit = buildUnmarkedRegistrationUpdates(paidDeposit, '2026-09-09T00:00:00Z');
+    expect(revertedDeposit).toEqual({
+      status: EventRegistrationStatus.DepositPaid,
+      amountPaidCents: 2500,
+      amountDueCents: 5500,
+      paidAt: '',
+      lastUpdated: '2026-09-09T00:00:00Z',
+    });
+
+    // 3. Full Stripe online payment cannot be unmarked
+    const fullStripe: EventRegistration = {
+      ...initEventRegistration(),
+      docId: 'reg_stripe',
+      status: EventRegistrationStatus.Paid,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
+      agreedTotalCents: 8000,
+      depositPaidCents: 0,
+      amountPaidCents: 8000,
       amountDueCents: 0,
     };
-    expect(() => unmarkRegistration(paidStripe)).toThrow('Only in-person door payments can be unmarked.');
+    expect(() => buildUnmarkedRegistrationUpdates(fullStripe)).toThrowError(
+      expect.objectContaining({ code: 'failed-precondition' }),
+    );
   });
 
-  it('calculates credit based on existing tier entitlements when changing attendance', () => {
-    const product: Product = {
-      ...initProduct(),
-      tiers: {
-        instructor_in_person_novideo: { enabled: true, price: 90 },
-        instructor_in_person_video: { enabled: true, price: 110 },
-        instructor_online_novideo: { enabled: true, price: 90 },
-        instructor_online_video: { enabled: true, price: 110 },
-      },
-    };
+  it('converts legacy Matrix Firestore product docs into equivalent EventPricingRules on load', () => {
+    const legacyProduct = firestoreDocToProduct({
+      id: 'legacy_prod',
+      data: () => ({
+        eventDocId: 'event_legacy',
+        title: 'Legacy Workshop',
+        allowNonMembers: false,
+        allowMembers: true,
+        allowInstructors: true,
+        allowInPerson: true,
+        allowOnline: true,
+        allowVideo: true,
+        hasMemberPrice: true,
+        hasInstructorPrice: true,
+        maxInPersonAttendees: 25,
+        tiers: {
+          member_in_person_novideo: { enabled: true, price: 80 },
+          member_in_person_video: { enabled: true, price: 100 },
+          instructor_in_person_novideo: { enabled: true, price: 60 },
+          instructor_in_person_video: { enabled: true, price: 80 },
+          member_online_novideo: { enabled: true, price: 50 },
+          member_online_video: { enabled: true, price: 70 },
+          instructor_online_novideo: { enabled: true, price: 40 },
+          instructor_online_video: { enabled: true, price: 60 },
+        },
+      }),
+    });
 
-    function calculateCreditAndDiff(
-      existingReg: { role: AttendeeRole; attendance: AttendanceType; hasVideoAccess: boolean; amountPaidCents: number },
-      requestedAttendance: AttendanceType,
-      requestedIncludeVideo: boolean,
-    ) {
-      let existingTierPriceInCents = existingReg.amountPaidCents || 0;
-      const existingLookupAtt =
-        existingReg.attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : existingReg.attendance;
-      const existingKey = getPricingTierKey(existingReg.role, existingLookupAtt, Boolean(existingReg.hasVideoAccess));
-      const existingTier = product.tiers[existingKey];
-      if (existingTier && existingTier.enabled && typeof existingTier.price === 'number') {
-        existingTierPriceInCents = Math.round(existingTier.price * 100);
-      }
-      const creditAppliedCents = Math.max(existingReg.amountPaidCents || 0, existingTierPriceInCents);
+    // Public non-member is rejected (options require Members)
+    const publicQuote = evaluateEventPricingQuote({
+      rules: legacyProduct.pricingRules,
+      memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+      evaluationDateAoE: '2099-05-01',
+    });
+    expect(publicQuote.isEligibleToRegister).toBe(false);
 
-      const targetLookupAtt =
-        requestedAttendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : requestedAttendance;
-      const targetKey = getPricingTierKey(existingReg.role, targetLookupAtt, requestedIncludeVideo);
-      const targetTier = product.tiers[targetKey];
-      const fullPriceInCents = Math.round((targetTier?.price ?? 0) * 100);
-      const upgradeDiffCents = fullPriceInCents - creditAppliedCents;
-
-      return { creditAppliedCents, upgradeDiffCents };
-    }
-
-    // Existing attendee paid $90 for in-person with video (before delta price was added)
-    const existing = {
-      role: AttendeeRole.Instructor,
-      attendance: AttendanceType.InPerson,
-      hasVideoAccess: true,
-      amountPaidCents: 9000,
-    };
-
-    // Switching to Online (keeping video)
-    const res = calculateCreditAndDiff(existing, AttendanceType.Online, true);
-    expect(res.creditAppliedCents).toBe(11000); // Valued at current in-person with video tier ($110)
-    expect(res.upgradeDiffCents).toBe(0); // Online with video is $110 -> 0 upgrade difference!
+    // Active member gets $80 in-person + $20 recording = $100, and capacity limit 25 is tracked
+    const memberQuote = evaluateEventPricingQuote({
+      rules: legacyProduct.pricingRules,
+      memberContext: toMemberStatusContext({
+        member: {
+          membershipType: MembershipType.Annual,
+          currentMembershipExpires: '2999-01-01',
+          instructorId: '',
+          instructorLicenseType: InstructorLicenseType.None,
+          instructorLicenseExpires: '',
+        },
+        isAdmin: false,
+      }),
+      selectedAddOnIds: ['event_recording'],
+      capacityCounts: { in_person_venue: 10 },
+      evaluationDateAoE: '2099-05-01',
+    });
+    expect(memberQuote.isValid).toBe(true);
+    expect(memberQuote.agreedTotalCents).toBe(10000);
+    expect(memberQuote.evaluatedCapacities[0].remaining).toBe(15);
   });
 });
-
-describe('hasSpecialRolePrice and hasAnySpecialPricing', () => {
-  it('returns false for NonMember role', () => {
-    const product: Product = { ...initProduct(), docId: 'p1' };
-    expect(hasSpecialRolePrice(product, AttendeeRole.NonMember)).toBe(false);
-  });
-
-  it('respects explicit hasMemberPrice / hasInstructorPrice flags', () => {
-    const product: Product = {
-      ...initProduct(),
-      docId: 'p1',
-      hasMemberPrice: true,
-      hasInstructorPrice: false,
-    };
-    expect(hasSpecialRolePrice(product, AttendeeRole.Member)).toBe(true);
-    expect(hasSpecialRolePrice(product, AttendeeRole.Instructor)).toBe(false);
-    expect(hasAnySpecialPricing(product)).toBe(true);
-
-    const product2: Product = {
-      ...initProduct(),
-      docId: 'p2',
-      hasMemberPrice: false,
-      hasInstructorPrice: true,
-    };
-    expect(hasSpecialRolePrice(product2, AttendeeRole.Member)).toBe(false);
-    expect(hasSpecialRolePrice(product2, AttendeeRole.Instructor)).toBe(true);
-    expect(hasAnySpecialPricing(product2)).toBe(true);
-
-    const product3: Product = {
-      ...initProduct(),
-      docId: 'p3',
-      hasMemberPrice: false,
-      hasInstructorPrice: false,
-    };
-    expect(hasSpecialRolePrice(product3, AttendeeRole.Member)).toBe(false);
-    expect(hasSpecialRolePrice(product3, AttendeeRole.Instructor)).toBe(false);
-    expect(hasAnySpecialPricing(product3)).toBe(false);
-  });
-
-  it('detects special pricing from tiers when flags are undefined or legacy', () => {
-    const baseProduct = initProduct();
-    delete (baseProduct as Partial<Product>).hasMemberPrice;
-    delete (baseProduct as Partial<Product>).hasInstructorPrice;
-
-    // Standard non-member in-person is 100, member is 80
-    baseProduct.tiers['non_member_in_person_novideo'] = { enabled: true, price: 100 };
-    baseProduct.tiers['member_in_person_novideo'] = { enabled: true, price: 80 };
-    baseProduct.tiers['instructor_in_person_novideo'] = { enabled: true, price: 100 }; // same as non-member
-
-    expect(hasSpecialRolePrice(baseProduct, AttendeeRole.Member)).toBe(true);
-    expect(hasSpecialRolePrice(baseProduct, AttendeeRole.Instructor)).toBe(false);
-    expect(hasAnySpecialPricing(baseProduct)).toBe(true);
-  });
-});
-
-describe('role authorization verification logic', () => {
-  function verifyRoleAuth(
-    product: Product,
-    role: AttendeeRole,
-    member: { hasActiveMembership: boolean; hasActiveLicense: boolean } | undefined,
-  ): { allowed: boolean; error?: string } {
-    if (!product.allowNonMembers) {
-      if (!member || !member.hasActiveMembership) {
-        return { allowed: false, error: 'Active membership is required to register for this event.' };
-      }
-    }
-
-    if (role === AttendeeRole.Member) {
-      if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
-        if (!member || !member.hasActiveMembership) {
-          return { allowed: false, error: 'Active membership is required to register at the member rate.' };
-        }
-      }
-    } else if (role === AttendeeRole.Instructor) {
-      if (hasSpecialRolePrice(product, AttendeeRole.Instructor)) {
-        if (!member || !member.hasActiveLicense || !member.hasActiveMembership) {
-          return { allowed: false, error: 'Active instructor license and membership are required to register at the instructor rate.' };
-        }
-      } else if (hasSpecialRolePrice(product, AttendeeRole.Member)) {
-        if (!member || !member.hasActiveMembership) {
-          return { allowed: false, error: 'Active membership is required to register at the member rate.' };
-        }
-      }
-    }
-
-    return { allowed: true };
-  }
-
-  it('allows registration when an instructor has expired license on an event without special instructor price', () => {
-    const product: Product = {
-      ...initProduct(),
-      docId: 'event_no_special_price',
-      allowNonMembers: true,
-      hasMemberPrice: false,
-      hasInstructorPrice: false,
-    };
-
-    // Member with expired instructor license and expired membership
-    const member = { hasActiveMembership: false, hasActiveLicense: false };
-
-    // Registering with Instructor role on uniform price event should succeed
-    const res = verifyRoleAuth(product, AttendeeRole.Instructor, member);
-    expect(res.allowed).toBe(true);
-  });
-
-  it('rejects registration when an instructor has expired license on an event with special instructor price', () => {
-    const product: Product = {
-      ...initProduct(),
-      docId: 'event_with_instructor_price',
-      allowNonMembers: true,
-      hasMemberPrice: true,
-      hasInstructorPrice: true,
-    };
-
-    const member = { hasActiveMembership: true, hasActiveLicense: false };
-    const res = verifyRoleAuth(product, AttendeeRole.Instructor, member);
-    expect(res.allowed).toBe(false);
-    expect(res.error).toBe('Active instructor license and membership are required to register at the instructor rate.');
-  });
-
-  it('rejects registration when an instructor has active license but expired membership on an event with special instructor price', () => {
-    const product: Product = {
-      ...initProduct(),
-      docId: 'event_with_instructor_price',
-      allowNonMembers: true,
-      hasMemberPrice: true,
-      hasInstructorPrice: true,
-    };
-
-    const member = { hasActiveMembership: false, hasActiveLicense: true };
-    const res = verifyRoleAuth(product, AttendeeRole.Instructor, member);
-    expect(res.allowed).toBe(false);
-    expect(res.error).toBe('Active instructor license and membership are required to register at the instructor rate.');
-  });
-
-  it('allows registration when an instructor has expired license but active membership on event with only member discount', () => {
-    const product: Product = {
-      ...initProduct(),
-      docId: 'event_with_member_only_price',
-      allowNonMembers: true,
-      hasMemberPrice: true,
-      hasInstructorPrice: false,
-    };
-
-    const member = { hasActiveMembership: true, hasActiveLicense: false };
-    const res = verifyRoleAuth(product, AttendeeRole.Instructor, member);
-    expect(res.allowed).toBe(true);
-  });
-
-  describe('registration upgrade & update authorization', () => {
-    function checkAuthorization({
-      authEmail,
-      regEmail,
-      callerMemberDocId,
-      regMemberDocId,
-      aclIsAdmin,
-      isEventManager,
-    }: {
-      authEmail?: string;
-      regEmail: string;
-      callerMemberDocId?: string;
-      regMemberDocId?: string;
-      aclIsAdmin?: boolean;
-      isEventManager?: boolean;
-    }) {
-      const verifiedAuthEmail = (authEmail || '').toLowerCase().trim();
-      if (!verifiedAuthEmail) {
-        return false; // Authentication is strictly required
-      }
-      const callerEmail = verifiedAuthEmail;
-      const existingRegEmail = (regEmail || '').toLowerCase().trim();
-
-      const isAdmin = Boolean(aclIsAdmin);
-      const isManager = Boolean(isEventManager);
-
-      const isAuthorized =
-        (callerEmail && callerEmail === existingRegEmail) ||
-        (callerMemberDocId && regMemberDocId && callerMemberDocId === regMemberDocId) ||
-        isAdmin ||
-        isManager;
-
-      return isAuthorized;
-    }
-
-    it('allows owner by matching verified auth email', () => {
-      expect(checkAuthorization({ authEmail: 'student@example.com', regEmail: 'student@example.com' })).toBe(true);
-    });
-
-    it('rejects unauthenticated caller even if email matches registration', () => {
-      expect(checkAuthorization({ authEmail: undefined, regEmail: 'student@example.com' })).toBe(false);
-    });
-
-    it('allows authenticated admin even with different reg email', () => {
-      expect(checkAuthorization({ authEmail: 'admin@example.com', regEmail: 'student@example.com', aclIsAdmin: true })).toBe(true);
-    });
-
-    it('allows authenticated event manager even with different reg email', () => {
-      expect(checkAuthorization({ authEmail: 'manager@example.com', regEmail: 'student@example.com', isEventManager: true })).toBe(true);
-    });
-
-    it('rejects unauthenticated caller attempting to claim admin privileges', () => {
-      expect(checkAuthorization({
-        authEmail: undefined,
-        regEmail: 'victim@example.com',
-        aclIsAdmin: true,
-      })).toBe(false);
-    });
-
-    it('rejects authenticated caller when not admin and email does not match', () => {
-      expect(checkAuthorization({
-        authEmail: 'attacker@example.com',
-        regEmail: 'victim@example.com',
-        aclIsAdmin: false,
-      })).toBe(false);
-    });
-  });
-});
-
-
-
-

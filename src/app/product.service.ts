@@ -1,6 +1,7 @@
 /* product.service.ts
  *
- * Client data service for managing /products and event registrations.
+ * Client data service for managing /products, live-watching event capacities,
+ * and querying event registrations.
  * Follows the standalone, signal-friendly pattern with direct Firestore calls.
  */
 
@@ -12,6 +13,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  onSnapshot,
   query,
   serverTimestamp,
   setDoc,
@@ -19,7 +21,14 @@ import {
   where,
 } from 'firebase/firestore';
 import { FIREBASE_APP } from './app.config';
-import { EventRegistration, firestoreDocToEventRegistration, firestoreDocToProduct, initProduct, Product } from '../../functions/src/data-model/events';
+import {
+  EventRegistration,
+  firestoreDocToEventRegistration,
+  firestoreDocToIlcEvent,
+  firestoreDocToProduct,
+  IlcEvent,
+  Product,
+} from '../../functions/src/data-model/events';
 
 @Injectable({ providedIn: 'root' })
 export class ProductService {
@@ -64,6 +73,38 @@ export class ProductService {
     }
   }
 
+  /** Live-watch a single /events/{eventId} document for real-time capacityCounts updates. */
+  watchEvent(eventId: string, onUpdate: (ev: IlcEvent) => void): () => void {
+    if (!eventId) return () => {};
+    return onSnapshot(
+      doc(this.db, 'events', eventId),
+      (snap) => {
+        if (snap.exists()) {
+          onUpdate(firestoreDocToIlcEvent(snap));
+        }
+      },
+      (err) => {
+        console.warn('Error watching event document:', err);
+      },
+    );
+  }
+
+  /** Live-watch a single /products/{productId} document for real-time pricing/capacity updates. */
+  watchProduct(productId: string, onUpdate: (prod: Product) => void): () => void {
+    if (!productId) return () => {};
+    return onSnapshot(
+      doc(this.db, 'products', productId),
+      (snap) => {
+        if (snap.exists()) {
+          onUpdate(firestoreDocToProduct(snap));
+        }
+      },
+      (err) => {
+        console.warn('Error watching product document:', err);
+      },
+    );
+  }
+
   /** Save (create or update) a product. */
   async saveProduct(product: Product): Promise<string> {
     const productsCol = collection(this.db, 'products');
@@ -83,29 +124,23 @@ export class ProductService {
     const { docId: _, ...docPayload } = dataToSave;
     await setDoc(targetDoc, docPayload);
 
-    // If linked to an event, sync event with product reference & delivery resources
+    // If linked to an event, sync event with product reference, capacities, & delivery resources
     if (product.eventDocId) {
       try {
-        const updates: Record<string, unknown> = {
+        const eventUpdates: Omit<Partial<IlcEvent>, 'lastUpdated'> & {
+          lastUpdated: ReturnType<typeof serverTimestamp>;
+        } = {
           productId: docId,
+          capacities: product.pricingRules.capacities,
+          maxInPersonAttendees: product.maxInPersonAttendees,
+          onlineJoiningLink: product.onlineJoiningLink,
+          purchaseDetailsMarkdown: product.purchaseDetailsMarkdown,
+          inPersonDetailsMarkdown: product.inPersonDetailsMarkdown,
+          recordedVideoId: product.recordedVideoId,
+          recordedVideoUrl: product.recordedVideoUrl,
           lastUpdated: serverTimestamp(),
         };
-        if (product.onlineJoiningLink !== undefined) {
-          updates['onlineJoiningLink'] = product.onlineJoiningLink;
-        }
-        if (product.purchaseDetailsMarkdown !== undefined) {
-          updates['purchaseDetailsMarkdown'] = product.purchaseDetailsMarkdown;
-        }
-        if (product.inPersonDetailsMarkdown !== undefined) {
-          updates['inPersonDetailsMarkdown'] = product.inPersonDetailsMarkdown;
-        }
-        if (product.recordedVideoId !== undefined) {
-          updates['recordedVideoId'] = product.recordedVideoId;
-        }
-        if (product.recordedVideoUrl !== undefined) {
-          updates['recordedVideoUrl'] = product.recordedVideoUrl;
-        }
-        await updateDoc(doc(this.db, 'events', product.eventDocId), updates);
+        await updateDoc(doc(this.db, 'events', product.eventDocId), eventUpdates);
       } catch (err) {
         console.warn('Could not sync event doc on product save:', err);
       }

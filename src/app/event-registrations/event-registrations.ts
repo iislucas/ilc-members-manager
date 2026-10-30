@@ -12,7 +12,6 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { studentLevelLabel, toApplicationLevel } from '../../../functions/src/data-model/curriculum';
 import { FormsModule } from '@angular/forms';
 import { RoutingService } from '../routing.service';
@@ -27,7 +26,10 @@ import {
   AttendeeRole,
   AttendanceType,
   EventRegistration,
+  EventRegistrationQuestionResponse,
   EventRegistrationStatus,
+  formatQuestionResponseValue,
+  hasQuestionResponseValue,
   IlcEvent,
   PricingTierType,
   RegistrationPaymentMethod,
@@ -109,7 +111,7 @@ function getAppLevelRank(lvl?: string): number {
 @Component({
   selector: 'app-event-registrations',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent],
+  imports: [FormsModule, IconComponent, SpinnerComponent],
   templateUrl: './event-registrations.html',
   styleUrl: './event-registrations.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -117,6 +119,7 @@ function getAppLevelRank(lvl?: string): number {
 export class EventRegistrationsComponent implements OnInit {
   RegistrationSortField = RegistrationSortField;
   SortDirection = SortDirection;
+  protected readonly formatQuestionResponseValue = formatQuestionResponseValue;
   protected routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   protected firebaseState = inject(FirebaseStateService);
   protected dataService = inject(DataManagerService);
@@ -125,6 +128,7 @@ export class EventRegistrationsComponent implements OnInit {
 
   isLoading = signal(true);
   isUpdating = signal<string | null>(null);
+  actionError = signal<string | null>(null);
   copiedAlert = signal(false);
   searchTerm = signal('');
   selectedFilter = signal<'all' | 'in_person' | 'online' | 'video' | 'paid_online' | 'pay_in_person'>('all');
@@ -186,7 +190,7 @@ export class EventRegistrationsComponent implements OnInit {
     } else if (filter === 'paid_online') {
       list = list.filter((r) => r.paymentMethod === RegistrationPaymentMethod.Stripe || (r.status === EventRegistrationStatus.Paid && !r.paymentMethod));
     } else if (filter === 'pay_in_person') {
-      list = list.filter((r) => this.isPendingInPerson(r));
+      list = list.filter((r) => this.hasBalanceDueAtDoor(r));
     }
 
     if (term) {
@@ -203,12 +207,37 @@ export class EventRegistrationsComponent implements OnInit {
           appLevelStr.includes(term) ||
           (levels.studentLevel || '').toLowerCase().includes(term) ||
           (levels.applicationLevel || '').toLowerCase().includes(term);
-        return nameMatch || emailMatch || phoneMatch || memberIdMatch || levelMatch;
+        const notesMatch = (r.notes || '').toLowerCase().includes(term);
+        const responseMatch = (r.questionResponses || []).some(
+          (resp) =>
+            hasQuestionResponseValue(resp) &&
+            (resp.questionLabel.toLowerCase().includes(term) ||
+              formatQuestionResponseValue(resp).toLowerCase().includes(term)),
+        );
+        return (
+          nameMatch ||
+          emailMatch ||
+          phoneMatch ||
+          memberIdMatch ||
+          levelMatch ||
+          notesMatch ||
+          responseMatch
+        );
       });
     }
 
     return list.slice().sort((a, b) => this.compareRegistrations(a, b));
   });
+
+  hasAnyResponsesOrNotes = computed<boolean>(() => {
+    return this.registrations().some(
+      (r) => this.getAnsweredResponses(r).length > 0 || Boolean(r.notes?.trim()),
+    );
+  });
+
+  getAnsweredResponses(reg: EventRegistration): EventRegistrationQuestionResponse[] {
+    return (reg.questionResponses || []).filter((resp) => hasQuestionResponseValue(resp));
+  }
 
   totalAttendeesCount = computed(() => this.registrations().length);
 
@@ -235,7 +264,7 @@ export class EventRegistrationsComponent implements OnInit {
   });
 
   pendingInPersonCount = computed(() => {
-    return this.registrations().filter((r) => this.isPendingInPerson(r)).length;
+    return this.registrations().filter((r) => this.hasBalanceDueAtDoor(r)).length;
   });
 
   totalRevenue = computed(() => {
@@ -315,8 +344,39 @@ export class EventRegistrationsComponent implements OnInit {
     return (
       reg.status === EventRegistrationStatus.PendingInPerson ||
       (reg.paymentMethod === RegistrationPaymentMethod.InPerson &&
-        reg.status !== EventRegistrationStatus.Paid)
+        reg.status !== EventRegistrationStatus.Paid &&
+        reg.status !== EventRegistrationStatus.DepositPaid)
     );
+  }
+
+  isDepositPaid(reg: EventRegistration): boolean {
+    return reg.status === EventRegistrationStatus.DepositPaid;
+  }
+
+  hasBalanceDueAtDoor(reg: EventRegistration): boolean {
+    return (
+      this.isPendingInPerson(reg) ||
+      (reg.status === EventRegistrationStatus.DepositPaid && reg.amountDueCents > 0)
+    );
+  }
+
+  canUnmarkPaid(reg: EventRegistration): boolean {
+    if (reg.status !== EventRegistrationStatus.Paid) return false;
+    return (
+      reg.paymentMethod === RegistrationPaymentMethod.InPerson ||
+      (reg.depositPaidCents > 0 && reg.agreedTotalCents > reg.depositPaidCents)
+    );
+  }
+
+  formatStatusBadge(status: EventRegistrationStatus): string {
+    switch (status) {
+      case EventRegistrationStatus.DepositPaid:
+        return 'DEPOSIT PAID';
+      case EventRegistrationStatus.PendingInPerson:
+        return 'PAY AT DOOR';
+      default:
+        return (status || '').toUpperCase();
+    }
   }
 
   async markPaid(reg: EventRegistration) {
@@ -325,6 +385,7 @@ export class EventRegistrationsComponent implements OnInit {
     }
 
     this.isUpdating.set(reg.docId);
+    this.actionError.set(null);
     try {
       const result = await this.stripeService.markEventRegistrationPaid({
         eventId: this.eventId(),
@@ -338,7 +399,8 @@ export class EventRegistrationsComponent implements OnInit {
               ? {
                   ...r,
                   status: EventRegistrationStatus.Paid,
-                  amountPaidCents: r.amountDueCents || r.amountPaidCents,
+                  amountPaidCents:
+                    r.amountDueCents > 0 ? r.amountPaidCents + r.amountDueCents : r.amountPaidCents,
                   amountDueCents: 0,
                   paidAt: new Date().toISOString(),
                 }
@@ -346,11 +408,11 @@ export class EventRegistrationsComponent implements OnInit {
           ),
         );
       } else {
-        alert('Failed to update registration payment status.');
+        this.actionError.set('Failed to update registration payment status.');
       }
     } catch (err: unknown) {
       console.error('Error marking registration paid:', err);
-      alert(err instanceof Error ? err.message : 'Error updating registration.');
+      this.actionError.set(err instanceof Error ? err.message : 'Error updating registration.');
     } finally {
       this.isUpdating.set(null);
     }
@@ -359,13 +421,14 @@ export class EventRegistrationsComponent implements OnInit {
   async unmarkPaid(reg: EventRegistration) {
     if (
       !confirm(
-        `Unmark payment for ${reg.name || 'this attendee'}? This will revert their status to unpaid / pay at the door.`,
+        `Unmark door payment for ${reg.name || 'this attendee'}? This will revert their remaining balance to due at the door.`,
       )
     ) {
       return;
     }
 
     this.isUpdating.set(reg.docId);
+    this.actionError.set(null);
     try {
       const result = await this.stripeService.unmarkEventRegistrationPaid({
         eventId: this.eventId(),
@@ -374,24 +437,32 @@ export class EventRegistrationsComponent implements OnInit {
 
       if (result && result.success) {
         this.registrations.update((list) =>
-          list.map((r) =>
-            r.docId === reg.docId
-              ? {
-                  ...r,
-                  status: EventRegistrationStatus.PendingInPerson,
-                  amountDueCents: r.amountPaidCents || r.amountDueCents,
-                  amountPaidCents: 0,
-                  paidAt: undefined,
-                }
-              : r,
-          ),
+          list.map((r) => {
+            if (r.docId !== reg.docId) return r;
+            if (r.depositPaidCents > 0 && r.agreedTotalCents > r.depositPaidCents) {
+              return {
+                ...r,
+                status: EventRegistrationStatus.DepositPaid,
+                amountPaidCents: r.depositPaidCents,
+                amountDueCents: r.agreedTotalCents - r.depositPaidCents,
+                paidAt: '',
+              };
+            }
+            return {
+              ...r,
+              status: EventRegistrationStatus.PendingInPerson,
+              amountDueCents: r.agreedTotalCents || r.amountPaidCents || r.amountDueCents,
+              amountPaidCents: 0,
+              paidAt: '',
+            };
+          }),
         );
       } else {
-        alert('Failed to unmark registration payment status.');
+        this.actionError.set('Failed to unmark registration payment status.');
       }
     } catch (err: unknown) {
       console.error('Error unmarking registration paid:', err);
-      alert(err instanceof Error ? err.message : 'Error updating registration.');
+      this.actionError.set(err instanceof Error ? err.message : 'Error updating registration.');
     } finally {
       this.isUpdating.set(null);
     }
@@ -627,6 +698,23 @@ export class EventRegistrationsComponent implements OnInit {
     const regs = this.filteredRegistrations();
     if (regs.length === 0) return;
 
+    const distinctQuestions: { questionId: string; questionLabel: string }[] = [];
+    const seenQuestionIds = new Set<string>();
+    for (const r of this.registrations()) {
+      for (const resp of r.questionResponses || []) {
+        if (!seenQuestionIds.has(resp.questionId)) {
+          seenQuestionIds.add(resp.questionId);
+          distinctQuestions.push({
+            questionId: resp.questionId,
+            questionLabel: resp.questionLabel || resp.questionId,
+          });
+        }
+      }
+    }
+    const includeNotesColumn = this.registrations().some((r) => Boolean(r.notes?.trim()));
+
+    const escapeCsvCell = (val: string): string => `"${val.replace(/"/g, '""')}"`;
+
     const headers = [
       'Name',
       'Email',
@@ -636,6 +724,9 @@ export class EventRegistrationsComponent implements OnInit {
       'Student Level',
       'Application Level',
       'Attendance Mode',
+      'Registration Option',
+      'Sub-Options',
+      'Add-Ons',
       'Video Access',
       'Payment Method',
       'Pricing Tier',
@@ -646,29 +737,44 @@ export class EventRegistrationsComponent implements OnInit {
       'Registered Date',
       'Paid Date',
       'Stripe Session ID',
+      ...(includeNotesColumn ? ['Notes'] : []),
+      ...distinctQuestions.map((q) => escapeCsvCell(q.questionLabel)),
     ];
 
     const rows = regs.map((r) => {
       const levels = this.getMemberLevels(r);
+      const byQuestionId = new Map<string, EventRegistrationQuestionResponse>();
+      for (const resp of r.questionResponses || []) {
+        byQuestionId.set(resp.questionId, resp);
+      }
+
       return [
-        `"${(r.name || '').replace(/"/g, '""')}"`,
-        `"${(r.email || '').replace(/"/g, '""')}"`,
-        `"${(r.phone || '').replace(/"/g, '""')}"`,
-        `"${this.formatRole(r.role)}"`,
-        `"${this.getMemberId(r)}"`,
-        `"${levels.studentLevel || ''}"`,
-        `"${levels.applicationLevel || ''}"`,
-        `"${this.formatAttendance(r.attendance)}"`,
-        `"${r.hasVideoAccess ? 'Yes' : 'No'}"`,
-        `"${r.paymentMethod || (r.amountPaidCents > 0 ? 'stripe' : 'in_person')}"`,
-        `"${this.formatPricingTier(r.pricingTierType) || 'Standard'}"`,
+        escapeCsvCell(r.name || ''),
+        escapeCsvCell(r.email || ''),
+        escapeCsvCell(r.phone || ''),
+        escapeCsvCell(this.formatRole(r.role)),
+        escapeCsvCell(this.getMemberId(r)),
+        escapeCsvCell(levels.studentLevel || ''),
+        escapeCsvCell(levels.applicationLevel || ''),
+        escapeCsvCell(this.formatAttendance(r.attendance)),
+        escapeCsvCell(r.optionLabel || this.formatAttendance(r.attendance)),
+        escapeCsvCell((r.selectedSuboptions || []).join('; ')),
+        escapeCsvCell((r.selectedAddOnLabels || []).join('; ')),
+        escapeCsvCell(r.hasVideoAccess ? 'Yes' : 'No'),
+        escapeCsvCell(r.paymentMethod || (r.amountPaidCents > 0 ? 'stripe' : 'in_person')),
+        escapeCsvCell(this.formatPricingTier(r.pricingTierType) || 'Standard'),
         ((r.amountPaidCents || 0) / 100).toFixed(2),
         ((r.amountDueCents || 0) / 100).toFixed(2),
         (r.currency || 'usd').toUpperCase(),
         r.status,
-        `"${this.formatDate(r.registeredAt)}"`,
-        `"${this.formatDate(r.paidAt)}"`,
-        `"${r.stripeSessionId || ''}"`,
+        escapeCsvCell(this.formatDate(r.registeredAt)),
+        escapeCsvCell(this.formatDate(r.paidAt)),
+        escapeCsvCell(r.stripeSessionId || ''),
+        ...(includeNotesColumn ? [escapeCsvCell(r.notes || '')] : []),
+        ...distinctQuestions.map((q) => {
+          const resp = byQuestionId.get(q.questionId);
+          return escapeCsvCell(resp ? formatQuestionResponseValue(resp) : '');
+        }),
       ];
     });
 

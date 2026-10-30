@@ -707,12 +707,18 @@ describe('EventEditComponent', () => {
       docId: 'prod-456',
       title: 'Workshop Registration',
       currency: 'usd',
+      pricingRules: {
+        ...initProduct().pricingRules,
+        registrationOptions: [
+          {
+            ...initProduct().pricingRules.registrationOptions[0],
+            priceCents: 10000,
+          },
+        ],
+      },
       allowInPerson: true,
       allowOnline: false,
       allowVideo: true,
-      tiers: {
-        non_member_in_person_no_video: { enabled: true, price: 100 },
-      },
     };
     mockProductService.getProduct.mockResolvedValue(mockProd);
     mockProductService.getAllProducts.mockResolvedValue([mockProd]);
@@ -833,5 +839,80 @@ describe('EventEditComponent', () => {
       }),
     );
     expect(component.successMessage()).toContain('Event saved locally (offline)');
+  });
+
+  it('does not falsely mark event dirty after Milkdown normalizes an existing event description', async () => {
+    mockFirebaseState.user.set({
+      firebaseUser: { email: 'admin@example.com' } as any,
+      member: { docId: 'admin-doc-id', name: 'Admin User', memberId: 'ADM-1' } as any,
+      isAdmin: true,
+      memberProfiles: [],
+      schoolsManaged: [],
+    });
+
+    await renderEvent({
+      docId: 'iQrQ3wNiLoYtcGk5pQq7',
+      title: 'Existing Workshop',
+      descriptionMarkdown: '### Schedule\n\n* Day 1: Foundations\n\n* Day 2: Applications',
+      productId: '',
+    });
+
+    // Wait past @milkdown/plugin-listener's 200ms debounce so initial canonicalization completes
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+
+    expect(component.isDirty()).toBe(false);
+
+    const clickEvent = new MouseEvent('click', { button: 0, cancelable: true });
+    component.onNavigateToRegistrationSetup(clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(false);
+    expect(component.showUnsavedRegistrationPrompt()).toBe(false);
+
+    // An actual user edit still marks the form dirty and guards navigation
+    component.onDescriptionChanged('### Schedule\n\n* Day 1: Updated by user\n');
+    fixture.detectChanges();
+    expect(component.isDirty()).toBe(true);
+
+    const dirtyClick = new MouseEvent('click', { button: 0, cancelable: true });
+    component.onNavigateToRegistrationSetup(dirtyClick);
+    expect(dirtyClick.defaultPrevented).toBe(true);
+    expect(component.showUnsavedRegistrationPrompt()).toBe(true);
+  });
+
+  it('does not falsely mark event dirty when linked product hydrates missing delivery fields on load', async () => {
+    mockFirebaseState.user.set({
+      firebaseUser: { email: 'admin@example.com' } as any,
+      member: { docId: 'admin-doc-id', name: 'Admin User', memberId: 'ADM-1' } as any,
+      isAdmin: true,
+      memberProfiles: [],
+      schoolsManaged: [],
+    });
+
+    const prodWithDelivery = {
+      ...initProduct(),
+      docId: 'prod-hydrated',
+      title: 'Hydrated Registration',
+      onlineJoiningLink: 'https://zoom.us/j/999',
+      purchaseDetailsMarkdown: 'Join 10 minutes early.',
+    };
+    mockProductService.getProduct.mockResolvedValue(prodWithDelivery);
+    mockProductService.getAllProducts.mockResolvedValue([prodWithDelivery]);
+
+    await renderEvent({
+      docId: 'ev-hydrated',
+      title: 'Event With Linked Product',
+      productId: 'prod-hydrated',
+      onlineJoiningLink: '',
+      purchaseDetailsMarkdown: '',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    fixture.detectChanges();
+
+    expect(component.isDirty()).toBe(false);
+    const clickEvent = new MouseEvent('click', { button: 0, cancelable: true });
+    component.onNavigateToRegistrationSetup(clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(false);
+    expect(component.showUnsavedRegistrationPrompt()).toBe(false);
   });
 });

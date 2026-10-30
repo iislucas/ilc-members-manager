@@ -6,7 +6,17 @@ import { ProductService } from '../product.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService } from '../firebase-state.service';
-import { initEvent, initEventRegistration } from '../../../functions/src/data-model/events';
+import {
+  AttendanceType,
+  AttendeeRole,
+  EventRegistration,
+  EventRegistrationStatus,
+  initEvent,
+  initEventRegistration,
+  PricingTierType,
+  RegistrationPaymentMethod,
+  RegistrationQuestionKind,
+} from '../../../functions/src/data-model/events';
 import { StripeService } from '../stripe.service';
 import { signal } from '@angular/core';
 
@@ -21,21 +31,21 @@ describe('EventRegistrationsComponent', () => {
     ownerDocId: 'member-1',
   };
 
-  const mockRegistrations = [
+  const mockRegistrations: EventRegistration[] = [
     {
       ...initEventRegistration(),
       docId: 'reg-1',
       eventDocId: 'event-1',
       name: 'John Doe',
       email: 'john@example.com',
-      role: 'non_member' as const,
-      attendance: 'in_person' as const,
+      role: AttendeeRole.NonMember,
+      attendance: AttendanceType.InPerson,
       hasVideoAccess: false,
       amountPaidCents: 5000,
       currency: 'usd',
-      status: 'paid' as const,
-      paymentMethod: 'stripe' as const,
-      pricingTierType: 'standard' as const,
+      status: EventRegistrationStatus.Paid,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
+      pricingTierType: PricingTierType.Standard,
       registeredAt: '2026-09-01T10:00:00.000Z',
       studentLevel: '1',
       applicationLevel: '',
@@ -46,14 +56,14 @@ describe('EventRegistrationsComponent', () => {
       eventDocId: 'event-1',
       name: 'Jane Smith',
       email: 'jane@example.com',
-      role: 'member' as const,
-      attendance: 'online' as const,
+      role: AttendeeRole.Member,
+      attendance: AttendanceType.Online,
       hasVideoAccess: true,
       amountPaidCents: 6000,
       currency: 'usd',
-      status: 'paid' as const,
-      paymentMethod: 'stripe' as const,
-      pricingTierType: 'early_bird' as const,
+      status: EventRegistrationStatus.Paid,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
+      pricingTierType: PricingTierType.EarlyBird,
       registeredAt: '2026-09-02T10:00:00.000Z',
       memberId: 'US402',
       studentLevel: '4',
@@ -65,15 +75,15 @@ describe('EventRegistrationsComponent', () => {
       eventDocId: 'event-1',
       name: 'Bob Door',
       email: 'bob@example.com',
-      role: 'instructor' as const,
-      attendance: 'in_person' as const,
+      role: AttendeeRole.Instructor,
+      attendance: AttendanceType.InPerson,
       hasVideoAccess: false,
       amountPaidCents: 0,
       amountDueCents: 5500,
       currency: 'usd',
-      status: 'pending_in_person' as const,
-      paymentMethod: 'in_person' as const,
-      pricingTierType: 'in_person' as const,
+      status: EventRegistrationStatus.PendingInPerson,
+      paymentMethod: RegistrationPaymentMethod.InPerson,
+      pricingTierType: PricingTierType.InPerson,
       registeredAt: '2026-09-03T10:00:00.000Z',
       studentLevel: 'Entry',
       applicationLevel: '',
@@ -81,7 +91,9 @@ describe('EventRegistrationsComponent', () => {
   ];
 
   const mockProductService = {
-    getEventRegistrations: vi.fn().mockResolvedValue(mockRegistrations),
+    getEventRegistrations: vi.fn().mockImplementation(async () =>
+      mockRegistrations.map((r) => ({ ...r })),
+    ),
   };
 
   const mockDataManagerService = {
@@ -231,7 +243,7 @@ describe('EventRegistrationsComponent', () => {
     await component.loadData();
     const paidReg = component.registrations().find(r => r.docId === 'reg-3')!;
     // First simulate it being marked paid
-    paidReg.status = 'paid' as const;
+    paidReg.status = EventRegistrationStatus.Paid;
     paidReg.amountPaidCents = 5500;
     paidReg.amountDueCents = 0;
     paidReg.paidAt = '2026-09-08T12:00:00.000Z';
@@ -248,8 +260,55 @@ describe('EventRegistrationsComponent', () => {
     expect(updatedReg.status).toBe('pending_in_person');
     expect(updatedReg.amountPaidCents).toBe(0);
     expect(updatedReg.amountDueCents).toBe(5500);
-    expect(updatedReg.paidAt).toBeUndefined();
+    expect(updatedReg.paidAt).toBe('');
     expect(component.pendingInPersonCount()).toBe(1);
+  });
+
+  it('should support marking and unmarking deposit-paid registrations while preserving depositPaidCents', async () => {
+    await component.loadData();
+    const depositReg: EventRegistration = {
+      ...initEventRegistration(),
+      docId: 'reg-deposit',
+      eventDocId: 'event-1',
+      name: 'Dana Deposit',
+      email: 'dana@example.com',
+      role: AttendeeRole.Member,
+      attendance: AttendanceType.InPerson,
+      optionId: 'two_day_pass',
+      optionLabel: '2-Day Pass',
+      selectedSuboptions: ['Friday', 'Saturday'],
+      selectedAddOnLabels: ['Event Video Recording'],
+      agreedTotalCents: 7000,
+      depositPaidCents: 2000,
+      amountPaidCents: 2000,
+      amountDueCents: 5000,
+      currency: 'usd',
+      status: EventRegistrationStatus.DepositPaid,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
+      registeredAt: '2026-09-04T10:00:00.000Z',
+    };
+    component.registrations.update((list) => [...list, depositReg]);
+    fixture.detectChanges();
+
+    expect(component.isDepositPaid(depositReg)).toBe(true);
+    expect(component.hasBalanceDueAtDoor(depositReg)).toBe(true);
+    expect(component.pendingInPersonCount()).toBe(2);
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await component.markPaid(depositReg);
+
+    const marked = component.registrations().find((r) => r.docId === 'reg-deposit')!;
+    expect(marked.status).toBe('paid');
+    expect(marked.amountPaidCents).toBe(7000);
+    expect(marked.amountDueCents).toBe(0);
+    expect(component.canUnmarkPaid(marked)).toBe(true);
+
+    await component.unmarkPaid(marked);
+    const reverted = component.registrations().find((r) => r.docId === 'reg-deposit')!;
+    expect(reverted.status).toBe('deposit_paid');
+    expect(reverted.amountPaidCents).toBe(2000);
+    expect(reverted.amountDueCents).toBe(5000);
+    expect(reverted.paidAt).toBe('');
   });
 
   it('should allow admin, owner, or manager to view, but deny others', async () => {
@@ -319,8 +378,8 @@ describe('EventRegistrationsComponent', () => {
     const fallbackReg = {
       ...initEventRegistration(),
       docId: 'reg-fallback',
-      studentLevel: undefined,
-      applicationLevel: undefined,
+      studentLevel: '',
+      applicationLevel: '',
       memberDocId: 'fallback-member-doc',
     };
     expect(component.getMemberLevels(fallbackReg)).toEqual({
@@ -416,9 +475,9 @@ describe('EventRegistrationsComponent', () => {
     let createdContent = '';
     const originalBlob = globalThis.Blob;
     globalThis.Blob = class MockBlob extends originalBlob {
-      constructor(parts: any[], options?: any) {
+      constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
         super(parts, options);
-        createdContent = parts.join('');
+        createdContent = (parts ?? []).map(String).join('');
       }
     };
 
@@ -466,14 +525,103 @@ describe('EventRegistrationsComponent', () => {
     const memberIdBadge = compiled.querySelector('.member-id-badge');
     expect(memberIdBadge?.textContent?.trim()).toBe('US402');
 
-    // Verify Fee & Status cells contain fee and status badge
+    // Verify Fee & Status cells contain fee and status badge (default order: reg-3, reg-2, reg-1)
     const feeStatusCells = compiled.querySelectorAll('.cell-fee-status');
     expect(feeStatusCells.length).toBe(3);
-    expect(feeStatusCells[0]?.textContent).toContain('PAID');
+    expect(feeStatusCells[0]?.textContent).toContain('PAY AT DOOR');
     expect(feeStatusCells[1]?.textContent).toContain('$60.00');
+    expect(feeStatusCells[1]?.textContent).toContain('PAID');
 
     // Make sure Standard Advance text is not in table rows
     const tableText = compiled.querySelector('.roster-table')?.textContent || '';
     expect(tableText).not.toContain('Standard Advance');
+  });
+
+  it('displays form question responses in table, filters by response text, and exports dynamic question columns to CSV', async () => {
+    await component.loadData();
+    component.registrations.update((list) =>
+      list.map((r) =>
+        r.docId === 'reg-2'
+          ? {
+              ...r,
+              notes: 'Arriving Friday evening',
+              questionResponses: [
+                {
+                  questionId: 'q_meal',
+                  questionLabel: 'Meal Preference',
+                  kind: RegistrationQuestionKind.Select,
+                  answerText: 'Vegetarian',
+                  selectedOptions: [],
+                },
+                {
+                  questionId: 'q_focus',
+                  questionLabel: 'Training Focus',
+                  kind: RegistrationQuestionKind.Checkboxes,
+                  answerText: '',
+                  selectedOptions: ['Spinning Hands', 'Chin Na'],
+                },
+              ],
+            }
+          : r,
+      ),
+    );
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const ths = Array.from(compiled.querySelectorAll('thead th')).map((th) => th.textContent?.trim());
+    expect(ths).toEqual([
+      'Attendee',
+      'Member & Level',
+      'Attendance',
+      'Video',
+      'Fee & Status',
+      'Responses',
+      'Date',
+    ]);
+    expect(compiled.querySelector('.roster-table')?.textContent).toContain('Meal Preference:');
+    expect(compiled.querySelector('.roster-table')?.textContent).toContain('Vegetarian');
+    expect(compiled.querySelector('.roster-table')?.textContent).toContain('Spinning Hands, Chin Na');
+
+    // Filter by form response value
+    component.searchTerm.set('vegetarian');
+    expect(component.filteredRegistrations().map((r) => r.docId)).toEqual(['reg-2']);
+    component.searchTerm.set('');
+
+    // Export CSV includes Notes and dynamic question columns
+    let createdContent = '';
+    const originalBlob = globalThis.Blob;
+    globalThis.Blob = class MockBlob extends originalBlob {
+      constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+        super(parts, options);
+        createdContent = (parts ?? []).map(String).join('');
+      }
+    };
+    const createElSpy = vi.spyOn(document, 'createElement').mockReturnValue({
+      setAttribute: vi.fn(),
+      click: vi.fn(),
+    } as unknown as HTMLElement);
+    const appendSpy = vi
+      .spyOn(document.body, 'appendChild')
+      .mockImplementation(() => null as unknown as Node);
+    const removeSpy = vi
+      .spyOn(document.body, 'removeChild')
+      .mockImplementation(() => null as unknown as Node);
+    const createUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('mock-blob-url');
+    const revokeUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    try {
+      component.exportCsv();
+      expect(createdContent).toContain('Notes,"Meal Preference","Training Focus"');
+      expect(createdContent).toContain(
+        '"Arriving Friday evening","Vegetarian","Spinning Hands, Chin Na"',
+      );
+    } finally {
+      createElSpy.mockRestore();
+      appendSpy.mockRestore();
+      removeSpy.mockRestore();
+      createUrlSpy.mockRestore();
+      revokeUrlSpy.mockRestore();
+      globalThis.Blob = originalBlob;
+    }
   });
 });

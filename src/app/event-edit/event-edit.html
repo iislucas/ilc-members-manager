@@ -184,7 +184,8 @@
             Enter information about the event, e.g. the location, schedule, link to more details, optional link to registration, description of the event / topic, instructor bios, etc.
           </p>
           <app-markdown-editor
-            [initialValue]="eventFormModel().description"
+            [initialValue]="initialDescription()"
+            (initialized)="onDescriptionInitialized($event)"
             (changed)="onDescriptionChanged($event)"
           ></app-markdown-editor>
         </div>

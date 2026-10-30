@@ -92,6 +92,19 @@
   font-weight: 500;
 }
 
+.toast-error {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.75em 1.2em;
+  background: #fce8e6;
+  border: 1px solid #fad2cf;
+  border-radius: 6px;
+  color: #c5221f;
+  font-size: 0.95em;
+  font-weight: 500;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -395,6 +408,25 @@
     }
   }
 
+  .attendance-cell-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2em;
+
+    .option-sub-label {
+      font-size: 0.82em;
+      font-weight: 600;
+      color: v.$text-primary;
+    }
+
+    .suboptions-sub-label,
+    .addons-sub-label {
+      font-size: 0.78em;
+      color: v.$text-muted;
+    }
+  }
+
   .attendance-chip {
     display: inline-flex;
     align-items: center;
@@ -431,6 +463,35 @@
       background: #e6f4ea;
       color: #137333;
       font-weight: 600;
+    }
+  }
+
+  .cell-responses {
+    max-width: 280px;
+
+    .responses-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3em;
+      font-size: 0.85em;
+      line-height: 1.35;
+    }
+
+    .response-entry {
+      display: flex;
+      flex-direction: column;
+      gap: 0.06em;
+
+      .response-question-label {
+        font-weight: 600;
+        color: v.$text-secondary;
+      }
+
+      .response-answer-text {
+        color: v.$text-primary;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
     }
   }
 

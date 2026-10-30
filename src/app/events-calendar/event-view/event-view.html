@@ -222,6 +222,22 @@
                   <span>Upgrade Registration</span>
                 </a>
               </div>
+              @let answeredResps = answeredQuestionResponses();
+              @if (answeredResps.length > 0) {
+                <div class="registered-responses-box">
+                  <span class="registered-responses-heading">Your Registration Responses</span>
+                  <div class="registered-responses-list">
+                    @for (resp of answeredResps; track resp.questionId) {
+                      <div class="registered-response-item">
+                        <span class="registered-response-label">{{ resp.questionLabel }}</span>
+                        <span class="registered-response-value">{{
+                          formatQuestionResponseValue(resp)
+                        }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
             } @else if (isPastEvent()) {
               @if (isVideoPurchaseAvailable()) {
                 <div class="registration-cta event-ended-cta">
