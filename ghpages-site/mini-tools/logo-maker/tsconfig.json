@@ -11,5 +11,5 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": ["*.ts"]
+  "include": ["*.ts", "glyph-maker/*.ts"]
 }

@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>I Liq Chuan — Chinese Character SVG Maker (意 · 力 · 拳)</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #1a1a2e;
+        color: #e0e0e0;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* Left control sidebar */
+      .controls {
+        width: 375px;
+        min-width: 375px;
+        padding: 16px 18px 28px;
+        overflow-y: auto;
+        background: #16213e;
+        border-right: 1px solid #0f3460;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+      }
+      h1 {
+        font-size: 18px;
+        color: #e94560;
+        letter-spacing: -0.01em;
+      }
+      .nav-link {
+        font-size: 12px;
+        color: #94a3b8;
+        text-decoration: none;
+        border: 1px solid #0f3460;
+        padding: 3px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+      .nav-link:hover {
+        color: #ffffff;
+        background: #0f3460;
+      }
+      .subtitle-note {
+        font-size: 12px;
+        color: #94a3b8;
+        line-height: 1.4;
+      }
+
+      /* Character selector tabs */
+      .char-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+      .char-tab {
+        padding: 8px 6px;
+        background: #0f2547;
+        border: 1px solid #1e3a6d;
+        border-radius: 6px;
+        color: #cbd5e1;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      .char-tab:hover {
+        background: #173463;
+      }
+      .char-tab.active {
+        background: #e94560;
+        border-color: #ff6b81;
+        color: #ffffff;
+      }
+      .glyph-summary {
+        font-size: 12px;
+        color: #cbd5e1;
+        font-family: "SF Mono", "Fira Code", monospace;
+        background: #0d1b33;
+        padding: 6px 10px;
+        border-radius: 5px;
+        border: 1px solid #0f3460;
+      }
+
+      .section-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1.4px;
+        color: #7c8db5;
+        margin-top: 6px;
+        border-bottom: 1px solid #0f3460;
+        padding-bottom: 4px;
+      }
+
+      /* Buttons */
+      .btn-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .action-btn {
+        padding: 6px 11px;
+        background: #e94560;
+        color: #ffffff;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: background 0.15s ease, opacity 0.15s ease;
+      }
+      .action-btn:hover:not(:disabled) {
+        background: #c73652;
+      }
+      .action-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .action-btn.secondary {
+        background: #1f305e;
+        border-color: #2c4480;
+        color: #e2e8f0;
+      }
+      .action-btn.secondary:hover:not(:disabled) {
+        background: #2b427d;
+      }
+      .action-btn.secondary.active {
+        background: #0284c7;
+        border-color: #38bdf8;
+        color: #ffffff;
+      }
+      .action-btn.danger {
+        background: #3b1c2e;
+        border-color: #7f1d1d;
+        color: #fca5a5;
+      }
+      .action-btn.danger:hover:not(:disabled) {
+        background: #7f1d1d;
+        color: #ffffff;
+      }
+
+      /* Inspector box */
+      .inspector-box {
+        background: #0d1b33;
+        border: 1px solid #1e3a6d;
+        border-radius: 7px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .anchor-badge {
+        font-size: 11px;
+        font-family: "SF Mono", "Fira Code", monospace;
+        color: #38bdf8;
+      }
+      .field-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .field-row label {
+        font-size: 12px;
+        color: #94a3b8;
+        min-width: 58px;
+      }
+      .text-input,
+      .num-input,
+      .select-input {
+        background: #091326;
+        color: #f1f5f9;
+        border: 1px solid #1e3a6d;
+        border-radius: 4px;
+        padding: 5px 7px;
+        font-size: 12px;
+      }
+      .text-input {
+        flex: 1;
+      }
+      .num-input {
+        width: 72px;
+        font-family: "SF Mono", "Fira Code", monospace;
+      }
+      .coord-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .coord-cell {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .coord-cell label {
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: #e94560;
+      }
+
+      /* Stroke list */
+      .stroke-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 195px;
+        flex-shrink: 0;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+      .stroke-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        text-align: left;
+        padding: 6px 8px;
+        background: #0d1b33;
+        border: 1px solid #172a4a;
+        border-radius: 5px;
+        color: #cbd5e1;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .stroke-row:hover {
+        background: #152c52;
+      }
+      .stroke-row.active {
+        background: #1b3664;
+        border-color: #38bdf8;
+        color: #ffffff;
+      }
+      .stroke-swatch {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+      }
+      .stroke-row-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .stroke-row-count {
+        font-size: 11px;
+        color: #94a3b8;
+        font-family: "SF Mono", "Fira Code", monospace;
+      }
+
+      /* Sliders & color pickers */
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .control-group label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .control-group label span.val {
+        color: #e94560;
+        font-weight: 600;
+        font-family: "SF Mono", "Fira Code", monospace;
+      }
+      .color-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .color-row span {
+        font-size: 12px;
+        color: #94a3b8;
+        flex: 1;
+      }
+      input[type="color"] {
+        width: 36px;
+        height: 26px;
+        border: 1px solid #1e3a6d;
+        border-radius: 4px;
+        cursor: pointer;
+        background: none;
+        padding: 1px;
+      }
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        color: #cbd5e1;
+      }
+      .checkbox-row input[type="checkbox"] {
+        accent-color: #e94560;
+        width: 15px;
+        height: 15px;
+      }
+
+      /* Main workspace */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 14px 18px 24px;
+        gap: 12px;
+        overflow-y: auto;
+      }
+
+      /* Top strip: 3 characters + metrics */
+      .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 8px;
+        padding: 8px 12px;
+      }
+      .mini-strip {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .mini-char-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #0d1b33;
+        border: 1px solid #1e3a6d;
+        border-radius: 6px;
+        padding: 4px 10px 4px 5px;
+        cursor: pointer;
+        color: #e2e8f0;
+        text-align: left;
+      }
+      .mini-char-card:hover {
+        border-color: #38bdf8;
+      }
+      .mini-char-card.active {
+        border-color: #e94560;
+        background: #1b2847;
+      }
+      .mini-char-card svg {
+        border-radius: 4px;
+        border: 1px solid #1e293b;
+        flex-shrink: 0;
+      }
+      .mini-char-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .mini-char-title {
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .mini-char-sub {
+        font-size: 10px;
+        color: #94a3b8;
+        font-family: "SF Mono", "Fira Code", monospace;
+      }
+
+      .metrics-cluster {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+      }
+      .metrics-primary {
+        display: flex;
+        gap: 14px;
+        align-items: baseline;
+      }
+      .rmse-pill {
+        font-size: 17px;
+        font-weight: 700;
+        color: #e94560;
+        font-family: "SF Mono", "Fira Code", monospace;
+      }
+      .iou-pill {
+        font-size: 14px;
+        font-weight: 600;
+        color: #38bdf8;
+        font-family: "SF Mono", "Fira Code", monospace;
+      }
+      .metrics-sub {
+        font-size: 11px;
+        color: #94a3b8;
+        font-family: "SF Mono", "Fira Code", monospace;
+      }
+
+      .status-banner {
+        font-size: 12px;
+        color: #cbd5e1;
+        background: #0f203c;
+        border-left: 3px solid #38bdf8;
+        padding: 6px 10px;
+        border-radius: 4px;
+      }
+
+      /* Center workspace: Interactive Editor + 3 Comparison Panels */
+      .workspace-grid {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .editor-column {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-width: 480px;
+      }
+      .editor-toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 7px;
+        padding: 7px 10px;
+      }
+      #editor-canvas {
+        width: 480px;
+        height: 480px;
+        border: 1px solid #1e3a6d;
+        border-radius: 8px;
+        background: #0b1325;
+        touch-action: none;
+      }
+      .editor-legend {
+        max-width: 480px;
+        font-size: 11px;
+        color: #94a3b8;
+        line-height: 1.45;
+      }
+
+      .comparison-column {
+        flex: 1;
+        min-width: 460px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .comparison-cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(140px, 1fr));
+        gap: 10px;
+      }
+      .canvas-card {
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 8px;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+      }
+      .canvas-card canvas {
+        width: 100%;
+        max-width: 200px;
+        aspect-ratio: 1;
+        border-radius: 5px;
+        border: 1px solid #1e293b;
+        background: #0f172a;
+      }
+      .canvas-label {
+        font-size: 11px;
+        color: #cbd5e1;
+        font-weight: 600;
+      }
+      .canvas-sublabel {
+        font-size: 10px;
+        color: #94a3b8;
+        text-align: center;
+      }
+
+      /* Output drawers */
+      .output-section {
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 8px;
+        padding: 8px 12px;
+      }
+      .output-section summary {
+        font-size: 13px;
+        font-weight: 600;
+        color: #cbd5e1;
+        cursor: pointer;
+      }
+      .code-area {
+        width: 100%;
+        height: 95px;
+        margin-top: 8px;
+        background: #091326;
+        border: 1px solid #1e3a6d;
+        color: #e2e8f0;
+        font-family: "SF Mono", "Fira Code", monospace;
+        font-size: 11px;
+        padding: 8px;
+        border-radius: 6px;
+        resize: vertical;
+      }
+
+      #export-canvas {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="controls">
+      <div class="sidebar-header">
+        <h1>漢 Chinese Glyph SVG Maker</h1>
+        <a class="nav-link" href="iliqchuan-logo-maker.html"
+          >&larr; Full Logo</a
+        >
+      </div>
+      <p class="subtitle-note">
+        Standalone variable-width medial-axis SVG approximator for the three
+        calligraphic characters extracted from
+        <code>ILC-Logo-from-yen.jpeg</code>.
+      </p>
+
+      <div class="char-tabs">
+        <button type="button" class="char-tab active" id="tab-yi">
+          意 Yì
+        </button>
+        <button type="button" class="char-tab" id="tab-li">力 Lì</button>
+        <button type="button" class="char-tab" id="tab-quan">拳 Quán</button>
+      </div>
+      <div class="glyph-summary" id="glyph-summary-stat"></div>
+
+      <div class="section-title">Auto-Optimize &amp; History</div>
+      <div class="btn-row">
+        <button type="button" class="action-btn" id="btn-opt-char">
+          &#9889; Optimize Character
+        </button>
+        <button
+          type="button"
+          class="action-btn secondary"
+          id="btn-opt-stroke"
+          title="Optimize only the currently selected stroke"
+        >
+          &#9889; Optimize Stroke
+        </button>
+        <button
+          type="button"
+          class="action-btn danger"
+          id="btn-opt-stop"
+          style="display: none"
+        >
+          &#9209; Stop
+        </button>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="action-btn secondary" id="btn-undo">
+          &#8630; Undo
+        </button>
+        <button type="button" class="action-btn secondary" id="btn-save-local">
+          &#128190; Save
+        </button>
+        <button
+          type="button"
+          class="action-btn secondary"
+          id="btn-reset-default"
+        >
+          &#8634; Reset Char
+        </button>
+        <button type="button" class="action-btn danger" id="btn-reset-all">
+          Reset All 3
+        </button>
+      </div>
+
+      <div class="section-title">Selected Anchor &amp; Stroke</div>
+      <div class="inspector-box">
+        <div class="anchor-badge" id="selected-anchor-badge">
+          Stroke 1 · Anchor #0
+        </div>
+        <div class="field-row">
+          <label for="stroke-name-input">Stroke</label>
+          <input
+            type="text"
+            id="stroke-name-input"
+            class="text-input"
+            maxlength="60"
+          />
+        </div>
+        <div class="coord-grid">
+          <div class="coord-cell">
+            <label for="anchor-x">X</label>
+            <input
+              type="number"
+              id="anchor-x"
+              class="num-input"
+              step="0.25"
+              min="-35"
+              max="235"
+            />
+          </div>
+          <div class="coord-cell">
+            <label for="anchor-y">Y</label>
+            <input
+              type="number"
+              id="anchor-y"
+              class="num-input"
+              step="0.25"
+              min="-35"
+              max="235"
+            />
+          </div>
+        </div>
+        <div class="field-row">
+          <label for="anchor-r">Radius</label>
+          <input
+            type="range"
+            id="anchor-r"
+            min="0.4"
+            max="18"
+            step="0.1"
+            value="5"
+          />
+          <input
+            type="number"
+            id="anchor-r-num"
+            class="num-input"
+            step="0.1"
+            min="0.4"
+            max="25"
+          />
+        </div>
+        <div class="btn-row">
+          <button
+            type="button"
+            class="action-btn secondary"
+            id="btn-insert-anchor"
+            title="Insert a new anchor point on the adjacent segment"
+          >
+            + Add Anchor
+          </button>
+          <button
+            type="button"
+            class="action-btn danger"
+            id="btn-delete-anchor"
+            title="Remove the selected anchor point (Del / Right-click)"
+          >
+            &minus; Remove Anchor
+          </button>
+          <button
+            type="button"
+            class="action-btn danger"
+            id="btn-delete-stroke"
+          >
+            Delete Stroke
+          </button>
+        </div>
+      </div>
+
+      <div class="section-title">Character Strokes</div>
+      <div class="stroke-list" id="stroke-list"></div>
+
+      <div class="section-title">Global Character Trim</div>
+      <div class="control-group">
+        <label>
+          Brush Radius Scale
+          <span class="val" id="radius-scale-val">1.00&times;</span>
+        </label>
+        <input
+          type="range"
+          id="radius-scale"
+          min="0.5"
+          max="1.6"
+          step="0.01"
+          value="1"
+        />
+      </div>
+      <div class="control-group">
+        <label>
+          Offset X <span class="val" id="offset-x-val">0.00px</span>
+        </label>
+        <input
+          type="range"
+          id="offset-x"
+          min="-25"
+          max="25"
+          step="0.25"
+          value="0"
+        />
+      </div>
+      <div class="control-group">
+        <label>
+          Offset Y <span class="val" id="offset-y-val">0.00px</span>
+        </label>
+        <input
+          type="range"
+          id="offset-y"
+          min="-25"
+          max="25"
+          step="0.25"
+          value="0"
+        />
+      </div>
+
+      <div class="section-title">SVG Export Colors</div>
+      <div class="color-row">
+        <span>Stroke Ink Color</span>
+        <input type="color" id="fg-color" value="#ffffff" />
+      </div>
+      <div class="color-row">
+        <span>Background Fill</span>
+        <input type="color" id="bg-color" value="#111827" />
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="transparent-bg" checked />
+        <span>Transparent SVG / PNG background</span>
+      </label>
+    </aside>
+
+    <main class="main">
+      <div class="top-bar">
+        <div class="mini-strip" id="mini-strip"></div>
+        <div class="metrics-cluster">
+          <div class="metrics-primary">
+            <span class="rmse-pill" id="rmse-display">RMSE: --</span>
+            <span class="iou-pill" id="iou-display">Overlap IoU: --</span>
+          </div>
+          <div class="metrics-sub" id="ink-balance-display"></div>
+        </div>
+      </div>
+
+      <div class="status-banner" id="status-banner">Initializing...</div>
+
+      <div class="workspace-grid">
+        <div class="editor-column">
+          <div class="editor-toolbar">
+            <button
+              type="button"
+              class="action-btn secondary active"
+              id="btn-tool-select"
+            >
+              Select / Move
+            </button>
+            <button
+              type="button"
+              class="action-btn secondary"
+              id="btn-tool-add-stroke"
+            >
+              + New Stroke
+            </button>
+            <button
+              type="button"
+              class="action-btn"
+              id="btn-finish-stroke"
+              style="display: none"
+            >
+              &#10003; Finish Stroke
+            </button>
+            <button
+              type="button"
+              class="action-btn danger"
+              id="btn-cancel-stroke"
+              style="display: none"
+            >
+              &#10005; Cancel
+            </button>
+
+            <select id="backdrop-mode" class="select-input" title="Canvas backdrop">
+              <option value="overlay">
+                Backdrop: Ref (Gold) + SVG (Cyan)
+              </option>
+              <option value="reference">Backdrop: Reference PNG</option>
+              <option value="generated">Backdrop: Generated SVG</option>
+            </select>
+
+            <label class="checkbox-row">
+              <input type="checkbox" id="show-anchors" checked />
+              <span>Show anchors</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="show-radius-rings" />
+              <span>All radii</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="show-indices" checked />
+              <span>Point #s</span>
+            </label>
+          </div>
+
+          <canvas id="editor-canvas" width="480" height="480"></canvas>
+
+          <div class="editor-legend">
+            <strong>Controls:</strong>
+            <strong>&#9632; Square</strong> = stroke center-endpoint &middot;
+            <strong>&#9679; Circle</strong> = curve/thickness anchor &middot;
+            <strong>Drag</strong> = move anchor &middot;
+            <strong>Shift+Drag</strong> = move whole stroke &middot;
+            <strong>Alt+Drag / Alt+Wheel</strong> = resize brush radius &middot;
+            <strong>Double-click line</strong> = insert anchor &middot;
+            <strong>Right-click / Del</strong> = delete anchor &middot;
+            <strong>Arrows / [ ]</strong> = nudge position / radius.
+          </div>
+        </div>
+
+        <div class="comparison-column">
+          <div class="comparison-cards">
+            <div class="canvas-card">
+              <canvas id="ref-canvas" width="200" height="200"></canvas>
+              <div class="canvas-label">Extracted Reference (200&times;200)</div>
+              <div class="canvas-sublabel">
+                De-rotated from <code>ILC-Logo-from-yen.jpeg</code>
+              </div>
+            </div>
+
+            <div class="canvas-card">
+              <canvas id="gen-canvas" width="200" height="200"></canvas>
+              <div class="canvas-label">Generated SVG</div>
+              <label class="checkbox-row">
+                <input type="checkbox" id="overlay-anchors-gen" />
+                <span>Overlay centerlines</span>
+              </label>
+            </div>
+
+            <div class="canvas-card">
+              <canvas id="diff-canvas" width="200" height="200"></canvas>
+              <div class="canvas-label">Signed Coverage Diff</div>
+              <div class="canvas-sublabel">
+                <span style="color: #ff4d6d">Red = missing ink</span> &middot;
+                <span style="color: #00e5ff">Cyan = extra ink</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="output-section">
+            <div class="btn-row" style="align-items: center">
+              <label
+                class="action-btn secondary"
+                style="display: inline-block"
+              >
+                Upload Custom Ref PNG
+                <input
+                  type="file"
+                  id="ref-upload"
+                  accept="image/*"
+                  style="display: none"
+                />
+              </label>
+              <button
+                type="button"
+                class="action-btn secondary"
+                id="btn-reset-ref"
+              >
+                Restore Extracted Ref
+              </button>
+            </div>
+          </div>
+
+          <details class="output-section" open>
+            <summary>Standalone Character SVG Output (200&times;200)</summary>
+            <textarea class="code-area" id="svg-output" readonly></textarea>
+            <div class="btn-row" style="margin-top: 8px">
+              <button type="button" class="action-btn" id="btn-copy-svg">
+                Copy SVG
+              </button>
+              <button type="button" class="action-btn" id="btn-download-svg">
+                Download .svg
+              </button>
+              <button
+                type="button"
+                class="action-btn secondary"
+                id="btn-download-all-svgs"
+              >
+                Download All 3 SVGs
+              </button>
+              <button
+                type="button"
+                class="action-btn secondary"
+                id="btn-download-png-200"
+              >
+                PNG (200px)
+              </button>
+              <button
+                type="button"
+                class="action-btn secondary"
+                id="btn-download-png-512"
+              >
+                PNG (512px)
+              </button>
+            </div>
+          </details>
+
+          <details class="output-section">
+            <summary>Editable Stroke Anchor Points JSON ([x, y, r])</summary>
+            <textarea class="code-area" id="json-output"></textarea>
+            <div class="btn-row" style="margin-top: 8px">
+              <button
+                type="button"
+                class="action-btn secondary"
+                id="btn-apply-json"
+              >
+                Apply JSON to Character
+              </button>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <canvas id="export-canvas"></canvas>
+    </main>
+
+    <script type="module" src="build/glyph-maker/main.js"></script>
+  </body>
+</html>

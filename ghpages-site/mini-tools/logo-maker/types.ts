@@ -23,13 +23,24 @@ export interface LogoParams {
   outerRingWidth: number;
 
 
-  // Text
-  textSizeUpper: number;
+  // Text & Chinese vector glyphs
+  chineseGlyphSize: number;
+  chineseRadialOffset: number;
+  chineseSpreadAngle: number;
+  chineseTiltAngle: number;
   textSizeLower: number;
-  textOffsetUpper: number; // fine-tune arc position
   textOffsetLower: number;
   textLetterSpacingLower: number;
-  fontFamilyChinese: string; // CSS font-family for the Chinese text arc
+  textWordSpacingLower: number;
+  letterOffsetI1: number;
+  letterOffsetL: number;
+  letterOffsetI2: number;
+  letterOffsetQ: number;
+  letterOffsetC: number;
+  letterOffsetH: number;
+  letterOffsetU: number;
+  letterOffsetA: number;
+  letterOffsetN: number;
   fontFamilyLatin: string; // CSS font-family for the Latin text arc
 
   nsewDecorationDistance: number;

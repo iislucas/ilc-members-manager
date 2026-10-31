@@ -20,8 +20,8 @@
 import { $ } from './types.js';
 import { getParams, saveParams, loadParams, applyParams } from './params.js';
 import { buildYinYangSvg, buildRingsSvg, buildTextSvg, buildMergedOuterBaseSvg, buildFullSvg, computeViewSize } from './svg-builders.js';
-import { updateDiff, loadReferenceImage, setReferenceImage } from './pixel-diff.js';
-import { STAGES, runOptimization } from './optimizer.js';
+import { updateDiff, loadReferenceImage, setReferenceImage, PREVIEW_PAD } from './pixel-diff.js';
+import { ALL_OPTIMIZABLE_STAGES, runOptimization } from './optimizer.js';
 // ---------------------------------------------------------------------------
 // PNG export
 // ---------------------------------------------------------------------------
@@ -59,11 +59,24 @@ function updateLabels(p) {
     $('textBandWidth-val').textContent = String(p.textBandWidth);
     $('outerRingGap-val').textContent = String(p.outerRingGap);
     $('outerRingWidth-val').textContent = String(p.outerRingWidth);
-    $('textSizeUpper-val').textContent = String(p.textSizeUpper);
+    $('chineseGlyphSize-val').textContent = String(p.chineseGlyphSize);
+    $('chineseRadialOffset-val').textContent = String(p.chineseRadialOffset);
+    $('chineseSpreadAngle-val').textContent = p.chineseSpreadAngle + '°';
+    $('chineseTiltAngle-val').textContent = p.chineseTiltAngle + '°';
     $('textSizeLower-val').textContent = String(p.textSizeLower);
-    $('textOffsetUpper-val').textContent = String(p.textOffsetUpper);
     $('textOffsetLower-val').textContent = String(p.textOffsetLower);
     $('textLetterSpacingLower-val').textContent = String(p.textLetterSpacingLower);
+    $('textWordSpacingLower-val').textContent = String(p.textWordSpacingLower);
+    const fmtSignedDeg = (v) => (v > 0 ? `+${v}°` : `${v}°`);
+    $('letterOffsetI1-val').textContent = fmtSignedDeg(p.letterOffsetI1);
+    $('letterOffsetL-val').textContent = fmtSignedDeg(p.letterOffsetL);
+    $('letterOffsetI2-val').textContent = fmtSignedDeg(p.letterOffsetI2);
+    $('letterOffsetQ-val').textContent = fmtSignedDeg(p.letterOffsetQ);
+    $('letterOffsetC-val').textContent = fmtSignedDeg(p.letterOffsetC);
+    $('letterOffsetH-val').textContent = fmtSignedDeg(p.letterOffsetH);
+    $('letterOffsetU-val').textContent = fmtSignedDeg(p.letterOffsetU);
+    $('letterOffsetA-val').textContent = fmtSignedDeg(p.letterOffsetA);
+    $('letterOffsetN-val').textContent = fmtSignedDeg(p.letterOffsetN);
     $('nsewDecorationDistance-val').textContent = String(p.nsewDecorationDistance);
     $('diagonalDecorationDistance-val').textContent = String(p.diagonalDecorationDistance);
     $('nsewDecorationLength-val').textContent = String(p.nsewDecorationLength);
@@ -104,19 +117,24 @@ function update() {
     content += buildYinYangSvg(cx, cy, p);
     content += buildRingsSvg(cx, cy, p);
     content += buildTextSvg(cx, cy, p);
-    previewSvg.innerHTML = content;
-    // SVG output
+    const parser = new DOMParser();
+    const previewDoc = parser.parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${content}</svg>`, 'image/svg+xml');
+    previewSvg.replaceChildren(...Array.from(previewDoc.documentElement.childNodes));
+    // SVG output (clean 400x400 viewBox for export)
     const fullSvg = buildFullSvg(p);
     $('svg-output').value = fullSvg;
     const renderArea = $('svg-final-render');
     if (renderArea) {
-        renderArea.innerHTML = fullSvg;
-        const svgEl = renderArea.querySelector('svg');
-        if (svgEl) {
+        const previewFullSvg = buildFullSvg(p, undefined, PREVIEW_PAD);
+        const fullDoc = parser.parseFromString(previewFullSvg, 'image/svg+xml');
+        const parsedSvg = fullDoc.documentElement;
+        if (parsedSvg && parsedSvg.tagName.toLowerCase() === 'svg') {
+            const svgEl = document.importNode(parsedSvg, true);
             svgEl.style.maxWidth = '100%';
             svgEl.style.height = 'auto';
             svgEl.style.display = 'block';
             svgEl.style.margin = '0 auto';
+            renderArea.replaceChildren(svgEl);
         }
     }
     // Update diff
@@ -127,10 +145,16 @@ function update() {
 // ---------------------------------------------------------------------------
 function init() {
     // Wire up all range/color inputs
+    const letterOffsetIds = [
+        'letterOffsetI1', 'letterOffsetL', 'letterOffsetI2', 'letterOffsetQ',
+        'letterOffsetC', 'letterOffsetH', 'letterOffsetU', 'letterOffsetA', 'letterOffsetN',
+    ];
     const controlIds = [
         'yinYangRadius', 'yinYangEyeRadius', 'yinYangEyePosition', 'yinYangRotation',
         'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth',
-        'textSizeUpper', 'textSizeLower', 'textOffsetUpper', 'textOffsetLower', 'textLetterSpacingLower',
+        'chineseGlyphSize', 'chineseRadialOffset', 'chineseSpreadAngle', 'chineseTiltAngle',
+        'textSizeLower', 'textOffsetLower', 'textLetterSpacingLower', 'textWordSpacingLower',
+        ...letterOffsetIds,
         'nsewDecorationDistance', 'diagonalDecorationDistance',
         'nsewDecorationLength', 'nsewDecorationWidth', 'nsewDecorationConcavity', 'nsewDecorationThirdBumpDistance', 'nsewDecorationThirdBumpRadius', 'diagonalDecorationWidth',
         'strokeColor', 'fillLight', 'fillDark', 'bgColor',
@@ -139,9 +163,15 @@ function init() {
         const el = $(id);
         el.addEventListener('input', update);
     }
-    // Font family selects trigger update on change
-    $('fontFamilyChinese').addEventListener('change', update);
+    $('reset-letter-offsets-btn').addEventListener('click', () => {
+        for (const id of letterOffsetIds) {
+            $(id).value = '0';
+        }
+        update();
+    });
+    // Font family select triggers update on change
     $('fontFamilyLatin').addEventListener('change', update);
+    window.addEventListener('storage', update);
     $('transparentBg').addEventListener('change', update);
     // Save / Load
     $('save-btn').addEventListener('click', () => saveParams(update));
@@ -197,7 +227,7 @@ function init() {
     });
     // Inject per-property optimize buttons
     controlIds.forEach(id => {
-        const stageForParam = STAGES.find(s => s.params.some(p => p.id === id));
+        const stageForParam = ALL_OPTIMIZABLE_STAGES.find(s => s.params.some(p => p.id === id));
         if (stageForParam) {
             const label = $(`${id}-val`)?.parentElement;
             if (label) {
@@ -227,7 +257,7 @@ function init() {
                 const input = nextEl.querySelector('input[type="range"]');
                 if (input && input.id) {
                     const id = input.id;
-                    const stageForParam = STAGES.find(s => s.params.some(p => p.id === id));
+                    const stageForParam = ALL_OPTIMIZABLE_STAGES.find(s => s.params.some(p => p.id === id));
                     if (stageForParam) {
                         paramsInGroup.push({
                             id: id,
@@ -241,10 +271,10 @@ function init() {
         if (paramsInGroup.length > 0) {
             const btn = document.createElement('button');
             btn.className = 'opt-btn-small group-opt';
-            btn.innerHTML = '⚡ Opt';
+            btn.textContent = '⚡ Opt';
             btn.title = `Optimize all in ${sectionName}`;
             btn.addEventListener('click', () => {
-                const stagesToRun = STAGES.map(s => {
+                const stagesToRun = ALL_OPTIMIZABLE_STAGES.map(s => {
                     const matchingParams = s.params.filter(sp => paramsInGroup.some(pg => pg.id === sp.id));
                     if (matchingParams.length > 0) {
                         return {
@@ -280,13 +310,11 @@ function init() {
         };
         reader.readAsDataURL(file);
     });
-    // Try to auto-load reference from the default path
-    loadReferenceImage('assets/iliqchuan-white-bg.png').then(img => {
+    // Try to auto-load reference from the sharper JPEG default path (without auto-optimizing)
+    loadReferenceImage('assets/ILC-Logo-from-yen.jpeg').then(img => {
         setReferenceImage(img);
-        $('ref-status').textContent = 'Loaded: iliqchuan-white-bg.png (auto)';
+        $('ref-status').textContent = 'Loaded: ILC-Logo-from-yen.jpeg (auto)';
         update();
-        // Auto-run optimizer on page load after reference is ready
-        setTimeout(() => runOptimization(update), 500);
     }).catch(() => {
         $('ref-status').textContent = 'No reference loaded (use file picker or serve via HTTP)';
     });

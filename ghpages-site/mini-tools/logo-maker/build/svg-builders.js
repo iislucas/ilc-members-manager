@@ -3,6 +3,39 @@
  * Pure functions that generate SVG markup strings for each layer of the logo:
  * yin-yang, rings, text arcs, spokes, ornamental tips, and full SVG assembly.
  */
+import { DEFAULT_CHARACTERS, normalizeCharacterModel, sanitizeHexColor, } from './glyph-maker/defaults.js';
+import { buildCharacterPaths } from './glyph-maker/stroke-svg.js';
+import { GlyphId, VIEWBOX_SIZE } from './glyph-maker/types.js';
+const GLYPH_STORAGE_PREFIX = 'ilc-chinese-glyph-v1-';
+const glyphPathCache = new Map();
+function getChineseGlyphPaths(gid) {
+    let rawJson = null;
+    try {
+        if (typeof localStorage !== 'undefined') {
+            rawJson = localStorage.getItem(GLYPH_STORAGE_PREFIX + gid);
+        }
+    }
+    catch {
+        rawJson = null;
+    }
+    const cached = glyphPathCache.get(gid);
+    if (cached && cached.rawJson === rawJson) {
+        return cached.paths;
+    }
+    const fallback = DEFAULT_CHARACTERS[gid];
+    let model = fallback;
+    if (rawJson) {
+        try {
+            model = normalizeCharacterModel(JSON.parse(rawJson), fallback);
+        }
+        catch {
+            model = fallback;
+        }
+    }
+    const paths = buildCharacterPaths(model);
+    glyphPathCache.set(gid, { rawJson, paths });
+    return paths;
+}
 // ---------------------------------------------------------------------------
 // Yin-yang
 // ---------------------------------------------------------------------------
@@ -79,33 +112,117 @@ export function buildRingsSvg(cx, cy, p) {
 // ---------------------------------------------------------------------------
 // Text
 // ---------------------------------------------------------------------------
-// Text along circular arcs using <textPath>.
+// Upper Chinese vector calligraphic glyphs (意 力 拳) + lower Latin <textPath>.
 export function buildTextSvg(cx, cy, p) {
-    // The text band center radius
     const yinYangBorderWidth = 1.5;
     const yinYangOuterR = p.yinYangRadius + yinYangBorderWidth / 2;
     const bandInnerR = yinYangOuterR + p.innerRingWidth + p.innerRingGap;
     const bandCenterR = bandInnerR + p.textBandWidth / 2;
+    const fillLight = sanitizeHexColor(p.fillLight, '#ffffff');
     const parts = [];
-    // Upper arc for Chinese characters (意 力 拳): arc going clockwise over the top.
-    // We draw a circular arc path and attach <textPath> to it.
-    const upperR = bandCenterR + p.textOffsetUpper;
-    // Semicircular arc from left to right over the top
-    parts.push(`<defs>`);
-    parts.push(`  <path id="upper-arc" d="M ${cx - upperR} ${cy} A ${upperR} ${upperR} 0 1 1 ${cx + upperR} ${cy}" fill="none"/>`);
-    // Lower arc for "I LIQ CHUAN": goes left-to-right through the bottom.
-    // sweep-flag=0 makes the arc take the lower (longer) path around the bottom.
+    // Place the three 200x200 calligraphic vector SVGs along the upper arc.
+    // Intrinsic radial trims (+1.25, -1.15, -0.10 at size 61.8) preserve the optical
+    // baseline of each extracted character bounding box.
+    const baseR = bandCenterR + p.chineseRadialOffset;
+    const glyphScale = p.chineseGlyphSize / VIEWBOX_SIZE;
+    const trimScale = p.chineseGlyphSize / 61.8;
+    const fmt = (n) => (Math.round(n * 1000) / 1000).toString();
+    const placements = [
+        {
+            id: GlyphId.Yi,
+            comment: '意 (Yi)',
+            r: baseR + 1.25 * trimScale,
+            angleDeg: -p.chineseSpreadAngle,
+            rotDeg: -p.chineseTiltAngle,
+        },
+        {
+            id: GlyphId.Li,
+            comment: '力 (Li)',
+            r: baseR - 1.15 * trimScale,
+            angleDeg: 0,
+            rotDeg: 0,
+        },
+        {
+            id: GlyphId.Quan,
+            comment: '拳 (Quan)',
+            r: baseR - 0.1 * trimScale,
+            angleDeg: p.chineseSpreadAngle,
+            rotDeg: p.chineseTiltAngle,
+        },
+    ];
+    parts.push(`<g id="chinese-glyphs" fill="${fillLight}">`);
+    for (const item of placements) {
+        const rad = (item.angleDeg * Math.PI) / 180;
+        const gx = cx + item.r * Math.sin(rad);
+        const gy = cy - item.r * Math.cos(rad);
+        const paths = getChineseGlyphPaths(item.id);
+        parts.push(`  <!-- ${item.comment} -->`);
+        parts.push(`  <g transform="translate(${fmt(gx)}, ${fmt(gy)}) rotate(${fmt(item.rotDeg)}) scale(${fmt(glyphScale)}) translate(-100, -100)">`);
+        for (const d of paths) {
+            if (d) {
+                parts.push(`    <path d="${d}"/>`);
+            }
+        }
+        parts.push('  </g>');
+    }
+    parts.push('</g>');
+    // Lower arc for "I", "LIQ", "CHUAN" with independent per-letter arc offsets.
     const lowerR = bandCenterR + p.textOffsetLower;
-    parts.push(`  <path id="lower-arc" d="M ${cx - lowerR} ${cy} A ${lowerR} ${lowerR} 0 1 0 ${cx + lowerR} ${cy}" fill="none"/>`);
-    parts.push(`</defs>`);
-    // Chinese text (upper arc) — rendered in light color on the dark band
-    parts.push(`<text font-size="${p.textSizeUpper}" fill="${p.fillLight}" font-family="${p.fontFamilyChinese}" font-weight="700">`);
-    parts.push(`  <textPath href="#upper-arc" startOffset="50%" text-anchor="middle">意 力 拳</textPath>`);
-    parts.push(`</text>`);
-    // Latin text (lower arc) — rendered in light color on the dark band
-    parts.push(`<text font-size="${p.textSizeLower}" fill="${p.fillLight}" font-family="${p.fontFamilyLatin}" font-weight="700" letter-spacing="${p.textLetterSpacingLower}">`);
-    parts.push(`  <textPath href="#lower-arc" startOffset="50%" text-anchor="middle">I  LIQ  CHUAN</textPath>`);
-    parts.push(`</text>`);
+    const arcLen = Math.PI * lowerR;
+    const fs = p.textSizeLower;
+    const ls = p.textLetterSpacingLower;
+    const gap = p.textWordSpacingLower;
+    // Exact Times New Roman 700 single-glyph advance width coefficients along #lower-arc
+    const wordDefs = [
+        [{ ch: 'I', wCoeff: 0.3893, offsetDeg: p.letterOffsetI1 }],
+        [
+            { ch: 'L', wCoeff: 0.667, offsetDeg: p.letterOffsetL },
+            { ch: 'I', wCoeff: 0.3893, offsetDeg: p.letterOffsetI2 },
+            { ch: 'Q', wCoeff: 0.7783, offsetDeg: p.letterOffsetQ },
+        ],
+        [
+            { ch: 'C', wCoeff: 0.7222, offsetDeg: p.letterOffsetC },
+            { ch: 'H', wCoeff: 0.7783, offsetDeg: p.letterOffsetH },
+            { ch: 'U', wCoeff: 0.7222, offsetDeg: p.letterOffsetU },
+            { ch: 'A', wCoeff: 0.7222, offsetDeg: p.letterOffsetA },
+            { ch: 'N', wCoeff: 0.7222, offsetDeg: p.letterOffsetN },
+        ],
+    ];
+    let totalSpan = 0;
+    for (let wIdx = 0; wIdx < wordDefs.length; wIdx++) {
+        if (wIdx > 0)
+            totalSpan += gap;
+        const word = wordDefs[wIdx];
+        for (let k = 0; k < word.length; k++) {
+            if (k > 0)
+                totalSpan += ls;
+            totalSpan += word[k].wCoeff * fs;
+        }
+    }
+    let cursorX = (arcLen - totalSpan) / 2;
+    const letterPlacements = [];
+    for (let wIdx = 0; wIdx < wordDefs.length; wIdx++) {
+        if (wIdx > 0)
+            cursorX += gap;
+        const word = wordDefs[wIdx];
+        for (let k = 0; k < word.length; k++) {
+            if (k > 0)
+                cursorX += ls;
+            const w = word[k].wCoeff * fs;
+            const centerArcX = cursorX + w / 2;
+            const pct = (centerArcX / arcLen) * 100 + (word[k].offsetDeg / 180) * 100;
+            letterPlacements.push({ ch: word[k].ch, pct });
+            cursorX += w;
+        }
+    }
+    parts.push('<defs>');
+    parts.push(`  <path id="lower-arc" d="M ${fmt(cx - lowerR)} ${cy} A ${fmt(lowerR)} ${fmt(lowerR)} 0 1 0 ${fmt(cx + lowerR)} ${cy}" fill="none"/>`);
+    parts.push('</defs>');
+    parts.push(`<g id="latin-words" font-size="${fs}" fill="${fillLight}" font-family="${p.fontFamilyLatin}" font-weight="700">`);
+    for (const item of letterPlacements) {
+        parts.push(`  <text><textPath href="#lower-arc" startOffset="${fmt(item.pct)}%" text-anchor="middle">${item.ch}</textPath></text>`);
+    }
+    parts.push('</g>');
     return parts.join('\n');
 }
 // ---------------------------------------------------------------------------
@@ -115,21 +232,30 @@ export function buildTextSvg(cx, cy, p) {
 // Draws them all as a single united shape using the Two-Pass Silhouette pattern.
 export function buildMergedOuterBaseSvg(cx, cy, p) {
     const yinYangBorderWidth = 1.5;
-    const outerRingInnerEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap;
+    const outerRingInnerEdge = p.yinYangRadius +
+        yinYangBorderWidth / 2 +
+        p.innerRingWidth +
+        p.innerRingGap +
+        p.textBandWidth +
+        p.outerRingGap;
     const outerRingOuterEdge = outerRingInnerEdge + p.outerRingWidth;
-    const shapes = [];
+    const fmt = (n) => (Math.round(n * 1000) / 1000).toString();
+    const roundShapes = [];
+    const miterCardinalSpikes = [];
+    const fallbackSolidSpikes = [];
     // 1. The outer circle (extends to the inner edge of the outer ring stroke)
-    shapes.push(`<circle cx="${cx}" cy="${cy}" r="${outerRingInnerEdge}"/>`);
+    roundShapes.push(`<circle cx="${cx}" cy="${cy}" r="${fmt(outerRingInnerEdge)}"/>`);
     for (let i = 0; i < 8; i++) {
         const angleDeg = i * 45;
-        const angle = angleDeg * Math.PI / 180;
+        const angle = (angleDeg * Math.PI) / 180;
         const isCardinal = angleDeg % 90 === 0;
         const cos = Math.cos(angle);
         const sin = Math.sin(angle);
         const perpCos = Math.cos(angle + Math.PI / 2);
         const perpSin = Math.sin(angle + Math.PI / 2);
         // 2. Decorations
-        const tipStart = outerRingOuterEdge + (isCardinal ? p.nsewDecorationDistance : p.diagonalDecorationDistance);
+        const tipStart = outerRingOuterEdge +
+            (isCardinal ? p.nsewDecorationDistance : p.diagonalDecorationDistance);
         const tipW = isCardinal ? p.nsewDecorationWidth : p.diagonalDecorationWidth;
         if (tipW > 0) {
             if (isCardinal) {
@@ -138,96 +264,124 @@ export function buildMergedOuterBaseSvg(cx, cy, p) {
                     continue;
                 const halfW = tipW / 2;
                 const baseR = tipStart;
-                const tipR = tipStart + tipLen;
-                const bumpR = tipW * 0.28;
-                const baseSpikeW = Math.max(0, halfW - bumpR * 0.6);
-                // Spike Path
-                const bx1 = cx + baseR * cos - baseSpikeW * perpCos;
-                const by1 = cy + baseR * sin - baseSpikeW * perpSin;
-                const bx2 = cx + baseR * cos + baseSpikeW * perpCos;
-                const by2 = cy + baseR * sin + baseSpikeW * perpSin;
-                const tx = cx + tipR * cos;
-                const ty = cy + tipR * sin;
-                const cpLenR1 = baseR + tipLen * 0.33;
-                const cpLenR2 = baseR + tipLen * 0.67;
-                // Pull the curve in more near the tip as sharpness (concavity) increases
-                const cp1_offset = baseSpikeW;
-                const cp2_offset = baseSpikeW * (1 - p.nsewDecorationConcavity * 0.2);
-                const cp1lx = cx + cpLenR1 * cos - cp1_offset * perpCos;
-                const cp1ly = cy + cpLenR1 * sin - cp1_offset * perpSin;
-                const cp2lx = cx + cpLenR2 * cos - cp2_offset * perpCos;
-                const cp2ly = cy + cpLenR2 * sin - cp2_offset * perpSin;
-                const cp1rx = cx + cpLenR1 * cos + cp1_offset * perpCos;
-                const cp1ry = cy + cpLenR1 * sin + cp1_offset * perpSin;
-                const cp2rx = cx + cpLenR2 * cos + cp2_offset * perpCos;
-                const cp2ry = cy + cpLenR2 * sin + cp2_offset * perpSin;
-                shapes.push(`<path d="M ${bx1},${by1} C ${cp1lx},${cp1ly} ${cp2lx},${cp2ly} ${tx},${ty} C ${cp2rx},${cp2ry} ${cp1rx},${cp1ry} ${bx2},${by2} Z"/>`);
+                const tipR = Math.min(cx - 0.25, tipStart + tipLen);
+                const bumpR = tipW * 0.315;
+                const sharp = p.nsewDecorationConcavity;
+                // Narrow mitered spike: stroked with stroke-linejoin="miter" in Pass 1 and filled
+                // with fillLight in Pass 2 so ONLY the outer outerRingWidth pixels are black and
+                // the miter apex lands cleanly at tipR.
+                const taper = Math.max(0.03, 1 - sharp * 0.09);
+                const sinAlpha = 0.065 + 0.34 * taper;
+                const tanAlpha = sinAlpha / Math.sqrt(Math.max(0.01, 1 - sinAlpha * sinAlpha));
+                const anchorR = p.nsewDecorationThirdBumpRadius > 0
+                    ? tipStart + p.nsewDecorationThirdBumpDistance
+                    : baseR;
+                const rApexIn = tipR - p.outerRingWidth / sinAlpha;
+                if (rApexIn > anchorR + 0.5) {
+                    const wAnchorIn = (rApexIn - anchorR) * tanAlpha;
+                    const bx1 = cx + anchorR * cos - wAnchorIn * perpCos;
+                    const by1 = cy + anchorR * sin - wAnchorIn * perpSin;
+                    const bx2 = cx + anchorR * cos + wAnchorIn * perpCos;
+                    const by2 = cy + anchorR * sin + wAnchorIn * perpSin;
+                    const ax = cx + rApexIn * cos;
+                    const ay = cy + rApexIn * sin;
+                    miterCardinalSpikes.push(`<polygon points="${fmt(bx1)},${fmt(by1)} ${fmt(ax)},${fmt(ay)} ${fmt(bx2)},${fmt(by2)}"/>`);
+                }
+                else if (tipR > anchorR + 0.5) {
+                    const wAnchorOut = (tipR - anchorR) * tanAlpha;
+                    const bx1 = cx + anchorR * cos - wAnchorOut * perpCos;
+                    const by1 = cy + anchorR * sin - wAnchorOut * perpSin;
+                    const bx2 = cx + anchorR * cos + wAnchorOut * perpCos;
+                    const by2 = cy + anchorR * sin + wAnchorOut * perpSin;
+                    const tx = cx + tipR * cos;
+                    const ty = cy + tipR * sin;
+                    fallbackSolidSpikes.push(`<polygon points="${fmt(bx1)},${fmt(by1)} ${fmt(tx)},${fmt(ty)} ${fmt(bx2)},${fmt(by2)}"/>`);
+                }
                 // Side Bumps
                 const leftBumpX = cx + baseR * cos - (halfW - bumpR) * perpCos;
                 const leftBumpY = cy + baseR * sin - (halfW - bumpR) * perpSin;
                 const rightBumpX = cx + baseR * cos + (halfW - bumpR) * perpCos;
                 const rightBumpY = cy + baseR * sin + (halfW - bumpR) * perpSin;
-                shapes.push(`<circle cx="${leftBumpX}" cy="${leftBumpY}" r="${bumpR}"/>`);
-                shapes.push(`<circle cx="${rightBumpX}" cy="${rightBumpY}" r="${bumpR}"/>`);
+                roundShapes.push(`<circle cx="${fmt(leftBumpX)}" cy="${fmt(leftBumpY)}" r="${fmt(bumpR)}"/>`);
+                roundShapes.push(`<circle cx="${fmt(rightBumpX)}" cy="${fmt(rightBumpY)}" r="${fmt(bumpR)}"/>`);
                 // Third Bump (Center base)
                 if (p.nsewDecorationThirdBumpRadius > 0) {
                     const bumpDist = tipStart + p.nsewDecorationThirdBumpDistance;
                     const thirdBumpX = cx + bumpDist * cos;
                     const thirdBumpY = cy + bumpDist * sin;
-                    shapes.push(`<!-- Third central bump -->`);
-                    shapes.push(`<circle cx="${thirdBumpX}" cy="${thirdBumpY}" r="${p.nsewDecorationThirdBumpRadius}"/>`);
-                    // Connecting Rectangle (from center to 3rd bump)
-                    // This hides any potential gap lines when nsewDistance is high
-                    const rectHalfW = p.nsewDecorationThirdBumpRadius;
+                    roundShapes.push('<!-- Third central bump -->');
+                    roundShapes.push(`<circle cx="${fmt(thirdBumpX)}" cy="${fmt(thirdBumpY)}" r="${fmt(p.nsewDecorationThirdBumpRadius)}"/>`);
+                    // Narrow bridging rect up to baseR to prevent interior gap lines while
+                    // preserving the circular waist and base cusps of the 3-lobe trefoil.
+                    const rectHalfW = Math.min(p.nsewDecorationThirdBumpRadius * 0.65, halfW * 0.35);
+                    const baseX = cx + baseR * cos;
+                    const baseY = cy + baseR * sin;
                     const rx1 = cx - rectHalfW * perpCos;
                     const ry1 = cy - rectHalfW * perpSin;
                     const rx2 = cx + rectHalfW * perpCos;
                     const ry2 = cy + rectHalfW * perpSin;
-                    const rx3 = thirdBumpX + rectHalfW * perpCos;
-                    const ry3 = thirdBumpY + rectHalfW * perpSin;
-                    const rx4 = thirdBumpX - rectHalfW * perpCos;
-                    const ry4 = thirdBumpY - rectHalfW * perpSin;
-                    shapes.push(`<!-- Connecting rect to center to hide lines -->`);
-                    shapes.push(`<polygon points="${rx1},${ry1} ${rx2},${ry2} ${rx3},${ry3} ${rx4},${ry4}"/>`);
+                    const rx3 = baseX + rectHalfW * perpCos;
+                    const ry3 = baseY + rectHalfW * perpSin;
+                    const rx4 = baseX - rectHalfW * perpCos;
+                    const ry4 = baseY - rectHalfW * perpSin;
+                    roundShapes.push('<!-- Connecting rect to center to hide lines -->');
+                    roundShapes.push(`<polygon points="${fmt(rx1)},${fmt(ry1)} ${fmt(rx2)},${fmt(ry2)} ${fmt(rx3)},${fmt(ry3)} ${fmt(rx4)},${fmt(ry4)}"/>`);
                 }
             }
             else {
                 // Diagonal Circle
                 const radius = tipW / 2;
                 const dist = tipStart;
-                const cx_circle = cx + dist * cos;
-                const cy_circle = cy + dist * sin;
-                shapes.push(`<circle cx="${cx_circle}" cy="${cy_circle}" r="${radius}"/>`);
+                const cxCircle = cx + dist * cos;
+                const cyCircle = cy + dist * sin;
+                roundShapes.push(`<circle cx="${fmt(cxCircle)}" cy="${fmt(cyCircle)}" r="${fmt(radius)}"/>`);
             }
         }
     }
-    const joinedShapes = shapes.map(s => '    ' + s).join('\n');
-    // Pass 1: Silhouette outline for merged outer structure
+    const joinedRoundShapes = roundShapes.map((s) => '    ' + s).join('\n');
+    const joinedMiterSpikes = miterCardinalSpikes
+        .map((s) => '    ' + s)
+        .join('\n');
+    const joinedFallbackSpikes = fallbackSolidSpikes
+        .map((s) => '    ' + s)
+        .join('\n');
+    const joinedWhiteShapes = [...roundShapes, ...miterCardinalSpikes]
+        .map((s) => '    ' + s)
+        .join('\n');
+    const miterSpikeGroup = miterCardinalSpikes.length > 0
+        ? `\n  <g fill="${p.strokeColor}" stroke="${p.strokeColor}" stroke-width="${p.outerRingWidth * 2}" stroke-linejoin="miter" stroke-miterlimit="40">\n${joinedMiterSpikes}\n  </g>`
+        : '';
+    const fallbackSpikeGroup = fallbackSolidSpikes.length > 0
+        ? `\n  <g fill="${p.strokeColor}" stroke="none">\n${joinedFallbackSpikes}\n  </g>`
+        : '';
+    // Pass 1: Silhouette outline for merged outer structure + mitered cardinal spikes
     return `
   <!-- Pass 1: Silhouette outline for merged outer structure -->
   <g fill="${p.strokeColor}" stroke="${p.strokeColor}" stroke-width="${p.outerRingWidth * 2}" stroke-linejoin="round">
-${joinedShapes}
-  </g>
+${joinedRoundShapes}
+  </g>${miterSpikeGroup}${fallbackSpikeGroup}
   <!-- Pass 2: Knockout fill for merged outer structure (white) -->
   <g fill="${p.fillLight}" stroke="none">
-${joinedShapes}
+${joinedWhiteShapes}
   </g>
   `;
 }
 // ---------------------------------------------------------------------------
 // Full SVG assembly
 // ---------------------------------------------------------------------------
-export function computeViewSize(p) {
+export function computeViewSize(_p) {
     return 400; // Fixed size so optimization scaling is stable and 1:1 with diff canvas
 }
-export function buildFullSvg(p, size) {
+export function buildFullSvg(p, size, previewPad = 0) {
     const viewSize = size || computeViewSize(p);
     const cx = viewSize / 2;
     const cy = viewSize / 2;
+    const totalSize = viewSize + previewPad * 2;
+    const minCoord = -previewPad;
     const parts = [];
     // Background
     if (!p.transparentBg) {
-        parts.push(`<rect width="${viewSize}" height="${viewSize}" fill="${p.bgColor}"/>`);
+        parts.push(`<rect x="${minCoord}" y="${minCoord}" width="${totalSize}" height="${totalSize}" fill="${p.bgColor}"/>`);
     }
     // Build layers inside-out
     // 1. Base Merged Layer (Base white circle, outer ring border, spokes, tips)
@@ -239,7 +393,7 @@ export function buildFullSvg(p, size) {
     // 4. Text
     parts.push(buildTextSvg(cx, cy, p));
     return [
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewSize} ${viewSize}" width="${viewSize}" height="${viewSize}">`,
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minCoord} ${minCoord} ${totalSize} ${totalSize}" width="${totalSize}" height="${totalSize}">`,
         parts.join('\n'),
         '</svg>',
     ].join('\n');

@@ -23,12 +23,23 @@ export function getParams(): LogoParams {
     outerRingWidth: numVal('outerRingWidth'),
 
 
-    textSizeUpper: numVal('textSizeUpper'),
+    chineseGlyphSize: numVal('chineseGlyphSize'),
+    chineseRadialOffset: numVal('chineseRadialOffset'),
+    chineseSpreadAngle: numVal('chineseSpreadAngle'),
+    chineseTiltAngle: numVal('chineseTiltAngle'),
     textSizeLower: numVal('textSizeLower'),
-    textOffsetUpper: numVal('textOffsetUpper'),
     textOffsetLower: numVal('textOffsetLower'),
     textLetterSpacingLower: numVal('textLetterSpacingLower'),
-    fontFamilyChinese: strVal('fontFamilyChinese'),
+    textWordSpacingLower: numVal('textWordSpacingLower'),
+    letterOffsetI1: numVal('letterOffsetI1'),
+    letterOffsetL: numVal('letterOffsetL'),
+    letterOffsetI2: numVal('letterOffsetI2'),
+    letterOffsetQ: numVal('letterOffsetQ'),
+    letterOffsetC: numVal('letterOffsetC'),
+    letterOffsetH: numVal('letterOffsetH'),
+    letterOffsetU: numVal('letterOffsetU'),
+    letterOffsetA: numVal('letterOffsetA'),
+    letterOffsetN: numVal('letterOffsetN'),
     fontFamilyLatin: strVal('fontFamilyLatin'),
 
     nsewDecorationDistance: numVal('nsewDecorationDistance'),
@@ -78,12 +89,23 @@ export function applyParams(p: Partial<LogoParams>): void {
     if (p.textBandWidth !== undefined) setInputVal('textBandWidth', p.textBandWidth);
     if (p.outerRingGap !== undefined) setInputVal('outerRingGap', p.outerRingGap);
     if (p.outerRingWidth !== undefined) setInputVal('outerRingWidth', p.outerRingWidth);
-    if (p.textSizeUpper !== undefined) setInputVal('textSizeUpper', p.textSizeUpper);
+    if (p.chineseGlyphSize !== undefined) setInputVal('chineseGlyphSize', p.chineseGlyphSize);
+    if (p.chineseRadialOffset !== undefined) setInputVal('chineseRadialOffset', p.chineseRadialOffset);
+    if (p.chineseSpreadAngle !== undefined) setInputVal('chineseSpreadAngle', p.chineseSpreadAngle);
+    if (p.chineseTiltAngle !== undefined) setInputVal('chineseTiltAngle', p.chineseTiltAngle);
     if (p.textSizeLower !== undefined) setInputVal('textSizeLower', p.textSizeLower);
-    if (p.textOffsetUpper !== undefined) setInputVal('textOffsetUpper', p.textOffsetUpper);
     if (p.textOffsetLower !== undefined) setInputVal('textOffsetLower', p.textOffsetLower);
     if (p.textLetterSpacingLower !== undefined) setInputVal('textLetterSpacingLower', p.textLetterSpacingLower);
-    if (p.fontFamilyChinese !== undefined) setInputVal('fontFamilyChinese', p.fontFamilyChinese);
+    if (p.textWordSpacingLower !== undefined) setInputVal('textWordSpacingLower', p.textWordSpacingLower);
+    if (p.letterOffsetI1 !== undefined) setInputVal('letterOffsetI1', p.letterOffsetI1);
+    if (p.letterOffsetL !== undefined) setInputVal('letterOffsetL', p.letterOffsetL);
+    if (p.letterOffsetI2 !== undefined) setInputVal('letterOffsetI2', p.letterOffsetI2);
+    if (p.letterOffsetQ !== undefined) setInputVal('letterOffsetQ', p.letterOffsetQ);
+    if (p.letterOffsetC !== undefined) setInputVal('letterOffsetC', p.letterOffsetC);
+    if (p.letterOffsetH !== undefined) setInputVal('letterOffsetH', p.letterOffsetH);
+    if (p.letterOffsetU !== undefined) setInputVal('letterOffsetU', p.letterOffsetU);
+    if (p.letterOffsetA !== undefined) setInputVal('letterOffsetA', p.letterOffsetA);
+    if (p.letterOffsetN !== undefined) setInputVal('letterOffsetN', p.letterOffsetN);
     if (p.fontFamilyLatin !== undefined) setInputVal('fontFamilyLatin', p.fontFamilyLatin);
     if (p.nsewDecorationDistance !== undefined) setInputVal('nsewDecorationDistance', p.nsewDecorationDistance);
     if (p.diagonalDecorationDistance !== undefined) setInputVal('diagonalDecorationDistance', p.diagonalDecorationDistance);
