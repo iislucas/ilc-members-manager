@@ -5,18 +5,43 @@
 }
 
 .header-extension-tabs {
+  container-type: inline-size;
+
+  .pill-tabs {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    gap: clamp(0.1rem, 0.6vw, 0.2rem);
+  }
+
   .pill-tab {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0.45rem clamp(0.45rem, 1.8vw, 0.75rem);
+    font-size: clamp(0.78rem, 3.5vw, 0.85rem);
 
     &.admin-tab {
-      padding: 0.45rem 0.75rem;
+      padding: 0.45rem clamp(0.4rem, 1.5vw, 0.6rem);
 
       app-icon {
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+    }
+  }
+
+  @supports (font-size: 1cqi) {
+    .pill-tabs {
+      gap: clamp(0.1rem, 0.6cqi, 0.2rem);
+    }
+
+    .pill-tab {
+      padding: 0.45rem clamp(0.45rem, 2.2cqi, 0.75rem);
+      font-size: clamp(0.78rem, 4cqi, 0.85rem);
+
+      &.admin-tab {
+        padding: 0.45rem clamp(0.4rem, 1.8cqi, 0.6rem);
       }
     }
   }
@@ -71,7 +96,6 @@
   }
 
   .content {
-
     h2 {
       margin: 0 0 0.5rem 0;
       font-size: 1.25rem;
@@ -116,7 +140,6 @@
       box-shadow: 0 4px 8px rgba(2, 132, 199, 0.15);
     }
   }
-
 }
 
 .welcome-membership-banner {
@@ -208,6 +231,3 @@
     max-width: 100%;
   }
 }
-
-
-
