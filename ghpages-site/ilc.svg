@@ -33,10 +33,10 @@
     <circle cx="308.364" cy="91.636" r="14.75"/>
   </g>
   <g fill="#000000" stroke="#000000" stroke-width="5" stroke-linejoin="miter" stroke-miterlimit="40">
-    <polygon points="369.75,197.664 384.145,200 369.75,202.336"/>
-    <polygon points="202.336,369.75 200,384.145 197.664,369.75"/>
-    <polygon points="30.25,202.336 15.855,200 30.25,197.664"/>
-    <polygon points="197.664,30.25 200,15.855 202.336,30.25"/>
+    <polygon points="369.75,196.906 386.213,200 369.75,203.094"/>
+    <polygon points="203.094,369.75 200,386.213 196.906,369.75"/>
+    <polygon points="30.25,203.094 13.787,200 30.25,196.906"/>
+    <polygon points="196.906,30.25 200,13.787 203.094,30.25"/>
   </g>
   <!-- Pass 2: Knockout fill for merged outer structure (white) -->
   <g fill="#ffffff" stroke="none">
@@ -69,10 +69,10 @@
     <!-- Connecting rect to center to hide lines -->
     <polygon points="193.175,200 206.825,200 206.825,47.75 193.175,47.75"/>
     <circle cx="308.364" cy="91.636" r="14.75"/>
-    <polygon points="369.75,197.664 384.145,200 369.75,202.336"/>
-    <polygon points="202.336,369.75 200,384.145 197.664,369.75"/>
-    <polygon points="30.25,202.336 15.855,200 30.25,197.664"/>
-    <polygon points="197.664,30.25 200,15.855 202.336,30.25"/>
+    <polygon points="369.75,196.906 386.213,200 369.75,203.094"/>
+    <polygon points="203.094,369.75 200,386.213 196.906,369.75"/>
+    <polygon points="30.25,203.094 13.787,200 30.25,196.906"/>
+    <polygon points="196.906,30.25 200,13.787 203.094,30.25"/>
   </g>
   
 <circle cx="200" cy="200" r="65" fill="#ffffff"/><path d="M 200 265 A 65 65 0 1 1 200 135 A 32.5 32.5 0 0 0 200 200 A 32.5 32.5 0 0 1 200 265 Z" fill="#000000"/><circle cx="200" cy="167.5" r="8" fill="#000000"/><circle cx="200" cy="232.5" r="8" fill="#ffffff"/><circle cx="200" cy="200" r="65" fill="none" stroke="#000000" stroke-width="1.5"/>
