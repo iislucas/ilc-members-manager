@@ -3,6 +3,8 @@
  * Dedicated purchase & renewal page for ILC School Licenses:
  *  1. Lists existing schools managed/owned by the member with license & subscription status.
  *  2. Allows selecting an existing school to renew or purchasing for a new school.
+ *     `/school-license?schoolId=SCH-123` pre-selects that school for renewal
+ *     (linked from the school's page).
  *  3. Offers Yearly ($600/yr) and Monthly ($60/mo) Stripe billing options.
  *  4. Provides Cancel/Resume Auto-Renewal for school subscriptions.
  *  5. On return with session_id, displays renewal spinner and order status.
@@ -115,9 +117,47 @@ export class SchoolLicensePurchaseComponent {
     return null;
   });
 
-  // Mode: renew existing vs new school
-  licenseAction = signal<SchoolLicenseAction>('renew');
-  selectedSchoolDocId = signal<string | null>(null);
+  // Human-readable schoolId from the `?schoolId=` URL param (e.g. from the
+  // "Renew License" link on a school's page); '' when absent.
+  urlSchoolId = computed(
+    () =>
+      this.routingService.signals[Views.SchoolLicensePurchase].urlParams.schoolId() ||
+      '',
+  );
+
+  // Mode: renew existing vs new school. Defaults to 'renew' when the member
+  // manages any school; re-derives only if that changes (e.g. once the schools
+  // list loads), so a manual choice is kept.
+  licenseAction = linkedSignal<boolean, SchoolLicenseAction>({
+    source: () => this.mySchools().length > 0,
+    computation: (hasSchools) => (hasSchools ? 'renew' : 'new'),
+  });
+
+  // The school being renewed. Keeps the current choice while it is still one
+  // of the member's schools; otherwise defaults to the school named in the URL,
+  // falling back to the first managed school.
+  selectedSchoolDocId = linkedSignal<
+    { schools: School[]; wantedSchoolId: string },
+    string | null
+  >({
+    source: () => ({
+      schools: this.mySchools(),
+      wantedSchoolId: this.urlSchoolId(),
+    }),
+    computation: ({ schools, wantedSchoolId }, previous) => {
+      if (
+        previous?.value &&
+        previous.source.wantedSchoolId === wantedSchoolId &&
+        schools.some((s) => s.docId === previous.value)
+      ) {
+        return previous.value;
+      }
+      const wanted = wantedSchoolId
+        ? schools.find((s) => s.schoolId === wantedSchoolId)
+        : undefined;
+      return (wanted ?? schools[0])?.docId ?? null;
+    },
+  });
 
   // New school form fields
   newSchoolName = signal('');
@@ -244,14 +284,6 @@ export class SchoolLicensePurchaseComponent {
   });
 
   constructor() {
-    // Auto-select first school if available
-    const firstSchool = this.mySchools()[0];
-    if (firstSchool) {
-      this.selectedSchoolDocId.set(firstSchool.docId);
-    } else {
-      this.licenseAction.set('new');
-    }
-
     const userCountry = this.user()?.member?.country;
     if (userCountry) {
       this.newSchoolCountry.set(userCountry);
@@ -295,9 +327,11 @@ export class SchoolLicensePurchaseComponent {
     return formatStripeAmount(unitAmount, currency);
   }
 
+  // An empty schoolLicenseExpires means a life license (as in the ACL builder
+  // in on-member-update.ts), so it counts as active.
   isSchoolActive(school: School): boolean {
     const exp = school.schoolLicenseExpires;
-    return !!exp && exp >= this.today();
+    return !exp || exp >= this.today();
   }
 
   async onPurchaseSchoolLicense(): Promise<void> {

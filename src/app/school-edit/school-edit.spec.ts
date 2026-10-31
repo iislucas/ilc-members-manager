@@ -344,7 +344,9 @@ describe('SchoolEditComponent', () => {
       expect(schoolLinks).toBeTruthy();
 
       const links = schoolLinks.querySelectorAll('a.subtle-button');
+      // Admins who don't manage the school get no license renewal link.
       expect(links.length).toBe(2);
+      expect(component.licenseRenewalHref()).toBe('');
 
       const studentsLink = links[0] as HTMLAnchorElement;
       expect(studentsLink.textContent).toContain('Students');
@@ -386,6 +388,41 @@ describe('SchoolEditComponent', () => {
     it('should identify user as school manager', () => {
       expect(component.userIsSchoolManager()).toBe(true);
       expect(component.userIsAdmin()).toBe(false);
+    });
+
+    it('DOM: renders a license renewal link pre-selecting this school', async () => {
+      component.todayIsoString.set('2026-06-01');
+      dataManagerServiceMock.schools!.setEntries([
+        { ...mockSchool, schoolLicenseExpires: '2026-01-01' },
+      ]);
+      fixture.detectChanges();
+      const links: HTMLAnchorElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('.school-links a.subtle-button'),
+      );
+      const licenseLink = links.find((a) => a.textContent?.includes('Renew License'));
+      expect(licenseLink).toBeTruthy();
+      expect(licenseLink!.getAttribute('href')).toBe('/school-license?schoolId=S001');
+      expect(licenseLink!.textContent).toContain('License expired 2026-01-01');
+    });
+
+    it('no renewal link for a life license (empty schoolLicenseExpires)', () => {
+      // mockSchool has no expiry date, i.e. a life license.
+      expect(component.licenseRenewalHref()).toBe('');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).not.toContain('Renew License');
+    });
+
+    it('licenseStatusText reflects valid and expired licenses', () => {
+      component.todayIsoString.set('2026-06-01');
+      dataManagerServiceMock.schools!.setEntries([
+        { ...mockSchool, schoolLicenseExpires: '2027-01-01' },
+      ]);
+      expect(component.licenseStatusText()).toBe('License valid until 2027-01-01');
+
+      dataManagerServiceMock.schools!.setEntries([
+        { ...mockSchool, schoolLicenseExpires: '2026-01-01' },
+      ]);
+      expect(component.licenseStatusText()).toBe('License expired 2026-01-01');
     });
 
     it('should not be dirty initially', () => {

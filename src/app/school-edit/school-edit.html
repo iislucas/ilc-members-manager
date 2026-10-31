@@ -62,6 +62,16 @@
                 <app-icon name="salut" /> Students
               </a>
             }
+            @if (licenseRenewalHref(); as href) {
+              <a class="subtle-button" [href]="href">
+                <app-icon name="payments" />
+                <span
+                  class="license-status"
+                  [class.expired]="isSchoolLicenseExpired() !== ExpiryStatus.Valid"
+                >{{ licenseStatusText() }}</span>
+                · Renew License
+              </a>
+            }
             @if (publicListingHref(); as href) {
               <a class="subtle-button" [href]="href" target="_blank" rel="noopener noreferrer">
                 <app-icon name="link" /> View Public Listing
