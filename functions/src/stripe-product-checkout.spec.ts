@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   assertValidQuoteOrThrow,
+  buildMarkedPaidRegistrationUpdates,
   buildUnmarkedRegistrationUpdates,
   computeCapacityUpdateOrThrow,
   computePriorPaidCreditCents,
@@ -25,6 +26,7 @@ import {
   initEventRegistrationOption,
   initEventRuleConditions,
   initProduct,
+  PaymentConditionKind,
   PersonStatusKind,
   Product,
   RegistrationConditionKind,
@@ -352,6 +354,8 @@ describe('stripe-product-checkout rule resolution & capacity transactions', () =
     const revertedDoor = buildUnmarkedRegistrationUpdates(paidDoor, '2026-09-09T00:00:00Z');
     expect(revertedDoor).toEqual({
       status: EventRegistrationStatus.PendingInPerson,
+      paidInFullOffline: false,
+      autoGrantedAddOnIds: [],
       amountDueCents: 6500,
       amountPaidCents: 0,
       paidAt: '',
@@ -373,6 +377,8 @@ describe('stripe-product-checkout rule resolution & capacity transactions', () =
     const revertedDeposit = buildUnmarkedRegistrationUpdates(paidDeposit, '2026-09-09T00:00:00Z');
     expect(revertedDeposit).toEqual({
       status: EventRegistrationStatus.DepositPaid,
+      paidInFullOffline: false,
+      autoGrantedAddOnIds: [],
       amountPaidCents: 2500,
       amountDueCents: 5500,
       paidAt: '',
@@ -393,6 +399,98 @@ describe('stripe-product-checkout rule resolution & capacity transactions', () =
     expect(() => buildUnmarkedRegistrationUpdates(fullStripe)).toThrowError(
       expect.objectContaining({ code: 'failed-precondition' }),
     );
+  });
+
+  it('marks registrations paid in full offline, auto-grants free Paid-in-Full add-ons, and cleanly reverts only auto-granted add-ons on unmark', () => {
+    const product = buildSampleRulesProduct();
+    product.pricingRules.addOns = [
+      initEventAddOn({
+        id: 'purchased_book',
+        label: 'Workbook',
+        spec: { kind: EventAddOnKind.Other },
+        priceCents: 1500,
+      }),
+      initEventAddOn({
+        id: 'free_paid_recording',
+        label: 'Complimentary Recording (Paid in Full)',
+        spec: { kind: EventAddOnKind.EventRecording },
+        priceCents: 0,
+        conditions: initEventRuleConditions({
+          payment: { kind: PaymentConditionKind.PaidInFull },
+        }),
+      }),
+      initEventAddOn({
+        id: 'paid_only_shirt',
+        label: 'Paid Shirt Add-On',
+        spec: { kind: EventAddOnKind.Other },
+        priceCents: 2500,
+        conditions: initEventRuleConditions({
+          payment: { kind: PaymentConditionKind.PaidInFull },
+        }),
+      }),
+    ];
+
+    const depositReg: EventRegistration = {
+      ...initEventRegistration(),
+      docId: 'reg_dep_bonus',
+      optionId: 'full_in_person',
+      optionLabel: 'Full Event (In-Person)',
+      attendance: AttendanceType.InPerson,
+      role: AttendeeRole.Member,
+      status: EventRegistrationStatus.DepositPaid,
+      paymentMethod: RegistrationPaymentMethod.Stripe,
+      selectedAddOnIds: ['purchased_book'],
+      selectedAddOnLabels: ['Workbook'],
+      hasVideoAccess: false,
+      totalPriceCents: 9500,
+      depositPaidCents: 3000,
+      amountPaidCents: 3000,
+      amountDueCents: 6500,
+    };
+
+    const marked = buildMarkedPaidRegistrationUpdates(depositReg, {
+      nowIso: '2026-10-01T10:00:00Z',
+      rules: product.pricingRules,
+      eventStartDate: '2099-10-10',
+    });
+
+    expect(marked.updates).toEqual({
+      status: EventRegistrationStatus.Paid,
+      paidInFullOffline: true,
+      totalPriceCents: 9500,
+      depositPaidCents: 3000,
+      amountPaidCents: 9500,
+      amountDueCents: 0,
+      paidAt: '2026-10-01T10:00:00Z',
+      lastUpdated: '2026-10-01T10:00:00Z',
+      selectedAddOnIds: ['purchased_book', 'free_paid_recording'],
+      selectedAddOnLabels: ['Workbook', 'Complimentary Recording (Paid in Full)'],
+      autoGrantedAddOnIds: ['free_paid_recording'],
+      hasVideoAccess: true,
+    });
+    expect(marked.newlyGrantedAddOnIds).toEqual(['free_paid_recording']);
+
+    const markedReg: EventRegistration = {
+      ...depositReg,
+      ...marked.updates,
+    };
+    const unmarked = buildUnmarkedRegistrationUpdates(
+      markedReg,
+      '2026-10-01T12:00:00Z',
+      product.pricingRules,
+    );
+    expect(unmarked).toEqual({
+      status: EventRegistrationStatus.DepositPaid,
+      paidInFullOffline: false,
+      autoGrantedAddOnIds: [],
+      amountPaidCents: 3000,
+      amountDueCents: 6500,
+      paidAt: '',
+      lastUpdated: '2026-10-01T12:00:00Z',
+      selectedAddOnIds: ['purchased_book'],
+      selectedAddOnLabels: ['Workbook'],
+      hasVideoAccess: false,
+    });
   });
 
   it('converts legacy Matrix Firestore product docs into equivalent EventPricingRules on load', () => {

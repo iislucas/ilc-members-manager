@@ -44,6 +44,7 @@ import {
   EvaluatedRegistrationOption,
   evaluateEventPricingQuote,
   evaluateRegistrationUpgradeSettlement,
+  EventAddOn,
   EventAddOnKind,
   EventPricingQuote,
   EventPricingRules,
@@ -55,6 +56,7 @@ import {
   hasQuestionResponseValue,
   IlcEvent,
   isEventPast,
+  isRegistrationPaidInFull,
   MAX_LONG_TEXT_ANSWER_LENGTH,
   MAX_SHORT_TEXT_ANSWER_LENGTH,
   mergeImmutableQuestionResponses,
@@ -290,6 +292,10 @@ export class ProductViewComponent implements OnInit {
     return this.existingRegistration()?.status === EventRegistrationStatus.DepositPaid;
   });
 
+  isExistingPaidInFull = computed<boolean>(() => {
+    return isRegistrationPaidInFull(this.existingRegistration());
+  });
+
   // Resolve initial option ID from existing registration or rules defaults
   private defaultInitialOptionId = computed<string>(() => {
     const rules = this.effectiveRules();
@@ -428,6 +434,7 @@ export class ProductViewComponent implements OnInit {
       eventStartDate: this.linkedEvent()?.start || '',
       selectedOptionId: optId || undefined,
       selectedSuboptions: this.selectedSuboptions(),
+      isExistingRegistrationPaidInFull: this.isExistingPaidInFull(),
     });
   });
 
@@ -465,7 +472,27 @@ export class ProductViewComponent implements OnInit {
     const prelim = this.prelimQuote();
     if (!rules || !prelim) return null;
 
-    const availAddOnIds = new Set(prelim.availableAddOns.map((a) => a.addOn.id));
+    const chosenPayment = this.effectivePaymentChoice();
+    const existingPaidInFull = this.isExistingPaidInFull();
+
+    const paymentAwarePrelim =
+      chosenPayment !== prelim.effectivePaymentChoice
+        ? evaluateEventPricingQuote({
+            rules,
+            memberContext: this.memberContext(),
+            isAdmin: this.isAdmin(),
+            isEventPast: this.isPastEvent(),
+            capacityCounts: this.liveCapacityCounts(),
+            existingCapacityUsage: this.existingCapacityUsage(),
+            eventStartDate: this.linkedEvent()?.start || '',
+            selectedOptionId: this.selectedOptionId() || undefined,
+            selectedSuboptions: this.selectedSuboptions(),
+            paymentChoice: chosenPayment,
+            isExistingRegistrationPaidInFull: existingPaidInFull,
+          })
+        : prelim;
+
+    const availAddOnIds = new Set(paymentAwarePrelim.availableAddOns.map((a) => a.addOn.id));
     const locked = this.lockedAddOnIds();
     const mergedAddOnIds = Array.from(
       new Set([...this.selectedAddOnIds(), ...Array.from(locked)]),
@@ -482,8 +509,37 @@ export class ProductViewComponent implements OnInit {
       selectedOptionId: this.selectedOptionId() || undefined,
       selectedSuboptions: this.selectedSuboptions(),
       selectedAddOnIds: mergedAddOnIds,
-      paymentChoice: this.effectivePaymentChoice(),
+      paymentChoice: chosenPayment,
+      isExistingRegistrationPaidInFull: existingPaidInFull,
     });
+  });
+
+  paidInFullLockedAddOns = computed<EventAddOn[]>(() => {
+    const q = this.quote();
+    const rules = this.effectiveRules();
+    if (!q || !rules || q.isPaidInFull) return [];
+    if (!this.availablePaymentChoicesForUser().includes(PaymentChoice.Full)) {
+      return [];
+    }
+
+    const fullProbe = evaluateEventPricingQuote({
+      rules,
+      memberContext: this.memberContext(),
+      isAdmin: this.isAdmin(),
+      isEventPast: this.isPastEvent(),
+      capacityCounts: this.liveCapacityCounts(),
+      existingCapacityUsage: this.existingCapacityUsage(),
+      eventStartDate: this.linkedEvent()?.start || '',
+      selectedOptionId: this.selectedOptionId() || undefined,
+      selectedSuboptions: this.selectedSuboptions(),
+      paymentChoice: PaymentChoice.Full,
+      isExistingRegistrationPaidInFull: true,
+    });
+
+    const currentAvailIds = new Set(q.availableAddOns.map((a) => a.addOn.id));
+    return fullProbe.availableAddOns
+      .filter((a) => !currentAvailIds.has(a.addOn.id))
+      .map((a) => a.addOn);
   });
 
   upgradeSettlement = computed<RegistrationUpgradeSettlement | null>(() => {

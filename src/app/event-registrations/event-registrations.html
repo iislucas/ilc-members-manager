@@ -404,7 +404,7 @@
                         }
                       </div>
                       <div class="status-action-row">
-                        @if (hasBalanceDueAtDoor(reg)) {
+                        @if (canMarkPaidInFull(reg)) {
                           <span class="status-badge status-pending">
                             {{ isDepositPaid(reg) ? 'DEPOSIT PAID' : 'PAY AT DOOR' }}
                           </span>
@@ -413,14 +413,14 @@
                             class="mark-paid-btn subtle-button"
                             (click)="markPaid(reg)"
                             [disabled]="isUpdating() === reg.docId"
-                            title="Record payment collected at the door"
+                            title="Record that this attendee paid in full (at the door, bank transfer, or other offline method)"
                           >
                             <app-icon name="check"></app-icon>
-                            <span>{{ isUpdating() === reg.docId ? 'Saving...' : 'Mark Paid' }}</span>
+                            <span>{{ isUpdating() === reg.docId ? 'Saving...' : 'Mark Paid in Full' }}</span>
                           </button>
                         } @else {
                           <span class="status-badge status-paid">
-                            {{ formatStatusBadge(reg.status) }}
+                            {{ formatStatusBadge(reg) }}
                           </span>
                           @if (canUnmarkPaid(reg)) {
                             <button
@@ -428,7 +428,7 @@
                               class="unmark-paid-btn subtle-button"
                               (click)="unmarkPaid(reg)"
                               [disabled]="isUpdating() === reg.docId"
-                              title="Revert door payment back to unpaid / pending at door"
+                              title="Revert offline payment back to unpaid / deposit balance due"
                             >
                               <app-icon name="undo"></app-icon>
                               <span>{{ isUpdating() === reg.docId ? 'Updating...' : 'Unmark Paid' }}</span>

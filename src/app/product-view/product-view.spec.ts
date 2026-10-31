@@ -30,6 +30,7 @@ import {
   initEventRuleConditions,
   initProduct,
   PaymentChoice,
+  PaymentConditionKind,
   PersonStatusKind,
   Product,
   RegistrationConditionKind,
@@ -944,6 +945,79 @@ describe('ProductViewComponent', () => {
       component.updateQuestionSelect('q_shirt', 'Medium');
       fixture.detectChanges();
       expect(component.canSubmit()).toBe(true);
+    });
+
+    it('renders Paid-in-Full add-ons as locked when Deposit or Pay-at-Door is selected, unlocks them on Full Payment, and treats organizer-marked Paid registrations as Paid in Full', async () => {
+      const prod = buildWorkshopProduct();
+      prod.pricingRules.addOns.push(
+        initEventAddOn({
+          id: 'vip_bonus',
+          label: 'Bonus Study Guide',
+          description: 'Included when paid in full',
+          spec: { kind: EventAddOnKind.Other },
+          priceCents: 0,
+          conditions: initEventRuleConditions({
+            payment: { kind: PaymentConditionKind.PaidInFull },
+          }),
+        }),
+      );
+
+      mockProductService.getProduct.mockResolvedValue(prod);
+      mockProductService.getUserRegistrationForEvent.mockResolvedValue(null);
+      mockRoutingService.signals.eventRegister.pathVars.eventId.set('event-1');
+
+      await component.loadProduct();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+
+      // Default payment choice is Full -> vip_bonus is unlocked and selectable
+      expect(component.effectivePaymentChoice()).toBe(PaymentChoice.Full);
+      expect(component.quote()?.availableAddOns.map((a) => a.addOn.id)).toContain('vip_bonus');
+      expect(component.paidInFullLockedAddOns()).toEqual([]);
+
+      // Select vip_bonus, then switch to Deposit -> vip_bonus becomes locked ("Paid in Full Only") and excluded from quote
+      const vipEval = component.quote()!.availableAddOns.find((a) => a.addOn.id === 'vip_bonus')!;
+      component.toggleAddOn(vipEval, true);
+      component.selectedPaymentChoice.set(PaymentChoice.Deposit);
+      fixture.detectChanges();
+
+      expect(component.quote()?.availableAddOns.map((a) => a.addOn.id)).not.toContain('vip_bonus');
+      expect(component.paidInFullLockedAddOns().map((a) => a.id)).toEqual(['vip_bonus']);
+      expect(el.textContent).toContain('Paid in Full Only');
+      expect(el.textContent).toContain('Select "Pay Full Amount Online" below');
+
+      // Now load an existing registration marked Paid in Full offline by the organizer
+      const offlinePaidReg: EventRegistration = {
+        ...initEventRegistration(),
+        docId: 'reg-offline-paid',
+        eventDocId: 'event-1',
+        productId: 'test-prod-1',
+        name: 'Offline Paid Member',
+        email: 'member@example.com',
+        role: AttendeeRole.Member,
+        optionId: 'full_in_person',
+        optionLabel: 'Full Workshop (In-Person)',
+        attendance: AttendanceType.InPerson,
+        amountPaidCents: 6500,
+        totalPriceCents: 6500,
+        status: EventRegistrationStatus.Paid,
+        paidInFullOffline: true,
+        paymentMethod: RegistrationPaymentMethod.InPerson,
+      };
+      mockProductService.getUserRegistrationForEvent.mockResolvedValue(offlinePaidReg);
+
+      await component.loadProduct();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(el.textContent).toContain('Paid (Recorded by Organizer)');
+      expect(component.isExistingPaidInFull()).toBe(true);
+      expect(component.quote()?.availableAddOns.map((a) => a.addOn.id)).toContain('vip_bonus');
+      expect(component.paidInFullLockedAddOns()).toEqual([]);
     });
   });
 });

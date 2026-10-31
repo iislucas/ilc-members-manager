@@ -12,6 +12,7 @@
 
 import {
   AttendanceType,
+  AttendeeRole,
   type EventRegistration,
   EventRegistrationStatus,
   RegistrationPaymentMethod,
@@ -57,10 +58,11 @@ export type WhoCondition =
   | { kind: WhoConditionKind.Anyone }
   | { kind: WhoConditionKind.Status; status: PersonStatusKind };
 
-// Condition Axis 2: Timing condition (Early Bird cutoff window or Before Event starts).
+// Condition Axis 2: Timing condition (Early Bird cutoff window, Before Event starts, or Custom Date).
 export enum TimingConditionKind {
   Anytime = 'anytime',
   Window = 'window',
+  CustomDate = 'custom_date',
 }
 
 export enum TimingWindow {
@@ -68,9 +70,21 @@ export enum TimingWindow {
   BeforeEventStart = 'before_event_start',
 }
 
+export enum CustomDateDirection {
+  // Inclusive Anywhere-on-Earth cutoff (evaluationDateAoE <= date).
+  Before = 'before',
+  // Inclusive Anywhere-on-Earth start date (evaluationDateAoE >= date).
+  OnOrAfter = 'on_or_after',
+}
+
 export type TimingCondition =
   | { kind: TimingConditionKind.Anytime }
-  | { kind: TimingConditionKind.Window; window: TimingWindow };
+  | { kind: TimingConditionKind.Window; window: TimingWindow }
+  | {
+      kind: TimingConditionKind.CustomDate;
+      direction: CustomDateDirection;
+      date: string; // YYYY-MM-DD (Anywhere-on-Earth UTC-12)
+    };
 
 // Condition Axis 3: Registration condition (explicit scope over Registration Options;
 // implicit / AllOptions when the condition belongs to a Registration Option itself).
@@ -83,11 +97,22 @@ export type RegistrationCondition =
   | { kind: RegistrationConditionKind.AllOptions }
   | { kind: RegistrationConditionKind.SpecificOptions; optionIds: string[] };
 
+// Condition Axis 4: Payment condition (supported only on Event Add-Ons; AnyPayment elsewhere).
+export enum PaymentConditionKind {
+  AnyPayment = 'any_payment',
+  PaidInFull = 'paid_in_full',
+}
+
+export type PaymentCondition =
+  | { kind: PaymentConditionKind.AnyPayment }
+  | { kind: PaymentConditionKind.PaidInFull };
+
 // Shared condition set used across Registration Options, Discounts, Event Add-Ons, and Form Questions.
 export interface EventRuleConditions {
   who: WhoCondition;
   timing: TimingCondition;
   registration: RegistrationCondition;
+  payment: PaymentCondition;
 }
 
 // Whether selecting a Registration Option requires choosing suboptions (e.g. specific days, sessions, tracks).
@@ -374,6 +399,17 @@ export function normalizeTimingCondition(
         window,
       };
     }
+    if (obj['kind'] === TimingConditionKind.CustomDate) {
+      const direction =
+        obj['direction'] === CustomDateDirection.OnOrAfter
+          ? CustomDateDirection.OnOrAfter
+          : CustomDateDirection.Before;
+      return {
+        kind: TimingConditionKind.CustomDate,
+        direction,
+        date: asTrimmedString(obj['date']).slice(0, 10),
+      };
+    }
     return { kind: TimingConditionKind.Anytime };
   }
 
@@ -417,6 +453,14 @@ export function normalizeRegistrationCondition(raw: unknown): RegistrationCondit
   return { kind: RegistrationConditionKind.AllOptions };
 }
 
+export function normalizePaymentCondition(raw: unknown): PaymentCondition {
+  const obj = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  if (obj['kind'] === PaymentConditionKind.PaidInFull) {
+    return { kind: PaymentConditionKind.PaidInFull };
+  }
+  return { kind: PaymentConditionKind.AnyPayment };
+}
+
 export function initEventRuleConditions(
   overrides: Partial<EventRuleConditions> = {},
 ): EventRuleConditions {
@@ -428,12 +472,16 @@ export function initEventRuleConditions(
     registration: overrides.registration
       ? normalizeRegistrationCondition(overrides.registration)
       : { kind: RegistrationConditionKind.AllOptions },
+    payment: overrides.payment
+      ? normalizePaymentCondition(overrides.payment)
+      : { kind: PaymentConditionKind.AnyPayment },
   };
 }
 
 export function normalizeEventRuleConditions(
   raw: unknown,
   allowRegistrationCondition = true,
+  allowPaymentCondition = false,
 ): EventRuleConditions {
   const obj = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   return {
@@ -442,6 +490,9 @@ export function normalizeEventRuleConditions(
     registration: allowRegistrationCondition
       ? normalizeRegistrationCondition(obj['registration'] ?? obj['optionScope'])
       : { kind: RegistrationConditionKind.AllOptions },
+    payment: allowPaymentCondition
+      ? normalizePaymentCondition(obj['payment'])
+      : { kind: PaymentConditionKind.AnyPayment },
   };
 }
 
@@ -576,7 +627,7 @@ export function initEventAddOn(overrides: Partial<EventAddOn> = {}): EventAddOn 
       ? normalizeEventAddOnSpec(overrides.spec)
       : { kind: EventAddOnKind.EventRecording },
     conditions: overrides.conditions
-      ? normalizeEventRuleConditions(overrides.conditions, true)
+      ? normalizeEventRuleConditions(overrides.conditions, true, true)
       : initEventRuleConditions(),
     priceCents: clampNonNegativeInt(overrides.priceCents ?? 0),
   };
@@ -873,7 +924,7 @@ function normalizeEventAddOnListItem(raw: unknown, fallbackIndex = 0): EventAddO
         label,
         description,
         spec,
-        conditions: normalizeEventRuleConditions(obj['conditions'], true),
+        conditions: normalizeEventRuleConditions(obj['conditions'], true, true),
         priceCents,
       },
     ];
@@ -1281,9 +1332,24 @@ export function matchesTimingCondition(
   cond: TimingCondition,
   isEarlyBird: boolean,
   isBeforeEventStart: boolean,
+  evaluationDateAoE = '',
 ): boolean {
   if (cond.kind === TimingConditionKind.Anytime) {
     return true;
+  }
+  if (cond.kind === TimingConditionKind.CustomDate) {
+    const cleanTarget = cond.date.trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanTarget)) {
+      return false;
+    }
+    const cleanEval = evaluationDateAoE.trim().slice(0, 10);
+    const effectiveEval = /^\d{4}-\d{2}-\d{2}$/.test(cleanEval)
+      ? cleanEval
+      : getAnywhereOnEarthDate();
+    if (cond.direction === CustomDateDirection.OnOrAfter) {
+      return effectiveEval >= cleanTarget;
+    }
+    return effectiveEval <= cleanTarget;
   }
   switch (cond.window) {
     case TimingWindow.BeforeEarlyBird:
@@ -1293,9 +1359,20 @@ export function matchesTimingCondition(
   }
 }
 
+export function matchesPaymentCondition(
+  cond: PaymentCondition,
+  isPaidInFull: boolean,
+): boolean {
+  if (cond.kind === PaymentConditionKind.AnyPayment) {
+    return true;
+  }
+  return isPaidInFull;
+}
+
 export interface ValidateRuleConditionsContext {
   itemLabel: string;
   allowRegistrationCondition: boolean;
+  allowPaymentCondition?: boolean;
   earlyBirdEnabled: boolean;
   validOptionIds?: ReadonlySet<string>;
 }
@@ -1314,6 +1391,14 @@ export function validateRuleConditions(
     errors.push(
       `Enable Early Bird Pricing (with a cutoff date) to use an Early Bird timing condition on "${context.itemLabel}".`,
     );
+  }
+  if (conditions.timing.kind === TimingConditionKind.CustomDate) {
+    const cleanDate = conditions.timing.date.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanDate) || Number.isNaN(Date.parse(`${cleanDate}T00:00:00Z`))) {
+      errors.push(
+        `Enter a valid custom date (YYYY-MM-DD) for the Timing condition on "${context.itemLabel}".`,
+      );
+    }
   }
   if (
     !context.allowRegistrationCondition &&
@@ -1335,6 +1420,14 @@ export function validateRuleConditions(
         `Select at least one registration option in the Registration condition for "${context.itemLabel}" (or remove the Registration condition).`,
       );
     }
+  }
+  if (
+    !context.allowPaymentCondition &&
+    conditions.payment.kind !== PaymentConditionKind.AnyPayment
+  ) {
+    errors.push(
+      `Payment condition is only supported on Event Add-Ons (invalid on "${context.itemLabel}").`,
+    );
   }
   return errors;
 }
@@ -1432,12 +1525,15 @@ export interface EventPricingQuoteInput {
   selectedSuboptions?: string[];
   selectedAddOnIds?: string[];
   paymentChoice?: PaymentChoice;
+  // True when an existing registration has already been paid in full (online or marked by admin).
+  isExistingRegistrationPaidInFull?: boolean;
 }
 
 export interface EventPricingQuote {
   evaluationDateAoE: string;
   isEarlyBird: boolean;
   isBeforeEventStart: boolean;
+  isPaidInFull: boolean;
   isEligibleToRegister: boolean;
   evaluatedCapacities: EvaluatedCapacity[];
   allEvaluatedOptions: EvaluatedRegistrationOption[];
@@ -1533,7 +1629,14 @@ function evaluateSingleRegistrationOption(
   for (const disc of rules.discounts) {
     if (disc.discountCents <= 0) continue;
     if (!matchesRegistrationCondition(disc.conditions.registration, option.id)) continue;
-    if (!matchesTimingCondition(disc.conditions.timing, isEarlyBird, isBeforeEventStart)) {
+    if (
+      !matchesTimingCondition(
+        disc.conditions.timing,
+        isEarlyBird,
+        isBeforeEventStart,
+        evaluationDateAoE,
+      )
+    ) {
       continue;
     }
     if (!matchesWhoForDiscount(disc.conditions.who, memberLevel)) continue;
@@ -1627,7 +1730,14 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
       if (isPast && opt.attendanceType !== AttendanceType.VideoOnly) {
         return false;
       }
-      if (!matchesTimingCondition(opt.conditions.timing, isEarlyBird, isBeforeEventStart)) {
+      if (
+        !matchesTimingCondition(
+          opt.conditions.timing,
+          isEarlyBird,
+          isBeforeEventStart,
+          evaluationDateAoE,
+        )
+      ) {
         return false;
       }
       return true;
@@ -1671,6 +1781,11 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
         ) {
           unavailMsg =
             'The selected registration option is no longer available once the event has started.';
+        } else if (matchedRaw.conditions.timing.kind === TimingConditionKind.CustomDate) {
+          unavailMsg =
+            matchedRaw.conditions.timing.direction === CustomDateDirection.OnOrAfter
+              ? `The selected registration option opens on ${matchedRaw.conditions.timing.date}.`
+              : `The selected registration option closed after ${matchedRaw.conditions.timing.date}.`;
         } else {
           unavailMsg =
             'The selected registration option is only available during Early Bird pricing.';
@@ -1796,75 +1911,7 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
     }
   }
 
-  // 4. Filter & evaluate Add-Ons for the selected option using shared EventRuleConditions
-  const requestedAddOnIds = new Set(
-    (input.selectedAddOnIds ?? []).map((id) => id.trim()).filter(Boolean),
-  );
-
-  const availableAddOns: EvaluatedAddOn[] = selectedOption
-    ? rules.addOns
-        .filter((addOn) => {
-          if (!matchesRegistrationCondition(addOn.conditions.registration, selectedOption.option.id)) {
-            return false;
-          }
-          if (
-            !matchesTimingCondition(
-              addOn.conditions.timing,
-              isEarlyBird,
-              isBeforeEventStart,
-            )
-          ) {
-            return false;
-          }
-          if (
-            !checkWhoEligibility(
-              addOn.conditions.who,
-              memberContext,
-              evaluationDateAoE,
-              isAdmin,
-            ).isEligible
-          ) {
-            return false;
-          }
-          return true;
-        })
-        .map((addOn) => ({
-          addOn,
-          priceCents: clampNonNegativeInt(addOn.priceCents),
-          selected: requestedAddOnIds.has(addOn.id),
-        }))
-    : [];
-
-  const availableAddOnIdSet = new Set(availableAddOns.map((a) => a.addOn.id));
-  for (const reqId of requestedAddOnIds) {
-    if (!availableAddOnIdSet.has(reqId)) {
-      validationErrors.push({
-        code: PricingValidationErrorCode.AddOnUnavailable,
-        message: `Selected add-on "${reqId}" is not available for this option or date.`,
-      });
-    }
-  }
-
-  const selectedAddOns = availableAddOns.filter((a) => a.selected);
-  const addOnsTotalCents = selectedAddOns.reduce((sum, a) => sum + a.priceCents, 0);
-
-  // 4b. Filter applicable Registration Form Questions for the selected option
-  const applicableQuestions: EventRegistrationQuestion[] = selectedOption
-    ? rules.questions.filter((q) => {
-        if (!matchesRegistrationCondition(q.conditions.registration, selectedOption.option.id)) {
-          return false;
-        }
-        if (!matchesTimingCondition(q.conditions.timing, isEarlyBird, isBeforeEventStart)) {
-          return false;
-        }
-        if (!matchesWhoForDiscount(q.conditions.who, memberLevel)) {
-          return false;
-        }
-        return true;
-      })
-    : [];
-
-  // 5. Payment choices & split
+  // 4. Payment choices & Paid-in-Full evaluation (computed before Add-Ons so PaymentCondition can filter Add-Ons)
   let depositRefundPolicy: DepositRefundPolicy | null = null;
   let isDepositCurrentlyRefundable = false;
   if (rules.payment.depositPolicy.kind === DepositPolicyKind.Enabled) {
@@ -1918,6 +1965,97 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
     }
   }
 
+  const isPaidInFull =
+    Boolean(input.isExistingRegistrationPaidInFull) ||
+    effectivePaymentChoice === PaymentChoice.Full;
+
+  // 5. Filter & evaluate Add-Ons for the selected option using shared EventRuleConditions
+  const requestedAddOnIds = new Set(
+    (input.selectedAddOnIds ?? []).map((id) => id.trim()).filter(Boolean),
+  );
+
+  const availableAddOns: EvaluatedAddOn[] = selectedOption
+    ? rules.addOns
+        .filter((addOn) => {
+          if (!matchesRegistrationCondition(addOn.conditions.registration, selectedOption.option.id)) {
+            return false;
+          }
+          if (
+            !matchesTimingCondition(
+              addOn.conditions.timing,
+              isEarlyBird,
+              isBeforeEventStart,
+              evaluationDateAoE,
+            )
+          ) {
+            return false;
+          }
+          if (
+            !checkWhoEligibility(
+              addOn.conditions.who,
+              memberContext,
+              evaluationDateAoE,
+              isAdmin,
+            ).isEligible
+          ) {
+            return false;
+          }
+          if (!matchesPaymentCondition(addOn.conditions.payment, isPaidInFull)) {
+            return false;
+          }
+          return true;
+        })
+        .map((addOn) => ({
+          addOn,
+          priceCents: clampNonNegativeInt(addOn.priceCents),
+          selected: requestedAddOnIds.has(addOn.id),
+        }))
+    : [];
+
+  const availableAddOnIdSet = new Set(availableAddOns.map((a) => a.addOn.id));
+  for (const reqId of requestedAddOnIds) {
+    if (!availableAddOnIdSet.has(reqId)) {
+      const rawAddOn = rules.addOns.find((a) => a.id === reqId);
+      const requiresFullMsg =
+        rawAddOn &&
+        rawAddOn.conditions.payment.kind === PaymentConditionKind.PaidInFull &&
+        !isPaidInFull
+          ? `Add-on "${rawAddOn.label || reqId}" requires paying in full.`
+          : `Selected add-on "${rawAddOn?.label || reqId}" is not available for this option or date.`;
+      validationErrors.push({
+        code: PricingValidationErrorCode.AddOnUnavailable,
+        message: requiresFullMsg,
+      });
+    }
+  }
+
+  const selectedAddOns = availableAddOns.filter((a) => a.selected);
+  const addOnsTotalCents = selectedAddOns.reduce((sum, a) => sum + a.priceCents, 0);
+
+  // 5b. Filter applicable Registration Form Questions for the selected option
+  const applicableQuestions: EventRegistrationQuestion[] = selectedOption
+    ? rules.questions.filter((q) => {
+        if (!matchesRegistrationCondition(q.conditions.registration, selectedOption.option.id)) {
+          return false;
+        }
+        if (
+          !matchesTimingCondition(
+            q.conditions.timing,
+            isEarlyBird,
+            isBeforeEventStart,
+            evaluationDateAoE,
+          )
+        ) {
+          return false;
+        }
+        if (!matchesWhoForDiscount(q.conditions.who, memberLevel)) {
+          return false;
+        }
+        return true;
+      })
+    : [];
+
+  // 6. Totals & payment split
   const attendanceStandardCents = selectedOption?.standardPriceCents ?? 0;
   const attendanceDiscountCents = selectedOption?.discountSavedCents ?? 0;
   const attendanceEarlyDiscountCents = selectedOption?.earlyDiscountSavedCents ?? 0;
@@ -1959,6 +2097,7 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
     evaluationDateAoE,
     isEarlyBird,
     isBeforeEventStart,
+    isPaidInFull,
     isEligibleToRegister,
     evaluatedCapacities,
     allEvaluatedOptions,
@@ -2260,14 +2399,140 @@ export function decodeQuestionResponsesFromMetadata(
 // Registration Upgrade & Update Settlement Helpers
 // ------------------------------------------------------------------
 
+export function isRegistrationPaidInFull(
+  reg: EventRegistration | null | undefined,
+): boolean {
+  if (!reg) return false;
+  if (
+    reg.status === EventRegistrationStatus.Cancelled ||
+    reg.status === EventRegistrationStatus.Refunded
+  ) {
+    return false;
+  }
+  return reg.status === EventRegistrationStatus.Paid || Boolean(reg.paidInFullOffline);
+}
+
 export function isRegistrationUnpaidAtDoor(reg: EventRegistration | null | undefined): boolean {
   if (!reg) return false;
   return (
     reg.status === EventRegistrationStatus.PendingInPerson ||
     (reg.paymentMethod === RegistrationPaymentMethod.InPerson &&
       reg.status !== EventRegistrationStatus.Paid &&
-      reg.status !== EventRegistrationStatus.DepositPaid)
+      reg.status !== EventRegistrationStatus.DepositPaid &&
+      !reg.paidInFullOffline)
   );
+}
+
+export interface AutoGrantPaidInFullAddOnsInput {
+  registration: EventRegistration;
+  rules: EventPricingRules;
+  memberContext?: MemberStatusContext | null;
+  isAdmin?: boolean;
+  eventStartDate?: string;
+  nowAoEDate?: string;
+}
+
+export interface AutoGrantPaidInFullAddOnsResult {
+  newlyGrantedAddOnIds: string[];
+  selectedAddOnIds: string[];
+  selectedAddOnLabels: string[];
+  hasVideoAccess: boolean;
+}
+
+/**
+ * Evaluates free ($0) Event Add-Ons whose Payment condition is PaidInFull when an admin
+ * marks an existing registration as Paid in Full on the registrations management page.
+ * Matches Timing at either the attendee's original registration date or the current AoE date.
+ */
+export function computeAutoGrantedPaidInFullAddOns(
+  input: AutoGrantPaidInFullAddOnsInput,
+): AutoGrantPaidInFullAddOnsResult {
+  const { registration, rules, memberContext } = input;
+  const nowAoE =
+    input.nowAoEDate && /^\d{4}-\d{2}-\d{2}$/.test(input.nowAoEDate.slice(0, 10))
+      ? input.nowAoEDate.slice(0, 10)
+      : getAnywhereOnEarthDate();
+  const regDateAoE =
+    registration.registeredAt && /^\d{4}-\d{2}-\d{2}$/.test(registration.registeredAt.slice(0, 10))
+      ? registration.registeredAt.slice(0, 10)
+      : nowAoE;
+
+  const optionId =
+    registration.optionId && rules.registrationOptions.some((o) => o.id === registration.optionId)
+      ? registration.optionId
+      : rules.registrationOptions.find((o) => o.attendanceType === registration.attendance)?.id ||
+        '';
+
+  const earlyDeadline =
+    rules.earlyBird.kind === EarlyBirdPolicyKind.Enabled ? rules.earlyBird.deadlineDate : '';
+  const hasEarly = Boolean(earlyDeadline);
+  const normEventStart = input.eventStartDate ? input.eventStartDate.slice(0, 10) : '';
+
+  const timingMatchesAt = (cond: TimingCondition, dateAoE: string): boolean => {
+    const isEarly = hasEarly && dateAoE <= earlyDeadline;
+    const isBeforeStart = !normEventStart || dateAoE < normEventStart;
+    return matchesTimingCondition(cond, isEarly, isBeforeStart, dateAoE);
+  };
+
+  const whoMatches = (who: WhoCondition): boolean => {
+    if (who.kind === WhoConditionKind.Anyone || Boolean(input.isAdmin)) {
+      return true;
+    }
+    if (memberContext && checkWhoEligibility(who, memberContext, nowAoE, false).isEligible) {
+      return true;
+    }
+    if (who.status === PersonStatusKind.Instructor) {
+      return registration.role === AttendeeRole.Instructor;
+    }
+    return (
+      registration.role === AttendeeRole.Member || registration.role === AttendeeRole.Instructor
+    );
+  };
+
+  const ids = [...registration.selectedAddOnIds];
+  const labels = [...registration.selectedAddOnLabels];
+  const existingSet = new Set(ids);
+  const newlyGrantedAddOnIds: string[] = [];
+  let hasVideoAccess =
+    registration.hasVideoAccess || registration.attendance === AttendanceType.VideoOnly;
+
+  if (!optionId) {
+    return {
+      newlyGrantedAddOnIds,
+      selectedAddOnIds: ids,
+      selectedAddOnLabels: labels,
+      hasVideoAccess,
+    };
+  }
+
+  for (const addOn of rules.addOns) {
+    if (existingSet.has(addOn.id)) continue;
+    if (addOn.conditions.payment.kind !== PaymentConditionKind.PaidInFull) continue;
+    if (clampNonNegativeInt(addOn.priceCents) !== 0) continue;
+    if (!matchesRegistrationCondition(addOn.conditions.registration, optionId)) continue;
+    if (!whoMatches(addOn.conditions.who)) continue;
+    if (
+      !timingMatchesAt(addOn.conditions.timing, regDateAoE) &&
+      !timingMatchesAt(addOn.conditions.timing, nowAoE)
+    ) {
+      continue;
+    }
+
+    existingSet.add(addOn.id);
+    ids.push(addOn.id);
+    labels.push(addOn.label || addOn.id);
+    newlyGrantedAddOnIds.push(addOn.id);
+    if (addOn.spec.kind === EventAddOnKind.EventRecording) {
+      hasVideoAccess = true;
+    }
+  }
+
+  return {
+    newlyGrantedAddOnIds,
+    selectedAddOnIds: ids,
+    selectedAddOnLabels: labels,
+    hasVideoAccess,
+  };
 }
 
 /**
@@ -2592,7 +2857,9 @@ export function evaluateRegistrationUpgradeSettlement(
             a.conditions.timing,
             quote.isEarlyBird,
             quote.isBeforeEventStart,
+            quote.evaluationDateAoE,
           ) &&
+          matchesPaymentCondition(a.conditions.payment, true) &&
           checkWhoEligibility(a.conditions.who, memberContext, quote.evaluationDateAoE, isAdmin)
             .isEligible,
       )
@@ -2606,6 +2873,7 @@ export function evaluateRegistrationUpgradeSettlement(
       evaluationDateAoE: quote.evaluationDateAoE,
       selectedOptionId: priorOptionId,
       selectedAddOnIds: availableOwnedIds,
+      isExistingRegistrationPaidInFull: true,
     });
     if (priorQuote.selectedOption) {
       let unavailableOwnedCents = 0;

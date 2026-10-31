@@ -39,6 +39,7 @@ import {
 import {
   AttendeeRole,
   AttendanceType,
+  computeAutoGrantedPaidInFullAddOns,
   computeEffectiveCapacityUsage,
   encodeQuestionResponsesToMetadata,
   evaluateEventPricingQuote,
@@ -56,6 +57,7 @@ import {
   IlcEvent,
   initEventRegistration,
   isEventPast,
+  isRegistrationPaidInFull,
   mergeImmutableQuestionResponses,
   mergeRetainedAddOnsForUpgrade,
   normalizeCapacityMap,
@@ -242,6 +244,7 @@ export function computePriorPaidCreditCents(
     isAdmin,
     eventStartDate,
     selectedOptionId: priorOptId,
+    isExistingRegistrationPaidInFull: true,
   });
   const availPriorAddOnIds = new Set(prelimPrior.availableAddOns.map((a) => a.addOn.id));
   const ownedIds = resolveOwnedRegistrationAddOnIds(existingReg, rules);
@@ -262,6 +265,7 @@ export function computePriorPaidCreditCents(
     eventStartDate,
     selectedOptionId: priorOptId,
     selectedAddOnIds: activeOwnedIds,
+    isExistingRegistrationPaidInFull: true,
   });
 
   return Math.max(
@@ -322,10 +326,134 @@ export function computeCapacityUpdateOrThrow(
   return updatedCounts;
 }
 
+export interface BuildMarkedPaidOptions {
+  nowIso?: string;
+  rules?: EventPricingRules | null;
+  memberContext?: MemberStatusContext | null;
+  eventStartDate?: string;
+}
+
+export interface BuildMarkedPaidResult {
+  updates: Partial<EventRegistration>;
+  newlyGrantedAddOnIds: string[];
+}
+
+export function buildMarkedPaidRegistrationUpdates(
+  reg: EventRegistration,
+  options: BuildMarkedPaidOptions = {},
+): BuildMarkedPaidResult {
+  if (
+    reg.status === EventRegistrationStatus.Cancelled ||
+    reg.status === EventRegistrationStatus.Refunded
+  ) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Cannot mark a cancelled or refunded registration as paid.',
+    );
+  }
+
+  const nowIso = options.nowIso || new Date().toISOString();
+  const totalPaid =
+    reg.amountDueCents > 0
+      ? reg.amountPaidCents + reg.amountDueCents
+      : Math.max(reg.amountPaidCents, reg.totalPriceCents);
+
+  const effectiveDepositPaidCents =
+    reg.depositPaidCents > 0
+      ? reg.depositPaidCents
+      : reg.status === EventRegistrationStatus.DepositPaid &&
+          reg.amountPaidCents > 0 &&
+          reg.amountDueCents > 0
+        ? reg.amountPaidCents
+        : 0;
+
+  const effectiveTotalPriceCents =
+    reg.totalPriceCents > 0 ? reg.totalPriceCents : totalPaid;
+
+  let selectedAddOnIds = [...reg.selectedAddOnIds];
+  let selectedAddOnLabels = [...reg.selectedAddOnLabels];
+  let autoGrantedAddOnIds = [...reg.autoGrantedAddOnIds];
+  let hasVideoAccess = reg.hasVideoAccess;
+  let newlyGrantedAddOnIds: string[] = [];
+
+  if (options.rules) {
+    const autoGranted = computeAutoGrantedPaidInFullAddOns({
+      registration: reg,
+      rules: options.rules,
+      memberContext: options.memberContext,
+      eventStartDate: options.eventStartDate,
+      nowAoEDate: nowIso,
+    });
+    newlyGrantedAddOnIds = autoGranted.newlyGrantedAddOnIds;
+    if (newlyGrantedAddOnIds.length > 0) {
+      selectedAddOnIds = autoGranted.selectedAddOnIds;
+      selectedAddOnLabels = autoGranted.selectedAddOnLabels;
+      autoGrantedAddOnIds = Array.from(
+        new Set([...autoGrantedAddOnIds, ...newlyGrantedAddOnIds]),
+      );
+      hasVideoAccess = autoGranted.hasVideoAccess;
+    }
+  }
+
+  const updates: Partial<EventRegistration> = {
+    status: EventRegistrationStatus.Paid,
+    paidInFullOffline: true,
+    amountPaidCents: totalPaid,
+    amountDueCents: 0,
+    depositPaidCents: effectiveDepositPaidCents,
+    totalPriceCents: effectiveTotalPriceCents,
+    selectedAddOnIds,
+    selectedAddOnLabels,
+    autoGrantedAddOnIds,
+    hasVideoAccess,
+    paidAt: nowIso,
+    lastUpdated: nowIso,
+  };
+
+  return { updates, newlyGrantedAddOnIds };
+}
+
 export function buildUnmarkedRegistrationUpdates(
   reg: EventRegistration,
   nowIso: string = new Date().toISOString(),
+  rules: EventPricingRules | null = null,
 ): Partial<EventRegistration> {
+  const autoGrantedSet = new Set(reg.autoGrantedAddOnIds.map((id) => id.trim()).filter(Boolean));
+  let selectedAddOnIds = [...reg.selectedAddOnIds];
+  let selectedAddOnLabels = [...reg.selectedAddOnLabels];
+  let hasVideoAccess = reg.hasVideoAccess;
+
+  if (autoGrantedSet.size > 0) {
+    const filteredIds: string[] = [];
+    const filteredLabels: string[] = [];
+    reg.selectedAddOnIds.forEach((id, idx) => {
+      if (!autoGrantedSet.has(id)) {
+        filteredIds.push(id);
+        if (reg.selectedAddOnLabels[idx] !== undefined) {
+          filteredLabels.push(reg.selectedAddOnLabels[idx]);
+        }
+      }
+    });
+    selectedAddOnIds = filteredIds;
+    selectedAddOnLabels = filteredLabels;
+
+    const remainingHasRecording = rules
+      ? selectedAddOnIds.some((id) => {
+          const addOn = rules.addOns.find((a) => a.id === id);
+          return addOn?.spec.kind === EventAddOnKind.EventRecording;
+        })
+      : false;
+    hasVideoAccess = reg.attendance === AttendanceType.VideoOnly || remainingHasRecording;
+  }
+
+  const addOnRevertFields: Partial<EventRegistration> = {
+    paidInFullOffline: false,
+    autoGrantedAddOnIds: [],
+    ...(autoGrantedSet.size > 0
+      ? { selectedAddOnIds, selectedAddOnLabels, hasVideoAccess }
+      : {}),
+  };
+
   if (reg.depositPaidCents > 0 && reg.totalPriceCents > reg.depositPaidCents) {
     return {
       status: EventRegistrationStatus.DepositPaid,
@@ -333,12 +461,13 @@ export function buildUnmarkedRegistrationUpdates(
       amountDueCents: reg.totalPriceCents - reg.depositPaidCents,
       paidAt: '',
       lastUpdated: nowIso,
+      ...addOnRevertFields,
     };
   }
-  if (reg.paymentMethod !== RegistrationPaymentMethod.InPerson) {
+  if (reg.paymentMethod !== RegistrationPaymentMethod.InPerson && !reg.paidInFullOffline) {
     throw new HttpsError(
       'failed-precondition',
-      'Only in-person door payments or deposit door balances can be unmarked.',
+      'Only in-person door payments, deposit door balances, or offline-marked payments can be unmarked.',
     );
   }
   const amountDueToRestore =
@@ -349,6 +478,7 @@ export function buildUnmarkedRegistrationUpdates(
     amountPaidCents: 0,
     paidAt: '',
     lastUpdated: nowIso,
+    ...addOnRevertFields,
   };
 }
 
@@ -615,6 +745,9 @@ export const createProductCheckoutSession = onCall<
     ? computeEffectiveCapacityUsage(existingReg, rules.capacities)
     : {};
   const eventPast = linkedEvent ? isEventPast(linkedEvent) : false;
+  const requestedPaymentChoice =
+    data.paymentChoice === PaymentChoice.Deposit ? PaymentChoice.Deposit : PaymentChoice.Full;
+  const existingPaidInFull = isRegistrationPaidInFull(existingReg);
   const prelimSelection = resolveRequestRuleSelection(rules, data, existingReg);
   const prelimQuote = evaluateEventPricingQuote({
     rules,
@@ -623,11 +756,11 @@ export const createProductCheckoutSession = onCall<
     isEventPast: eventPast,
     eventStartDate: linkedEvent?.start || '',
     selectedOptionId: prelimSelection.selectedOptionId,
+    paymentChoice: requestedPaymentChoice,
+    isExistingRegistrationPaidInFull: existingPaidInFull,
   });
   const availAddOnIdSet = new Set(prelimQuote.availableAddOns.map((a) => a.addOn.id));
   const selection = resolveRequestRuleSelection(rules, data, existingReg, availAddOnIdSet);
-  const requestedPaymentChoice =
-    data.paymentChoice === PaymentChoice.Deposit ? PaymentChoice.Deposit : PaymentChoice.Full;
 
   const quote = evaluateEventPricingQuote({
     rules,
@@ -641,6 +774,7 @@ export const createProductCheckoutSession = onCall<
     selectedSuboptions: selection.selectedSuboptions,
     selectedAddOnIds: selection.selectedAddOnIds,
     paymentChoice: requestedPaymentChoice,
+    isExistingRegistrationPaidInFull: existingPaidInFull,
   });
 
   assertValidQuoteOrThrow(quote);
@@ -965,6 +1099,7 @@ export const updateProductRegistration = onCall<
   const { rules, capacityCounts } = resolveEffectiveRulesAndCapacities(product, linkedEvent);
   const existingCapacityUsage = computeEffectiveCapacityUsage(existingReg, rules.capacities);
   const isUnpaidInPerson = isRegistrationPendingInPerson(existingReg);
+  const existingPaidInFull = isRegistrationPaidInFull(existingReg);
   const eventPast = linkedEvent ? isEventPast(linkedEvent) : false;
   const isAdminOrManager = caller.isAdmin || isEventManager;
 
@@ -976,15 +1111,35 @@ export const updateProductRegistration = onCall<
     isEventPast: eventPast,
     eventStartDate: linkedEvent?.start || '',
     selectedOptionId: prelimSelection.selectedOptionId,
+    isExistingRegistrationPaidInFull: existingPaidInFull,
   });
-  const availAddOnIdSet = new Set(prelimQuote.availableAddOns.map((a) => a.addOn.id));
-  const selection = resolveRequestRuleSelection(rules, data, existingReg, availAddOnIdSet);
 
   const requestedChoice = isUnpaidInPerson
     ? PaymentChoice.PayAtDoor
     : existingReg.status === EventRegistrationStatus.DepositPaid
-      ? PaymentChoice.Deposit
-      : PaymentChoice.Full;
+      ? prelimQuote.availablePaymentChoices.includes(PaymentChoice.Deposit)
+        ? PaymentChoice.Deposit
+        : prelimQuote.availablePaymentChoices[0]
+      : prelimQuote.availablePaymentChoices.includes(PaymentChoice.Full)
+        ? PaymentChoice.Full
+        : prelimQuote.availablePaymentChoices[0];
+
+  const prelimChoiceQuote =
+    requestedChoice !== undefined && requestedChoice !== prelimQuote.effectivePaymentChoice
+      ? evaluateEventPricingQuote({
+          rules,
+          memberContext: targetMemberContext,
+          isAdmin: isAdminOrManager,
+          isEventPast: eventPast,
+          eventStartDate: linkedEvent?.start || '',
+          selectedOptionId: prelimSelection.selectedOptionId,
+          paymentChoice: requestedChoice,
+          isExistingRegistrationPaidInFull: existingPaidInFull,
+        })
+      : prelimQuote;
+
+  const availAddOnIdSet = new Set(prelimChoiceQuote.availableAddOns.map((a) => a.addOn.id));
+  const selection = resolveRequestRuleSelection(rules, data, existingReg, availAddOnIdSet);
 
   const quote = evaluateEventPricingQuote({
     rules,
@@ -998,6 +1153,7 @@ export const updateProductRegistration = onCall<
     selectedSuboptions: selection.selectedSuboptions,
     selectedAddOnIds: selection.selectedAddOnIds,
     paymentChoice: requestedChoice,
+    isExistingRegistrationPaidInFull: existingPaidInFull,
   });
 
   assertValidQuoteOrThrow(quote);
@@ -1524,6 +1680,40 @@ export const registerEventInPerson = onCall<
   };
 });
 
+async function loadEventProductRules(
+  db: admin.firestore.Firestore,
+  event: IlcEvent | null,
+  eventId: string,
+): Promise<EventPricingRules | null> {
+  try {
+    if (event?.productId) {
+      const prodSnap = await db
+        .collection(FirestoreCollection.Products)
+        .doc(event.productId)
+        .get();
+      if (prodSnap.exists) {
+        const product = firestoreDocToProduct(prodSnap);
+        return resolveEffectiveRulesAndCapacities(product, event).rules;
+      }
+    }
+    const querySnap = await db
+      .collection(FirestoreCollection.Products)
+      .where('eventDocId', '==', eventId)
+      .limit(1)
+      .get();
+    if (!querySnap.empty) {
+      const product = firestoreDocToProduct(querySnap.docs[0]);
+      return resolveEffectiveRulesAndCapacities(product, event).rules;
+    }
+  } catch (err) {
+    logger.warn('Could not load product pricing rules for event registration status update', {
+      eventId,
+      err,
+    });
+  }
+  return null;
+}
+
 export const markEventRegistrationPaid = onCall<
   MarkEventRegistrationPaidRequest,
   Promise<MarkEventRegistrationPaidResult>
@@ -1561,17 +1751,41 @@ export const markEventRegistrationPaid = onCall<
   }
 
   const reg = firestoreDocToEventRegistration(regSnap);
-  const nowIso = new Date().toISOString();
-  const totalPaid =
-    reg.amountDueCents > 0 ? reg.amountPaidCents + reg.amountDueCents : reg.amountPaidCents;
+  const rules = await loadEventProductRules(db, event, eventId);
 
-  const updates: Partial<EventRegistration> = {
-    status: EventRegistrationStatus.Paid,
-    amountPaidCents: totalPaid,
-    amountDueCents: 0,
-    paidAt: nowIso,
-    lastUpdated: nowIso,
-  };
+  let attendeeMemberContext: MemberStatusContext | null = null;
+  if (rules && rules.addOns.length > 0) {
+    try {
+      let attendeeMember: Member | undefined;
+      if (reg.memberDocId) {
+        const mSnap = await db
+          .collection(FirestoreCollection.Members)
+          .doc(reg.memberDocId)
+          .get();
+        if (mSnap.exists) {
+          attendeeMember = firestoreDocToMember(mSnap);
+        }
+      } else if (reg.email) {
+        attendeeMember = await getMemberByEmail(normalizeEmail(reg.email), db);
+      }
+      if (attendeeMember) {
+        attendeeMemberContext = toMemberStatusContext({
+          member: attendeeMember,
+          isAdmin: false,
+        });
+      }
+    } catch {
+      // Fallback to registration role in computeAutoGrantedPaidInFullAddOns
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+  const { updates, newlyGrantedAddOnIds } = buildMarkedPaidRegistrationUpdates(reg, {
+    nowIso,
+    rules,
+    memberContext: attendeeMemberContext,
+    eventStartDate: event.start || '',
+  });
 
   const batch = db.batch();
   batch.update(regRef, updates);
@@ -1586,7 +1800,34 @@ export const markEventRegistrationPaid = onCall<
   }
 
   await batch.commit();
-  return { success: true };
+
+  if (rules && newlyGrantedAddOnIds.length > 0) {
+    try {
+      await provisionAddOnCatalogGrants(
+        db,
+        rules,
+        newlyGrantedAddOnIds,
+        reg.memberDocId,
+        normalizeEmail(reg.email),
+        registrationId,
+      );
+    } catch (grantErr) {
+      logger.warn('Failed to provision catalog VOD grants on markEventRegistrationPaid', {
+        eventId,
+        registrationId,
+        grantErr,
+      });
+    }
+  }
+
+  return {
+    success: true,
+    paidInFullOffline: true,
+    selectedAddOnIds: updates.selectedAddOnIds ?? reg.selectedAddOnIds,
+    selectedAddOnLabels: updates.selectedAddOnLabels ?? reg.selectedAddOnLabels,
+    autoGrantedAddOnIds: updates.autoGrantedAddOnIds ?? reg.autoGrantedAddOnIds,
+    hasVideoAccess: updates.hasVideoAccess ?? reg.hasVideoAccess,
+  };
 });
 
 export const unmarkEventRegistrationPaid = onCall<
@@ -1614,10 +1855,11 @@ export const unmarkEventRegistrationPaid = onCall<
   const callerMemberDocId = acl?.memberDocIds?.[0] || '';
 
   let isManager = false;
+  let loadedEvent: IlcEvent | null = null;
   const eventSnap = await db.collection(FirestoreCollection.Events).doc(eventId).get();
   if (eventSnap.exists) {
-    const event = firestoreDocToIlcEvent(eventSnap);
-    isManager = isCallerEventOrganizer(event, callerEmail, callerMemberDocId);
+    loadedEvent = firestoreDocToIlcEvent(eventSnap);
+    isManager = isCallerEventOrganizer(loadedEvent, callerEmail, callerMemberDocId);
   }
 
   if (!isAdmin && !isManager) {
@@ -1638,7 +1880,12 @@ export const unmarkEventRegistrationPaid = onCall<
   }
 
   const reg = firestoreDocToEventRegistration(regSnap);
-  const updates = buildUnmarkedRegistrationUpdates(reg);
+  const rules =
+    reg.autoGrantedAddOnIds.length > 0
+      ? await loadEventProductRules(db, loadedEvent, eventId)
+      : null;
+  const nowIso = new Date().toISOString();
+  const updates = buildUnmarkedRegistrationUpdates(reg, nowIso, rules);
 
   const batch = db.batch();
   batch.update(regRef, updates);
@@ -1653,5 +1900,12 @@ export const unmarkEventRegistrationPaid = onCall<
   }
 
   await batch.commit();
-  return { success: true };
+  return {
+    success: true,
+    paidInFullOffline: false,
+    selectedAddOnIds: updates.selectedAddOnIds ?? reg.selectedAddOnIds,
+    selectedAddOnLabels: updates.selectedAddOnLabels ?? reg.selectedAddOnLabels,
+    autoGrantedAddOnIds: [],
+    hasVideoAccess: updates.hasVideoAccess ?? reg.hasVideoAccess,
+  };
 });

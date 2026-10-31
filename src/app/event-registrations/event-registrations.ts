@@ -418,9 +418,18 @@ export class EventRegistrationsComponent implements OnInit {
     );
   }
 
+  canMarkPaidInFull(reg: EventRegistration): boolean {
+    return (
+      reg.status !== EventRegistrationStatus.Paid &&
+      reg.status !== EventRegistrationStatus.Cancelled &&
+      reg.status !== EventRegistrationStatus.Refunded
+    );
+  }
+
   canUnmarkPaid(reg: EventRegistration): boolean {
     if (reg.status !== EventRegistrationStatus.Paid) return false;
     return (
+      reg.paidInFullOffline ||
       reg.paymentMethod === RegistrationPaymentMethod.InPerson ||
       (reg.depositPaidCents > 0 && reg.totalPriceCents > reg.depositPaidCents)
     );
@@ -446,19 +455,25 @@ export class EventRegistrationsComponent implements OnInit {
     return 'Full';
   }
 
-  formatStatusBadge(status: EventRegistrationStatus): string {
-    switch (status) {
+  formatStatusBadge(reg: EventRegistration): string {
+    switch (reg.status) {
+      case EventRegistrationStatus.Paid:
+        return reg.paidInFullOffline ? 'PAID IN FULL (OFFLINE)' : 'PAID IN FULL';
       case EventRegistrationStatus.DepositPaid:
         return 'DEPOSIT PAID';
       case EventRegistrationStatus.PendingInPerson:
         return 'PAY AT DOOR';
       default:
-        return (status || '').toUpperCase();
+        return (reg.status || '').toUpperCase();
     }
   }
 
   async markPaid(reg: EventRegistration) {
-    if (!confirm(`Mark ${reg.name || 'this attendee'} as paid in person at the event?`)) {
+    if (
+      !confirm(
+        `Mark ${reg.name || 'this attendee'} as paid in full? Any complimentary Paid-in-Full add-ons will also be unlocked.`,
+      )
+    ) {
       return;
     }
 
@@ -472,18 +487,35 @@ export class EventRegistrationsComponent implements OnInit {
 
       if (result && result.success) {
         this.registrations.update((list) =>
-          list.map((r) =>
-            r.docId === reg.docId
-              ? {
-                  ...r,
-                  status: EventRegistrationStatus.Paid,
-                  amountPaidCents:
-                    r.amountDueCents > 0 ? r.amountPaidCents + r.amountDueCents : r.amountPaidCents,
-                  amountDueCents: 0,
-                  paidAt: new Date().toISOString(),
-                }
-              : r,
-          ),
+          list.map((r) => {
+            if (r.docId !== reg.docId) return r;
+            const totalPaid =
+              r.amountDueCents > 0
+                ? r.amountPaidCents + r.amountDueCents
+                : Math.max(r.amountPaidCents, r.totalPriceCents);
+            const effectiveDepositPaid =
+              r.depositPaidCents > 0
+                ? r.depositPaidCents
+                : r.status === EventRegistrationStatus.DepositPaid &&
+                    r.amountPaidCents > 0 &&
+                    r.amountDueCents > 0
+                  ? r.amountPaidCents
+                  : 0;
+            return {
+              ...r,
+              status: EventRegistrationStatus.Paid,
+              paidInFullOffline: result.paidInFullOffline ?? true,
+              depositPaidCents: effectiveDepositPaid,
+              totalPriceCents: r.totalPriceCents > 0 ? r.totalPriceCents : totalPaid,
+              amountPaidCents: totalPaid,
+              amountDueCents: 0,
+              selectedAddOnIds: result.selectedAddOnIds ?? r.selectedAddOnIds,
+              selectedAddOnLabels: result.selectedAddOnLabels ?? r.selectedAddOnLabels,
+              autoGrantedAddOnIds: result.autoGrantedAddOnIds ?? r.autoGrantedAddOnIds,
+              hasVideoAccess: result.hasVideoAccess ?? r.hasVideoAccess,
+              paidAt: new Date().toISOString(),
+            };
+          }),
         );
       } else {
         this.actionError.set('Failed to update registration payment status.');
@@ -499,7 +531,7 @@ export class EventRegistrationsComponent implements OnInit {
   async unmarkPaid(reg: EventRegistration) {
     if (
       !confirm(
-        `Unmark door payment for ${reg.name || 'this attendee'}? This will revert their remaining balance to due at the door.`,
+        `Unmark full payment for ${reg.name || 'this attendee'}? This will revert their offline balance to due.`,
       )
     ) {
       return;
@@ -517,9 +549,17 @@ export class EventRegistrationsComponent implements OnInit {
         this.registrations.update((list) =>
           list.map((r) => {
             if (r.docId !== reg.docId) return r;
+            const addOnUpdates = {
+              paidInFullOffline: false,
+              selectedAddOnIds: result.selectedAddOnIds ?? r.selectedAddOnIds,
+              selectedAddOnLabels: result.selectedAddOnLabels ?? r.selectedAddOnLabels,
+              autoGrantedAddOnIds: result.autoGrantedAddOnIds ?? [],
+              hasVideoAccess: result.hasVideoAccess ?? r.hasVideoAccess,
+            };
             if (r.depositPaidCents > 0 && r.totalPriceCents > r.depositPaidCents) {
               return {
                 ...r,
+                ...addOnUpdates,
                 status: EventRegistrationStatus.DepositPaid,
                 amountPaidCents: r.depositPaidCents,
                 amountDueCents: r.totalPriceCents - r.depositPaidCents,
@@ -528,6 +568,7 @@ export class EventRegistrationsComponent implements OnInit {
             }
             return {
               ...r,
+              ...addOnUpdates,
               status: EventRegistrationStatus.PendingInPerson,
               amountDueCents: r.totalPriceCents || r.amountPaidCents || r.amountDueCents,
               amountPaidCents: 0,

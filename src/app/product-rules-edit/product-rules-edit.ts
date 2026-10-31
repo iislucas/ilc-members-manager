@@ -24,6 +24,7 @@ import { VodOptionItem } from '../product-edit/product-edit';
 import { RuleConditionsEditorComponent } from '../rule-conditions-editor/rule-conditions-editor';
 import {
   AttendanceType,
+  CustomDateDirection,
   DepositPolicyKind,
   DepositRefundPolicy,
   DepositRefundPolicyKind,
@@ -43,17 +44,20 @@ import {
   initEventRegistrationOption,
   initEventRegistrationQuestion,
   initEventRuleConditions,
+  matchesPaymentCondition,
   matchesRegistrationCondition,
   matchesTimingCondition,
   MAX_LONG_TEXT_ANSWER_LENGTH,
   MAX_SHORT_TEXT_ANSWER_LENGTH,
   PaymentChoice,
+  PaymentConditionKind,
   PersonStatusKind,
   PricingValidationErrorCode,
   QuestionAnswerInput,
   RegistrationConditionKind,
   RegistrationQuestionKind,
   SubSelectionKind,
+  TimingCondition,
   TimingConditionKind,
   TimingWindow,
   validateAndBuildQuestionResponses,
@@ -281,13 +285,28 @@ export class ProductRulesEditComponent {
           })
         : prelimQuote;
 
-    const availAddOnIds = new Set(secondPass.availableAddOns.map((a) => a.addOn.id));
-    const filteredAddOnIds = this.simSelectedAddOnIds().filter((id) => availAddOnIds.has(id));
     const chosenPayment = this.simPaymentChoice();
     const validPayment =
       chosenPayment && secondPass.availablePaymentChoices.includes(chosenPayment)
         ? chosenPayment
         : secondPass.availablePaymentChoices[0];
+
+    const paymentAwarePass =
+      validPayment !== secondPass.effectivePaymentChoice
+        ? evaluateEventPricingQuote({
+            rules: r,
+            memberContext: this.simMemberContext(),
+            capacityCounts: counts,
+            eventStartDate: this.eventStartDate(),
+            evaluationDateAoE: this.simDateAoE(),
+            selectedOptionId: effectiveSelectedId,
+            selectedSuboptions: this.simSelectedSuboptions(),
+            paymentChoice: validPayment,
+          })
+        : secondPass;
+
+    const availAddOnIds = new Set(paymentAwarePass.availableAddOns.map((a) => a.addOn.id));
+    const filteredAddOnIds = this.simSelectedAddOnIds().filter((id) => availAddOnIds.has(id));
 
     return evaluateEventPricingQuote({
       rules: r,
@@ -680,6 +699,7 @@ export class ProductRulesEditComponent {
         opt.conditions = {
           ...structuredClone(conditions),
           registration: { kind: RegistrationConditionKind.AllOptions },
+          payment: { kind: PaymentConditionKind.AnyPayment },
         };
       }
     });
@@ -892,7 +912,12 @@ export class ProductRulesEditComponent {
   updateDiscountConditions(discountId: string, conditions: EventRuleConditions): void {
     this.emitUpdated((r) => {
       const d = r.discounts.find((item) => item.id === discountId);
-      if (d) d.conditions = structuredClone(conditions);
+      if (d) {
+        d.conditions = {
+          ...structuredClone(conditions),
+          payment: { kind: PaymentConditionKind.AnyPayment },
+        };
+      }
     });
   }
 
@@ -1201,7 +1226,12 @@ export class ProductRulesEditComponent {
   updateQuestionConditions(questionId: string, conditions: EventRuleConditions): void {
     this.emitUpdated((r) => {
       const q = r.questions.find((item) => item.id === questionId);
-      if (q) q.conditions = structuredClone(conditions);
+      if (q) {
+        q.conditions = {
+          ...structuredClone(conditions),
+          payment: { kind: PaymentConditionKind.AnyPayment },
+        };
+      }
     });
   }
 
@@ -1382,6 +1412,28 @@ export class ProductRulesEditComponent {
     });
   }
 
+  private describeTimingUnavailableReason(
+    timing: TimingCondition,
+    cutoff: string,
+    forQuestion: boolean,
+  ): string {
+    if (timing.kind === TimingConditionKind.CustomDate) {
+      if (!timing.date) {
+        return 'Custom timing date not set';
+      }
+      return timing.direction === CustomDateDirection.OnOrAfter
+        ? `Available on or after ${timing.date}`
+        : `Available on or before ${timing.date}`;
+    }
+    if (
+      timing.kind === TimingConditionKind.Window &&
+      timing.window === TimingWindow.BeforeEventStart
+    ) {
+      return forQuestion ? 'Not asked once event starts' : 'Unavailable once event starts';
+    }
+    return cutoff ? `Early Bird only (cutoff ${cutoff})` : 'Early Bird only';
+  }
+
   unavailableSimAddOns = computed<{ addOn: EventAddOn; reason: string }[]>(() => {
     const quote = this.simulatedQuote();
     const r = this.rules();
@@ -1412,21 +1464,17 @@ export class ProductRulesEditComponent {
             addOn.conditions.timing,
             quote.isEarlyBird,
             quote.isBeforeEventStart,
+            quote.evaluationDateAoE,
           )
         ) {
-          if (
-            addOn.conditions.timing.kind === TimingConditionKind.Window &&
-            addOn.conditions.timing.window === TimingWindow.BeforeEventStart
-          ) {
-            reason = 'Unavailable once event starts';
-          } else {
-            reason = cutoff ? `Early Bird only (cutoff ${cutoff})` : 'Early Bird only';
-          }
+          reason = this.describeTimingUnavailableReason(addOn.conditions.timing, cutoff, false);
         } else if (addOn.conditions.who.kind === WhoConditionKind.Status) {
           reason =
             addOn.conditions.who.status === PersonStatusKind.Instructor
               ? 'Active ILC Instructors only'
               : 'Active ILC Members only';
+        } else if (!matchesPaymentCondition(addOn.conditions.payment, quote.isPaidInFull)) {
+          reason = 'Available only when Paid in Full';
         }
         return { addOn, reason };
       });
@@ -1540,16 +1588,14 @@ export class ProductRulesEditComponent {
               question.conditions.timing,
               quote.isEarlyBird,
               quote.isBeforeEventStart,
+              quote.evaluationDateAoE,
             )
           ) {
-            if (
-              question.conditions.timing.kind === TimingConditionKind.Window &&
-              question.conditions.timing.window === TimingWindow.BeforeEventStart
-            ) {
-              reason = 'Not asked once event starts';
-            } else {
-              reason = cutoff ? `Early Bird only (cutoff ${cutoff})` : 'Early Bird only';
-            }
+            reason = this.describeTimingUnavailableReason(
+              question.conditions.timing,
+              cutoff,
+              true,
+            );
           } else if (question.conditions.who.kind === WhoConditionKind.Status) {
             reason =
               question.conditions.who.status === PersonStatusKind.Instructor
@@ -1644,6 +1690,60 @@ export class ProductRulesEditComponent {
       }
       if (afterStart) {
         presets.push({ id: 'after_start', label: 'After Start', date: afterStart });
+      }
+    }
+
+    // Add presets for any custom timing dates configured in rules
+    const seenDates = new Set(presets.map((p) => p.date));
+    const allConditions: EventRuleConditions[] = [
+      ...r.registrationOptions.map((o) => o.conditions),
+      ...r.discounts.map((d) => d.conditions),
+      ...r.addOns.map((a) => a.conditions),
+      ...r.questions.map((q) => q.conditions),
+    ];
+    for (const cond of allConditions) {
+      if (
+        cond.timing.kind === TimingConditionKind.CustomDate &&
+        /^\d{4}-\d{2}-\d{2}$/.test(cond.timing.date)
+      ) {
+        const customDate = cond.timing.date;
+        const dayBefore = this.shiftIsoDateDays(customDate, -1);
+        const dayAfter = this.shiftIsoDateDays(customDate, 1);
+        if (cond.timing.direction === CustomDateDirection.Before) {
+          if (!seenDates.has(customDate)) {
+            seenDates.add(customDate);
+            presets.push({
+              id: `custom_on_${customDate}`,
+              label: `On ${customDate}`,
+              date: customDate,
+            });
+          }
+          if (dayAfter && !seenDates.has(dayAfter)) {
+            seenDates.add(dayAfter);
+            presets.push({
+              id: `custom_after_${customDate}`,
+              label: `After ${customDate}`,
+              date: dayAfter,
+            });
+          }
+        } else {
+          if (dayBefore && !seenDates.has(dayBefore)) {
+            seenDates.add(dayBefore);
+            presets.push({
+              id: `custom_before_${customDate}`,
+              label: `Before ${customDate}`,
+              date: dayBefore,
+            });
+          }
+          if (!seenDates.has(customDate)) {
+            seenDates.add(customDate);
+            presets.push({
+              id: `custom_on_${customDate}`,
+              label: `On ${customDate}`,
+              date: customDate,
+            });
+          }
+        }
       }
     }
 

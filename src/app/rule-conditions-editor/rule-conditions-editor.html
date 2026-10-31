@@ -45,8 +45,8 @@
         </div>
       }
 
-      <!-- 2. Timing Condition (Early Bird {date}, Before Event starts {event date}) -->
-      @if (c.timing.kind === TimingConditionKind.Window) {
+      <!-- 2. Timing Condition (Early Bird {date}, Before Event starts {event date}, Custom date) -->
+      @if (c.timing.kind !== TimingConditionKind.Anytime) {
         <div class="condition-row">
           <label class="condition-axis-label" [for]="prefix + '-timing'">Timing</label>
           <div class="condition-control">
@@ -55,21 +55,42 @@
                 {{ tWarn }}
               </span>
             }
-            <select
-              [id]="prefix + '-timing'"
-              [name]="prefix + '-timing'"
-              [attr.aria-describedby]="tWarn ? prefix + '-timing-warn' : null"
-              [ngModel]="c.timing.window"
-              (ngModelChange)="updateTimingWindow($event)"
-              [ngModelOptions]="{ standalone: true }"
-            >
-              <option [ngValue]="TimingWindow.BeforeEarlyBird">
-                Before Early Bird{{ earlyBirdSuffix }}
-              </option>
-              <option [ngValue]="TimingWindow.BeforeEventStart">
-                Before Event starts{{ eventStartSuffix }}
-              </option>
-            </select>
+            <div class="condition-inline-controls">
+              <select
+                [id]="prefix + '-timing'"
+                [name]="prefix + '-timing'"
+                [attr.aria-describedby]="tWarn ? prefix + '-timing-warn' : null"
+                [ngModel]="timingSelectionValue()"
+                (ngModelChange)="updateTimingSelection($event)"
+                [ngModelOptions]="{ standalone: true }"
+              >
+                <option [ngValue]="TimingSelectionValue.BeforeEarlyBird">
+                  Before Early Bird{{ earlyBirdSuffix }}
+                </option>
+                <option [ngValue]="TimingSelectionValue.BeforeEventStart">
+                  Before Event starts{{ eventStartSuffix }}
+                </option>
+                <option [ngValue]="TimingSelectionValue.CustomBefore">
+                  Before custom date
+                </option>
+                <option [ngValue]="TimingSelectionValue.CustomOnOrAfter">
+                  On or after custom date
+                </option>
+              </select>
+              @if (c.timing.kind === TimingConditionKind.CustomDate) {
+                <input
+                  type="date"
+                  class="condition-date-input"
+                  [id]="prefix + '-timing-date'"
+                  [name]="prefix + '-timing-date'"
+                  aria-label="Custom timing date"
+                  [attr.aria-describedby]="tWarn ? prefix + '-timing-warn' : null"
+                  [ngModel]="c.timing.date"
+                  (ngModelChange)="updateCustomTimingDate($event)"
+                  [ngModelOptions]="{ standalone: true }"
+                />
+              }
+            </div>
           </div>
           <button
             type="button"
@@ -128,6 +149,33 @@
           </button>
         </fieldset>
       }
+
+      <!-- 4. Payment Condition (Add-Ons only: Paid in full) -->
+      @if (allowPaymentCondition() && c.payment.kind !== PaymentConditionKind.AnyPayment) {
+        <div class="condition-row">
+          <label class="condition-axis-label" [for]="prefix + '-payment'">Payment</label>
+          <div class="condition-control">
+            <select
+              [id]="prefix + '-payment'"
+              [name]="prefix + '-payment'"
+              [ngModel]="c.payment.kind"
+              (ngModelChange)="updatePaymentCondition($event)"
+              [ngModelOptions]="{ standalone: true }"
+            >
+              <option [ngValue]="PaymentConditionKind.PaidInFull">Paid in full</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            class="icon-only-button condition-remove-btn"
+            (click)="removePaymentCondition()"
+            title="Remove Payment condition"
+            aria-label="Remove Payment condition"
+          >
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+      }
     </div>
   }
 
@@ -163,6 +211,16 @@
           >
             <app-icon name="add"></app-icon>
             <span>Registration</span>
+          </button>
+        }
+        @if (allowPaymentCondition() && !hasPaymentCondition()) {
+          <button
+            type="button"
+            class="subtle-button condition-add-btn"
+            (click)="addPaymentCondition()"
+          >
+            <app-icon name="add"></app-icon>
+            <span>Payment</span>
           </button>
         }
       </div>

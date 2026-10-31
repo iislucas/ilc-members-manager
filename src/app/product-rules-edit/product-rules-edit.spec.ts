@@ -14,6 +14,7 @@ import { SearchableSet } from '../searchable-set';
 import { VodOptionItem } from '../product-edit/product-edit';
 import {
   AttendanceType,
+  CustomDateDirection,
   DepositPolicyKind,
   DepositRefundPolicyKind,
   EarlyBirdPolicyKind,
@@ -22,6 +23,7 @@ import {
   initEventPricingRules,
   initEventRuleConditions,
   PaymentChoice,
+  PaymentConditionKind,
   PersonStatusKind,
   PricingValidationErrorCode,
   RegistrationConditionKind,
@@ -714,5 +716,84 @@ describe('ProductRulesEditComponent', () => {
       kind: RegistrationConditionKind.SpecificOptions,
       optionIds: [inPersonOptId],
     });
+  });
+
+  it('supports Custom Date timing presets in Simulator and scopes Payment ("Paid in full") conditions exclusively to Event Add-Ons', async () => {
+    const optId = currentRules.registrationOptions[0].id;
+    component.updateOptionStandardPrice(optId, '200');
+
+    // 1. Add a discount with Custom Date timing ("Before custom date" 2027-01-20)
+    component.addDiscount();
+    const discId = currentRules.discounts[0].id;
+    component.updateDiscountLabel(discId, 'New Year Promo');
+    component.updateDiscountAmount(discId, '30');
+    component.updateDiscountConditions(discId, {
+      ...initEventRuleConditions(),
+      timing: {
+        kind: TimingConditionKind.CustomDate,
+        direction: CustomDateDirection.Before,
+        date: '2027-01-20',
+      },
+      payment: { kind: PaymentConditionKind.PaidInFull }, // Should be stripped to AnyPayment on discounts!
+    });
+    expect(currentRules.discounts[0].conditions.payment).toEqual({
+      kind: PaymentConditionKind.AnyPayment,
+    });
+
+    // Registration Options and Questions also strip Payment conditions
+    component.updateOptionConditions(optId, {
+      ...initEventRuleConditions(),
+      payment: { kind: PaymentConditionKind.PaidInFull },
+    });
+    expect(currentRules.registrationOptions[0].conditions.payment).toEqual({
+      kind: PaymentConditionKind.AnyPayment,
+    });
+
+    // 2. Add an Event Add-On with PaymentConditionKind.PaidInFull + Deposit enabled
+    component.toggleDepositPolicy(true);
+    component.updateDepositModifierValue('40');
+    component.addEventAddOn();
+    const addOnId = currentRules.addOns[0].id;
+    component.updateAddOnLabel(addOnId, 'Complimentary Recording');
+    component.updateAddOnPrice(addOnId, '0');
+    component.updateAddOnConditions(
+      addOnId,
+      initEventRuleConditions({
+        payment: { kind: PaymentConditionKind.PaidInFull },
+      }),
+    );
+    expect(currentRules.addOns[0].conditions.payment).toEqual({
+      kind: PaymentConditionKind.PaidInFull,
+    });
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Custom date preset is generated for 2027-01-20 and its post-cutoff day 2027-01-21
+    const presetDates = component.simDatePresets().map((p) => p.date);
+    expect(presetDates).toContain('2027-01-20');
+    expect(presetDates).toContain('2027-01-21');
+
+    component.simDateAoE.set('2027-01-20');
+    expect(
+      component.simulatedQuote().selectedOption?.appliedDiscounts.map((d) => d.discount.label),
+    ).toEqual(['New Year Promo']);
+    component.simDateAoE.set('2027-01-21');
+    expect(component.simulatedQuote().selectedOption?.appliedDiscounts).toEqual([]);
+
+    // 3. Simulator Paid-in-Full vs Deposit toggle gates the add-on
+    component.simPaymentChoice.set(PaymentChoice.Full);
+    expect(component.simulatedQuote().availableAddOns.map((a) => a.addOn.id)).toEqual([addOnId]);
+    expect(component.unavailableSimAddOns()).toEqual([]);
+
+    component.simPaymentChoice.set(PaymentChoice.Deposit);
+    expect(component.simulatedQuote().availableAddOns).toEqual([]);
+    expect(component.unavailableSimAddOns()).toEqual([
+      {
+        addOn: currentRules.addOns[0],
+        reason: 'Available only when Paid in Full',
+      },
+    ]);
   });
 });

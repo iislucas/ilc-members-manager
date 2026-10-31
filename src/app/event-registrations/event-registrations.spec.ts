@@ -717,4 +717,53 @@ describe('EventRegistrationsComponent', () => {
       globalThis.Blob = originalBlob;
     }
   });
+
+  it('syncs paidInFullOffline and auto-granted Paid-in-Full add-ons on Mark Paid in Full and Unmark Paid', async () => {
+    await component.loadData();
+    const pendingReg = component.registrations().find((r) => r.docId === 'reg-3')!;
+    expect(component.canMarkPaidInFull(pendingReg)).toBe(true);
+
+    mockStripeService.markEventRegistrationPaid.mockResolvedValueOnce({
+      success: true,
+      paidInFullOffline: true,
+      selectedAddOnIds: ['free_recording'],
+      selectedAddOnLabels: ['Complimentary Recording'],
+      autoGrantedAddOnIds: ['free_recording'],
+      hasVideoAccess: true,
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    await component.markPaid(pendingReg);
+    fixture.detectChanges();
+
+    const marked = component.registrations().find((r) => r.docId === 'reg-3')!;
+    expect(marked.paidInFullOffline).toBe(true);
+    expect(marked.selectedAddOnLabels).toEqual(['Complimentary Recording']);
+    expect(marked.autoGrantedAddOnIds).toEqual(['free_recording']);
+    expect(marked.hasVideoAccess).toBe(true);
+    expect(component.formatStatusBadge(marked)).toBe('PAID IN FULL (OFFLINE)');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('PAID IN FULL (OFFLINE)');
+
+    mockStripeService.unmarkEventRegistrationPaid.mockResolvedValueOnce({
+      success: true,
+      status: EventRegistrationStatus.PendingInPerson,
+      paidInFullOffline: false,
+      amountPaidCents: 0,
+      amountDueCents: 5500,
+      selectedAddOnIds: [],
+      selectedAddOnLabels: [],
+      autoGrantedAddOnIds: [],
+      hasVideoAccess: false,
+    });
+
+    await component.unmarkPaid(marked);
+    fixture.detectChanges();
+
+    const unmarked = component.registrations().find((r) => r.docId === 'reg-3')!;
+    expect(unmarked.status).toBe(EventRegistrationStatus.PendingInPerson);
+    expect(unmarked.paidInFullOffline).toBe(false);
+    expect(unmarked.selectedAddOnLabels).toEqual([]);
+    expect(unmarked.autoGrantedAddOnIds).toEqual([]);
+    expect(unmarked.hasVideoAccess).toBe(false);
+  });
 });

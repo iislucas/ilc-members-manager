@@ -291,6 +291,11 @@ export interface MarkEventRegistrationPaidRequest {
 
 export interface MarkEventRegistrationPaidResult {
   success: boolean;
+  paidInFullOffline?: boolean;
+  selectedAddOnIds?: string[];
+  selectedAddOnLabels?: string[];
+  autoGrantedAddOnIds?: string[];
+  hasVideoAccess?: boolean;
 }
 
 export interface UnmarkEventRegistrationPaidRequest {
@@ -300,4 +305,9 @@ export interface UnmarkEventRegistrationPaidRequest {
 
 export interface UnmarkEventRegistrationPaidResult {
   success: boolean;
+  paidInFullOffline?: boolean;
+  selectedAddOnIds?: string[];
+  selectedAddOnLabels?: string[];
+  autoGrantedAddOnIds?: string[];
+  hasVideoAccess?: boolean;
 }
