@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { NavigationMenuComponent } from './navigation-menu.component';
+import { environment } from '../../environments/environment';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { ROUTING_CONFIG, initPathPatterns, Views } from '../app.config';
 import { FindInstructorsService } from '../find-instructors.service';
@@ -84,6 +85,9 @@ describe('NavigationMenuComponent', () => {
 
     component.routingService.signals[Views.Home].urlParams.tab.set('practice');
     expect(component.currentArea()).toBe('practice');
+
+    component.routingService.signals[Views.Home].urlParams.tab.set('buy');
+    expect(component.currentArea()).toBe('buy');
 
     component.routingService.signals[Views.Home].urlParams.tab.set('me');
     expect(component.currentArea()).toBe('me');
@@ -209,5 +213,25 @@ describe('NavigationMenuComponent', () => {
     expect(compiled.textContent).toContain('Manage VOD');
     expect(compiled.querySelector('.in-testing-tag')).toBeNull();
     expect(compiled.textContent).not.toContain('In Testing');
+  });
+
+  it('shows Buy menu section with external and internal purchase items', async () => {
+    component.selectedArea.set('buy');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('System Guide');
+    expect(compiled.textContent).toContain('Uniforms');
+    expect(compiled.textContent).toContain('Membership');
+    expect(compiled.textContent).toContain('Gradings');
+    expect(compiled.textContent).toContain('Licenses');
+    expect(compiled.textContent).toContain('Class Video Library');
+    expect(compiled.textContent).toContain('Video on Demand');
+
+    const externalLinks = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('a.submenu-item'));
+    expect(externalLinks.length).toBe(2);
+    expect(externalLinks[0].getAttribute('href')).toBe(environment.links.printStore);
+    expect(externalLinks[1].getAttribute('href')).toBe(environment.links.apparelStore);
   });
 });

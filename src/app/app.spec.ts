@@ -1,6 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed, DeferBlockState } from '@angular/core/testing';
 import { App } from './app';
+import { environment } from '../environments/environment';
 import {
   FirebaseStateService,
   createFirebaseStateServiceMock,
@@ -242,9 +243,11 @@ describe('App', () => {
       'Other pages you might be looking for',
     );
     const otherCards = otherPagesSection?.querySelectorAll('.service-link-card');
-    expect(otherCards?.length).toBe(7);
+    expect(otherCards?.length).toBe(9);
     expect(Array.from(otherCards || []).some((c) => c.textContent?.includes('Articles & Guides'))).toBe(true);
     expect(Array.from(otherCards || []).some((c) => c.textContent?.includes('Video on Demand'))).toBe(true);
+    expect(Array.from(otherCards || []).some((c) => c.textContent?.includes('Books'))).toBe(true);
+    expect(Array.from(otherCards || []).some((c) => c.textContent?.includes('Uniforms'))).toBe(true);
 
     // Should NOT show the generic login app-info welcome message
     expect(compiled.querySelector('.app-info')).toBeNull();
@@ -270,10 +273,26 @@ describe('App', () => {
     // Should show public service link cards above login
     const loginSiteLinks = compiled.querySelector('.login-site-links');
     expect(loginSiteLinks).toBeTruthy();
-    const siteCards = loginSiteLinks?.querySelectorAll('.service-link-card');
-    expect(siteCards?.length).toBe(7);
+    const siteCards = loginSiteLinks?.querySelectorAll<HTMLAnchorElement>('.service-link-card');
+    expect(siteCards?.length).toBe(9);
     expect(Array.from(siteCards || []).some((c) => c.textContent?.includes('Articles & Guides'))).toBe(true);
     expect(Array.from(siteCards || []).some((c) => c.textContent?.includes('Video on Demand'))).toBe(true);
+
+    const booksCard = Array.from(siteCards || []).find((c) =>
+      c.querySelector('.service-link-title')?.textContent?.trim() === 'Books'
+    );
+    expect(booksCard).toBeTruthy();
+    expect(booksCard?.getAttribute('href')).toBe(environment.links.printStore);
+    expect(booksCard?.getAttribute('target')).toBe('_blank');
+    expect(booksCard?.getAttribute('rel')).toBe('noopener noreferrer');
+
+    const uniformsCard = Array.from(siteCards || []).find((c) =>
+      c.querySelector('.service-link-title')?.textContent?.trim() === 'Uniforms'
+    );
+    expect(uniformsCard).toBeTruthy();
+    expect(uniformsCard?.getAttribute('href')).toBe(environment.links.apparelStore);
+    expect(uniformsCard?.getAttribute('target')).toBe('_blank');
+    expect(uniformsCard?.getAttribute('rel')).toBe('noopener noreferrer');
 
     // Should show login component
     expect(compiled.querySelector('app-login')).toBeTruthy();

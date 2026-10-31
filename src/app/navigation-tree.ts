@@ -157,6 +157,7 @@ export class NavigationTreeService {
   public homeTabLabel = computed(() => {
     const tab = this.routing.signals[Views.Home].urlParams.tab();
     if (tab === 'practice') return 'Train';
+    if (tab === 'buy') return 'Buy';
     if (tab === 'me') return 'Me';
     if (tab === 'admin' && this.firebaseState.user()?.isAdmin) return 'Admin';
     return 'Read & Watch';
@@ -197,12 +198,14 @@ export class NavigationTreeService {
   // The tree itself.
   // ---------------------------------------------------------------------------
 
-  private areaNode(area: 'learn' | 'practice' | 'me' | 'admin'): NavNode {
+  private areaNode(area: 'learn' | 'practice' | 'buy' | 'me' | 'admin'): NavNode {
     switch (area) {
       case 'learn':
         return { label: 'Read & Watch', url: '/?tab=learn' };
       case 'practice':
         return { label: 'Train', url: '/?tab=practice' };
+      case 'buy':
+        return { label: 'Buy', url: '/?tab=buy' };
       case 'me':
         return { label: 'Me', url: '/?tab=me' };
       case 'admin':

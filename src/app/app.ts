@@ -77,6 +77,7 @@ import { AppUpdateService } from './app-update.service';
 import { UpdateNotificationComponent } from './update-notification/update-notification.component';
 import { ActionQueueDialogComponent } from './action-queue-dialog/action-queue-dialog.component';
 import { ActionQueueService } from './action-queue.service';
+import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-root',
@@ -156,6 +157,7 @@ import { ActionQueueService } from './action-queue.service';
 export class App {
   protected title = 'ilc-members-manager';
   protected readonly appVersion = APP_VERSION;
+  protected readonly links = environment.links;
   public updateService = inject(AppUpdateService);
   public firebaseService = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);

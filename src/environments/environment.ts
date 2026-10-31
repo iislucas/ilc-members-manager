@@ -41,6 +41,8 @@ export const environment: AppEnvironment = {
     membership: 'YOUR_MEMBERSHIP_PRODUCT_URL',
     license: 'YOUR_LICENSE_PRODUCT_URL',
     videos: 'YOUR_VIDEOS_PRODUCT_URL',
-    grading: 'YOUR_GRADING_PRODUCT_URL'
+    grading: 'YOUR_GRADING_PRODUCT_URL',
+    printStore: 'https://www.iliqchuan.com/products/print',
+    apparelStore: 'https://www.iliqchuan.com/products/apparel',
   }
 };

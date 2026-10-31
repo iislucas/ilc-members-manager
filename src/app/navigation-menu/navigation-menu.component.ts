@@ -1,5 +1,6 @@
 import { Component, computed, inject, linkedSignal, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { environment } from '../../environments/environment';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -7,6 +8,8 @@ import { IconComponent } from '../icons/icon.component';
 import { FindInstructorsService } from '../find-instructors.service';
 import { ExpiryStatus, hasActiveMembership } from '../../../functions/src/data-model/members';
 import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags';
+
+export type NavMenuArea = 'learn' | 'practice' | 'buy' | 'me' | 'admin';
 
 @Component({
   selector: 'app-navigation-menu',
@@ -25,14 +28,16 @@ export class NavigationMenuComponent {
   public Views = Views;
 
   public user = this.firebaseService.user;
+  public readonly links = environment.links;
 
   private today = computed(() => new Date().toISOString().split('T')[0]);
 
-  public currentArea = computed<'learn' | 'practice' | 'me' | 'admin'>(() => {
+  public currentArea = computed<NavMenuArea>(() => {
     const view = this.currentView();
     if (view === Views.Home || !view) {
       const tab = this.routingService.signals[Views.Home].urlParams.tab();
       if (tab === 'practice') return 'practice';
+      if (tab === 'buy') return 'buy';
       if (tab === 'me') return 'me';
       if (tab === 'admin') return 'admin';
       return 'learn';
@@ -90,7 +95,7 @@ export class NavigationMenuComponent {
     return 'admin';
   });
 
-  public selectedArea = linkedSignal<'learn' | 'practice' | 'me' | 'admin'>(() => this.currentArea());
+  public selectedArea = linkedSignal<NavMenuArea>(() => this.currentArea());
 
   public membershipStatus = computed(() => {
     const m = this.user()?.member;
@@ -198,7 +203,7 @@ export class NavigationMenuComponent {
     this.closeMenu.emit();
   }
 
-  onSelectArea(tab: 'learn' | 'practice' | 'me' | 'admin') {
+  onSelectArea(tab: NavMenuArea) {
     if (this.selectedArea() === tab) {
       this.onSelectHomeTab(tab);
     } else {
@@ -206,7 +211,7 @@ export class NavigationMenuComponent {
     }
   }
 
-  onSelectHomeTab(tab: 'learn' | 'practice' | 'me' | 'admin') {
+  onSelectHomeTab(tab: NavMenuArea) {
     if (this.routingService.matchedPatternId() === Views.Home) {
       this.routingService.signals[Views.Home].urlParams.tab.set(tab === 'learn' ? '' : tab);
     } else {

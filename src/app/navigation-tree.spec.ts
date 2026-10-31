@@ -551,4 +551,12 @@ describe('NavigationTreeService', () => {
       'Order Complete',
     ]);
   });
+
+  it('titles the Home Buy tab as Buy in breadcrumbs and currentTitle when logged in', () => {
+    goTo(Views.Home);
+    routing.signals[Views.Home].urlParams.tab.set('buy');
+    expect(navTree.homeTabLabel()).toBe('Buy');
+    expect(navTree.currentTitle()).toBe('Buy');
+    expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Buy']);
+  });
 });
