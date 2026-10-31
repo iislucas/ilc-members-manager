@@ -4,6 +4,7 @@ import {
   inject,
   Injectable,
   linkedSignal,
+  OnDestroy,
   signal,
 } from '@angular/core';
 import {
@@ -218,7 +219,7 @@ export type GradingSearchCriteria =
 @Injectable({
   providedIn: 'root',
 })
-export class DataManagerService {
+export class DataManagerService implements OnDestroy {
   private firebaseService = inject(FirebaseStateService);
   private findInstructorsService = inject(FindInstructorsService);
   private syncService = inject(IncrementalSyncService);
@@ -607,13 +608,34 @@ export class DataManagerService {
     // Reactive effect for My Gradings: re-subscribes whenever the member's
     // gradingDocIds list changes (e.g. when a new grading is created by a
     // Firebase trigger and the member doc is updated with arrayUnion).
+    // The listener depends only on (memberDocId, gradingDocIds), so we derive
+    // that pair with value equality; unrelated member-doc updates (which emit
+    // a new user() object) no longer tear down and re-create the listeners.
+    const myGradingsTarget = computed(
+      () => {
+        const isAuthReady = this.firebaseService.isAuthReady();
+        const user = this.firebaseService.user();
+        return {
+          // Mirrors the previous guard: wait for auth before acting on a cached user.
+          waitingForAuth: !isAuthReady && !!user,
+          memberDocId: user?.member?.docId ?? '',
+          gradingDocIds: user?.member?.gradingDocIds ?? [],
+        };
+      },
+      {
+        equal: (a, b) =>
+          a.waitingForAuth === b.waitingForAuth &&
+          a.memberDocId === b.memberDocId &&
+          a.gradingDocIds.length === b.gradingDocIds.length &&
+          a.gradingDocIds.every((id, i) => id === b.gradingDocIds[i]),
+      },
+    );
     effect(() => {
-      const isAuthReady = this.firebaseService.isAuthReady();
-      const user = this.firebaseService.user();
-      if (!isAuthReady && user) {
+      const { waitingForAuth, memberDocId, gradingDocIds } = myGradingsTarget();
+      if (waitingForAuth) {
         return;
       }
-      this.updateMyGradingsSync(user);
+      this.updateMyGradingsSync(memberDocId, gradingDocIds);
     });
 
     // Effect for My Schools
@@ -821,9 +843,18 @@ export class DataManagerService {
     }
   }
 
+  // Root services are destroyed when their environment injector is torn down
+  // (app destroy, tests, embedded web-component teardown). Release every
+  // Firestore listener so none outlive the service.
+  ngOnDestroy() {
+    this.unsubscribeSnapshots();
+  }
+
   unsubscribeSnapshots() {
     this.snapshotsToUnsubscribe.forEach((unsubscribe) => unsubscribe());
     this.snapshotsToUnsubscribe = [];
+    this.myGradingsUnsubscribes.forEach((unsubscribe) => unsubscribe());
+    this.myGradingsUnsubscribes = [];
     if (this.myGradingsAssessedUnsubscribe) {
       this.myGradingsAssessedUnsubscribe();
       this.myGradingsAssessedUnsubscribe = null;
@@ -1948,14 +1979,11 @@ export class DataManagerService {
 
   private myGradingsUnsubscribes: (() => void)[] = [];
 
-  // Called reactively from an effect whenever the user's member data changes.
-  // Re-subscribes to gradings whenever the member's gradingDocIds list changes.
-  updateMyGradingsSync(user: UserDetails | null) {
+  // Called reactively from an effect whenever the member's docId or
+  // gradingDocIds list changes; re-subscribes to exactly those gradings.
+  updateMyGradingsSync(memberDocId: string, gradingDocIds: readonly string[]) {
     this.myGradingsUnsubscribes.forEach((unsub) => unsub());
     this.myGradingsUnsubscribes = [];
-
-    const memberDocId = user?.member?.docId ?? '';
-    const gradingDocIds = user?.member?.gradingDocIds ?? [];
 
     if (memberDocId && gradingDocIds.length > 0) {
       const chunkSize = 10;

@@ -17,6 +17,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Unsubscribe,
   updateDoc,
   where,
 } from 'firebase/firestore';
@@ -73,8 +74,12 @@ export class ProductService {
     }
   }
 
-  /** Live-watch a single /events/{eventId} document for real-time capacityCounts updates. */
-  watchEvent(eventId: string, onUpdate: (ev: IlcEvent) => void): () => void {
+  /**
+   * Live-watch a single /events/{eventId} document for real-time capacityCounts updates.
+   * Returns the Firestore unsubscribe function; callers MUST invoke it on teardown
+   * (e.g. via DestroyRef.onDestroy) or the listener will leak.
+   */
+  watchEvent(eventId: string, onUpdate: (ev: IlcEvent) => void): Unsubscribe {
     if (!eventId) return () => {};
     return onSnapshot(
       doc(this.db, 'events', eventId),
@@ -89,8 +94,11 @@ export class ProductService {
     );
   }
 
-  /** Live-watch a single /products/{productId} document for real-time pricing/capacity updates. */
-  watchProduct(productId: string, onUpdate: (prod: Product) => void): () => void {
+  /**
+   * Live-watch a single /products/{productId} document for real-time pricing/capacity updates.
+   * Returns the Firestore unsubscribe function; callers MUST invoke it on teardown.
+   */
+  watchProduct(productId: string, onUpdate: (prod: Product) => void): Unsubscribe {
     if (!productId) return () => {};
     return onSnapshot(
       doc(this.db, 'products', productId),

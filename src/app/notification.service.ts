@@ -180,6 +180,10 @@ export class NotificationService implements OnDestroy {
   public syncError = signal<string | null>(null);
 
   private unsubscripton: Unsubscribe | null = null;
+  // Member doc ID the active `unsubscripton` listener is attached to. Lets the
+  // auth effect (which re-runs on every member-doc update) skip re-subscribing,
+  // which would waste reads and reset the first-snapshot push suppression.
+  private subscribedMemberDocId: string | null = null;
   private allUnsub: Unsubscribe | null = null;
   private pushedIdsKey = 'pushedNotificationDocIds';
   private isFirstSnapshot = true;
@@ -334,6 +338,10 @@ export class NotificationService implements OnDestroy {
         }
       } else if (loginStatus === LoginStatus.SignedOut) {
         this.unsubscribe();
+        // Also drop the full-history listener so it can't outlive the session
+        // (it is keyed to the signed-out member's docId).
+        this.unsubscribeFromAllNotifications();
+        this.allNotifications.set([]);
         this.notifications.set([]);
         this.syncError.set(null);
         this.blogSyncedForMemberDocId = null;
@@ -356,6 +364,7 @@ export class NotificationService implements OnDestroy {
       this.unsubscripton();
       this.unsubscripton = null;
     }
+    this.subscribedMemberDocId = null;
   }
 
   public async requestPermission(): Promise<NotificationPermission> {
@@ -517,8 +526,11 @@ export class NotificationService implements OnDestroy {
   }
 
   private subscribeToNotifications(memberDocId: string) {
+    // Already listening for this member: nothing to do.
+    if (this.unsubscripton && this.subscribedMemberDocId === memberDocId) return;
     this.unsubscribe();
     this.isFirstSnapshot = true;
+    this.subscribedMemberDocId = memberDocId;
 
     const notifCollection = collection(
       this.db,

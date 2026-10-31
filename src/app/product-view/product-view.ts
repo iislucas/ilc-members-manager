@@ -20,6 +20,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import type { Unsubscribe } from 'firebase/firestore';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
@@ -118,8 +119,12 @@ export class ProductViewComponent implements OnInit {
 
   private watchedEventId = '';
   private watchedProductId = '';
-  private eventUnsubscribe: (() => void) | null = null;
-  private productUnsubscribe: (() => void) | null = null;
+  private eventUnsubscribe: Unsubscribe | null = null;
+  private productUnsubscribe: Unsubscribe | null = null;
+  // Set once the component is destroyed. loadProduct() awaits several network
+  // calls (and possibly auth) before starting the live watchers, so without
+  // this guard a watcher could be attached after teardown and never released.
+  private isDestroyed = false;
 
   toggleInlineLogin(): void {
     this.showInlineLogin.update((v) => !v);
@@ -604,6 +609,7 @@ export class ProductViewComponent implements OnInit {
 
   constructor() {
     this.destroyRef.onDestroy(() => {
+      this.isDestroyed = true;
       this.cleanupWatchers();
     });
 
@@ -651,6 +657,8 @@ export class ProductViewComponent implements OnInit {
   }
 
   private startLiveWatchers(eventDocId: string, productDocId: string): void {
+    // Never attach listeners after teardown (see isDestroyed).
+    if (this.isDestroyed) return;
     if (eventDocId && eventDocId !== this.watchedEventId) {
       if (this.eventUnsubscribe) {
         this.eventUnsubscribe();
