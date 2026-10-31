@@ -42,6 +42,7 @@ import {
   EvaluatedDiscount,
   EvaluatedRegistrationOption,
   evaluateEventPricingQuote,
+  evaluateRegistrationUpgradeSettlement,
   EventAddOnKind,
   EventPricingQuote,
   EventPricingRules,
@@ -56,6 +57,7 @@ import {
   MAX_LONG_TEXT_ANSWER_LENGTH,
   MAX_SHORT_TEXT_ANSWER_LENGTH,
   mergeImmutableQuestionResponses,
+  mergeRetainedAddOnsForUpgrade,
   PaymentChoice,
   PersonStatusKind,
   PricingValidationErrorCode,
@@ -63,6 +65,8 @@ import {
   QuestionAnswerInput,
   RegistrationPaymentMethod,
   RegistrationQuestionKind,
+  RegistrationUpgradeSettlement,
+  resolveOwnedRegistrationAddOnIds,
   SubSelectionKind,
   validateAndBuildQuestionResponses,
   WhoConditionKind,
@@ -338,15 +342,7 @@ export class ProductViewComponent implements OnInit {
     const reg = this.existingRegistration();
     const rules = this.effectiveRules();
     if (!reg || !rules || this.isPendingInPerson()) return new Set<string>();
-    const locked = new Set<string>(reg.selectedAddOnIds);
-    if (reg.hasVideoAccess) {
-      for (const a of rules.addOns) {
-        if (a.spec.kind === EventAddOnKind.EventRecording) {
-          locked.add(a.id);
-        }
-      }
-    }
-    return locked;
+    return resolveOwnedRegistrationAddOnIds(reg, rules);
   });
 
   selectedAddOnIds = linkedSignal<EventRegistration | null, string[]>({
@@ -354,15 +350,10 @@ export class ProductViewComponent implements OnInit {
     computation: (reg) => {
       const rules = this.effectiveRules();
       if (!reg) return [];
-      const initial = new Set<string>(reg.selectedAddOnIds);
-      if (reg.hasVideoAccess && rules) {
-        for (const a of rules.addOns) {
-          if (a.spec.kind === EventAddOnKind.EventRecording) {
-            initial.add(a.id);
-          }
-        }
+      if (!rules || this.isPendingInPerson()) {
+        return [...reg.selectedAddOnIds];
       }
-      return Array.from(initial);
+      return Array.from(resolveOwnedRegistrationAddOnIds(reg, rules));
     },
   });
 
@@ -490,74 +481,47 @@ export class ProductViewComponent implements OnInit {
     });
   });
 
-  // Compute credit from existing registration (valuing prior paid entitlement at max(amountPaidCents, current value of prior option + add-ons))
-  effectiveCreditCents = computed<number>(() => {
-    const reg = this.existingRegistration();
+  upgradeSettlement = computed<RegistrationUpgradeSettlement | null>(() => {
+    const q = this.quote();
     const rules = this.effectiveRules();
-    if (!reg || !rules || this.isPendingInPerson()) return 0;
-
-    const paidCents = Math.max(0, reg.amountPaidCents);
-    if (reg.status !== EventRegistrationStatus.Paid) {
-      return paidCents;
-    }
-
-    const priorOptId =
-      reg.optionId && rules.registrationOptions.some((o) => o.id === reg.optionId)
-        ? reg.optionId
-        : rules.registrationOptions.find((o) => o.attendanceType === reg.attendance)?.id;
-    if (!priorOptId) return paidCents;
-
-    const priorAddOnIds = new Set<string>(reg.selectedAddOnIds);
-    if (reg.hasVideoAccess) {
-      for (const a of rules.addOns) {
-        if (a.spec.kind === EventAddOnKind.EventRecording) {
-          priorAddOnIds.add(a.id);
-        }
-      }
-    }
-
-    const priorQuote = evaluateEventPricingQuote({
+    if (!q || !rules) return null;
+    return evaluateRegistrationUpgradeSettlement({
+      existingReg: this.existingRegistration(),
+      quote: q,
       rules,
       memberContext: this.memberContext(),
       isAdmin: this.isAdmin(),
-      capacityCounts: this.liveCapacityCounts(),
-      existingCapacityUsage: this.existingCapacityUsage(),
       eventStartDate: this.linkedEvent()?.start || '',
-      selectedOptionId: priorOptId,
-      selectedAddOnIds: Array.from(priorAddOnIds),
     });
+  });
 
-    return Math.max(paidCents, priorQuote.agreedTotalCents);
+  effectiveCreditCents = computed<number>(() => {
+    return this.upgradeSettlement()?.creditAppliedCents ?? 0;
   });
 
   onlineDueNowCents = computed<number>(() => {
-    const q = this.quote();
-    if (!q) return 0;
-    const choice = q.effectivePaymentChoice;
-    if (choice === PaymentChoice.PayAtDoor) {
-      return 0;
-    }
-    const credit = this.effectiveCreditCents();
-    if (choice === PaymentChoice.Deposit) {
-      return Math.max(0, q.chargeNowCents - credit);
-    }
-    return Math.max(0, q.agreedTotalCents - credit);
+    return this.upgradeSettlement()?.onlineDueNowCents ?? 0;
   });
 
   doorBalanceDueCents = computed<number>(() => {
-    const q = this.quote();
-    if (!q) return 0;
-    const credit = this.effectiveCreditCents();
-    const choice = q.effectivePaymentChoice;
-    if (choice === PaymentChoice.PayAtDoor) {
-      return Math.max(0, q.agreedTotalCents - credit);
-    }
-    if (choice === PaymentChoice.Deposit) {
-      const remainingCreditAfterOnline = Math.max(0, credit - q.chargeNowCents);
-      return Math.max(0, q.cashDueAtDoorCents - remainingCreditAfterOnline);
-    }
-    return 0;
+    return this.upgradeSettlement()?.doorBalanceDueCents ?? 0;
   });
+
+  effectiveTotalPriceCents = computed<number>(() => {
+    return this.upgradeSettlement()?.effectiveTotalPriceCents ?? this.quote()?.totalPriceCents ?? 0;
+  });
+
+  isOptionDowngrade(optEval: EvaluatedRegistrationOption): boolean {
+    const reg = this.existingRegistration();
+    const settlement = this.upgradeSettlement();
+    if (!reg || !settlement || this.isPendingInPerson() || !settlement.priorOptionId) {
+      return false;
+    }
+    return (
+      optEval.option.id !== settlement.priorOptionId &&
+      optEval.netPriceCents < settlement.priorOptionCurrentNetCents
+    );
+  }
 
   offlineInstructions = computed<string>(() => {
     const rules = this.effectiveRules();
@@ -625,6 +589,7 @@ export class ProductViewComponent implements OnInit {
   canSubmit = computed<boolean>(() => {
     const q = this.quote();
     if (!q || !q.isValid) return false;
+    if (this.upgradeSettlement()?.isDowngrade) return false;
     if (!this.attendeeName().trim() || !this.attendeeEmail().trim()) return false;
     if (this.questionValidation().errors.length > 0) return false;
     if (this.requiresOnlineCheckout() && this.isOffline()) return false;
@@ -836,7 +801,9 @@ export class ProductViewComponent implements OnInit {
   }
 
   selectOption(optEval: EvaluatedRegistrationOption): void {
-    if (!optEval.isEligibleForPerson || optEval.isSoldOut) return;
+    if (!optEval.isEligibleForPerson || optEval.isSoldOut || this.isOptionDowngrade(optEval)) {
+      return;
+    }
     this.selectedOptionId.set(optEval.option.id);
     this.formErrorMessage.set(null);
   }
@@ -981,6 +948,11 @@ export class ProductViewComponent implements OnInit {
       );
       return;
     }
+    const settlement = this.upgradeSettlement();
+    if (settlement?.isDowngrade) {
+      this.formErrorMessage.set(settlement.downgradeMessage);
+      return;
+    }
     if (this.isFreeOrInPlaceUpdate()) {
       await this.saveRegistrationUpdate();
       return;
@@ -995,8 +967,9 @@ export class ProductViewComponent implements OnInit {
   async saveRegistrationUpdate(): Promise<void> {
     const prod = this.product();
     const reg = this.existingRegistration();
+    const rules = this.effectiveRules();
     const q = this.quote();
-    if (!prod || !reg || !q || !q.selectedOption || !q.isValid) return;
+    if (!prod || !reg || !rules || !q || !q.selectedOption || !q.isValid) return;
     const questionAnswers = this.validateAttendeeContactAndQuestions();
     if (!questionAnswers) return;
     const qVal = this.questionValidation();
@@ -1006,8 +979,9 @@ export class ProductViewComponent implements OnInit {
     this.successMessage.set(null);
 
     try {
-      const selectedAddOnIds = q.selectedAddOns.map((a) => a.addOn.id);
-      const selectedAddOnLabels = q.selectedAddOns.map((a) => a.addOn.label);
+      const mergedAddOns = mergeRetainedAddOnsForUpgrade(reg, rules, q.selectedAddOns);
+      const selectedAddOnIds = mergedAddOns.selectedAddOnIds;
+      const selectedAddOnLabels = mergedAddOns.selectedAddOnLabels;
       const hasVideo = this.computeIncludeVideoFlag(q);
 
       await this.stripeService.updateProductRegistration({
@@ -1015,7 +989,7 @@ export class ProductViewComponent implements OnInit {
         existingRegistrationDocId: reg.docId,
         optionId: q.selectedOption.option.id,
         selectedSuboptions: q.normalizedSuboptions,
-        selectedAddOnIds,
+        selectedAddOnIds: q.selectedAddOns.map((a) => a.addOn.id),
         paymentChoice: q.effectivePaymentChoice ?? PaymentChoice.Full,
         role: this.selectedRole(),
         attendance: q.selectedOption.option.attendanceType,
@@ -1045,7 +1019,7 @@ export class ProductViewComponent implements OnInit {
         selectedAddOnLabels,
         questionResponses: mergeImmutableQuestionResponses(reg.questionResponses, qVal.responses),
         capacityUsage: { ...q.selectedOption.option.capacityUsage },
-        agreedTotalCents: q.agreedTotalCents,
+        totalPriceCents: this.effectiveTotalPriceCents(),
         amountDueCents: this.doorBalanceDueCents(),
         lastUpdated: new Date().toISOString(),
       });

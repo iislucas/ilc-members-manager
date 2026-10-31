@@ -344,7 +344,7 @@ describe('stripe-product-checkout rule resolution & capacity transactions', () =
       docId: 'reg_door',
       status: EventRegistrationStatus.Paid,
       paymentMethod: RegistrationPaymentMethod.InPerson,
-      agreedTotalCents: 6500,
+      totalPriceCents: 6500,
       amountPaidCents: 6500,
       amountDueCents: 0,
       paidAt: '2026-09-08T10:00:00Z',
@@ -364,7 +364,7 @@ describe('stripe-product-checkout rule resolution & capacity transactions', () =
       docId: 'reg_dep',
       status: EventRegistrationStatus.Paid,
       paymentMethod: RegistrationPaymentMethod.Stripe,
-      agreedTotalCents: 8000,
+      totalPriceCents: 8000,
       depositPaidCents: 2500,
       amountPaidCents: 8000,
       amountDueCents: 0,
@@ -385,7 +385,7 @@ describe('stripe-product-checkout rule resolution & capacity transactions', () =
       docId: 'reg_stripe',
       status: EventRegistrationStatus.Paid,
       paymentMethod: RegistrationPaymentMethod.Stripe,
-      agreedTotalCents: 8000,
+      totalPriceCents: 8000,
       depositPaidCents: 0,
       amountPaidCents: 8000,
       amountDueCents: 0,
@@ -449,7 +449,7 @@ describe('stripe-product-checkout rule resolution & capacity transactions', () =
       evaluationDateAoE: '2099-05-01',
     });
     expect(memberQuote.isValid).toBe(true);
-    expect(memberQuote.agreedTotalCents).toBe(10000);
+    expect(memberQuote.totalPriceCents).toBe(10000);
     expect(memberQuote.evaluatedCapacities[0].remaining).toBe(15);
   });
 });

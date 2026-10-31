@@ -138,7 +138,7 @@ describe('ProductRulesEditComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(component.simulatedQuote().agreedTotalCents).toBe(44000);
+    expect(component.simulatedQuote().totalPriceCents).toBe(44000);
     expect(el.textContent).toContain('Early Bird Discount');
     expect(el.textContent).toContain('−$50.00');
   });
@@ -363,7 +363,7 @@ describe('ProductRulesEditComponent', () => {
     expect(earlyQuote.isValid).toBe(true);
     expect(earlyQuote.selectedOption?.appliedDiscounts.length).toBe(3);
     expect(earlyQuote.attendanceDiscountCents).toBe(16500);
-    expect(earlyQuote.agreedTotalCents).toBe(23500);
+    expect(earlyQuote.totalPriceCents).toBe(23500);
     expect(earlyQuote.chargeNowCents).toBe(5000);
     expect(earlyQuote.cashDueAtDoorCents).toBe(18500);
 
@@ -371,7 +371,7 @@ describe('ProductRulesEditComponent', () => {
     component.simDateAoE.set('2027-01-20');
     fixture.detectChanges();
     expect(component.simulatedQuote().attendanceDiscountCents).toBe(14000);
-    expect(component.simulatedQuote().agreedTotalCents).toBe(26000);
+    expect(component.simulatedQuote().totalPriceCents).toBe(26000);
   });
 
   it('supports per-option Eligibility Conditions (Who, Early Bird, Before Event Starts) including Recording Only options', () => {
@@ -415,7 +415,7 @@ describe('ProductRulesEditComponent', () => {
     expect(component.simulatedQuote().allEvaluatedOptions[0].isEligibleForPerson).toBe(false);
     expect(component.simulatedQuote().selectedOption?.option.id).toBe(recOptId);
     expect(component.simulatedQuote().isValid).toBe(true);
-    expect(component.simulatedQuote().agreedTotalCents).toBe(6000);
+    expect(component.simulatedQuote().totalPriceCents).toBe(6000);
 
     // ActiveInstructor can select the Instructors-only in-person option ($200)
     component.simRole.set(SimulatedPersonRole.ActiveInstructor);
@@ -423,7 +423,7 @@ describe('ProductRulesEditComponent', () => {
     fixture.detectChanges();
     expect(component.simulatedQuote().selectedOption?.option.id).toBe(inPersonOptId);
     expect(component.simulatedQuote().isValid).toBe(true);
-    expect(component.simulatedQuote().agreedTotalCents).toBe(20000);
+    expect(component.simulatedQuote().totalPriceCents).toBe(20000);
   });
 
   it('uses standard autocomplete for Target Catalog Video and Target Catalog VOD Series add-ons', () => {
@@ -492,7 +492,7 @@ describe('ProductRulesEditComponent', () => {
     expect(earlyQuote.isEligibleToRegister).toBe(true);
     expect(earlyQuote.isEarlyBird).toBe(true);
     expect(earlyQuote.attendanceEarlyDiscountCents).toBe(5000);
-    expect(earlyQuote.agreedTotalCents).toBe(46500);
+    expect(earlyQuote.totalPriceCents).toBe(46500);
     expect(earlyQuote.depositCents).toBe(5000);
     expect(earlyQuote.addOnsTotalCents).toBe(2500);
     expect(earlyQuote.chargeNowCents).toBe(7500);
@@ -538,7 +538,7 @@ describe('ProductRulesEditComponent', () => {
     expect(component.simDateAoE()).toBe('2027-01-01');
     expect(lateQuote.isEarlyBird).toBe(false);
     expect(lateQuote.isBeforeEventStart).toBe(true);
-    expect(lateQuote.agreedTotalCents).toBe(49000);
+    expect(lateQuote.totalPriceCents).toBe(49000);
     expect(lateQuote.chargeNowCents).toBe(5000);
     expect(lateQuote.cashDueAtDoorCents).toBe(44000);
     expect(

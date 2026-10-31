@@ -25,6 +25,7 @@ import {
   firestoreDocToEventRegistration,
   firestoreDocToIlcEvent,
   firestoreDocToProduct,
+  formatRegistrationPackageSummary,
   IlcEvent,
   initEventRegistration,
   mergeImmutableQuestionResponses,
@@ -937,7 +938,9 @@ export async function fulfillEventRegistration(
     order.metadata?.['paymentChoice'] === PaymentChoice.Deposit
       ? PaymentChoice.Deposit
       : PaymentChoice.Full;
-  const metaAgreedTotalCents = parseMetadataNonNegInt(order.metadata?.['agreedTotalCents']);
+  const metaTotalPriceCents = parseMetadataNonNegInt(
+    order.metadata?.['totalPriceCents'] ?? order.metadata?.['agreedTotalCents'],
+  );
   const metaDepositCents = parseMetadataNonNegInt(order.metadata?.['depositCents']);
   const cashDueAtDoorCents = parseMetadataNonNegInt(order.metadata?.['cashDueAtDoorCents']);
   const metadataQuestionResponses = decodeQuestionResponsesFromMetadata(order.metadata);
@@ -1041,9 +1044,9 @@ export async function fulfillEventRegistration(
       cashDueAtDoorCents > 0
         ? EventRegistrationStatus.DepositPaid
         : EventRegistrationStatus.Paid;
-    const agreedTotalCents =
-      metaAgreedTotalCents > 0
-        ? metaAgreedTotalCents
+    const totalPriceCents =
+      metaTotalPriceCents > 0
+        ? metaTotalPriceCents
         : finalAmountPaidCents + cashDueAtDoorCents;
     const depositPaidCents =
       cashDueAtDoorCents > 0
@@ -1083,7 +1086,7 @@ export async function fulfillEventRegistration(
       selectedAddOnLabels: finalSelectedAddOnLabels,
       capacityUsage: metadataCapacityUsage,
       paymentChoice,
-      agreedTotalCents,
+      totalPriceCents,
       depositPaidCents,
       questionResponses: mergeImmutableQuestionResponses(
         existing?.questionResponses ?? [],
@@ -1390,10 +1393,19 @@ export async function fulfillEventRegistration(
           product?.onlineJoiningLink || event.onlineJoiningLink || '';
         const recordedVideoId = product?.recordedVideoId || event.recordedVideoId || '';
 
-        // 1. Send confirmation notification & email to member
+        const packageSummary = formatRegistrationPackageSummary({
+          optionLabel: finalReg.optionLabel,
+          attendance: finalReg.attendance,
+          selectedSuboptions: finalReg.selectedSuboptions,
+          selectedAddOnLabels: finalReg.selectedAddOnLabels,
+        });
+
+        // 1. Send confirmation notification to member (when linked) & email to attendee
         if (memberDocId) {
-          const optSummary = finalReg.optionLabel ? ` (${finalReg.optionLabel})` : '';
-          let message = `You are registered for **[${eventTitle}](/events/${eventDocId})**${optSummary}!`;
+          const optSummary = packageSummary ? ` (${packageSummary})` : '';
+          let message = isUpgrade
+            ? `Your registration for **[${eventTitle}](/events/${eventDocId})** has been upgraded${optSummary}!`
+            : `You are registered for **[${eventTitle}](/events/${eventDocId})**${optSummary}!`;
           if (finalReg.amountDueCents > 0) {
             const dueFormatted = (finalReg.amountDueCents / 100).toFixed(2);
             message += `\n\n**Remaining Balance Due at Door:** ${currency.toUpperCase()} ${dueFormatted}.`;
@@ -1435,51 +1447,48 @@ export async function fulfillEventRegistration(
               onlineJoiningLink,
             },
           });
+        }
 
-          if (email) {
-            try {
-              const startDate = event.start ? event.start.split('T')[0] : '';
-              const endDate = event.end ? event.end.split('T')[0] : '';
-              const dates =
-                startDate === endDate || !endDate
-                  ? startDate || ''
-                  : `${startDate} - ${endDate}`;
-              const formattedAttendance =
-                finalReg.optionLabel ||
-                (finalReg.attendance === AttendanceType.InPersonAndOnline
-                  ? 'In-Person & Online'
-                  : finalReg.attendance === AttendanceType.Online
-                    ? 'Online'
-                    : finalReg.attendance === AttendanceType.VideoOnly
-                      ? 'Recording Only'
-                      : 'In-Person');
-              const hasOnline = Boolean(event.onlineJoiningLink && event.onlineJoiningLink.trim());
-              await sendTransactionalEmail(db, {
-                to: email,
-                templateKey: TransactionalEmailKey.EventRegistrationConfirmation,
-                replacements: {
-                  name: name || 'ILC Member',
-                  eventTitle: eventTitle || 'ILC Workshop',
-                  eventDates: dates,
-                  eventLocation: event.location || (hasOnline ? 'Online' : 'TBD'),
-                  attendanceType: formattedAttendance,
-                  onlineJoiningLink: onlineJoiningLink || 'Details on event page',
-                  specialInstructions:
-                    inPersonDetailsMarkdown ||
-                    purchaseDetailsMarkdown ||
-                    'See event page for full details.',
-                  amount: ((finalReg.amountPaidCents || 0) / 100).toFixed(2),
-                  receiptUrl: '',
-                  appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
-                },
-              });
-            } catch (emailErr) {
-              logger.error('Failed to send event registration confirmation email', {
-                emailErr,
-                email,
-                eventDocId,
-              });
-            }
+        if (email) {
+          try {
+            const startDate = event.start ? event.start.split('T')[0] : '';
+            const endDate = event.end ? event.end.split('T')[0] : '';
+            const dates =
+              startDate === endDate || !endDate
+                ? startDate || ''
+                : `${startDate} - ${endDate}`;
+            const hasOnline = Boolean(event.onlineJoiningLink && event.onlineJoiningLink.trim());
+            const baseInstructions =
+              inPersonDetailsMarkdown ||
+              purchaseDetailsMarkdown ||
+              'See event page for full details.';
+            const specialInstructions =
+              finalReg.amountDueCents > 0
+                ? `Remaining Balance Due at Door: ${currency.toUpperCase()} ${(finalReg.amountDueCents / 100).toFixed(2)}.\n\n${baseInstructions}`
+                : baseInstructions;
+            await sendTransactionalEmail(db, {
+              to: email,
+              memberDocId: memberDocId || undefined,
+              templateKey: TransactionalEmailKey.EventRegistrationConfirmation,
+              replacements: {
+                name: name || (memberDocId ? 'ILC Member' : 'ILC Attendee'),
+                eventTitle: eventTitle || 'ILC Workshop',
+                eventDates: dates,
+                eventLocation: event.location || (hasOnline ? 'Online' : 'TBD'),
+                attendanceType: isUpgrade ? `${packageSummary} (Upgraded)` : packageSummary,
+                onlineJoiningLink: onlineJoiningLink || 'Details on event page',
+                specialInstructions,
+                amount: ((amountPaidCents || finalReg.amountPaidCents || 0) / 100).toFixed(2),
+                receiptUrl: '',
+                appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
+              },
+            });
+          } catch (emailErr) {
+            logger.error('Failed to send event registration confirmation email', {
+              emailErr,
+              email,
+              eventDocId,
+            });
           }
         }
 

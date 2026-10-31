@@ -141,6 +141,23 @@
       </div>
     </div>
 
+    @if (evaluatedCapacities().length > 0) {
+      <div class="capacities-summary-bar" aria-label="Event capacity usage">
+        <span class="capacities-summary-title">Capacities:</span>
+        @for (cap of evaluatedCapacities(); track cap.capacity.id) {
+          <span class="capacity-summary-pill" [class.full]="cap.isFull">
+            <strong>{{ cap.capacity.label }}:</strong>
+            {{ cap.used }} / {{ cap.capacity.limit }}
+            @if (cap.isFull) {
+              (Full)
+            } @else {
+              ({{ cap.remaining }} left)
+            }
+          </span>
+        }
+      </div>
+    }
+
     <!-- Filter and Search Toolbar -->
     <div class="toolbar">
       <div class="search-box">
@@ -148,7 +165,7 @@
         <input
           type="text"
           aria-label="Search attendee registrations"
-          placeholder="Search by name, email, phone, member ID, or form response..."
+          placeholder="Search by name, email, member ID, option, add-on, or response..."
           [value]="searchTerm()"
           (input)="searchTerm.set($any($event.target).value)"
         />
@@ -365,6 +382,11 @@
                           @if (reg.amountDueCents > 0) {
                             <span class="amount-due-val">
                               Due: {{ formatAmount(reg.amountDueCents, reg.currency) }}
+                            </span>
+                          }
+                          @if (resolveEffectiveTotalPriceCents(reg) > reg.amountPaidCents) {
+                            <span class="total-amount-sub">
+                              (Total {{ formatAmount(resolveEffectiveTotalPriceCents(reg), reg.currency) }})
                             </span>
                           }
                         } @else {

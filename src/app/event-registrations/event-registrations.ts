@@ -25,13 +25,17 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import {
   AttendeeRole,
   AttendanceType,
+  computeEffectiveCapacityUsage,
+  EventCapacity,
   EventRegistration,
   EventRegistrationQuestionResponse,
   EventRegistrationStatus,
   formatQuestionResponseValue,
   hasQuestionResponseValue,
   IlcEvent,
+  PaymentChoice,
   PricingTierType,
+  Product,
   RegistrationPaymentMethod,
 } from '../../../functions/src/data-model/events';
 import {
@@ -136,6 +140,7 @@ export class EventRegistrationsComponent implements OnInit {
   sortDirection = signal<SortDirection>(SortDirection.Desc);
 
   event = signal<IlcEvent | null>(null);
+  product = signal<Product | null>(null);
   registrations = signal<EventRegistration[]>([]);
 
   eventId = computed(() => {
@@ -208,6 +213,13 @@ export class EventRegistrationsComponent implements OnInit {
           (levels.studentLevel || '').toLowerCase().includes(term) ||
           (levels.applicationLevel || '').toLowerCase().includes(term);
         const notesMatch = (r.notes || '').toLowerCase().includes(term);
+        const optionMatch = (r.optionLabel || '').toLowerCase().includes(term);
+        const suboptionMatch = (r.selectedSuboptions || []).some((s) =>
+          s.toLowerCase().includes(term),
+        );
+        const addOnMatch = (r.selectedAddOnLabels || []).some((a) =>
+          a.toLowerCase().includes(term),
+        );
         const responseMatch = (r.questionResponses || []).some(
           (resp) =>
             hasQuestionResponseValue(resp) &&
@@ -221,6 +233,9 @@ export class EventRegistrationsComponent implements OnInit {
           memberIdMatch ||
           levelMatch ||
           notesMatch ||
+          optionMatch ||
+          suboptionMatch ||
+          addOnMatch ||
           responseMatch
         );
       });
@@ -279,7 +294,46 @@ export class EventRegistrationsComponent implements OnInit {
 
   revenueCurrency = computed(() => {
     const first = this.registrations()[0];
-    return (first?.currency || 'USD').toUpperCase();
+    return (first?.currency || this.product()?.currency || 'USD').toUpperCase();
+  });
+
+  evaluatedCapacities = computed<
+    Array<{ capacity: EventCapacity; used: number; remaining: number; isFull: boolean }>
+  >(() => {
+    const ev = this.event();
+    const prod = this.product();
+    const capacities =
+      ev && ev.capacities.length > 0
+        ? ev.capacities
+        : prod?.pricingRules.capacities ?? [];
+    if (capacities.length === 0) return [];
+
+    const activeRegs = this.registrations().filter(
+      (r) =>
+        r.status !== EventRegistrationStatus.Cancelled &&
+        r.status !== EventRegistrationStatus.Refunded,
+    );
+    const tallied: Record<string, number> = {};
+    for (const reg of activeRegs) {
+      const usage = computeEffectiveCapacityUsage(reg, capacities);
+      for (const [capId, count] of Object.entries(usage)) {
+        tallied[capId] = (tallied[capId] || 0) + count;
+      }
+    }
+
+    return capacities.map((capacity) => {
+      const used =
+        activeRegs.length > 0
+          ? tallied[capacity.id] || 0
+          : ev?.capacityCounts?.[capacity.id] ?? prod?.capacityCounts?.[capacity.id] ?? 0;
+      const remaining = Math.max(0, capacity.limit - used);
+      return {
+        capacity,
+        used,
+        remaining,
+        isFull: used >= capacity.limit,
+      };
+    });
   });
 
   ngOnInit() {
@@ -300,7 +354,11 @@ export class EventRegistrationsComponent implements OnInit {
         this.dataService.getEventById(id),
         this.productService.getEventRegistrations(id),
       ]);
+      const prod = ev?.productId
+        ? await this.productService.getProduct(ev.productId)
+        : await this.productService.getProductByEventId(id);
       this.event.set(ev || null);
+      this.product.set(prod || null);
       this.registrations.set(regs);
     } catch (err) {
       console.error('Error loading event registrations:', err);
@@ -364,8 +422,28 @@ export class EventRegistrationsComponent implements OnInit {
     if (reg.status !== EventRegistrationStatus.Paid) return false;
     return (
       reg.paymentMethod === RegistrationPaymentMethod.InPerson ||
-      (reg.depositPaidCents > 0 && reg.agreedTotalCents > reg.depositPaidCents)
+      (reg.depositPaidCents > 0 && reg.totalPriceCents > reg.depositPaidCents)
     );
+  }
+
+  resolveEffectiveTotalPriceCents(reg: EventRegistration): number {
+    return reg.totalPriceCents > 0
+      ? reg.totalPriceCents
+      : (reg.amountPaidCents || 0) + (reg.amountDueCents || 0);
+  }
+
+  formatPaymentChoice(reg: EventRegistration): string {
+    if (reg.paymentChoice === PaymentChoice.PayAtDoor || this.isPendingInPerson(reg)) {
+      return 'Pay at Door';
+    }
+    if (
+      reg.paymentChoice === PaymentChoice.Deposit ||
+      reg.depositPaidCents > 0 ||
+      reg.status === EventRegistrationStatus.DepositPaid
+    ) {
+      return 'Deposit';
+    }
+    return 'Full';
   }
 
   formatStatusBadge(status: EventRegistrationStatus): string {
@@ -439,19 +517,19 @@ export class EventRegistrationsComponent implements OnInit {
         this.registrations.update((list) =>
           list.map((r) => {
             if (r.docId !== reg.docId) return r;
-            if (r.depositPaidCents > 0 && r.agreedTotalCents > r.depositPaidCents) {
+            if (r.depositPaidCents > 0 && r.totalPriceCents > r.depositPaidCents) {
               return {
                 ...r,
                 status: EventRegistrationStatus.DepositPaid,
                 amountPaidCents: r.depositPaidCents,
-                amountDueCents: r.agreedTotalCents - r.depositPaidCents,
+                amountDueCents: r.totalPriceCents - r.depositPaidCents,
                 paidAt: '',
               };
             }
             return {
               ...r,
               status: EventRegistrationStatus.PendingInPerson,
-              amountDueCents: r.agreedTotalCents || r.amountPaidCents || r.amountDueCents,
+              amountDueCents: r.totalPriceCents || r.amountPaidCents || r.amountDueCents,
               amountPaidCents: 0,
               paidAt: '',
             };
@@ -700,6 +778,15 @@ export class EventRegistrationsComponent implements OnInit {
 
     const distinctQuestions: { questionId: string; questionLabel: string }[] = [];
     const seenQuestionIds = new Set<string>();
+    for (const q of this.product()?.pricingRules.questions ?? []) {
+      if (q.id && !seenQuestionIds.has(q.id)) {
+        seenQuestionIds.add(q.id);
+        distinctQuestions.push({
+          questionId: q.id,
+          questionLabel: q.label || q.id,
+        });
+      }
+    }
     for (const r of this.registrations()) {
       for (const resp of r.questionResponses || []) {
         if (!seenQuestionIds.has(resp.questionId)) {
@@ -713,6 +800,8 @@ export class EventRegistrationsComponent implements OnInit {
     }
     const includeNotesColumn = this.registrations().some((r) => Boolean(r.notes?.trim()));
 
+    const sanitizeSpreadsheetText = (val: string): string =>
+      /^[=+\-@\t\r]/.test(val) ? `'${val}` : val;
     const escapeCsvCell = (val: string): string => `"${val.replace(/"/g, '""')}"`;
 
     const headers = [
@@ -729,7 +818,10 @@ export class EventRegistrationsComponent implements OnInit {
       'Add-Ons',
       'Video Access',
       'Payment Method',
+      'Payment Choice',
       'Pricing Tier',
+      'Total Price',
+      'Deposit Paid',
       'Amount Paid',
       'Amount Due',
       'Currency',
@@ -738,7 +830,7 @@ export class EventRegistrationsComponent implements OnInit {
       'Paid Date',
       'Stripe Session ID',
       ...(includeNotesColumn ? ['Notes'] : []),
-      ...distinctQuestions.map((q) => escapeCsvCell(q.questionLabel)),
+      ...distinctQuestions.map((q) => escapeCsvCell(sanitizeSpreadsheetText(q.questionLabel))),
     ];
 
     const rows = regs.map((r) => {
@@ -749,7 +841,7 @@ export class EventRegistrationsComponent implements OnInit {
       }
 
       return [
-        escapeCsvCell(r.name || ''),
+        escapeCsvCell(sanitizeSpreadsheetText(r.name || '')),
         escapeCsvCell(r.email || ''),
         escapeCsvCell(r.phone || ''),
         escapeCsvCell(this.formatRole(r.role)),
@@ -762,7 +854,10 @@ export class EventRegistrationsComponent implements OnInit {
         escapeCsvCell((r.selectedAddOnLabels || []).join('; ')),
         escapeCsvCell(r.hasVideoAccess ? 'Yes' : 'No'),
         escapeCsvCell(r.paymentMethod || (r.amountPaidCents > 0 ? 'stripe' : 'in_person')),
+        escapeCsvCell(this.formatPaymentChoice(r)),
         escapeCsvCell(this.formatPricingTier(r.pricingTierType) || 'Standard'),
+        (this.resolveEffectiveTotalPriceCents(r) / 100).toFixed(2),
+        ((r.depositPaidCents || 0) / 100).toFixed(2),
         ((r.amountPaidCents || 0) / 100).toFixed(2),
         ((r.amountDueCents || 0) / 100).toFixed(2),
         (r.currency || 'usd').toUpperCase(),
@@ -770,10 +865,12 @@ export class EventRegistrationsComponent implements OnInit {
         escapeCsvCell(this.formatDate(r.registeredAt)),
         escapeCsvCell(this.formatDate(r.paidAt)),
         escapeCsvCell(r.stripeSessionId || ''),
-        ...(includeNotesColumn ? [escapeCsvCell(r.notes || '')] : []),
+        ...(includeNotesColumn ? [escapeCsvCell(sanitizeSpreadsheetText(r.notes || ''))] : []),
         ...distinctQuestions.map((q) => {
           const resp = byQuestionId.get(q.questionId);
-          return escapeCsvCell(resp ? formatQuestionResponseValue(resp) : '');
+          return escapeCsvCell(
+            sanitizeSpreadsheetText(resp ? formatQuestionResponseValue(resp) : ''),
+          );
         }),
       ];
     });

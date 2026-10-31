@@ -10,7 +10,12 @@
  * display order directly.
  */
 
-import { AttendanceType } from './events';
+import {
+  AttendanceType,
+  type EventRegistration,
+  EventRegistrationStatus,
+  RegistrationPaymentMethod,
+} from './events';
 import {
   getMemberStatusLevel,
   MemberStatusContext,
@@ -1449,7 +1454,7 @@ export interface EventPricingQuote {
   attendanceEarlyDiscountCents: number;
   attendanceNetCents: number;
   addOnsTotalCents: number;
-  agreedTotalCents: number;
+  totalPriceCents: number;
   depositCents: number;
   chargeNowCents: number;
   cashDueAtDoorCents: number;
@@ -1917,10 +1922,10 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
   const attendanceDiscountCents = selectedOption?.discountSavedCents ?? 0;
   const attendanceEarlyDiscountCents = selectedOption?.earlyDiscountSavedCents ?? 0;
   const attendanceNetCents = selectedOption?.netPriceCents ?? 0;
-  const agreedTotalCents = attendanceNetCents + addOnsTotalCents;
+  const totalPriceCents = attendanceNetCents + addOnsTotalCents;
 
   let depositCents = 0;
-  let chargeNowCents = agreedTotalCents;
+  let chargeNowCents = totalPriceCents;
   let cashDueAtDoorCents = 0;
 
   if (
@@ -1936,10 +1941,10 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
   } else if (effectivePaymentChoice === PaymentChoice.PayAtDoor) {
     depositCents = 0;
     chargeNowCents = 0;
-    cashDueAtDoorCents = agreedTotalCents;
+    cashDueAtDoorCents = totalPriceCents;
   } else {
     depositCents = 0;
-    chargeNowCents = agreedTotalCents;
+    chargeNowCents = totalPriceCents;
     cashDueAtDoorCents = 0;
   }
 
@@ -1970,7 +1975,7 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
     attendanceEarlyDiscountCents,
     attendanceNetCents,
     addOnsTotalCents,
-    agreedTotalCents,
+    totalPriceCents,
     depositCents,
     chargeNowCents,
     cashDueAtDoorCents,
@@ -2249,4 +2254,414 @@ export function decodeQuestionResponsesFromMetadata(
   } catch {
     return [];
   }
+}
+
+// ------------------------------------------------------------------
+// Registration Upgrade & Update Settlement Helpers
+// ------------------------------------------------------------------
+
+export function isRegistrationUnpaidAtDoor(reg: EventRegistration | null | undefined): boolean {
+  if (!reg) return false;
+  return (
+    reg.status === EventRegistrationStatus.PendingInPerson ||
+    (reg.paymentMethod === RegistrationPaymentMethod.InPerson &&
+      reg.status !== EventRegistrationStatus.Paid &&
+      reg.status !== EventRegistrationStatus.DepositPaid)
+  );
+}
+
+/**
+ * Resolves the add-on IDs already owned on an active paid or deposit-paid registration.
+ * Falls back to matching the first EventRecording add-on ONLY for legacy registrations
+ * that recorded hasVideoAccess = true without explicit selectedAddOnIds.
+ */
+export function resolveOwnedRegistrationAddOnIds(
+  existingReg: EventRegistration | null | undefined,
+  rules: EventPricingRules,
+): Set<string> {
+  if (
+    !existingReg ||
+    existingReg.status === EventRegistrationStatus.Cancelled ||
+    existingReg.status === EventRegistrationStatus.Refunded ||
+    isRegistrationUnpaidAtDoor(existingReg)
+  ) {
+    return new Set<string>();
+  }
+  const owned = new Set<string>(existingReg.selectedAddOnIds.map((id) => id.trim()).filter(Boolean));
+  if (
+    owned.size === 0 &&
+    existingReg.hasVideoAccess &&
+    existingReg.attendance !== AttendanceType.VideoOnly
+  ) {
+    const recordingAddOn = rules.addOns.find((a) => a.spec.kind === EventAddOnKind.EventRecording);
+    if (recordingAddOn) {
+      owned.add(recordingAddOn.id);
+    }
+  }
+  return owned;
+}
+
+/**
+ * Merges newly selected (currently available) add-ons with any previously purchased add-ons
+ * whose timing/option condition is no longer active (e.g. Early Bird bonus add-ons), ensuring
+ * upgrades never strip away previously paid add-on entitlements.
+ */
+export function mergeRetainedAddOnsForUpgrade(
+  existingReg: EventRegistration | null | undefined,
+  rules: EventPricingRules,
+  selectedAvailableAddOns: EvaluatedAddOn[],
+): {
+  selectedAddOnIds: string[];
+  selectedAddOnLabels: string[];
+  retainedUnavailableAddOnsCents: number;
+} {
+  const ids: string[] = [];
+  const labels: string[] = [];
+  const seen = new Set<string>();
+
+  for (const item of selectedAvailableAddOns) {
+    if (!seen.has(item.addOn.id)) {
+      seen.add(item.addOn.id);
+      ids.push(item.addOn.id);
+      labels.push(item.addOn.label);
+    }
+  }
+
+  let retainedUnavailableAddOnsCents = 0;
+  const ownedIds = resolveOwnedRegistrationAddOnIds(existingReg, rules);
+  if (existingReg && ownedIds.size > 0) {
+    const existingLabelMap = new Map<string, string>();
+    existingReg.selectedAddOnIds.forEach((id, idx) => {
+      if (id && existingReg.selectedAddOnLabels[idx]) {
+        existingLabelMap.set(id, existingReg.selectedAddOnLabels[idx]);
+      }
+    });
+
+    for (const ownedId of ownedIds) {
+      if (seen.has(ownedId)) continue;
+      seen.add(ownedId);
+      const ruleAddOn = rules.addOns.find((a) => a.id === ownedId);
+      ids.push(ownedId);
+      labels.push(existingLabelMap.get(ownedId) || ruleAddOn?.label || ownedId);
+      if (ruleAddOn) {
+        retainedUnavailableAddOnsCents += clampNonNegativeInt(ruleAddOn.priceCents);
+      }
+    }
+  }
+
+  return {
+    selectedAddOnIds: ids,
+    selectedAddOnLabels: labels,
+    retainedUnavailableAddOnsCents,
+  };
+}
+
+export function formatRegistrationPackageSummary(params: {
+  optionLabel: string;
+  attendance: AttendanceType;
+  selectedSuboptions: string[];
+  selectedAddOnLabels: string[];
+}): string {
+  const baseLabel =
+    params.optionLabel ||
+    (params.attendance === AttendanceType.InPersonAndOnline
+      ? 'In-Person & Online'
+      : params.attendance === AttendanceType.Online
+        ? 'Online'
+        : params.attendance === AttendanceType.VideoOnly
+          ? 'Recording Only'
+          : 'In-Person');
+  const subPart =
+    params.selectedSuboptions.length > 0 ? ` [${params.selectedSuboptions.join(', ')}]` : '';
+  const addOnPart =
+    params.selectedAddOnLabels.length > 0 ? ` + ${params.selectedAddOnLabels.join(', ')}` : '';
+  return `${baseLabel}${subPart}${addOnPart}`;
+}
+
+export interface EvaluateRegistrationUpgradeInput {
+  existingReg: EventRegistration | null;
+  quote: EventPricingQuote;
+  rules: EventPricingRules;
+  memberContext: MemberStatusContext;
+  isAdmin?: boolean;
+  eventStartDate?: string;
+}
+
+export interface RegistrationUpgradeSettlement {
+  priorOptionId: string;
+  priorOptionCurrentNetCents: number;
+  isDowngrade: boolean;
+  downgradeMessage: string;
+  creditAppliedCents: number;
+  effectiveTotalPriceCents: number;
+  onlineDueNowCents: number;
+  doorBalanceDueCents: number;
+}
+
+export const DOWNGRADE_NOT_ALLOWED_MESSAGE =
+  'Cannot switch a paid registration to a lower-priced option online. Please contact the event organizer for assistance.';
+
+export function evaluateRegistrationUpgradeSettlement(
+  input: EvaluateRegistrationUpgradeInput,
+): RegistrationUpgradeSettlement {
+  const { existingReg, quote, rules, memberContext } = input;
+  const isAdmin = Boolean(input.isAdmin);
+  const eventStartDate = input.eventStartDate || '';
+
+  if (
+    !existingReg ||
+    existingReg.status === EventRegistrationStatus.Cancelled ||
+    existingReg.status === EventRegistrationStatus.Refunded
+  ) {
+    return {
+      priorOptionId: '',
+      priorOptionCurrentNetCents: 0,
+      isDowngrade: false,
+      downgradeMessage: '',
+      creditAppliedCents: 0,
+      effectiveTotalPriceCents: quote.totalPriceCents,
+      onlineDueNowCents: quote.chargeNowCents,
+      doorBalanceDueCents: quote.cashDueAtDoorCents,
+    };
+  }
+
+  const priorOptionId =
+    existingReg.optionId && rules.registrationOptions.some((o) => o.id === existingReg.optionId)
+      ? existingReg.optionId
+      : rules.registrationOptions.find((o) => o.attendanceType === existingReg.attendance)?.id ||
+        '';
+
+  const ownedAddOnIds = resolveOwnedRegistrationAddOnIds(existingReg, rules);
+  let priorOwnedAddOnsPriceCents = 0;
+  for (const id of ownedAddOnIds) {
+    const a = rules.addOns.find((item) => item.id === id);
+    if (a) {
+      priorOwnedAddOnsPriceCents += clampNonNegativeInt(a.priceCents);
+    }
+  }
+
+  const { retainedUnavailableAddOnsCents } = mergeRetainedAddOnsForUpgrade(
+    existingReg,
+    rules,
+    quote.selectedAddOns,
+  );
+
+  // 1. Unpaid in-person (Pay at Door) registration
+  if (isRegistrationUnpaidAtDoor(existingReg)) {
+    const sameOption =
+      Boolean(priorOptionId) && quote.selectedOption?.option.id === priorOptionId;
+    const sameAddOns =
+      quote.selectedAddOns.length === existingReg.selectedAddOnIds.length &&
+      quote.selectedAddOns.every((a) => existingReg.selectedAddOnIds.includes(a.addOn.id));
+
+    // Preserve locked Early Bird total when updating details in-place on PayAtDoor
+    const effectiveTotalPriceCents =
+      sameOption &&
+      sameAddOns &&
+      quote.effectivePaymentChoice === PaymentChoice.PayAtDoor &&
+      existingReg.totalPriceCents > 0
+        ? Math.min(quote.totalPriceCents, existingReg.totalPriceCents)
+        : quote.totalPriceCents;
+
+    if (quote.effectivePaymentChoice === PaymentChoice.PayAtDoor) {
+      return {
+        priorOptionId,
+        priorOptionCurrentNetCents: 0,
+        isDowngrade: false,
+        downgradeMessage: '',
+        creditAppliedCents: 0,
+        effectiveTotalPriceCents,
+        onlineDueNowCents: 0,
+        doorBalanceDueCents: effectiveTotalPriceCents,
+      };
+    }
+
+    return {
+      priorOptionId,
+      priorOptionCurrentNetCents: 0,
+      isDowngrade: false,
+      downgradeMessage: '',
+      creditAppliedCents: 0,
+      effectiveTotalPriceCents: quote.totalPriceCents,
+      onlineDueNowCents: quote.chargeNowCents,
+      doorBalanceDueCents: quote.cashDueAtDoorCents,
+    };
+  }
+
+  // 2. Resolve current net value of the attendee's prior option
+  const priorEvalInCurrent = priorOptionId
+    ? quote.allEvaluatedOptions.find((o) => o.option.id === priorOptionId)
+    : undefined;
+
+  let priorOptionCurrentNetCents = 0;
+  if (priorEvalInCurrent) {
+    priorOptionCurrentNetCents = priorEvalInCurrent.netPriceCents;
+  } else if (priorOptionId) {
+    const rawPriorOpt = rules.registrationOptions.find((o) => o.id === priorOptionId);
+    if (rawPriorOpt) {
+      const memberLevel = getMemberStatusLevel(memberContext, quote.evaluationDateAoE);
+      const fallbackEval = evaluateSingleRegistrationOption(
+        rules,
+        rawPriorOpt,
+        quote.isEarlyBird,
+        quote.isBeforeEventStart,
+        memberContext,
+        memberLevel,
+        quote.evaluationDateAoE,
+        {},
+        {},
+        isAdmin,
+      );
+      priorOptionCurrentNetCents = fallbackEval.netPriceCents;
+    }
+  }
+
+  const paidSoFarCents = Math.max(0, existingReg.amountPaidCents);
+  const selectedOptId = quote.selectedOption?.option.id || '';
+  const isSameOption = Boolean(priorOptionId) && selectedOptId === priorOptionId;
+
+  // Switching to a cheaper registration option on an already paid / deposit-paid registration is blocked
+  const isDowngrade =
+    Boolean(quote.selectedOption) &&
+    Boolean(priorOptionId) &&
+    !isSameOption &&
+    quote.selectedOption!.netPriceCents < priorOptionCurrentNetCents;
+
+  // 3. Deposit-Paid Registration Settlement
+  if (existingReg.status === EventRegistrationStatus.DepositPaid) {
+    const lockedPriorOptionCents =
+      existingReg.totalPriceCents > 0
+        ? Math.max(0, existingReg.totalPriceCents - priorOwnedAddOnsPriceCents)
+        : quote.attendanceNetCents;
+
+    const effectiveOptionNetCents = isSameOption
+      ? Math.min(quote.attendanceNetCents, lockedPriorOptionCents)
+      : quote.attendanceNetCents;
+
+    const allAddOnsCents = quote.addOnsTotalCents + retainedUnavailableAddOnsCents;
+    const effectiveTotalPriceCents = effectiveOptionNetCents + allAddOnsCents;
+
+    if (quote.effectivePaymentChoice === PaymentChoice.Deposit) {
+      const targetDepositCents = Math.min(
+        effectiveOptionNetCents,
+        Math.max(quote.depositCents, existingReg.depositPaidCents),
+      );
+      const targetOnlineCents = targetDepositCents + allAddOnsCents;
+      const onlineDueNowCents = Math.max(0, targetOnlineCents - paidSoFarCents);
+      const doorBalanceDueCents = Math.max(
+        0,
+        effectiveTotalPriceCents - (paidSoFarCents + onlineDueNowCents),
+      );
+      return {
+        priorOptionId,
+        priorOptionCurrentNetCents,
+        isDowngrade,
+        downgradeMessage: isDowngrade ? DOWNGRADE_NOT_ALLOWED_MESSAGE : '',
+        creditAppliedCents: paidSoFarCents,
+        effectiveTotalPriceCents,
+        onlineDueNowCents,
+        doorBalanceDueCents,
+      };
+    }
+
+    // Switching DepositPaid -> Full online payment
+    const onlineDueNowCents = Math.max(0, effectiveTotalPriceCents - paidSoFarCents);
+    return {
+      priorOptionId,
+      priorOptionCurrentNetCents,
+      isDowngrade,
+      downgradeMessage: isDowngrade ? DOWNGRADE_NOT_ALLOWED_MESSAGE : '',
+      creditAppliedCents: paidSoFarCents,
+      effectiveTotalPriceCents,
+      onlineDueNowCents,
+      doorBalanceDueCents: 0,
+    };
+  }
+
+  // 4. Paid-in-Full Registration Settlement
+  // Evaluate prior option + owned add-ons at current pricing so Early Bird registrants adding
+  // an add-on later aren't penalized on their already-purchased option.
+  let priorQuoteTotalCents = priorOptionCurrentNetCents + priorOwnedAddOnsPriceCents;
+  if (priorOptionId) {
+    const availableOwnedIds = rules.addOns
+      .filter((a) => ownedAddOnIds.has(a.id))
+      .filter(
+        (a) =>
+          matchesRegistrationCondition(a.conditions.registration, priorOptionId) &&
+          matchesTimingCondition(
+            a.conditions.timing,
+            quote.isEarlyBird,
+            quote.isBeforeEventStart,
+          ) &&
+          checkWhoEligibility(a.conditions.who, memberContext, quote.evaluationDateAoE, isAdmin)
+            .isEligible,
+      )
+      .map((a) => a.id);
+
+    const priorQuote = evaluateEventPricingQuote({
+      rules,
+      memberContext,
+      isAdmin,
+      eventStartDate,
+      evaluationDateAoE: quote.evaluationDateAoE,
+      selectedOptionId: priorOptionId,
+      selectedAddOnIds: availableOwnedIds,
+    });
+    if (priorQuote.selectedOption) {
+      let unavailableOwnedCents = 0;
+      const availSet = new Set(availableOwnedIds);
+      for (const id of ownedAddOnIds) {
+        if (!availSet.has(id)) {
+          const addOn = rules.addOns.find((a) => a.id === id);
+          if (addOn) unavailableOwnedCents += clampNonNegativeInt(addOn.priceCents);
+        }
+      }
+      priorQuoteTotalCents = priorQuote.totalPriceCents + unavailableOwnedCents;
+    }
+  }
+
+  const creditAppliedCents = Math.max(
+    paidSoFarCents,
+    existingReg.totalPriceCents,
+    priorQuoteTotalCents,
+  );
+  const candidateNewTotalCents = quote.totalPriceCents + retainedUnavailableAddOnsCents;
+
+  if (quote.effectivePaymentChoice === PaymentChoice.Deposit) {
+    const targetOnline = quote.chargeNowCents + retainedUnavailableAddOnsCents;
+    const onlineDueNowCents = Math.max(0, targetOnline - creditAppliedCents);
+    const remainingCredit = Math.max(0, creditAppliedCents - targetOnline);
+    const doorBalanceDueCents = Math.max(0, quote.cashDueAtDoorCents - remainingCredit);
+    const effectiveTotalPriceCents =
+      onlineDueNowCents === 0 && doorBalanceDueCents === 0
+        ? existingReg.totalPriceCents || paidSoFarCents
+        : paidSoFarCents + onlineDueNowCents + doorBalanceDueCents;
+    return {
+      priorOptionId,
+      priorOptionCurrentNetCents,
+      isDowngrade,
+      downgradeMessage: isDowngrade ? DOWNGRADE_NOT_ALLOWED_MESSAGE : '',
+      creditAppliedCents,
+      effectiveTotalPriceCents,
+      onlineDueNowCents,
+      doorBalanceDueCents,
+    };
+  }
+
+  const onlineDueNowCents = Math.max(0, candidateNewTotalCents - creditAppliedCents);
+  const effectiveTotalPriceCents =
+    onlineDueNowCents === 0
+      ? existingReg.totalPriceCents || paidSoFarCents
+      : (paidSoFarCents || creditAppliedCents) + onlineDueNowCents;
+
+  return {
+    priorOptionId,
+    priorOptionCurrentNetCents,
+    isDowngrade,
+    downgradeMessage: isDowngrade ? DOWNGRADE_NOT_ALLOWED_MESSAGE : '',
+    creditAppliedCents,
+    effectiveTotalPriceCents,
+    onlineDueNowCents,
+    doorBalanceDueCents: 0,
+  };
 }

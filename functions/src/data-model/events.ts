@@ -1162,7 +1162,7 @@ export type EventRegistration = {
   selectedAddOnLabels: string[];
   capacityUsage: Record<string, number>;
   paymentChoice: PaymentChoice;
-  agreedTotalCents: number;
+  totalPriceCents: number;
   depositPaidCents: number;
   questionResponses: EventRegistrationQuestionResponse[];
 };
@@ -1234,7 +1234,7 @@ export function initEventRegistration(): EventRegistration {
     selectedAddOnLabels: [],
     capacityUsage: {},
     paymentChoice: PaymentChoice.Full,
-    agreedTotalCents: 0,
+    totalPriceCents: 0,
     depositPaidCents: 0,
     questionResponses: [],
   };
@@ -1254,6 +1254,7 @@ export function firestoreDocToEventRegistration(doc: {
     typeof data['amountDueCents'] === 'number' && Number.isFinite(data['amountDueCents'])
       ? Math.round(data['amountDueCents'])
       : 0;
+  const rawTotalPrice = data['totalPriceCents'] ?? data['agreedTotalCents'];
 
   return {
     ...defaults,
@@ -1308,9 +1309,9 @@ export function firestoreDocToEventRegistration(doc: {
         : data['paymentChoice'] === PaymentChoice.PayAtDoor
           ? PaymentChoice.PayAtDoor
           : PaymentChoice.Full,
-    agreedTotalCents:
-      typeof data['agreedTotalCents'] === 'number' && Number.isFinite(data['agreedTotalCents'])
-        ? Math.round(data['agreedTotalCents'])
+    totalPriceCents:
+      typeof rawTotalPrice === 'number' && Number.isFinite(rawTotalPrice)
+        ? Math.round(rawTotalPrice)
         : amountPaidCents + amountDueCents,
     depositPaidCents:
       typeof data['depositPaidCents'] === 'number' && Number.isFinite(data['depositPaidCents'])
