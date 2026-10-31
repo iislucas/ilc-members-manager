@@ -130,7 +130,7 @@ describe('ProductRulesEditComponent', () => {
     expect(ebDisc.label).toBe('Early Bird Discount');
     expect(ebDisc.conditions.timing).toEqual({
       kind: TimingConditionKind.Window,
-      window: TimingWindow.OnOrBeforeEarlyBird,
+      window: TimingWindow.BeforeEarlyBird,
     });
     component.updateDiscountAmount(ebDisc.id, '50');
     component.simDateAoE.set('2027-01-15');
@@ -324,22 +324,22 @@ describe('ProductRulesEditComponent', () => {
     );
     component.updateDiscountAmount(secondDiscId, '100');
 
-    // Late-only discount ($25 after Early Bird cutoff)
+    // Early Bird discount ($25 on or before Early Bird cutoff)
     component.toggleEarlyBirdPolicy(true);
     component.updateEarlyBirdDeadline('2027-01-10');
     component.addDiscount();
-    const lateDiscId = currentRules.discounts[2].id;
-    component.updateDiscountLabel(lateDiscId, 'Late Promo');
+    const ebDiscId = currentRules.discounts[2].id;
+    component.updateDiscountLabel(ebDiscId, 'Early Promo');
     component.updateDiscountConditions(
-      lateDiscId,
+      ebDiscId,
       initEventRuleConditions({
         timing: {
           kind: TimingConditionKind.Window,
-          window: TimingWindow.AfterEarlyBird,
+          window: TimingWindow.BeforeEarlyBird,
         },
       }),
     );
-    component.updateDiscountAmount(lateDiscId, '25');
+    component.updateDiscountAmount(ebDiscId, '25');
 
     component.toggleDepositPolicy(true);
     component.updateDepositRefundKind(DepositRefundPolicyKind.RefundableBefore);
@@ -353,7 +353,7 @@ describe('ProductRulesEditComponent', () => {
       },
     });
 
-    // Before cutoff (2027-01-05): Member ($40) + Instructor ($100) sum to $140 -> $260 total
+    // Before cutoff (2027-01-05): Member ($40) + Instructor ($100) + Early Promo ($25) sum to $165 -> $235 total
     component.simDateAoE.set('2027-01-05');
     component.simRole.set(SimulatedPersonRole.ActiveInstructor);
     component.simPaymentChoice.set(PaymentChoice.Deposit);
@@ -361,17 +361,17 @@ describe('ProductRulesEditComponent', () => {
 
     const earlyQuote = component.simulatedQuote();
     expect(earlyQuote.isValid).toBe(true);
-    expect(earlyQuote.selectedOption?.appliedDiscounts.length).toBe(2);
-    expect(earlyQuote.attendanceDiscountCents).toBe(14000);
-    expect(earlyQuote.agreedTotalCents).toBe(26000);
+    expect(earlyQuote.selectedOption?.appliedDiscounts.length).toBe(3);
+    expect(earlyQuote.attendanceDiscountCents).toBe(16500);
+    expect(earlyQuote.agreedTotalCents).toBe(23500);
     expect(earlyQuote.chargeNowCents).toBe(5000);
-    expect(earlyQuote.cashDueAtDoorCents).toBe(21000);
+    expect(earlyQuote.cashDueAtDoorCents).toBe(18500);
 
-    // After cutoff (2027-01-20): Member ($40) + Instructor ($100) + Late Promo ($25) = $165 -> $235 total
+    // After cutoff (2027-01-20): Member ($40) + Instructor ($100) = $140 -> $260 total
     component.simDateAoE.set('2027-01-20');
     fixture.detectChanges();
-    expect(component.simulatedQuote().attendanceDiscountCents).toBe(16500);
-    expect(component.simulatedQuote().agreedTotalCents).toBe(23500);
+    expect(component.simulatedQuote().attendanceDiscountCents).toBe(14000);
+    expect(component.simulatedQuote().agreedTotalCents).toBe(26000);
   });
 
   it('supports per-option Eligibility Conditions (Who, Early Bird, Before Event Starts) including Recording Only options', () => {

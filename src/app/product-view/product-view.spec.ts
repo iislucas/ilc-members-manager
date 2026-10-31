@@ -127,7 +127,7 @@ describe('ProductViewComponent', () => {
         conditions: initEventRuleConditions({
           timing: {
             kind: TimingConditionKind.Window,
-            window: TimingWindow.OnOrBeforeEarlyBird,
+            window: TimingWindow.BeforeEarlyBird,
           },
           registration: {
             kind: RegistrationConditionKind.SpecificOptions,

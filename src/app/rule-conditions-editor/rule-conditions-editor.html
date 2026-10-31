@@ -63,11 +63,8 @@
               (ngModelChange)="updateTimingWindow($event)"
               [ngModelOptions]="{ standalone: true }"
             >
-              <option [ngValue]="TimingWindow.OnOrBeforeEarlyBird">
-                On or before Early Bird{{ earlyBirdSuffix }}
-              </option>
-              <option [ngValue]="TimingWindow.AfterEarlyBird">
-                After Early Bird{{ earlyBirdSuffix }}
+              <option [ngValue]="TimingWindow.BeforeEarlyBird">
+                Before Early Bird{{ earlyBirdSuffix }}
               </option>
               <option [ngValue]="TimingWindow.BeforeEventStart">
                 Before Event starts{{ eventStartSuffix }}

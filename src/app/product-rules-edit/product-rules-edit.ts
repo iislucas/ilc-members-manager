@@ -798,7 +798,7 @@ export class ProductRulesEditComponent {
         (d) =>
           d.conditions.who.kind === WhoConditionKind.Anyone &&
           d.conditions.timing.kind === TimingConditionKind.Window &&
-          d.conditions.timing.window === TimingWindow.OnOrBeforeEarlyBird,
+          d.conditions.timing.window === TimingWindow.BeforeEarlyBird,
       );
       const hasMemberDisc = r.discounts.some(
         (d) =>
@@ -820,7 +820,7 @@ export class ProductRulesEditComponent {
             conditions: initEventRuleConditions({
               timing: {
                 kind: TimingConditionKind.Window,
-                window: TimingWindow.OnOrBeforeEarlyBird,
+                window: TimingWindow.BeforeEarlyBird,
               },
             }),
           }),
@@ -1416,13 +1416,6 @@ export class ProductRulesEditComponent {
         ) {
           if (
             addOn.conditions.timing.kind === TimingConditionKind.Window &&
-            addOn.conditions.timing.window === TimingWindow.AfterEarlyBird
-          ) {
-            reason = cutoff
-              ? `Available after Early Bird cutoff (${cutoff})`
-              : 'Available after Early Bird cutoff';
-          } else if (
-            addOn.conditions.timing.kind === TimingConditionKind.Window &&
             addOn.conditions.timing.window === TimingWindow.BeforeEventStart
           ) {
             reason = 'Unavailable once event starts';
@@ -1550,13 +1543,6 @@ export class ProductRulesEditComponent {
             )
           ) {
             if (
-              question.conditions.timing.kind === TimingConditionKind.Window &&
-              question.conditions.timing.window === TimingWindow.AfterEarlyBird
-            ) {
-              reason = cutoff
-                ? `Asked after Early Bird cutoff (${cutoff})`
-                : 'Asked after Early Bird cutoff';
-            } else if (
               question.conditions.timing.kind === TimingConditionKind.Window &&
               question.conditions.timing.window === TimingWindow.BeforeEventStart
             ) {
@@ -1784,7 +1770,7 @@ export class ProductRulesEditComponent {
           conditions: initEventRuleConditions({
             timing: {
               kind: TimingConditionKind.Window,
-              window: TimingWindow.OnOrBeforeEarlyBird,
+              window: TimingWindow.BeforeEarlyBird,
             },
             registration: {
               kind: RegistrationConditionKind.SpecificOptions,
@@ -1799,7 +1785,7 @@ export class ProductRulesEditComponent {
           conditions: initEventRuleConditions({
             timing: {
               kind: TimingConditionKind.Window,
-              window: TimingWindow.OnOrBeforeEarlyBird,
+              window: TimingWindow.BeforeEarlyBird,
             },
             registration: {
               kind: RegistrationConditionKind.SpecificOptions,
@@ -1841,7 +1827,7 @@ export class ProductRulesEditComponent {
           conditions: initEventRuleConditions({
             timing: {
               kind: TimingConditionKind.Window,
-              window: TimingWindow.OnOrBeforeEarlyBird,
+              window: TimingWindow.BeforeEarlyBird,
             },
             registration: {
               kind: RegistrationConditionKind.SpecificOptions,
@@ -1858,7 +1844,7 @@ export class ProductRulesEditComponent {
           conditions: initEventRuleConditions({
             timing: {
               kind: TimingConditionKind.Window,
-              window: TimingWindow.OnOrBeforeEarlyBird,
+              window: TimingWindow.BeforeEarlyBird,
             },
             registration: {
               kind: RegistrationConditionKind.SpecificOptions,
@@ -1870,12 +1856,12 @@ export class ProductRulesEditComponent {
         initEventAddOn({
           id: 'videos_and_review_combo',
           label: 'Intensive Videos + 1 Personal Video Review',
-          description: 'Standard video package after Early Bird ends',
+          description: 'Standard video package before the event starts',
           spec: { kind: EventAddOnKind.EventRecording },
           conditions: initEventRuleConditions({
             timing: {
               kind: TimingConditionKind.Window,
-              window: TimingWindow.AfterEarlyBird,
+              window: TimingWindow.BeforeEventStart,
             },
             registration: {
               kind: RegistrationConditionKind.SpecificOptions,

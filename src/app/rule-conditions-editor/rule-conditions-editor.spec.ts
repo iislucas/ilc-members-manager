@@ -72,7 +72,7 @@ describe('RuleConditionsEditorComponent', () => {
     component.addTimingCondition();
     expect(currentConditions.timing).toEqual({
       kind: TimingConditionKind.Window,
-      window: TimingWindow.OnOrBeforeEarlyBird,
+      window: TimingWindow.BeforeEarlyBird,
     });
     expect(component.hasTiming()).toBe(true);
 
@@ -95,8 +95,7 @@ describe('RuleConditionsEditorComponent', () => {
     const timingSelect = el.querySelector('select[id$="-timing"]') as HTMLSelectElement;
     const timingOptionLabels = Array.from(timingSelect.options).map((o) => o.textContent?.trim());
     expect(timingOptionLabels).toEqual([
-      'On or before Early Bird (2026-12-31)',
-      'After Early Bird (2026-12-31)',
+      'Before Early Bird (2026-12-31)',
       'Before Event starts (2027-01-15)',
     ]);
   });
@@ -146,7 +145,7 @@ describe('RuleConditionsEditorComponent', () => {
     // 1. Warn when Early Bird timing is selected while Early Bird Pricing is disabled
     fixture.componentRef.setInput('earlyBirdEnabled', false);
     component.addTimingCondition();
-    component.updateTimingWindow(TimingWindow.OnOrBeforeEarlyBird);
+    component.updateTimingWindow(TimingWindow.BeforeEarlyBird);
     fixture.detectChanges();
     expect(component.timingWarning()).toContain('Enable Early Bird Pricing above');
 

@@ -59,8 +59,7 @@ export enum TimingConditionKind {
 }
 
 export enum TimingWindow {
-  OnOrBeforeEarlyBird = 'on_or_before_early_bird',
-  AfterEarlyBird = 'after_early_bird',
+  BeforeEarlyBird = 'before_early_bird',
   BeforeEventStart = 'before_event_start',
 }
 
@@ -358,12 +357,13 @@ export function normalizeTimingCondition(
     const obj = raw as Record<string, unknown>;
     if (obj['kind'] === TimingConditionKind.Window) {
       const win = obj['window'];
+      if (win === 'after_early_bird' || win === 'after_cutoff') {
+        return { kind: TimingConditionKind.Anytime };
+      }
       const window =
-        win === TimingWindow.AfterEarlyBird || win === 'after_cutoff'
-          ? TimingWindow.AfterEarlyBird
-          : win === TimingWindow.BeforeEventStart
-            ? TimingWindow.BeforeEventStart
-            : TimingWindow.OnOrBeforeEarlyBird;
+        win === TimingWindow.BeforeEventStart
+          ? TimingWindow.BeforeEventStart
+          : TimingWindow.BeforeEarlyBird;
       return {
         kind: TimingConditionKind.Window,
         window,
@@ -376,12 +376,12 @@ export function normalizeTimingCondition(
   if (legacyEarlyBird && typeof legacyEarlyBird === 'object') {
     const eb = legacyEarlyBird as Record<string, unknown>;
     if (eb['kind'] === 'window') {
+      if (eb['window'] === 'after_cutoff') {
+        return { kind: TimingConditionKind.Anytime };
+      }
       return {
         kind: TimingConditionKind.Window,
-        window:
-          eb['window'] === 'after_cutoff'
-            ? TimingWindow.AfterEarlyBird
-            : TimingWindow.OnOrBeforeEarlyBird,
+        window: TimingWindow.BeforeEarlyBird,
       };
     }
   }
@@ -811,7 +811,7 @@ export function normalizeEventRegistrationOption(
       legacyEarly.kind === 'early_registration_only'
         ? {
             kind: TimingConditionKind.Window,
-            window: TimingWindow.OnOrBeforeEarlyBird,
+            window: TimingWindow.BeforeEarlyBird,
           }
         : { kind: TimingConditionKind.Anytime };
     if (legacyEarly.kind === 'discount' && legacyEarly.discountCents > 0) {
@@ -890,7 +890,7 @@ function normalizeEventAddOnListItem(raw: unknown, fallbackIndex = 0): EventAddO
         conditions: initEventRuleConditions({
           timing: {
             kind: TimingConditionKind.Window,
-            window: TimingWindow.OnOrBeforeEarlyBird,
+            window: TimingWindow.BeforeEarlyBird,
           },
           registration,
         }),
@@ -902,10 +902,12 @@ function normalizeEventAddOnListItem(raw: unknown, fallbackIndex = 0): EventAddO
         description,
         spec,
         conditions: initEventRuleConditions({
-          timing: {
-            kind: TimingConditionKind.Window,
-            window: TimingWindow.AfterEarlyBird,
-          },
+          timing: legacyBeforeStart
+            ? {
+                kind: TimingConditionKind.Window,
+                window: TimingWindow.BeforeEventStart,
+              }
+            : { kind: TimingConditionKind.Anytime },
           registration,
         }),
         priceCents,
@@ -917,7 +919,7 @@ function normalizeEventAddOnListItem(raw: unknown, fallbackIndex = 0): EventAddO
     legacyEarly.kind === 'early_registration_only'
       ? {
           kind: TimingConditionKind.Window,
-          window: TimingWindow.OnOrBeforeEarlyBird,
+          window: TimingWindow.BeforeEarlyBird,
         }
       : legacyBeforeStart
         ? {
@@ -1047,7 +1049,7 @@ export function buildEarlyBirdDiscountsFromOptionMap(
         conditions: initEventRuleConditions({
           timing: {
             kind: TimingConditionKind.Window,
-            window: TimingWindow.OnOrBeforeEarlyBird,
+            window: TimingWindow.BeforeEarlyBird,
           },
           registration: coversAll
             ? { kind: RegistrationConditionKind.AllOptions }
@@ -1279,10 +1281,8 @@ export function matchesTimingCondition(
     return true;
   }
   switch (cond.window) {
-    case TimingWindow.OnOrBeforeEarlyBird:
+    case TimingWindow.BeforeEarlyBird:
       return isEarlyBird;
-    case TimingWindow.AfterEarlyBird:
-      return !isEarlyBird;
     case TimingWindow.BeforeEventStart:
       return isBeforeEventStart;
   }
@@ -1303,8 +1303,7 @@ export function validateRuleConditions(
   const errors: string[] = [];
   if (
     conditions.timing.kind === TimingConditionKind.Window &&
-    (conditions.timing.window === TimingWindow.OnOrBeforeEarlyBird ||
-      conditions.timing.window === TimingWindow.AfterEarlyBird) &&
+    conditions.timing.window === TimingWindow.BeforeEarlyBird &&
     !context.earlyBirdEnabled
   ) {
     errors.push(
@@ -1540,7 +1539,7 @@ function evaluateSingleRegistrationOption(
       appliedDiscounts.push({ discount: disc, savedCents });
       if (
         disc.conditions.timing.kind === TimingConditionKind.Window &&
-        disc.conditions.timing.window === TimingWindow.OnOrBeforeEarlyBird
+        disc.conditions.timing.window === TimingWindow.BeforeEarlyBird
       ) {
         earlyDiscountSavedCents += savedCents;
       }
@@ -1667,12 +1666,6 @@ export function evaluateEventPricingQuote(input: EventPricingQuoteInput): EventP
         ) {
           unavailMsg =
             'The selected registration option is no longer available once the event has started.';
-        } else if (
-          matchedRaw.conditions.timing.kind === TimingConditionKind.Window &&
-          matchedRaw.conditions.timing.window === TimingWindow.AfterEarlyBird
-        ) {
-          unavailMsg =
-            'The selected registration option is only available after the Early Bird cutoff.';
         } else {
           unavailMsg =
             'The selected registration option is only available during Early Bird pricing.';
