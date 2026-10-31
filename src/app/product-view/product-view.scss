@@ -410,6 +410,10 @@
     cursor: default;
   }
 
+  &.addon-paid-in-full-locked {
+    opacity: 0.78;
+  }
+
   .checkbox-label {
     display: flex;
     align-items: flex-start;

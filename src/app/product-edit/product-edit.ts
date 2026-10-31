@@ -460,6 +460,7 @@ export class ProductEditComponent implements OnInit {
       const condErrors = validateRuleConditions(addOn.conditions, {
         itemLabel: addOn.label.trim(),
         allowRegistrationCondition: true,
+        allowPaymentCondition: true,
         earlyBirdEnabled,
         validOptionIds,
       });

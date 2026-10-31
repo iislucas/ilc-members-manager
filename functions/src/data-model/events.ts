@@ -1164,6 +1164,8 @@ export type EventRegistration = {
   paymentChoice: PaymentChoice;
   totalPriceCents: number;
   depositPaidCents: number;
+  paidInFullOffline: boolean;
+  autoGrantedAddOnIds: string[];
   questionResponses: EventRegistrationQuestionResponse[];
 };
 
@@ -1236,6 +1238,8 @@ export function initEventRegistration(): EventRegistration {
     paymentChoice: PaymentChoice.Full,
     totalPriceCents: 0,
     depositPaidCents: 0,
+    paidInFullOffline: false,
+    autoGrantedAddOnIds: [],
     questionResponses: [],
   };
 }
@@ -1317,6 +1321,10 @@ export function firestoreDocToEventRegistration(doc: {
       typeof data['depositPaidCents'] === 'number' && Number.isFinite(data['depositPaidCents'])
         ? Math.round(data['depositPaidCents'])
         : 0,
+    paidInFullOffline: Boolean(data['paidInFullOffline']),
+    autoGrantedAddOnIds: Array.isArray(data['autoGrantedAddOnIds'])
+      ? data['autoGrantedAddOnIds'].filter((s): s is string => typeof s === 'string')
+      : [],
     questionResponses: normalizeQuestionResponseList(data['questionResponses']),
   };
 }

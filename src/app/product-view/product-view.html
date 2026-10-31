@@ -164,7 +164,11 @@
                 }
                 @if (existingReg.amountPaidCents > 0) {
                   <div class="reg-detail-row">
-                    <span class="detail-label">Paid Online</span>
+                    <span class="detail-label">{{
+                      existingReg.paidInFullOffline
+                        ? "Paid (Recorded by Organizer)"
+                        : "Paid Online"
+                    }}</span>
                     <span class="detail-value paid-amount">{{
                       formatCents(existingReg.amountPaidCents)
                     }}</span>
@@ -489,7 +493,8 @@
             }
 
             <!-- Optional Add-Ons -->
-            @if (q.availableAddOns.length > 0) {
+            @let paidLockedAddOns = paidInFullLockedAddOns();
+            @if (q.availableAddOns.length > 0 || paidLockedAddOns.length > 0) {
               <div class="option-group">
                 <label class="group-label">Optional Add-Ons</label>
                 <div class="addons-list">
@@ -526,6 +531,34 @@
                         </span>
                       </div>
                     </label>
+                  }
+
+                  @for (lockedAddOn of paidLockedAddOns; track lockedAddOn.id) {
+                    <div class="addon-toggle-card locked addon-paid-in-full-locked">
+                      <div class="checkbox-label">
+                        <input type="checkbox" disabled />
+                        <span class="checkbox-text">
+                          <span class="addon-title-row">
+                            <strong>{{ lockedAddOn.label }}</strong>
+                            @if (lockedAddOn.priceCents === 0) {
+                              <span class="chip-free-badge">Included Free</span>
+                            } @else {
+                              <span class="chip-addon-badge"
+                                >+{{ formatCents(lockedAddOn.priceCents) }}</span
+                              >
+                            }
+                            <span class="chip-restricted-badge">Paid in Full Only</span>
+                          </span>
+                          @if (lockedAddOn.description) {
+                            <span class="subtext">{{ lockedAddOn.description }}</span>
+                          }
+                          <span class="subtext">
+                            Select "{{ formatPaymentChoiceLabel(PaymentChoice.Full) }}" below to
+                            unlock this add-on.
+                          </span>
+                        </span>
+                      </div>
+                    </div>
                   }
                 </div>
               </div>

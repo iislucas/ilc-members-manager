@@ -1099,6 +1099,8 @@ export async function fulfillEventRegistration(
       paymentMethod,
       pricingTierType,
       paidAt: cashDueAtDoorCents > 0 ? '' : order.created || nowIso,
+      paidInFullOffline: existing?.paidInFullOffline ?? false,
+      autoGrantedAddOnIds: existing?.autoGrantedAddOnIds ?? [],
       lastUpdated: nowIso,
       upgradeHistory,
     };

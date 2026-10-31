@@ -2,17 +2,19 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   AttendanceType,
+  CustomDateDirection,
   EventRegistrationOption,
   EventRuleConditions,
   initEventRegistrationOption,
   initEventRuleConditions,
+  PaymentConditionKind,
   PersonStatusKind,
   RegistrationConditionKind,
   TimingConditionKind,
   TimingWindow,
   WhoConditionKind,
 } from '../../../functions/src/data-model/events';
-import { RuleConditionsEditorComponent } from './rule-conditions-editor';
+import { RuleConditionsEditorComponent, TimingSelectionValue } from './rule-conditions-editor';
 
 describe('RuleConditionsEditorComponent', () => {
   let fixture: ComponentFixture<RuleConditionsEditorComponent>;
@@ -97,6 +99,8 @@ describe('RuleConditionsEditorComponent', () => {
     expect(timingOptionLabels).toEqual([
       'Before Early Bird (2026-12-31)',
       'Before Event starts (2027-01-15)',
+      'Before custom date',
+      'On or after custom date',
     ]);
   });
 
@@ -171,5 +175,87 @@ describe('RuleConditionsEditorComponent', () => {
     expect(currentConditions.registration).toEqual({
       kind: RegistrationConditionKind.AllOptions,
     });
+  });
+
+  it('supports Custom Date timing (Before and On or after) with date input, validation warning when empty, and remove/re-add caching', async () => {
+    component.addTimingCondition();
+    component.updateTimingSelection(TimingSelectionValue.CustomBefore);
+    fixture.detectChanges();
+
+    // Defaults to earlyBirdDeadline ('2026-12-31') when switching to CustomDate for the first time
+    expect(currentConditions.timing).toEqual({
+      kind: TimingConditionKind.CustomDate,
+      direction: CustomDateDirection.Before,
+      date: '2026-12-31',
+    });
+
+    // Clearing the custom date shows validation warning
+    component.updateCustomTimingDate('');
+    fixture.detectChanges();
+    expect(component.timingWarning()).toContain('Enter a custom date (YYYY-MM-DD)');
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const dateInput = el.querySelector('input[type="date"]') as HTMLInputElement;
+    expect(dateInput).toBeTruthy();
+
+    component.updateCustomTimingDate('2026-11-30');
+    fixture.detectChanges();
+    expect(currentConditions.timing).toEqual({
+      kind: TimingConditionKind.CustomDate,
+      direction: CustomDateDirection.Before,
+      date: '2026-11-30',
+    });
+    expect(component.timingWarning()).toBe('');
+
+    component.updateTimingSelection(TimingSelectionValue.CustomOnOrAfter);
+    expect(currentConditions.timing).toEqual({
+      kind: TimingConditionKind.CustomDate,
+      direction: CustomDateDirection.OnOrAfter,
+      date: '2026-11-30',
+    });
+
+    // Remove and re-add preserves custom date & direction
+    component.removeTimingCondition();
+    expect(currentConditions.timing).toEqual({ kind: TimingConditionKind.Anytime });
+
+    component.addTimingCondition();
+    expect(currentConditions.timing).toEqual({
+      kind: TimingConditionKind.CustomDate,
+      direction: CustomDateDirection.OnOrAfter,
+      date: '2026-11-30',
+    });
+  });
+
+  it('shows Payment ("Paid in full") condition only when allowPaymentCondition is true', async () => {
+    // Default: allowPaymentCondition is false -> + Payment button hidden, addPaymentCondition is a no-op
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Payment');
+    component.addPaymentCondition();
+    expect(currentConditions.payment).toEqual({ kind: PaymentConditionKind.AnyPayment });
+
+    // Enable allowPaymentCondition (used on Event Add-Ons)
+    fixture.componentRef.setInput('allowPaymentCondition', true);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Payment');
+
+    component.addPaymentCondition();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(currentConditions.payment).toEqual({ kind: PaymentConditionKind.PaidInFull });
+    expect(component.hasPaymentCondition()).toBe(true);
+
+    const paymentSelect = (fixture.nativeElement as HTMLElement).querySelector(
+      'select[id$="-payment"]',
+    ) as HTMLSelectElement;
+    expect(Array.from(paymentSelect.options).map((o) => o.textContent?.trim())).toEqual([
+      'Paid in full',
+    ]);
+
+    component.removePaymentCondition();
+    expect(currentConditions.payment).toEqual({ kind: PaymentConditionKind.AnyPayment });
+    expect(component.hasPaymentCondition()).toBe(false);
   });
 });

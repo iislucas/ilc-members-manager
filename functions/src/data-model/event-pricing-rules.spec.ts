@@ -26,6 +26,8 @@ import {
 } from './events';
 import {
   applyDiscount,
+  computeAutoGrantedPaidInFullAddOns,
+  CustomDateDirection,
   decodeQuestionResponsesFromMetadata,
   DepositPolicyKind,
   DepositRefundPolicyKind,
@@ -41,12 +43,15 @@ import {
   getAnywhereOnEarthDate,
   initEventAddOn,
   initEventDiscount,
+  initEventPricingRules,
   initEventRegistrationOption,
   initEventRegistrationQuestion,
   initEventRuleConditions,
+  isRegistrationPaidInFull,
   mergeRetainedAddOnsForUpgrade,
   normalizeEventPricingRules,
   PaymentChoice,
+  PaymentConditionKind,
   PersonStatusKind,
   PricingValidationErrorCode,
   RegistrationConditionKind,
@@ -918,6 +923,7 @@ describe('event-pricing-rules', () => {
           window: TimingWindow.BeforeEventStart,
         },
         registration: { kind: RegistrationConditionKind.AllOptions },
+        payment: { kind: PaymentConditionKind.AnyPayment },
       });
       // Legacy spouse discount is dropped rather than turning into an Anyone discount!
       expect(legacySplitConds.discounts.map((d) => d.id)).toEqual(['d_eb']);
@@ -1426,6 +1432,283 @@ describe('event-pricing-rules', () => {
           selectedAddOnLabels: ['Personal Video Review'],
         }),
       ).toBe('Two Days [Friday, Saturday] + Personal Video Review');
+    });
+  });
+
+  describe('Custom Date Timing & Add-On Paid-in-Full Payment Condition', () => {
+    it('evaluates CustomDate timing (Before & OnOrAfter) inclusively on AoE dates across options, discounts, add-ons, and questions', () => {
+      const rules = initEventPricingRules();
+      rules.registrationOptions = [
+        initEventRegistrationOption({
+          id: 'super_early_opt',
+          label: 'Super Early Pass',
+          attendanceType: AttendanceType.InPerson,
+          priceCents: 35000,
+          conditions: initEventRuleConditions({
+            timing: {
+              kind: TimingConditionKind.CustomDate,
+              direction: CustomDateDirection.Before,
+              date: '2026-11-15',
+            },
+          }),
+        }),
+        initEventRegistrationOption({
+          id: 'standard_opt',
+          label: 'Standard Pass',
+          attendanceType: AttendanceType.InPerson,
+          priceCents: 45000,
+          conditions: initEventRuleConditions({
+            timing: {
+              kind: TimingConditionKind.CustomDate,
+              direction: CustomDateDirection.OnOrAfter,
+              date: '2026-11-16',
+            },
+          }),
+        }),
+      ];
+      rules.discounts = [
+        initEventDiscount({
+          id: 'nov_promo',
+          label: 'November Launch Promo',
+          discountCents: 2500,
+          conditions: initEventRuleConditions({
+            timing: {
+              kind: TimingConditionKind.CustomDate,
+              direction: CustomDateDirection.Before,
+              date: '2026-11-15',
+            },
+          }),
+        }),
+      ];
+      rules.addOns = [
+        initEventAddOn({
+          id: 'late_banquet',
+          label: 'Saturday Banquet Ticket',
+          priceCents: 6000,
+          spec: { kind: EventAddOnKind.Other },
+          conditions: initEventRuleConditions({
+            timing: {
+              kind: TimingConditionKind.CustomDate,
+              direction: CustomDateDirection.OnOrAfter,
+              date: '2026-11-16',
+            },
+          }),
+        }),
+      ];
+      rules.questions = [
+        initEventRegistrationQuestion({
+          id: 'q_late_arrival',
+          label: 'Arrival Time',
+          required: false,
+          spec: { kind: RegistrationQuestionKind.ShortText, placeholder: '' },
+          conditions: initEventRuleConditions({
+            timing: {
+              kind: TimingConditionKind.CustomDate,
+              direction: CustomDateDirection.OnOrAfter,
+              date: '2026-11-16',
+            },
+          }),
+        }),
+      ];
+
+      // On 2026-11-15 (inclusive boundary for Before 2026-11-15)
+      const onCutoffQuote = evaluateEventPricingQuote({
+        rules,
+        memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+        evaluationDateAoE: '2026-11-15',
+      });
+      expect(onCutoffQuote.allEvaluatedOptions.map((o) => o.option.id)).toEqual(['super_early_opt']);
+      expect(onCutoffQuote.attendanceNetCents).toBe(32500); // $350 - $25 promo
+      expect(onCutoffQuote.availableAddOns).toHaveLength(0);
+      expect(onCutoffQuote.applicableQuestions).toHaveLength(0);
+
+      // On 2026-11-16 (inclusive boundary for OnOrAfter 2026-11-16)
+      const afterCutoffQuote = evaluateEventPricingQuote({
+        rules,
+        memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+        evaluationDateAoE: '2026-11-16',
+      });
+      expect(afterCutoffQuote.allEvaluatedOptions.map((o) => o.option.id)).toEqual(['standard_opt']);
+      expect(afterCutoffQuote.attendanceNetCents).toBe(45000);
+      expect(afterCutoffQuote.availableAddOns.map((a) => a.addOn.id)).toEqual(['late_banquet']);
+      expect(afterCutoffQuote.applicableQuestions.map((q) => q.id)).toEqual(['q_late_arrival']);
+
+      // Empty custom date fails validateRuleConditions
+      expect(
+        validateRuleConditions(
+          initEventRuleConditions({
+            timing: {
+              kind: TimingConditionKind.CustomDate,
+              direction: CustomDateDirection.Before,
+              date: '',
+            },
+          }),
+          { itemLabel: 'Broken Custom Date', allowRegistrationCondition: true, earlyBirdEnabled: false },
+        ),
+      ).toHaveLength(1);
+    });
+
+    it('restricts PaymentConditionKind.PaidInFull exclusively to Add-Ons and unlocks on Full payment, Deposit->Full upgrade, or offline Paid-in-Full', () => {
+      const normalized = normalizeEventPricingRules({
+        registrationOptions: [
+          {
+            id: 'full_pass',
+            label: 'Full Pass',
+            priceCents: 30000,
+            conditions: {
+              payment: { kind: PaymentConditionKind.PaidInFull },
+            },
+          },
+        ],
+        discounts: [
+          {
+            id: 'disc_1',
+            label: 'Discount',
+            discountCents: 2000,
+            conditions: {
+              payment: { kind: PaymentConditionKind.PaidInFull },
+            },
+          },
+        ],
+        questions: [
+          {
+            id: 'q_1',
+            label: 'Question',
+            spec: { kind: RegistrationQuestionKind.ShortText, placeholder: '' },
+            conditions: {
+              payment: { kind: PaymentConditionKind.PaidInFull },
+            },
+          },
+        ],
+        addOns: [
+          {
+            id: 'paid_full_recording',
+            label: 'Included Recording (Paid in Full)',
+            priceCents: 0,
+            spec: { kind: EventAddOnKind.EventRecording },
+            conditions: {
+              payment: { kind: PaymentConditionKind.PaidInFull },
+            },
+          },
+          {
+            id: 'paid_full_merch',
+            label: 'VIP Training Manual',
+            priceCents: 3500,
+            spec: { kind: EventAddOnKind.Other },
+            conditions: {
+              payment: { kind: PaymentConditionKind.PaidInFull },
+            },
+          },
+        ],
+        payment: {
+          allowFullPayment: true,
+          depositPolicy: {
+            kind: DepositPolicyKind.Enabled,
+            depositCents: 10000,
+            refundPolicy: { kind: DepositRefundPolicyKind.NonRefundable },
+            offlineInstructions: 'Cash at door',
+          },
+          allowZeroDepositInPerson: true,
+        },
+      });
+
+      // Stripped to AnyPayment on non-AddOns, preserved on AddOns
+      expect(normalized.registrationOptions[0].conditions.payment.kind).toBe(
+        PaymentConditionKind.AnyPayment,
+      );
+      expect(normalized.discounts[0].conditions.payment.kind).toBe(PaymentConditionKind.AnyPayment);
+      expect(normalized.questions[0].conditions.payment.kind).toBe(PaymentConditionKind.AnyPayment);
+      expect(normalized.addOns[0].conditions.payment.kind).toBe(PaymentConditionKind.PaidInFull);
+
+      // Validation rejects PaidInFull when allowPaymentCondition is false, accepts when true
+      const paidFullConds = normalized.addOns[0].conditions;
+      expect(
+        validateRuleConditions(paidFullConds, {
+          itemLabel: 'Discount',
+          allowRegistrationCondition: true,
+          allowPaymentCondition: false,
+          earlyBirdEnabled: false,
+        }),
+      ).toHaveLength(1);
+      expect(
+        validateRuleConditions(paidFullConds, {
+          itemLabel: 'Add-On',
+          allowRegistrationCondition: true,
+          allowPaymentCondition: true,
+          earlyBirdEnabled: false,
+        }),
+      ).toHaveLength(0);
+
+      // 1. Deposit payment choice -> PaidInFull add-ons are NOT available; requesting one returns AddOnUnavailable
+      const depositQuote = evaluateEventPricingQuote({
+        rules: normalized,
+        memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+        evaluationDateAoE: '2026-11-01',
+        selectedOptionId: 'full_pass',
+        selectedAddOnIds: ['paid_full_recording'],
+        paymentChoice: PaymentChoice.Deposit,
+      });
+      expect(depositQuote.isPaidInFull).toBe(false);
+      expect(depositQuote.availableAddOns).toHaveLength(0);
+      expect(depositQuote.isValid).toBe(false);
+      expect(depositQuote.validationErrors[0]).toMatchObject({
+        code: PricingValidationErrorCode.AddOnUnavailable,
+      });
+      expect(depositQuote.validationErrors[0].message).toContain('requires paying in full');
+
+      // 2. PayAtDoor payment choice -> PaidInFull add-ons are NOT available
+      const doorQuote = evaluateEventPricingQuote({
+        rules: normalized,
+        memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+        evaluationDateAoE: '2026-11-01',
+        selectedOptionId: 'full_pass',
+        paymentChoice: PaymentChoice.PayAtDoor,
+      });
+      expect(doorQuote.isPaidInFull).toBe(false);
+      expect(doorQuote.availableAddOns).toHaveLength(0);
+
+      // 3. Full online payment -> PaidInFull add-ons ARE available!
+      const fullQuote = evaluateEventPricingQuote({
+        rules: normalized,
+        memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+        evaluationDateAoE: '2026-11-01',
+        selectedOptionId: 'full_pass',
+        selectedAddOnIds: ['paid_full_recording', 'paid_full_merch'],
+        paymentChoice: PaymentChoice.Full,
+      });
+      expect(fullQuote.isPaidInFull).toBe(true);
+      expect(fullQuote.isValid).toBe(true);
+      expect(fullQuote.availableAddOns.map((a) => a.addOn.id)).toEqual([
+        'paid_full_recording',
+        'paid_full_merch',
+      ]);
+      // $300 option - $20 disc_1 (whose PaidInFull condition was stripped to AnyPayment) + $35 merch = $315
+      expect(fullQuote.chargeNowCents).toBe(31500);
+
+      // 4. Existing registration marked Paid in Full offline -> isRegistrationPaidInFull is true and unlocks add-ons even on a door-only setup
+      const offlinePaidReg: EventRegistration = {
+        ...initEventRegistration(),
+        docId: 'reg_off_1',
+        optionId: 'full_pass',
+        attendance: AttendanceType.InPerson,
+        status: EventRegistrationStatus.Paid,
+        paidInFullOffline: true,
+        paymentMethod: RegistrationPaymentMethod.InPerson,
+        totalPriceCents: 30000,
+        amountPaidCents: 30000,
+        registeredAt: '2026-10-20T10:00:00Z',
+      };
+      expect(isRegistrationPaidInFull(offlinePaidReg)).toBe(true);
+
+      const autoGrantRes = computeAutoGrantedPaidInFullAddOns({
+        registration: offlinePaidReg,
+        rules: normalized,
+        memberContext: PUBLIC_MEMBER_STATUS_CONTEXT,
+        nowAoEDate: '2026-11-01',
+      });
+      expect(autoGrantRes.newlyGrantedAddOnIds).toEqual(['paid_full_recording']);
+      expect(autoGrantRes.selectedAddOnIds).toEqual(['paid_full_recording']);
+      expect(autoGrantRes.hasVideoAccess).toBe(true);
     });
   });
 });

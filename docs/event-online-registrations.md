@@ -300,3 +300,17 @@ Checkout sessions resolve the Stripe Product ID using a three-tier hierarchy:
 3. **Publishing Live (`status: 'listed'`)**:
    - When ready for public announcement, switch status to **Listed Publicly**.
    - The event immediately appears across all public calendar widgets, event lists, and search results.
+
+### 5.6 Rule-Based Conditions (`Timing` Custom Dates & Add-On `Payment` Condition)
+
+Defined in [`functions/src/data-model/event-pricing-rules.ts`](../functions/src/data-model/event-pricing-rules.ts) and edited via [`RuleConditionsEditorComponent`](../src/app/rule-conditions-editor/rule-conditions-editor.ts):
+
+1. **Timing Conditions (`TimingCondition`)**:
+   - Available on Registration Options, Discounts, Event Add-Ons, and Form Questions.
+   - Supports relative windows (`BeforeEarlyBird`, `BeforeEventStart`) as well as `TimingConditionKind.CustomDate` (`YYYY-MM-DD`, evaluated Anywhere-on-Earth UTC-12):
+     - **Before custom date** (`CustomDateDirection.Before`): active while `evaluationDateAoE <= date`.
+     - **On or after custom date** (`CustomDateDirection.OnOrAfter`): active when `evaluationDateAoE >= date`.
+2. **Add-On Payment Condition (`PaymentConditionKind.PaidInFull`)**:
+   - Shown and permitted **only** on Event Add-Ons (`allowPaymentCondition = true`; stripped to `AnyPayment` on Registration Options, Discounts, and Questions).
+   - Satisfied when the attendee pays in full online (`PaymentChoice.Full`, including upgrading from Deposit or Pay-at-Door to Full Payment) or when an admin records offline full payment (`paidInFullOffline: true`) via **Mark Paid in Full** on `/events/:eventId/registrations` (`markEventRegistrationPaid`).
+   - Marking a registration **Paid in Full** on `/events/:eventId/registrations` unlocks Paid-in-Full add-ons on `/events/:eventId/register` and automatically grants any matching free (`$0`) Paid-in-Full add-ons (recording `autoGrantedAddOnIds`, `hasVideoAccess`, and catalog VOD grants); **Unmark Paid** (`unmarkEventRegistrationPaid`) reverts `paidInFullOffline` and strips only `autoGrantedAddOnIds`.
