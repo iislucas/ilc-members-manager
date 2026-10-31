@@ -48,7 +48,7 @@ export class RuleConditionsEditorComponent {
 
   // Preserve previously configured condition values in memory if removed and re-added during editing.
   private cachedWhoStatus: PersonStatusKind = PersonStatusKind.Member;
-  private cachedTimingWindow: TimingWindow = TimingWindow.OnOrBeforeEarlyBird;
+  private cachedTimingWindow: TimingWindow = TimingWindow.BeforeEarlyBird;
   private cachedOptionIds: string[] | null = null;
 
   constructor() {
@@ -101,8 +101,7 @@ export class RuleConditionsEditorComponent {
     const t = this.conditions().timing;
     if (t.kind !== TimingConditionKind.Window) return '';
     if (
-      (t.window === TimingWindow.OnOrBeforeEarlyBird ||
-        t.window === TimingWindow.AfterEarlyBird) &&
+      t.window === TimingWindow.BeforeEarlyBird &&
       (!this.earlyBirdEnabled() || !this.normalizedEarlyBirdDate())
     ) {
       return 'Enable Early Bird Pricing above and set a cutoff date to activate this timing condition.';
@@ -153,7 +152,7 @@ export class RuleConditionsEditorComponent {
 
   addTimingCondition(): void {
     const defaultWindow =
-      this.cachedTimingWindow === TimingWindow.OnOrBeforeEarlyBird &&
+      this.cachedTimingWindow === TimingWindow.BeforeEarlyBird &&
       !this.earlyBirdEnabled() &&
       Boolean(this.normalizedEventStartDate())
         ? TimingWindow.BeforeEventStart

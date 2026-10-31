@@ -1012,7 +1012,7 @@ export function formatProductPriceRange(product: Product): string {
             d.discountCents > 0 &&
             d.conditions.who.kind === WhoConditionKind.Anyone &&
             d.conditions.timing.kind === TimingConditionKind.Window &&
-            d.conditions.timing.window === TimingWindow.OnOrBeforeEarlyBird &&
+            d.conditions.timing.window === TimingWindow.BeforeEarlyBird &&
             matchesRegistrationCondition(d.conditions.registration, opt.id),
         )
         .reduce((sum, d) => sum + d.discountCents, 0);

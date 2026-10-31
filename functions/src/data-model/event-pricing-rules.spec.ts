@@ -165,7 +165,7 @@ function buildFlushingIntensiveRules(): EventPricingRules {
         conditions: initEventRuleConditions({
           timing: {
             kind: TimingConditionKind.Window,
-            window: TimingWindow.OnOrBeforeEarlyBird,
+            window: TimingWindow.BeforeEarlyBird,
           },
           registration: { kind: RegistrationConditionKind.SpecificOptions, optionIds: ['full_workshop'] },
         }),
@@ -179,7 +179,7 @@ function buildFlushingIntensiveRules(): EventPricingRules {
         conditions: initEventRuleConditions({
           timing: {
             kind: TimingConditionKind.Window,
-            window: TimingWindow.OnOrBeforeEarlyBird,
+            window: TimingWindow.BeforeEarlyBird,
           },
           registration: { kind: RegistrationConditionKind.SpecificOptions, optionIds: ['full_workshop'] },
         }),
@@ -385,20 +385,20 @@ describe('event-pricing-rules', () => {
       expect(quote.isDepositCurrentlyRefundable).toBe(false);
     });
 
-    it('evaluates OnOrBeforeEarlyBird and AfterEarlyBird timing conditions on add-ons & options accurately', () => {
-      const rulesWithAfterCutoffAddOn: EventPricingRules = {
+    it('evaluates BeforeEarlyBird and BeforeEventStart timing conditions on add-ons & options accurately', () => {
+      const rulesWithPreStartAddOn: EventPricingRules = {
         ...rules,
         addOns: [
           ...rules.addOns.slice(0, 2),
           initEventAddOn({
-            id: 'post_eb_videos',
-            label: 'Intensive Videos (Standard)',
-            description: 'Available after Early Bird ends',
+            id: 'pre_start_videos',
+            label: 'Intensive Videos (Pre-Event)',
+            description: 'Available before event starts',
             spec: { kind: EventAddOnKind.EventRecording },
             conditions: initEventRuleConditions({
               timing: {
                 kind: TimingConditionKind.Window,
-                window: TimingWindow.AfterEarlyBird,
+                window: TimingWindow.BeforeEventStart,
               },
               registration: { kind: RegistrationConditionKind.SpecificOptions, optionIds: ['full_workshop'] },
             }),
@@ -407,9 +407,9 @@ describe('event-pricing-rules', () => {
         ],
       };
 
-      // During Early Bird: OnOrBeforeCutoff add-ons are shown, AfterCutoff is hidden
+      // During Early Bird (before cutoff & before start): both BeforeEarlyBird and BeforeEventStart add-ons are shown
       const earlyQuote = evaluateEventPricingQuote({
-        rules: rulesWithAfterCutoffAddOn,
+        rules: rulesWithPreStartAddOn,
         memberContext: activeMemberCtx,
         eventStartDate,
         evaluationDateAoE: '2026-12-15',
@@ -418,26 +418,39 @@ describe('event-pricing-rules', () => {
       expect(earlyQuote.availableAddOns.map((a) => a.addOn.id)).toEqual([
         'eb_free_videos',
         'eb_video_review',
+        'pre_start_videos',
       ]);
 
-      // After cutoff: OnOrBeforeCutoff add-ons are hidden, AfterCutoff is shown
+      // After Early Bird cutoff, before event start: BeforeEarlyBird add-ons are hidden, BeforeEventStart stays shown
       const lateQuote = evaluateEventPricingQuote({
-        rules: rulesWithAfterCutoffAddOn,
+        rules: rulesWithPreStartAddOn,
         memberContext: activeMemberCtx,
         eventStartDate,
-        nowMs: Date.parse('2027-01-01T12:00:00Z'), // 2027-01-01 AoE -> Late Registration
+        nowMs: Date.parse('2027-01-01T12:00:00Z'), // 2027-01-01 AoE -> After Early Bird, Before Start
         selectedOptionId: 'full_workshop',
-        selectedAddOnIds: ['post_eb_videos'],
+        selectedAddOnIds: ['pre_start_videos'],
         paymentChoice: PaymentChoice.Full,
       });
 
       expect(lateQuote.isEarlyBird).toBe(false);
+      expect(lateQuote.isBeforeEventStart).toBe(true);
       expect(lateQuote.isValid).toBe(true);
-      expect(lateQuote.availableAddOns.map((a) => a.addOn.id)).toEqual(['post_eb_videos']);
+      expect(lateQuote.availableAddOns.map((a) => a.addOn.id)).toEqual(['pre_start_videos']);
       expect(lateQuote.chargeNowCents).toBe(56500); // $490 + $75
 
+      // Once event starts: BeforeEventStart add-ons are also hidden
+      const startedQuote = evaluateEventPricingQuote({
+        rules: rulesWithPreStartAddOn,
+        memberContext: activeMemberCtx,
+        eventStartDate,
+        evaluationDateAoE: eventStartDate,
+        selectedOptionId: 'full_workshop',
+      });
+      expect(startedQuote.isBeforeEventStart).toBe(false);
+      expect(startedQuote.availableAddOns).toHaveLength(0);
+
       const invalidAttempt = evaluateEventPricingQuote({
-        rules: rulesWithAfterCutoffAddOn,
+        rules: rulesWithPreStartAddOn,
         memberContext: activeMemberCtx,
         eventStartDate,
         evaluationDateAoE: '2027-01-05',
@@ -450,7 +463,7 @@ describe('event-pricing-rules', () => {
       );
     });
 
-    it('does not trigger OnOrBeforeEarlyBird discounts when top-level Early Bird Pricing is Disabled', () => {
+    it('does not trigger BeforeEarlyBird discounts when top-level Early Bird Pricing is Disabled', () => {
       const disabledEarlyRules: EventPricingRules = {
         ...buildFlushingIntensiveRules(),
         earlyBird: { kind: EarlyBirdPolicyKind.Disabled },
@@ -462,7 +475,7 @@ describe('event-pricing-rules', () => {
             conditions: initEventRuleConditions({
               timing: {
                 kind: TimingConditionKind.Window,
-                window: TimingWindow.OnOrBeforeEarlyBird,
+                window: TimingWindow.BeforeEarlyBird,
               },
             }),
           }),
@@ -564,7 +577,7 @@ describe('event-pricing-rules', () => {
             conditions: initEventRuleConditions({
               timing: {
                 kind: TimingConditionKind.Window,
-                window: TimingWindow.OnOrBeforeEarlyBird,
+                window: TimingWindow.BeforeEarlyBird,
               },
             }),
           }),
@@ -828,7 +841,7 @@ describe('event-pricing-rules', () => {
       });
       expect(normalized.registrationOptions[1].conditions.timing).toEqual({
         kind: TimingConditionKind.Window,
-        window: TimingWindow.OnOrBeforeEarlyBird,
+        window: TimingWindow.BeforeEarlyBird,
       });
       // Legacy basePriceCents + deltaFromDefaultCents convert cleanly to explicit priceCents
       expect(normalized.registrationOptions[0].priceCents).toBe(20000);
@@ -845,17 +858,17 @@ describe('event-pricing-rules', () => {
         ['inst_d', 3000],
       ]);
 
-      // Migrated discounted add-on splits into OnOrBeforeEarlyBird ($20) and AfterEarlyBird ($25)
+      // Migrated discounted add-on splits into BeforeEarlyBird ($20) and BeforeEventStart ($25)
       expect(normalized.addOns).toHaveLength(2);
       expect(normalized.addOns[0].priceCents).toBe(2000);
       expect(normalized.addOns[0].conditions.timing).toEqual({
         kind: TimingConditionKind.Window,
-        window: TimingWindow.OnOrBeforeEarlyBird,
+        window: TimingWindow.BeforeEarlyBird,
       });
       expect(normalized.addOns[1].priceCents).toBe(2500);
       expect(normalized.addOns[1].conditions.timing).toEqual({
         kind: TimingConditionKind.Window,
-        window: TimingWindow.AfterEarlyBird,
+        window: TimingWindow.BeforeEventStart,
       });
 
       // Legacy conditions with separate earlyBird / eventStart or removed spouse status migrate safely
@@ -904,7 +917,7 @@ describe('event-pricing-rules', () => {
       expect(legacySplitConds.discounts.map((d) => d.id)).toEqual(['d_eb']);
       expect(legacySplitConds.discounts[0].conditions.timing).toEqual({
         kind: TimingConditionKind.Window,
-        window: TimingWindow.OnOrBeforeEarlyBird,
+        window: TimingWindow.BeforeEarlyBird,
       });
 
       // validateRuleConditions enforces Early Bird policy, implicit registration condition, and >= 1 selected option
@@ -913,7 +926,7 @@ describe('event-pricing-rules', () => {
           initEventRuleConditions({
             timing: {
               kind: TimingConditionKind.Window,
-              window: TimingWindow.OnOrBeforeEarlyBird,
+              window: TimingWindow.BeforeEarlyBird,
             },
           }),
           { itemLabel: 'EB Discount', allowRegistrationCondition: true, earlyBirdEnabled: false },
@@ -1021,7 +1034,7 @@ describe('event-pricing-rules', () => {
           conditions: initEventRuleConditions({
             timing: {
               kind: TimingConditionKind.Window,
-              window: TimingWindow.OnOrBeforeEarlyBird,
+              window: TimingWindow.BeforeEarlyBird,
             },
           }),
         }),
