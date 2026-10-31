@@ -42,6 +42,7 @@ import {
   computeEffectiveCapacityUsage,
   encodeQuestionResponsesToMetadata,
   evaluateEventPricingQuote,
+  evaluateRegistrationUpgradeSettlement,
   EventAddOnKind,
   EventCapacity,
   EventPricingQuote,
@@ -51,16 +52,19 @@ import {
   firestoreDocToEventRegistration,
   firestoreDocToIlcEvent,
   firestoreDocToProduct,
+  formatRegistrationPackageSummary,
   IlcEvent,
   initEventRegistration,
   isEventPast,
   mergeImmutableQuestionResponses,
+  mergeRetainedAddOnsForUpgrade,
   normalizeCapacityMap,
   PaymentChoice,
   PricingTierType,
   PricingValidationErrorCode,
   Product,
   RegistrationPaymentMethod,
+  resolveOwnedRegistrationAddOnIds,
   validateAndBuildQuestionResponses,
 } from './data-model/events';
 import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
@@ -70,6 +74,7 @@ import { normalizeEmail, normalizeEmails } from './data-model/email';
 import { NotificationKind } from './data-model/notifications';
 import { VideoGrant, VideoGrantKind } from './data-model/vod';
 import { createMemberNotification } from './notifications';
+import { sendTransactionalEmail, TransactionalEmailKey } from './email-dispatcher';
 import { resolveEventVideoGrantTargets } from './proposed-events';
 
 function requireAllowedOrigin(origin: unknown): string {
@@ -119,6 +124,8 @@ export function resolveEffectiveRulesAndCapacities(
   return { rules, capacityCounts };
 }
 
+export { formatRegistrationPackageSummary };
+
 export function resolveRequestRuleSelection(
   rules: EventPricingRules,
   data: {
@@ -129,6 +136,7 @@ export function resolveRequestRuleSelection(
     includeVideo?: boolean;
   },
   existingReg: EventRegistration | null,
+  availableAddOnIds?: ReadonlySet<string>,
 ): {
   selectedOptionId: string;
   selectedSuboptions: string[];
@@ -160,28 +168,35 @@ export function resolveRequestRuleSelection(
     selectedOptionId = rules.registrationOptions[0]?.id || '';
   }
 
-  const addOnSet = new Set<string>(
-    (data.selectedAddOnIds ?? []).map((id) => id.trim()).filter(Boolean),
-  );
+  const ownedIds = resolveOwnedRegistrationAddOnIds(existingReg, rules);
+  const addOnSet = new Set<string>();
+  for (const rawId of data.selectedAddOnIds ?? []) {
+    const id = rawId.trim();
+    if (!id) continue;
+    // If an already-owned add-on's timing window has passed, mergeRetainedAddOnsForUpgrade
+    // preserves it without failing quote validation.
+    if (ownedIds.has(id) && availableAddOnIds && !availableAddOnIds.has(id)) {
+      continue;
+    }
+    addOnSet.add(id);
+  }
+
   // Legacy callers passing includeVideo: true without selectedAddOnIds
   if (data.selectedAddOnIds === undefined && data.includeVideo) {
-    for (const addOn of rules.addOns) {
-      if (addOn.spec.kind === EventAddOnKind.EventRecording) {
-        addOnSet.add(addOn.id);
-      }
+    const recAddOn = rules.addOns.find(
+      (a) =>
+        a.spec.kind === EventAddOnKind.EventRecording &&
+        (!availableAddOnIds || availableAddOnIds.has(a.id)),
+    );
+    if (recAddOn) {
+      addOnSet.add(recAddOn.id);
     }
   }
-  // Paid / deposit-paid upgrades retain previously purchased add-ons
-  if (existingReg && !isRegistrationPendingInPerson(existingReg)) {
-    for (const id of existingReg.selectedAddOnIds) {
-      if (id) addOnSet.add(id);
-    }
-    if (existingReg.hasVideoAccess) {
-      for (const addOn of rules.addOns) {
-        if (addOn.spec.kind === EventAddOnKind.EventRecording) {
-          addOnSet.add(addOn.id);
-        }
-      }
+
+  // Paid / deposit-paid upgrades retain previously purchased add-ons that are currently eligible
+  for (const id of ownedIds) {
+    if (!availableAddOnIds || availableAddOnIds.has(id)) {
+      addOnSet.add(id);
     }
   }
 
@@ -221,12 +236,22 @@ export function computePriorPaidCreditCents(
     return paidCents;
   }
 
-  const priorAddOnIds = new Set<string>(existingReg.selectedAddOnIds);
-  if (existingReg.hasVideoAccess) {
-    for (const a of rules.addOns) {
-      if (a.spec.kind === EventAddOnKind.EventRecording) {
-        priorAddOnIds.add(a.id);
-      }
+  const prelimPrior = evaluateEventPricingQuote({
+    rules,
+    memberContext,
+    isAdmin,
+    eventStartDate,
+    selectedOptionId: priorOptId,
+  });
+  const availPriorAddOnIds = new Set(prelimPrior.availableAddOns.map((a) => a.addOn.id));
+  const ownedIds = resolveOwnedRegistrationAddOnIds(existingReg, rules);
+  const activeOwnedIds = Array.from(ownedIds).filter((id) => availPriorAddOnIds.has(id));
+
+  let unavailableOwnedCents = 0;
+  for (const id of ownedIds) {
+    if (!availPriorAddOnIds.has(id)) {
+      const addOn = rules.addOns.find((a) => a.id === id);
+      if (addOn) unavailableOwnedCents += Math.max(0, addOn.priceCents);
     }
   }
 
@@ -236,10 +261,14 @@ export function computePriorPaidCreditCents(
     isAdmin,
     eventStartDate,
     selectedOptionId: priorOptId,
-    selectedAddOnIds: Array.from(priorAddOnIds),
+    selectedAddOnIds: activeOwnedIds,
   });
 
-  return Math.max(paidCents, priorQuote.agreedTotalCents);
+  return Math.max(
+    paidCents,
+    existingReg.totalPriceCents,
+    priorQuote.totalPriceCents + unavailableOwnedCents,
+  );
 }
 
 export function assertValidQuoteOrThrow(quote: EventPricingQuote): void {
@@ -297,11 +326,11 @@ export function buildUnmarkedRegistrationUpdates(
   reg: EventRegistration,
   nowIso: string = new Date().toISOString(),
 ): Partial<EventRegistration> {
-  if (reg.depositPaidCents > 0 && reg.agreedTotalCents > reg.depositPaidCents) {
+  if (reg.depositPaidCents > 0 && reg.totalPriceCents > reg.depositPaidCents) {
     return {
       status: EventRegistrationStatus.DepositPaid,
       amountPaidCents: reg.depositPaidCents,
-      amountDueCents: reg.agreedTotalCents - reg.depositPaidCents,
+      amountDueCents: reg.totalPriceCents - reg.depositPaidCents,
       paidAt: '',
       lastUpdated: nowIso,
     };
@@ -313,7 +342,7 @@ export function buildUnmarkedRegistrationUpdates(
     );
   }
   const amountDueToRestore =
-    reg.agreedTotalCents || reg.amountPaidCents || reg.amountDueCents || 0;
+    reg.totalPriceCents || reg.amountPaidCents || reg.amountDueCents || 0;
   return {
     status: EventRegistrationStatus.PendingInPerson,
     amountDueCents: amountDueToRestore,
@@ -585,10 +614,20 @@ export const createProductCheckoutSession = onCall<
   const existingCapacityUsage = existingReg
     ? computeEffectiveCapacityUsage(existingReg, rules.capacities)
     : {};
-  const selection = resolveRequestRuleSelection(rules, data, existingReg);
+  const eventPast = linkedEvent ? isEventPast(linkedEvent) : false;
+  const prelimSelection = resolveRequestRuleSelection(rules, data, existingReg);
+  const prelimQuote = evaluateEventPricingQuote({
+    rules,
+    memberContext: targetMemberContext,
+    isAdmin: caller.isAdmin,
+    isEventPast: eventPast,
+    eventStartDate: linkedEvent?.start || '',
+    selectedOptionId: prelimSelection.selectedOptionId,
+  });
+  const availAddOnIdSet = new Set(prelimQuote.availableAddOns.map((a) => a.addOn.id));
+  const selection = resolveRequestRuleSelection(rules, data, existingReg, availAddOnIdSet);
   const requestedPaymentChoice =
     data.paymentChoice === PaymentChoice.Deposit ? PaymentChoice.Deposit : PaymentChoice.Full;
-  const eventPast = linkedEvent ? isEventPast(linkedEvent) : false;
 
   const quote = evaluateEventPricingQuote({
     rules,
@@ -622,26 +661,22 @@ export const createProductCheckoutSession = onCall<
     );
   }
 
-  const creditAppliedCents = computePriorPaidCreditCents(
+  const settlement = evaluateRegistrationUpgradeSettlement({
     existingReg,
+    quote,
     rules,
-    targetMemberContext,
-    caller.isAdmin,
-    linkedEvent?.start || '',
-  );
+    memberContext: targetMemberContext,
+    isAdmin: caller.isAdmin,
+    eventStartDate: linkedEvent?.start || '',
+  });
 
-  const priceToChargeInCents =
-    effectiveChoice === PaymentChoice.Deposit
-      ? Math.max(0, quote.chargeNowCents - creditAppliedCents)
-      : Math.max(0, quote.agreedTotalCents - creditAppliedCents);
+  if (settlement.isDowngrade) {
+    throw new HttpsError('failed-precondition', settlement.downgradeMessage);
+  }
 
-  const remainingDoorBalanceCents =
-    effectiveChoice === PaymentChoice.Deposit
-      ? Math.max(
-          0,
-          quote.cashDueAtDoorCents - Math.max(0, creditAppliedCents - quote.chargeNowCents),
-        )
-      : 0;
+  const creditAppliedCents = settlement.creditAppliedCents;
+  const priceToChargeInCents = settlement.onlineDueNowCents;
+  const remainingDoorBalanceCents = settlement.doorBalanceDueCents;
 
   if (priceToChargeInCents <= 0) {
     throw new HttpsError(
@@ -702,8 +737,9 @@ export const createProductCheckoutSession = onCall<
   // 6. Build Dynamic Line Item Description & Metadata
   const role: AttendeeRole = existingReg?.role || getAttendeeRoleForStatus(targetMemberContext);
   const attendance = selectedOpt.option.attendanceType;
-  const selectedAddOnIds = quote.selectedAddOns.map((a) => a.addOn.id);
-  const selectedAddOnLabels = quote.selectedAddOns.map((a) => a.addOn.label);
+  const mergedAddOns = mergeRetainedAddOnsForUpgrade(existingReg, rules, quote.selectedAddOns);
+  const selectedAddOnIds = mergedAddOns.selectedAddOnIds;
+  const selectedAddOnLabels = mergedAddOns.selectedAddOnLabels;
   const includeVideo =
     attendance === AttendanceType.VideoOnly ||
     Boolean(existingReg?.hasVideoAccess) ||
@@ -750,8 +786,12 @@ export const createProductCheckoutSession = onCall<
     selectedAddOnLabels: JSON.stringify(selectedAddOnLabels),
     capacityUsage: JSON.stringify(selectedOpt.option.capacityUsage),
     paymentChoice: effectiveChoice,
-    agreedTotalCents: String(quote.agreedTotalCents),
-    depositCents: String(effectiveChoice === PaymentChoice.Deposit ? quote.depositCents : 0),
+    totalPriceCents: String(settlement.effectiveTotalPriceCents),
+    depositCents: String(
+      effectiveChoice === PaymentChoice.Deposit
+        ? Math.max(quote.depositCents, existingReg?.depositPaidCents || 0)
+        : 0,
+    ),
     cashDueAtDoorCents: String(remainingDoorBalanceCents),
     attendeeName: data.attendeeDetails?.name || '',
     attendeeEmail: normalizeEmail(data.attendeeDetails?.email),
@@ -924,9 +964,21 @@ export const updateProductRegistration = onCall<
 
   const { rules, capacityCounts } = resolveEffectiveRulesAndCapacities(product, linkedEvent);
   const existingCapacityUsage = computeEffectiveCapacityUsage(existingReg, rules.capacities);
-  const selection = resolveRequestRuleSelection(rules, data, existingReg);
   const isUnpaidInPerson = isRegistrationPendingInPerson(existingReg);
   const eventPast = linkedEvent ? isEventPast(linkedEvent) : false;
+  const isAdminOrManager = caller.isAdmin || isEventManager;
+
+  const prelimSelection = resolveRequestRuleSelection(rules, data, existingReg);
+  const prelimQuote = evaluateEventPricingQuote({
+    rules,
+    memberContext: targetMemberContext,
+    isAdmin: isAdminOrManager,
+    isEventPast: eventPast,
+    eventStartDate: linkedEvent?.start || '',
+    selectedOptionId: prelimSelection.selectedOptionId,
+  });
+  const availAddOnIdSet = new Set(prelimQuote.availableAddOns.map((a) => a.addOn.id));
+  const selection = resolveRequestRuleSelection(rules, data, existingReg, availAddOnIdSet);
 
   const requestedChoice = isUnpaidInPerson
     ? PaymentChoice.PayAtDoor
@@ -937,7 +989,7 @@ export const updateProductRegistration = onCall<
   const quote = evaluateEventPricingQuote({
     rules,
     memberContext: targetMemberContext,
-    isAdmin: caller.isAdmin || isEventManager,
+    isAdmin: isAdminOrManager,
     isEventPast: eventPast,
     capacityCounts,
     existingCapacityUsage,
@@ -959,19 +1011,20 @@ export const updateProductRegistration = onCall<
   }
   const selectedOpt = quote.selectedOption!;
 
-  const creditAppliedCents = computePriorPaidCreditCents(
+  const settlement = evaluateRegistrationUpgradeSettlement({
     existingReg,
+    quote,
     rules,
-    targetMemberContext,
-    caller.isAdmin || isEventManager,
-    linkedEvent?.start || '',
-  );
+    memberContext: targetMemberContext,
+    isAdmin: isAdminOrManager,
+    eventStartDate: linkedEvent?.start || '',
+  });
 
-  const onlineDueNowCents = isUnpaidInPerson
-    ? 0
-    : quote.effectivePaymentChoice === PaymentChoice.Deposit
-      ? Math.max(0, quote.chargeNowCents - creditAppliedCents)
-      : Math.max(0, quote.agreedTotalCents - creditAppliedCents);
+  if (settlement.isDowngrade) {
+    throw new HttpsError('failed-precondition', settlement.downgradeMessage);
+  }
+
+  const onlineDueNowCents = isUnpaidInPerson ? 0 : settlement.onlineDueNowCents;
 
   if (onlineDueNowCents > 0 && !isUnpaidInPerson) {
     throw new HttpsError(
@@ -980,18 +1033,12 @@ export const updateProductRegistration = onCall<
     );
   }
 
-  const newDoorDueCents = isUnpaidInPerson
-    ? quote.agreedTotalCents
-    : quote.effectivePaymentChoice === PaymentChoice.Deposit
-      ? Math.max(
-          0,
-          quote.cashDueAtDoorCents - Math.max(0, creditAppliedCents - quote.chargeNowCents),
-        )
-      : 0;
+  const newDoorDueCents = settlement.doorBalanceDueCents;
 
   const attendance = selectedOpt.option.attendanceType;
-  const selectedAddOnIds = quote.selectedAddOns.map((a) => a.addOn.id);
-  const selectedAddOnLabels = quote.selectedAddOns.map((a) => a.addOn.label);
+  const mergedAddOns = mergeRetainedAddOnsForUpgrade(existingReg, rules, quote.selectedAddOns);
+  const selectedAddOnIds = mergedAddOns.selectedAddOnIds;
+  const selectedAddOnLabels = mergedAddOns.selectedAddOnLabels;
   const hasVideoAccess =
     attendance === AttendanceType.VideoOnly ||
     (!isUnpaidInPerson && existingReg.hasVideoAccess) ||
@@ -1047,7 +1094,7 @@ export const updateProductRegistration = onCall<
       selectedAddOnLabels,
       capacityUsage: normalizeCapacityMap(nextUsage),
       paymentChoice: quote.effectivePaymentChoice ?? PaymentChoice.Full,
-      agreedTotalCents: quote.agreedTotalCents,
+      totalPriceCents: settlement.effectiveTotalPriceCents,
       amountDueCents: newDoorDueCents,
       status: nextStatus,
       questionResponses: mergeImmutableQuestionResponses(
@@ -1125,8 +1172,19 @@ export const updateProductRegistration = onCall<
         product.inPersonDetailsMarkdown || linkedEvent?.inPersonDetailsMarkdown || '';
       const onlineJoiningLink =
         product.onlineJoiningLink || linkedEvent?.onlineJoiningLink || '';
+      const packageSummary = formatRegistrationPackageSummary({
+        optionLabel: selectedOpt.option.label,
+        attendance,
+        selectedSuboptions: quote.normalizedSuboptions,
+        selectedAddOnLabels,
+      });
 
-      let message = `Your registration for **[${eventTitle}](/events/${product.eventDocId})** has been updated (${selectedOpt.option.label})!`;
+      let message = `Your registration for **[${eventTitle}](/events/${product.eventDocId})** has been updated (${packageSummary})!`;
+      if (newDoorDueCents > 0) {
+        const dueFormatted = (newDoorDueCents / 100).toFixed(2);
+        const curr = (product.currency || 'usd').toUpperCase();
+        message += `\n\n**Remaining Balance Due at Door:** ${curr} ${dueFormatted}.`;
+      }
       if (
         attendance === AttendanceType.Online ||
         attendance === AttendanceType.InPersonAndOnline
@@ -1294,7 +1352,7 @@ export const registerEventInPerson = onCall<
   const hasVideoAccess =
     attendance === AttendanceType.VideoOnly ||
     quote.selectedAddOns.some((a) => a.addOn.spec.kind === EventAddOnKind.EventRecording);
-  const inPersonPriceCents = quote.agreedTotalCents;
+  const inPersonPriceCents = quote.totalPriceCents;
 
   const targetRegDoc = regsRef.doc();
   const registrationId = targetRegDoc.id;
@@ -1347,7 +1405,7 @@ export const registerEventInPerson = onCall<
       selectedAddOnLabels,
       capacityUsage: normalizeCapacityMap(nextUsage),
       paymentChoice: PaymentChoice.PayAtDoor,
-      agreedTotalCents: inPersonPriceCents,
+      totalPriceCents: inPersonPriceCents,
       depositPaidCents: 0,
       questionResponses: questionValidation.responses,
       amountPaidCents: 0,
@@ -1388,15 +1446,24 @@ export const registerEventInPerson = onCall<
     });
   });
 
-  // 6. Send Member Notification
+  // 6. Send Member Notification & Confirmation Email
+  const eventTitle = linkedEvent?.title || product.title || 'Event';
+  const formattedAmount = (inPersonPriceCents / 100).toFixed(2);
+  const curr = (product.currency || 'usd').toUpperCase();
+  const inPersonDetails =
+    product.inPersonDetailsMarkdown || linkedEvent?.inPersonDetailsMarkdown || '';
+  const onlineJoiningLink =
+    product.onlineJoiningLink || linkedEvent?.onlineJoiningLink || '';
+  const packageSummary = formatRegistrationPackageSummary({
+    optionLabel: selectedOpt.option.label,
+    attendance,
+    selectedSuboptions: quote.normalizedSuboptions,
+    selectedAddOnLabels,
+  });
+
   if (memberDocId) {
     try {
-      const eventTitle = linkedEvent?.title || product.title;
-      const formattedAmount = (inPersonPriceCents / 100).toFixed(2);
-      const curr = (product.currency || 'usd').toUpperCase();
-      const inPersonDetails =
-        product.inPersonDetailsMarkdown || linkedEvent?.inPersonDetailsMarkdown || '';
-      let message = `You are registered to pay in person for **[${eventTitle}](/events/${product.eventDocId})** (${selectedOpt.option.label})! Total due upon arrival: **${curr} ${formattedAmount}**.`;
+      let message = `You are registered to pay in person for **[${eventTitle}](/events/${product.eventDocId})** (${packageSummary})! Total due upon arrival: **${curr} ${formattedAmount}**.`;
       if (inPersonDetails) {
         message += `\n\n### In-Person Arrival Details\n${inPersonDetails}`;
       }
@@ -1413,6 +1480,41 @@ export const registerEventInPerson = onCall<
       });
     } catch (err) {
       logger.warn('Could not send in-person registration notification:', err);
+    }
+  }
+
+  if (email) {
+    try {
+      const startDate = linkedEvent?.start ? linkedEvent.start.split('T')[0] : '';
+      const endDate = linkedEvent?.end ? linkedEvent.end.split('T')[0] : '';
+      const dates =
+        startDate === endDate || !endDate ? startDate || '' : `${startDate} - ${endDate}`;
+      const hasOnline = Boolean(onlineJoiningLink.trim());
+      const dueNote = `Total due upon arrival: ${curr} ${formattedAmount}.`;
+      const baseInstructions =
+        inPersonDetails ||
+        product.purchaseDetailsMarkdown ||
+        linkedEvent?.purchaseDetailsMarkdown ||
+        'See event page for full details.';
+      await sendTransactionalEmail(db, {
+        to: email,
+        memberDocId: memberDocId || undefined,
+        templateKey: TransactionalEmailKey.EventRegistrationConfirmation,
+        replacements: {
+          name: name || 'ILC Attendee',
+          eventTitle,
+          eventDates: dates,
+          eventLocation: linkedEvent?.location || (hasOnline ? 'Online' : 'TBD'),
+          attendanceType: `${packageSummary} (Pay at Door)`,
+          onlineJoiningLink: onlineJoiningLink || 'Details on event page',
+          specialInstructions: `${dueNote}\n\n${baseInstructions}`,
+          amount: '0.00',
+          receiptUrl: '',
+          appBase: environment.links?.appBase || 'https://app.iliqchuan.com',
+        },
+      });
+    } catch (emailErr) {
+      logger.warn('Could not send in-person registration confirmation email:', emailErr);
     }
   }
 

@@ -2422,7 +2422,7 @@ describe('stripe-fulfillment', () => {
         selectedSuboptions: ['Friday', 'Saturday'],
         selectedAddOnIds: ['prep_video'],
         capacityUsage: { hall_spots: 1 },
-        agreedTotalCents: 8500,
+        totalPriceCents: 8500,
         depositPaidCents: 2000,
         amountPaidCents: 3500,
         amountDueCents: 5000,
@@ -2437,6 +2437,22 @@ describe('stripe-fulfillment', () => {
           },
         ],
       });
+      // Non-member guests also receive confirmation emails with full package summary & door balance
+      expect(sendTransactionalEmail).toHaveBeenCalledWith(
+        txDb,
+        expect.objectContaining({
+          to: 'guest@example.com',
+          templateKey: TransactionalEmailKey.EventRegistrationConfirmation,
+          replacements: expect.objectContaining({
+            name: 'Guest Practitioner',
+            attendanceType: '2-Day Pass [Friday, Saturday] + Prep Curriculum Video',
+            specialInstructions: expect.stringContaining(
+              'Remaining Balance Due at Door: USD 50.00.',
+            ),
+            amount: '35.00',
+          }),
+        }),
+      );
       expect(eventUpdatePayload).toMatchObject({
         capacityCounts: { hall_spots: 5 },
         inPersonRegistrationsCount: 5,

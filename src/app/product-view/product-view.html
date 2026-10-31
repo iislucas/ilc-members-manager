@@ -362,7 +362,8 @@
                 <label class="group-label">Registration Options</label>
                 <div class="registration-options-list">
                   @for (optEval of q.allEvaluatedOptions; track optEval.option.id) {
-                    @let isOptDisabled = !optEval.isEligibleForPerson || optEval.isSoldOut;
+                    @let isDowngrade = isOptionDowngrade(optEval);
+                    @let isOptDisabled = !optEval.isEligibleForPerson || optEval.isSoldOut || isDowngrade;
                     @let isSelected = q.selectedOption?.option?.id === optEval.option.id;
                     <label
                       class="reg-option-card"
@@ -385,6 +386,9 @@
                           }}</span>
                           @if (optEval.isSoldOut) {
                             <span class="chip-sold-out-badge">Sold Out</span>
+                          }
+                          @if (isDowngrade) {
+                            <span class="chip-restricted-badge">Lower Tier</span>
                           }
                           @if (!optEval.isEligibleForPerson) {
                             <span class="chip-restricted-badge">
@@ -597,8 +601,8 @@
                     q.effectivePaymentChoice === PaymentChoice.Deposit
                   "
                 >
-                  <span>Agreed Registration Total</span>
-                  <strong>{{ formatCents(q.agreedTotalCents) }}</strong>
+                  <span>Registration Total</span>
+                  <strong>{{ formatCents(effectiveTotalPriceCents()) }}</strong>
                 </div>
                 @if (q.effectivePaymentChoice === PaymentChoice.Deposit) {
                   <div class="summary-deposit-breakdown">
@@ -677,12 +681,18 @@
                 </div>
               }
 
-              @if (!q.isValid && q.isEligibleToRegister) {
+              @if ((!q.isValid || upgradeSettlement()?.isDowngrade) && q.isEligibleToRegister) {
                 <div class="quote-validation-errors">
                   @for (err of q.validationErrors; track err.code + err.message) {
                     <div class="quote-error-item">
                       <app-icon name="error"></app-icon>
                       <span>{{ err.message }}</span>
+                    </div>
+                  }
+                  @if (upgradeSettlement()?.isDowngrade) {
+                    <div class="quote-error-item">
+                      <app-icon name="error"></app-icon>
+                      <span>{{ upgradeSettlement()?.downgradeMessage }}</span>
                     </div>
                   }
                 </div>

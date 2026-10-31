@@ -94,6 +94,8 @@ describe('EventRegistrationsComponent', () => {
     getEventRegistrations: vi.fn().mockImplementation(async () =>
       mockRegistrations.map((r) => ({ ...r })),
     ),
+    getProduct: vi.fn().mockResolvedValue(undefined),
+    getProductByEventId: vi.fn().mockResolvedValue(undefined),
   };
 
   const mockDataManagerService = {
@@ -278,7 +280,7 @@ describe('EventRegistrationsComponent', () => {
       optionLabel: '2-Day Pass',
       selectedSuboptions: ['Friday', 'Saturday'],
       selectedAddOnLabels: ['Event Video Recording'],
-      agreedTotalCents: 7000,
+      totalPriceCents: 7000,
       depositPaidCents: 2000,
       amountPaidCents: 2000,
       amountDueCents: 5000,
@@ -611,10 +613,101 @@ describe('EventRegistrationsComponent', () => {
 
     try {
       component.exportCsv();
+      expect(createdContent).toContain(
+        'Payment Method,Payment Choice,Pricing Tier,Total Price,Deposit Paid,Amount Paid,Amount Due',
+      );
       expect(createdContent).toContain('Notes,"Meal Preference","Training Focus"');
       expect(createdContent).toContain(
         '"Arriving Friday evening","Vegetarian","Spinning Hands, Chin Na"',
       );
+    } finally {
+      createElSpy.mockRestore();
+      appendSpy.mockRestore();
+      removeSpy.mockRestore();
+      createUrlSpy.mockRestore();
+      revokeUrlSpy.mockRestore();
+      globalThis.Blob = originalBlob;
+    }
+  });
+
+  it('searches by option/add-on labels, summarizes named capacities, and sanitizes spreadsheet formula cells in CSV export', async () => {
+    await component.loadData();
+    component.event.set({
+      ...mockEvent,
+      capacities: [{ id: 'hall', label: 'Main Hall', description: '', limit: 10 }],
+    });
+    component.registrations.update((list) => [
+      ...list,
+      {
+        ...initEventRegistration(),
+        docId: 'reg-formula',
+        eventDocId: 'event-1',
+        name: '=HYPERLINK("https://evil.test")',
+        email: 'dep@example.com',
+        phone: '+1-555-0199',
+        attendance: AttendanceType.InPerson,
+        optionId: 'weekend_pass',
+        optionLabel: 'Weekend Intensive',
+        selectedSuboptions: ['Saturday', 'Sunday'],
+        selectedAddOnLabels: ['Commemorative Shirt'],
+        capacityUsage: { hall: 1 },
+        totalPriceCents: 15000,
+        depositPaidCents: 5000,
+        amountPaidCents: 5000,
+        amountDueCents: 10000,
+        status: EventRegistrationStatus.DepositPaid,
+        paymentMethod: RegistrationPaymentMethod.Stripe,
+        registeredAt: '2026-09-05T10:00:00.000Z',
+        notes: '=SUM(A1:A2)',
+      },
+    ]);
+    fixture.detectChanges();
+
+    // Named capacity summary bar counts explicit { hall: 1 } usage (1 / 10)
+    expect(component.evaluatedCapacities()).toEqual([
+      {
+        capacity: { id: 'hall', label: 'Main Hall', description: '', limit: 10 },
+        used: 1,
+        remaining: 9,
+        isFull: false,
+      },
+    ]);
+
+    // Search by option label, sub-option, and add-on label
+    component.searchTerm.set('commemorative shirt');
+    expect(component.filteredRegistrations().map((r) => r.docId)).toEqual(['reg-formula']);
+    component.searchTerm.set('weekend intensive');
+    expect(component.filteredRegistrations().map((r) => r.docId)).toEqual(['reg-formula']);
+
+    let createdContent = '';
+    const originalBlob = globalThis.Blob;
+    globalThis.Blob = class MockBlob extends originalBlob {
+      constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+        super(parts, options);
+        createdContent = (parts ?? []).map(String).join('');
+      }
+    };
+    const createElSpy = vi.spyOn(document, 'createElement').mockReturnValue({
+      setAttribute: vi.fn(),
+      click: vi.fn(),
+    } as unknown as HTMLElement);
+    const appendSpy = vi
+      .spyOn(document.body, 'appendChild')
+      .mockImplementation(() => null as unknown as Node);
+    const removeSpy = vi
+      .spyOn(document.body, 'removeChild')
+      .mockImplementation(() => null as unknown as Node);
+    const createUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('mock-blob-url');
+    const revokeUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    try {
+      component.exportCsv();
+      // Deposit row includes Payment Choice = Deposit, Total Price = 150.00, Deposit Paid = 50.00, Paid = 50.00, Due = 100.00
+      expect(createdContent).toContain('"stripe","Deposit","Standard",150.00,50.00,50.00,100.00');
+      // Phone starting with +1 is preserved, while name and notes starting with = are prefixed with '
+      expect(createdContent).toContain('"+1-555-0199"');
+      expect(createdContent).toContain('"\'=HYPERLINK(""https://evil.test"")"');
+      expect(createdContent).toContain('"\'=SUM(A1:A2)"');
     } finally {
       createElSpy.mockRestore();
       appendSpy.mockRestore();

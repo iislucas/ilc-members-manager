@@ -388,7 +388,7 @@ describe('ProductViewComponent', () => {
     const q = component.quote()!;
     expect(q.isEarlyBird).toBe(true);
     expect(q.selectedOption?.option.id).toBe('full_in_person');
-    expect(q.agreedTotalCents).toBe(6500);
+    expect(q.totalPriceCents).toBe(6500);
     expect(component.onlineDueNowCents()).toBe(6500);
     expect(component.canSubmit()).toBe(true);
   });
@@ -494,7 +494,7 @@ describe('ProductViewComponent', () => {
     fixture.detectChanges();
 
     // Full Workshop ($100) - $15 Early Bird - $20 Member - $10 Extra Instructor = $55 (5500 cents)
-    expect(component.quote()!.agreedTotalCents).toBe(5500);
+    expect(component.quote()!.totalPriceCents).toBe(5500);
 
     // Instructor Clinic is now eligible ($60, no discounts scoped to instructor_clinic)
     const instClinicAsInst = component
@@ -503,7 +503,7 @@ describe('ProductViewComponent', () => {
     expect(instClinicAsInst.isEligibleForPerson).toBe(true);
     component.selectOption(instClinicAsInst);
     fixture.detectChanges();
-    expect(component.quote()!.agreedTotalCents).toBe(6000);
+    expect(component.quote()!.totalPriceCents).toBe(6000);
   });
 
   it('calculates optional add-on price and deposit vs pay-at-door settlement', async () => {
@@ -517,7 +517,7 @@ describe('ProductViewComponent', () => {
     fixture.detectChanges();
 
     // Full online: $65 attendance + $20 recording = $85
-    expect(component.quote()!.agreedTotalCents).toBe(8500);
+    expect(component.quote()!.totalPriceCents).toBe(8500);
     expect(component.onlineDueNowCents()).toBe(8500);
     expect(component.doorBalanceDueCents()).toBe(0);
 
@@ -573,7 +573,7 @@ describe('ProductViewComponent', () => {
       optionLabel: 'Online Live (Zoom)',
       hasVideoAccess: false,
       amountPaidCents: 3000, // Online ($50) - Member ($20) = $30
-      agreedTotalCents: 3000,
+      totalPriceCents: 3000,
       paymentMethod: RegistrationPaymentMethod.Stripe,
       status: EventRegistrationStatus.Paid,
     };
@@ -595,7 +595,7 @@ describe('ProductViewComponent', () => {
       }),
     );
 
-    // Upgrading to Full Workshop ($65) -> $65 - $30 credit = $35 due online
+      // Upgrading to Full Workshop ($65) -> $65 - $30 credit = $35 due online
     const fullEval = component
       .quote()!
       .allEvaluatedOptions.find((o) => o.option.id === 'full_in_person')!;
@@ -614,6 +614,25 @@ describe('ProductViewComponent', () => {
         existingRegistrationDocId: 'reg-123',
       }),
     );
+
+    // Conversely, if a registrant already paid $65 for Full Workshop, switching down to Online ($30) is disabled as a Lower Tier downgrade
+    component.existingRegistration.set({
+      ...existingReg,
+      attendance: AttendanceType.InPerson,
+      optionId: 'full_in_person',
+      optionLabel: 'Full Workshop',
+      amountPaidCents: 6500,
+      totalPriceCents: 6500,
+    });
+    fixture.detectChanges();
+
+    const onlineEvalAfterPaidFull = component
+      .quote()!
+      .allEvaluatedOptions.find((o) => o.option.id === 'online_zoom')!;
+    expect(component.isOptionDowngrade(onlineEvalAfterPaidFull)).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Lower Tier');
+    component.selectOption(onlineEvalAfterPaidFull);
+    expect(component.selectedOptionId()).toBe('full_in_person');
   });
 
   it('allows pending in-person registrant to pay online via Stripe', async () => {
@@ -633,7 +652,7 @@ describe('ProductViewComponent', () => {
       capacityUsage: { hall_spots: 1 },
       amountPaidCents: 0,
       amountDueCents: 6500,
-      agreedTotalCents: 6500,
+      totalPriceCents: 6500,
       paymentMethod: RegistrationPaymentMethod.InPerson,
       status: EventRegistrationStatus.PendingInPerson,
     });
@@ -687,7 +706,7 @@ describe('ProductViewComponent', () => {
 
     // Member In-Person should evaluate to $80 (8000 cents), with 12 of 15 spots left
     const q = component.quote()!;
-    expect(q.agreedTotalCents).toBe(8000);
+    expect(q.totalPriceCents).toBe(8000);
     expect(q.evaluatedCapacities[0].remaining).toBe(12);
   });
 
@@ -884,7 +903,7 @@ describe('ProductViewComponent', () => {
         optionLabel: 'Online Live (Zoom)',
         attendance: AttendanceType.Online,
         amountPaidCents: 3000,
-        agreedTotalCents: 3000,
+        totalPriceCents: 3000,
         status: EventRegistrationStatus.Paid,
         paymentMethod: RegistrationPaymentMethod.Stripe,
         questionResponses: [

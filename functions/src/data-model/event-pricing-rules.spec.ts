@@ -12,6 +12,7 @@ import {
   AttendanceType,
   AttendeeRole,
   computeEffectiveCapacityUsage,
+  EventRegistration,
   EventRegistrationStatus,
   firestoreDocToEventRegistration,
   firestoreDocToIlcEvent,
@@ -20,6 +21,7 @@ import {
   hasSpecialRolePrice,
   initEventRegistration,
   initProduct,
+  RegistrationPaymentMethod,
   syncProductSummaryFlagsFromRules,
 } from './events';
 import {
@@ -27,18 +29,22 @@ import {
   decodeQuestionResponsesFromMetadata,
   DepositPolicyKind,
   DepositRefundPolicyKind,
+  DOWNGRADE_NOT_ALLOWED_MESSAGE,
   EarlyBirdPolicyKind,
   encodeQuestionResponsesToMetadata,
   EventAddOnKind,
   EventPricingRules,
   evaluateEventPricingQuote,
+  evaluateRegistrationUpgradeSettlement,
   formatQuestionResponseValue,
+  formatRegistrationPackageSummary,
   getAnywhereOnEarthDate,
   initEventAddOn,
   initEventDiscount,
   initEventRegistrationOption,
   initEventRegistrationQuestion,
   initEventRuleConditions,
+  mergeRetainedAddOnsForUpgrade,
   normalizeEventPricingRules,
   PaymentChoice,
   PersonStatusKind,
@@ -252,7 +258,7 @@ describe('event-pricing-rules', () => {
         'recording_only',
       ]);
       expect(publicDefaultQuote.selectedOption?.option.id).toBe('recording_only');
-      expect(publicDefaultQuote.agreedTotalCents).toBe(9000);
+      expect(publicDefaultQuote.totalPriceCents).toBe(9000);
       expect(publicDefaultQuote.availablePaymentChoices).toEqual([PaymentChoice.Full]);
 
       // Public non-member explicitly selecting Members-only full_workshop is rejected
@@ -376,7 +382,7 @@ describe('event-pricing-rules', () => {
       ]);
       expect(quote.attendanceNetCents).toBe(49000); // $490
       expect(quote.addOnsTotalCents).toBe(2500); // $0 + $25
-      expect(quote.agreedTotalCents).toBe(51500); // $515
+      expect(quote.totalPriceCents).toBe(51500); // $515
       expect(quote.depositCents).toBe(5000); // $50 deposit
       // $50 deposit + 100% of add-ons ($25) charged online now = $75
       expect(quote.chargeNowCents).toBe(7500);
@@ -767,7 +773,7 @@ describe('event-pricing-rules', () => {
       expect(ebMemberQuote.isValid).toBe(true);
       expect(ebMemberQuote.attendanceNetCents).toBe(7500);
       expect(ebMemberQuote.addOnsTotalCents).toBe(2000);
-      expect(ebMemberQuote.agreedTotalCents).toBe(9500);
+      expect(ebMemberQuote.totalPriceCents).toBe(9500);
 
       // Verify Standard Instructor quote on converted product: $120 - $25 Member - $15 Instructor = $80
       const stdInstQuote = evaluateEventPricingQuote({
@@ -977,7 +983,7 @@ describe('event-pricing-rules', () => {
         expect(v, `firestoreDocToEventRegistration().${k} must be defined`).not.toBeUndefined();
       }
       expect(legacyReg.status).toBe(EventRegistrationStatus.Paid);
-      expect(legacyReg.agreedTotalCents).toBe(10000);
+      expect(legacyReg.totalPriceCents).toBe(10000);
       expect(legacyReg.amountDueCents).toBe(0);
 
       const syncedProd = syncProductSummaryFlagsFromRules({
@@ -1223,6 +1229,203 @@ describe('event-pricing-rules', () => {
           selectedOptions: [],
         },
       ]);
+    });
+  });
+
+  describe('Registration Upgrade & Settlement Evaluation', () => {
+    it('allows upgrading from cheaper option to more expensive option, blocks downgrading paid/deposit registrations, and reads legacy agreedTotalCents', () => {
+      const legacyAgreedDoc = firestoreDocToEventRegistration({
+        id: 'reg_agreed',
+        data: () => ({
+          attendance: AttendanceType.InPerson,
+          agreedTotalCents: 44000,
+          depositPaidCents: 5000,
+          amountPaidCents: 5000,
+          amountDueCents: 39000,
+          status: EventRegistrationStatus.DepositPaid,
+        }),
+      });
+      expect(legacyAgreedDoc.totalPriceCents).toBe(44000);
+
+      const baseRules = buildFlushingIntensiveRules();
+      const rules: EventPricingRules = {
+        ...baseRules,
+        discounts: [
+          initEventDiscount({
+            id: 'eb_50',
+            label: 'Early Bird $50 Off',
+            discountCents: 5000,
+            conditions: initEventRuleConditions({
+              timing: { kind: TimingConditionKind.Window, window: TimingWindow.BeforeEarlyBird },
+              registration: {
+                kind: RegistrationConditionKind.SpecificOptions,
+                optionIds: ['full_workshop'],
+              },
+            }),
+          }),
+        ],
+      };
+
+      // Paid 2-day registrant ($330) upgrading to Full Workshop ($490) after Early Bird ends -> $160 due online
+      const paidTwoDayReg: EventRegistration = {
+        ...initEventRegistration(),
+        docId: 'reg_2day',
+        optionId: 'two_days',
+        optionLabel: 'Two Days',
+        selectedSuboptions: ['Friday', 'Saturday'],
+        attendance: AttendanceType.InPerson,
+        totalPriceCents: 33000,
+        amountPaidCents: 33000,
+        status: EventRegistrationStatus.Paid,
+        paymentMethod: RegistrationPaymentMethod.Stripe,
+      };
+      const upgradeQuote = evaluateEventPricingQuote({
+        rules,
+        memberContext: activeMemberCtx,
+        eventStartDate: '2027-01-15',
+        evaluationDateAoE: '2027-01-05',
+        selectedOptionId: 'full_workshop',
+        paymentChoice: PaymentChoice.Full,
+      });
+      const upgradeSettlement = evaluateRegistrationUpgradeSettlement({
+        existingReg: paidTwoDayReg,
+        quote: upgradeQuote,
+        rules,
+        memberContext: activeMemberCtx,
+        eventStartDate: '2027-01-15',
+      });
+      expect(upgradeSettlement.isDowngrade).toBe(false);
+      expect(upgradeSettlement.creditAppliedCents).toBe(33000);
+      expect(upgradeSettlement.onlineDueNowCents).toBe(16000);
+      expect(upgradeSettlement.effectiveTotalPriceCents).toBe(49000);
+
+      // Paid Full Workshop registrant ($490) trying to switch down to Single Day ($180) -> blocked as downgrade!
+      const paidFullReg: EventRegistration = {
+        ...initEventRegistration(),
+        docId: 'reg_full',
+        optionId: 'full_workshop',
+        optionLabel: 'Full Workshop',
+        attendance: AttendanceType.InPerson,
+        totalPriceCents: 49000,
+        amountPaidCents: 49000,
+        status: EventRegistrationStatus.Paid,
+        paymentMethod: RegistrationPaymentMethod.Stripe,
+      };
+      const downgradeQuote = evaluateEventPricingQuote({
+        rules,
+        memberContext: activeMemberCtx,
+        eventStartDate: '2027-01-15',
+        evaluationDateAoE: '2027-01-05',
+        selectedOptionId: 'single_day',
+        selectedSuboptions: ['Friday'],
+        paymentChoice: PaymentChoice.Full,
+      });
+      const downgradeSettlement = evaluateRegistrationUpgradeSettlement({
+        existingReg: paidFullReg,
+        quote: downgradeQuote,
+        rules,
+        memberContext: activeMemberCtx,
+        eventStartDate: '2027-01-15',
+      });
+      expect(downgradeSettlement.isDowngrade).toBe(true);
+      expect(downgradeSettlement.downgradeMessage).toBe(DOWNGRADE_NOT_ALLOWED_MESSAGE);
+    });
+
+    it('preserves locked Early Bird option price on DepositPaid updates/payoffs and retains expired Early Bird add-ons', () => {
+      const baseRules = buildFlushingIntensiveRules();
+      const rules: EventPricingRules = {
+        ...baseRules,
+        discounts: [
+          initEventDiscount({
+            id: 'eb_50',
+            label: 'Early Bird $50 Off',
+            discountCents: 5000,
+            conditions: initEventRuleConditions({
+              timing: { kind: TimingConditionKind.Window, window: TimingWindow.BeforeEarlyBird },
+              registration: {
+                kind: RegistrationConditionKind.SpecificOptions,
+                optionIds: ['full_workshop'],
+              },
+            }),
+          }),
+        ],
+      };
+
+      const depositEbReg: EventRegistration = {
+        ...initEventRegistration(),
+        docId: 'reg_dep_eb',
+        optionId: 'full_workshop',
+        optionLabel: 'Full Workshop (Fri–Sun + Mon AM)',
+        attendance: AttendanceType.InPerson,
+        selectedAddOnIds: ['eb_video_review'],
+        selectedAddOnLabels: ['Personal Video Review'],
+        paymentChoice: PaymentChoice.Deposit,
+        totalPriceCents: 46500,
+        depositPaidCents: 5000,
+        amountPaidCents: 7500,
+        amountDueCents: 39000,
+        status: EventRegistrationStatus.DepositPaid,
+        paymentMethod: RegistrationPaymentMethod.Stripe,
+      };
+
+      const postEbSameOptQuote = evaluateEventPricingQuote({
+        rules,
+        memberContext: activeMemberCtx,
+        eventStartDate: '2027-01-15',
+        evaluationDateAoE: '2027-01-05',
+        selectedOptionId: 'full_workshop',
+        selectedAddOnIds: [],
+        paymentChoice: PaymentChoice.Deposit,
+      });
+      const inPlaceSettlement = evaluateRegistrationUpgradeSettlement({
+        existingReg: depositEbReg,
+        quote: postEbSameOptQuote,
+        rules,
+        memberContext: activeMemberCtx,
+        eventStartDate: '2027-01-15',
+      });
+      expect(inPlaceSettlement.isDowngrade).toBe(false);
+      expect(inPlaceSettlement.onlineDueNowCents).toBe(0);
+      expect(inPlaceSettlement.doorBalanceDueCents).toBe(39000);
+      expect(inPlaceSettlement.effectiveTotalPriceCents).toBe(46500);
+
+      const merged = mergeRetainedAddOnsForUpgrade(
+        depositEbReg,
+        rules,
+        postEbSameOptQuote.selectedAddOns,
+      );
+      expect(merged.selectedAddOnIds).toEqual(['eb_video_review']);
+      expect(merged.selectedAddOnLabels).toEqual(['Personal Video Review']);
+
+      // Paying off remaining balance online (switching DepositPaid -> Full) charges $390 (preserving EB discount)
+      const payoffFullQuote = evaluateEventPricingQuote({
+        rules,
+        memberContext: activeMemberCtx,
+        eventStartDate: '2027-01-15',
+        evaluationDateAoE: '2027-01-05',
+        selectedOptionId: 'full_workshop',
+        selectedAddOnIds: [],
+        paymentChoice: PaymentChoice.Full,
+      });
+      const payoffSettlement = evaluateRegistrationUpgradeSettlement({
+        existingReg: depositEbReg,
+        quote: payoffFullQuote,
+        rules,
+        memberContext: activeMemberCtx,
+        eventStartDate: '2027-01-15',
+      });
+      expect(payoffSettlement.onlineDueNowCents).toBe(39000);
+      expect(payoffSettlement.doorBalanceDueCents).toBe(0);
+      expect(payoffSettlement.effectiveTotalPriceCents).toBe(46500);
+
+      expect(
+        formatRegistrationPackageSummary({
+          optionLabel: 'Two Days',
+          attendance: AttendanceType.InPerson,
+          selectedSuboptions: ['Friday', 'Saturday'],
+          selectedAddOnLabels: ['Personal Video Review'],
+        }),
+      ).toBe('Two Days [Friday, Saturday] + Personal Video Review');
     });
   });
 });
