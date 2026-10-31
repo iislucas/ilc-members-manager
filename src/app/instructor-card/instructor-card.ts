@@ -17,6 +17,12 @@ export class InstructorCardComponent {
   // Link to the instructor's dedicated public profile page (hash route).
   profileHref = computed(() => `/instructors/${this.instructor().instructorId}`);
 
+  // Whether the instructor holds the Grandmaster tag, in which case individual
+  // student/application level chips are suppressed in the listing.
+  isGrandmaster = computed(() =>
+    (this.instructor().tags ?? []).some((tag) => tag.trim().toLowerCase() === 'grandmaster'),
+  );
+
   ensureUrl(url: string | undefined): string {
     if (!url) {
       return '';

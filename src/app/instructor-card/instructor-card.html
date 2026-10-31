@@ -17,7 +17,8 @@
       #{{ i.instructorId }}
     </div>
     @if (
-      (i.tags && i.tags.length > 0) || i.studentLevel || i.applicationLevel
+      (i.tags && i.tags.length > 0) ||
+      (!isGrandmaster() && (i.studentLevel || i.applicationLevel))
     ) {
       <div class="level-info">
         @if (i.tags && i.tags.length > 0) {
@@ -25,11 +26,13 @@
             <div class="tag-chip">{{ tag }}</div>
           }
         }
-        @if (i.studentLevel) {
-          <div class="level-chip">Student {{ i.studentLevel }}</div>
-        }
-        @if (i.applicationLevel) {
-          <div class="level-chip">Application {{ i.applicationLevel }}</div>
+        @if (!isGrandmaster()) {
+          @if (i.studentLevel) {
+            <div class="level-chip">Student {{ i.studentLevel }}</div>
+          }
+          @if (i.applicationLevel) {
+            <div class="level-chip">Application {{ i.applicationLevel }}</div>
+          }
         }
       </div>
     }
