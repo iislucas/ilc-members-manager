@@ -9,7 +9,7 @@ import { IconComponent } from '../icons/icon.component';
 import { ExpiryStatus, hasActiveMembership } from '../../../functions/src/data-model/members';
 import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags';
 
-export type HomeTab = 'learn' | 'practice' | 'me' | 'admin';
+export type HomeTab = 'learn' | 'practice' | 'buy' | 'me' | 'admin';
 
 @Component({
   selector: 'app-home',
@@ -46,7 +46,7 @@ export class HomeComponent {
 
   private tabFromUrl = computed<HomeTab>(() => {
     const tab = this.routingService.signals[Views.Home].urlParams.tab();
-    if (tab === 'practice' || tab === 'me') {
+    if (tab === 'practice' || tab === 'buy' || tab === 'me') {
       return tab;
     }
     if (tab === 'admin' && this.user()?.isAdmin) {
@@ -80,8 +80,8 @@ export class HomeComponent {
       // Require swipe of at least 50px and predominantly horizontal (x > 1.5 * y)
       if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
         const tabs: HomeTab[] = this.user()?.isAdmin
-          ? ['learn', 'practice', 'me', 'admin']
-          : ['learn', 'practice', 'me'];
+          ? ['learn', 'practice', 'buy', 'me', 'admin']
+          : ['learn', 'practice', 'buy', 'me'];
         const currentIndex = tabs.indexOf(this.activeTab());
         if (deltaX < 0 && currentIndex < tabs.length - 1) {
           // Swipe left -> Next tab

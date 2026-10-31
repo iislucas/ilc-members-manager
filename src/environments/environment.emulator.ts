@@ -40,5 +40,7 @@ export const environment: AppEnvironment = {
     license: 'http://localhost:5000/license',
     videos: 'http://localhost:5000/videos',
     grading: 'http://localhost:5000/grading',
+    printStore: 'https://www.iliqchuan.com/products/print',
+    apparelStore: 'https://www.iliqchuan.com/products/apparel',
   },
 };

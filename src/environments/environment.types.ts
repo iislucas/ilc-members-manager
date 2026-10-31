@@ -37,6 +37,10 @@ export interface EnvironmentLinks {
   // Grading-fee payment page. Linked from the grading-progress view as the
   // product a member buys to pay for their next grading.
   grading: string;
+  // External print store URL for the System Guide and books.
+  printStore: string;
+  // External apparel store URL for official uniforms and shirts.
+  apparelStore: string;
 }
 
 // Global frontend Angular application environment configuration contract.

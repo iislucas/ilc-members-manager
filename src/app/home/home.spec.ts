@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { HomeComponent } from './home';
+import { environment } from '../../environments/environment';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { ROUTING_CONFIG, initPathPatterns, Views } from '../app.config';
 import { NotificationService } from '../notification.service';
@@ -65,6 +66,9 @@ describe('HomeComponent', () => {
     component.setActiveTab('practice');
     expect(component.activeTab()).toBe('practice');
 
+    component.setActiveTab('buy');
+    expect(component.activeTab()).toBe('buy');
+
     component.setActiveTab('me');
     expect(component.activeTab()).toBe('me');
 
@@ -85,6 +89,15 @@ describe('HomeComponent', () => {
     } as unknown as TouchEvent);
     expect(component.activeTab()).toBe('practice');
 
+    // Swipe left (next tab -> buy)
+    component.onTouchStart({
+      touches: [{ clientX: 200, clientY: 100 }],
+    } as unknown as TouchEvent);
+    component.onTouchEnd({
+      changedTouches: [{ clientX: 100, clientY: 100 }],
+    } as unknown as TouchEvent);
+    expect(component.activeTab()).toBe('buy');
+
     // Swipe left (next tab -> me)
     component.onTouchStart({
       touches: [{ clientX: 200, clientY: 100 }],
@@ -93,6 +106,15 @@ describe('HomeComponent', () => {
       changedTouches: [{ clientX: 100, clientY: 100 }],
     } as unknown as TouchEvent);
     expect(component.activeTab()).toBe('me');
+
+    // Swipe right (prev tab -> buy)
+    component.onTouchStart({
+      touches: [{ clientX: 100, clientY: 100 }],
+    } as unknown as TouchEvent);
+    component.onTouchEnd({
+      changedTouches: [{ clientX: 200, clientY: 100 }],
+    } as unknown as TouchEvent);
+    expect(component.activeTab()).toBe('buy');
 
     // Swipe right (prev tab -> practice)
     component.onTouchStart({
@@ -302,6 +324,49 @@ describe('HomeComponent', () => {
     );
     expect(instructorCard).toBeTruthy();
     expect(instructorCard?.getAttribute('href')).toContain('become-a-member');
+  });
+
+  it('renders Buy pill tab and all 7 purchase cards when Buy tab is active', async () => {
+    const element: HTMLElement = fixture.nativeElement;
+    const buyTabBtn = Array.from(element.querySelectorAll<HTMLButtonElement>('button.pill-tab')).find(
+      (btn) => btn.getAttribute('data-label') === 'Buy'
+    );
+    expect(buyTabBtn).toBeTruthy();
+    expect(buyTabBtn?.textContent?.trim()).toBe('Buy');
+
+    buyTabBtn!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.activeTab()).toBe('buy');
+
+    const cards = Array.from(element.querySelectorAll<HTMLAnchorElement>('a.card'));
+    expect(cards.length).toBe(7);
+
+    const cardTitles = cards.map((card) => card.querySelector('h2')?.textContent?.trim());
+    expect(cardTitles).toEqual([
+      'System Guide',
+      'Uniforms',
+      'Membership',
+      'Gradings',
+      'Licenses',
+      'Class Video Library',
+      'Video on Demand',
+    ]);
+
+    expect(cards[0].getAttribute('href')).toBe(environment.links.printStore);
+    expect(cards[0].getAttribute('target')).toBe('_blank');
+    expect(cards[0].getAttribute('rel')).toBe('noopener noreferrer');
+
+    expect(cards[1].getAttribute('href')).toBe(environment.links.apparelStore);
+    expect(cards[1].getAttribute('target')).toBe('_blank');
+    expect(cards[1].getAttribute('rel')).toBe('noopener noreferrer');
+
+    expect(cards[2].getAttribute('href')).toContain('/become-a-member');
+    expect(cards[3].getAttribute('href')).toContain('/next-grading');
+    expect(cards[4].getAttribute('href')).toContain('/instructor-license');
+    expect(cards[5].getAttribute('href')).toContain('/class-video-library-subscription');
+    expect(cards[6].getAttribute('href')).toContain('/videos');
   });
 });
 

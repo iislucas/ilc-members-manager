@@ -83,6 +83,70 @@
       </div>
     </div>
 
+    <!-- BUY SECTION -->
+    <div class="nav-section" [class.expanded]="selectedArea() === 'buy'">
+      <div
+        class="section-header top-level-nav"
+        [class.active]="selectedArea() === 'buy'"
+        (click)="onSelectArea('buy')"
+        role="button"
+        tabindex="0"
+      >
+        <span class="nav-title">Buy</span>
+        <app-icon
+          name="chevron_right"
+          width="18px"
+          height="18px"
+          class="nav-chevron"
+          [class.rotated]="selectedArea() === 'buy'"
+        ></app-icon>
+      </div>
+      <div class="submenu-accordion" [class.open]="selectedArea() === 'buy'">
+        <div class="submenu-inner">
+          <a
+            class="menu-item submenu-item"
+            [href]="links.printStore"
+            target="_blank"
+            rel="noopener noreferrer"
+            (click)="closeMenu.emit()"
+          >
+            <app-icon name="book" width="24px" height="24px"></app-icon>
+            <span>System Guide</span>
+          </a>
+          <a
+            class="menu-item submenu-item"
+            [href]="links.apparelStore"
+            target="_blank"
+            rel="noopener noreferrer"
+            (click)="closeMenu.emit()"
+          >
+            <app-icon name="apparel" width="24px" height="24px"></app-icon>
+            <span>Uniforms</span>
+          </a>
+          <div class="menu-item submenu-item" (click)="onSelect(Views.BecomeAMember)">
+            <app-icon name="hands_lotus" width="24px" height="24px"></app-icon>
+            <span>Membership</span>
+          </div>
+          <div class="menu-item submenu-item" (click)="onSelect(Views.NextGrading)">
+            <app-icon name="mountain" width="24px" height="24px"></app-icon>
+            <span>Gradings</span>
+          </div>
+          <div class="menu-item submenu-item" (click)="onSelect(Views.InstructorLicensePurchase)">
+            <app-icon name="meditation" width="24px" height="24px"></app-icon>
+            <span>Licenses</span>
+          </div>
+          <div class="menu-item submenu-item" (click)="onSelect(Views.ClassVideoLibraryPurchase)">
+            <app-icon name="video_library" width="24px" height="24px"></app-icon>
+            <span>Class Video Library</span>
+          </div>
+          <div class="menu-item submenu-item" (click)="onSelect(Views.Videos)">
+            <app-icon name="live_tv" width="24px" height="24px"></app-icon>
+            <span>Video on Demand</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ME SECTION -->
     <div class="nav-section" [class.expanded]="selectedArea() === 'me'">
       <div
