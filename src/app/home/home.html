@@ -282,7 +282,7 @@
 
       @case ('buy') {
         <div class="cards-grid">
-          <!-- System Guide -->
+          <!-- Books -->
           <a
             class="card"
             [href]="links.printStore"
@@ -293,7 +293,7 @@
               <app-icon name="book" width="48px" height="48px"></app-icon>
             </div>
             <div class="content">
-              <h2>System Guide</h2>
+              <h2>Books</h2>
               <p>Official Zhong Xin Dao I Liq Chuan system guide and books</p>
             </div>
           </a>
@@ -342,7 +342,7 @@
             </div>
           </a>
 
-          <!-- Licenses -->
+          <!-- Instructor License -->
           <a
             class="card"
             [href]="routingService.hrefForView(Views.InstructorLicensePurchase)"
@@ -351,8 +351,22 @@
               <app-icon name="meditation" width="48px" height="48px"></app-icon>
             </div>
             <div class="content">
-              <h2>Licenses</h2>
+              <h2>Instructor License</h2>
               <p>Obtain or renew instructor and group leader licenses</p>
+            </div>
+          </a>
+
+          <!-- School License -->
+          <a
+            class="card"
+            [href]="routingService.hrefForView(Views.SchoolLicensePurchase)"
+          >
+            <div class="icon-container">
+              <app-icon name="map" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>School License</h2>
+              <p>Establish or renew official school affiliation and class listing</p>
             </div>
           </a>
 

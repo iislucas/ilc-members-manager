@@ -326,7 +326,7 @@ describe('HomeComponent', () => {
     expect(instructorCard?.getAttribute('href')).toContain('become-a-member');
   });
 
-  it('renders Buy pill tab and all 7 purchase cards when Buy tab is active', async () => {
+  it('renders Buy pill tab and all 8 purchase cards when Buy tab is active', async () => {
     const element: HTMLElement = fixture.nativeElement;
     const buyTabBtn = Array.from(element.querySelectorAll<HTMLButtonElement>('button.pill-tab')).find(
       (btn) => btn.getAttribute('data-label') === 'Buy'
@@ -341,15 +341,16 @@ describe('HomeComponent', () => {
     expect(component.activeTab()).toBe('buy');
 
     const cards = Array.from(element.querySelectorAll<HTMLAnchorElement>('a.card'));
-    expect(cards.length).toBe(7);
+    expect(cards.length).toBe(8);
 
     const cardTitles = cards.map((card) => card.querySelector('h2')?.textContent?.trim());
     expect(cardTitles).toEqual([
-      'System Guide',
+      'Books',
       'Uniforms',
       'Membership',
       'Gradings',
-      'Licenses',
+      'Instructor License',
+      'School License',
       'Class Video Library',
       'Video on Demand',
     ]);
@@ -365,8 +366,9 @@ describe('HomeComponent', () => {
     expect(cards[2].getAttribute('href')).toContain('/become-a-member');
     expect(cards[3].getAttribute('href')).toContain('/next-grading');
     expect(cards[4].getAttribute('href')).toContain('/instructor-license');
-    expect(cards[5].getAttribute('href')).toContain('/class-video-library-subscription');
-    expect(cards[6].getAttribute('href')).toContain('/videos');
+    expect(cards[5].getAttribute('href')).toContain('/school-license');
+    expect(cards[6].getAttribute('href')).toContain('/class-video-library-subscription');
+    expect(cards[7].getAttribute('href')).toContain('/videos');
   });
 });
 
