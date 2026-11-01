@@ -77,6 +77,7 @@ export {
   cancelSubscriptionRenewal,
   resumeSubscriptionRenewal,
   createCustomerPortalSession,
+  getManagedSchoolsBilling,
 } from './stripe-subscriptions';
 
 export { stripeWebhook } from './stripe-webhook';

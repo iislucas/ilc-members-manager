@@ -358,4 +358,28 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     await createComponent();
     expect(component.hasVideoAccess()).toBe(true);
   });
+
+  it('should display advance Valid through date alongside monthly Next auto-renewal payment and amount', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleUser.member,
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '2028-03-23',
+        classVideoLibrarySubscriptionId: 'sub_vid_123',
+        classVideoLibraryNextAutoRenewDate: '2026-11-23',
+      },
+    });
+
+    await createComponent();
+    fixture.detectChanges();
+
+    const banner = (fixture.nativeElement as HTMLElement).querySelector(
+      '.current-membership-banner',
+    );
+    expect(banner?.textContent).toContain('Valid through 2028-03-23');
+    expect(banner?.textContent).toContain(
+      'Next auto-renewal payment: 2026-11-23 ($5.99 USD)',
+    );
+  });
 });

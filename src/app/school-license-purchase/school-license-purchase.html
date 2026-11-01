@@ -194,6 +194,7 @@
         @if (licenseAction() === 'renew') {
           <div class="schools-grid">
             @for (school of mySchools(); track school.docId) {
+              @let billing = schoolBillingByDocId()[school.docId];
               <div
                 class="school-card-choice"
                 [class.selected]="selectedSchoolDocId() === school.docId"
@@ -210,10 +211,88 @@
                 <div class="school-choice-meta">
                   <span>Location: {{ school.schoolCity ? school.schoolCity + ', ' : '' }}{{ school.schoolCountry }}</span>
                   <span>License Expiry: {{ school.schoolLicenseExpires || 'Never (life license)' }}</span>
+                  @if (billing) {
+                    <span>Payment linked to: <strong>{{ billing.payerLabel }}</strong></span>
+                    <span>
+                      Next auto-renewal payment:
+                      @if (billing.isAutoRenewing) {
+                        <strong class="renew-date">{{ billing.autoRenewalPaymentText }}</strong>
+                      } @else if (billing.isLifetime) {
+                        Not applicable
+                      } @else {
+                        Off (Will not renew automatically)
+                      }
+                    </span>
+                  }
                 </div>
               </div>
             }
           </div>
+
+          @if (cancelSuccessMessage()) {
+            <div class="success-message">{{ cancelSuccessMessage() }}</div>
+          }
+          @if (cancelErrorMessage()) {
+            <div class="error-container">
+              <span class="error-message">
+                {{ cancelErrorMessage() }}
+                Please contact
+                <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a> for assistance.
+              </span>
+            </div>
+          }
+
+          @if (selectedSchoolBilling(); as selBilling) {
+            @if (selBilling.canCancel || selBilling.canResume) {
+              <div class="school-subscription-actions">
+                @if (selBilling.canCancel) {
+                  @if (confirmingCancelSubId() === selBilling.ownSubscriptionId) {
+                    <div class="inline-confirm-row">
+                      <span>Cancel automatic renewal for this school license? Access continues until the current expiration date.</span>
+                      <div class="inline-confirm-buttons">
+                        <button
+                          type="button"
+                          class="subtle-button danger-outline"
+                          [disabled]="cancelInProgress()"
+                          (click)="onCancelSchoolAutoRenew(selBilling.ownSubscriptionId)"
+                        >
+                          {{ cancelInProgress() ? 'Cancelling...' : 'Confirm Cancel' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="subtle-button"
+                          [disabled]="cancelInProgress()"
+                          (click)="dismissCancelSchoolAutoRenew()"
+                        >
+                          Keep Auto-Renewal
+                        </button>
+                      </div>
+                    </div>
+                  } @else {
+                    <button
+                      type="button"
+                      class="subtle-button"
+                      [disabled]="cancelInProgress()"
+                      (click)="requestCancelSchoolAutoRenew(selBilling.ownSubscriptionId)"
+                    >
+                      <app-icon name="close"></app-icon>
+                      <span>{{ cancelInProgress() ? 'Cancelling...' : 'Cancel Auto-Renewal' }}</span>
+                    </button>
+                  }
+                } @else if (selBilling.canResume) {
+                  <button
+                    type="button"
+                    class="subtle-button"
+                    [disabled]="cancelInProgress()"
+                    (click)="onResumeSchoolAutoRenew(selBilling.ownSubscriptionId)"
+                  >
+                    <app-icon name="check"></app-icon>
+                    <span>{{ cancelInProgress() ? 'Resuming...' : 'Resume Auto-Renewal' }}</span>
+                  </button>
+                }
+              </div>
+            }
+          }
         } @else {
           <div class="new-school-form">
             <p class="new-school-lead">

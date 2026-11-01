@@ -1,10 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type Stripe from 'stripe';
-import { OrderKind } from './data-model/orders';
+import { OrderKind, OrderStatus } from './data-model/orders';
+import { initMember } from './data-model/members';
 import {
   sessionToStripeOrder,
   invoiceToStripeOrder,
   subscriptionToCancellationOrder,
+  upsertStripeOrder,
 } from './stripe-webhook';
 
 // A minimal but realistic completed one-time Checkout Session. Only the fields
@@ -231,5 +233,90 @@ describe('subscriptionToCancellationOrder', () => {
     expect(order.paymentStatus).toBeNull();
     expect(order.amountTotal).toBeNull();
     expect(order.lineItems[0].productId).toBe('prod_membership');
+  });
+});
+
+describe('upsertStripeOrder idempotency', () => {
+  it('skips duplicate fulfillment when a processed order is redelivered for the same member', async () => {
+    const memberUpdateSpy = vi.fn().mockResolvedValue({});
+    const mirroredOrderSetSpy = vi.fn().mockResolvedValue({});
+    const existingOrderSetSpy = vi.fn().mockResolvedValue({});
+
+    const sampleMember = {
+      ...initMember(),
+      docId: 'mem_fr102',
+      memberId: 'FR102',
+      emails: ['buyer@example.com'],
+      currentMembershipExpires: '2027-07-05',
+    };
+
+    const mockDb: any = {
+      collection: vi.fn((colName: string) => {
+        if (colName === 'orders') {
+          return {
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  empty: false,
+                  docs: [
+                    {
+                      id: 'order_existing_1',
+                      data: () => ({ ilcAppOrderStatus: OrderStatus.Processed }),
+                      ref: { set: existingOrderSetSpy },
+                    },
+                  ],
+                }),
+              }),
+            }),
+          };
+        }
+        if (colName === 'members') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({
+                exists: true,
+                id: 'mem_fr102',
+                data: () => sampleMember,
+              }),
+              update: memberUpdateSpy,
+              collection: vi.fn().mockReturnValue({
+                doc: vi.fn().mockReturnValue({
+                  get: vi.fn().mockResolvedValue({ exists: true }),
+                  set: mirroredOrderSetSpy,
+                }),
+              }),
+            }),
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              }),
+            }),
+          };
+        }
+        if (colName === 'acl') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({ memberDocIds: ['mem_fr102'] }),
+              }),
+            }),
+          };
+        }
+        return {};
+      }),
+    };
+
+    const order = sessionToStripeOrder({
+      ...session,
+      metadata: { memberDocId: 'mem_fr102' },
+    } as unknown as Stripe.Checkout.Session);
+
+    const docId = await upsertStripeOrder(mockDb, order);
+    expect(docId).toBe('order_existing_1');
+    // Order doc & subcollection mirror can be refreshed idempotently,
+    // but member expiration fulfillment MUST NOT run a second time!
+    expect(memberUpdateSpy).not.toHaveBeenCalled();
+    expect(mirroredOrderSetSpy).toHaveBeenCalledTimes(1);
   });
 });

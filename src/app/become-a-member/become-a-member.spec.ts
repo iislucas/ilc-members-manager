@@ -567,4 +567,15 @@ describe('BecomeAMemberComponent', () => {
     );
     expect(component.cancelSuccessMessage()).toContain('cancelled');
   });
+
+  it('should display Next auto-renewal payment with formatted amount on active membership banner', async () => {
+    await createComponent();
+    const banner = (fixture.nativeElement as HTMLElement).querySelector(
+      '.current-membership-banner',
+    );
+    expect(banner?.textContent).toContain('Valid through 2027-01-01');
+    expect(banner?.textContent).toContain(
+      'Next auto-renewal payment: 2027-01-01 ($85.00 USD)',
+    );
+  });
 });

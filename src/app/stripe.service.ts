@@ -28,6 +28,7 @@ import {
   CreateProductCheckoutSessionRequest,
   CreateVodCheckoutSessionRequest,
   GetCheckoutSessionRequest,
+  GetManagedSchoolsBillingResult,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
   UpdateProductRegistrationRequest,
@@ -258,6 +259,19 @@ export class StripeService {
       CreateCustomerPortalSessionResult
     >(this.functions, 'createCustomerPortalSession');
     const result = await fn({ returnUrl });
+    return result.data;
+  }
+
+  /** Fetch non-sensitive payer & auto-renewal billing summaries for schools owned or managed by the signed-in user. */
+  async getManagedSchoolsBilling(): Promise<GetManagedSchoolsBillingResult> {
+    if (this.networkState.isOffline()) {
+      return { schools: {} };
+    }
+    const fn = httpsCallable<
+      Record<string, never>,
+      GetManagedSchoolsBillingResult
+    >(this.functions, 'getManagedSchoolsBilling');
+    const result = await fn({});
     return result.data;
   }
 }

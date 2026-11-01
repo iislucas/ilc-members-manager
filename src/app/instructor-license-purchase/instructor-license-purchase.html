@@ -148,10 +148,8 @@
           <p>
             Valid through <strong>{{ licenseExpires() }}</strong>.
             @if (hasActiveSubscription()) {
-              Auto-renews on
-              <strong>{{
-                user()?.member?.instructorLicenseNextAutoRenewDate
-              }}</strong>.
+              Next auto-renewal payment:
+              <strong>{{ nextAutoRenewPaymentText() }}</strong>.
             }
           </p>
         </div>

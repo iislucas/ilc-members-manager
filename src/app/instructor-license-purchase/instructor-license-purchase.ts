@@ -26,6 +26,7 @@ import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MembershipType, hasActiveMembership, isLifeInstructor } from '../../../functions/src/data-model/members';
+import { OrderItemCategory } from '../../../functions/src/data-model/orders';
 import {
   CheckoutSessionSummary,
   StripeProductPrice,
@@ -35,6 +36,7 @@ import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import {
   formatStripeAmount,
   formatStripePrice,
+  resolveMemberSubscriptionRenewal,
 } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
@@ -235,15 +237,51 @@ export class InstructorLicensePurchaseComponent {
     );
   });
 
-  hasActiveSubscription = computed(() => {
+  licenseRenewal = computed(() => {
     const m = this.user()?.member;
-    if (!m) return false;
-    return !!(
-      m.instructorLicenseSubscriptionId &&
-      m.instructorLicenseNextAutoRenewDate &&
-      m.instructorLicenseNextAutoRenewDate >= this.today()
-    );
+    if (!m) {
+      return {
+        isAutoRenewing: false,
+        nextAutoRenewDate: '',
+        amount: null,
+        currency: 'usd',
+        autoRenewalPaymentText: '',
+      };
+    }
+    return resolveMemberSubscriptionRenewal({
+      subscriptionId: m.instructorLicenseSubscriptionId,
+      fallbackNextAutoRenewDate: m.instructorLicenseNextAutoRenewDate,
+      expirationDate: m.instructorLicenseExpires,
+      defaultInterval: 'year',
+      todayStr: this.today(),
+      stripeSubscriptions: m.stripeSubscriptions,
+      orders: this.dataService.myOrders?.entries() ?? [],
+      orderMatcher: (o) => {
+        const d = (o.description || '').toLowerCase();
+        return (
+          o.lineItems?.some((li) => {
+            const lid = (li.description || '').toLowerCase();
+            return (
+              li.category === OrderItemCategory.InstructorLicense ||
+              lid.includes('instructor') ||
+              lid.includes('group leader')
+            );
+          }) ||
+          d.includes('instructor') ||
+          d.includes('group leader')
+        );
+      },
+      fallbackPrice: this.selectedPrice(),
+    });
   });
+
+  hasActiveSubscription = computed(() => this.licenseRenewal().isAutoRenewing);
+
+  nextAutoRenewDate = computed(() => this.licenseRenewal().nextAutoRenewDate);
+
+  nextAutoRenewPaymentText = computed(
+    () => this.licenseRenewal().autoRenewalPaymentText,
+  );
 
   productOptionTitle = computed<string>(() => {
     if (this.isGroupLeaderTier()) {
