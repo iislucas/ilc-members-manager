@@ -881,8 +881,8 @@
           Members who purchase periods in advance keep their stacked future access expiration date while
           <strong>Next auto-renewal payment:</strong> reports the actual upcoming Stripe charge date and recurring amount
           (for example, <code>2026-11-23 ($25.00 USD)</code>), accompanied by an accessible unfolding triangle disclosure (<code>▸</code>)
-          that expands the projected extension note
-          (<code>On 2026-11-23, the expiration date will be extended to 2028-04-23.</code>) and a <strong>Change renewal date</strong> control.
+          that expands the transparent renewal price and projected extension note
+          (<code>You will pay $25.00 USD and the expiration date will be extended to 2028-04-23.</code>) and a <strong>Change renewal date</strong> control.
           Members can reschedule their next auto-renewal date within <code>[tomorrow, expirationDate]</code> (defaulting to 7 days before the current expiration date) via
           <code>updateSubscriptionRenewalDate</code>, which sets Stripe <code>trial_end</code> with <code>proration_behavior: 'none'</code> while <code>syncSubscriptionStatusToMember</code>
           strictly restricts paid expiration extensions to <code>status === 'active'</code> (never <code>'trialing'</code>).

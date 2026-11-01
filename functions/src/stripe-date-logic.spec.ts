@@ -20,6 +20,7 @@ import {
 import {
   buildMemberSubscriptionItemFromStripe,
   computeRecurringSubscriptionAmount,
+  enrichSubscriptionWithPaymentMethod,
   performCreateSubscriptionPaymentMethodSession,
   performUpdateSubscriptionRenewalDate,
   resolveManagedSchoolsBillingForEmail,
@@ -1571,6 +1572,76 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
       expect(sessionParams.setup_intent_data?.metadata?.subscriptionId).toBe(
         'sub_pm_1',
       );
+    });
+
+    it('enrichSubscriptionWithPaymentMethod falls back to customer invoice_settings and customers.listPaymentMethods', async () => {
+      const baseSub = {
+        id: 'sub_enrich_1',
+        status: 'active',
+        customer: 'cus_enrich_1',
+        current_period_start: 1793491200,
+        current_period_end: 1825027200,
+        cancel_at_period_end: false,
+        currency: 'usd',
+        items: {
+          data: [
+            {
+              price: {
+                id: 'price_1',
+                product: { id: 'prod_1', name: 'Annual Membership' },
+                unit_amount: 8500,
+                currency: 'usd',
+                recurring: { interval: 'year' },
+              },
+            },
+          ],
+        },
+      } as unknown as Stripe.Subscription;
+
+      // Case 1: Customer has no invoice_settings.default_payment_method, resolved via listPaymentMethods
+      const listPmSpy = vi.fn().mockResolvedValue({
+        data: [{ id: 'pm_card_8469', type: 'card', card: { brand: 'visa', last4: '8469' } }],
+      });
+      const mockStripeFallback: any = {
+        customers: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: 'cus_enrich_1',
+            invoice_settings: { default_payment_method: null },
+          }),
+          listPaymentMethods: listPmSpy,
+        },
+        paymentMethods: { retrieve: vi.fn() },
+      };
+
+      const enriched = await enrichSubscriptionWithPaymentMethod(
+        mockStripeFallback,
+        baseSub,
+      );
+      const item = buildMemberSubscriptionItemFromStripe(enriched);
+      expect(listPmSpy).toHaveBeenCalledWith('cus_enrich_1', { limit: 1 });
+      expect(item.paymentMethodBrand).toBe('visa');
+      expect(item.paymentMethodLast4).toBe('8469');
+
+      // Case 2: Stripe Link payment method populates brand 'link' with no last4
+      const mockStripeLink: any = {
+        customers: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: 'cus_enrich_1',
+            invoice_settings: {
+              default_payment_method: { id: 'pm_link_1', type: 'link' },
+            },
+          }),
+          listPaymentMethods: vi.fn(),
+        },
+        paymentMethods: { retrieve: vi.fn() },
+      };
+      const enrichedLink = await enrichSubscriptionWithPaymentMethod(
+        mockStripeLink,
+        baseSub,
+      );
+      const linkItem = buildMemberSubscriptionItemFromStripe(enrichedLink);
+      expect(linkItem.paymentMethodBrand).toBe('link');
+      expect(linkItem.paymentMethodLast4).toBeUndefined();
     });
   });
 });

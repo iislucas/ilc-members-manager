@@ -48,7 +48,10 @@ import {
   resolveMemberForStripeOrder,
   syncSubscriptionStatusToMember,
 } from './stripe-fulfillment';
-import { applySubscriptionPaymentMethodFromSetupSession } from './stripe-subscriptions';
+import {
+  applySubscriptionPaymentMethodFromSetupSession,
+  enrichSubscriptionWithPaymentMethod,
+} from './stripe-subscriptions';
 import { refreshStripeProductCache } from './stripe-products';
 import { StripeCacheSource } from './stripe-types';
 import { normalizeEmail } from './data-model/email';
@@ -396,9 +399,13 @@ async function retrieveLiveSubscriptionIfPresent(
     return null;
   }
   try {
-    return await stripe.subscriptions.retrieve(subscriptionId, {
-      expand: ['default_payment_method'],
+    const retrieved = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: [
+        'default_payment_method',
+        'customer.invoice_settings.default_payment_method',
+      ],
     });
+    return await enrichSubscriptionWithPaymentMethod(stripe, retrieved);
   } catch (err) {
     logger.warn('Could not retrieve live Stripe subscription during webhook fulfillment', {
       subscriptionId,
@@ -503,12 +510,14 @@ export const stripeWebhook = onRequest(
             db,
           );
           break;
-        case 'customer.subscription.updated':
-          await syncSubscriptionStatusToMember(
-            db,
+        case 'customer.subscription.updated': {
+          const enrichedSub = await enrichSubscriptionWithPaymentMethod(
+            stripe,
             event.data.object as Stripe.Subscription,
           );
+          await syncSubscriptionStatusToMember(db, enrichedSub);
           break;
+        }
         case 'customer.subscription.deleted': {
           const sub = event.data.object as Stripe.Subscription;
           await upsertStripeOrder(db, subscriptionToCancellationOrder(sub));

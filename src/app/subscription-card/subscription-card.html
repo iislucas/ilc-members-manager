@@ -94,8 +94,14 @@
           <div class="renewal-disclosure-inner">
             @if (c.projectedExpirationDate) {
               <p class="renewal-extension-note">
-                On {{ c.nextAutoRenewDate }}, the expiration date will be
-                extended to <strong>{{ c.projectedExpirationDate }}</strong>.
+                @if (c.renewalAmountText) {
+                  You will pay <strong>{{ c.renewalAmountText }}</strong> and
+                  the expiration date will be extended to
+                  <strong>{{ c.projectedExpirationDate }}</strong>.
+                } @else {
+                  The expiration date will be extended to
+                  <strong>{{ c.projectedExpirationDate }}</strong>.
+                }
               </p>
             }
 
@@ -165,8 +171,14 @@
       </div>
       @if (isDraftDateValid() && draftProjectedExpiration(); as previewExp) {
         <p class="editor-preview">
-          On <strong>{{ draftRenewalDate() }}</strong>, the expiration date will
-          be extended to <strong>{{ previewExp }}</strong>.
+          @if (c.renewalAmountText) {
+            You will pay <strong>{{ c.renewalAmountText }}</strong> and the
+            expiration date will be extended to
+            <strong>{{ previewExp }}</strong>.
+          } @else {
+            The expiration date will be extended to
+            <strong>{{ previewExp }}</strong>.
+          }
         </p>
       }
     </div>

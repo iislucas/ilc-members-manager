@@ -13,7 +13,13 @@ import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
-import { initMember, MembershipType } from '../../../functions/src/data-model/members';
+import {
+  initMember,
+  MembershipType,
+  SubscriptionInterval,
+  SubscriptionItemType,
+  SubscriptionStatus,
+} from '../../../functions/src/data-model/members';
 import {
   StripeProduct,
   StripePriceType,
@@ -76,6 +82,23 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     classVideoLibraryExpirationDate: '2027-01-01',
     classVideoLibrarySubscriptionId: 'sub_vid_123',
     classVideoLibraryNextAutoRenewDate: '2027-01-01',
+    stripeSubscriptions: {
+      sub_vid_123: {
+        subscriptionId: 'sub_vid_123',
+        type: SubscriptionItemType.VideoLibrary,
+        status: SubscriptionStatus.Active,
+        planName: 'Class Video Library',
+        amount: 599,
+        currency: 'usd',
+        interval: SubscriptionInterval.Month,
+        currentPeriodStart: '2026-12-01',
+        currentPeriodEnd: '2027-01-01',
+        nextAutoRenewDate: '2027-01-01',
+        cancelAtPeriodEnd: false,
+        paymentMethodBrand: 'visa',
+        paymentMethodLast4: '4242',
+      },
+    },
   };
 
   const sampleUser: UserDetails = {
@@ -381,6 +404,14 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
         classVideoLibraryExpirationDate: '2028-03-23',
         classVideoLibrarySubscriptionId: 'sub_vid_123',
         classVideoLibraryNextAutoRenewDate: '2026-11-23',
+        stripeSubscriptions: {
+          sub_vid_123: {
+            ...sampleMember.stripeSubscriptions.sub_vid_123,
+            currentPeriodStart: '2026-10-23',
+            currentPeriodEnd: '2026-11-23',
+            nextAutoRenewDate: '2026-11-23',
+          },
+        },
       },
     });
 
@@ -394,7 +425,7 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     expect(subCard?.textContent).toContain('Next auto-renewal payment:');
     expect(subCard?.textContent).toContain('2026-11-23 ($5.99 USD)');
     expect(subCard?.textContent).toContain(
-      'On 2026-11-23, the expiration date will be extended to 2028-04-23.',
+      'You will pay $5.99 USD and the expiration date will be extended to 2028-04-23.',
     );
   });
 });

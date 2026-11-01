@@ -39,7 +39,10 @@ import {
   SubscriptionItemType,
 } from '../src/data-model/members';
 import { firestoreDocToSchool, School } from '../src/data-model/schools';
-import { buildMemberSubscriptionItemFromStripe } from '../src/stripe-subscriptions';
+import {
+  buildMemberSubscriptionItemFromStripe,
+  enrichSubscriptionWithPaymentMethod,
+} from '../src/stripe-subscriptions';
 
 interface CliOptions {
   dryRun: boolean;
@@ -215,9 +218,15 @@ async function main(): Promise<void> {
     for (const subId of subIds) {
       let liveSub: Stripe.Subscription;
       try {
-        liveSub = await stripe.subscriptions.retrieve(subId, {
-          expand: ['items.data.price.product', 'discounts'],
+        const retrieved = await stripe.subscriptions.retrieve(subId, {
+          expand: [
+            'items.data.price.product',
+            'discounts',
+            'default_payment_method',
+            'customer.invoice_settings.default_payment_method',
+          ],
         });
+        liveSub = await enrichSubscriptionWithPaymentMethod(stripe, retrieved);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.warn(
@@ -298,6 +307,11 @@ async function main(): Promise<void> {
     updates.stripeSubscriptions = nextSubsMap;
     updates.lastUpdated = admin.firestore.FieldValue.serverTimestamp();
 
+    const pmSummaries = Object.values(nextSubsMap).map((s) =>
+      s.paymentMethodBrand || s.paymentMethodLast4
+        ? `${s.subscriptionId}:${s.paymentMethodBrand || 'card'}••••${s.paymentMethodLast4 || '????'}`
+        : `${s.subscriptionId}:none`,
+    );
     console.log(
       `  [${options.dryRun ? 'DRY-RUN' : 'UPDATE'}] Member ${member.docId} (${member.memberId || 'no-id'}):`,
       {
@@ -305,6 +319,7 @@ async function main(): Promise<void> {
         instructorLicenseNextAutoRenewDate: updates.instructorLicenseNextAutoRenewDate,
         classVideoLibraryNextAutoRenewDate: updates.classVideoLibraryNextAutoRenewDate,
         subscriptionCount: Object.keys(nextSubsMap).length,
+        paymentMethods: pmSummaries,
       },
     );
 

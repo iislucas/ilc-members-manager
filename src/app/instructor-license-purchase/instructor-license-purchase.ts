@@ -240,8 +240,6 @@ export class InstructorLicensePurchaseComponent {
     return buildInstructorLicenseSubscriptionCard({
       member: m,
       todayStr: this.today(),
-      orders: this.dataService.myOrders?.entries() ?? [],
-      fallbackPrice: this.selectedPrice(),
     });
   });
 

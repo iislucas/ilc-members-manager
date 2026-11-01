@@ -294,12 +294,11 @@ export class SchoolLicensePurchaseComponent {
       member: u.member,
       schools: orderedSchools,
       billingMap: this.managedSchoolsBilling(),
-      orders: this.dataService.myOrders?.entries() ?? [],
+      orders: this.dataService.myOrders.entries(),
       todayStr: this.today(),
       baseSchoolLicenseUrl:
         this.routingService.hrefForView(Views.SchoolLicensePurchase) ||
         '/school-license',
-      fallbackPrice: this.selectedPrice(),
     }).allSchoolCards;
   });
 

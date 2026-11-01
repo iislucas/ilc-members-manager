@@ -30,6 +30,7 @@ describe('SubscriptionCardComponent', () => {
     statusClass: 'status-active',
     expirationDate: '2028-04-23',
     nextAutoRenewDate: '2026-11-15',
+    renewalAmountText: '$25.00 USD',
     autoRenewalPaymentText: '2026-11-15 ($25.00 USD)',
     projectedExpirationDate: '2028-05-23',
     interval: 'month',
@@ -97,6 +98,7 @@ describe('SubscriptionCardComponent', () => {
       statusLabel: 'Lifetime Access',
       expirationDate: 'Never expires',
       nextAutoRenewDate: '',
+      renewalAmountText: '',
       autoRenewalPaymentText: '',
       projectedExpirationDate: '',
       isAutoRenewing: false,
@@ -133,7 +135,7 @@ describe('SubscriptionCardComponent', () => {
     expect(triangleBtn?.getAttribute('aria-expanded')).toBe('true');
     expect(drawer?.classList.contains('expanded')).toBe(true);
     expect(drawer?.textContent).toContain(
-      'On 2026-11-15, the expiration date will be extended to 2028-05-23.',
+      'You will pay $25.00 USD and the expiration date will be extended to 2028-05-23.',
     );
   });
 
@@ -160,7 +162,7 @@ describe('SubscriptionCardComponent', () => {
     expect(dateInput?.min).toBe('2026-11-02');
     expect(dateInput?.max).toBe('2028-04-23');
     expect(el.querySelector('.editor-preview')?.textContent).toContain(
-      'On 2028-04-16, the expiration date will be extended to 2028-05-23.',
+      'You will pay $25.00 USD and the expiration date will be extended to 2028-05-23.',
     );
 
     await component.onSaveRenewalDate();

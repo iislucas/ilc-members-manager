@@ -10,7 +10,6 @@
  */
 
 import { MemberSubscriptionItem, SubscriptionInterval, SubscriptionStatus } from '../../functions/src/data-model/members';
-import { MemberOrder, MemberOrderPaymentStatus, MemberOrderType } from '../../functions/src/data-model/orders';
 import { StripeProductPrice } from '../../functions/src/stripe-types';
 
 /**
@@ -147,6 +146,7 @@ export interface ResolvedSubscriptionRenewal {
   amount: number | null;
   currency: string;
   interval: 'month' | 'year';
+  renewalAmountText: string;
   autoRenewalPaymentText: string;
   projectedExpirationDate: string;
   paymentMethodSummary: string;
@@ -183,7 +183,7 @@ export function formatMaskedPaymentMethod(
     diners: 'Diners Club',
     discover: 'Discover',
     jcb: 'JCB',
-    link: 'Link',
+    link: 'Stripe Link',
     mastercard: 'Mastercard',
     sepa: 'SEPA',
     sepa_debit: 'SEPA Debit',
@@ -272,151 +272,44 @@ export function computeProjectedRenewalExpirationDate(opts: {
 }
 
 /**
- * Resolve the true next Stripe auto-renewal payment date and recurring charge
- * amount for a member subscription, keeping stacked access expiration dates
- * separate from the billing cycle end.
+ * Resolve the next Stripe auto-renewal payment date, recurring charge amount,
+ * projected expiration extension, and masked payment method directly from
+ * `member.stripeSubscriptions[subscriptionId]`, keeping stacked access
+ * expiration dates separate from the billing cycle end.
  */
 export function resolveMemberSubscriptionRenewal(opts: {
   subscriptionId?: string | null;
-  fallbackNextAutoRenewDate?: string | null;
   expirationDate?: string | null;
   defaultInterval: 'month' | 'year';
   todayStr: string;
   stripeSubscriptions?: Record<string, MemberSubscriptionItem>;
-  orders?: MemberOrder[];
-  orderMatcher?: (order: MemberOrder) => boolean;
-  fallbackPrice?: { unitAmount: number | null; currency: string } | null;
 }): ResolvedSubscriptionRenewal {
   const subId = (opts.subscriptionId || '').trim();
   const sub = subId ? opts.stripeSubscriptions?.[subId] : undefined;
-  const orders = opts.orders || [];
 
-  let storedNextDate = '';
-  if (sub) {
-    const isActive =
+  const isActive = Boolean(
+    sub &&
       (sub.status === SubscriptionStatus.Active ||
         sub.status === SubscriptionStatus.Trialing) &&
-      !sub.cancelAtPeriodEnd;
-    storedNextDate = isActive ? (sub.nextAutoRenewDate || '').trim() : '';
-  } else if (subId && opts.fallbackNextAutoRenewDate) {
-    storedNextDate = opts.fallbackNextAutoRenewDate.trim();
-  }
-
+      !sub.cancelAtPeriodEnd,
+  );
+  const storedNextDate = isActive ? (sub?.nextAutoRenewDate || '').trim() : '';
   const isAutoRenewing = Boolean(storedNextDate && storedNextDate >= opts.todayStr);
-  let nextAutoRenewDate = isAutoRenewing ? storedNextDate : '';
+  const nextAutoRenewDate = isAutoRenewing ? storedNextDate : '';
 
-  const paidOrders = orders
-    .filter(
-      (o) =>
-        o.paymentStatus === MemberOrderPaymentStatus.Paid &&
-        o.orderType !== MemberOrderType.Cancellation,
-    )
-    .sort((a, b) =>
-      ((b.date || b.created || '').split('T')[0]).localeCompare(
-        (a.date || a.created || '').split('T')[0],
-      ),
-    );
+  const amount =
+    sub && typeof sub.amount === 'number' && sub.amount > 0 ? sub.amount : null;
+  const currency = sub?.currency || 'usd';
 
-  // Guard against pre-migration records where fulfillStripeOrder wrote stacked
-  // expirationDate into nextAutoRenewDate instead of the billing period end.
-  // Skip when the subscription is in `trialing` status (which happens when a
-  // member intentionally rescheduled their renewal date via `trial_end`).
-  if (
-    isAutoRenewing &&
-    sub?.status !== SubscriptionStatus.Trialing &&
-    opts.expirationDate &&
-    nextAutoRenewDate === opts.expirationDate.trim()
-  ) {
-    const latestSubOrder = paidOrders.find(
-      (o) =>
-        (subId && o.subscriptionId === subId) ||
-        (o.orderType === MemberOrderType.Renewal && Boolean(opts.orderMatcher?.(o))),
-    );
-    const orderCycleStart = latestSubOrder
-      ? (latestSubOrder.date || latestSubOrder.created || '').split('T')[0]
-      : '';
-    const subCycleStart = (sub?.currentPeriodStart || '').trim();
-    const cycleStart =
-      orderCycleStart > subCycleStart ? orderCycleStart : subCycleStart;
-    const interval: 'month' | 'year' =
-      sub?.interval === SubscriptionInterval.Month
-        ? 'month'
-        : sub?.interval === SubscriptionInterval.Year
-          ? 'year'
-          : opts.defaultInterval;
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(cycleStart)) {
-      const expectedCycleEnd = addBillingIntervalToDateString(cycleStart, interval, 1);
-      if (
-        expectedCycleEnd &&
-        expectedCycleEnd >= opts.todayStr &&
-        expectedCycleEnd < nextAutoRenewDate
-      ) {
-        nextAutoRenewDate = expectedCycleEnd;
-      }
-    }
-  }
-
-  let amount: number | null = null;
-  let currency = 'usd';
-
-  if (sub && typeof sub.amount === 'number' && sub.amount > 0) {
-    amount = sub.amount;
-    currency = sub.currency || 'usd';
-  } else {
-    const matchedOrder =
-      (subId
-        ? paidOrders.find((o) => o.subscriptionId === subId && (o.amountTotal ?? 0) > 0)
-        : undefined) ||
-      (opts.orderMatcher
-        ? paidOrders.find((o) => opts.orderMatcher!(o) && (o.amountTotal ?? 0) > 0)
-        : undefined);
-
-    if (matchedOrder && matchedOrder.amountTotal !== null && matchedOrder.amountTotal > 0) {
-      const totalQty =
-        matchedOrder.lineItems && matchedOrder.lineItems.length > 0
-          ? matchedOrder.lineItems.reduce((sum, li) => sum + (li.quantity || 1), 0)
-          : 1;
-      amount =
-        totalQty > 1 && matchedOrder.subscriptionId !== subId
-          ? Math.round(matchedOrder.amountTotal / totalQty)
-          : matchedOrder.amountTotal;
-      currency = matchedOrder.currency || 'usd';
-    } else if (
-      opts.fallbackPrice &&
-      opts.fallbackPrice.unitAmount !== null &&
-      opts.fallbackPrice.unitAmount > 0
-    ) {
-      amount = opts.fallbackPrice.unitAmount;
-      currency = opts.fallbackPrice.currency || 'usd';
-    }
-  }
-
-  let resolvedInterval: 'month' | 'year' =
+  const resolvedInterval: 'month' | 'year' =
     sub?.interval === SubscriptionInterval.Month
       ? 'month'
       : sub?.interval === SubscriptionInterval.Year
         ? 'year'
         : opts.defaultInterval;
 
-  if (!sub?.interval) {
-    const orderForInterval =
-      (subId ? paidOrders.find((o) => o.subscriptionId === subId) : undefined) ||
-      (opts.orderMatcher ? paidOrders.find((o) => opts.orderMatcher!(o)) : undefined);
-    if (orderForInterval) {
-      const descLower = [
-        orderForInterval.description || '',
-        ...(orderForInterval.lineItems || []).map((li) => li.description || ''),
-      ]
-        .join(' ')
-        .toLowerCase();
-      if (descLower.includes('annual') || descLower.includes('year')) {
-        resolvedInterval = 'year';
-      } else if (descLower.includes('month')) {
-        resolvedInterval = 'month';
-      }
-    }
-  }
+  const renewalAmountText =
+    amount !== null ? formatAmountWithCurrency(amount, currency) : '';
 
   const paymentMethodSummary = sub
     ? formatMaskedPaymentMethod(sub.paymentMethodBrand, sub.paymentMethodLast4)
@@ -428,6 +321,7 @@ export function resolveMemberSubscriptionRenewal(opts: {
     amount,
     currency,
     interval: resolvedInterval,
+    renewalAmountText,
     autoRenewalPaymentText: isAutoRenewing
       ? formatNextAutoRenewalPayment(nextAutoRenewDate, amount, currency)
       : '',

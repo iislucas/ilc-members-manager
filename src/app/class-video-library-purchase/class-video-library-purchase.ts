@@ -151,8 +151,6 @@ export class ClassVideoLibraryPurchaseComponent {
     return buildVideoLibrarySubscriptionCard({
       member: m,
       todayStr: this.today(),
-      orders: this.dataService.myOrders?.entries() ?? [],
-      fallbackPrice: this.selectedPrice(),
     });
   });
 
