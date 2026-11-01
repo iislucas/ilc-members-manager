@@ -40,6 +40,8 @@ describe('MemberOrdersComponent', () => {
   let mockStripeService: {
     cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
+    updateSubscriptionRenewalDate: ReturnType<typeof vi.fn>;
+    createSubscriptionPaymentMethodSession: ReturnType<typeof vi.fn>;
     createCustomerPortalSession: ReturnType<typeof vi.fn>;
     getManagedSchoolsBilling: ReturnType<typeof vi.fn>;
   };
@@ -151,6 +153,15 @@ describe('MemberOrdersComponent', () => {
     mockStripeService = {
       cancelSubscriptionRenewal: vi.fn().mockResolvedValue({ success: true, periodEnd: '2027-05-15' }),
       resumeSubscriptionRenewal: vi.fn().mockResolvedValue({ success: true, nextAutoRenewDate: '2027-05-15' }),
+      updateSubscriptionRenewalDate: vi.fn().mockResolvedValue({
+        subscriptionId: 'sub_mem_123',
+        status: 'trialing',
+        cancelAtPeriodEnd: false,
+        nextAutoRenewDate: '2027-05-08',
+      }),
+      createSubscriptionPaymentMethodSession: vi.fn().mockResolvedValue({
+        url: 'https://checkout.stripe.com/c/pay/cs_setup_test',
+      }),
       createCustomerPortalSession: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/p/session/test' }),
       getManagedSchoolsBilling: vi.fn().mockResolvedValue({ schools: {} }),
     };
@@ -214,19 +225,44 @@ describe('MemberOrdersComponent', () => {
     expect(component.orders().length).toBe(0);
   });
 
-  it('cancels auto-renewal on user confirmation and sets banner message', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    await component.onCancelAutoRenew('sub_mem_123');
+  it('cancels auto-renewal via inline confirmation on subscription card without window.confirm', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const memCard = element.querySelector('.sub-card.membership')!;
+    const cancelBtn = memCard.querySelector<HTMLButtonElement>('.sub-card-actions .cancel-btn')!;
+    cancelBtn.click();
+    fixture.detectChanges();
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    const confirmDangerBtn = memCard.querySelector<HTMLButtonElement>('.confirm-danger-btn')!;
+    expect(confirmDangerBtn).toBeTruthy();
+
+    confirmDangerBtn.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(mockStripeService.cancelSubscriptionRenewal).toHaveBeenCalledWith('sub_mem_123');
-    expect(component.actionMessage()).toContain('Auto-renewal has been cancelled');
+    expect(memCard.textContent).toContain(
+      'Auto-renewal cancelled. Your access remains active until 2027-05-15.',
+    );
   });
 
-  it('resumes auto-renewal and sets banner message', async () => {
-    await component.onResumeAutoRenew('sub_ins_123');
+  it('resumes auto-renewal on subscription card and sets feedback banner', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const insCard = element.querySelector('.sub-card.instructor_license')!;
+    const resumeBtn = insCard.querySelector<HTMLButtonElement>('.resume-btn')!;
+    resumeBtn.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(mockStripeService.resumeSubscriptionRenewal).toHaveBeenCalledWith('sub_ins_123');
-    expect(component.actionMessage()).toContain('Auto-renewal has been resumed');
+    expect(insCard.textContent).toContain('Auto-renewal resumed');
   });
 
   it('opens customer portal session', async () => {
@@ -268,11 +304,16 @@ describe('MemberOrdersComponent', () => {
     // Quick links have no active-badge lifetime chips
     expect(element.querySelector('.service-link-card .active-badge')).toBeNull();
 
-    // Subscription cards derive lifetime access
+    // Subscription cards derive lifetime access and omit Next auto-renewal payment row
+    fixture.detectChanges();
     const subs = component.subscriptions();
     const memSub = subs.find((s) => s.category === 'membership');
     expect(memSub?.status).toBe('lifetime');
     expect(memSub?.statusLabel).toBe('Lifetime Access');
+
+    const memCardEl = element.querySelector('.sub-card.membership');
+    expect(memCardEl?.textContent).toContain('Lifetime Access');
+    expect(memCardEl?.textContent).not.toContain('Next auto-renewal payment:');
   });
 
   it('sets group leader title and subtitle when member is Student Level 2 or 3 without Application Level 1', async () => {

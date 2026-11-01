@@ -54,57 +54,28 @@ app-step-track {
 }
 
 
-.current-membership-banner {
+.video-library-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  padding: 6px 12px;
+  font-size: 0.85em;
+  font-weight: 600;
+  text-decoration: none;
+  background: #ffffff;
   border: 1px solid v.$border-color-light;
-  border-left: 4px solid #18181b;
-  background: v.$separator-color;
+  border-radius: 6px;
+  color: v.$text-primary;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 
-  .banner-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 1em;
-
-    h3 {
-      margin: 0 0 0.25em;
-      font-size: 1.1em;
-      color: v.$text-primary;
-    }
-
-    p {
-      margin: 0;
-      font-size: 0.95em;
-      color: v.$text-secondary;
-    }
-  }
-
-  .banner-actions {
-    margin-top: 1.25em;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.75em;
-
-    .video-library-link-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5em;
-      padding: 0.6em 1.25em;
-      font-size: 0.95em;
-      font-weight: 500;
-      text-decoration: none;
-      background: #fff;
-      border: 1px solid v.$border-color-light;
-      border-radius: 6px;
-      color: v.$text-primary;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-
-      &:hover {
-        background: v.$separator-color;
-        border-color: v.$primary-color;
-        color: v.$primary-color;
-      }
-    }
+  &:hover {
+    background: v.$separator-color;
+    border-color: v.$primary-color;
+    color: v.$primary-color;
   }
 }
 

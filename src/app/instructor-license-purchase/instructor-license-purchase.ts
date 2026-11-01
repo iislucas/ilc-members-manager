@@ -15,7 +15,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
@@ -25,8 +24,10 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { MembershipType, hasActiveMembership, isLifeInstructor } from '../../../functions/src/data-model/members';
-import { OrderItemCategory } from '../../../functions/src/data-model/orders';
+import {
+  hasActiveMembership,
+  isLifeInstructor,
+} from '../../../functions/src/data-model/members';
 import {
   CheckoutSessionSummary,
   StripeProductPrice,
@@ -36,11 +37,12 @@ import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import {
   formatStripeAmount,
   formatStripePrice,
-  resolveMemberSubscriptionRenewal,
 } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
+import { SubscriptionCardComponent } from '../subscription-card/subscription-card';
+import { buildInstructorLicenseSubscriptionCard } from '../subscription-card/subscription-card.model';
 
 import { environment } from '../../environments/environment';
 
@@ -48,12 +50,12 @@ import { environment } from '../../environments/environment';
   selector: 'app-instructor-license-purchase',
   standalone: true,
   imports: [
-    CommonModule,
     IconComponent,
     SpinnerComponent,
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
+    SubscriptionCardComponent,
   ],
   templateUrl: './instructor-license-purchase.html',
   styleUrl: './instructor-license-purchase.scss',
@@ -105,11 +107,6 @@ export class InstructorLicensePurchaseComponent {
   returnSessionLoading = signal(false);
   returnSessionSummary = signal<CheckoutSessionSummary | null>(null);
   returnSessionError = signal<string | null>(null);
-
-  // Subscription management
-  cancelInProgress = signal(false);
-  cancelSuccessMessage = signal<string | null>(null);
-  cancelErrorMessage = signal<string | null>(null);
 
   today = computed(() => new Date().toISOString().split('T')[0]);
 
@@ -237,55 +234,19 @@ export class InstructorLicensePurchaseComponent {
     );
   });
 
-  licenseRenewal = computed(() => {
+  licenseSubscriptionCard = computed(() => {
     const m = this.user()?.member;
-    if (!m) {
-      return {
-        isAutoRenewing: false,
-        nextAutoRenewDate: '',
-        amount: null,
-        currency: 'usd',
-        autoRenewalPaymentText: '',
-        projectedExpirationDate: '',
-      };
-    }
-    return resolveMemberSubscriptionRenewal({
-      subscriptionId: m.instructorLicenseSubscriptionId,
-      fallbackNextAutoRenewDate: m.instructorLicenseNextAutoRenewDate,
-      expirationDate: m.instructorLicenseExpires,
-      defaultInterval: 'year',
+    if (!m) return null;
+    return buildInstructorLicenseSubscriptionCard({
+      member: m,
       todayStr: this.today(),
-      stripeSubscriptions: m.stripeSubscriptions,
       orders: this.dataService.myOrders?.entries() ?? [],
-      orderMatcher: (o) => {
-        const d = (o.description || '').toLowerCase();
-        return (
-          o.lineItems?.some((li) => {
-            const lid = (li.description || '').toLowerCase();
-            return (
-              li.category === OrderItemCategory.InstructorLicense ||
-              lid.includes('instructor') ||
-              lid.includes('group leader')
-            );
-          }) ||
-          d.includes('instructor') ||
-          d.includes('group leader')
-        );
-      },
       fallbackPrice: this.selectedPrice(),
     });
   });
 
-  hasActiveSubscription = computed(() => this.licenseRenewal().isAutoRenewing);
-
-  nextAutoRenewDate = computed(() => this.licenseRenewal().nextAutoRenewDate);
-
-  nextAutoRenewPaymentText = computed(
-    () => this.licenseRenewal().autoRenewalPaymentText,
-  );
-
-  projectedLicenseExpires = computed(
-    () => this.licenseRenewal().projectedExpirationDate,
+  hasActiveSubscription = computed(() =>
+    Boolean(this.licenseSubscriptionCard()?.isAutoRenewing),
   );
 
   productOptionTitle = computed<string>(() => {
@@ -428,54 +389,5 @@ export class InstructorLicensePurchaseComponent {
 
   redirectTo(url: string): void {
     window.location.assign(url);
-  }
-
-  async onCancelAutoRenew(): Promise<void> {
-    const subId = this.user()?.member.instructorLicenseSubscriptionId;
-    if (!subId) return;
-
-    const confirmed = confirm(
-      'Are you sure you want to cancel auto-renewal for your instructor license? You will retain access until your current expiry date.',
-    );
-    if (!confirmed) return;
-
-    this.cancelInProgress.set(true);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-
-    try {
-      const result = await this.stripeService.cancelSubscriptionRenewal(subId);
-      this.cancelSuccessMessage.set(
-        `Auto-renewal has been cancelled. Your instructor license remains valid until ${result.periodEnd}.`,
-      );
-    } catch (err) {
-      this.cancelErrorMessage.set(
-        err instanceof Error ? err.message : 'Failed to cancel auto-renewal.',
-      );
-    } finally {
-      this.cancelInProgress.set(false);
-    }
-  }
-
-  async onResumeAutoRenew(): Promise<void> {
-    const subId = this.user()?.member.instructorLicenseSubscriptionId;
-    if (!subId) return;
-
-    this.cancelInProgress.set(true);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-
-    try {
-      const result = await this.stripeService.resumeSubscriptionRenewal(subId);
-      this.cancelSuccessMessage.set(
-        `Auto-renewal resumed. Next renewal date: ${result.nextAutoRenewDate}.`,
-      );
-    } catch (err) {
-      this.cancelErrorMessage.set(
-        err instanceof Error ? err.message : 'Failed to resume auto-renewal.',
-      );
-    } finally {
-      this.cancelInProgress.set(false);
-    }
   }
 }

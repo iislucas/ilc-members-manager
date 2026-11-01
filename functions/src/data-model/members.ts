@@ -66,6 +66,8 @@ export interface MemberSubscriptionItem {
   schoolDocId?: string; // Linked school document ID when type === SubscriptionItemType.SchoolLicense
   schoolId?: string; // Linked human-readable school ID (e.g. 'SCH-100')
   schoolName?: string; // Linked school name
+  paymentMethodBrand?: string; // Strictly masked card/method brand (e.g. 'visa', 'mastercard')
+  paymentMethodLast4?: string; // Strictly masked last 4 digits (e.g. '4242')
 }
 
 export type StripeSubscriptions = Record<string, MemberSubscriptionItem>;

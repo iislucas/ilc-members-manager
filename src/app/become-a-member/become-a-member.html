@@ -7,101 +7,20 @@
     </p>
   </div>
 
-  <!-- Current Membership Status Banner -->
-  @if (isLifeMember()) {
-    <div class="current-membership-banner card life-member">
-      <div class="banner-header">
-        <app-icon name="check" width="24px" height="24px"></app-icon>
-        <div>
-          <h3>Active Lifetime Membership</h3>
-          <p>
-            You are currently an active <strong>Lifetime Member</strong>. Lifetime memberships never expire and you do not need to purchase another membership.
-          </p>
-        </div>
-      </div>
-      <div class="portal-homepage-action">
+  <!-- Current Membership Subscription Card -->
+  @if (membershipCard(); as card) {
+    <app-subscription-card [card]="card" [showRenewLink]="false">
+      @if (isLifeMember()) {
         <a
+          cardExtraActions
           [href]="routingService.hrefForView(Views.Home)"
-          class="subtle-button homepage-link-btn"
+          class="sub-btn subtle-action-link homepage-link-btn"
         >
-          <span class="btn-content">
-            <app-icon name="home"></app-icon>
-            <span>Go to Member's Portal Homepage</span>
-          </span>
+          <app-icon name="home" width="16px" height="16px"></app-icon>
+          <span>Go to Member's Portal Homepage</span>
         </a>
-      </div>
-    </div>
-  } @else if (hasActiveSubscription() || hasActiveAnnualMembership()) {
-    <div class="current-membership-banner card">
-      <div class="banner-header">
-        <app-icon name="check" width="24px" height="24px"></app-icon>
-        <div>
-          <h3>You have an active ILC Membership</h3>
-          <p>
-            Valid through
-            <strong>{{ user()?.member?.currentMembershipExpires }}</strong>.
-            @if (hasActiveSubscription()) {
-              Next auto-renewal payment:
-              <strong>{{ membershipAutoRenewPaymentText() }}</strong>.
-              @if (membershipProjectedExpirationDate()) {
-                On {{ membershipNextAutoRenewDate() }}, the expiration date will
-                be extended to
-                <strong>{{ membershipProjectedExpirationDate() }}</strong>.
-              }
-            }
-          </p>
-        </div>
-      </div>
-
-      @if (cancelSuccessMessage()) {
-        <div class="success-message">{{ cancelSuccessMessage() }}</div>
       }
-      @if (cancelErrorMessage()) {
-        <div class="error-container">
-          <span class="error-message">
-            {{ cancelErrorMessage() }}
-            Please contact
-            <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a> for assistance.
-          </span>
-        </div>
-      }
-
-      <div class="subscription-actions">
-        @if (hasActiveSubscription()) {
-          <button
-            type="button"
-            class="subtle-button"
-            [disabled]="cancelInProgress()"
-            (click)="onCancelAutoRenew()"
-          >
-            <app-icon name="close"></app-icon>
-            {{ cancelInProgress() ? "Cancelling..." : "Cancel Auto-Renewal" }}
-          </button>
-        } @else if (user()?.member?.membershipSubscriptionId) {
-          <button
-            type="button"
-            class="subtle-button"
-            [disabled]="cancelInProgress()"
-            (click)="onResumeAutoRenew()"
-          >
-            <app-icon name="check"></app-icon>
-            {{ cancelInProgress() ? "Resuming..." : "Resume Auto-Renewal" }}
-          </button>
-        }
-      </div>
-    </div>
-  } @else if (hasExpiredMembership()) {
-    <div class="current-membership-banner card expired-member">
-      <div class="banner-header">
-        <app-icon name="info" width="24px" height="24px"></app-icon>
-        <div>
-          <h3>Membership Expired</h3>
-          <p>
-            Your previous membership expired on <strong>{{ user()?.member?.currentMembershipExpires }}</strong>. Select an option below to renew.
-          </p>
-        </div>
-      </div>
-    </div>
+    </app-subscription-card>
   }
 
   <!-- Details of what is offered / Value of Membership -->

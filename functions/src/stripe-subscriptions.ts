@@ -18,10 +18,14 @@ import {
   CancelSubscriptionRenewalResult,
   CreateCustomerPortalSessionRequest,
   CreateCustomerPortalSessionResult,
+  CreateSubscriptionPaymentMethodSessionRequest,
+  CreateSubscriptionPaymentMethodSessionResult,
   GetManagedSchoolsBillingResult,
   ManagedSchoolBillingInfo,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
+  UpdateSubscriptionRenewalDateRequest,
+  UpdateSubscriptionRenewalDateResult,
 } from './stripe-types';
 import {
   firestoreDocToMember,
@@ -58,11 +62,86 @@ export function getSubscriptionCurrentPeriodStart(
 export function getSubscriptionCurrentPeriodEnd(
   subscription: Stripe.Subscription,
 ): number | undefined {
+  if (
+    subscription.status === 'trialing' &&
+    typeof subscription.trial_end === 'number'
+  ) {
+    return subscription.trial_end;
+  }
   return (
     subscription.items?.data?.[0]?.current_period_end ??
     (subscription as unknown as { current_period_end?: number }).current_period_end ??
+    subscription.trial_end ??
     subscription.cancel_at ??
     undefined
+  );
+}
+
+export function extractMaskedPaymentMethodSummary(
+  paymentMethod: string | Stripe.PaymentMethod | null | undefined,
+): { paymentMethodBrand?: string; paymentMethodLast4?: string } {
+  if (!paymentMethod || typeof paymentMethod === 'string') {
+    return {};
+  }
+  if (paymentMethod.card) {
+    return {
+      ...(paymentMethod.card.brand ? { paymentMethodBrand: paymentMethod.card.brand } : {}),
+      ...(paymentMethod.card.last4 ? { paymentMethodLast4: paymentMethod.card.last4 } : {}),
+    };
+  }
+  if (paymentMethod.us_bank_account) {
+    return {
+      paymentMethodBrand: paymentMethod.us_bank_account.bank_name || 'Bank',
+      ...(paymentMethod.us_bank_account.last4
+        ? { paymentMethodLast4: paymentMethod.us_bank_account.last4 }
+        : {}),
+    };
+  }
+  if (paymentMethod.sepa_debit) {
+    return {
+      paymentMethodBrand: 'SEPA',
+      ...(paymentMethod.sepa_debit.last4
+        ? { paymentMethodLast4: paymentMethod.sepa_debit.last4 }
+        : {}),
+    };
+  }
+  if (paymentMethod.type) {
+    return { paymentMethodBrand: paymentMethod.type };
+  }
+  return {};
+}
+
+export function requireAllowedReturnUrl(returnUrl: unknown): string {
+  if (typeof returnUrl !== 'string') {
+    throw new HttpsError('invalid-argument', 'A valid returnUrl is required.');
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(returnUrl);
+  } catch {
+    throw new HttpsError('invalid-argument', 'A valid returnUrl is required.');
+  }
+  if (!allowedOrigins.includes(parsed.origin)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'returnUrl must match a recognised app origin.',
+    );
+  }
+  return returnUrl;
+}
+
+export function isValidIsoCalendarDate(dateStr: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  return (
+    dt.getUTCFullYear() === year &&
+    dt.getUTCMonth() === month - 1 &&
+    dt.getUTCDate() === day
   );
 }
 
@@ -279,6 +358,18 @@ export function buildMemberSubscriptionItemFromStripe(
       ? existing?.canceledAt || ''
       : '';
 
+  const extractedPm = extractMaskedPaymentMethodSummary(
+    subscription.default_payment_method,
+  );
+  const paymentMethodBrand =
+    extractedPm.paymentMethodBrand ??
+    overrides?.paymentMethodBrand ??
+    existing?.paymentMethodBrand;
+  const paymentMethodLast4 =
+    extractedPm.paymentMethodLast4 ??
+    overrides?.paymentMethodLast4 ??
+    existing?.paymentMethodLast4;
+
   return {
     subscriptionId: subscription.id,
     type,
@@ -297,6 +388,8 @@ export function buildMemberSubscriptionItemFromStripe(
     ...(schoolDocId ? { schoolDocId } : {}),
     ...(schoolId ? { schoolId } : {}),
     ...(schoolName ? { schoolName } : {}),
+    ...(paymentMethodBrand ? { paymentMethodBrand } : {}),
+    ...(paymentMethodLast4 ? { paymentMethodLast4 } : {}),
   };
 }
 
@@ -513,10 +606,7 @@ export const createCustomerPortalSession = onCall<
   CreateCustomerPortalSessionRequest,
   Promise<CreateCustomerPortalSessionResult>
 >({ cors: allowedOrigins, secrets: [stripeSecretKey] }, async (request) => {
-  const returnUrl = request.data?.returnUrl;
-  if (typeof returnUrl !== 'string' || !returnUrl.startsWith('http')) {
-    throw new HttpsError('invalid-argument', 'A valid returnUrl is required.');
-  }
+  const returnUrl = requireAllowedReturnUrl(request.data?.returnUrl);
 
   const db = admin.firestore();
   const member = await getCallerMember(verifiedAuthEmail(request), db);
@@ -567,6 +657,408 @@ export const createCustomerPortalSession = onCall<
 
   return { url: session.url };
 });
+
+async function isCallerAdmin(
+  db: admin.firestore.Firestore,
+  authEmail: string | undefined,
+): Promise<boolean> {
+  if (!authEmail) return false;
+  const aclDoc = await db
+    .collection(FirestoreCollection.Acl)
+    .doc(normalizeEmail(authEmail))
+    .get();
+  return Boolean(aclDoc.exists && aclDoc.data()?.isAdmin === true);
+}
+
+/**
+ * Resolves the paid access expiration date (`YYYY-MM-DD`) governing a member's
+ * subscription so non-admin callers cannot push `trial_end` past what has been paid for.
+ */
+export async function resolvePaidExpirationDateForSubscription(
+  db: admin.firestore.Firestore,
+  member: Member,
+  subscriptionId: string,
+  subscription: Stripe.Subscription,
+): Promise<string> {
+  const existingSub = member.stripeSubscriptions?.[subscriptionId];
+  const type = inferSubscriptionItemTypeFromStripe(subscription, member, existingSub);
+
+  if (
+    member.membershipSubscriptionId === subscriptionId ||
+    type === SubscriptionItemType.Membership
+  ) {
+    return (member.currentMembershipExpires || '').trim();
+  }
+
+  if (
+    member.instructorLicenseSubscriptionId === subscriptionId ||
+    type === SubscriptionItemType.InstructorLicense
+  ) {
+    return (member.instructorLicenseExpires || '').trim();
+  }
+
+  if (
+    member.classVideoLibrarySubscriptionId === subscriptionId ||
+    type === SubscriptionItemType.VideoLibrary
+  ) {
+    return (member.classVideoLibraryExpirationDate || '').trim();
+  }
+
+  if (type === SubscriptionItemType.SchoolLicense) {
+    const schoolDocId =
+      existingSub?.schoolDocId || subscription.metadata?.['schoolDocId'] || '';
+    if (schoolDocId) {
+      const sDoc = await db
+        .collection(FirestoreCollection.Schools)
+        .doc(schoolDocId)
+        .get();
+      if (sDoc.exists) {
+        const sData = sDoc.data() as Partial<School> | undefined;
+        return (sData?.schoolLicenseExpires || '').trim();
+      }
+    }
+    const schoolId =
+      existingSub?.schoolId || subscription.metadata?.['schoolId'] || '';
+    if (schoolId) {
+      const sQuery = await db
+        .collection(FirestoreCollection.Schools)
+        .where('schoolId', '==', schoolId)
+        .limit(1)
+        .get();
+      if (!sQuery.empty) {
+        const sData = sQuery.docs[0].data() as Partial<School> | undefined;
+        return (sData?.schoolLicenseExpires || '').trim();
+      }
+    }
+  }
+
+  return (
+    existingSub?.currentPeriodEnd ||
+    unixSecondsToDateString(getSubscriptionCurrentPeriodEnd(subscription)) ||
+    ''
+  ).trim();
+}
+
+export async function performUpdateSubscriptionRenewalDate(params: {
+  db: admin.firestore.Firestore;
+  stripe: Stripe;
+  authEmail: string | undefined;
+  subscriptionId: unknown;
+  renewalDate: unknown;
+  nowMs?: number;
+}): Promise<UpdateSubscriptionRenewalDateResult> {
+  const { db, stripe, authEmail, subscriptionId, renewalDate } = params;
+  if (
+    typeof subscriptionId !== 'string' ||
+    !subscriptionId.startsWith('sub_')
+  ) {
+    throw new HttpsError(
+      'invalid-argument',
+      'A valid subscriptionId is required.',
+    );
+  }
+  if (typeof renewalDate !== 'string' || !isValidIsoCalendarDate(renewalDate)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'A valid renewalDate in YYYY-MM-DD format is required.',
+    );
+  }
+
+  const nowMs = params.nowMs ?? Date.now();
+  const tomorrowUtc = new Date(nowMs + 86_400_000).toISOString().split('T')[0];
+  if (renewalDate < tomorrowUtc) {
+    throw new HttpsError(
+      'invalid-argument',
+      `Renewal date must be on or after ${tomorrowUtc}.`,
+    );
+  }
+
+  const member = await getCallerMember(authEmail, db);
+
+  let subscription: Stripe.Subscription;
+  try {
+    subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['default_payment_method'],
+    });
+  } catch {
+    throw new HttpsError('not-found', 'Subscription not found in Stripe.');
+  }
+
+  await verifySubscriptionOwnership(subscription, member, db, authEmail);
+
+  const isAdmin = await isCallerAdmin(db, authEmail);
+  if (!isAdmin) {
+    const maxPaidDate = await resolvePaidExpirationDateForSubscription(
+      db,
+      member,
+      subscriptionId,
+      subscription,
+    );
+    if (
+      !maxPaidDate ||
+      maxPaidDate === '9999-12-31' ||
+      !isValidIsoCalendarDate(maxPaidDate)
+    ) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Cannot reschedule renewal date for this subscription.',
+      );
+    }
+    if (renewalDate > maxPaidDate) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Renewal date cannot be later than your current expiration date (${maxPaidDate}).`,
+      );
+    }
+  }
+
+  const utcNoonSeconds = Math.floor(
+    Date.parse(`${renewalDate}T12:00:00Z`) / 1000,
+  );
+  const minFutureSeconds = Math.floor(nowMs / 1000) + 300;
+  const targetTrialEndSeconds = Math.max(utcNoonSeconds, minFutureSeconds);
+
+  const updatedSub = await stripe.subscriptions.update(subscriptionId, {
+    trial_end: targetTrialEndSeconds,
+    proration_behavior: 'none',
+    cancel_at_period_end: false,
+    expand: ['default_payment_method'],
+  });
+
+  const nextAutoRenewDate =
+    unixSecondsToDateString(getSubscriptionCurrentPeriodEnd(updatedSub)) ||
+    renewalDate;
+
+  const memberRef = db.collection(FirestoreCollection.Members).doc(member.docId);
+  const updates: MemberUpdates = {
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (member.membershipSubscriptionId === subscriptionId) {
+    updates.membershipNextAutoRenewDate = nextAutoRenewDate;
+  }
+  if (member.instructorLicenseSubscriptionId === subscriptionId) {
+    updates.instructorLicenseNextAutoRenewDate = nextAutoRenewDate;
+  }
+  if (member.classVideoLibrarySubscriptionId === subscriptionId) {
+    updates.classVideoLibraryNextAutoRenewDate = nextAutoRenewDate;
+  }
+
+  const existingSub = member.stripeSubscriptions?.[subscriptionId];
+  const syncedSub = buildMemberSubscriptionItemFromStripe(updatedSub, {
+    existing: existingSub,
+    member,
+  });
+  updates.stripeSubscriptions = {
+    ...(member.stripeSubscriptions || {}),
+    [subscriptionId]: {
+      ...syncedSub,
+      cancelAtPeriodEnd: false,
+      nextAutoRenewDate,
+      canceledAt: '',
+    },
+  };
+
+  await memberRef.update(updates);
+
+  logger.info('updateSubscriptionRenewalDate succeeded', {
+    memberDocId: member.docId,
+    subscriptionId,
+    nextAutoRenewDate,
+  });
+
+  return { success: true, nextAutoRenewDate };
+}
+
+export const updateSubscriptionRenewalDate = onCall<
+  UpdateSubscriptionRenewalDateRequest,
+  Promise<UpdateSubscriptionRenewalDateResult>
+>({ cors: allowedOrigins, secrets: [stripeSecretKey] }, async (request) => {
+  return await performUpdateSubscriptionRenewalDate({
+    db: admin.firestore(),
+    stripe: getStripeClient(),
+    authEmail: verifiedAuthEmail(request),
+    subscriptionId: request.data?.subscriptionId,
+    renewalDate: request.data?.renewalDate,
+  });
+});
+
+export async function performCreateSubscriptionPaymentMethodSession(params: {
+  db: admin.firestore.Firestore;
+  stripe: Stripe;
+  authEmail: string | undefined;
+  subscriptionId: unknown;
+  returnUrl: unknown;
+}): Promise<CreateSubscriptionPaymentMethodSessionResult> {
+  const { db, stripe, authEmail, subscriptionId } = params;
+  if (
+    typeof subscriptionId !== 'string' ||
+    !subscriptionId.startsWith('sub_')
+  ) {
+    throw new HttpsError(
+      'invalid-argument',
+      'A valid subscriptionId is required.',
+    );
+  }
+  const validatedReturnUrl = requireAllowedReturnUrl(params.returnUrl);
+  const member = await getCallerMember(authEmail, db);
+
+  let subscription: Stripe.Subscription;
+  try {
+    subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  } catch {
+    throw new HttpsError('not-found', 'Subscription not found in Stripe.');
+  }
+
+  await verifySubscriptionOwnership(subscription, member, db, authEmail);
+
+  const subCustomerId =
+    typeof subscription.customer === 'string'
+      ? subscription.customer
+      : subscription.customer?.id;
+  const customerId = subCustomerId || member.stripeCustomerId;
+  if (!customerId) {
+    throw new HttpsError(
+      'failed-precondition',
+      'No Stripe customer is linked to this subscription.',
+    );
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'setup',
+    customer: customerId,
+    currency: (subscription.currency || 'usd').toLowerCase(),
+    success_url: validatedReturnUrl,
+    cancel_url: validatedReturnUrl,
+    metadata: {
+      purpose: 'subscription_payment_method_update',
+      subscriptionId,
+      memberDocId: member.docId,
+    },
+    setup_intent_data: {
+      metadata: {
+        purpose: 'subscription_payment_method_update',
+        subscriptionId,
+        memberDocId: member.docId,
+      },
+    },
+  });
+
+  if (!session.url) {
+    throw new HttpsError(
+      'internal',
+      'Stripe did not return a hosted setup URL.',
+    );
+  }
+
+  logger.info('createSubscriptionPaymentMethodSession created setup session', {
+    memberDocId: member.docId,
+    subscriptionId,
+    sessionId: session.id,
+  });
+
+  return { url: session.url, sessionId: session.id };
+}
+
+export const createSubscriptionPaymentMethodSession = onCall<
+  CreateSubscriptionPaymentMethodSessionRequest,
+  Promise<CreateSubscriptionPaymentMethodSessionResult>
+>({ cors: allowedOrigins, secrets: [stripeSecretKey] }, async (request) => {
+  return await performCreateSubscriptionPaymentMethodSession({
+    db: admin.firestore(),
+    stripe: getStripeClient(),
+    authEmail: verifiedAuthEmail(request),
+    subscriptionId: request.data?.subscriptionId,
+    returnUrl: request.data?.returnUrl,
+  });
+});
+
+/**
+ * Applies a completed Stripe Checkout `mode: 'setup'` session to update a
+ * specific subscription's `default_payment_method` and persist the masked card
+ * summary (`brand` + `last4`) on `/members/{memberDocId}`.
+ */
+export async function applySubscriptionPaymentMethodFromSetupSession(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session,
+  db: admin.firestore.Firestore,
+): Promise<void> {
+  const subscriptionId = session.metadata?.['subscriptionId'];
+  const memberDocId = session.metadata?.['memberDocId'];
+  if (!subscriptionId || !subscriptionId.startsWith('sub_')) {
+    logger.info('Setup Checkout session has no subscriptionId metadata; skipping', {
+      sessionId: session.id,
+    });
+    return;
+  }
+
+  const setupIntentRef = session.setup_intent;
+  if (!setupIntentRef) {
+    logger.warn('Setup Checkout session missing setup_intent', {
+      sessionId: session.id,
+      subscriptionId,
+    });
+    return;
+  }
+
+  const setupIntent =
+    typeof setupIntentRef === 'string'
+      ? await stripe.setupIntents.retrieve(setupIntentRef, {
+          expand: ['payment_method'],
+        })
+      : setupIntentRef;
+
+  const pmRef = setupIntent.payment_method;
+  const paymentMethodId = typeof pmRef === 'string' ? pmRef : pmRef?.id;
+  if (!paymentMethodId) {
+    logger.warn('SetupIntent has no payment_method attached', {
+      sessionId: session.id,
+      subscriptionId,
+    });
+    return;
+  }
+
+  const updatedSub = await stripe.subscriptions.update(subscriptionId, {
+    default_payment_method: paymentMethodId,
+    expand: ['default_payment_method'],
+  });
+
+  const pmObj =
+    typeof updatedSub.default_payment_method === 'object' &&
+    updatedSub.default_payment_method
+      ? updatedSub.default_payment_method
+      : typeof pmRef === 'object' && pmRef
+        ? pmRef
+        : null;
+  const maskedPm = extractMaskedPaymentMethodSummary(pmObj);
+
+  if (memberDocId) {
+    const memberRef = db.collection(FirestoreCollection.Members).doc(memberDocId);
+    const snap = await memberRef.get();
+    if (snap.exists) {
+      const member = firestoreDocToMember(snap);
+      const existingSub = member.stripeSubscriptions?.[subscriptionId];
+      const syncedSub = buildMemberSubscriptionItemFromStripe(updatedSub, {
+        existing: existingSub,
+        member,
+        overrides: maskedPm,
+      });
+      await memberRef.update({
+        stripeSubscriptions: {
+          ...(member.stripeSubscriptions || {}),
+          [subscriptionId]: syncedSub,
+        },
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  logger.info('Updated subscription default_payment_method from setup session', {
+    sessionId: session.id,
+    subscriptionId,
+    memberDocId,
+  });
+}
 
 function matchesSchoolSubscription(
   sub: MemberSubscriptionItem,

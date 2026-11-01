@@ -23,7 +23,6 @@ import {
   linkedSignal,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
@@ -35,8 +34,10 @@ import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
-import { MembershipType, isLifeMember as isLifeMemberStatus } from '../../../functions/src/data-model/members';
-import { OrderItemCategory } from '../../../functions/src/data-model/orders';
+import {
+  MembershipType,
+  isLifeMember as isLifeMemberStatus,
+} from '../../../functions/src/data-model/members';
 import {
   StripeProduct,
   StripeProductPrice,
@@ -47,12 +48,13 @@ import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import { PriceTableComponent } from '../price-table/price-table';
 import {
   formatStripePrice,
-  resolveMemberSubscriptionRenewal,
   tidyStripeLabel,
 } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
+import { SubscriptionCardComponent } from '../subscription-card/subscription-card';
+import { buildMembershipSubscriptionCard } from '../subscription-card/subscription-card.model';
 
 export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
 
@@ -60,7 +62,6 @@ export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
   selector: 'app-become-a-member',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     IconComponent,
     SpinnerComponent,
@@ -69,6 +70,7 @@ export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
     StepTrackComponent,
     StepCardComponent,
     PriceTableComponent,
+    SubscriptionCardComponent,
   ],
   templateUrl: './become-a-member.html',
   styleUrl: './become-a-member.scss',
@@ -128,11 +130,6 @@ export class BecomeAMemberComponent {
   // Checkout redirect state
   isRedirecting = signal(false);
   checkoutError = signal<string | null>(null);
-
-  // Subscription management state
-  cancelInProgress = signal(false);
-  cancelSuccessMessage = signal<string | null>(null);
-  cancelErrorMessage = signal<string | null>(null);
 
   countryDisplayFns = {
     toChipId: (c: { id: string; name: string }) => c.id,
@@ -257,48 +254,20 @@ export class BecomeAMemberComponent {
       .join(' • '),
   );
 
-  membershipRenewal = computed(() => {
+  membershipCard = computed(() => {
     const m = this.user()?.member;
-    if (!m) {
-      return {
-        isAutoRenewing: false,
-        nextAutoRenewDate: '',
-        amount: null,
-        currency: 'usd',
-        autoRenewalPaymentText: '',
-        projectedExpirationDate: '',
-      };
-    }
-    return resolveMemberSubscriptionRenewal({
-      subscriptionId: m.membershipSubscriptionId,
-      fallbackNextAutoRenewDate: m.membershipNextAutoRenewDate,
-      expirationDate: m.currentMembershipExpires,
-      defaultInterval: 'year',
+    if (!m) return null;
+    return buildMembershipSubscriptionCard({
+      member: m,
       todayStr: this.today(),
-      stripeSubscriptions: m.stripeSubscriptions,
       orders: this.dataService.myOrders?.entries() ?? [],
-      orderMatcher: (o) =>
-        o.lineItems?.some(
-          (li) =>
-            li.category === OrderItemCategory.Membership ||
-            (li.description || '').toLowerCase().includes('membership'),
-        ) || (o.description || '').toLowerCase().includes('membership'),
       fallbackPrice: this.applicableAnnualTier().price,
+      includeIfNeverSubscribed: false,
     });
   });
 
-  hasActiveSubscription = computed(() => this.membershipRenewal().isAutoRenewing);
-
-  membershipNextAutoRenewDate = computed(
-    () => this.membershipRenewal().nextAutoRenewDate,
-  );
-
-  membershipAutoRenewPaymentText = computed(
-    () => this.membershipRenewal().autoRenewalPaymentText,
-  );
-
-  membershipProjectedExpirationDate = computed(
-    () => this.membershipRenewal().projectedExpirationDate,
+  hasActiveSubscription = computed(() =>
+    Boolean(this.membershipCard()?.isAutoRenewing),
   );
 
   annualProduct = computed(() => {
@@ -817,56 +786,5 @@ export class BecomeAMemberComponent {
 
   redirectTo(url: string): void {
     window.location.assign(url);
-  }
-
-  // Cancel auto-renewal
-  async onCancelAutoRenew(): Promise<void> {
-    const subId = this.user()?.member.membershipSubscriptionId;
-    if (!subId) return;
-
-    const confirmed = confirm(
-      'Are you sure you want to cancel auto-renewal for your membership? You will retain access until your current expiry date.',
-    );
-    if (!confirmed) return;
-
-    this.cancelInProgress.set(true);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-
-    try {
-      const result = await this.stripeService.cancelSubscriptionRenewal(subId);
-      this.cancelSuccessMessage.set(
-        `Auto-renewal has been cancelled. Your membership remains active until ${result.periodEnd}.`,
-      );
-    } catch (err) {
-      this.cancelErrorMessage.set(
-        err instanceof Error ? err.message : 'Failed to cancel auto-renewal.',
-      );
-    } finally {
-      this.cancelInProgress.set(false);
-    }
-  }
-
-  // Resume auto-renewal
-  async onResumeAutoRenew(): Promise<void> {
-    const subId = this.user()?.member.membershipSubscriptionId;
-    if (!subId) return;
-
-    this.cancelInProgress.set(true);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-
-    try {
-      const result = await this.stripeService.resumeSubscriptionRenewal(subId);
-      this.cancelSuccessMessage.set(
-        `Auto-renewal resumed. Next renewal date: ${result.nextAutoRenewDate}.`,
-      );
-    } catch (err) {
-      this.cancelErrorMessage.set(
-        err instanceof Error ? err.message : 'Failed to resume auto-renewal.',
-      );
-    } finally {
-      this.cancelInProgress.set(false);
-    }
   }
 }

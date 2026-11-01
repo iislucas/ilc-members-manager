@@ -78,6 +78,8 @@ export {
   resumeSubscriptionRenewal,
   createCustomerPortalSession,
   getManagedSchoolsBilling,
+  updateSubscriptionRenewalDate,
+  createSubscriptionPaymentMethodSession,
 } from './stripe-subscriptions';
 
 export { stripeWebhook } from './stripe-webhook';

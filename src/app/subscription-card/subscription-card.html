@@ -1,0 +1,298 @@
+@let c = card();
+<div [class]="'sub-card ' + c.category">
+  <div class="sub-card-header">
+    <div class="sub-title-area">
+      <div class="sub-title-row">
+        <h3>{{ c.title }}</h3>
+        @if (c.identifierChip) {
+          <span class="identifier-chip">{{ c.identifierChip }}</span>
+        }
+      </div>
+      <span [class]="'status-badge ' + c.statusClass">
+        {{ c.statusLabel }}
+      </span>
+    </div>
+  </div>
+
+  @if (c.warningTitle || c.warningText) {
+    <div class="sub-warning-callout">
+      <app-icon name="warning" width="18px" height="18px"></app-icon>
+      <div class="sub-warning-content">
+        @if (c.warningTitle) {
+          <strong>{{ c.warningTitle }}</strong>
+        }
+        @if (c.warningText) {
+          <p>{{ c.warningText }}</p>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="sub-card-body">
+    <div class="info-row">
+      <span class="info-label">Access Status:</span>
+      <span class="info-val highlight">
+        @if (c.status === SubscriptionCardStatus.Lifetime) {
+          Lifetime Access
+        } @else if (c.expirationDate === "Not active" || !c.expirationDate) {
+          Not yet active
+        } @else if (c.status === SubscriptionCardStatus.Expired) {
+          Expired on {{ c.expirationDate }}
+        } @else {
+          Valid through {{ c.expirationDate }}
+        }
+      </span>
+    </div>
+
+    @if (c.payerLabel) {
+      <div class="info-row">
+        <span class="info-label">Payment linked to:</span>
+        <span class="info-val">{{ c.payerLabel }}</span>
+      </div>
+    }
+
+    @if (c.status !== SubscriptionCardStatus.Lifetime) {
+      <div class="info-row renewal-row">
+        <span class="info-label">Next auto-renewal payment:</span>
+        <span class="info-val renewal-val">
+          @if (c.isAutoRenewing) {
+            <strong class="renew-date">{{ c.autoRenewalPaymentText }}</strong>
+            @if (c.projectedExpirationDate || c.canEditRenewalDate) {
+              <button
+                type="button"
+                class="renewal-triangle-btn"
+                [attr.aria-expanded]="detailsExpanded()"
+                [attr.aria-controls]="detailsPanelId()"
+                [attr.aria-label]="
+                  detailsExpanded()
+                    ? 'Hide renewal details'
+                    : 'Show renewal details'
+                "
+                (click)="toggleDetails()"
+              >
+                <span
+                  class="triangle-glyph"
+                  [class.expanded]="detailsExpanded()"
+                  aria-hidden="true"
+                  >▸</span
+                >
+              </button>
+            }
+          } @else {
+            <span class="off-text">Off (Will not renew automatically)</span>
+          }
+        </span>
+      </div>
+
+      @if (c.isAutoRenewing && (c.projectedExpirationDate || c.canEditRenewalDate)) {
+        <div
+          [id]="detailsPanelId()"
+          class="renewal-disclosure-drawer"
+          [class.expanded]="detailsExpanded()"
+          [attr.aria-hidden]="!detailsExpanded()"
+        >
+          <div class="renewal-disclosure-inner">
+            @if (c.projectedExpirationDate) {
+              <p class="renewal-extension-note">
+                On {{ c.nextAutoRenewDate }}, the expiration date will be
+                extended to <strong>{{ c.projectedExpirationDate }}</strong>.
+              </p>
+            }
+
+            @if (c.canEditRenewalDate && !editingRenewalDate()) {
+              <button
+                type="button"
+                class="inline-link-button edit-renewal-trigger"
+                [disabled]="isOffline()"
+                (click)="openRenewalDateEditor()"
+              >
+                <app-icon name="edit" width="13px" height="13px"></app-icon>
+                <span>Change renewal date</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    }
+
+    @if (c.paymentMethodSummary) {
+      <div class="info-row">
+        <span class="info-label">Payment method:</span>
+        <span class="info-val">{{ c.paymentMethodSummary }}</span>
+      </div>
+    }
+  </div>
+
+  @if (editingRenewalDate() && c.canEditRenewalDate) {
+    <div class="renewal-date-editor">
+      <label class="editor-label" [for]="detailsPanelId() + '-date-input'">
+        Choose next auto-renewal payment date
+        <span class="editor-hint"
+          >(defaults to 1 week before {{ c.maxRenewalEditDate }})</span
+        >
+      </label>
+      <div class="editor-controls">
+        <input
+          [id]="detailsPanelId() + '-date-input'"
+          type="date"
+          class="renewal-date-input"
+          [min]="c.minRenewalEditDate"
+          [max]="c.maxRenewalEditDate"
+          [value]="draftRenewalDate()"
+          (input)="onDraftDateChange($event)"
+        />
+        @if (actionInFlight() === "edit-date") {
+          <app-spinner>{{ spinnerMessage() }}</app-spinner>
+        } @else {
+          <div class="editor-buttons">
+            <button
+              type="button"
+              class="sub-btn primary-button"
+              [disabled]="!isDraftDateValid() || isOffline()"
+              (click)="onSaveRenewalDate()"
+            >
+              Save Date
+            </button>
+            <button
+              type="button"
+              class="sub-btn cancel-btn"
+              (click)="cancelRenewalDateEditor()"
+            >
+              Cancel
+            </button>
+          </div>
+        }
+      </div>
+      @if (isDraftDateValid() && draftProjectedExpiration(); as previewExp) {
+        <p class="editor-preview">
+          On <strong>{{ draftRenewalDate() }}</strong>, the expiration date will
+          be extended to <strong>{{ previewExp }}</strong>.
+        </p>
+      }
+    </div>
+  }
+
+  @if (feedbackMessage(); as msg) {
+    <div class="card-banner success-banner">
+      <app-icon name="check" width="16px" height="16px"></app-icon>
+      <span>{{ msg }}</span>
+      <button
+        type="button"
+        class="banner-dismiss"
+        aria-label="Dismiss notification"
+        (click)="feedbackMessage.set(null)"
+      >
+        ✕
+      </button>
+    </div>
+  }
+
+  @if (errorMessage(); as err) {
+    <div class="card-banner error-banner">
+      <app-icon name="warning" width="16px" height="16px"></app-icon>
+      <span>
+        {{ err }} Please contact
+        <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a> if you need
+        assistance.
+      </span>
+      <button
+        type="button"
+        class="banner-dismiss"
+        aria-label="Dismiss error"
+        (click)="errorMessage.set(null)"
+      >
+        ✕
+      </button>
+    </div>
+  }
+
+  @if (confirmingCancel()) {
+    <div class="inline-confirm-box">
+      <p class="confirm-text">
+        Cancel automatic renewal for this subscription? Your access will
+        continue through <strong>{{ c.expirationDate }}</strong>.
+      </p>
+      @if (actionInFlight() === "cancel") {
+        <app-spinner>{{ spinnerMessage() }}</app-spinner>
+      } @else {
+        <div class="confirm-actions">
+          <button
+            type="button"
+            class="sub-btn confirm-danger-btn"
+            [disabled]="isOffline()"
+            (click)="confirmCancelAutoRenew()"
+          >
+            Confirm Cancel
+          </button>
+          <button
+            type="button"
+            class="sub-btn cancel-btn"
+            (click)="dismissCancelAutoRenew()"
+          >
+            Keep Auto-Renewal
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="sub-card-actions">
+    @if (
+      actionInFlight() === "resume" || actionInFlight() === "payment-method"
+    ) {
+      <app-spinner>{{ spinnerMessage() }}</app-spinner>
+    } @else {
+      @if (c.canCancel && !confirmingCancel()) {
+        <button
+          type="button"
+          class="sub-btn cancel-btn"
+          [disabled]="isOffline()"
+          (click)="requestCancelAutoRenew()"
+        >
+          Cancel Auto-Renewal
+        </button>
+      }
+
+      @if (c.canResume) {
+        <button
+          type="button"
+          class="sub-btn resume-btn"
+          [disabled]="isOffline()"
+          (click)="onResumeAutoRenew()"
+        >
+          Resume Auto-Renewal
+        </button>
+        @if (c.canEditRenewalDate && !editingRenewalDate()) {
+          <button
+            type="button"
+            class="sub-btn cancel-btn"
+            [disabled]="isOffline()"
+            (click)="openRenewalDateEditor()"
+          >
+            Schedule Renewal Date
+          </button>
+        }
+      }
+
+      @if (c.canUpdatePaymentMethod) {
+        <button
+          type="button"
+          class="sub-btn cancel-btn payment-method-btn"
+          [disabled]="isOffline()"
+          (click)="onUpdatePaymentMethod()"
+        >
+          <app-icon name="payments" width="15px" height="15px"></app-icon>
+          <span>Update Payment Method</span>
+        </button>
+      }
+
+      @if (showRenewLink() && c.canSubscribe && c.subscribeUrl) {
+        <a class="sub-btn primary-button" [href]="c.subscribeUrl">
+          Renew Now
+        </a>
+      }
+
+      <ng-content select="[cardExtraActions]"></ng-content>
+    }
+  </div>
+</div>

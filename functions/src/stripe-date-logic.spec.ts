@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
+import Stripe from 'stripe';
 import { InstructorLicenseType } from './data-model/curriculum';
 import {
   initMember,
@@ -19,6 +20,8 @@ import {
 import {
   buildMemberSubscriptionItemFromStripe,
   computeRecurringSubscriptionAmount,
+  performCreateSubscriptionPaymentMethodSession,
+  performUpdateSubscriptionRenewalDate,
   resolveManagedSchoolsBillingForEmail,
 } from './stripe-subscriptions';
 
@@ -1254,6 +1257,320 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
         'stranger@example.com',
       );
       expect(unknownRes.schools).toEqual({});
+    });
+  });
+
+  // =========================================================================
+  // 8. RENEWAL DATE EDITING & TRIALING EXPIRATION PROTECTION
+  // =========================================================================
+  describe('Subscription Renewal Date Editing & Trialing Safety', () => {
+    it('REGRESSION GUARD: syncSubscriptionStatusToMember NEVER extends paid expiration dates when status is trialing', async () => {
+      const memberWithPaidExpiry = {
+        ...baseMember,
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2027-06-15',
+        membershipSubscriptionId: 'sub_mem_trial_1',
+        membershipNextAutoRenewDate: '2026-11-15',
+      };
+
+      mockMemberRef.get = vi.fn().mockResolvedValue({
+        exists: true,
+        id: memberWithPaidExpiry.docId,
+        data: () => memberWithPaidExpiry,
+      });
+
+      const trialingStripeSub = {
+        id: 'sub_mem_trial_1',
+        status: 'trialing',
+        customer: 'cus_test123',
+        trial_end: Math.floor(Date.UTC(2027, 5, 8, 12, 0, 0) / 1000),
+        cancel_at_period_end: false,
+        currency: 'usd',
+        metadata: {
+          memberDocId: memberWithPaidExpiry.docId,
+          orderType: 'membership',
+        },
+        items: {
+          data: [
+            {
+              price: {
+                id: 'price_ann',
+                unit_amount: 8500,
+                currency: 'usd',
+                recurring: { interval: 'year' },
+                product: { id: 'prod_mem', name: 'Annual Membership' },
+              },
+            },
+          ],
+        },
+      } as unknown as Stripe.Subscription;
+
+      await syncSubscriptionStatusToMember(mockDb, trialingStripeSub);
+
+      // nextAutoRenewDate updates to 2027-06-08, while currentMembershipExpires is NOT extended or overwritten
+      expect(updatedMemberData['membershipNextAutoRenewDate']).toBe('2027-06-08');
+      expect(updatedMemberData['currentMembershipExpires']).toBeUndefined();
+
+      // Even if a trialing periodEnd were somehow beyond currentMembershipExpires, it still MUST NOT extend paid access
+      updatedMemberData = {};
+      await syncSubscriptionStatusToMember(mockDb, {
+        ...trialingStripeSub,
+        trial_end: Math.floor(Date.UTC(2029, 0, 1, 12, 0, 0) / 1000),
+      } as unknown as Stripe.Subscription);
+      expect(updatedMemberData['currentMembershipExpires']).toBeUndefined();
+    });
+
+    it('performUpdateSubscriptionRenewalDate updates Stripe with trial_end and proration_behavior none, and rejects dates past paid expiration', async () => {
+      const activeMember = {
+        ...baseMember,
+        docId: 'mem_edit_date',
+        emails: ['wang@example.com'],
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2028-04-23',
+        membershipSubscriptionId: 'sub_edit_1',
+        membershipNextAutoRenewDate: '2026-11-15',
+        stripeSubscriptions: {
+          sub_edit_1: {
+            subscriptionId: 'sub_edit_1',
+            type: SubscriptionItemType.Membership,
+            status: SubscriptionStatus.Active,
+            planName: 'Annual Membership',
+            amount: 8500,
+            currency: 'usd',
+            interval: SubscriptionInterval.Year,
+            currentPeriodStart: '2025-11-15',
+            currentPeriodEnd: '2026-11-15',
+            nextAutoRenewDate: '2026-11-15',
+            cancelAtPeriodEnd: false,
+          },
+        },
+      };
+
+      const editDb: any = {
+        collection: vi.fn((colName: string) => {
+          if (colName === 'acl') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({
+                    memberDocIds: ['mem_edit_date'],
+                    isAdmin: false,
+                  }),
+                }),
+              }),
+            };
+          }
+          if (colName === 'members') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  exists: true,
+                  id: 'mem_edit_date',
+                  data: () => activeMember,
+                }),
+                update: vi.fn(async (data: Record<string, unknown>) => {
+                  updatedMemberData = { ...updatedMemberData, ...data };
+                }),
+              }),
+            };
+          }
+          return mockDb.collection(colName);
+        }),
+      };
+
+      const stripeRetrieveSpy = vi.fn().mockResolvedValue({
+        id: 'sub_edit_1',
+        status: 'active',
+        customer: 'cus_wang',
+        cancel_at_period_end: false,
+        metadata: { memberDocId: 'mem_edit_date', orderType: 'membership' },
+        items: {
+          data: [
+            {
+              price: {
+                id: 'price_ann',
+                unit_amount: 8500,
+                currency: 'usd',
+                recurring: { interval: 'year' },
+                product: { id: 'prod_mem', name: 'Annual Membership' },
+              },
+            },
+          ],
+        },
+      });
+      const expectedTrialEndUnix = Math.floor(
+        Date.UTC(2028, 3, 16, 12, 0, 0) / 1000,
+      );
+      const stripeUpdateSpy = vi.fn().mockResolvedValue({
+        id: 'sub_edit_1',
+        status: 'trialing',
+        customer: 'cus_wang',
+        trial_end: expectedTrialEndUnix,
+        cancel_at_period_end: false,
+        metadata: { memberDocId: 'mem_edit_date', orderType: 'membership' },
+        items: {
+          data: [
+            {
+              price: {
+                id: 'price_ann',
+                unit_amount: 8500,
+                currency: 'usd',
+                recurring: { interval: 'year' },
+                product: { id: 'prod_mem', name: 'Annual Membership' },
+              },
+            },
+          ],
+        },
+      });
+      const mockStripe: any = {
+        subscriptions: {
+          retrieve: stripeRetrieveSpy,
+          update: stripeUpdateSpy,
+        },
+      };
+
+      const fixedNowMs = Date.parse('2026-11-01T10:00:00Z');
+
+      // Rejects renewalDate > currentMembershipExpires (free-access extension attempt)
+      await expect(
+        performUpdateSubscriptionRenewalDate({
+          db: editDb,
+          stripe: mockStripe,
+          authEmail: 'wang@example.com',
+          subscriptionId: 'sub_edit_1',
+          renewalDate: '2028-04-24',
+          nowMs: fixedNowMs,
+        }),
+      ).rejects.toThrow(/expiration date/);
+      expect(stripeUpdateSpy).not.toHaveBeenCalled();
+
+      // Rejects past/today date
+      await expect(
+        performUpdateSubscriptionRenewalDate({
+          db: editDb,
+          stripe: mockStripe,
+          authEmail: 'wang@example.com',
+          subscriptionId: 'sub_edit_1',
+          renewalDate: '2026-11-01',
+          nowMs: fixedNowMs,
+        }),
+      ).rejects.toThrow(/on or after 2026-11-02/);
+
+      // Valid renewalDate (default 1 week before expiration: 2028-04-16) succeeds
+      updatedMemberData = {};
+      const res = await performUpdateSubscriptionRenewalDate({
+        db: editDb,
+        stripe: mockStripe,
+        authEmail: 'wang@example.com',
+        subscriptionId: 'sub_edit_1',
+        renewalDate: '2028-04-16',
+        nowMs: fixedNowMs,
+      });
+
+      expect(stripeUpdateSpy).toHaveBeenCalledWith(
+        'sub_edit_1',
+        expect.objectContaining({
+          trial_end: expectedTrialEndUnix,
+          proration_behavior: 'none',
+          cancel_at_period_end: false,
+        }),
+      );
+      expect(res.success).toBe(true);
+      expect(res.nextAutoRenewDate).toBe('2028-04-16');
+      expect(
+        (updatedMemberData['stripeSubscriptions'] as Record<string, any>)?.[
+          'sub_edit_1'
+        ]?.status,
+      ).toBe('trialing');
+    });
+
+    it('performCreateSubscriptionPaymentMethodSession omits payment_method_types and validates returnUrl origin', async () => {
+      const ownerMember = {
+        ...baseMember,
+        docId: 'mem_pm_owner',
+        stripeCustomerId: 'cus_pm_123',
+        membershipSubscriptionId: 'sub_pm_1',
+      };
+      const pmDb: any = {
+        collection: vi.fn((colName: string) => {
+          if (colName === 'acl') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({ memberDocIds: ['mem_pm_owner'], isAdmin: false }),
+                }),
+              }),
+            };
+          }
+          if (colName === 'members') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  exists: true,
+                  id: 'mem_pm_owner',
+                  data: () => ownerMember,
+                }),
+              }),
+            };
+          }
+          return mockDb.collection(colName);
+        }),
+      };
+
+      const sessionCreateSpy = vi.fn().mockResolvedValue({
+        id: 'cs_setup_pm_1',
+        url: 'https://checkout.stripe.com/c/pay/cs_setup_pm',
+      });
+      const mockStripe: any = {
+        subscriptions: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: 'sub_pm_1',
+            status: 'active',
+            customer: 'cus_pm_123',
+            currency: 'usd',
+            items: {
+              data: [{ price: { currency: 'usd' } }],
+            },
+          }),
+        },
+        checkout: {
+          sessions: {
+            create: sessionCreateSpy,
+          },
+        },
+      };
+
+      // Rejects disallowed open-redirect returnUrl
+      await expect(
+        performCreateSubscriptionPaymentMethodSession({
+          db: pmDb,
+          stripe: mockStripe,
+          authEmail: 'wang@example.com',
+          subscriptionId: 'sub_pm_1',
+          returnUrl: 'https://evil.example.org/phish',
+        }),
+      ).rejects.toThrow(/recognised app origin/);
+      expect(sessionCreateSpy).not.toHaveBeenCalled();
+
+      // Valid localhost returnUrl succeeds and omits payment_method_types
+      const res = await performCreateSubscriptionPaymentMethodSession({
+        db: pmDb,
+        stripe: mockStripe,
+        authEmail: 'wang@example.com',
+        subscriptionId: 'sub_pm_1',
+        returnUrl: 'http://localhost:4200/become-a-member',
+      });
+
+      expect(res.url).toBe('https://checkout.stripe.com/c/pay/cs_setup_pm');
+      expect(sessionCreateSpy).toHaveBeenCalledTimes(1);
+      const sessionParams = sessionCreateSpy.mock.calls[0][0];
+      expect(sessionParams.mode).toBe('setup');
+      expect(sessionParams.payment_method_types).toBeUndefined();
+      expect(sessionParams.setup_intent_data?.metadata?.subscriptionId).toBe(
+        'sub_pm_1',
+      );
     });
   });
 });

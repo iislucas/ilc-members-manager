@@ -68,77 +68,20 @@
     </div>
   }
 
-  <!-- Active Subscription / Access Banner (if active) -->
-  @if (hasVideoAccess()) {
-    <div class="current-membership-banner card">
-      <div class="banner-header">
-        <app-icon name="check" width="24px" height="24px"></app-icon>
-        <div>
-          <h3>You have active Video Library Access</h3>
-          <p>
-            @if (expirationDate()) {
-              Valid through <strong>{{ expirationDate() }}</strong>.
-            } @else {
-              <strong>Lifetime / Unlimited Access</strong>.
-            }
-            @if (hasActiveAutoRenew()) {
-              Next auto-renewal payment: <strong>{{ nextAutoRenewPaymentText() }}</strong>.
-              @if (expirationDate() && projectedExpirationDate()) {
-                On {{ nextAutoRenewDate() }}, the expiration date will be extended to
-                <strong>{{ projectedExpirationDate() }}</strong>.
-              }
-            }
-          </p>
-        </div>
-      </div>
-
-      <div class="banner-actions">
+  <!-- Video Library Subscription Card (active or previously subscribed) -->
+  @if (videoSubscriptionCard(); as card) {
+    <app-subscription-card [card]="card" [showRenewLink]="false">
+      @if (hasVideoAccess()) {
         <a
-          class="video-library-link-btn"
+          cardExtraActions
+          class="sub-btn video-library-link-btn"
           [href]="routingService.hrefForView(Views.ClassVideoLibrary)"
         >
-          <app-icon name="video_library"></app-icon>
+          <app-icon name="video_library" width="16px" height="16px"></app-icon>
           <span>Open Class Video Library</span>
         </a>
-
-        @if (user()?.member?.classVideoLibrarySubscriptionId) {
-          @if (hasActiveAutoRenew()) {
-            <button
-              type="button"
-              class="subtle-button"
-              [disabled]="cancelInProgress()"
-              (click)="onCancelAutoRenew()"
-            >
-              <app-icon name="close"></app-icon>
-              <span>{{ cancelInProgress() ? 'Cancelling...' : 'Cancel Auto-Renewal' }}</span>
-            </button>
-          } @else {
-            <button
-              type="button"
-              class="subtle-button"
-              [disabled]="cancelInProgress()"
-              (click)="onResumeAutoRenew()"
-            >
-              <app-icon name="check"></app-icon>
-              <span>{{ cancelInProgress() ? 'Resuming...' : 'Resume Auto-Renewal' }}</span>
-            </button>
-          }
-        }
-      </div>
-
-      @if (cancelSuccessMessage()) {
-        <div class="success-message">{{ cancelSuccessMessage() }}</div>
       }
-      @if (cancelErrorMessage()) {
-        <div class="error-container">
-          <span class="error-message">
-            {{ cancelErrorMessage() }}
-            Please contact
-            <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a> for assistance.
-          </span>
-        </div>
-      }
-    </div>
+    </app-subscription-card>
   }
 
   <!-- Details of what is offered / Value of Video Library -->

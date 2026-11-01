@@ -1,12 +1,5 @@
 <div class="orders-container">
   <!-- Action Feedback Banners -->
-  @if (actionMessage()) {
-    <div class="banner success-banner">
-      <app-icon name="check" width="20px" height="20px"></app-icon>
-      <span>{{ actionMessage() }}</span>
-      <button class="banner-close" (click)="actionMessage.set(null)">✕</button>
-    </div>
-  }
   @if (actionError()) {
     <div class="banner error-banner">
       <app-icon name="error" width="20px" height="20px"></app-icon>
@@ -100,105 +93,11 @@
 
     <div class="subscriptions-grid">
       @for (sub of subscriptions(); track sub.id) {
-        <div [class]="'sub-card ' + sub.category">
-          <div class="sub-card-header">
-            <div class="sub-title-area">
-              <h3>{{ sub.title }}</h3>
-              <span [class]="'status-badge ' + sub.statusClass">
-                {{ sub.statusLabel }}
-              </span>
-            </div>
-          </div>
-
-          <div class="sub-card-body">
-            <div class="info-row">
-              <span class="info-label">Access Status:</span>
-              <span class="info-val highlight">
-                @if (sub.status === "lifetime") {
-                  Lifetime Access
-                } @else if (sub.status === "expired") {
-                  Expired on {{ sub.expirationDate }}
-                } @else {
-                  Valid through {{ sub.expirationDate }}
-                }
-              </span>
-            </div>
-
-            @if (sub.payerLabel) {
-              <div class="info-row">
-                <span class="info-label">Payment linked to:</span>
-                <span class="info-val">{{ sub.payerLabel }}</span>
-              </div>
-            }
-
-            <div class="info-row">
-              <span class="info-label">Next auto-renewal payment:</span>
-              <span class="info-val">
-                @if (sub.isAutoRenewing) {
-                  <strong class="renew-date">{{
-                    sub.autoRenewalPaymentText
-                  }}</strong>
-                } @else if (sub.status === "lifetime") {
-                  Not applicable
-                } @else {
-                  <span class="off-text"
-                    >Off (Will not renew automatically)</span
-                  >
-                }
-              </span>
-            </div>
-
-            @if (sub.isAutoRenewing && sub.projectedExpirationDate) {
-              <div class="renewal-extension-note">
-                On {{ sub.nextAutoRenewDate }}, the expiration date will be
-                extended to <strong>{{ sub.projectedExpirationDate }}</strong>.
-              </div>
-            }
-          </div>
-
-          @if (sub.canCancel || sub.canResume || sub.canSubscribe) {
-            <div class="sub-card-actions">
-              @if (sub.canCancel) {
-                <button
-                  type="button"
-                  class="sub-btn cancel-btn"
-                  [disabled]="actionInProgressSubId() === sub.subscriptionId"
-                  (click)="onCancelAutoRenew(sub.subscriptionId)"
-                >
-                  {{
-                    actionInProgressSubId() === sub.subscriptionId
-                      ? "Cancelling..."
-                      : "Cancel Auto-Renewal"
-                  }}
-                </button>
-              }
-
-              @if (sub.canResume) {
-                <button
-                  type="button"
-                  class="sub-btn resume-btn"
-                  [disabled]="actionInProgressSubId() === sub.subscriptionId"
-                  (click)="onResumeAutoRenew(sub.subscriptionId)"
-                >
-                  {{
-                    actionInProgressSubId() === sub.subscriptionId
-                      ? "Resuming..."
-                      : "Resume Auto-Renewal"
-                  }}
-                </button>
-              }
-
-              @if (sub.canSubscribe) {
-                <a
-                  class="sub-btn primary-button"
-                  [href]="sub.subscribeUrl"
-                >
-                  Renew Now
-                </a>
-              }
-            </div>
-          }
-        </div>
+        <app-subscription-card
+          [card]="sub"
+          [showRenewLink]="true"
+          (subscriptionUpdated)="loadManagedSchoolsBilling()"
+        ></app-subscription-card>
       } @empty {
         <div class="empty-subscriptions">
           <p>No active subscriptions found for this account.</p>
@@ -217,74 +116,11 @@
 
         <div class="subscriptions-grid">
           @for (sub of otherPayerSchoolSubscriptions(); track sub.id) {
-            <div [class]="'sub-card ' + sub.category">
-              <div class="sub-card-header">
-                <div class="sub-title-area">
-                  <h3>{{ sub.title }}</h3>
-                  <span [class]="'status-badge ' + sub.statusClass">
-                    {{ sub.statusLabel }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="sub-card-body">
-                <div class="info-row">
-                  <span class="info-label">Access Status:</span>
-                  <span class="info-val highlight">
-                    @if (sub.status === "lifetime") {
-                      Lifetime Access
-                    } @else if (sub.status === "expired") {
-                      Expired on {{ sub.expirationDate }}
-                    } @else {
-                      Valid through {{ sub.expirationDate }}
-                    }
-                  </span>
-                </div>
-
-                @if (sub.payerLabel) {
-                  <div class="info-row">
-                    <span class="info-label">Payment linked to:</span>
-                    <span class="info-val">{{ sub.payerLabel }}</span>
-                  </div>
-                }
-
-                <div class="info-row">
-                  <span class="info-label">Next auto-renewal payment:</span>
-                  <span class="info-val">
-                    @if (sub.isAutoRenewing) {
-                      <strong class="renew-date">{{
-                        sub.autoRenewalPaymentText
-                      }}</strong>
-                    } @else if (sub.status === "lifetime") {
-                      Not applicable
-                    } @else {
-                      <span class="off-text"
-                        >Off (Will not renew automatically)</span
-                      >
-                    }
-                  </span>
-                </div>
-
-                @if (sub.isAutoRenewing && sub.projectedExpirationDate) {
-                  <div class="renewal-extension-note">
-                    On {{ sub.nextAutoRenewDate }}, the expiration date will be
-                    extended to
-                    <strong>{{ sub.projectedExpirationDate }}</strong>.
-                  </div>
-                }
-              </div>
-
-              @if (sub.canSubscribe) {
-                <div class="sub-card-actions">
-                  <a
-                    class="sub-btn primary-button"
-                    [href]="sub.subscribeUrl"
-                  >
-                    Renew Now
-                  </a>
-                </div>
-              }
-            </div>
+            <app-subscription-card
+              [card]="sub"
+              [showRenewLink]="true"
+              (subscriptionUpdated)="loadManagedSchoolsBilling()"
+            ></app-subscription-card>
           }
         </div>
       </div>
@@ -402,16 +238,20 @@
                 </span>
                 @if (order.orderType && order.orderType !== "checkout") {
                   <span
-                    class="badge type-badge"
-                    [ngClass]="getOrderTypeBadgeClass(order.orderType)"
+                    [class]="
+                      'badge type-badge ' +
+                      getOrderTypeBadgeClass(order.orderType)
+                    "
                   >
                     {{ order.orderType }}
                   </span>
                 }
                 @if (order.paymentStatus) {
                   <span
-                    class="badge status-badge"
-                    [ngClass]="getPaymentStatusBadgeClass(order.paymentStatus)"
+                    [class]="
+                      'badge status-badge ' +
+                      getPaymentStatusBadgeClass(order.paymentStatus)
+                    "
                   >
                     {{ order.paymentStatus }}
                   </span>

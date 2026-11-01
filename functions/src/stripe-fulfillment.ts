@@ -2383,6 +2383,10 @@ export async function syncSubscriptionStatusToMember(
   const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
   const status = subscription.status;
   const isActive = status === 'active' || status === 'trialing';
+  // Only paid `active` cycles may extend access expiration dates. A `trialing`
+  // state (e.g. from rescheduling the next billing date via `trial_end`) must
+  // never grant unpaid access extensions beyond what has already been paid for.
+  const canExtendPaidAccess = status === 'active';
   const nextAutoRenewDate = !isActive || cancelAtPeriodEnd ? '' : periodEnd;
 
   const memberRef = db.collection(FirestoreCollection.Members).doc(member.docId);
@@ -2392,7 +2396,7 @@ export async function syncSubscriptionStatusToMember(
 
   if (member.membershipSubscriptionId === subscription.id) {
     updates.membershipNextAutoRenewDate = nextAutoRenewDate;
-    if (isActive && periodEnd) {
+    if (canExtendPaidAccess && periodEnd) {
       if (!member.currentMembershipExpires || member.currentMembershipExpires < periodEnd) {
         updates.currentMembershipExpires = periodEnd;
       }
@@ -2400,7 +2404,7 @@ export async function syncSubscriptionStatusToMember(
   }
   if (member.instructorLicenseSubscriptionId === subscription.id) {
     updates.instructorLicenseNextAutoRenewDate = nextAutoRenewDate;
-    if (isActive && periodEnd) {
+    if (canExtendPaidAccess && periodEnd) {
       if (!member.instructorLicenseExpires || member.instructorLicenseExpires < periodEnd) {
         updates.instructorLicenseExpires = periodEnd;
       }
@@ -2408,7 +2412,7 @@ export async function syncSubscriptionStatusToMember(
   }
   if (member.classVideoLibrarySubscriptionId === subscription.id) {
     updates.classVideoLibraryNextAutoRenewDate = nextAutoRenewDate;
-    if (isActive && periodEnd) {
+    if (canExtendPaidAccess && periodEnd) {
       updates.classVideoLibrarySubscription = true;
       if (!member.classVideoLibraryExpirationDate || member.classVideoLibraryExpirationDate < periodEnd) {
         updates.classVideoLibraryExpirationDate = periodEnd;
@@ -2433,7 +2437,7 @@ export async function syncSubscriptionStatusToMember(
 
   if (
     updatedSub.type === SubscriptionItemType.SchoolLicense &&
-    isActive &&
+    canExtendPaidAccess &&
     periodEnd &&
     updatedSub.schoolDocId
   ) {

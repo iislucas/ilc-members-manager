@@ -24,6 +24,8 @@ import {
   CreateCheckoutSessionResult,
   CreateCustomerPortalSessionRequest,
   CreateCustomerPortalSessionResult,
+  CreateSubscriptionPaymentMethodSessionRequest,
+  CreateSubscriptionPaymentMethodSessionResult,
   CreateGradingCheckoutSessionRequest,
   CreateProductCheckoutSessionRequest,
   CreateVodCheckoutSessionRequest,
@@ -31,6 +33,8 @@ import {
   GetManagedSchoolsBillingResult,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
+  UpdateSubscriptionRenewalDateRequest,
+  UpdateSubscriptionRenewalDateResult,
   UpdateProductRegistrationRequest,
   UpdateProductRegistrationResult,
   RegisterEventInPersonRequest,
@@ -259,6 +263,42 @@ export class StripeService {
       CreateCustomerPortalSessionResult
     >(this.functions, 'createCustomerPortalSession');
     const result = await fn({ returnUrl });
+    return result.data;
+  }
+
+  /** Reschedule the next auto-renewal charge date for a Stripe subscription. */
+  async updateSubscriptionRenewalDate(
+    subscriptionId: string,
+    renewalDate: string,
+  ): Promise<UpdateSubscriptionRenewalDateResult> {
+    if (this.networkState.isOffline()) {
+      throw new Error(
+        'You are currently offline. Please connect to the internet to update your renewal date.',
+      );
+    }
+    const fn = httpsCallable<
+      UpdateSubscriptionRenewalDateRequest,
+      UpdateSubscriptionRenewalDateResult
+    >(this.functions, 'updateSubscriptionRenewalDate');
+    const result = await fn({ subscriptionId, renewalDate });
+    return result.data;
+  }
+
+  /** Create a hosted Stripe Checkout Setup session to update the payment method for a specific subscription. */
+  async createSubscriptionPaymentMethodSession(
+    subscriptionId: string,
+    returnUrl: string,
+  ): Promise<CreateSubscriptionPaymentMethodSessionResult> {
+    if (this.networkState.isOffline()) {
+      throw new Error(
+        'You are currently offline. Please connect to the internet to update your payment method.',
+      );
+    }
+    const fn = httpsCallable<
+      CreateSubscriptionPaymentMethodSessionRequest,
+      CreateSubscriptionPaymentMethodSessionResult
+    >(this.functions, 'createSubscriptionPaymentMethodSession');
+    const result = await fn({ subscriptionId, returnUrl });
     return result.data;
   }
 

@@ -221,6 +221,26 @@ export interface CreateCustomerPortalSessionResult {
   url: string;
 }
 
+export interface UpdateSubscriptionRenewalDateRequest {
+  subscriptionId: string;
+  renewalDate: string; // YYYY-MM-DD
+}
+
+export interface UpdateSubscriptionRenewalDateResult {
+  success: boolean;
+  nextAutoRenewDate: string; // YYYY-MM-DD
+}
+
+export interface CreateSubscriptionPaymentMethodSessionRequest {
+  subscriptionId: string;
+  returnUrl: string;
+}
+
+export interface CreateSubscriptionPaymentMethodSessionResult {
+  url: string;
+  sessionId: string;
+}
+
 export interface ManagedSchoolBillingInfo {
   schoolDocId: string;
   schoolId: string;
