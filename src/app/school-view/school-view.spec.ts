@@ -118,5 +118,35 @@ describe('SchoolViewComponent', () => {
     expect(component.pastEvents().length).toBe(1);
     expect(component.pastEventsTotal()).toBe(7);
     expect(component.allEventsHref()).toBe('/events?schoolId=SCH-1');
+
+    fixture.detectChanges();
+    const showMoreLinks: HTMLAnchorElement[] = Array.from(
+      fixture.nativeElement.querySelectorAll('a.show-more-link'),
+    );
+    const seeAllLink = showMoreLinks.find((a) =>
+      a.textContent?.includes('See all events'),
+    );
+    expect(seeAllLink).toBeTruthy();
+    expect(seeAllLink?.getAttribute('href')).toBe('/events?schoolId=SCH-1');
+  });
+
+  it('renders Class Calendar link when schoolClassGoogleCalendarId is configured and omits it when empty', async () => {
+    await (component as unknown as { loadSchool: () => Promise<void> }).loadSchool();
+    fixture.detectChanges();
+    expect(component.classCalendarHref()).toBe('');
+    expect(fixture.nativeElement.textContent).not.toContain('Class Calendar');
+
+    component.school.set({
+      ...school,
+      schoolClassGoogleCalendarId: 'school-cal@group.calendar.google.com',
+    });
+    fixture.detectChanges();
+
+    expect(component.classCalendarHref()).toBe('/calendar/school/SCH-1');
+    const calendarLink: HTMLAnchorElement | undefined = Array.from<HTMLAnchorElement>(
+      fixture.nativeElement.querySelectorAll('a.contact-link'),
+    ).find((a) => a.textContent?.includes('Class Calendar'));
+    expect(calendarLink).toBeTruthy();
+    expect(calendarLink?.getAttribute('href')).toBe('/calendar/school/SCH-1');
   });
 });

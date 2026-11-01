@@ -11,7 +11,11 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
 import { defineSecret } from 'firebase-functions/params';
-import { CalendarRequest, GoogleCalendarResponse } from './calendar.types';
+import {
+  CalendarRequest,
+  GoogleCalendarResponse,
+  extractGoogleCalendarId,
+} from './calendar.types';
 import { allowedOrigins } from './common';
 
 const calendarApiKey = defineSecret('GOOGLE_CALENDAR_API_KEY');
@@ -64,7 +68,7 @@ export const getCalendarEvents = onCall(
     // sensible defaults for optional parameters. This makes the code cleaner
     // and more robust against missing inputs.
     const {
-      calendarId,
+      calendarId: rawCalendarId,
       q,
       singleEvents = true,
       orderBy = 'startTime',
@@ -72,6 +76,17 @@ export const getCalendarEvents = onCall(
       timeMax,
       maxResults = 100,
     } = request.data as CalendarRequest;
+
+    const calendarId = extractGoogleCalendarId(rawCalendarId);
+    if (!calendarId || calendarId.length > 512) {
+      logger.warn('Invalid or empty calendarId after normalization.', {
+        calendarId: rawCalendarId,
+      });
+      throw new HttpsError(
+        'invalid-argument',
+        'The function must be called with a valid "calendarId" argument.'
+      );
+    }
 
     // 4. Dynamic Parameter Handling (Best Practice & Maintainability)
     // Prepares parameters for the API request. Using a params object with

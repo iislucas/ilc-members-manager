@@ -771,7 +771,9 @@ export class NavigationTreeService {
         const calSchool = calSchoolId
           ? this.dataService.schools.get(calSchoolId)
           : undefined;
-        return calSchool ? `${calSchool.schoolName}'s Calendar` : 'School Calendar';
+        return calSchool
+          ? `${calSchool.schoolName}'s Class Calendar`
+          : 'School Class Calendar';
       }
       case Views.SchoolMembers: {
         const schoolId = this.routing.signals[viewId].pathVars.schoolId();

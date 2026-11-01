@@ -77,6 +77,7 @@
             <app-class-calendar
               [calendarId]="instructorCalendarId()"
               [calendarOwnerName]="instructorCalendarOwnerName()"
+              [calendarLoading]="findInstructorsService.instructors.loading()"
             ></app-class-calendar>
           } @loading (minimum 150ms) {
             <app-spinner class="view-loading">Loading calendar...</app-spinner>
@@ -89,6 +90,7 @@
             <app-class-calendar
               [calendarId]="schoolCalendarId()"
               [calendarOwnerName]="schoolCalendarOwnerName()"
+              [calendarLoading]="dataService.schools.loading()"
             ></app-class-calendar>
           } @loading (minimum 150ms) {
             <app-spinner class="view-loading">Loading calendar...</app-spinner>

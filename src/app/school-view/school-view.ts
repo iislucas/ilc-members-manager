@@ -64,6 +64,13 @@ export class SchoolViewComponent implements OnInit {
   eventsLoading = signal(false);
 
 
+  // Link to the school's public class calendar, when configured.
+  classCalendarHref = computed(() => {
+    const s = this.school();
+    if (!s || !s.schoolClassGoogleCalendarId || !s.schoolId) return '';
+    return `/calendar/school/${encodeURIComponent(s.schoolId)}`;
+  });
+
   // Link to the events search page, pre-filtered to this school.
   allEventsHref = computed(() => {
     const s = this.school();

@@ -252,6 +252,25 @@ describe('SchoolEditComponent', () => {
       );
     });
 
+    it('normalizes a pasted Google Calendar URL into a calendar ID on save', async () => {
+      component.form
+        .schoolClassGoogleCalendarId()
+        .value.set(
+          'https://calendar.google.com/calendar/embed?src=kl-school%40group.calendar.google.com&ctz=Asia%2FKuala_Lumpur',
+        );
+      component.form.schoolClassGoogleCalendarId().markAsDirty();
+
+      const event = { preventDefault: vi.fn() } as unknown as Event;
+      await component.saveSchool(event);
+
+      expect(dataManagerServiceMock.setSchool).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schoolClassGoogleCalendarId: 'kl-school@group.calendar.google.com',
+        }),
+        undefined,
+      );
+    });
+
     it('should save public cover image and public profile image correctly', async () => {
       component.form.publicCoverImageUrl().value.set('https://storage.googleapis.com/test-cover.jpg');
       component.form.publicCoverImageUrl().markAsDirty();

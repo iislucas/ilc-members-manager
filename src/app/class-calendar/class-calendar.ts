@@ -1,44 +1,56 @@
+/* class-calendar.ts
+ *
+ * Displays forthcoming and recent previous classes from a public Google
+ * Calendar for an instructor (/calendar/instructor/:instructorId) or a school
+ * (/calendar/school/:schoolId).
+ */
+
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   effect,
   inject,
   input,
   signal,
+  untracked,
   WritableSignal,
 } from '@angular/core';
-import { ClassCalendarService } from '../class-calendar.service';
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
+import { ClassCalendarService, PREVIOUS_CLASSES_DAYS } from '../class-calendar.service';
 import { IconComponent } from '../icons/icon.component';
 import {
   GoogleCalendarEventItem,
 } from '../../../functions/src/calendar.types';
+import { SpinnerComponent } from '../spinner/spinner.component';
 
-/**
- * Represents the state of calendar entries, which can be loading,
- * successfully loaded, or in an error state.
- */
+// Represents the state of calendar entries, which can be loading,
+// successfully loaded, or in an error state.
 export type CalendarEntriesState =
   | { status: 'loading' }
   | { status: 'error'; error: string }
   | { status: 'loaded'; data: GoogleCalendarEventItem[] };
 
-import { SpinnerComponent } from '../spinner/spinner.component';
-
 @Component({
   selector: 'app-class-calendar',
-  imports: [CommonModule, IconComponent, SpinnerComponent],
+  imports: [DatePipe, IconComponent, SpinnerComponent],
   templateUrl: './class-calendar.html',
   styleUrl: './class-calendar.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ClassCalendarComponent {
   private calendarService = inject(ClassCalendarService);
 
-  /** The Google Calendar ID to display. */
+  readonly previousDays = PREVIOUS_CLASSES_DAYS;
+
+  // The Google Calendar ID (or link) to display.
   calendarId = input.required<string>();
 
-  /** The name of the calendar owner (instructor or school) for display. */
+  // The name of the calendar owner (instructor or school) for display.
   calendarOwnerName = input<string>('');
+
+  // True while the parent owner record (school/instructor) is still loading.
+  calendarLoading = input<boolean>(false);
 
   // The "card" styling from app.scss is used for the selected day's entries
   // in the forthcoming classes list.
@@ -51,9 +63,7 @@ export class ClassCalendarComponent {
   // A computed signal to check if the selected date is today
   isToday = computed(() => this._isSameDay(this.selectedDate(), new Date()));
 
-  /**
-   * A computed signal to format the selected date for the input[type=date] value.
-   */
+  // Formats the selected date for the input[type=date] value.
   selectedDateString = computed(() => {
     const date = this.selectedDate();
     const year = date.getFullYear();
@@ -63,17 +73,21 @@ export class ClassCalendarComponent {
   });
 
   constructor() {
-    // Use an effect to react to calendarId changes and refresh the calendar.
+    // React to calendarId changes and refresh the calendar when configured.
     effect(() => {
       const cid = this.calendarId();
       if (cid) {
-        this.refreshCalendar(this.selectedDate());
+        this.refreshCalendar(untracked(() => this.selectedDate()));
+      } else if (this.calendarLoading()) {
+        this.forthcomingClasses.set({ status: 'loading' });
+        this.previousClasses.set({ status: 'loading' });
       }
     });
   }
 
   onDateChange(event: Event) {
     const newDateString = (event.target as HTMLInputElement).value;
+    if (!newDateString) return;
     this.selectedDate.set(new Date(newDateString + 'T00:00:00Z'));
     this.refreshCalendar(this.selectedDate());
   }
