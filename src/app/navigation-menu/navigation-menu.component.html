@@ -111,7 +111,7 @@
             (click)="closeMenu.emit()"
           >
             <app-icon name="book" width="24px" height="24px"></app-icon>
-            <span>System Guide</span>
+            <span>Books</span>
           </a>
           <a
             class="menu-item submenu-item"
@@ -133,7 +133,11 @@
           </div>
           <div class="menu-item submenu-item" (click)="onSelect(Views.InstructorLicensePurchase)">
             <app-icon name="meditation" width="24px" height="24px"></app-icon>
-            <span>Licenses</span>
+            <span>Instructor License</span>
+          </div>
+          <div class="menu-item submenu-item" (click)="onSelect(Views.SchoolLicensePurchase)">
+            <app-icon name="map" width="24px" height="24px"></app-icon>
+            <span>School License</span>
           </div>
           <div class="menu-item submenu-item" (click)="onSelect(Views.ClassVideoLibraryPurchase)">
             <app-icon name="video_library" width="24px" height="24px"></app-icon>

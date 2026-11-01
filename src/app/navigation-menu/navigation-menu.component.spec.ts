@@ -221,11 +221,12 @@ describe('NavigationMenuComponent', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('System Guide');
+    expect(compiled.textContent).toContain('Books');
     expect(compiled.textContent).toContain('Uniforms');
     expect(compiled.textContent).toContain('Membership');
     expect(compiled.textContent).toContain('Gradings');
-    expect(compiled.textContent).toContain('Licenses');
+    expect(compiled.textContent).toContain('Instructor License');
+    expect(compiled.textContent).toContain('School License');
     expect(compiled.textContent).toContain('Class Video Library');
     expect(compiled.textContent).toContain('Video on Demand');
 
@@ -233,5 +234,18 @@ describe('NavigationMenuComponent', () => {
     expect(externalLinks.length).toBe(2);
     expect(externalLinks[0].getAttribute('href')).toBe(environment.links.printStore);
     expect(externalLinks[1].getAttribute('href')).toBe(environment.links.apparelStore);
+
+    const buyAccordion = compiled.querySelector('.submenu-accordion.open')!;
+    const submenuItems = Array.from(buyAccordion.querySelectorAll<HTMLElement>('.submenu-item'));
+    const instructorLicenseItem = submenuItems.find((el) => el.textContent?.includes('Instructor License'));
+    const schoolLicenseItem = submenuItems.find((el) => el.textContent?.includes('School License'));
+    expect(instructorLicenseItem).toBeTruthy();
+    expect(schoolLicenseItem).toBeTruthy();
+
+    instructorLicenseItem!.click();
+    expect(component.currentView()).toBe(Views.InstructorLicensePurchase);
+
+    schoolLicenseItem!.click();
+    expect(component.currentView()).toBe(Views.SchoolLicensePurchase);
   });
 });
