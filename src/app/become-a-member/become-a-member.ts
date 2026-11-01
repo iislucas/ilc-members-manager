@@ -36,6 +36,7 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { MembershipType, isLifeMember as isLifeMemberStatus } from '../../../functions/src/data-model/members';
+import { OrderItemCategory } from '../../../functions/src/data-model/orders';
 import {
   StripeProduct,
   StripeProductPrice,
@@ -46,6 +47,7 @@ import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import { PriceTableComponent } from '../price-table/price-table';
 import {
   formatStripePrice,
+  resolveMemberSubscriptionRenewal,
   tidyStripeLabel,
 } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
@@ -255,15 +257,44 @@ export class BecomeAMemberComponent {
       .join(' • '),
   );
 
-  hasActiveSubscription = computed(() => {
+  membershipRenewal = computed(() => {
     const m = this.user()?.member;
-    if (!m) return false;
-    return !!(
-      m.membershipSubscriptionId &&
-      m.membershipNextAutoRenewDate &&
-      m.membershipNextAutoRenewDate >= this.today()
-    );
+    if (!m) {
+      return {
+        isAutoRenewing: false,
+        nextAutoRenewDate: '',
+        amount: null,
+        currency: 'usd',
+        autoRenewalPaymentText: '',
+      };
+    }
+    return resolveMemberSubscriptionRenewal({
+      subscriptionId: m.membershipSubscriptionId,
+      fallbackNextAutoRenewDate: m.membershipNextAutoRenewDate,
+      expirationDate: m.currentMembershipExpires,
+      defaultInterval: 'year',
+      todayStr: this.today(),
+      stripeSubscriptions: m.stripeSubscriptions,
+      orders: this.dataService.myOrders?.entries() ?? [],
+      orderMatcher: (o) =>
+        o.lineItems?.some(
+          (li) =>
+            li.category === OrderItemCategory.Membership ||
+            (li.description || '').toLowerCase().includes('membership'),
+        ) || (o.description || '').toLowerCase().includes('membership'),
+      fallbackPrice: this.applicableAnnualTier().price,
+    });
   });
+
+  hasActiveSubscription = computed(() => this.membershipRenewal().isAutoRenewing);
+
+  membershipNextAutoRenewDate = computed(
+    () => this.membershipRenewal().nextAutoRenewDate,
+  );
+
+  membershipAutoRenewPaymentText = computed(
+    () => this.membershipRenewal().autoRenewalPaymentText,
+  );
 
   annualProduct = computed(() => {
     return (

@@ -48,6 +48,7 @@
     "watch:docs": "ng build docs --watch",
     "generate:diagram": "ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' docs/minitools/diagram-router/scripts/generate-architecture-diagram.ts",
     "test:diagram": "vitest run --config docs/minitools/diagram-router/vitest.config.ts --no-color",
+    "sync:stripe-subscriptions": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' scripts/sync-stripe-subscriptions.ts",
     "sync:video-products": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' scripts/sync-video-stripe-products.ts",
     "vimeo:inventory": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' ../scripts/vimeo-inventory.ts",
     "vimeo:migrate": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' ../scripts/vimeo-migrate-to-gcs.ts",

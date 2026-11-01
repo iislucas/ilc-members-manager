@@ -23,7 +23,17 @@ import Stripe from 'stripe';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { OrderKind, StripeCheckoutMode, StripeOrder, StripeOrderLineItem, StripeOrderType, StripePaymentStatus } from './data-model/orders';
+import {
+  OrderKind,
+  OrderStatus,
+  StripeCheckoutMode,
+  StripeOrder,
+  StripeOrderLineItem,
+  StripeOrderType,
+  StripePaymentStatus,
+} from './data-model/orders';
+import { FirestoreCollection, FirestoreSubcollection } from './data-model/collections';
+import { firestoreDocToMember } from './data-model/members';
 import {
   formatLineItemDescription,
   listAllSessionLineItems,
@@ -250,9 +260,11 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
  * already exists, it is updated in place; otherwise a new doc is created.
  * Also mirrors to the member's subcollection and fulfills products.
  */
-async function upsertStripeOrder(
+export async function upsertStripeOrder(
   db: admin.firestore.Firestore,
   order: StripeOrder,
+  liveSubscription?: Stripe.Subscription | null,
+  stripe?: Stripe | null,
 ): Promise<string> {
   const { docId, lastUpdated, ...rest } = order;
   const rawData = {
@@ -262,15 +274,18 @@ async function upsertStripeOrder(
   const docData = stripUndefined(rawData);
 
   let orderDocId: string;
+  let wasAlreadyProcessed = false;
 
   const existing = await db
-    .collection('orders')
+    .collection(FirestoreCollection.Orders)
     .where('stripeObjectId', '==', order.stripeObjectId)
     .limit(1)
     .get();
 
   if (!existing.empty) {
     orderDocId = existing.docs[0].id;
+    const existingData = existing.docs[0].data() as Partial<StripeOrder>;
+    wasAlreadyProcessed = existingData.ilcAppOrderStatus === OrderStatus.Processed;
     await existing.docs[0].ref.set(docData, { merge: true });
     logger.info('Stripe webhook updated existing order', {
       orderDocId,
@@ -278,9 +293,9 @@ async function upsertStripeOrder(
       stripeOrderType: order.stripeOrderType,
     });
   } else {
-    const createdRef = await db.collection('orders').add({
+    const createdRef = await db.collection(FirestoreCollection.Orders).add({
       ...docData,
-      ilcAppOrderStatus: 'processed',
+      ilcAppOrderStatus: OrderStatus.Processed,
     });
     orderDocId = createdRef.id;
     logger.info('Stripe webhook created new order', {
@@ -294,10 +309,66 @@ async function upsertStripeOrder(
   try {
     const member = await resolveMemberForStripeOrder(db, order);
     if (order.metadata?.['orderType'] === 'event_registration') {
-      await fulfillEventRegistration(db, order, orderDocId, member);
+      if (!wasAlreadyProcessed) {
+        await fulfillEventRegistration(db, order, orderDocId, member);
+      }
     }
     if (member) {
-      await fulfillStripeOrder(db, member, order, orderDocId);
+      let alreadyMirroredForMember = false;
+      if (wasAlreadyProcessed) {
+        const mirroredSnap = await db
+          .collection(FirestoreCollection.Members)
+          .doc(member.docId)
+          .collection(FirestoreSubcollection.Orders)
+          .doc(orderDocId)
+          .get();
+        alreadyMirroredForMember = mirroredSnap.exists;
+      }
+
+      if (alreadyMirroredForMember) {
+        logger.info('Skipping duplicate fulfillment for redelivered Stripe order', {
+          orderDocId,
+          stripeObjectId: order.stripeObjectId,
+          memberDocId: member.docId,
+        });
+      } else {
+        await fulfillStripeOrder(db, member, order, orderDocId, liveSubscription);
+
+        // If a brand-new school subscription just created its school, propagate
+        // schoolDocId/schoolId onto the Stripe Subscription metadata so subsequent
+        // invoice.paid renewals reference the created school directly.
+        if (
+          stripe?.subscriptions?.update &&
+          order.subscriptionId &&
+          order.metadata?.['isNewSchool'] === 'true'
+        ) {
+          try {
+            const refreshedSnap = await db
+              .collection(FirestoreCollection.Members)
+              .doc(member.docId)
+              .get();
+            if (refreshedSnap.exists) {
+              const refreshedMember = firestoreDocToMember(refreshedSnap);
+              const subItem = refreshedMember.stripeSubscriptions?.[order.subscriptionId];
+              if (subItem?.schoolDocId) {
+                await stripe.subscriptions.update(order.subscriptionId, {
+                  metadata: {
+                    ...(liveSubscription?.metadata || order.metadata || {}),
+                    isNewSchool: 'false',
+                    schoolDocId: subItem.schoolDocId,
+                    ...(subItem.schoolId ? { schoolId: subItem.schoolId } : {}),
+                  },
+                });
+              }
+            }
+          } catch (metaErr) {
+            logger.warn('Failed to backfill schoolDocId onto Stripe subscription metadata', {
+              subscriptionId: order.subscriptionId,
+              error: metaErr,
+            });
+          }
+        }
+      }
       await mirrorOrderToMemberSubcollection(db, member, order, orderDocId);
     } else {
       logger.info('Stripe order could not be mapped to a member yet', {
@@ -316,6 +387,24 @@ async function upsertStripeOrder(
   return orderDocId;
 }
 
+async function retrieveLiveSubscriptionIfPresent(
+  stripe: Stripe,
+  subscriptionId: string | undefined,
+): Promise<Stripe.Subscription | null> {
+  if (!subscriptionId || !stripe.subscriptions?.retrieve) {
+    return null;
+  }
+  try {
+    return await stripe.subscriptions.retrieve(subscriptionId);
+  } catch (err) {
+    logger.warn('Could not retrieve live Stripe subscription during webhook fulfillment', {
+      subscriptionId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
 async function handleCheckoutSession(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
@@ -329,10 +418,16 @@ async function handleCheckoutSession(
     stripe.checkout.sessions.retrieve(session.id),
     listAllSessionLineItems(stripe, session.id),
   ]);
-  await upsertStripeOrder(db, sessionToStripeOrder(full, lineItems));
+  const order = sessionToStripeOrder(full, lineItems);
+  const liveSubscription = await retrieveLiveSubscriptionIfPresent(
+    stripe,
+    order.subscriptionId,
+  );
+  await upsertStripeOrder(db, order, liveSubscription, stripe);
 }
 
 async function handleInvoicePaid(
+  stripe: Stripe,
   invoice: Stripe.Invoice,
   db: admin.firestore.Firestore,
 ): Promise<void> {
@@ -342,7 +437,12 @@ async function handleInvoicePaid(
   if (invoice.billing_reason !== 'subscription_cycle') {
     return;
   }
-  await upsertStripeOrder(db, invoiceToStripeOrder(invoice));
+  const order = invoiceToStripeOrder(invoice);
+  const liveSubscription = await retrieveLiveSubscriptionIfPresent(
+    stripe,
+    order.subscriptionId,
+  );
+  await upsertStripeOrder(db, order, liveSubscription, stripe);
 }
 
 export const stripeWebhook = onRequest(
@@ -388,7 +488,11 @@ export const stripeWebhook = onRequest(
           );
           break;
         case 'invoice.paid':
-          await handleInvoicePaid(event.data.object as Stripe.Invoice, db);
+          await handleInvoicePaid(
+            stripe,
+            event.data.object as Stripe.Invoice,
+            db,
+          );
           break;
         case 'customer.subscription.updated':
           await syncSubscriptionStatusToMember(

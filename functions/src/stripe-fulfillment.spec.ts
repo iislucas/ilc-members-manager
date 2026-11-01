@@ -299,7 +299,7 @@ describe('stripe-fulfillment', () => {
       expect.objectContaining({
         membershipType: MembershipType.Annual,
         membershipSubscriptionId: 'sub_mem_999',
-        membershipNextAutoRenewDate: '2029-05-15',
+        membershipNextAutoRenewDate: '2027-05-15',
         currentMembershipExpires: '2029-05-15',
       }),
     );
@@ -877,7 +877,7 @@ describe('stripe-fulfillment', () => {
         classVideoLibrarySubscription: true,
         classVideoLibrarySubscriptionId: 'sub_vid_annual_456',
         classVideoLibraryExpirationDate: '2029-06-01',
-        classVideoLibraryNextAutoRenewDate: '2029-06-01',
+        classVideoLibraryNextAutoRenewDate: '2027-05-15',
       }),
     );
   });
@@ -1155,7 +1155,7 @@ describe('stripe-fulfillment', () => {
         instructorLicenseType: 'Annual',
         instructorLicenseExpires: '2029-05-15',
         instructorLicenseSubscriptionId: 'sub_lic_123',
-        instructorLicenseNextAutoRenewDate: '2029-05-15',
+        instructorLicenseNextAutoRenewDate: '2027-05-15',
       }),
     );
     // Preserves existing instructor ID

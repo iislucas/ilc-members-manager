@@ -40,9 +40,9 @@
           <p>
             Valid through
             <strong>{{ user()?.member?.currentMembershipExpires }}</strong>.
-            @if (user()?.member?.membershipNextAutoRenewDate) {
-              Auto-renews on
-              <strong>{{ user()?.member?.membershipNextAutoRenewDate }}</strong>.
+            @if (hasActiveSubscription()) {
+              Next auto-renewal payment:
+              <strong>{{ membershipAutoRenewPaymentText() }}</strong>.
             }
           </p>
         </div>
@@ -62,7 +62,7 @@
       }
 
       <div class="subscription-actions">
-        @if (user()?.member?.membershipNextAutoRenewDate) {
+        @if (hasActiveSubscription()) {
           <button
             type="button"
             class="subtle-button"

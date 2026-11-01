@@ -53,16 +53,19 @@ export interface MemberSubscriptionItem {
   type: SubscriptionItemType;
   status: SubscriptionStatus;
   planName: string; // e.g. "Annual Membership", "Class Video Library"
-  amount: number; // in currency minor units (cents)
+  amount: number; // Recurring payment amount in currency minor units (cents)
   currency: string; // e.g. 'usd'
   interval: SubscriptionInterval;
-  currentPeriodStart: string; // YYYY-MM-DD
-  currentPeriodEnd: string; // YYYY-MM-DD (when current access expires)
-  nextAutoRenewDate: string; // YYYY-MM-DD or '' if cancelled
+  currentPeriodStart: string; // YYYY-MM-DD (start of current Stripe billing cycle)
+  currentPeriodEnd: string; // YYYY-MM-DD (end of current Stripe billing cycle; distinct from stacked access expiration)
+  nextAutoRenewDate: string; // YYYY-MM-DD when Stripe will next charge, or '' if cancelled
   cancelAtPeriodEnd: boolean; // true if renewal was cancelled
   canceledAt?: string; // YYYY-MM-DD or ISO string if cancelled
   stripePriceId?: string;
   stripeProductId?: string;
+  schoolDocId?: string; // Linked school document ID when type === SubscriptionItemType.SchoolLicense
+  schoolId?: string; // Linked human-readable school ID (e.g. 'SCH-100')
+  schoolName?: string; // Linked school name
 }
 
 export type StripeSubscriptions = Record<string, MemberSubscriptionItem>;

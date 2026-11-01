@@ -100,11 +100,11 @@
 
     <div class="subscriptions-grid">
       @for (sub of subscriptions(); track sub.id) {
-        <div class="sub-card" [ngClass]="sub.category">
+        <div [class]="'sub-card ' + sub.category">
           <div class="sub-card-header">
             <div class="sub-title-area">
               <h3>{{ sub.title }}</h3>
-              <span class="status-badge" [ngClass]="sub.statusClass">
+              <span [class]="'status-badge ' + sub.statusClass">
                 {{ sub.statusLabel }}
               </span>
             </div>
@@ -124,13 +124,20 @@
               </span>
             </div>
 
+            @if (sub.payerLabel) {
+              <div class="info-row">
+                <span class="info-label">Payment linked to:</span>
+                <span class="info-val">{{ sub.payerLabel }}</span>
+              </div>
+            }
+
             <div class="info-row">
-              <span class="info-label">Auto-Renewal:</span>
+              <span class="info-label">Next auto-renewal payment:</span>
               <span class="info-val">
                 @if (sub.isAutoRenewing) {
-                  <strong class="renew-date"
-                    >Renews on {{ sub.nextAutoRenewDate }}</strong
-                  >
+                  <strong class="renew-date">{{
+                    sub.autoRenewalPaymentText
+                  }}</strong>
                 } @else if (sub.status === "lifetime") {
                   Not applicable
                 } @else {
@@ -140,13 +147,6 @@
                 }
               </span>
             </div>
-
-            @if (sub.amountText) {
-              <div class="info-row">
-                <span class="info-label">Amount:</span>
-                <span class="info-val">{{ sub.amountText }}</span>
-              </div>
-            }
           </div>
 
           @if (sub.canCancel || sub.canResume || sub.canSubscribe) {
@@ -198,6 +198,82 @@
         </div>
       }
     </div>
+
+    @if (otherPayerSchoolSubscriptions().length > 0) {
+      <div class="managed-schools-subsection">
+        <div class="subsection-title">
+          <h3>Other Schools You Own or Manage</h3>
+          <p class="subsection-subtitle">
+            School licenses where payment is linked to another member or not yet linked to your account.
+          </p>
+        </div>
+
+        <div class="subscriptions-grid">
+          @for (sub of otherPayerSchoolSubscriptions(); track sub.id) {
+            <div [class]="'sub-card ' + sub.category">
+              <div class="sub-card-header">
+                <div class="sub-title-area">
+                  <h3>{{ sub.title }}</h3>
+                  <span [class]="'status-badge ' + sub.statusClass">
+                    {{ sub.statusLabel }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="sub-card-body">
+                <div class="info-row">
+                  <span class="info-label">Access Status:</span>
+                  <span class="info-val highlight">
+                    @if (sub.status === "lifetime") {
+                      Lifetime Access
+                    } @else if (sub.status === "expired") {
+                      Expired on {{ sub.expirationDate }}
+                    } @else {
+                      Valid through {{ sub.expirationDate }}
+                    }
+                  </span>
+                </div>
+
+                @if (sub.payerLabel) {
+                  <div class="info-row">
+                    <span class="info-label">Payment linked to:</span>
+                    <span class="info-val">{{ sub.payerLabel }}</span>
+                  </div>
+                }
+
+                <div class="info-row">
+                  <span class="info-label">Next auto-renewal payment:</span>
+                  <span class="info-val">
+                    @if (sub.isAutoRenewing) {
+                      <strong class="renew-date">{{
+                        sub.autoRenewalPaymentText
+                      }}</strong>
+                    } @else if (sub.status === "lifetime") {
+                      Not applicable
+                    } @else {
+                      <span class="off-text"
+                        >Off (Will not renew automatically)</span
+                      >
+                    }
+                  </span>
+                </div>
+              </div>
+
+              @if (sub.canSubscribe) {
+                <div class="sub-card-actions">
+                  <a
+                    class="sub-btn primary-button"
+                    [href]="sub.subscribeUrl"
+                  >
+                    Renew Now
+                  </a>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
   </section>
 
   <!-- Section: Order History -->

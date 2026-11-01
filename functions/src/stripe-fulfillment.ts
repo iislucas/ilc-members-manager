@@ -51,13 +51,12 @@ import { environment } from './environment/environment.js';
 import { sendTransactionalEmail } from './email-dispatcher.js';
 import { TransactionalEmailKey } from './data-model/mail';
 
-import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
+import {
+  buildMemberSubscriptionItemFromStripe,
+  getSubscriptionCurrentPeriodEnd,
+  unixSecondsToDateString,
+} from './stripe-subscriptions';
 import { resolveEventVideoGrantTargets } from './proposed-events';
-
-function unixSecondsToDateString(seconds: number | null | undefined): string {
-  if (!seconds) return '';
-  return new Date(seconds * 1000).toISOString().split('T')[0];
-}
 
 /**
  * Add N years to an existing date string (YYYY-MM-DD), ensuring that if the
@@ -1541,13 +1540,38 @@ export async function fulfillStripeOrder(
   member: Member,
   order: StripeOrder,
   orderDocId: string,
+  liveSubscription?: Stripe.Subscription | null,
 ): Promise<void> {
+  if (order.stripeOrderType === StripeOrderType.Cancellation) {
+    logger.info('Skipping product fulfillment for cancellation order', {
+      orderDocId,
+      stripeObjectId: order.stripeObjectId,
+      memberDocId: member.docId,
+    });
+    return;
+  }
+
   const orderDate = order.created
     ? order.created.split('T')[0]
     : new Date().toISOString().split('T')[0];
   const memberRef = db.collection(FirestoreCollection.Members).doc(member.docId);
   const memberUpdates: MemberUpdates = {
     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const livePeriodEnd = liveSubscription
+    ? unixSecondsToDateString(getSubscriptionCurrentPeriodEnd(liveSubscription))
+    : '';
+  const liveIsActive =
+    !liveSubscription ||
+    liveSubscription.status === 'active' ||
+    liveSubscription.status === 'trialing';
+  const resolveNextAutoRenewDate = (fallbackBillingPeriodEnd: string): string => {
+    if (liveSubscription) {
+      if (!liveIsActive || liveSubscription.cancel_at_period_end) return '';
+      return livePeriodEnd || fallbackBillingPeriodEnd;
+    }
+    return fallbackBillingPeriodEnd;
   };
 
   // Cache customer ID if present
@@ -1560,6 +1584,12 @@ export async function fulfillStripeOrder(
   let gradingItemIndex = 0;
   // What each grading line item did, so the student is told once per order.
   const gradingResults: GradingFulfillment[] = [];
+  let fulfilledSchoolInfo: {
+    schoolDocId: string;
+    schoolId: string;
+    schoolName: string;
+  } | null = null;
+
   for (const item of order.lineItems) {
     const category = categorizeLineItem(item, order.metadata);
     const descLower = item.description.toLowerCase();
@@ -1589,8 +1619,10 @@ export async function fulfillStripeOrder(
         memberUpdates.currentMembershipExpires = newExpires;
 
         if (order.mode === StripeCheckoutMode.Subscription && order.subscriptionId) {
+          const billingPeriodEnd = extendDateByYears(orderDate, 1, orderDate);
           memberUpdates.membershipSubscriptionId = order.subscriptionId;
-          memberUpdates.membershipNextAutoRenewDate = newExpires;
+          memberUpdates.membershipNextAutoRenewDate =
+            resolveNextAutoRenewDate(billingPeriodEnd);
         }
       }
 
@@ -1683,11 +1715,17 @@ export async function fulfillStripeOrder(
           order.mode === StripeCheckoutMode.Subscription &&
           order.subscriptionId
         ) {
+          const billingPeriodEnd = extendDateByYears(
+            orderDate,
+            yearsToAdd,
+            orderDate,
+          );
+          const nextAutoRenew = resolveNextAutoRenewDate(billingPeriodEnd);
           memberUpdates.instructorLicenseSubscriptionId =
             order.subscriptionId;
-          memberUpdates.instructorLicenseNextAutoRenewDate = newExpires;
+          memberUpdates.instructorLicenseNextAutoRenewDate = nextAutoRenew;
           member.instructorLicenseSubscriptionId = order.subscriptionId;
-          member.instructorLicenseNextAutoRenewDate = newExpires;
+          member.instructorLicenseNextAutoRenewDate = nextAutoRenew;
         }
       }
 
@@ -1727,39 +1765,72 @@ export async function fulfillStripeOrder(
       memberUpdates.classVideoLibraryExpirationDate = newExpires;
 
       if (order.mode === StripeCheckoutMode.Subscription && order.subscriptionId) {
+        const billingPeriodEnd = isYearly
+          ? extendDateByYears(orderDate, 1, orderDate)
+          : extendDateByMonths(orderDate, 1, orderDate);
         memberUpdates.classVideoLibrarySubscriptionId =
           order.subscriptionId;
-        memberUpdates.classVideoLibraryNextAutoRenewDate = newExpires;
+        memberUpdates.classVideoLibraryNextAutoRenewDate =
+          resolveNextAutoRenewDate(billingPeriodEnd);
       }
     } else if (category === OrderItemCategory.SchoolLicense) {
       const isYearly = descLower.includes('year') || descLower.includes('annual');
+      const existingSchoolSub =
+        order.subscriptionId && member.stripeSubscriptions?.[order.subscriptionId]
+          ? member.stripeSubscriptions[order.subscriptionId]
+          : undefined;
+      const isRenewalOrder = order.stripeOrderType === StripeOrderType.Renewal;
       const isNewSchool =
-        order.metadata?.['isNewSchool'] === 'true' ||
-        (!order.metadata?.['schoolDocId'] && !!order.metadata?.['schoolName']);
-      const schoolDocId =
-        !isNewSchool ? (order.metadata?.['schoolDocId'] || member.primarySchoolDocId || '') : '';
-      const schoolId = !isNewSchool ? (order.metadata?.['schoolId'] || '') : '';
+        !isRenewalOrder &&
+        !existingSchoolSub?.schoolDocId &&
+        !existingSchoolSub?.schoolId &&
+        (order.metadata?.['isNewSchool'] === 'true' ||
+          (!order.metadata?.['schoolDocId'] && !!order.metadata?.['schoolName']));
+      const schoolDocId = !isNewSchool
+        ? order.metadata?.['schoolDocId'] ||
+          existingSchoolSub?.schoolDocId ||
+          member.primarySchoolDocId ||
+          ''
+        : '';
+      const schoolId = !isNewSchool
+        ? order.metadata?.['schoolId'] || existingSchoolSub?.schoolId || ''
+        : '';
 
       let targetSchoolRef: admin.firestore.DocumentReference | null = null;
+      const schoolsCol = db.collection(FirestoreCollection.Schools);
       if (schoolDocId) {
-        targetSchoolRef = db.collection(FirestoreCollection.Schools).doc(schoolDocId);
-      } else if (schoolId) {
-        const sQuery = await db
-          .collection(FirestoreCollection.Schools)
+        targetSchoolRef = schoolsCol.doc(schoolDocId);
+      } else if (schoolId && typeof schoolsCol.where === 'function') {
+        const sQuery = await schoolsCol
           .where('schoolId', '==', schoolId)
           .limit(1)
           .get();
         if (!sQuery.empty) {
           targetSchoolRef = sQuery.docs[0].ref;
         }
-      } else if (!isNewSchool && member.instructorId) {
-        const sQuery = await db
-          .collection(FirestoreCollection.Schools)
-          .where('ownerInstructorId', '==', member.instructorId)
-          .limit(1)
-          .get();
-        if (!sQuery.empty) {
-          targetSchoolRef = sQuery.docs[0].ref;
+      } else if (!isNewSchool && typeof schoolsCol.where === 'function') {
+        if (member.docId) {
+          const byOwnerDoc = await schoolsCol
+            .where('ownerMemberDocId', '==', member.docId)
+            .get();
+          if (!byOwnerDoc.empty) {
+            const wantedName = (order.metadata?.['schoolName'] || '').trim().toLowerCase();
+            const matchByName = wantedName
+              ? byOwnerDoc.docs.find(
+                  (d) => ((d.data() as Partial<School>).schoolName || '').trim().toLowerCase() === wantedName,
+                )
+              : undefined;
+            targetSchoolRef = (matchByName || byOwnerDoc.docs[0]).ref;
+          }
+        }
+        if (!targetSchoolRef && member.instructorId) {
+          const sQuery = await schoolsCol
+            .where('ownerInstructorId', '==', member.instructorId)
+            .limit(1)
+            .get();
+          if (!sQuery.empty) {
+            targetSchoolRef = sQuery.docs[0].ref;
+          }
         }
       }
 
@@ -1771,13 +1842,19 @@ export async function fulfillStripeOrder(
           const newExpires = isYearly
             ? extendDateByYears(currentExp, 1, orderDate)
             : extendDateByMonths(currentExp, 1, orderDate);
+          const resolvedDocId = targetSchoolRef.id || schoolDocId;
           await targetSchoolRef.update({
             schoolLicenseRenewalDate: orderDate,
             schoolLicenseExpires: newExpires,
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           });
+          fulfilledSchoolInfo = {
+            schoolDocId: resolvedDocId,
+            schoolId: sData?.schoolId || schoolId,
+            schoolName: sData?.schoolName || order.metadata?.['schoolName'] || '',
+          };
           logger.info('Updated school license for existing school', {
-            schoolDocId: targetSchoolRef.id,
+            schoolDocId: resolvedDocId,
             newExpires,
           });
           continue;
@@ -1829,6 +1906,12 @@ export async function fulfillStripeOrder(
         ...sanitized,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+      fulfilledSchoolInfo = {
+        schoolDocId: newSchoolDocRef.id,
+        schoolId: newSchoolId,
+        schoolName: newSchool.schoolName,
+      };
 
       logger.info('Created new school from Stripe order', {
         schoolDocId: newSchoolDocRef.id,
@@ -2029,31 +2112,109 @@ export async function fulfillStripeOrder(
   // If order was a subscription, record into subscriptions map
   if (order.subscriptionId && order.mode === StripeCheckoutMode.Subscription) {
     const subKey = order.subscriptionId;
+    const existingSub = member.stripeSubscriptions?.[subKey];
     const isYearly = order.lineItems.some((l) => {
       const d = l.description.toLowerCase();
       return d.includes('year') || d.includes('annual');
-    });
+    }) ||
+      categorizeSubscriptionItem(
+        order.lineItems[0] || {
+          description: '',
+          productId: null,
+          priceId: null,
+          quantity: null,
+          amountTotal: 0,
+          currency: 'usd',
+        },
+        order.metadata,
+      ) === SubscriptionItemType.Membership ||
+      categorizeSubscriptionItem(
+        order.lineItems[0] || {
+          description: '',
+          productId: null,
+          priceId: null,
+          quantity: null,
+          amountTotal: 0,
+          currency: 'usd',
+        },
+        order.metadata,
+      ) === SubscriptionItemType.InstructorLicense;
     const interval = isYearly ? SubscriptionInterval.Year : SubscriptionInterval.Month;
-    const periodEnd = isYearly
+    const fallbackPeriodEnd = isYearly
       ? extendDateByYears(orderDate, 1, orderDate)
       : extendDateByMonths(orderDate, 1, orderDate);
+    const categorizedType = categorizeSubscriptionItem(
+      order.lineItems[0] || {
+        description: '',
+        productId: null,
+        priceId: null,
+        quantity: null,
+        amountTotal: 0,
+        currency: 'usd',
+      },
+      order.metadata,
+    );
 
-    const newSubscription: MemberSubscriptionItem = {
-      subscriptionId: order.subscriptionId,
-      type: categorizeSubscriptionItem(order.lineItems[0] || { description: '', productId: null, priceId: null, quantity: null, amountTotal: 0, currency: 'usd' }, order.metadata),
-      status: SubscriptionStatus.Active,
-      planName: order.lineItems[0]?.description || 'Subscription',
-      amount: order.amountTotal || 0,
-      currency: order.currency || 'usd',
-      interval,
-      currentPeriodStart: orderDate,
-      currentPeriodEnd: periodEnd,
-      nextAutoRenewDate: periodEnd,
-      cancelAtPeriodEnd: false,
-      canceledAt: '',
-      stripePriceId: order.lineItems[0]?.priceId || '',
-      stripeProductId: order.lineItems[0]?.productId || '',
-    };
+    const schoolDocId =
+      fulfilledSchoolInfo?.schoolDocId ||
+      existingSub?.schoolDocId ||
+      order.metadata?.['schoolDocId'] ||
+      undefined;
+    const schoolId =
+      fulfilledSchoolInfo?.schoolId ||
+      existingSub?.schoolId ||
+      order.metadata?.['schoolId'] ||
+      undefined;
+    const schoolName =
+      fulfilledSchoolInfo?.schoolName ||
+      existingSub?.schoolName ||
+      order.metadata?.['schoolName'] ||
+      undefined;
+
+    const newSubscription: MemberSubscriptionItem = liveSubscription
+      ? buildMemberSubscriptionItemFromStripe(liveSubscription, {
+          existing: existingSub,
+          member,
+          overrides: {
+            type: categorizedType,
+            planName:
+              order.lineItems[0]?.description ||
+              existingSub?.planName ||
+              'Subscription',
+            interval,
+            amount: order.amountTotal || existingSub?.amount || 0,
+            currency: order.currency || existingSub?.currency || 'usd',
+            stripePriceId: order.lineItems[0]?.priceId || existingSub?.stripePriceId || '',
+            stripeProductId:
+              order.lineItems[0]?.productId || existingSub?.stripeProductId || '',
+            schoolDocId,
+            schoolId,
+            schoolName,
+          },
+        })
+      : {
+          subscriptionId: order.subscriptionId,
+          type: categorizedType,
+          status: SubscriptionStatus.Active,
+          planName:
+            order.lineItems[0]?.description ||
+            existingSub?.planName ||
+            'Subscription',
+          amount: order.amountTotal ?? existingSub?.amount ?? 0,
+          currency: (order.currency || existingSub?.currency || 'usd').toLowerCase(),
+          interval,
+          currentPeriodStart: orderDate,
+          currentPeriodEnd: fallbackPeriodEnd,
+          nextAutoRenewDate: resolveNextAutoRenewDate(fallbackPeriodEnd),
+          cancelAtPeriodEnd: false,
+          canceledAt: '',
+          stripePriceId: order.lineItems[0]?.priceId || existingSub?.stripePriceId || '',
+          stripeProductId:
+            order.lineItems[0]?.productId || existingSub?.stripeProductId || '',
+          ...(schoolDocId ? { schoolDocId } : {}),
+          ...(schoolId ? { schoolId } : {}),
+          ...(schoolName ? { schoolName } : {}),
+        };
 
     memberUpdates.stripeSubscriptions = {
       ...(member.stripeSubscriptions || {}),
@@ -2107,6 +2268,10 @@ export async function fulfillStripeOrder(
 
       if (order.stripeOrderType === StripeOrderType.Renewal) {
         const planName = order.lineItems[0]?.description || 'ILC Subscription';
+        const subMapNextRenew =
+          order.subscriptionId
+            ? memberUpdates.stripeSubscriptions?.[order.subscriptionId]?.nextAutoRenewDate
+            : undefined;
         await sendTransactionalEmail(db, {
           to: recipientEmail,
           templateKey: TransactionalEmailKey.SubscriptionRenewal,
@@ -2116,6 +2281,7 @@ export async function fulfillStripeOrder(
             amount: `${totalAmount} ${currency}`,
             renewalDate: orderDate || new Date().toISOString().split('T')[0],
             nextRenewalDate:
+              subMapNextRenew ||
               memberUpdates.membershipNextAutoRenewDate ||
               memberUpdates.instructorLicenseNextAutoRenewDate ||
               memberUpdates.classVideoLibraryNextAutoRenewDate ||
@@ -2188,13 +2354,13 @@ export async function syncSubscriptionStatusToMember(
   let member: Member | null = null;
 
   if (memberDocIdMeta) {
-    const doc = await db.collection('members').doc(memberDocIdMeta).get();
+    const doc = await db.collection(FirestoreCollection.Members).doc(memberDocIdMeta).get();
     if (doc.exists) member = firestoreDocToMember(doc);
   }
 
   if (!member && customerId) {
     const query = await db
-      .collection('members')
+      .collection(FirestoreCollection.Members)
       .where('stripeCustomerId', '==', customerId)
       .limit(1)
       .get();
@@ -2214,10 +2380,10 @@ export async function syncSubscriptionStatusToMember(
   const periodEnd = unixSecondsToDateString(
     getSubscriptionCurrentPeriodEnd(subscription),
   );
-  const cancelAtPeriodEnd = subscription.cancel_at_period_end;
-  const nextAutoRenewDate = cancelAtPeriodEnd ? '' : periodEnd;
+  const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
   const status = subscription.status;
   const isActive = status === 'active' || status === 'trialing';
+  const nextAutoRenewDate = !isActive || cancelAtPeriodEnd ? '' : periodEnd;
 
   const memberRef = db.collection(FirestoreCollection.Members).doc(member.docId);
   const updates: MemberUpdates = {
@@ -2255,19 +2421,44 @@ export async function syncSubscriptionStatusToMember(
     }
   }
 
-  if (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id]) {
-    const existingSub = member.stripeSubscriptions[subscription.id];
-    const updatedSub: MemberSubscriptionItem = {
-      ...existingSub,
-      status: status as SubscriptionStatus,
-      ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
-      nextAutoRenewDate,
-      cancelAtPeriodEnd,
-    };
-    updates.stripeSubscriptions = {
-      ...member.stripeSubscriptions,
-      [subscription.id]: updatedSub,
-    };
+  const existingSub = member.stripeSubscriptions?.[subscription.id];
+  const updatedSub = buildMemberSubscriptionItemFromStripe(subscription, {
+    existing: existingSub,
+    member,
+  });
+  updates.stripeSubscriptions = {
+    ...(member.stripeSubscriptions || {}),
+    [subscription.id]: updatedSub,
+  };
+
+  if (
+    updatedSub.type === SubscriptionItemType.SchoolLicense &&
+    isActive &&
+    periodEnd &&
+    updatedSub.schoolDocId
+  ) {
+    try {
+      const schoolRef = db
+        .collection(FirestoreCollection.Schools)
+        .doc(updatedSub.schoolDocId);
+      const schoolDoc = await schoolRef.get();
+      if (schoolDoc.exists) {
+        const sData = schoolDoc.data() as Partial<School> | undefined;
+        // Note: empty string `''` indicates a lifetime school license — never overwrite it.
+        if (sData?.schoolLicenseExpires && sData.schoolLicenseExpires < periodEnd) {
+          await schoolRef.update({
+            schoolLicenseExpires: periodEnd,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    } catch (schoolSyncErr) {
+      logger.warn('Failed to sync schoolLicenseExpires from subscription update', {
+        schoolDocId: updatedSub.schoolDocId,
+        subscriptionId: subscription.id,
+        error: schoolSyncErr,
+      });
+    }
   }
 
   await memberRef.update(updates);

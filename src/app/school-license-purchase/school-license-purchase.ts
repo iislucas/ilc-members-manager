@@ -14,9 +14,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   linkedSignal,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -29,17 +31,33 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { MembershipType, hasActiveMembership } from '../../../functions/src/data-model/members';
+import {
+  MemberSubscriptionItem,
+  MembershipType,
+  SubscriptionInterval,
+  SubscriptionItemType,
+  hasActiveMembership,
+} from '../../../functions/src/data-model/members';
+import {
+  MemberOrder,
+  MemberOrderPaymentStatus,
+  MemberOrderType,
+  OrderItemCategory,
+} from '../../../functions/src/data-model/orders';
 import { School } from '../../../functions/src/data-model/schools';
 import {
   CheckoutSessionSummary,
+  ManagedSchoolBillingInfo,
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import {
+  addBillingIntervalToDateString,
+  formatNextAutoRenewalPayment,
   formatStripeAmount,
   formatStripePrice,
+  resolveMemberSubscriptionRenewal,
 } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
@@ -47,6 +65,18 @@ import { StepCardComponent } from '../step-card/step-card';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 
 export type SchoolLicenseAction = 'renew' | 'new';
+
+export interface SchoolBillingDisplay {
+  payerLabel: string;
+  isCurrentUserPayer: boolean;
+  ownSubscriptionId: string;
+  isLifetime: boolean;
+  isAutoRenewing: boolean;
+  nextAutoRenewDate: string;
+  autoRenewalPaymentText: string;
+  canCancel: boolean;
+  canResume: boolean;
+}
 
 import { environment } from '../../environments/environment';
 
@@ -200,8 +230,11 @@ export class SchoolLicensePurchaseComponent {
 
   // Subscription management
   cancelInProgress = signal(false);
+  confirmingCancelSubId = signal<string | null>(null);
   cancelSuccessMessage = signal<string | null>(null);
   cancelErrorMessage = signal<string | null>(null);
+  managedSchoolsBilling = signal<Record<string, ManagedSchoolBillingInfo>>({});
+  private lastLoadedBillingKey = '';
 
   today = computed(() => new Date().toISOString().split('T')[0]);
 
@@ -269,6 +302,7 @@ export class SchoolLicensePurchaseComponent {
     const mDocId = u.member.docId;
 
     return all.filter((s) => {
+      if (s.docId && managedIds.has(s.docId)) return true;
       if (s.schoolId && managedIds.has(s.schoolId)) return true;
       if (insId && s.ownerInstructorId === insId) return true;
       if (insId && s.managerInstructorIds?.includes(insId)) return true;
@@ -283,6 +317,215 @@ export class SchoolLicensePurchaseComponent {
     return this.mySchools().find((s) => s.docId === docId) || null;
   });
 
+  schoolBillingByDocId = computed<Record<string, SchoolBillingDisplay>>(() => {
+    const u = this.user();
+    if (!u) return {};
+    const m = u.member;
+    const schools = this.mySchools();
+    const billingMap = this.managedSchoolsBilling();
+    const myOrders = this.dataService.myOrders?.entries() ?? [];
+    const todayStr = this.today();
+    const out: Record<string, SchoolBillingDisplay> = {};
+    const handledSubIds = new Set<string>();
+
+    const ownSchoolSubs: Array<[string, MemberSubscriptionItem]> = Object.entries(
+      m.stripeSubscriptions || {},
+    ).filter(
+      ([, sub]) =>
+        sub.type === SubscriptionItemType.SchoolLicense ||
+        (sub.planName || '').toLowerCase().includes('school'),
+    );
+
+    const selfLabel = m.name ? `You (${m.name})` : 'You';
+
+    for (const school of schools) {
+      const matchedOwnPair = ownSchoolSubs.find(([subId, sub]) => {
+        if (handledSubIds.has(subId)) return false;
+        if (sub.schoolDocId && sub.schoolDocId === school.docId) return true;
+        if (sub.schoolId && school.schoolId && sub.schoolId === school.schoolId) {
+          return true;
+        }
+        if (
+          sub.schoolName &&
+          school.schoolName &&
+          sub.schoolName.trim().toLowerCase() ===
+            school.schoolName.trim().toLowerCase()
+        ) {
+          return true;
+        }
+        if (
+          !sub.schoolDocId &&
+          !sub.schoolId &&
+          !sub.schoolName &&
+          schools.length === 1
+        ) {
+          return true;
+        }
+        return false;
+      });
+
+      const ownSubId = matchedOwnPair?.[0] || '';
+      const ownSub = matchedOwnPair?.[1];
+      if (ownSubId) handledSubIds.add(ownSubId);
+
+      const billingInfo = billingMap[school.docId];
+      const matchSchoolOrder = (o: MemberOrder): boolean => {
+        const hasSchoolLine =
+          o.lineItems?.some(
+            (li) =>
+              li.category === OrderItemCategory.SchoolLicense ||
+              (li.description || '').toLowerCase().includes('school'),
+          ) || (o.description || '').toLowerCase().includes('school');
+        if (!hasSchoolLine) return false;
+        const text = [
+          o.description || '',
+          ...(o.lineItems || []).map((li) => li.description || ''),
+        ].join(' ');
+        if (
+          school.schoolId &&
+          text.includes('SCH-') &&
+          !text.includes(school.schoolId)
+        ) {
+          return false;
+        }
+        return true;
+      };
+
+      const hasOwnPaidOrder = myOrders.some(
+        (o) =>
+          o.paymentStatus === MemberOrderPaymentStatus.Paid &&
+          o.orderType !== MemberOrderType.Cancellation &&
+          matchSchoolOrder(o),
+      );
+
+      const isLifetime = !school.schoolLicenseExpires;
+      const isSchoolOwner =
+        Boolean(m.docId && school.ownerMemberDocId === m.docId) ||
+        Boolean(
+          m.instructorId?.trim() &&
+            school.ownerInstructorId === m.instructorId.trim(),
+        );
+
+      const isCurrentUserPayer = Boolean(
+        ownSub ||
+          (billingInfo?.payerMemberDocId &&
+            billingInfo.payerMemberDocId === m.docId) ||
+          (billingInfo?.payerMemberId &&
+            m.memberId &&
+            billingInfo.payerMemberId === m.memberId) ||
+          (!billingInfo?.payerMemberDocId && hasOwnPaidOrder) ||
+          (isLifetime && isSchoolOwner && !billingInfo?.payerMemberDocId),
+      );
+
+      let payerLabel = '';
+      if (isCurrentUserPayer) {
+        payerLabel = selfLabel;
+      } else if (billingInfo?.payerName || billingInfo?.payerMemberId) {
+        payerLabel =
+          billingInfo.payerName && billingInfo.payerMemberId
+            ? `${billingInfo.payerName} (${billingInfo.payerMemberId})`
+            : billingInfo.payerName || billingInfo.payerMemberId;
+      } else if (isLifetime) {
+        payerLabel = school.ownerInstructorId
+          ? `School Owner (${school.ownerInstructorId})`
+          : 'Lifetime license';
+      } else {
+        payerLabel = 'No payment linked';
+      }
+
+      if (isLifetime) {
+        out[school.docId] = {
+          payerLabel,
+          isCurrentUserPayer,
+          ownSubscriptionId: '',
+          isLifetime: true,
+          isAutoRenewing: false,
+          nextAutoRenewDate: '',
+          autoRenewalPaymentText: '',
+          canCancel: false,
+          canResume: false,
+        };
+        continue;
+      }
+
+      let isAutoRenewing = false;
+      let nextAutoRenewDate = '';
+      let autoRenewalPaymentText = '';
+
+      if (ownSubId) {
+        const resolved = resolveMemberSubscriptionRenewal({
+          subscriptionId: ownSubId,
+          fallbackNextAutoRenewDate: ownSub?.nextAutoRenewDate || '',
+          expirationDate: school.schoolLicenseExpires,
+          defaultInterval:
+            ownSub?.interval === SubscriptionInterval.Month ? 'month' : 'year',
+          todayStr,
+          stripeSubscriptions: m.stripeSubscriptions,
+          orders: myOrders,
+          orderMatcher: matchSchoolOrder,
+          fallbackPrice: this.selectedPrice(),
+        });
+        isAutoRenewing = resolved.isAutoRenewing;
+        nextAutoRenewDate = resolved.nextAutoRenewDate;
+        autoRenewalPaymentText = resolved.autoRenewalPaymentText;
+      } else if (
+        billingInfo?.isAutoRenewing &&
+        billingInfo.nextAutoRenewDate &&
+        billingInfo.nextAutoRenewDate >= todayStr
+      ) {
+        isAutoRenewing = true;
+        nextAutoRenewDate = billingInfo.nextAutoRenewDate;
+        if (
+          nextAutoRenewDate === school.schoolLicenseExpires &&
+          /^\d{4}-\d{2}-\d{2}$/.test(billingInfo.lastPaymentDate)
+        ) {
+          const interval: 'month' | 'year' =
+            billingInfo.amount !== null && billingInfo.amount <= 15000
+              ? 'month'
+              : 'year';
+          const expectedEnd = addBillingIntervalToDateString(
+            billingInfo.lastPaymentDate,
+            interval,
+            1,
+          );
+          if (
+            expectedEnd &&
+            expectedEnd >= todayStr &&
+            expectedEnd < nextAutoRenewDate
+          ) {
+            nextAutoRenewDate = expectedEnd;
+          }
+        }
+        autoRenewalPaymentText = formatNextAutoRenewalPayment(
+          nextAutoRenewDate,
+          billingInfo.amount,
+          billingInfo.currency,
+        );
+      }
+
+      const activeSchool = school.schoolLicenseExpires >= todayStr;
+      out[school.docId] = {
+        payerLabel,
+        isCurrentUserPayer,
+        ownSubscriptionId: ownSubId,
+        isLifetime: false,
+        isAutoRenewing,
+        nextAutoRenewDate,
+        autoRenewalPaymentText,
+        canCancel: Boolean(ownSubId) && isAutoRenewing,
+        canResume: Boolean(ownSubId) && !isAutoRenewing && activeSchool,
+      };
+    }
+
+    return out;
+  });
+
+  selectedSchoolBilling = computed<SchoolBillingDisplay | null>(() => {
+    const s = this.selectedSchool();
+    if (!s) return null;
+    return this.schoolBillingByDocId()[s.docId] || null;
+  });
+
   constructor() {
     const userCountry = this.user()?.member?.country;
     if (userCountry) {
@@ -292,6 +535,32 @@ export class SchoolLicensePurchaseComponent {
     const sId = this.sessionId();
     if (sId) {
       void this.loadReturnSession(sId);
+    }
+
+    effect(() => {
+      const u = this.user();
+      const schools = this.mySchools();
+      if (!u || schools.length === 0) {
+        this.lastLoadedBillingKey = '';
+        untracked(() => this.managedSchoolsBilling.set({}));
+        return;
+      }
+      const key = `${u.member.docId}:${schools.map((s) => s.docId).sort().join(',')}`;
+      if (key === this.lastLoadedBillingKey) return;
+      this.lastLoadedBillingKey = key;
+      void this.loadManagedSchoolsBilling();
+    });
+  }
+
+  async loadManagedSchoolsBilling(): Promise<void> {
+    if (typeof this.stripeService.getManagedSchoolsBilling !== 'function') {
+      return;
+    }
+    try {
+      const res = await this.stripeService.getManagedSchoolsBilling();
+      this.managedSchoolsBilling.set(res?.schools || {});
+    } catch {
+      // Fail closed silently if billing lookup fails
     }
   }
 
@@ -422,5 +691,61 @@ export class SchoolLicensePurchaseComponent {
 
   redirectTo(url: string): void {
     window.location.assign(url);
+  }
+
+  requestCancelSchoolAutoRenew(subscriptionId: string): void {
+    if (!subscriptionId) return;
+    this.confirmingCancelSubId.set(subscriptionId);
+    this.cancelSuccessMessage.set(null);
+    this.cancelErrorMessage.set(null);
+  }
+
+  dismissCancelSchoolAutoRenew(): void {
+    this.confirmingCancelSubId.set(null);
+  }
+
+  async onCancelSchoolAutoRenew(subscriptionId: string): Promise<void> {
+    if (!subscriptionId) return;
+    this.confirmingCancelSubId.set(null);
+    this.cancelInProgress.set(true);
+    this.cancelSuccessMessage.set(null);
+    this.cancelErrorMessage.set(null);
+
+    try {
+      const result =
+        await this.stripeService.cancelSubscriptionRenewal(subscriptionId);
+      this.cancelSuccessMessage.set(
+        `Auto-renewal has been cancelled. School license remains active through ${result.periodEnd}.`,
+      );
+      void this.loadManagedSchoolsBilling();
+    } catch (err) {
+      this.cancelErrorMessage.set(
+        err instanceof Error ? err.message : 'Failed to cancel auto-renewal.',
+      );
+    } finally {
+      this.cancelInProgress.set(false);
+    }
+  }
+
+  async onResumeSchoolAutoRenew(subscriptionId: string): Promise<void> {
+    if (!subscriptionId) return;
+    this.cancelInProgress.set(true);
+    this.cancelSuccessMessage.set(null);
+    this.cancelErrorMessage.set(null);
+
+    try {
+      const result =
+        await this.stripeService.resumeSubscriptionRenewal(subscriptionId);
+      this.cancelSuccessMessage.set(
+        `Auto-renewal resumed. Next renewal date: ${result.nextAutoRenewDate}.`,
+      );
+      void this.loadManagedSchoolsBilling();
+    } catch (err) {
+      this.cancelErrorMessage.set(
+        err instanceof Error ? err.message : 'Failed to resume auto-renewal.',
+      );
+    } finally {
+      this.cancelInProgress.set(false);
+    }
   }
 }

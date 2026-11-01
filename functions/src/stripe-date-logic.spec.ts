@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
 import { InstructorLicenseType } from './data-model/curriculum';
-import { initMember, MembershipType, SubscriptionInterval, SubscriptionStatus } from './data-model/members';
+import {
+  initMember,
+  MembershipType,
+  SubscriptionInterval,
+  SubscriptionItemType,
+  SubscriptionStatus,
+} from './data-model/members';
 import { OrderKind, StripeOrder, StripeOrderType, StripeCheckoutMode } from './data-model/orders';
 import {
   extendDateByYears,
@@ -10,6 +16,11 @@ import {
   fulfillSpouseLifeMembership,
   syncSubscriptionStatusToMember,
 } from './stripe-fulfillment';
+import {
+  buildMemberSubscriptionItemFromStripe,
+  computeRecurringSubscriptionAmount,
+  resolveManagedSchoolsBillingForEmail,
+} from './stripe-subscriptions';
 
 describe('Stripe Date Logic & Expiration Guarantees', () => {
   let mockDb: any;
@@ -842,6 +853,406 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
       );
       // Expiration must remain intact even when canceling auto-renew
       expect(updatedMemberData['currentMembershipExpires']).toBeUndefined();
+    });
+
+    it('Keeps stacked advance expiration distinct from actual next Stripe billing date & recurring amount', async () => {
+      const advanceMember = {
+        ...baseMember,
+        classVideoLibrarySubscription: true,
+        classVideoLibrarySubscriptionId: 'sub_vid_monthly',
+        classVideoLibraryExpirationDate: '2028-02-23',
+        classVideoLibraryNextAutoRenewDate: '2026-10-23',
+      };
+
+      const renewalOrder: StripeOrder = {
+        docId: '',
+        lastUpdated: '2026-10-23T10:00:00Z',
+        ilcAppOrderKind: OrderKind.Stripe,
+        stripeOrderType: StripeOrderType.Renewal,
+        stripeObjectId: 'in_vid_oct',
+        invoiceId: 'in_vid_oct',
+        subscriptionId: 'sub_vid_monthly',
+        mode: StripeCheckoutMode.Subscription,
+        created: '2026-10-23T10:00:00Z',
+        amountTotal: 1500, // e.g. one-time promo applied to this invoice
+        currency: 'usd',
+        metadata: { memberDocId: advanceMember.docId, orderType: 'video_library' },
+        lineItems: [
+          {
+            productId: 'prod_video_lib',
+            priceId: 'price_video_monthly',
+            description: 'Class Video Library Subscription',
+            quantity: 1,
+            amountTotal: 1500,
+            currency: 'usd',
+          },
+        ],
+      };
+
+      const liveSubscription: any = {
+        id: 'sub_vid_monthly',
+        status: 'active',
+        cancel_at_period_end: false,
+        currency: 'usd',
+        items: {
+          data: [
+            {
+              quantity: 1,
+              current_period_start: Math.floor(new Date('2026-10-23T00:00:00Z').getTime() / 1000),
+              current_period_end: Math.floor(new Date('2026-11-23T00:00:00Z').getTime() / 1000),
+              price: {
+                id: 'price_video_monthly',
+                product: 'prod_video_lib',
+                unit_amount: 2500,
+                currency: 'usd',
+                recurring: { interval: 'month' },
+              },
+            },
+          ],
+        },
+        discounts: [{ coupon: { duration: 'once', amount_off: 1000 } }],
+      };
+
+      await fulfillStripeOrder(
+        mockDb,
+        advanceMember,
+        renewalOrder,
+        'order_vid_oct',
+        liveSubscription,
+      );
+
+      // Stacked access expiration extends by 1 month from 2028-02-23 -> 2028-03-23
+      expect(updatedMemberData['classVideoLibraryExpirationDate']).toBe('2028-03-23');
+      // Next auto-renewal payment date MUST be Stripe's actual next billing date (2026-11-23)
+      expect(updatedMemberData['classVideoLibraryNextAutoRenewDate']).toBe('2026-11-23');
+      const subs = updatedMemberData['stripeSubscriptions'] as Record<string, any>;
+      expect(subs['sub_vid_monthly']).toEqual(
+        expect.objectContaining({
+          subscriptionId: 'sub_vid_monthly',
+          type: SubscriptionItemType.VideoLibrary,
+          amount: 2500, // Full recurring price (ignoring one-time discount)
+          currency: 'usd',
+          interval: SubscriptionInterval.Month,
+          currentPeriodEnd: '2026-11-23',
+          nextAutoRenewDate: '2026-11-23',
+        }),
+      );
+    });
+
+    it('Applies forever coupon discount to computeRecurringSubscriptionAmount', () => {
+      const discountedSub: any = {
+        id: 'sub_disc',
+        status: 'active',
+        cancel_at_period_end: false,
+        currency: 'usd',
+        items: {
+          data: [
+            {
+              quantity: 1,
+              current_period_end: Math.floor(new Date('2026-12-01T00:00:00Z').getTime() / 1000),
+              price: {
+                id: 'price_1',
+                product: 'prod_1',
+                unit_amount: 6000,
+                currency: 'usd',
+                recurring: { interval: 'month' },
+              },
+            },
+          ],
+        },
+        discounts: [{ coupon: { duration: 'forever', percent_off: 25 } }],
+      };
+      expect(computeRecurringSubscriptionAmount(discountedSub)).toBe(4500);
+      const built = buildMemberSubscriptionItemFromStripe(discountedSub);
+      expect(built.amount).toBe(4500);
+    });
+
+    it('Does NOT extend expiration or update member on StripeOrderType.Cancellation', async () => {
+      const cancelOrder: StripeOrder = {
+        docId: '',
+        lastUpdated: '2026-10-25T00:00:00Z',
+        ilcAppOrderKind: OrderKind.Stripe,
+        stripeOrderType: StripeOrderType.Cancellation,
+        stripeObjectId: 'sub_canceled_1',
+        subscriptionId: 'sub_canceled_1',
+        created: '2026-10-25T00:00:00Z',
+        amountTotal: null,
+        currency: 'usd',
+        lineItems: [
+          {
+            productId: 'prod_mem',
+            priceId: 'price_mem',
+            description: 'Annual Membership',
+            quantity: 1,
+            amountTotal: 0,
+            currency: 'usd',
+          },
+        ],
+      };
+
+      await fulfillStripeOrder(mockDb, baseMember, cancelOrder, 'order_cancel_1');
+      expect(mockMemberRef.update).not.toHaveBeenCalled();
+    });
+
+    it('Renews existing school instead of creating duplicate school on renewal of a newly-registered school subscription', async () => {
+      const existingSchoolDocRef = {
+        id: 'school_doc_existing',
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          id: 'school_doc_existing',
+          data: () => ({
+            schoolId: 'SCH-501',
+            schoolName: 'Brooklyn Zhong Xin Dao',
+            schoolLicenseExpires: '2026-11-01',
+          }),
+        }),
+        update: vi.fn().mockResolvedValue({}),
+        set: vi.fn().mockResolvedValue({}),
+      };
+
+      const customDb: any = {
+        ...mockDb,
+        collection: vi.fn((colName: string) => {
+          if (colName === 'schools') {
+            return {
+              doc: vi.fn((id?: string) =>
+                id === 'school_doc_existing'
+                  ? existingSchoolDocRef
+                  : { id: 'unexpected_new_doc', set: vi.fn() },
+              ),
+              where: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  empty: false,
+                  docs: [
+                    {
+                      id: 'school_doc_existing',
+                      ref: existingSchoolDocRef,
+                      data: () => ({
+                        schoolId: 'SCH-501',
+                        schoolName: 'Brooklyn Zhong Xin Dao',
+                        schoolLicenseExpires: '2026-11-01',
+                      }),
+                    },
+                  ],
+                }),
+                limit: vi.fn().mockReturnValue({
+                  get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+                }),
+              }),
+            };
+          }
+          return mockDb.collection(colName);
+        }),
+      };
+
+      const schoolOwner = {
+        ...baseMember,
+        stripeSubscriptions: {
+          sub_school_monthly: {
+            subscriptionId: 'sub_school_monthly',
+            type: SubscriptionItemType.SchoolLicense,
+            status: SubscriptionStatus.Active,
+            planName: 'Monthly School License',
+            amount: 6000,
+            currency: 'usd',
+            interval: SubscriptionInterval.Month,
+            currentPeriodStart: '2026-10-01',
+            currentPeriodEnd: '2026-11-01',
+            nextAutoRenewDate: '2026-11-01',
+            cancelAtPeriodEnd: false,
+            schoolDocId: 'school_doc_existing',
+            schoolId: 'SCH-501',
+            schoolName: 'Brooklyn Zhong Xin Dao',
+          },
+        },
+      };
+
+      const renewalWithLegacyMetadata: StripeOrder = {
+        docId: '',
+        lastUpdated: '2026-11-01T00:00:00Z',
+        ilcAppOrderKind: OrderKind.Stripe,
+        stripeOrderType: StripeOrderType.Renewal,
+        stripeObjectId: 'in_school_nov',
+        subscriptionId: 'sub_school_monthly',
+        mode: StripeCheckoutMode.Subscription,
+        created: '2026-11-01T00:00:00Z',
+        amountTotal: 6000,
+        currency: 'usd',
+        metadata: {
+          orderType: 'school',
+          isNewSchool: 'true',
+          schoolName: 'Brooklyn Zhong Xin Dao',
+          memberDocId: schoolOwner.docId,
+        },
+        lineItems: [
+          {
+            productId: 'prod_school',
+            priceId: 'price_school_monthly',
+            description: 'Monthly School License',
+            quantity: 1,
+            amountTotal: 6000,
+            currency: 'usd',
+          },
+        ],
+      };
+
+      await fulfillStripeOrder(
+        customDb,
+        schoolOwner,
+        renewalWithLegacyMetadata,
+        'order_school_nov',
+      );
+
+      expect(existingSchoolDocRef.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schoolLicenseRenewalDate: '2026-11-01',
+          schoolLicenseExpires: '2026-12-01',
+        }),
+      );
+      const subs = updatedMemberData['stripeSubscriptions'] as Record<string, any>;
+      expect(subs['sub_school_monthly']).toEqual(
+        expect.objectContaining({
+          schoolDocId: 'school_doc_existing',
+          schoolId: 'SCH-501',
+          schoolName: 'Brooklyn Zhong Xin Dao',
+          nextAutoRenewDate: '2026-12-01',
+        }),
+      );
+    });
+
+    it('resolveManagedSchoolsBillingForEmail returns payer attribution only for authorized managed schools', async () => {
+      const ownerMember = {
+        ...initMember(),
+        docId: 'mem_owner_1',
+        memberId: 'US101',
+        instructorId: 'INS-10',
+        name: 'Sifu Alice',
+        stripeSubscriptions: {
+          sub_sch_1: {
+            subscriptionId: 'sub_sch_1',
+            type: SubscriptionItemType.SchoolLicense,
+            status: SubscriptionStatus.Active,
+            planName: 'Annual School License',
+            amount: 60000,
+            currency: 'usd',
+            interval: SubscriptionInterval.Year,
+            currentPeriodStart: '2026-06-01',
+            currentPeriodEnd: '2027-06-01',
+            nextAutoRenewDate: '2027-06-01',
+            cancelAtPeriodEnd: false,
+            schoolDocId: 'sch_doc_1',
+            schoolId: 'SCH-100',
+            schoolName: 'Alice Academy',
+          },
+        },
+      };
+
+      const managerMember = {
+        ...initMember(),
+        docId: 'mem_mgr_2',
+        memberId: 'US202',
+        instructorId: 'INS-20',
+        name: 'Instructor Bob',
+      };
+
+      const schoolData = {
+        schoolId: 'SCH-100',
+        schoolName: 'Alice Academy',
+        ownerMemberDocId: 'mem_owner_1',
+        ownerInstructorId: 'INS-10',
+        managerInstructorIds: ['INS-20'],
+        schoolLicenseRenewalDate: '2026-06-01',
+        schoolLicenseExpires: '2027-06-01',
+      };
+
+      const billingDb: any = {
+        collection: vi.fn((colName: string) => {
+          if (colName === 'acl') {
+            return {
+              doc: vi.fn((email: string) => ({
+                get: vi.fn().mockResolvedValue(
+                  email === 'bob@example.com'
+                    ? {
+                        exists: true,
+                        data: () => ({
+                          memberDocIds: ['mem_mgr_2'],
+                          instructorIds: ['INS-20'],
+                          schoolDocIds: ['sch_doc_1'],
+                          isAdmin: false,
+                        }),
+                      }
+                    : { exists: false },
+                ),
+              })),
+            };
+          }
+          if (colName === 'schools') {
+            return {
+              doc: vi.fn((id: string) => ({
+                get: vi.fn().mockResolvedValue(
+                  id === 'sch_doc_1'
+                    ? { exists: true, id: 'sch_doc_1', data: () => schoolData }
+                    : { exists: false },
+                ),
+              })),
+              where: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              }),
+            };
+          }
+          if (colName === 'members') {
+            return {
+              doc: vi.fn((id: string) => ({
+                get: vi.fn().mockResolvedValue(
+                  id === 'mem_owner_1'
+                    ? { exists: true, id: 'mem_owner_1', data: () => ownerMember }
+                    : id === 'mem_mgr_2'
+                      ? { exists: true, id: 'mem_mgr_2', data: () => managerMember }
+                      : { exists: false },
+                ),
+              })),
+              where: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  empty: false,
+                  docs: [
+                    { id: 'mem_owner_1', data: () => ownerMember },
+                    { id: 'mem_mgr_2', data: () => managerMember },
+                  ],
+                }),
+              }),
+            };
+          }
+          if (colName === 'orders') {
+            return {
+              where: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              }),
+            };
+          }
+          return mockDb.collection(colName);
+        }),
+      };
+
+      const res = await resolveManagedSchoolsBillingForEmail(billingDb, 'bob@example.com');
+      expect(res.schools['sch_doc_1']).toEqual({
+        schoolDocId: 'sch_doc_1',
+        schoolId: 'SCH-100',
+        payerMemberDocId: 'mem_owner_1',
+        payerMemberId: 'US101',
+        payerName: 'Sifu Alice',
+        isAutoRenewing: true,
+        nextAutoRenewDate: '2027-06-01',
+        amount: 60000,
+        currency: 'usd',
+        lastPaymentDate: '2026-06-01',
+      });
+
+      // Unknown email with no ACL fails closed (empty result)
+      const unknownRes = await resolveManagedSchoolsBillingForEmail(
+        billingDb,
+        'stranger@example.com',
+      );
+      expect(unknownRes.schools).toEqual({});
     });
   });
 });

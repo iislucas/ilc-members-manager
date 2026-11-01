@@ -1,6 +1,6 @@
 /* files-catalog.ts
  *
- * Automatically cataloged index of 100% of repository tracked files (1255 files).
+ * Automatically cataloged index of 100% of repository tracked files (1256 files).
  */
 
 import { CodeFileEntry, ArchitecturalLayer } from '../models/code-file';
@@ -3736,6 +3736,17 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     relatedPatterns: [],
   },
   {
+    path: "functions/scripts/sync-stripe-subscriptions.ts",
+    layer: ArchitecturalLayer.Configuration,
+    responsibility: "Provides implementation for sync-stripe-subscriptions.ts",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: ["order"],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
     path: "functions/scripts/sync-video-stripe-products.ts",
     layer: ArchitecturalLayer.Configuration,
     responsibility: "Provides implementation for sync-video-stripe-products.ts",
@@ -5190,8 +5201,8 @@ export const FILES_CATALOG: CodeFileEntry[] = [
   {
     path: "functions/src/stripe-subscriptions.ts",
     layer: ArchitecturalLayer.CloudFunction,
-    responsibility: "Implements getSubscriptionCurrentPeriodEnd, cancelSubscriptionRenewal, resumeSubscriptionRenewal",
-    keySymbols: ["getSubscriptionCurrentPeriodEnd","cancelSubscriptionRenewal","resumeSubscriptionRenewal","createCustomerPortalSession"],
+    responsibility: "Implements getSubscriptionCurrentPeriodStart, getSubscriptionCurrentPeriodEnd, unixSecondsToDateString",
+    keySymbols: ["getSubscriptionCurrentPeriodStart","getSubscriptionCurrentPeriodEnd","unixSecondsToDateString","computeRecurringSubscriptionAmount","inferSubscriptionItemTypeFromStripe","buildMemberSubscriptionItemFromStripe","cancelSubscriptionRenewal","resumeSubscriptionRenewal","createCustomerPortalSession","getManagedSchoolsBilling"],
     relatedJourneys: [],
     relatedDataTypes: ["order"],
     relatedStories: [],
@@ -11691,8 +11702,8 @@ export const FILES_CATALOG: CodeFileEntry[] = [
   {
     path: "src/app/school-license-purchase/school-license-purchase.ts",
     layer: ArchitecturalLayer.ClientUIComponent,
-    responsibility: "Implements SchoolLicensePurchaseComponent",
-    keySymbols: ["SchoolLicensePurchaseComponent"],
+    responsibility: "Implements SchoolLicensePurchaseComponent, SchoolBillingDisplay",
+    keySymbols: ["SchoolLicensePurchaseComponent","SchoolBillingDisplay"],
     relatedJourneys: [],
     relatedDataTypes: ["school"],
     relatedStories: [],
@@ -12571,8 +12582,8 @@ export const FILES_CATALOG: CodeFileEntry[] = [
   {
     path: "src/app/stripe-price-format.ts",
     layer: ArchitecturalLayer.ClientUIComponent,
-    responsibility: "Implements formatStripePrice, formatStripeAmount, tidyStripeLabel",
-    keySymbols: ["formatStripePrice","formatStripeAmount","tidyStripeLabel"],
+    responsibility: "Implements ResolvedSubscriptionRenewal, formatStripePrice, formatStripeAmount",
+    keySymbols: ["ResolvedSubscriptionRenewal","formatStripePrice","formatStripeAmount","tidyStripeLabel","formatAmountWithCurrency","formatNextAutoRenewalPayment","addBillingIntervalToDateString","resolveMemberSubscriptionRenewal"],
     relatedJourneys: [],
     relatedDataTypes: ["order"],
     relatedStories: [],

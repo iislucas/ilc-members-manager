@@ -12,8 +12,10 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { Grading, GradingStatus, initGrading, gradingDisplayId, orderDisplayNumber } from '../../../functions/src/data-model/gradings';
-import { initMember, Member, MembershipType } from '../../../functions/src/data-model/members';
+import { initMember, Member, MembershipType, SubscriptionInterval, SubscriptionItemType, SubscriptionStatus } from '../../../functions/src/data-model/members';
 import { initMemberOrder, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus } from '../../../functions/src/data-model/orders';
+import { initSchool, School } from '../../../functions/src/data-model/schools';
+import { ManagedSchoolBillingInfo } from '../../../functions/src/stripe-types';
 
 describe('MemberOrdersComponent', () => {
   let fixture: ComponentFixture<MemberOrdersComponent>;
@@ -30,12 +32,16 @@ describe('MemberOrdersComponent', () => {
     myGradings: {
       entries: ReturnType<typeof signal<Grading[]>>;
     };
+    schools: {
+      entries: ReturnType<typeof signal<School[]>>;
+    };
   };
 
   let mockStripeService: {
     cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
     createCustomerPortalSession: ReturnType<typeof vi.fn>;
+    getManagedSchoolsBilling: ReturnType<typeof vi.fn>;
   };
 
   let mockRoutingService: {
@@ -137,12 +143,16 @@ describe('MemberOrdersComponent', () => {
       myGradings: {
         entries: signal<Grading[]>([sampleGrading]),
       },
+      schools: {
+        entries: signal<School[]>([]),
+      },
     };
 
     mockStripeService = {
       cancelSubscriptionRenewal: vi.fn().mockResolvedValue({ success: true, periodEnd: '2027-05-15' }),
       resumeSubscriptionRenewal: vi.fn().mockResolvedValue({ success: true, nextAutoRenewDate: '2027-05-15' }),
       createCustomerPortalSession: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/p/session/test' }),
+      getManagedSchoolsBilling: vi.fn().mockResolvedValue({ schools: {} }),
     };
 
     mockRoutingService = {
@@ -502,6 +512,159 @@ describe('MemberOrdersComponent', () => {
     const renewLink = element.querySelector('a.primary-button');
     expect(renewLink).toBeTruthy();
     expect(renewLink?.textContent).toContain('Renew Now');
+  });
+
+  it('displays Next auto-renewal payment with YYYY-MM-DD ($XX.XX USD) and keeps advance expiration separate', async () => {
+    mockFirebaseStateService.user.set({
+      member: {
+        ...sampleMember,
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '2028-03-23',
+        classVideoLibrarySubscriptionId: 'sub_vid_123',
+        classVideoLibraryNextAutoRenewDate: '2026-11-23',
+        stripeSubscriptions: {
+          sub_vid_123: {
+            subscriptionId: 'sub_vid_123',
+            type: SubscriptionItemType.VideoLibrary,
+            status: SubscriptionStatus.Active,
+            planName: 'Class Video Library',
+            amount: 2500,
+            currency: 'usd',
+            interval: SubscriptionInterval.Month,
+            currentPeriodStart: '2026-10-23',
+            currentPeriodEnd: '2026-11-23',
+            nextAutoRenewDate: '2026-11-23',
+            cancelAtPeriodEnd: false,
+          },
+        },
+      },
+      memberProfiles: [{ ...sampleMember }],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: { uid: 'mem-123' } as never,
+    });
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const vid = component.subscriptions().find((s) => s.category === 'video_library');
+    expect(vid?.expirationDate).toBe('2028-03-23');
+    expect(vid?.nextAutoRenewDate).toBe('2026-11-23');
+    expect(vid?.autoRenewalPaymentText).toBe('2026-11-23 ($25.00 USD)');
+
+    const element = fixture.nativeElement as HTMLElement;
+    const vidCard = element.querySelector('.sub-card.video_library');
+    expect(vidCard?.textContent).toContain('Valid through 2028-03-23');
+    expect(vidCard?.textContent).toContain('Next auto-renewal payment:');
+    expect(vidCard?.textContent).toContain('2026-11-23 ($25.00 USD)');
+  });
+
+  it('separates payer school licenses into main grid and non-payer managed schools into subsection below', async () => {
+    const ownPaidSchool: School = {
+      ...initSchool(),
+      docId: 'school-own-doc',
+      schoolId: 'SCH-OWN-1',
+      schoolName: 'Seattle ILC Academy',
+      ownerMemberDocId: 'mem-123',
+      ownerInstructorId: 'INS-01',
+      schoolLicenseExpires: '2027-08-01',
+    };
+    const otherPaidSchool: School = {
+      ...initSchool(),
+      docId: 'school-other-doc',
+      schoolId: 'SCH-OTHER-2',
+      schoolName: 'Portland ILC Branch',
+      ownerInstructorId: 'INS-99',
+      managerInstructorIds: ['INS-01'],
+      schoolLicenseExpires: '2027-09-15',
+    };
+
+    const billingResponse: Record<string, ManagedSchoolBillingInfo> = {
+      'school-own-doc': {
+        schoolDocId: 'school-own-doc',
+        schoolId: 'SCH-OWN-1',
+        payerMemberDocId: 'mem-123',
+        payerMemberId: 'US123',
+        payerName: 'Bruce Lee',
+        isAutoRenewing: true,
+        nextAutoRenewDate: '2027-08-01',
+        amount: 60000,
+        currency: 'usd',
+        lastPaymentDate: '2026-08-01',
+      },
+      'school-other-doc': {
+        schoolDocId: 'school-other-doc',
+        schoolId: 'SCH-OTHER-2',
+        payerMemberDocId: 'mem-999',
+        payerMemberId: 'US999',
+        payerName: 'Sifu Alice',
+        isAutoRenewing: true,
+        nextAutoRenewDate: '2027-09-15',
+        amount: 60000,
+        currency: 'usd',
+        lastPaymentDate: '2026-09-15',
+      },
+    };
+    mockStripeService.getManagedSchoolsBilling.mockResolvedValue({
+      schools: billingResponse,
+    });
+    mockDataManagerService.schools.entries.set([ownPaidSchool, otherPaidSchool]);
+
+    mockFirebaseStateService.user.set({
+      member: {
+        ...sampleMember,
+        stripeSubscriptions: {
+          sub_sch_own: {
+            subscriptionId: 'sub_sch_own',
+            type: SubscriptionItemType.SchoolLicense,
+            status: SubscriptionStatus.Active,
+            planName: 'School License Yearly',
+            amount: 60000,
+            currency: 'usd',
+            interval: SubscriptionInterval.Year,
+            currentPeriodStart: '2026-08-01',
+            currentPeriodEnd: '2027-08-01',
+            nextAutoRenewDate: '2027-08-01',
+            cancelAtPeriodEnd: false,
+            schoolDocId: 'school-own-doc',
+            schoolId: 'SCH-OWN-1',
+            schoolName: 'Seattle ILC Academy',
+          },
+        },
+      },
+      memberProfiles: [{ ...sampleMember }],
+      isAdmin: false,
+      schoolsManaged: ['school-own-doc', 'school-other-doc'],
+      firebaseUser: { uid: 'mem-123' } as never,
+    });
+
+    await fixture.whenStable();
+    await component.loadManagedSchoolsBilling();
+    fixture.detectChanges();
+
+    const mainSchools = component
+      .subscriptions()
+      .filter((s) => s.category === 'school_license');
+    expect(mainSchools.length).toBe(1);
+    expect(mainSchools[0].title).toBe('School License: Seattle ILC Academy');
+    expect(mainSchools[0].payerLabel).toBe('You (Bruce Lee)');
+    expect(mainSchools[0].autoRenewalPaymentText).toBe('2027-08-01 ($600.00 USD)');
+    expect(mainSchools[0].canCancel).toBe(true);
+
+    const otherSchools = component.otherPayerSchoolSubscriptions();
+    expect(otherSchools.length).toBe(1);
+    expect(otherSchools[0].title).toBe('School License: Portland ILC Branch');
+    expect(otherSchools[0].payerLabel).toBe('Sifu Alice (US999)');
+    expect(otherSchools[0].autoRenewalPaymentText).toBe('2027-09-15 ($600.00 USD)');
+    expect(otherSchools[0].canCancel).toBe(false);
+    expect(otherSchools[0].canResume).toBe(false);
+
+    const element = fixture.nativeElement as HTMLElement;
+    const subSection = element.querySelector('.managed-schools-subsection');
+    expect(subSection).toBeTruthy();
+    expect(subSection?.textContent).toContain('Other Schools You Own or Manage');
+    expect(subSection?.textContent).toContain('Sifu Alice (US999)');
+    expect(subSection?.textContent).toContain('2027-09-15 ($600.00 USD)');
   });
 });
 

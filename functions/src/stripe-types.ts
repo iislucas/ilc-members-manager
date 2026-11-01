@@ -221,6 +221,23 @@ export interface CreateCustomerPortalSessionResult {
   url: string;
 }
 
+export interface ManagedSchoolBillingInfo {
+  schoolDocId: string;
+  schoolId: string;
+  payerMemberDocId: string;
+  payerMemberId: string;
+  payerName: string;
+  isAutoRenewing: boolean;
+  nextAutoRenewDate: string; // YYYY-MM-DD or ''
+  amount: number | null; // in currency minor units (cents), or null if unknown
+  currency: string | null; // e.g. 'usd'
+  lastPaymentDate: string; // YYYY-MM-DD or ''
+}
+
+export interface GetManagedSchoolsBillingResult {
+  schools: Record<string, ManagedSchoolBillingInfo>;
+}
+
 export interface CreateProductCheckoutSessionRequest {
   productId: string;
   optionId?: string;

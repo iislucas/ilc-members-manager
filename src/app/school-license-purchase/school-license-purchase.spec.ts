@@ -13,7 +13,7 @@ import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
-import { initMember, MembershipType } from '../../../functions/src/data-model/members';
+import { initMember, MembershipType, SubscriptionInterval, SubscriptionItemType, SubscriptionStatus } from '../../../functions/src/data-model/members';
 import { initSchool, School } from '../../../functions/src/data-model/schools';
 import { CountryCode } from '../country-codes';
 import { SearchableSet } from '../searchable-set';
@@ -29,6 +29,9 @@ describe('SchoolLicensePurchaseComponent', () => {
   let mockStripeService: {
     createCheckoutSession: ReturnType<typeof vi.fn>;
     getCheckoutSession: ReturnType<typeof vi.fn>;
+    getManagedSchoolsBilling: ReturnType<typeof vi.fn>;
+    cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
+    resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
   let schoolIdParam: ReturnType<typeof signal<string | null>>;
@@ -138,6 +141,17 @@ describe('SchoolLicensePurchaseComponent', () => {
         currency: 'usd',
         customerEmail: 'owner@example.com',
         lineItems: [{ description: 'School License Yearly' }],
+      }),
+      getManagedSchoolsBilling: vi.fn().mockResolvedValue({ schools: {} }),
+      cancelSubscriptionRenewal: vi.fn().mockResolvedValue({
+        subscriptionId: 'sub_sch_1',
+        cancelAtPeriodEnd: true,
+        periodEnd: '2027-01-01',
+      }),
+      resumeSubscriptionRenewal: vi.fn().mockResolvedValue({
+        subscriptionId: 'sub_sch_1',
+        cancelAtPeriodEnd: false,
+        nextAutoRenewDate: '2027-01-01',
       }),
     };
 
@@ -410,5 +424,86 @@ describe('SchoolLicensePurchaseComponent', () => {
     forward!.click();
     fixture.detectChanges();
     expect(component.flow.current()).not.toBe(component.StepAccount);
+  });
+
+  it('should match schools by docId in schoolsManaged and display payer attribution and Next auto-renewal payment', async () => {
+    const managedByDocIdSchool: School = {
+      ...initSchool(),
+      docId: 'school_managed_by_docid',
+      schoolId: 'SCH-MGR-02',
+      schoolName: 'Managed By DocId School',
+      ownerInstructorId: 'OTHER-INS',
+      schoolLicenseExpires: '2027-06-15',
+      schoolCountry: 'United States',
+      schoolCity: 'Boston',
+    };
+    mockDataManager.schools.entries.mockReturnValue([managedByDocIdSchool]);
+    mockStripeService.getManagedSchoolsBilling.mockResolvedValue({
+      schools: {
+        school_managed_by_docid: {
+          schoolDocId: 'school_managed_by_docid',
+          schoolId: 'SCH-MGR-02',
+          payerMemberDocId: 'mem_other',
+          payerMemberId: 'US555',
+          payerName: 'Sifu Other',
+          isAutoRenewing: true,
+          nextAutoRenewDate: '2027-06-15',
+          amount: 60000,
+          currency: 'usd',
+          lastPaymentDate: '2026-06-15',
+        },
+      },
+    });
+    userSignal.set({
+      ...sampleUser,
+      schoolsManaged: ['school_managed_by_docid'],
+    });
+
+    await createComponent();
+    await component.loadManagedSchoolsBilling();
+    fixture.detectChanges();
+
+    expect(component.mySchools().length).toBe(1);
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Payment linked to: Sifu Other (US555)');
+    expect(element.textContent).toContain('2027-06-15 ($600.00 USD)');
+  });
+
+  it('should support inline non-blocking cancel auto-renewal when current user owns the school subscription', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleMember,
+        stripeSubscriptions: {
+          sub_sch_1: {
+            subscriptionId: 'sub_sch_1',
+            type: SubscriptionItemType.SchoolLicense,
+            status: SubscriptionStatus.Active,
+            planName: 'LICENSE : School Yearly',
+            amount: 60000,
+            currency: 'usd',
+            interval: SubscriptionInterval.Year,
+            currentPeriodStart: '2026-01-01',
+            currentPeriodEnd: '2027-01-01',
+            nextAutoRenewDate: '2027-01-01',
+            cancelAtPeriodEnd: false,
+            schoolDocId: 'school_doc_1',
+            schoolId: 'SCH-NY-01',
+          },
+        },
+      },
+    });
+
+    await createComponent();
+    fixture.detectChanges();
+
+    component.requestCancelSchoolAutoRenew('sub_sch_1');
+    expect(component.confirmingCancelSubId()).toBe('sub_sch_1');
+
+    await component.onCancelSchoolAutoRenew('sub_sch_1');
+    expect(mockStripeService.cancelSubscriptionRenewal).toHaveBeenCalledWith(
+      'sub_sch_1',
+    );
+    expect(component.cancelSuccessMessage()).toContain('cancelled');
   });
 });

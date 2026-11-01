@@ -24,6 +24,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { OrderItemCategory } from '../../../functions/src/data-model/orders';
 import {
   CheckoutSessionSummary,
   StripePriceType,
@@ -34,6 +35,7 @@ import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import {
   formatStripeAmount,
   formatStripePrice,
+  resolveMemberSubscriptionRenewal,
 } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
@@ -149,15 +151,45 @@ export class ClassVideoLibraryPurchaseComponent {
     return this.user()?.member.classVideoLibraryExpirationDate || '';
   });
 
-  hasActiveAutoRenew = computed(() => {
+  videoRenewal = computed(() => {
     const m = this.user()?.member;
-    if (!m) return false;
-    return !!(
-      m.classVideoLibrarySubscriptionId &&
-      m.classVideoLibraryNextAutoRenewDate &&
-      m.classVideoLibraryNextAutoRenewDate >= this.today()
-    );
+    if (!m) {
+      return {
+        isAutoRenewing: false,
+        nextAutoRenewDate: '',
+        amount: null,
+        currency: 'usd',
+        autoRenewalPaymentText: '',
+      };
+    }
+    return resolveMemberSubscriptionRenewal({
+      subscriptionId: m.classVideoLibrarySubscriptionId,
+      fallbackNextAutoRenewDate: m.classVideoLibraryNextAutoRenewDate,
+      expirationDate: m.classVideoLibraryExpirationDate,
+      defaultInterval: 'month',
+      todayStr: this.today(),
+      stripeSubscriptions: m.stripeSubscriptions,
+      orders: this.dataService.myOrders?.entries() ?? [],
+      orderMatcher: (o) => {
+        const d = (o.description || '').toLowerCase();
+        return (
+          o.lineItems?.some((li) => {
+            const lid = (li.description || '').toLowerCase();
+            return (
+              li.category === OrderItemCategory.VideoLibrary ||
+              lid.includes('library') ||
+              (lid.includes('class') && lid.includes('video'))
+            );
+          }) ||
+          d.includes('library') ||
+          (d.includes('class') && d.includes('video'))
+        );
+      },
+      fallbackPrice: this.selectedPrice(),
+    });
   });
+
+  hasActiveAutoRenew = computed(() => this.videoRenewal().isAutoRenewing);
 
   hasActiveStripeSubscription = computed(() => {
     const m = this.user()?.member;
@@ -171,9 +203,11 @@ export class ClassVideoLibraryPurchaseComponent {
     this.isSubscribeFoldOpen.update((open) => !open);
   }
 
-  nextAutoRenewDate = computed(() => {
-    return this.user()?.member.classVideoLibraryNextAutoRenewDate || '';
-  });
+  nextAutoRenewDate = computed(() => this.videoRenewal().nextAutoRenewDate);
+
+  nextAutoRenewPaymentText = computed(
+    () => this.videoRenewal().autoRenewalPaymentText,
+  );
 
   selectedPrice = computed<StripeProductPrice | null>(() => {
     for (const prod of this.videoProducts()) {
