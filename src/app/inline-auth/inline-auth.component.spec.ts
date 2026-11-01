@@ -1353,4 +1353,144 @@ describe('InlineAuthComponent', () => {
       expect(html().querySelector('#login-btn')?.textContent).toContain('Sign In');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  //  Cancelling a pending Google popup (e.g. when COOP blocks window.closed)
+  // ---------------------------------------------------------------------------
+  describe('cancelling an in-flight Google popup', () => {
+    it('should render a Cancel button while Google popup is open, and restore buttons when clicked', async () => {
+      let resolvePopup!: (result: AuthOperationResult) => void;
+      vi.spyOn(mockService, 'loginWithGoogle').mockImplementation(() => {
+        mockService.loginStatus.set(LoginStatus.LoggingIn);
+        return new Promise<AuthOperationResult>((resolve) => {
+          resolvePopup = resolve;
+        });
+      });
+
+      remember({ email: 'jane@gmail.com', method: 'google', canUseGoogle: true });
+      await createComponent();
+
+      const inFlight = component.loginWithGoogle();
+      fixture.detectChanges();
+
+      const cancelBtn = html().querySelector<HTMLButtonElement>('#cancel-google-signin-btn');
+      expect(cancelBtn).not.toBeNull();
+      expect(html().querySelector('#google-signin-btn')).toBeNull();
+
+      cancelBtn!.click();
+      fixture.detectChanges();
+
+      // Buttons reappear immediately without waiting for the stuck popup promise.
+      expect(component.busy()).toBe(false);
+      expect(mockService.loginStatus()).toBe(LoginStatus.SignedOut);
+      expect(html().querySelector('#google-signin-btn')).not.toBeNull();
+      expect(html().querySelector('#use-password-btn')).not.toBeNull();
+      expect(html().querySelector('#cancel-google-signin-btn')).toBeNull();
+
+      // If the abandoned popup later times out with popup-closed-by-user, no stale error is shown.
+      resolvePopup({ success: false, errorCode: 'auth/popup-closed-by-user' });
+      await inFlight;
+      fixture.detectChanges();
+
+      expect(component.loginWithGoogleError()).toBeNull();
+    });
+
+    it('should not render the Google Cancel button during password sign-in or session restore', async () => {
+      let resolveEmail!: (result: AuthOperationResult) => void;
+      vi.spyOn(mockService, 'loginWithEmail').mockReturnValue(
+        new Promise<AuthOperationResult>((resolve) => {
+          resolveEmail = resolve;
+        }),
+      );
+
+      remember({ email: 'jane@example.com', method: 'password' });
+      await createComponent();
+      component.password.set('correct-horse');
+
+      const inFlight = component.loginWithEmail();
+      fixture.detectChanges();
+      expect(component.busy()).toBe(true);
+      expect(html().querySelector('#cancel-google-signin-btn')).toBeNull();
+
+      resolveEmail({ success: false, errorCode: 'auth/cancelled-popup-request' });
+      await inFlight;
+
+      // Session restore on load
+      mockService.loginStatus.set(LoginStatus.LoggingIn);
+      fixture.detectChanges();
+      expect(component.busy()).toBe(true);
+      expect(html().querySelector('#cancel-google-signin-btn')).toBeNull();
+    });
+
+    it('should keep the retry spinner active when the first cancelled popup promise settles late', async () => {
+      const resolvers: Array<(result: AuthOperationResult) => void> = [];
+      vi.spyOn(mockService, 'loginWithGoogle').mockImplementation(() => {
+        mockService.loginStatus.set(LoginStatus.LoggingIn);
+        return new Promise<AuthOperationResult>((resolve) => {
+          resolvers.push(resolve);
+        });
+      });
+
+      remember({ email: 'jane@gmail.com', method: 'google', canUseGoogle: true });
+      await createComponent();
+
+      const firstAttempt = component.loginWithGoogle();
+      fixture.detectChanges();
+
+      component.cancelGoogleLogin();
+      fixture.detectChanges();
+      expect(component.busy()).toBe(false);
+
+      // User retries Google sign-in; Firebase aborts the first popup asynchronously.
+      const secondAttempt = component.loginWithGoogle();
+      fixture.detectChanges();
+      expect(component.busy()).toBe(true);
+
+      resolvers[0]({ success: false, errorCode: 'auth/cancelled-popup-request' });
+      await firstAttempt;
+      fixture.detectChanges();
+
+      // First attempt's finally block must not clear the second attempt's loading state.
+      expect(component.busy()).toBe(true);
+      expect(component.isGooglePopupPending()).toBe(true);
+
+      resolvers[1]({ success: true, userCredential: {} as UserCredential });
+      mockService.loginStatus.set(LoginStatus.SignedIn);
+      await secondAttempt;
+      fixture.detectChanges();
+
+      expect(component.authLoading()).toBe(false);
+      expect(readRemembered()?.method).toBe('google');
+    });
+
+    it('should cancel a pending Google popup when tapping the email chip to change email', async () => {
+      let resolvePopup!: (result: AuthOperationResult) => void;
+      vi.spyOn(mockService, 'loginWithGoogle').mockImplementation(() => {
+        mockService.loginStatus.set(LoginStatus.LoggingIn);
+        return new Promise<AuthOperationResult>((resolve) => {
+          resolvePopup = resolve;
+        });
+      });
+
+      remember({ email: 'jane@gmail.com', method: 'google', canUseGoogle: true });
+      await createComponent();
+
+      const inFlight = component.loginWithGoogle();
+      fixture.detectChanges();
+      expect(component.busy()).toBe(true);
+
+      html().querySelector<HTMLButtonElement>('#change-email-btn')!.click();
+      fixture.detectChanges();
+      await Promise.resolve();
+
+      expect(component.step()).toBe(InlineAuthStep.Email);
+      expect(component.busy()).toBe(false);
+      const emailInput = html().querySelector<HTMLInputElement>('#email-input');
+      expect(emailInput).not.toBeNull();
+      expect(emailInput!.disabled).toBe(false);
+
+      resolvePopup({ success: false, errorCode: 'auth/popup-closed-by-user' });
+      await inFlight;
+    });
+  });
 });

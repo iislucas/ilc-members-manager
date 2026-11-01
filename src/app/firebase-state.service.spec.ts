@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import {
   FirebaseStateService,
   AuthOperationResult,
+  LoginStatus,
   LogoutResult,
 } from './firebase-state.service';
 import { User, UserCredential } from 'firebase/auth';
@@ -141,5 +142,24 @@ describe('FirebaseStateService', () => {
     expect(
       (service as unknown as { unsubscribeFromMember: (() => void) | null }).unsubscribeFromMember,
     ).toBeNull();
+  });
+
+  it('resets LoggingIn status to SignedOut on cancelPendingLogin when no user is signed in', () => {
+    service.loginStatus.set(LoginStatus.LoggingIn);
+    service.cancelPendingLogin();
+    expect(service.loginStatus()).toBe(LoginStatus.SignedOut);
+  });
+
+  it('preserves status on cancelPendingLogin when a user session is already active', () => {
+    service.user.set({
+      firebaseUser: { uid: 'u1', email: 'test@example.com' } as User,
+      member: { docId: 'm1' } as never,
+      memberProfiles: [],
+      isAdmin: false,
+      schoolsManaged: [],
+    });
+    service.loginStatus.set(LoginStatus.SignedIn);
+    service.cancelPendingLogin();
+    expect(service.loginStatus()).toBe(LoginStatus.SignedIn);
   });
 });

@@ -171,6 +171,7 @@ export class FirebaseStateService {
 
   private db: Firestore;
   private unsubscribeFromMember: Unsubscribe | null = null;
+  private googleLoginAttemptId = 0;
 
   constructor() {
     this.db = getFirestore(this.app);
@@ -547,6 +548,7 @@ export class FirebaseStateService {
   }
 
   public async loginWithGoogle(): Promise<AuthOperationResult> {
+    const attemptId = ++this.googleLoginAttemptId;
     this.loginStatus.set(LoginStatus.LoggingIn);
     try {
       const userCredential = await signInWithPopup(
@@ -556,7 +558,10 @@ export class FirebaseStateService {
       return { success: true, userCredential };
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
-      if (error.code === 'auth/cancelled-popup-request') {
+      if (
+        attemptId !== this.googleLoginAttemptId ||
+        error.code === 'auth/cancelled-popup-request'
+      ) {
         return {
           success: false,
           errorCode: 'auth/cancelled-popup-request',
@@ -576,6 +581,21 @@ export class FirebaseStateService {
         errorCode: error.code,
         pendingCredential,
       };
+    }
+  }
+
+  // Resets the in-flight login status when the user abandons a pending Google
+  // popup (e.g. after closing the popup while COOP blocks Firebase's
+  // `window.closed` check) and invalidates the stale attempt so a delayed
+  // rejection cannot clobber subsequent sign-in state.
+  public cancelPendingLogin(): void {
+    this.googleLoginAttemptId++;
+    if (
+      !this.auth.currentUser &&
+      !this.user() &&
+      this.loginStatus() === LoginStatus.LoggingIn
+    ) {
+      this.loginStatus.set(LoginStatus.SignedOut);
     }
   }
 
@@ -845,14 +865,16 @@ export class FirebaseStateService {
 }
 
 export function createFirebaseStateServiceMock(): FirebaseStateService {
+  const user = signal<UserDetails | null>(null);
+  const loginStatus = signal(LoginStatus.SignedOut);
   return {
     isAdmin: () => false,
-    user: signal(null),
+    user,
     unverifiedUser: signal(null),
     pendingEmailLink: signal(null),
     completedEmailLinkSignIn: signal(null),
     offerPasswordSetup: signal(false),
-    loginStatus: signal(LoginStatus.SignedOut),
+    loginStatus,
     loggedIn: signal(Promise.resolve({} as UserDetails)),
     loginError: signal(null),
     isAuthReady: signal(true),
@@ -862,6 +884,11 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
         success: true,
         userCredential: {} as UserCredential,
       }),
+    cancelPendingLogin: (): void => {
+      if (!user() && loginStatus() === LoginStatus.LoggingIn) {
+        loginStatus.set(LoginStatus.SignedOut);
+      }
+    },
     loginWithEmailAndLink: (): Promise<AuthOperationResult> =>
       Promise.resolve({
         success: true,
