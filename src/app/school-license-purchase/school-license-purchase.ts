@@ -20,7 +20,6 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
@@ -31,19 +30,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import {
-  MemberSubscriptionItem,
-  MembershipType,
-  SubscriptionInterval,
-  SubscriptionItemType,
-  hasActiveMembership,
-} from '../../../functions/src/data-model/members';
-import {
-  MemberOrder,
-  MemberOrderPaymentStatus,
-  MemberOrderType,
-  OrderItemCategory,
-} from '../../../functions/src/data-model/orders';
+import { hasActiveMembership } from '../../../functions/src/data-model/members';
 import { School } from '../../../functions/src/data-model/schools';
 import {
   CheckoutSessionSummary,
@@ -53,32 +40,21 @@ import {
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import {
-  addBillingIntervalToDateString,
-  computeProjectedRenewalExpirationDate,
-  formatNextAutoRenewalPayment,
   formatStripeAmount,
   formatStripePrice,
-  resolveMemberSubscriptionRenewal,
 } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
+import { SubscriptionCardComponent } from '../subscription-card/subscription-card';
+import {
+  DisplaySubscriptionCard,
+  buildSchoolSubscriptionCards,
+  getManagedSchoolsForUser,
+} from '../subscription-card/subscription-card.model';
 
 export type SchoolLicenseAction = 'renew' | 'new';
-
-export interface SchoolBillingDisplay {
-  payerLabel: string;
-  isCurrentUserPayer: boolean;
-  ownSubscriptionId: string;
-  isLifetime: boolean;
-  isAutoRenewing: boolean;
-  nextAutoRenewDate: string;
-  autoRenewalPaymentText: string;
-  projectedExpirationDate: string;
-  canCancel: boolean;
-  canResume: boolean;
-}
 
 import { environment } from '../../environments/environment';
 
@@ -86,7 +62,6 @@ import { environment } from '../../environments/environment';
   selector: 'app-school-license-purchase',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     IconComponent,
     SpinnerComponent,
@@ -94,6 +69,7 @@ import { environment } from '../../environments/environment';
     AutocompleteComponent,
     StepTrackComponent,
     StepCardComponent,
+    SubscriptionCardComponent,
   ],
   templateUrl: './school-license-purchase.html',
   styleUrl: './school-license-purchase.scss',
@@ -231,10 +207,6 @@ export class SchoolLicensePurchaseComponent {
   returnSessionError = signal<string | null>(null);
 
   // Subscription management
-  cancelInProgress = signal(false);
-  confirmingCancelSubId = signal<string | null>(null);
-  cancelSuccessMessage = signal<string | null>(null);
-  cancelErrorMessage = signal<string | null>(null);
   managedSchoolsBilling = signal<Record<string, ManagedSchoolBillingInfo>>({});
   private lastLoadedBillingKey = '';
 
@@ -295,23 +267,9 @@ export class SchoolLicensePurchaseComponent {
   });
 
   // Schools owned/managed by this member
-  mySchools = computed<School[]>(() => {
-    const u = this.user();
-    if (!u) return [];
-    const all = this.dataService.schools.entries();
-    const managedIds = new Set(u.schoolsManaged || []);
-    const insId = u.member.instructorId?.trim();
-    const mDocId = u.member.docId;
-
-    return all.filter((s) => {
-      if (s.docId && managedIds.has(s.docId)) return true;
-      if (s.schoolId && managedIds.has(s.schoolId)) return true;
-      if (insId && s.ownerInstructorId === insId) return true;
-      if (insId && s.managerInstructorIds?.includes(insId)) return true;
-      if (mDocId && s.ownerMemberDocId === mDocId) return true;
-      return false;
-    });
-  });
+  mySchools = computed<School[]>(() =>
+    getManagedSchoolsForUser(this.dataService.schools.entries(), this.user()),
+  );
 
   selectedSchool = computed<School | null>(() => {
     const docId = this.selectedSchoolDocId();
@@ -319,224 +277,47 @@ export class SchoolLicensePurchaseComponent {
     return this.mySchools().find((s) => s.docId === docId) || null;
   });
 
-  schoolBillingByDocId = computed<Record<string, SchoolBillingDisplay>>(() => {
+  managedSchoolCards = computed<DisplaySubscriptionCard[]>(() => {
     const u = this.user();
-    if (!u) return {};
-    const m = u.member;
+    if (!u) return [];
     const schools = this.mySchools();
-    const billingMap = this.managedSchoolsBilling();
-    const myOrders = this.dataService.myOrders?.entries() ?? [];
-    const todayStr = this.today();
-    const out: Record<string, SchoolBillingDisplay> = {};
-    const handledSubIds = new Set<string>();
+    if (schools.length === 0) return [];
+    const wantedSchoolId = this.urlSchoolId();
+    const orderedSchools = wantedSchoolId
+      ? [
+          ...schools.filter((s) => s.schoolId === wantedSchoolId),
+          ...schools.filter((s) => s.schoolId !== wantedSchoolId),
+        ]
+      : schools;
 
-    const ownSchoolSubs: Array<[string, MemberSubscriptionItem]> = Object.entries(
-      m.stripeSubscriptions || {},
-    ).filter(
-      ([, sub]) =>
-        sub.type === SubscriptionItemType.SchoolLicense ||
-        (sub.planName || '').toLowerCase().includes('school'),
-    );
+    return buildSchoolSubscriptionCards({
+      member: u.member,
+      schools: orderedSchools,
+      billingMap: this.managedSchoolsBilling(),
+      orders: this.dataService.myOrders?.entries() ?? [],
+      todayStr: this.today(),
+      baseSchoolLicenseUrl:
+        this.routingService.hrefForView(Views.SchoolLicensePurchase) ||
+        '/school-license',
+      fallbackPrice: this.selectedPrice(),
+    }).allSchoolCards;
+  });
 
-    const selfLabel = m.name ? `You (${m.name})` : 'You';
-
-    for (const school of schools) {
-      const matchedOwnPair = ownSchoolSubs.find(([subId, sub]) => {
-        if (handledSubIds.has(subId)) return false;
-        if (sub.schoolDocId && sub.schoolDocId === school.docId) return true;
-        if (sub.schoolId && school.schoolId && sub.schoolId === school.schoolId) {
-          return true;
-        }
-        if (
-          sub.schoolName &&
-          school.schoolName &&
-          sub.schoolName.trim().toLowerCase() ===
-            school.schoolName.trim().toLowerCase()
-        ) {
-          return true;
-        }
-        if (
-          !sub.schoolDocId &&
-          !sub.schoolId &&
-          !sub.schoolName &&
-          schools.length === 1
-        ) {
-          return true;
-        }
-        return false;
-      });
-
-      const ownSubId = matchedOwnPair?.[0] || '';
-      const ownSub = matchedOwnPair?.[1];
-      if (ownSubId) handledSubIds.add(ownSubId);
-
-      const billingInfo = billingMap[school.docId];
-      const matchSchoolOrder = (o: MemberOrder): boolean => {
-        const hasSchoolLine =
-          o.lineItems?.some(
-            (li) =>
-              li.category === OrderItemCategory.SchoolLicense ||
-              (li.description || '').toLowerCase().includes('school'),
-          ) || (o.description || '').toLowerCase().includes('school');
-        if (!hasSchoolLine) return false;
-        const text = [
-          o.description || '',
-          ...(o.lineItems || []).map((li) => li.description || ''),
-        ].join(' ');
-        if (
-          school.schoolId &&
-          text.includes('SCH-') &&
-          !text.includes(school.schoolId)
-        ) {
-          return false;
-        }
-        return true;
-      };
-
-      const hasOwnPaidOrder = myOrders.some(
-        (o) =>
-          o.paymentStatus === MemberOrderPaymentStatus.Paid &&
-          o.orderType !== MemberOrderType.Cancellation &&
-          matchSchoolOrder(o),
-      );
-
-      const isLifetime = !school.schoolLicenseExpires;
-      const isSchoolOwner =
-        Boolean(m.docId && school.ownerMemberDocId === m.docId) ||
-        Boolean(
-          m.instructorId?.trim() &&
-            school.ownerInstructorId === m.instructorId.trim(),
-        );
-
-      const isCurrentUserPayer = Boolean(
-        ownSub ||
-          (billingInfo?.payerMemberDocId &&
-            billingInfo.payerMemberDocId === m.docId) ||
-          (billingInfo?.payerMemberId &&
-            m.memberId &&
-            billingInfo.payerMemberId === m.memberId) ||
-          (!billingInfo?.payerMemberDocId && hasOwnPaidOrder) ||
-          (isLifetime && isSchoolOwner && !billingInfo?.payerMemberDocId),
-      );
-
-      let payerLabel = '';
-      if (isCurrentUserPayer) {
-        payerLabel = selfLabel;
-      } else if (billingInfo?.payerName || billingInfo?.payerMemberId) {
-        payerLabel =
-          billingInfo.payerName && billingInfo.payerMemberId
-            ? `${billingInfo.payerName} (${billingInfo.payerMemberId})`
-            : billingInfo.payerName || billingInfo.payerMemberId;
-      } else if (isLifetime) {
-        payerLabel = school.ownerInstructorId
-          ? `School Owner (${school.ownerInstructorId})`
-          : 'Lifetime license';
-      } else {
-        payerLabel = 'No payment linked';
+  schoolCardByDocId = computed<Record<string, DisplaySubscriptionCard>>(() => {
+    const map: Record<string, DisplaySubscriptionCard> = {};
+    for (const card of this.managedSchoolCards()) {
+      if (card.schoolDocId) {
+        map[card.schoolDocId] = card;
       }
-
-      if (isLifetime) {
-        out[school.docId] = {
-          payerLabel,
-          isCurrentUserPayer,
-          ownSubscriptionId: '',
-          isLifetime: true,
-          isAutoRenewing: false,
-          nextAutoRenewDate: '',
-          autoRenewalPaymentText: '',
-          projectedExpirationDate: '',
-          canCancel: false,
-          canResume: false,
-        };
-        continue;
-      }
-
-      let isAutoRenewing = false;
-      let nextAutoRenewDate = '';
-      let autoRenewalPaymentText = '';
-      let projectedExpirationDate = '';
-
-      if (ownSubId) {
-        const resolved = resolveMemberSubscriptionRenewal({
-          subscriptionId: ownSubId,
-          fallbackNextAutoRenewDate: ownSub?.nextAutoRenewDate || '',
-          expirationDate: school.schoolLicenseExpires,
-          defaultInterval:
-            ownSub?.interval === SubscriptionInterval.Month ? 'month' : 'year',
-          todayStr,
-          stripeSubscriptions: m.stripeSubscriptions,
-          orders: myOrders,
-          orderMatcher: matchSchoolOrder,
-          fallbackPrice: this.selectedPrice(),
-        });
-        isAutoRenewing = resolved.isAutoRenewing;
-        nextAutoRenewDate = resolved.nextAutoRenewDate;
-        autoRenewalPaymentText = resolved.autoRenewalPaymentText;
-        projectedExpirationDate = resolved.projectedExpirationDate;
-      } else if (
-        billingInfo?.isAutoRenewing &&
-        billingInfo.nextAutoRenewDate &&
-        billingInfo.nextAutoRenewDate >= todayStr
-      ) {
-        isAutoRenewing = true;
-        nextAutoRenewDate = billingInfo.nextAutoRenewDate;
-        const interval: 'month' | 'year' =
-          billingInfo.interval ||
-          (billingInfo.amount !== null && billingInfo.amount <= 15000
-            ? 'month'
-            : 'year');
-        if (
-          nextAutoRenewDate === school.schoolLicenseExpires &&
-          /^\d{4}-\d{2}-\d{2}$/.test(billingInfo.lastPaymentDate)
-        ) {
-          const expectedEnd = addBillingIntervalToDateString(
-            billingInfo.lastPaymentDate,
-            interval,
-            1,
-          );
-          if (
-            expectedEnd &&
-            expectedEnd >= todayStr &&
-            expectedEnd < nextAutoRenewDate
-          ) {
-            nextAutoRenewDate = expectedEnd;
-          }
-        }
-        autoRenewalPaymentText = formatNextAutoRenewalPayment(
-          nextAutoRenewDate,
-          billingInfo.amount,
-          billingInfo.currency,
-        );
-        projectedExpirationDate = computeProjectedRenewalExpirationDate({
-          currentExpirationDate: school.schoolLicenseExpires,
-          nextAutoRenewDate,
-          interval,
-        });
-      }
-
-      const activeSchool = school.schoolLicenseExpires >= todayStr;
-      out[school.docId] = {
-        payerLabel,
-        isCurrentUserPayer,
-        ownSubscriptionId: ownSubId,
-        isLifetime: false,
-        isAutoRenewing,
-        nextAutoRenewDate,
-        autoRenewalPaymentText,
-        projectedExpirationDate,
-        canCancel: Boolean(ownSubId) && isAutoRenewing,
-        canResume: Boolean(ownSubId) && !isAutoRenewing && activeSchool,
-      };
     }
-
-    return out;
+    return map;
   });
 
-  selectedSchoolBilling = computed<SchoolBillingDisplay | null>(() => {
-    const s = this.selectedSchool();
-    if (!s) return null;
-    return this.schoolBillingByDocId()[s.docId] || null;
-  });
+  selectSchoolForRenewal(schoolDocId: string): void {
+    this.licenseAction.set('renew');
+    this.selectedSchoolDocId.set(schoolDocId);
+    this.flow.goTo(this.StepSchool);
+  }
 
   constructor() {
     const userCountry = this.user()?.member?.country;
@@ -703,61 +484,5 @@ export class SchoolLicensePurchaseComponent {
 
   redirectTo(url: string): void {
     window.location.assign(url);
-  }
-
-  requestCancelSchoolAutoRenew(subscriptionId: string): void {
-    if (!subscriptionId) return;
-    this.confirmingCancelSubId.set(subscriptionId);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-  }
-
-  dismissCancelSchoolAutoRenew(): void {
-    this.confirmingCancelSubId.set(null);
-  }
-
-  async onCancelSchoolAutoRenew(subscriptionId: string): Promise<void> {
-    if (!subscriptionId) return;
-    this.confirmingCancelSubId.set(null);
-    this.cancelInProgress.set(true);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-
-    try {
-      const result =
-        await this.stripeService.cancelSubscriptionRenewal(subscriptionId);
-      this.cancelSuccessMessage.set(
-        `Auto-renewal has been cancelled. School license remains active through ${result.periodEnd}.`,
-      );
-      void this.loadManagedSchoolsBilling();
-    } catch (err) {
-      this.cancelErrorMessage.set(
-        err instanceof Error ? err.message : 'Failed to cancel auto-renewal.',
-      );
-    } finally {
-      this.cancelInProgress.set(false);
-    }
-  }
-
-  async onResumeSchoolAutoRenew(subscriptionId: string): Promise<void> {
-    if (!subscriptionId) return;
-    this.cancelInProgress.set(true);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-
-    try {
-      const result =
-        await this.stripeService.resumeSubscriptionRenewal(subscriptionId);
-      this.cancelSuccessMessage.set(
-        `Auto-renewal resumed. Next renewal date: ${result.nextAutoRenewDate}.`,
-      );
-      void this.loadManagedSchoolsBilling();
-    } catch (err) {
-      this.cancelErrorMessage.set(
-        err instanceof Error ? err.message : 'Failed to resume auto-renewal.',
-      );
-    } finally {
-      this.cancelInProgress.set(false);
-    }
   }
 }

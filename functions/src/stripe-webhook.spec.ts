@@ -7,6 +7,7 @@ import {
   invoiceToStripeOrder,
   subscriptionToCancellationOrder,
   upsertStripeOrder,
+  handleCheckoutSession,
 } from './stripe-webhook';
 
 // A minimal but realistic completed one-time Checkout Session. Only the fields
@@ -318,5 +319,115 @@ describe('upsertStripeOrder idempotency', () => {
     // but member expiration fulfillment MUST NOT run a second time!
     expect(memberUpdateSpy).not.toHaveBeenCalled();
     expect(mirroredOrderSetSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('handleCheckoutSession setup mode', () => {
+  it('updates subscription default_payment_method and masked card summary without creating an order in /orders', async () => {
+    const ordersCollectionSpy = vi.fn();
+    const memberUpdateSpy = vi.fn().mockResolvedValue({});
+    const subUpdateSpy = vi.fn().mockResolvedValue({
+      id: 'sub_mem_setup_1',
+      status: 'active',
+    });
+
+    const sampleMember = {
+      ...initMember(),
+      docId: 'mem_setup_1',
+      stripeSubscriptions: {
+        sub_mem_setup_1: {
+          subscriptionId: 'sub_mem_setup_1',
+          type: 'membership',
+          status: 'active',
+          planName: 'Annual Membership',
+          amount: 8500,
+          currency: 'usd',
+          interval: 'year',
+          currentPeriodStart: '2026-01-01',
+          currentPeriodEnd: '2027-01-01',
+          nextAutoRenewDate: '2027-01-01',
+          cancelAtPeriodEnd: false,
+        },
+      },
+    };
+
+    const mockDb: any = {
+      collection: vi.fn((colName: string) => {
+        if (colName === 'orders') {
+          ordersCollectionSpy();
+          return {};
+        }
+        if (colName === 'members') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({
+                exists: true,
+                id: 'mem_setup_1',
+                data: () => sampleMember,
+              }),
+              update: memberUpdateSpy,
+            }),
+          };
+        }
+        return {};
+      }),
+    };
+
+    const setupSession = {
+      id: 'cs_setup_complete_1',
+      object: 'checkout.session',
+      mode: 'setup',
+      status: 'complete',
+      setup_intent: 'seti_test_123',
+      metadata: {
+        purpose: 'subscription_payment_method_update',
+        subscriptionId: 'sub_mem_setup_1',
+        memberDocId: 'mem_setup_1',
+      },
+    } as unknown as Stripe.Checkout.Session;
+
+    const mockStripe: any = {
+      checkout: {
+        sessions: {
+          retrieve: vi.fn().mockResolvedValue(setupSession),
+        },
+      },
+      setupIntents: {
+        retrieve: vi.fn().mockResolvedValue({
+          id: 'seti_test_123',
+          payment_method: {
+            id: 'pm_card_visa_4242',
+            type: 'card',
+            card: {
+              brand: 'visa',
+              last4: '4242',
+            },
+          },
+          metadata: {
+            subscriptionId: 'sub_mem_setup_1',
+            memberDocId: 'mem_setup_1',
+          },
+        }),
+      },
+      subscriptions: {
+        update: subUpdateSpy,
+      },
+    };
+
+    await handleCheckoutSession(mockStripe, setupSession, mockDb);
+
+    expect(ordersCollectionSpy).not.toHaveBeenCalled();
+    expect(subUpdateSpy).toHaveBeenCalledWith('sub_mem_setup_1', {
+      default_payment_method: 'pm_card_visa_4242',
+      expand: ['default_payment_method'],
+    });
+    expect(memberUpdateSpy).toHaveBeenCalledTimes(1);
+    const updateArg = memberUpdateSpy.mock.calls[0][0];
+    expect(updateArg.stripeSubscriptions?.['sub_mem_setup_1']).toEqual(
+      expect.objectContaining({
+        paymentMethodBrand: 'visa',
+        paymentMethodLast4: '4242',
+      }),
+    );
   });
 });

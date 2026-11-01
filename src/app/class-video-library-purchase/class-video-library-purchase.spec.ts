@@ -208,15 +208,28 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     );
   });
 
-  it('should cancel subscription renewal', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('should cancel subscription renewal via inline confirmation on subscription card', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
     await createComponent();
+    fixture.detectChanges();
 
-    await component.onCancelAutoRenew();
+    const subCard = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-subscription-card',
+    )!;
+    subCard
+      .querySelector<HTMLButtonElement>('.sub-card-actions .cancel-btn')!
+      .click();
+    fixture.detectChanges();
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    subCard.querySelector<HTMLButtonElement>('.confirm-danger-btn')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
     expect(mockStripeService.cancelSubscriptionRenewal).toHaveBeenCalledWith(
       'sub_vid_123',
     );
-    expect(component.cancelSuccessMessage()).toContain('cancelled');
+    expect(subCard.textContent).toContain('cancelled');
   });
 
   it('should show link to video library and hide subscription form when user has active Stripe subscription', async () => {
@@ -225,10 +238,10 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    // Active banner should be present with the link to class-video-library
-    const banner = compiled.querySelector('.current-membership-banner');
-    expect(banner).toBeTruthy();
-    const linkBtn = banner?.querySelector<HTMLAnchorElement>('.video-library-link-btn');
+    // Subscription card should be present with the link to class-video-library
+    const subCard = compiled.querySelector('app-subscription-card');
+    expect(subCard).toBeTruthy();
+    const linkBtn = subCard?.querySelector<HTMLAnchorElement>('.video-library-link-btn');
     expect(linkBtn).toBeTruthy();
     expect(linkBtn?.getAttribute('href')).toContain('class-video-library');
     expect(linkBtn?.textContent).toContain('Open Class Video Library');
@@ -257,10 +270,10 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    // Active banner should be present with the link to class-video-library
-    const banner = compiled.querySelector('.current-membership-banner');
-    expect(banner).toBeTruthy();
-    const linkBtn = banner?.querySelector<HTMLAnchorElement>('.video-library-link-btn');
+    // Subscription card should be present with the link to class-video-library
+    const subCard = compiled.querySelector('app-subscription-card');
+    expect(subCard).toBeTruthy();
+    const linkBtn = subCard?.querySelector<HTMLAnchorElement>('.video-library-link-btn');
     expect(linkBtn).toBeTruthy();
     expect(linkBtn?.getAttribute('href')).toContain('class-video-library');
 
@@ -300,8 +313,8 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    // Active banner should NOT be present
-    expect(compiled.querySelector('.current-membership-banner')).toBeNull();
+    // Video library open link should NOT be present when expired
+    expect(compiled.querySelector('.video-library-link-btn')).toBeNull();
 
     // Fold should NOT be present; intro info section and form cards should be rendered directly
     expect(compiled.querySelector('.subscribe-fold-card')).toBeNull();
@@ -374,14 +387,13 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     await createComponent();
     fixture.detectChanges();
 
-    const banner = (fixture.nativeElement as HTMLElement).querySelector(
-      '.current-membership-banner',
+    const subCard = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-subscription-card',
     );
-    expect(banner?.textContent).toContain('Valid through 2028-03-23');
-    expect(banner?.textContent).toContain(
-      'Next auto-renewal payment: 2026-11-23 ($5.99 USD)',
-    );
-    expect(banner?.textContent).toContain(
+    expect(subCard?.textContent).toContain('Valid through 2028-03-23');
+    expect(subCard?.textContent).toContain('Next auto-renewal payment:');
+    expect(subCard?.textContent).toContain('2026-11-23 ($5.99 USD)');
+    expect(subCard?.textContent).toContain(
       'On 2026-11-23, the expiration date will be extended to 2028-04-23.',
     );
   });

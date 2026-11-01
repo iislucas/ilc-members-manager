@@ -257,47 +257,32 @@ app-step-track {
   }
 }
 
-.school-subscription-actions {
-  margin-top: 0.75rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-
-  .inline-confirm-row {
-    width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 6px;
-    color: #991b1b;
-    font-size: 0.9em;
-
-    .inline-confirm-buttons {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-  }
-
-  .danger-outline {
-    border-color: #fca5a5;
-    color: #991b1b;
-  }
+.managed-schools-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 1rem;
 }
 
-.success-message {
-  margin-top: 0.75rem;
-  padding: 0.75em 1em;
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+.school-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  padding: 6px 12px;
+  font-size: 0.85em;
+  font-weight: 600;
   border-radius: 6px;
-  font-size: 0.9em;
+  text-decoration: none;
+  background: #ffffff;
+  color: v.$text-primary;
+  border: 1px solid v.$border-color-light;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: v.$separator-color;
+    border-color: v.$heading-accent-color;
+  }
 }
 
 .new-school-form {

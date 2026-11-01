@@ -48,6 +48,7 @@ import {
   resolveMemberForStripeOrder,
   syncSubscriptionStatusToMember,
 } from './stripe-fulfillment';
+import { applySubscriptionPaymentMethodFromSetupSession } from './stripe-subscriptions';
 import { refreshStripeProductCache } from './stripe-products';
 import { StripeCacheSource } from './stripe-types';
 import { normalizeEmail } from './data-model/email';
@@ -395,7 +396,9 @@ async function retrieveLiveSubscriptionIfPresent(
     return null;
   }
   try {
-    return await stripe.subscriptions.retrieve(subscriptionId);
+    return await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['default_payment_method'],
+    });
   } catch (err) {
     logger.warn('Could not retrieve live Stripe subscription during webhook fulfillment', {
       subscriptionId,
@@ -405,11 +408,17 @@ async function retrieveLiveSubscriptionIfPresent(
   }
 }
 
-async function handleCheckoutSession(
+export async function handleCheckoutSession(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
   db: admin.firestore.Firestore,
 ): Promise<void> {
+  if (session.mode === 'setup') {
+    const fullSetup = await stripe.checkout.sessions.retrieve(session.id);
+    await applySubscriptionPaymentMethodFromSetupSession(stripe, fullSetup, db);
+    return;
+  }
+
   // Re-retrieve the session and list ALL its line items (with product ids),
   // which are not present on the object delivered in the event payload. The
   // items are paged so an order with many items (e.g. several grading levels)

@@ -410,7 +410,11 @@ describe('BecomeAMemberComponent', () => {
     expect(component.isLifeMember()).toBe(true);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).toContain('Active Lifetime Membership');
+    const subCard = element.querySelector('app-subscription-card');
+    expect(subCard).toBeTruthy();
+    expect(subCard?.textContent).toContain('ILC Membership');
+    expect(subCard?.textContent).toContain('Lifetime Access');
+    expect(subCard?.textContent).not.toContain('Next auto-renewal payment:');
     expect(element.textContent).toContain('An official I Liq Chuan Membership provides');
     expect(element.textContent).not.toContain('1. Your Account');
     expect(element.textContent).not.toContain('2. Basic Information');
@@ -557,27 +561,48 @@ describe('BecomeAMemberComponent', () => {
     expect(component.lifeIndividualTierSummary()).toBe('');
   });
 
-  it('should handle cancel auto renewal', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('should handle cancel auto renewal via inline confirmation on subscription card', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
     await createComponent();
+    fixture.detectChanges();
 
-    await component.onCancelAutoRenew();
+    const subCard = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-subscription-card',
+    )!;
+    subCard
+      .querySelector<HTMLButtonElement>('.sub-card-actions .cancel-btn')!
+      .click();
+    fixture.detectChanges();
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    subCard.querySelector<HTMLButtonElement>('.confirm-danger-btn')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
     expect(mockStripeService.cancelSubscriptionRenewal).toHaveBeenCalledWith(
       'sub_123',
     );
-    expect(component.cancelSuccessMessage()).toContain('cancelled');
+    expect(subCard.textContent).toContain('cancelled');
   });
 
-  it('should display Next auto-renewal payment with formatted amount and projected expiration extension on active membership banner', async () => {
+  it('should display Next auto-renewal payment with formatted amount and unfolding projected expiration extension on subscription card', async () => {
     await createComponent();
-    const banner = (fixture.nativeElement as HTMLElement).querySelector(
-      '.current-membership-banner',
+    fixture.detectChanges();
+
+    const subCard = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-subscription-card',
     );
-    expect(banner?.textContent).toContain('Valid through 2027-01-01');
-    expect(banner?.textContent).toContain(
-      'Next auto-renewal payment: 2027-01-01 ($85.00 USD)',
-    );
-    expect(banner?.textContent).toContain(
+    expect(subCard?.textContent).toContain('Valid through 2027-01-01');
+    expect(subCard?.textContent).toContain('Next auto-renewal payment:');
+    expect(subCard?.textContent).toContain('2027-01-01 ($85.00 USD)');
+
+    const triangleBtn = subCard?.querySelector<HTMLButtonElement>('.renewal-triangle-btn');
+    expect(triangleBtn).toBeTruthy();
+    expect(triangleBtn?.getAttribute('aria-expanded')).toBe('false');
+    triangleBtn?.click();
+    fixture.detectChanges();
+    expect(triangleBtn?.getAttribute('aria-expanded')).toBe('true');
+    expect(subCard?.textContent).toContain(
       'On 2027-01-01, the expiration date will be extended to 2028-01-01.',
     );
   });

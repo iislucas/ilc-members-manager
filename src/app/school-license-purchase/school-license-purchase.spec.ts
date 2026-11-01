@@ -472,7 +472,8 @@ describe('SchoolLicensePurchaseComponent', () => {
     );
   });
 
-  it('should support inline non-blocking cancel auto-renewal when current user owns the school subscription', async () => {
+  it('should support inline non-blocking cancel auto-renewal on the school subscription card when current user owns the school subscription', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
     userSignal.set({
       ...sampleUser,
       member: {
@@ -500,13 +501,24 @@ describe('SchoolLicensePurchaseComponent', () => {
     await createComponent();
     fixture.detectChanges();
 
-    component.requestCancelSchoolAutoRenew('sub_sch_1');
-    expect(component.confirmingCancelSubId()).toBe('sub_sch_1');
+    const subCard = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-subscription-card',
+    )!;
+    expect(subCard).toBeTruthy();
 
-    await component.onCancelSchoolAutoRenew('sub_sch_1');
+    subCard
+      .querySelector<HTMLButtonElement>('.sub-card-actions .cancel-btn')!
+      .click();
+    fixture.detectChanges();
+    expect(confirmSpy).not.toHaveBeenCalled();
+
+    subCard.querySelector<HTMLButtonElement>('.confirm-danger-btn')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
     expect(mockStripeService.cancelSubscriptionRenewal).toHaveBeenCalledWith(
       'sub_sch_1',
     );
-    expect(component.cancelSuccessMessage()).toContain('cancelled');
+    expect(subCard.textContent).toContain('cancelled');
   });
 });

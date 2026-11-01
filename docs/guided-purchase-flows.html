@@ -114,6 +114,15 @@
           <a href="authentication.html">Authentication</a>. All five are public routes; see
           <a href="README.html#public-vs-gated">Public vs Gated Views</a> for why.
         </p>
+        <p>
+          On the four recurring subscription flows (<code>become-a-member</code>,
+          <code>class-video-library-purchase</code>, <code>instructor-license-purchase</code>, and
+          <code>school-license-purchase</code>), returning subscribers also see the shared
+          <code>&lt;app-subscription-card [showRenewLink]="false"&gt;</code> panel so they can inspect
+          access status, unfold renewal extension details, reschedule their next auto-renewal date, update
+          the subscription's payment method, or cancel/resume auto-renewal without leaving the page — see
+          <a href="orders-and-subscriptions.html#auto-renew-semantics">Orders &amp; Subscriptions</a>.
+        </p>
       </section>
 
       <section id="idea">

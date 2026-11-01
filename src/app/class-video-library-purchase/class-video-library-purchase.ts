@@ -14,7 +14,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
@@ -24,7 +23,6 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { OrderItemCategory } from '../../../functions/src/data-model/orders';
 import {
   CheckoutSessionSummary,
   StripePriceType,
@@ -35,11 +33,12 @@ import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import {
   formatStripeAmount,
   formatStripePrice,
-  resolveMemberSubscriptionRenewal,
 } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
+import { SubscriptionCardComponent } from '../subscription-card/subscription-card';
+import { buildVideoLibrarySubscriptionCard } from '../subscription-card/subscription-card.model';
 
 import { environment } from '../../environments/environment';
 
@@ -47,12 +46,12 @@ import { environment } from '../../environments/environment';
   selector: 'app-class-video-library-purchase',
   standalone: true,
   imports: [
-    CommonModule,
     IconComponent,
     SpinnerComponent,
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
+    SubscriptionCardComponent,
   ],
   templateUrl: './class-video-library-purchase.html',
   styleUrl: './class-video-library-purchase.scss',
@@ -112,11 +111,6 @@ export class ClassVideoLibraryPurchaseComponent {
   returnSessionSummary = signal<CheckoutSessionSummary | null>(null);
   returnSessionError = signal<string | null>(null);
 
-  // Subscription management
-  cancelInProgress = signal(false);
-  cancelSuccessMessage = signal<string | null>(null);
-  cancelErrorMessage = signal<string | null>(null);
-
   today = computed(() => new Date().toISOString().split('T')[0]);
 
   isLoggedIn = computed(() => !!this.user());
@@ -151,46 +145,20 @@ export class ClassVideoLibraryPurchaseComponent {
     return this.user()?.member.classVideoLibraryExpirationDate || '';
   });
 
-  videoRenewal = computed(() => {
+  videoSubscriptionCard = computed(() => {
     const m = this.user()?.member;
-    if (!m) {
-      return {
-        isAutoRenewing: false,
-        nextAutoRenewDate: '',
-        amount: null,
-        currency: 'usd',
-        autoRenewalPaymentText: '',
-        projectedExpirationDate: '',
-      };
-    }
-    return resolveMemberSubscriptionRenewal({
-      subscriptionId: m.classVideoLibrarySubscriptionId,
-      fallbackNextAutoRenewDate: m.classVideoLibraryNextAutoRenewDate,
-      expirationDate: m.classVideoLibraryExpirationDate,
-      defaultInterval: 'month',
+    if (!m) return null;
+    return buildVideoLibrarySubscriptionCard({
+      member: m,
       todayStr: this.today(),
-      stripeSubscriptions: m.stripeSubscriptions,
       orders: this.dataService.myOrders?.entries() ?? [],
-      orderMatcher: (o) => {
-        const d = (o.description || '').toLowerCase();
-        return (
-          o.lineItems?.some((li) => {
-            const lid = (li.description || '').toLowerCase();
-            return (
-              li.category === OrderItemCategory.VideoLibrary ||
-              lid.includes('library') ||
-              (lid.includes('class') && lid.includes('video'))
-            );
-          }) ||
-          d.includes('library') ||
-          (d.includes('class') && d.includes('video'))
-        );
-      },
       fallbackPrice: this.selectedPrice(),
     });
   });
 
-  hasActiveAutoRenew = computed(() => this.videoRenewal().isAutoRenewing);
+  hasActiveAutoRenew = computed(() =>
+    Boolean(this.videoSubscriptionCard()?.isAutoRenewing),
+  );
 
   hasActiveStripeSubscription = computed(() => {
     const m = this.user()?.member;
@@ -203,16 +171,6 @@ export class ClassVideoLibraryPurchaseComponent {
   toggleSubscribeFold(): void {
     this.isSubscribeFoldOpen.update((open) => !open);
   }
-
-  nextAutoRenewDate = computed(() => this.videoRenewal().nextAutoRenewDate);
-
-  nextAutoRenewPaymentText = computed(
-    () => this.videoRenewal().autoRenewalPaymentText,
-  );
-
-  projectedExpirationDate = computed(
-    () => this.videoRenewal().projectedExpirationDate,
-  );
 
   selectedPrice = computed<StripeProductPrice | null>(() => {
     for (const prod of this.videoProducts()) {
@@ -328,54 +286,5 @@ export class ClassVideoLibraryPurchaseComponent {
 
   redirectTo(url: string): void {
     window.location.assign(url);
-  }
-
-  async onCancelAutoRenew(): Promise<void> {
-    const subId = this.user()?.member.classVideoLibrarySubscriptionId;
-    if (!subId) return;
-
-    const confirmed = confirm(
-      'Are you sure you want to cancel auto-renewal for your Class Video Library subscription? You will retain access until your current expiration date.',
-    );
-    if (!confirmed) return;
-
-    this.cancelInProgress.set(true);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-
-    try {
-      const result = await this.stripeService.cancelSubscriptionRenewal(subId);
-      this.cancelSuccessMessage.set(
-        `Auto-renewal has been cancelled. Your access remains active until ${result.periodEnd}.`,
-      );
-    } catch (err) {
-      this.cancelErrorMessage.set(
-        err instanceof Error ? err.message : 'Failed to cancel auto-renewal.',
-      );
-    } finally {
-      this.cancelInProgress.set(false);
-    }
-  }
-
-  async onResumeAutoRenew(): Promise<void> {
-    const subId = this.user()?.member.classVideoLibrarySubscriptionId;
-    if (!subId) return;
-
-    this.cancelInProgress.set(true);
-    this.cancelSuccessMessage.set(null);
-    this.cancelErrorMessage.set(null);
-
-    try {
-      const result = await this.stripeService.resumeSubscriptionRenewal(subId);
-      this.cancelSuccessMessage.set(
-        `Auto-renewal resumed. Next renewal date: ${result.nextAutoRenewDate}.`,
-      );
-    } catch (err) {
-      this.cancelErrorMessage.set(
-        err instanceof Error ? err.message : 'Failed to resume auto-renewal.',
-      );
-    } finally {
-      this.cancelInProgress.set(false);
-    }
   }
 }

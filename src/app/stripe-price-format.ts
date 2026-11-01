@@ -146,8 +146,101 @@ export interface ResolvedSubscriptionRenewal {
   nextAutoRenewDate: string;
   amount: number | null;
   currency: string;
+  interval: 'month' | 'year';
   autoRenewalPaymentText: string;
   projectedExpirationDate: string;
+  paymentMethodSummary: string;
+}
+
+/**
+ * Add or subtract integer days from a `YYYY-MM-DD` string in UTC.
+ */
+export function addDaysToDateString(dateStr: string, days: number): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec((dateStr || '').trim());
+  if (!match) return '';
+  const dt = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + days),
+  );
+  if (isNaN(dt.getTime())) return '';
+  return dt.toISOString().split('T')[0];
+}
+
+/**
+ * Format a strictly masked payment method summary from brand and last4, e.g.
+ * `'visa', '4242'` -> `'Visa •••• 4242'`. Never exposes unmasked card numbers.
+ */
+export function formatMaskedPaymentMethod(
+  brand?: string | null,
+  last4?: string | null,
+): string {
+  const rawBrand = (brand || '').trim();
+  const rawLast4 = (last4 || '').trim();
+  const validLast4 = /^\d{4}$/.test(rawLast4) ? rawLast4 : '';
+
+  const brandMap: Record<string, string> = {
+    amex: 'American Express',
+    american_express: 'American Express',
+    diners: 'Diners Club',
+    discover: 'Discover',
+    jcb: 'JCB',
+    link: 'Link',
+    mastercard: 'Mastercard',
+    sepa: 'SEPA',
+    sepa_debit: 'SEPA Debit',
+    unionpay: 'UnionPay',
+    us_bank_account: 'Bank Account',
+    visa: 'Visa',
+  };
+  const lower = rawBrand.toLowerCase();
+  const prettyBrand = rawBrand
+    ? (brandMap[lower] ?? rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1))
+    : '';
+
+  if (prettyBrand && validLast4) {
+    return `${prettyBrand} •••• ${validLast4}`;
+  }
+  if (validLast4) {
+    return `Card •••• ${validLast4}`;
+  }
+  return prettyBrand;
+}
+
+export interface RenewalEditBounds {
+  defaultDate: string;
+  minDate: string;
+  maxDate: string;
+}
+
+/**
+ * Compute the allowed `[minDate, maxDate]` bounds and default selection
+ * (`expirationDate - 7 days`, clamped into `[minDate, maxDate]`) for editing a
+ * subscription's next renewal charge date. Returns `null` when `expirationDate`
+ * is missing, lifetime (`9999-12-31`), or earlier than tomorrow (`minDate`).
+ */
+export function computeRenewalEditBounds(
+  expirationDate: string | null | undefined,
+  todayStr: string,
+): RenewalEditBounds | null {
+  const minDate = addDaysToDateString(todayStr, 1);
+  if (!minDate) return null;
+  const cleanedExp = (expirationDate || '').split('T')[0].trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanedExp) || cleanedExp === '9999-12-31') {
+    return null;
+  }
+  if (cleanedExp < minDate) {
+    return null;
+  }
+  const fiveYearCap = addDaysToDateString(todayStr, 365 * 5 - 1);
+  const maxDate =
+    fiveYearCap && cleanedExp > fiveYearCap ? fiveYearCap : cleanedExp;
+  const oneWeekBefore = addDaysToDateString(cleanedExp, -7);
+  const defaultDate =
+    !oneWeekBefore || oneWeekBefore < minDate
+      ? minDate
+      : oneWeekBefore > maxDate
+        ? maxDate
+        : oneWeekBefore;
+  return { defaultDate, minDate, maxDate };
 }
 
 /**
@@ -226,8 +319,11 @@ export function resolveMemberSubscriptionRenewal(opts: {
 
   // Guard against pre-migration records where fulfillStripeOrder wrote stacked
   // expirationDate into nextAutoRenewDate instead of the billing period end.
+  // Skip when the subscription is in `trialing` status (which happens when a
+  // member intentionally rescheduled their renewal date via `trial_end`).
   if (
     isAutoRenewing &&
+    sub?.status !== SubscriptionStatus.Trialing &&
     opts.expirationDate &&
     nextAutoRenewDate === opts.expirationDate.trim()
   ) {
@@ -322,11 +418,16 @@ export function resolveMemberSubscriptionRenewal(opts: {
     }
   }
 
+  const paymentMethodSummary = sub
+    ? formatMaskedPaymentMethod(sub.paymentMethodBrand, sub.paymentMethodLast4)
+    : '';
+
   return {
     isAutoRenewing,
     nextAutoRenewDate,
     amount,
     currency,
+    interval: resolvedInterval,
     autoRenewalPaymentText: isAutoRenewing
       ? formatNextAutoRenewalPayment(nextAutoRenewDate, amount, currency)
       : '',
@@ -337,5 +438,6 @@ export function resolveMemberSubscriptionRenewal(opts: {
           interval: resolvedInterval,
         })
       : '',
+    paymentMethodSummary,
   };
 }

@@ -276,18 +276,31 @@ describe('InstructorLicensePurchaseComponent', () => {
     );
   });
 
-  it('should handle cancel auto-renewal', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('should handle cancel auto-renewal via inline confirmation on subscription card', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
     await createComponent();
+    fixture.detectChanges();
 
-    await component.onCancelAutoRenew();
+    const subCard = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-subscription-card',
+    )!;
+    subCard
+      .querySelector<HTMLButtonElement>('.sub-card-actions .cancel-btn')!
+      .click();
+    fixture.detectChanges();
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    subCard.querySelector<HTMLButtonElement>('.confirm-danger-btn')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
     expect(mockStripeService.cancelSubscriptionRenewal).toHaveBeenCalledWith(
       'sub_lic_123',
     );
-    expect(component.cancelSuccessMessage()).toContain('cancelled');
+    expect(subCard.textContent).toContain('cancelled');
   });
 
-  it('should display active lifetime instructor license banner and skip buying stages in DOM', async () => {
+  it('should display active lifetime instructor license card without Next auto-renewal payment and skip buying stages in DOM', async () => {
     userSignal.set({
       ...sampleUser,
       member: {
@@ -301,7 +314,11 @@ describe('InstructorLicensePurchaseComponent', () => {
     expect(component.isLifeInstructor()).toBe(true);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).toContain('Active Lifetime Instructor License');
+    const subCard = element.querySelector('app-subscription-card');
+    expect(subCard).toBeTruthy();
+    expect(subCard?.textContent).toContain('Instructor License');
+    expect(subCard?.textContent).toContain('Lifetime Access');
+    expect(subCard?.textContent).not.toContain('Next auto-renewal payment:');
     expect(element.textContent).toContain('Our Instructor License authorizes the individual to lead events and gradings');
     expect(element.textContent).not.toContain('1. Your Account');
     expect(element.textContent).not.toContain('2. License Qualifications & Status');
@@ -384,16 +401,17 @@ describe('InstructorLicensePurchaseComponent', () => {
     expect(element.textContent).toContain('Become a Member / Renew');
   });
 
-  it('should display Next auto-renewal payment with formatted amount and projected expiration extension on active license banner', async () => {
+  it('should display Next auto-renewal payment with formatted amount and unfolding projected expiration extension on subscription card', async () => {
     await createComponent();
-    const banner = (fixture.nativeElement as HTMLElement).querySelector(
-      '.current-membership-banner',
+    fixture.detectChanges();
+
+    const subCard = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-subscription-card',
     );
-    expect(banner?.textContent).toContain('Valid through 2027-01-01');
-    expect(banner?.textContent).toContain(
-      'Next auto-renewal payment: 2027-01-01 ($150.00 USD)',
-    );
-    expect(banner?.textContent).toContain(
+    expect(subCard?.textContent).toContain('Valid through 2027-01-01');
+    expect(subCard?.textContent).toContain('Next auto-renewal payment:');
+    expect(subCard?.textContent).toContain('2027-01-01 ($150.00 USD)');
+    expect(subCard?.textContent).toContain(
       'On 2027-01-01, the expiration date will be extended to 2028-01-01.',
     );
   });

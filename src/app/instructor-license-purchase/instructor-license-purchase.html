@@ -74,134 +74,29 @@
     </div>
   }
 
-  <!-- Active License / Subscription Banner (if active) -->
-  @if (hasLicenseButExpiredMembership()) {
-    <div class="current-membership-banner card warning">
-      <div class="banner-header">
-        <app-icon name="warning" width="24px" height="24px"></app-icon>
-        <div>
-          <h3>Active Membership Required for Instructor Status</h3>
-          <p>
-            You hold an official
-            <strong
-              >{{
-                isLifeInstructor()
-                  ? "Lifetime Instructor License"
-                  : (isGroupLeaderTier() ? "Group Leader" : "Instructor") + " License"
-              }}</strong
-            >@if (isLicenseActive() && !isLifeInstructor()) { (valid through
-            <strong>{{ licenseExpires() }}</strong
-            >) }, but your association membership has expired.
-          </p>
-          <p class="warning-explanation">
-            To be considered an active instructor or group leader in the Chin
-            Family I Liq Chuan Association (including directory listings,
-            leading events, and certifying students), you must maintain both an
-            active license and an active association membership.
-          </p>
-        </div>
-      </div>
-
-      <div class="portal-homepage-action">
+  <!-- Instructor / Group Leader License Subscription Card -->
+  @if (licenseSubscriptionCard(); as card) {
+    <app-subscription-card [card]="card" [showRenewLink]="false">
+      @if (hasLicenseButExpiredMembership()) {
         <a
+          cardExtraActions
           [href]="routingService.hrefForView(Views.BecomeAMember)"
-          class="button auth-action-btn"
+          class="sub-btn primary-button renew-membership-link-btn"
         >
-          <app-icon name="link"></app-icon>
+          <app-icon name="link" width="16px" height="16px"></app-icon>
           <span>Renew Association Membership</span>
         </a>
-      </div>
-    </div>
-  } @else if (isLifeInstructor()) {
-    <div class="current-membership-banner card life-member">
-      <div class="banner-header">
-        <app-icon name="check" width="24px" height="24px"></app-icon>
-        <div>
-          <h3>Active Lifetime Instructor License</h3>
-          <p>
-            You hold an official <strong>Lifetime Instructor License</strong>. Lifetime licenses never expire and you do not need to renew.
-          </p>
-        </div>
-      </div>
-
-      <div class="portal-homepage-action">
+      } @else if (isLifeInstructor()) {
         <a
+          cardExtraActions
           [href]="routingService.hrefForView(Views.Home)"
-          class="subtle-button homepage-link-btn"
+          class="sub-btn homepage-link-btn"
         >
-          <span class="btn-content">
-            <app-icon name="home"></app-icon>
-            <span>Go to Member's Portal Homepage</span>
-          </span>
+          <app-icon name="home" width="16px" height="16px"></app-icon>
+          <span>Go to Member's Portal Homepage</span>
         </a>
-      </div>
-    </div>
-  } @else if (isLicenseActive()) {
-    <div class="current-membership-banner card">
-      <div class="banner-header">
-        <app-icon name="check" width="24px" height="24px"></app-icon>
-        <div>
-          <h3>
-            Active
-            {{ isGroupLeaderTier() ? "Group Leader" : "Instructor" }} License
-          </h3>
-          <p>
-            Valid through <strong>{{ licenseExpires() }}</strong>.
-            @if (hasActiveSubscription()) {
-              Next auto-renewal payment:
-              <strong>{{ nextAutoRenewPaymentText() }}</strong>.
-              @if (projectedLicenseExpires()) {
-                On {{ nextAutoRenewDate() }}, the expiration date will be
-                extended to <strong>{{ projectedLicenseExpires() }}</strong>.
-              }
-            }
-          </p>
-        </div>
-      </div>
-
-      @if (cancelSuccessMessage()) {
-        <div class="success-message">{{ cancelSuccessMessage() }}</div>
       }
-      @if (cancelErrorMessage()) {
-        <div class="error-container">
-          <span class="error-message">
-            {{ cancelErrorMessage() }}
-            Please contact
-            <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a> for assistance.
-          </span>
-        </div>
-      }
-
-      @if (user()?.member?.instructorLicenseSubscriptionId) {
-        <div class="subscription-actions">
-          @if (hasActiveSubscription()) {
-            <button
-              type="button"
-              class="subtle-button"
-              [disabled]="cancelInProgress()"
-              (click)="onCancelAutoRenew()"
-            >
-              <app-icon name="close"></app-icon>
-              <span>{{
-                cancelInProgress() ? "Cancelling..." : "Cancel Auto-Renewal"
-              }}</span>
-            </button>
-          } @else {
-            <button
-              type="button"
-              class="subtle-button"
-              [disabled]="cancelInProgress()"
-              (click)="onResumeAutoRenew()"
-            >
-              <app-icon name="check"></app-icon>
-              <span>{{
-                cancelInProgress() ? "Resuming..." : "Resume Auto-Renewal"
-              }}</span>
-            </button>
-          }
-        </div>
-      }
-    </div>
+    </app-subscription-card>
   }
 
   <!-- Details of what is offered / Value of License -->
