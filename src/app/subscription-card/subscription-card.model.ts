@@ -63,12 +63,14 @@ export interface DisplaySubscriptionCard {
   canCancel: boolean;
   canResume: boolean;
   canSubscribe: boolean;
+  subscribeLabel?: string;
   subscribeUrl?: string;
   canEditRenewalDate: boolean;
   defaultRenewalEditDate: string;
   minRenewalEditDate: string;
   maxRenewalEditDate: string;
   canUpdatePaymentMethod: boolean;
+  canRemovePaymentMethod?: boolean;
   paymentMethodSummary?: string;
   payerLabel?: string;
   isCurrentUserPayer?: boolean;
@@ -126,6 +128,7 @@ function emptyEditFields() {
     minRenewalEditDate: '',
     maxRenewalEditDate: '',
     canUpdatePaymentMethod: false,
+    canRemovePaymentMethod: false,
   };
 }
 
@@ -134,6 +137,7 @@ function buildEditAndPaymentFields(opts: {
   rawExpirationDate: string;
   todayStr: string;
   isManageableActiveSub: boolean;
+  isAutoRenewing: boolean;
   paymentMethodSummary?: string;
 }) {
   const subId = (opts.subscriptionId || '').trim();
@@ -152,6 +156,8 @@ function buildEditAndPaymentFields(opts: {
     minRenewalEditDate: bounds?.minDate || '',
     maxRenewalEditDate: bounds?.maxDate || '',
     canUpdatePaymentMethod: true,
+    canRemovePaymentMethod:
+      !opts.isAutoRenewing && Boolean(opts.paymentMethodSummary),
     ...(opts.paymentMethodSummary
       ? { paymentMethodSummary: opts.paymentMethodSummary }
       : {}),
@@ -240,13 +246,17 @@ export function buildMembershipSubscriptionCard(opts: {
     isAutoRenewing: resolved.isAutoRenewing,
     canCancel: resolved.isAutoRenewing && Boolean(subId),
     canResume: !resolved.isAutoRenewing && Boolean(subId) && !isExpired && isSubActiveInStripe,
-    canSubscribe: isExpired && Boolean(opts.subscribeUrl),
+    canSubscribe:
+      (isExpired || (Boolean(subId) && !isSubActiveInStripe)) &&
+      Boolean(opts.subscribeUrl),
+    subscribeLabel: isExpired ? 'Renew Now' : 'Subscribe Again',
     subscribeUrl: opts.subscribeUrl,
     ...buildEditAndPaymentFields({
       subscriptionId: subId,
       rawExpirationDate: rawExpires,
       todayStr: opts.todayStr,
       isManageableActiveSub: !isExpired && isSubActiveInStripe,
+      isAutoRenewing: resolved.isAutoRenewing,
       paymentMethodSummary: resolved.paymentMethodSummary,
     }),
   };
@@ -366,13 +376,17 @@ export function buildInstructorLicenseSubscriptionCard(opts: {
     isAutoRenewing: resolved.isAutoRenewing,
     canCancel: resolved.isAutoRenewing && Boolean(subId),
     canResume: !resolved.isAutoRenewing && Boolean(subId) && !isExpired && isSubActiveInStripe,
-    canSubscribe: isExpired && Boolean(opts.subscribeUrl),
+    canSubscribe:
+      (isExpired || (Boolean(subId) && !isSubActiveInStripe)) &&
+      Boolean(opts.subscribeUrl),
+    subscribeLabel: isExpired ? 'Renew Now' : 'Subscribe Again',
     subscribeUrl: opts.subscribeUrl,
     ...buildEditAndPaymentFields({
       subscriptionId: subId,
       rawExpirationDate: rawExpires,
       todayStr: opts.todayStr,
       isManageableActiveSub: !isExpired && isSubActiveInStripe,
+      isAutoRenewing: resolved.isAutoRenewing,
       paymentMethodSummary: resolved.paymentMethodSummary,
     }),
     ...(!isExpired ? membershipWarning : {}),
@@ -468,13 +482,17 @@ export function buildVideoLibrarySubscriptionCard(opts: {
     isAutoRenewing: resolved.isAutoRenewing,
     canCancel: resolved.isAutoRenewing && Boolean(subId),
     canResume: !resolved.isAutoRenewing && Boolean(subId) && !isExpired && isSubActiveInStripe,
-    canSubscribe: isExpired && Boolean(opts.subscribeUrl),
+    canSubscribe:
+      (isExpired || (Boolean(subId) && !isSubActiveInStripe)) &&
+      Boolean(opts.subscribeUrl),
+    subscribeLabel: isExpired ? 'Renew Now' : 'Subscribe Again',
     subscribeUrl: opts.subscribeUrl,
     ...buildEditAndPaymentFields({
       subscriptionId: subId,
       rawExpirationDate: rawExpires,
       todayStr: opts.todayStr,
       isManageableActiveSub: !isExpired && isSubActiveInStripe,
+      isAutoRenewing: resolved.isAutoRenewing,
       paymentMethodSummary: resolved.paymentMethodSummary,
     }),
   };
@@ -505,11 +523,22 @@ export function buildSchoolSubscriptionCards(opts: {
 
   const ownSchoolSubs: Array<[string, MemberSubscriptionItem]> = Object.entries(
     m.stripeSubscriptions || {},
-  ).filter(
-    ([, sub]) =>
-      sub.type === SubscriptionItemType.SchoolLicense ||
-      (sub.planName || '').toLowerCase().includes('school'),
-  );
+  )
+    .filter(
+      ([, sub]) =>
+        sub.type === SubscriptionItemType.SchoolLicense ||
+        (sub.planName || '').toLowerCase().includes('school'),
+    )
+    .sort(([, a], [, b]) => {
+      const aActive =
+        a.status === SubscriptionStatus.Active ||
+        a.status === SubscriptionStatus.Trialing;
+      const bActive =
+        b.status === SubscriptionStatus.Active ||
+        b.status === SubscriptionStatus.Trialing;
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      return (b.currentPeriodEnd || '').localeCompare(a.currentPeriodEnd || '');
+    });
 
   const selfLabel = m.name ? `You (${m.name})` : 'You';
 
@@ -519,7 +548,7 @@ export function buildSchoolSubscriptionCards(opts: {
       ? `${opts.baseSchoolLicenseUrl}?schoolId=${encodeURIComponent(school.schoolId)}`
       : opts.baseSchoolLicenseUrl;
 
-    const matchedOwnPair = ownSchoolSubs.find(([subId, sub]) => {
+    const matchingOwnPairs = ownSchoolSubs.filter(([subId, sub]) => {
       if (handledSubIds.has(subId)) return false;
       if (sub.schoolDocId && sub.schoolDocId === school.docId) return true;
       if (sub.schoolId && school.schoolId && sub.schoolId === school.schoolId) {
@@ -544,10 +573,11 @@ export function buildSchoolSubscriptionCards(opts: {
       return false;
     });
 
+    const matchedOwnPair = matchingOwnPairs[0];
     const ownSubId = matchedOwnPair?.[0] || '';
     const ownSub = matchedOwnPair?.[1];
-    if (ownSubId) {
-      handledSubIds.add(ownSubId);
+    for (const [mSubId] of matchingOwnPairs) {
+      handledSubIds.add(mSubId);
     }
 
     const billingInfo = billingMap[school.docId];
@@ -734,7 +764,8 @@ export function buildSchoolSubscriptionCards(opts: {
       canCancel: canManageOwnSub && isAutoRenewing,
       canResume:
         canManageOwnSub && !isAutoRenewing && !isExpired && isOwnSubActiveInStripe,
-      canSubscribe: isExpired,
+      canSubscribe: isExpired || (canManageOwnSub && !isOwnSubActiveInStripe),
+      subscribeLabel: isExpired ? 'Renew Now' : 'Subscribe Again',
       subscribeUrl,
       payerLabel,
       isCurrentUserPayer,
@@ -744,6 +775,7 @@ export function buildSchoolSubscriptionCards(opts: {
         todayStr,
         isManageableActiveSub:
           canManageOwnSub && !isExpired && isOwnSubActiveInStripe,
+        isAutoRenewing,
         paymentMethodSummary: canManageOwnSub ? paymentMethodSummary : undefined,
       }),
     };
@@ -756,10 +788,33 @@ export function buildSchoolSubscriptionCards(opts: {
     }
   }
 
+  const activeUnlinkedSchoolKeys = new Set(
+    ownSchoolSubs
+      .filter(
+        ([id, s]) =>
+          !handledSubIds.has(id) &&
+          (s.status === SubscriptionStatus.Active ||
+            s.status === SubscriptionStatus.Trialing),
+      )
+      .map(([, s]) => s.schoolDocId || s.schoolId || '')
+      .filter(Boolean),
+  );
+
   // Include any SchoolLicense Stripe subscription on the member doc whose school wasn't in `schools`
   for (const [subId, sub] of ownSchoolSubs) {
     if (handledSubIds.has(subId)) continue;
     handledSubIds.add(subId);
+    const isActiveSub =
+      sub.status === SubscriptionStatus.Active ||
+      sub.status === SubscriptionStatus.Trialing;
+    const unlinkedSchoolKey = sub.schoolDocId || sub.schoolId || '';
+    if (
+      !isActiveSub &&
+      unlinkedSchoolKey &&
+      activeUnlinkedSchoolKeys.has(unlinkedSchoolKey)
+    ) {
+      continue;
+    }
     const resolved = resolveMemberSubscriptionRenewal({
       subscriptionId: subId,
       expirationDate: sub.currentPeriodEnd,
@@ -768,9 +823,9 @@ export function buildSchoolSubscriptionCards(opts: {
       todayStr,
       stripeSubscriptions: m.stripeSubscriptions,
     });
-    const isActiveSub =
-      sub.status === SubscriptionStatus.Active ||
-      sub.status === SubscriptionStatus.Trialing;
+    const hasUnexpiredAccess = Boolean(
+      sub.currentPeriodEnd && sub.currentPeriodEnd >= todayStr,
+    );
     const extraCard: DisplaySubscriptionCard = {
       id: subId,
       subscriptionId: subId,
@@ -800,6 +855,7 @@ export function buildSchoolSubscriptionCards(opts: {
       canCancel: resolved.isAutoRenewing,
       canResume: !resolved.isAutoRenewing && isActiveSub,
       canSubscribe: !isActiveSub,
+      subscribeLabel: hasUnexpiredAccess ? 'Subscribe Again' : 'Renew Now',
       subscribeUrl: sub.schoolId
         ? `${opts.baseSchoolLicenseUrl}?schoolId=${encodeURIComponent(sub.schoolId)}`
         : opts.baseSchoolLicenseUrl,
@@ -810,6 +866,7 @@ export function buildSchoolSubscriptionCards(opts: {
         rawExpirationDate: sub.currentPeriodEnd,
         todayStr,
         isManageableActiveSub: isActiveSub,
+        isAutoRenewing: resolved.isAutoRenewing,
         paymentMethodSummary: resolved.paymentMethodSummary,
       }),
     };
@@ -881,6 +938,9 @@ export function buildAllMemberSubscriptionCards(opts: {
 
     for (const [subId, sub] of Object.entries(m.stripeSubscriptions)) {
       if (handledSubIds.has(subId)) continue;
+      if (sub.status === SubscriptionStatus.Canceled) {
+        continue;
+      }
       const resolved = resolveMemberSubscriptionRenewal({
         subscriptionId: subId,
         expirationDate: sub.currentPeriodEnd,
@@ -922,6 +982,7 @@ export function buildAllMemberSubscriptionCards(opts: {
           rawExpirationDate: sub.currentPeriodEnd,
           todayStr: opts.todayStr,
           isManageableActiveSub: isActiveSub,
+          isAutoRenewing: resolved.isAutoRenewing,
           paymentMethodSummary: resolved.paymentMethodSummary,
         }),
       });

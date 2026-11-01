@@ -22,6 +22,7 @@ import {
   computeRecurringSubscriptionAmount,
   enrichSubscriptionWithPaymentMethod,
   performCreateSubscriptionPaymentMethodSession,
+  performRemoveSubscriptionPaymentMethod,
   performUpdateSubscriptionRenewalDate,
   resolveManagedSchoolsBillingForEmail,
 } from './stripe-subscriptions';
@@ -1642,6 +1643,272 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
       const linkItem = buildMemberSubscriptionItemFromStripe(enrichedLink);
       expect(linkItem.paymentMethodBrand).toBe('link');
       expect(linkItem.paymentMethodLast4).toBeUndefined();
+
+      // Case 3: Canceled subscription never enriches or resurrects existing payment method fields
+      const canceledSub = {
+        ...baseSub,
+        status: 'canceled',
+      } as unknown as Stripe.Subscription;
+      const enrichedCanceled = await enrichSubscriptionWithPaymentMethod(
+        mockStripeFallback,
+        canceledSub,
+      );
+      const canceledItem = buildMemberSubscriptionItemFromStripe(
+        enrichedCanceled,
+        {
+          existing: {
+            subscriptionId: 'sub_enrich_1',
+            type: SubscriptionItemType.Membership,
+            status: SubscriptionStatus.Active,
+            planName: 'Annual Membership',
+            amount: 8500,
+            currency: 'usd',
+            interval: SubscriptionInterval.Year,
+            currentPeriodStart: '2026-11-01',
+            currentPeriodEnd: '2027-11-01',
+            nextAutoRenewDate: '',
+            cancelAtPeriodEnd: true,
+            paymentMethodBrand: 'visa',
+            paymentMethodLast4: '8469',
+          },
+        },
+      );
+      expect(canceledItem.status).toBe(SubscriptionStatus.Canceled);
+      expect(canceledItem.paymentMethodBrand).toBeUndefined();
+      expect(canceledItem.paymentMethodLast4).toBeUndefined();
+    });
+
+    it('performRemoveSubscriptionPaymentMethod requires cancelled auto-renewal, cancels sub without revoking expiry, and detaches PM only when unused by sibling subs', async () => {
+      let storedMember: Record<string, any> = {
+        ...baseMember,
+        docId: 'mem_rm_pm',
+        emails: ['wang@example.com'],
+        currentMembershipExpires: '2027-08-15',
+        membershipSubscriptionId: 'sub_rm_1',
+        membershipNextAutoRenewDate: '',
+        stripeSubscriptions: {
+          sub_rm_1: {
+            subscriptionId: 'sub_rm_1',
+            type: SubscriptionItemType.Membership,
+            status: SubscriptionStatus.Active,
+            planName: 'Annual Membership',
+            amount: 8500,
+            currency: 'usd',
+            interval: SubscriptionInterval.Year,
+            currentPeriodStart: '2026-08-15',
+            currentPeriodEnd: '2027-08-15',
+            nextAutoRenewDate: '',
+            cancelAtPeriodEnd: true,
+            paymentMethodBrand: 'visa',
+            paymentMethodLast4: '4242',
+          },
+        },
+      };
+
+      const memberDocUpdateSpy = vi.fn(async (patch: Record<string, unknown>) => {
+        for (const [k, v] of Object.entries(patch)) {
+          if (k.startsWith('stripeSubscriptions.')) {
+            const subKey = k.slice('stripeSubscriptions.'.length);
+            storedMember.stripeSubscriptions[subKey] = v;
+          } else {
+            storedMember[k] = v;
+          }
+        }
+      });
+
+      const rmDb: any = {
+        collection: vi.fn((colName: string) => {
+          if (colName === 'acl') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({ memberDocIds: ['mem_rm_pm'], isAdmin: false }),
+                }),
+              }),
+            };
+          }
+          if (colName === 'members') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockImplementation(async () => ({
+                  exists: true,
+                  id: 'mem_rm_pm',
+                  data: () => storedMember,
+                })),
+                update: memberDocUpdateSpy,
+              }),
+            };
+          }
+          return mockDb.collection(colName);
+        }),
+      };
+
+      const cancelSubSpy = vi.fn().mockResolvedValue({
+        id: 'sub_rm_1',
+        status: 'canceled',
+        cancel_at_period_end: false,
+        customer: 'cus_rm_1',
+        current_period_start: 1786752000,
+        current_period_end: 1818288000,
+        currency: 'usd',
+        metadata: { memberDocId: 'mem_rm_pm', orderType: 'membership' },
+        items: {
+          data: [
+            {
+              price: {
+                id: 'price_mem',
+                product: { id: 'prod_mem', name: 'Annual Membership' },
+                unit_amount: 8500,
+                currency: 'usd',
+                recurring: { interval: 'year' },
+              },
+            },
+          ],
+        },
+      });
+      const detachSpy = vi.fn().mockResolvedValue({ id: 'pm_card_4242' });
+
+      // 1. Precondition failure if auto-renewal is still active
+      const activeSubMockStripe: any = {
+        subscriptions: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: 'sub_rm_1',
+            status: 'active',
+            cancel_at_period_end: false,
+            customer: 'cus_rm_1',
+            default_payment_method: { id: 'pm_card_4242', type: 'card' },
+            items: { data: [] },
+          }),
+          cancel: cancelSubSpy,
+          list: vi.fn(),
+        },
+        paymentMethods: { detach: detachSpy },
+      };
+
+      await expect(
+        performRemoveSubscriptionPaymentMethod({
+          db: rmDb,
+          stripe: activeSubMockStripe,
+          authEmail: 'wang@example.com',
+          subscriptionId: 'sub_rm_1',
+        }),
+      ).rejects.toThrow(/Cancel auto-renewal before removing/);
+      expect(cancelSubSpy).not.toHaveBeenCalled();
+      expect(detachSpy).not.toHaveBeenCalled();
+
+      // 2. Shared card: another active subscription on cus_rm_1 uses pm_card_4242 -> do NOT detach
+      const sharedCardStripe: any = {
+        subscriptions: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: 'sub_rm_1',
+            status: 'active',
+            cancel_at_period_end: true,
+            customer: {
+              id: 'cus_rm_1',
+              invoice_settings: { default_payment_method: 'pm_card_4242' },
+            },
+            default_payment_method: null,
+            items: { data: [] },
+          }),
+          cancel: cancelSubSpy,
+          list: vi.fn().mockResolvedValue({
+            data: [
+              { id: 'sub_rm_1', status: 'canceled', default_payment_method: null },
+              {
+                id: 'sub_vid_sibling',
+                status: 'active',
+                default_payment_method: null, // implicitly uses customer default pm_card_4242
+              },
+            ],
+          }),
+        },
+        customers: {
+          listPaymentMethods: vi.fn(),
+        },
+        paymentMethods: { detach: detachSpy },
+      };
+
+      const sharedRes = await performRemoveSubscriptionPaymentMethod({
+        db: rmDb,
+        stripe: sharedCardStripe,
+        authEmail: 'wang@example.com',
+        subscriptionId: 'sub_rm_1',
+      });
+      expect(cancelSubSpy).toHaveBeenCalledWith('sub_rm_1', {
+        invoice_now: false,
+        prorate: false,
+      });
+      expect(detachSpy).not.toHaveBeenCalled();
+      expect(sharedRes.detachedPaymentMethod).toBe(false);
+      // Paid expiration date is untouched!
+      expect(storedMember.currentMembershipExpires).toBe('2027-08-15');
+      expect(storedMember.stripeSubscriptions.sub_rm_1.status).toBe(
+        SubscriptionStatus.Canceled,
+      );
+      expect(
+        storedMember.stripeSubscriptions.sub_rm_1.paymentMethodBrand,
+      ).toBeUndefined();
+      expect(
+        storedMember.stripeSubscriptions.sub_rm_1.paymentMethodLast4,
+      ).toBeUndefined();
+
+      // 3. Exclusive card: no other live subscription uses pm_card_4242 -> detaches PM from customer
+      cancelSubSpy.mockClear();
+      const exclusiveCardStripe: any = {
+        subscriptions: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: 'sub_rm_1',
+            status: 'canceled',
+            cancel_at_period_end: false,
+            customer: {
+              id: 'cus_rm_1',
+              invoice_settings: { default_payment_method: 'pm_card_4242' },
+            },
+            default_payment_method: 'pm_card_4242',
+            current_period_start: 1786752000,
+            current_period_end: 1818288000,
+            currency: 'usd',
+            metadata: { memberDocId: 'mem_rm_pm', orderType: 'membership' },
+            items: {
+              data: [
+                {
+                  price: {
+                    id: 'price_mem',
+                    product: { id: 'prod_mem', name: 'Annual Membership' },
+                    unit_amount: 8500,
+                    currency: 'usd',
+                    recurring: { interval: 'year' },
+                  },
+                },
+              ],
+            },
+          }),
+          cancel: cancelSubSpy,
+          list: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'sub_rm_1',
+                status: 'canceled',
+                default_payment_method: 'pm_card_4242',
+              },
+            ],
+          }),
+        },
+        customers: {
+          listPaymentMethods: vi.fn(),
+        },
+        paymentMethods: { detach: detachSpy },
+      };
+
+      const exclusiveRes = await performRemoveSubscriptionPaymentMethod({
+        db: rmDb,
+        stripe: exclusiveCardStripe,
+        authEmail: 'wang@example.com',
+        subscriptionId: 'sub_rm_1',
+      });
+      expect(detachSpy).toHaveBeenCalledWith('pm_card_4242');
+      expect(exclusiveRes.detachedPaymentMethod).toBe(true);
     });
   });
 });

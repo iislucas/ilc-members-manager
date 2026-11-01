@@ -398,16 +398,22 @@
   font-weight: 500;
   text-decoration: none;
   box-sizing: border-box;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 
-  &.cancel-btn {
-    background: #f4f4f5;
+  &:not(.primary-button):not(.confirm-danger-btn),
+  &.cancel-btn,
+  &.resume-btn {
+    background: #ffffff;
     color: v.$text-primary;
     border: 1px solid v.$border-color-light;
 
     &:hover:not(:disabled) {
-      background: #fee2e2;
-      color: #991b1b;
-      border-color: #fecaca;
+      background: v.$separator-color;
+      border-color: v.$heading-accent-color;
+      color: v.$text-primary;
     }
   }
 
@@ -419,16 +425,6 @@
     &:hover:not(:disabled) {
       background: #b91c1c;
       border-color: #b91c1c;
-    }
-  }
-
-  &.resume-btn {
-    background: #ecfdf5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
-
-    &:hover:not(:disabled) {
-      background: #d1fae5;
     }
   }
 }

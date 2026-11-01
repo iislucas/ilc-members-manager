@@ -248,6 +248,39 @@
     </div>
   }
 
+  @if (confirmingRemovePaymentMethod()) {
+    <div class="inline-confirm-box">
+      <p class="confirm-text">
+        Remove <strong>{{ c.paymentMethodSummary }}</strong> from this
+        subscription? Your access will continue through
+        <strong>{{ c.expirationDate }}</strong>, and you will no longer be able
+        to resume auto-renewal or schedule a renewal date (you can still
+        subscribe again at any time).
+      </p>
+      @if (actionInFlight() === "remove-payment-method") {
+        <app-spinner>{{ spinnerMessage() }}</app-spinner>
+      } @else {
+        <div class="confirm-actions">
+          <button
+            type="button"
+            class="sub-btn confirm-danger-btn"
+            [disabled]="isOffline()"
+            (click)="confirmRemovePaymentMethod()"
+          >
+            Confirm Remove
+          </button>
+          <button
+            type="button"
+            class="sub-btn cancel-btn"
+            (click)="dismissRemovePaymentMethod()"
+          >
+            Keep Payment Method
+          </button>
+        </div>
+      }
+    </div>
+  }
+
   <div class="sub-card-actions">
     @if (
       actionInFlight() === "resume" || actionInFlight() === "payment-method"
@@ -298,9 +331,21 @@
         </button>
       }
 
+      @if (c.canRemovePaymentMethod && !confirmingRemovePaymentMethod()) {
+        <button
+          type="button"
+          class="sub-btn cancel-btn remove-payment-method-btn"
+          [disabled]="isOffline()"
+          (click)="requestRemovePaymentMethod()"
+        >
+          <app-icon name="delete" width="15px" height="15px"></app-icon>
+          <span>Remove Payment Method</span>
+        </button>
+      }
+
       @if (showRenewLink() && c.canSubscribe && c.subscribeUrl) {
         <a class="sub-btn primary-button" [href]="c.subscribeUrl">
-          Renew Now
+          {{ c.subscribeLabel || "Renew Now" }}
         </a>
       }
 

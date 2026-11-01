@@ -42,6 +42,7 @@ describe('MemberOrdersComponent', () => {
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
     updateSubscriptionRenewalDate: ReturnType<typeof vi.fn>;
     createSubscriptionPaymentMethodSession: ReturnType<typeof vi.fn>;
+    removeSubscriptionPaymentMethod: ReturnType<typeof vi.fn>;
     createCustomerPortalSession: ReturnType<typeof vi.fn>;
     getManagedSchoolsBilling: ReturnType<typeof vi.fn>;
   };
@@ -208,6 +209,10 @@ describe('MemberOrdersComponent', () => {
       }),
       createSubscriptionPaymentMethodSession: vi.fn().mockResolvedValue({
         url: 'https://checkout.stripe.com/c/pay/cs_setup_test',
+      }),
+      removeSubscriptionPaymentMethod: vi.fn().mockResolvedValue({
+        success: true,
+        detachedPaymentMethod: true,
       }),
       createCustomerPortalSession: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/p/session/test' }),
       getManagedSchoolsBilling: vi.fn().mockResolvedValue({ schools: {} }),
@@ -784,6 +789,67 @@ describe('MemberOrdersComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     const memCard = element.querySelector('.sub-card.membership');
     expect(memCard?.querySelector('.renewal-extension-note')).toBeNull();
+  });
+
+  it('allows removing payment method on a cancelled-renewal subscription and replaces Resume/Schedule with Subscribe Again', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const insCard = element.querySelector('.sub-card.instructor_license')!;
+    const removeBtn = insCard.querySelector<HTMLButtonElement>(
+      '.remove-payment-method-btn',
+    );
+    expect(removeBtn).toBeTruthy();
+
+    removeBtn!.click();
+    fixture.detectChanges();
+
+    const confirmBtn = insCard.querySelector<HTMLButtonElement>(
+      '.confirm-danger-btn',
+    )!;
+    confirmBtn.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(mockStripeService.removeSubscriptionPaymentMethod).toHaveBeenCalledWith(
+      'sub_ins_123',
+    );
+
+    // Simulate Firestore listener reflecting removed payment method & Canceled Stripe status
+    mockFirebaseStateService.user.set({
+      member: {
+        ...sampleMember,
+        stripeSubscriptions: {
+          ...sampleMember.stripeSubscriptions,
+          sub_ins_123: {
+            subscriptionId: 'sub_ins_123',
+            type: SubscriptionItemType.InstructorLicense,
+            status: SubscriptionStatus.Canceled,
+            planName: 'Instructor License',
+            amount: 15000,
+            currency: 'usd',
+            interval: SubscriptionInterval.Year,
+            currentPeriodStart: '2026-05-15',
+            currentPeriodEnd: '2027-05-15',
+            nextAutoRenewDate: '',
+            cancelAtPeriodEnd: false,
+          },
+        },
+      },
+      memberProfiles: [{ ...sampleMember }],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: { uid: 'mem-123' } as never,
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(insCard.textContent).toContain('Valid through 2027-05-15');
+    expect(insCard.textContent).not.toContain('Resume Auto-Renewal');
+    expect(insCard.textContent).not.toContain('Schedule Renewal Date');
+    expect(insCard.textContent).not.toContain('Remove Payment Method');
+    expect(insCard.textContent).toContain('Subscribe Again');
   });
 });
 

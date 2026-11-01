@@ -18,6 +18,7 @@ describe('SubscriptionCardComponent', () => {
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
     updateSubscriptionRenewalDate: ReturnType<typeof vi.fn>;
     createSubscriptionPaymentMethodSession: ReturnType<typeof vi.fn>;
+    removeSubscriptionPaymentMethod: ReturnType<typeof vi.fn>;
   };
 
   const activeAutoRenewCard: DisplaySubscriptionCard = {
@@ -68,6 +69,10 @@ describe('SubscriptionCardComponent', () => {
       }),
       createSubscriptionPaymentMethodSession: vi.fn().mockResolvedValue({
         url: 'https://checkout.stripe.com/c/pay/cs_setup_123',
+      }),
+      removeSubscriptionPaymentMethod: vi.fn().mockResolvedValue({
+        success: true,
+        detachedPaymentMethod: true,
       }),
     };
 
@@ -243,5 +248,82 @@ describe('SubscriptionCardComponent', () => {
     );
     expect(component.confirmingCancel()).toBe(false);
     expect(component.feedbackMessage()).toContain('cancelled');
+  });
+
+  it('uses inline confirmation to remove payment method when auto-renewal is cancelled, and renders Subscribe Again once removed', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    const updatedSpy = vi.fn();
+    component.subscriptionUpdated.subscribe(updatedSpy);
+
+    fixture.componentRef.setInput('card', {
+      ...activeAutoRenewCard,
+      statusLabel: 'Active (Expires on date)',
+      nextAutoRenewDate: '',
+      autoRenewalPaymentText: '',
+      projectedExpirationDate: '',
+      isAutoRenewing: false,
+      canCancel: false,
+      canResume: true,
+      canRemovePaymentMethod: true,
+    } satisfies DisplaySubscriptionCard);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const removeBtn = el.querySelector<HTMLButtonElement>(
+      '.remove-payment-method-btn',
+    );
+    expect(removeBtn).toBeTruthy();
+    expect(removeBtn?.textContent).toContain('Remove Payment Method');
+
+    removeBtn?.click();
+    fixture.detectChanges();
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(component.confirmingRemovePaymentMethod()).toBe(true);
+    expect(el.querySelector('.inline-confirm-box')?.textContent).toContain(
+      'Visa •••• 4242',
+    );
+    expect(el.querySelector('button app-spinner')).toBeNull();
+
+    await component.confirmRemovePaymentMethod();
+    fixture.detectChanges();
+
+    expect(mockStripeService.removeSubscriptionPaymentMethod).toHaveBeenCalledWith(
+      'sub_vid_123',
+    );
+    expect(component.confirmingRemovePaymentMethod()).toBe(false);
+    expect(component.feedbackMessage()).toContain('Payment method removed');
+    expect(updatedSpy).toHaveBeenCalledTimes(1);
+
+    // Simulate updated card state after Firestore refreshes
+    fixture.componentRef.setInput('card', {
+      ...activeAutoRenewCard,
+      statusLabel: 'Active (Expires on date)',
+      nextAutoRenewDate: '',
+      autoRenewalPaymentText: '',
+      projectedExpirationDate: '',
+      isAutoRenewing: false,
+      canCancel: false,
+      canResume: false,
+      canEditRenewalDate: false,
+      canUpdatePaymentMethod: false,
+      canRemovePaymentMethod: false,
+      paymentMethodSummary: undefined,
+      canSubscribe: true,
+      subscribeLabel: 'Subscribe Again',
+      subscribeUrl: '/class-video-library-subscription',
+    } satisfies DisplaySubscriptionCard);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(el.textContent).not.toContain('Resume Auto-Renewal');
+    expect(el.textContent).not.toContain('Schedule Renewal Date');
+    expect(el.textContent).not.toContain('Remove Payment Method');
+    expect(el.textContent).not.toContain('Payment method:');
+    const subscribeLink = el.querySelector<HTMLAnchorElement>(
+      '.sub-card-actions a.primary-button',
+    );
+    expect(subscribeLink?.textContent?.trim()).toBe('Subscribe Again');
   });
 });

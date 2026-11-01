@@ -24,6 +24,7 @@ type CardActionInFlight =
   | 'resume'
   | 'edit-date'
   | 'payment-method'
+  | 'remove-payment-method'
   | null;
 
 @Component({
@@ -49,6 +50,7 @@ export class SubscriptionCardComponent {
   detailsExpanded = signal(false);
   editingRenewalDate = signal(false);
   confirmingCancel = signal(false);
+  confirmingRemovePaymentMethod = signal(false);
   actionInFlight = signal<CardActionInFlight>(null);
   feedbackMessage = signal<string | null>(null);
   errorMessage = signal<string | null>(null);
@@ -92,6 +94,8 @@ export class SubscriptionCardComponent {
         return 'Updating renewal date...';
       case 'payment-method':
         return 'Opening payment method setup...';
+      case 'remove-payment-method':
+        return 'Removing payment method...';
       default:
         return '';
     }
@@ -112,6 +116,7 @@ export class SubscriptionCardComponent {
     this.detailsExpanded.set(true);
     this.editingRenewalDate.set(true);
     this.confirmingCancel.set(false);
+    this.confirmingRemovePaymentMethod.set(false);
     this.errorMessage.set(null);
   }
 
@@ -126,6 +131,7 @@ export class SubscriptionCardComponent {
 
   requestCancelAutoRenew(): void {
     this.confirmingCancel.set(true);
+    this.confirmingRemovePaymentMethod.set(false);
     this.editingRenewalDate.set(false);
     this.feedbackMessage.set(null);
     this.errorMessage.set(null);
@@ -133,6 +139,42 @@ export class SubscriptionCardComponent {
 
   dismissCancelAutoRenew(): void {
     this.confirmingCancel.set(false);
+  }
+
+  requestRemovePaymentMethod(): void {
+    this.confirmingRemovePaymentMethod.set(true);
+    this.confirmingCancel.set(false);
+    this.editingRenewalDate.set(false);
+    this.feedbackMessage.set(null);
+    this.errorMessage.set(null);
+  }
+
+  dismissRemovePaymentMethod(): void {
+    this.confirmingRemovePaymentMethod.set(false);
+  }
+
+  async confirmRemovePaymentMethod(): Promise<void> {
+    const subId = this.card().subscriptionId;
+    if (!subId) return;
+
+    this.actionInFlight.set('remove-payment-method');
+    this.feedbackMessage.set(null);
+    this.errorMessage.set(null);
+
+    try {
+      await this.stripeService.removeSubscriptionPaymentMethod(subId);
+      this.confirmingRemovePaymentMethod.set(false);
+      this.detailsExpanded.set(false);
+      this.feedbackMessage.set(
+        `Payment method removed. Your access remains active until ${this.card().expirationDate}.`,
+      );
+      this.subscriptionUpdated.emit();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.errorMessage.set(`Failed to remove payment method: ${msg}`);
+    } finally {
+      this.actionInFlight.set(null);
+    }
   }
 
   async confirmCancelAutoRenew(): Promise<void> {

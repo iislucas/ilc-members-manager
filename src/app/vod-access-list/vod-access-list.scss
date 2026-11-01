@@ -574,15 +574,15 @@
                   transition: all 0.15s ease;
 
                   &.view-member-btn:hover {
-                    background: #f1f5f9;
-                    color: v.$primary-color;
-                    border-color: #cbd5e1;
+                    background: v.$separator-color;
+                    color: v.$heading-accent-color;
+                    border-color: v.$heading-accent-color;
                   }
 
                   &.revoke-btn:hover {
-                    background: #fef2f2;
-                    color: #dc2626;
-                    border-color: #fecaca;
+                    background: v.$separator-color;
+                    color: v.$heading-accent-color;
+                    border-color: v.$heading-accent-color;
                   }
                 }
               }

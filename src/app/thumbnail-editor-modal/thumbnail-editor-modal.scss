@@ -241,12 +241,14 @@
             font-size: 0.8rem;
             padding: 4px 10px;
             border-radius: 4px;
-            border: 1px solid #fca5a5;
-            color: #991b1b;
+            border: 1px solid v.$border-color-light;
+            color: v.$text-primary;
             background: #ffffff;
 
             &:hover {
-              background: #fee2e2;
+              background: v.$separator-color;
+              border-color: v.$heading-accent-color;
+              color: v.$heading-accent-color;
             }
           }
 

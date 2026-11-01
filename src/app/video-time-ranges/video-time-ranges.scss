@@ -102,12 +102,14 @@
   }
 
   &.delete-batch-btn {
-    background-color: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #fca5a5;
+    background-color: #ffffff;
+    color: v.$text-secondary;
+    border: 1px solid v.$border-color-light;
 
     &:hover {
-      background-color: #fee2e2;
+      background-color: v.$separator-color;
+      border-color: v.$heading-accent-color;
+      color: v.$heading-accent-color;
     }
   }
 }

@@ -379,9 +379,14 @@
         cursor: not-allowed;
       }
 
-      &.remove-episode-btn:hover:not(:disabled) {
-        background: #fee2e2;
-        color: #ef4444;
+      &.remove-episode-btn {
+        border: 1px solid transparent;
+
+        &:hover:not(:disabled) {
+          background: v.$separator-color;
+          border-color: v.$heading-accent-color;
+          color: v.$heading-accent-color;
+        }
       }
 
       &.play-link {
