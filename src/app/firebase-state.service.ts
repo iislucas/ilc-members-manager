@@ -1,4 +1,4 @@
-import { inject, Injectable, signal, WritableSignal } from '@angular/core';
+import { ApplicationRef, inject, Injectable, signal, WritableSignal } from '@angular/core';
 import { FirebaseApp } from 'firebase/app';
 import {
   Auth,
@@ -129,6 +129,7 @@ export class FirebaseStateService {
   private idb = inject(IdbStorageService);
   private networkState = inject(NetworkStateService);
   private routingService = inject(RoutingService, { optional: true });
+  private appRef = inject(ApplicationRef, { optional: true });
 
   public loginStatus = signal<LoginStatus>(LoginStatus.FirebaseLoadingStatus);
   public loggedIn: WritableSignal<Promise<UserDetails>>;
@@ -778,6 +779,10 @@ export class FirebaseStateService {
 
   public async logout(): Promise<LogoutResult> {
     try {
+      if (this.unsubscribeFromMember) {
+        this.unsubscribeFromMember();
+        this.unsubscribeFromMember = null;
+      }
       const lastUid = await this.idb.get<string>(LAST_ACTIVE_USER_UID_KEY);
       if (lastUid) {
         await this.idb.delete(`cached_user_details_${lastUid}`);
@@ -787,6 +792,9 @@ export class FirebaseStateService {
       this.loginStatus.set(LoginStatus.SignedOut);
       this.isAuthReady.set(false);
       this.isAuthSyncing.set(false);
+      // Flush reactive effects synchronously so authenticated Firestore `onSnapshot`
+      // listeners tear down before `signOut` clears the Firebase Auth token.
+      this.appRef?.tick();
       this.routingService?.navigateTo('', { clearUrlParams: true });
       await signOut(this.auth);
       return { success: true };
