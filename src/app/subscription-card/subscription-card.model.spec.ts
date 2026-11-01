@@ -122,6 +122,42 @@ describe('subscription-card.model and helpers', () => {
     expect(card?.paymentMethodSummary).toBe('Visa •••• 4242');
   });
 
+  it('formats $0.00 USD explicitly for 100%-discounted subscriptions with amount === 0', () => {
+    const member = {
+      ...initMember(),
+      classVideoLibrarySubscription: true,
+      classVideoLibraryExpirationDate: '2028-03-23',
+      classVideoLibrarySubscriptionId: 'sub_vid_free',
+      classVideoLibraryNextAutoRenewDate: '2028-03-16',
+      stripeSubscriptions: {
+        sub_vid_free: {
+          subscriptionId: 'sub_vid_free',
+          type: SubscriptionItemType.VideoLibrary,
+          status: SubscriptionStatus.Trialing,
+          planName: 'Class Video Library',
+          amount: 0,
+          currency: 'usd',
+          interval: SubscriptionInterval.Month,
+          currentPeriodStart: '2026-11-01',
+          currentPeriodEnd: '2028-03-16',
+          nextAutoRenewDate: '2028-03-16',
+          cancelAtPeriodEnd: false,
+          paymentMethodBrand: 'visa',
+          paymentMethodLast4: '7045',
+        },
+      },
+    };
+
+    const card = buildVideoLibrarySubscriptionCard({
+      member,
+      todayStr: '2026-11-01',
+    });
+
+    expect(card?.autoRenewalPaymentText).toBe('2028-03-16 ($0.00 USD)');
+    expect(card?.renewalAmountText).toBe('$0.00 USD');
+    expect(card?.projectedExpirationDate).toBe('2028-04-23');
+  });
+
   it('adds dual-requirement membership warning on instructor license card when membership is expired', () => {
     const member = {
       ...initMember(),

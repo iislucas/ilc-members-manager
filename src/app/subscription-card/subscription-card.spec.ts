@@ -139,6 +139,24 @@ describe('SubscriptionCardComponent', () => {
     );
   });
 
+  it('renders "You will pay $0.00 USD..." when renewalAmountText is "$0.00 USD"', async () => {
+    fixture.componentRef.setInput('card', {
+      ...activeAutoRenewCard,
+      nextAutoRenewDate: '2028-03-16',
+      renewalAmountText: '$0.00 USD',
+      autoRenewalPaymentText: '2028-03-16 ($0.00 USD)',
+      projectedExpirationDate: '2028-04-23',
+    } satisfies DisplaySubscriptionCard);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('2028-03-16 ($0.00 USD)');
+    expect(el.querySelector('.renewal-disclosure-drawer')?.textContent).toContain(
+      'You will pay $0.00 USD and the expiration date will be extended to 2028-04-23.',
+    );
+  });
+
   it('defaults renewal date editor to 1 week before current expiration date and calls updateSubscriptionRenewalDate', async () => {
     fixture.componentRef.setInput('card', activeAutoRenewCard);
     await fixture.whenStable();

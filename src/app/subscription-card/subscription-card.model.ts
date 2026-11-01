@@ -685,7 +685,7 @@ export function buildSchoolSubscriptionCards(opts: {
       nextAutoRenewDate = billingInfo.nextAutoRenewDate;
       interval = billingInfo.interval || 'year';
       renewalAmountText =
-        billingInfo.amount !== null && billingInfo.amount > 0
+        billingInfo.amount !== null && billingInfo.amount >= 0
           ? formatAmountWithCurrency(billingInfo.amount, billingInfo.currency)
           : '';
       autoRenewalPaymentText = formatNextAutoRenewalPayment(
