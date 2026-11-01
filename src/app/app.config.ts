@@ -411,14 +411,21 @@ export const appConfig: ApplicationConfig = {
         }
 
         let firestore: ReturnType<typeof getFirestore>;
-        try {
-          firestore = initializeFirestore(app, {
-            localCache: persistentLocalCache({
-              tabManager: persistentMultipleTabManager(),
-            }),
-          });
-        } catch {
+        if (environment.useEmulator) {
+          // Keep emulator Firestore state in memory so `pnpm start:emulator` never shares or
+          // pollutes the persistent `firestore/[DEFAULT]/<projectId>/main` IndexedDB cache
+          // used by `pnpm start` against live Firestore on `localhost:4200`.
           firestore = getFirestore(app);
+        } else {
+          try {
+            firestore = initializeFirestore(app, {
+              localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager(),
+              }),
+            });
+          } catch {
+            firestore = getFirestore(app);
+          }
         }
 
         if (environment.useEmulator) {

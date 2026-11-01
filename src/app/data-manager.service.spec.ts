@@ -4,9 +4,9 @@ import { DataManagerService } from './data-manager.service';
 import { IncrementalSyncService } from './incremental-sync.service';
 import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
-import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
+import { FirebaseStateService, LoginStatus, createFirebaseStateServiceMock } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { getDocs, getDoc, query, where, orderBy, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, getDocs, getDoc, query, where, orderBy, limit, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
@@ -1249,6 +1249,166 @@ describe('DataManagerService - searchEvents', () => {
       TestBed.flushEffects();
 
       expect(assessed!.unsubscribe).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('system and admin gradings listener deduplication', () => {
+    interface DocOrQueryListener {
+      target: string;
+      next: (snap: {
+        exists?: () => boolean;
+        data?: () => Record<string, unknown>;
+        metadata?: { fromCache: boolean };
+        docs?: Array<{ id: string; data: () => Record<string, unknown> }>;
+      }) => void;
+      error: (err: Error) => void;
+      unsubscribe: ReturnType<typeof vi.fn>;
+    }
+    let listeners: DocOrQueryListener[];
+
+    beforeEach(() => {
+      listeners = [];
+      vi.mocked(doc).mockImplementation(((_db: unknown, ...segments: string[]) => ({
+        id: segments[segments.length - 1] ?? 'mock-doc-ref',
+        path: segments.join('/'),
+      })) as never);
+      vi.mocked(collection).mockImplementation(((_db: unknown, ...segments: string[]) => ({
+        path: segments.join('/'),
+      })) as never);
+      vi.mocked(orderBy).mockImplementation(((field: string, dir: string) => ({
+        clause: `orderBy:${field}:${dir}`,
+      })) as never);
+      vi.mocked(limit).mockImplementation(((n: number) => ({
+        clause: `limit:${n}`,
+      })) as never);
+      vi.mocked(query).mockImplementation(((ref: { path?: string }, ...rest: Array<{ clause?: string }>) => ({
+        path: `${ref?.path ?? ''}?${rest.map((r) => r?.clause ?? '').join('&')}`,
+      })) as never);
+      vi.mocked(onSnapshot).mockImplementation(((
+        target: { path?: string },
+        next: DocOrQueryListener['next'],
+        error: DocOrQueryListener['error'],
+      ) => {
+        const unsubscribe = vi.fn();
+        listeners.push({ target: target?.path ?? '', next, error, unsubscribe });
+        return unsubscribe;
+      }) as never);
+    });
+
+    afterEach(() => {
+      vi.mocked(doc).mockReset();
+      vi.mocked(doc).mockReturnValue({ id: 'mock-doc-ref' } as never);
+      vi.mocked(collection).mockReset();
+      vi.mocked(orderBy).mockReset();
+      vi.mocked(limit).mockReset();
+      vi.mocked(query).mockReset();
+      vi.mocked(onSnapshot).mockReset();
+      vi.mocked(onSnapshot).mockImplementation((() => () => {}) as never);
+    });
+
+    it('does not tear down system or gradings listeners on unrelated user() emissions', () => {
+      TestBed.resetTestingModule();
+      const makeAdminUser = (name: string): UserDetails =>
+        ({
+          member: { ...initMember(), docId: 'admin_doc', name },
+          memberProfiles: [],
+          firebaseUser: { uid: 'u_admin', email: 'admin@example.com' },
+          isAdmin: true,
+          schoolsManaged: [],
+        }) as unknown as UserDetails;
+
+      const userSignal = signal<UserDetails | null>(makeAdminUser('Admin v1'));
+      const mockFirebaseState = {
+        ...createFirebaseStateServiceMock(),
+        app,
+        user: userSignal,
+        loginStatus: signal(LoginStatus.SignedIn),
+        isAuthReady: signal(true),
+        updateCachedMemberProfile: vi.fn().mockResolvedValue(undefined),
+      };
+      const mockSyncService = {
+        loadCachedData: vi.fn().mockResolvedValue(true),
+        syncCollection: vi.fn().mockResolvedValue(undefined),
+        saveCachedBundle: vi.fn().mockResolvedValue(undefined),
+        upsertCachedEntry: vi.fn().mockResolvedValue(undefined),
+        deleteCachedEntry: vi.fn().mockResolvedValue(undefined),
+        clearCache: vi.fn().mockResolvedValue(undefined),
+        clearAllCaches: vi.fn().mockResolvedValue(undefined),
+      };
+
+      TestBed.configureTestingModule({
+        providers: [
+          { provide: FirebaseStateService, useValue: mockFirebaseState },
+          { provide: FIREBASE_APP, useValue: app },
+          { provide: IncrementalSyncService, useValue: mockSyncService },
+          DataManagerService,
+          IdbStorageService,
+        ],
+      });
+
+      const dm = TestBed.inject(DataManagerService);
+      TestBed.flushEffects();
+
+      const byPrefix = (prefix: string) => listeners.filter((l) => l.target.startsWith(prefix));
+      expect(byPrefix('system/counters')).toHaveLength(1);
+      expect(byPrefix('system/email-templates')).toHaveLength(1);
+      expect(byPrefix('system/mail-settings')).toHaveLength(1);
+      expect(byPrefix('gradings?')).toHaveLength(1);
+
+      const countersL = byPrefix('system/counters')[0];
+      const templatesL = byPrefix('system/email-templates')[0];
+      const mailSettingsL = byPrefix('system/mail-settings')[0];
+      const gradingsL = byPrefix('gradings?')[0];
+
+      // Simulate setupMemberSnapshotListener emitting an updated UserDetails reference.
+      userSignal.set(makeAdminUser('Admin v2'));
+      TestBed.flushEffects();
+
+      expect(byPrefix('system/counters')).toHaveLength(1);
+      expect(byPrefix('system/email-templates')).toHaveLength(1);
+      expect(byPrefix('system/mail-settings')).toHaveLength(1);
+      expect(byPrefix('gradings?')).toHaveLength(1);
+      expect(countersL.unsubscribe).not.toHaveBeenCalled();
+      expect(templatesL.unsubscribe).not.toHaveBeenCalled();
+      expect(mailSettingsL.unsubscribe).not.toHaveBeenCalled();
+      expect(gradingsL.unsubscribe).not.toHaveBeenCalled();
+
+      // Growing gradingsQueryLimit re-subscribes only gradings.
+      dm.loadMoreGradings();
+      TestBed.flushEffects();
+      expect(gradingsL.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(byPrefix('gradings?')).toHaveLength(2);
+      expect(templatesL.unsubscribe).not.toHaveBeenCalled();
+
+      // Signing out tears down admin-only listeners while keeping public mail-settings active.
+      userSignal.set(null);
+      TestBed.flushEffects();
+      expect(countersL.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(templatesL.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(byPrefix('gradings?')[1].unsubscribe).toHaveBeenCalledTimes(1);
+      expect(mailSettingsL.unsubscribe).not.toHaveBeenCalled();
+    });
+
+    it('suppresses console.warn for cached misses on system/email-templates while still applying defaults', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      service.updateEmailTemplatesSync({ isAdmin: true } as UserDetails);
+      const templatesL = listeners.find((l) => l.target === 'system/email-templates')!;
+
+      templatesL.next({
+        exists: () => false,
+        metadata: { fromCache: true },
+      });
+      expect(service.emailTemplates()).not.toBeNull();
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      templatesL.next({
+        exists: () => false,
+        metadata: { fromCache: false },
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        'system/email-templates document does not exist, using defaults.',
+      );
+      warnSpy.mockRestore();
     });
   });
 });
