@@ -93,7 +93,8 @@ export function formatAmountWithCurrency(
 /**
  * Format a next auto-renewal payment date and optional recurring payment amount:
  * e.g. `'2026-11-23', 2500, 'usd'` -> `'2026-11-23 ($25.00 USD)'`,
- * or `'2026-11-23'` when no positive recurring amount is recorded.
+ * `'2028-03-16', 0, 'usd'` -> `'2028-03-16 ($0.00 USD)'`,
+ * or `'2026-11-23'` when no recurring amount is recorded.
  */
 export function formatNextAutoRenewalPayment(
   nextDate?: string | null,
@@ -102,7 +103,7 @@ export function formatNextAutoRenewalPayment(
 ): string {
   const dateStr = (nextDate || '').trim();
   if (!dateStr) return '';
-  if (unitAmount !== null && unitAmount !== undefined && unitAmount > 0) {
+  if (unitAmount !== null && unitAmount !== undefined && unitAmount >= 0) {
     const amt = formatAmountWithCurrency(unitAmount, currency);
     if (amt) {
       return `${dateStr} (${amt})`;
@@ -298,7 +299,7 @@ export function resolveMemberSubscriptionRenewal(opts: {
   const nextAutoRenewDate = isAutoRenewing ? storedNextDate : '';
 
   const amount =
-    sub && typeof sub.amount === 'number' && sub.amount > 0 ? sub.amount : null;
+    sub && typeof sub.amount === 'number' && sub.amount >= 0 ? sub.amount : null;
   const currency = sub?.currency || 'usd';
 
   const resolvedInterval: 'month' | 'year' =
