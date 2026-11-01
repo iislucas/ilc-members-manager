@@ -3,10 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <title>I Liq Chuan Logo Maker</title>
-    <!-- Web fonts for Chinese text options -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&family=Noto+Sans+SC:wght@700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <style>
       * {
         box-sizing: border-box;
@@ -154,7 +150,8 @@
       .comparison-row canvas {
         width: 100%;
         aspect-ratio: 1;
-        border: 1px solid #0f3460;
+        border: 5px solid #ffffff;
+        outline: 1px solid #0f3460;
         border-radius: 8px;
         /* Checkerboard pattern to reveal transparency */
         background-image:
@@ -275,7 +272,10 @@
   </head>
   <body>
     <div class="controls">
-      <h1>☸ I Liq Chuan Logo Maker</h1>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; gap: 8px;">
+        <h1 style="margin-bottom: 0;">☸ I Liq Chuan Logo Maker</h1>
+        <a href="chinese-glyph-maker.html" style="font-size: 12px; color: #a0a0b0; text-decoration: none; border: 1px solid #0f3460; padding: 3px 8px; border-radius: 4px; white-space: nowrap;">漢 Glyph Editor &rarr;</a>
+      </div>
 
       <div class="section-title">Yin-Yang</div>
 
@@ -301,7 +301,7 @@
           min="0"
           max="40"
           step="1"
-          value="6"
+          value="8"
         />
       </div>
 
@@ -315,7 +315,7 @@
           min="0"
           max="100"
           step="1"
-          value="51"
+          value="50"
         />
         <div class="description">0% = center, 50% = natural, 100% = edge</div>
       </div>
@@ -345,8 +345,8 @@
           id="innerRingWidth"
           min="0.5"
           max="20"
-          step="0.5"
-          value="1"
+          step="0.25"
+          value="0.5"
         />
       </div>
 
@@ -359,8 +359,8 @@
           id="innerRingGap"
           min="0"
           max="30"
-          step="0.5"
-          value="8"
+          step="0.25"
+          value="7.25"
         />
       </div>
 
@@ -373,7 +373,7 @@
           id="textBandWidth"
           min="10"
           max="80"
-          step="1"
+          step="0.5"
           value="57"
         />
       </div>
@@ -389,8 +389,8 @@
           id="outerRingGap"
           min="0"
           max="30"
-          step="0.5"
-          value="12.5"
+          step="0.25"
+          value="10.25"
         />
       </div>
 
@@ -403,8 +403,8 @@
           id="outerRingWidth"
           min="0.5"
           max="20"
-          step="0.5"
-          value="2"
+          step="0.25"
+          value="2.5"
         />
       </div>
 
@@ -413,16 +413,67 @@
 
       <div class="control-group">
         <label
-          >Chinese text size <span class="val" id="textSizeUpper-val"></span
+          >Chinese glyph size <span class="val" id="chineseGlyphSize-val"></span
         ></label>
         <input
           type="range"
-          id="textSizeUpper"
-          min="34"
-          max="45"
-          step="1"
-          value="37"
+          id="chineseGlyphSize"
+          min="45"
+          max="75"
+          step="0.5"
+          value="59.5"
         />
+      </div>
+
+      <div class="control-group">
+        <label
+          >Chinese radial offset
+          <span class="val" id="chineseRadialOffset-val"></span
+        ></label>
+        <input
+          type="range"
+          id="chineseRadialOffset"
+          min="-10"
+          max="10"
+          step="0.5"
+          value="-0.5"
+        />
+        <div class="description">Positive = outward from band center</div>
+      </div>
+
+      <div class="control-group">
+        <label
+          >Chinese arc spread
+          <span class="val" id="chineseSpreadAngle-val"></span
+        ></label>
+        <input
+          type="range"
+          id="chineseSpreadAngle"
+          min="20"
+          max="40"
+          step="0.5"
+          value="30"
+        />
+      </div>
+
+      <div class="control-group">
+        <label
+          >Chinese glyph tilt <span class="val" id="chineseTiltAngle-val"></span
+        ></label>
+        <input
+          type="range"
+          id="chineseTiltAngle"
+          min="15"
+          max="40"
+          step="0.5"
+          value="29"
+        />
+        <div class="description">
+          Vector calligraphy from
+          <a href="chinese-glyph-maker.html" style="color: #e94560;"
+            >Chinese Glyph SVG Maker</a
+          >
+        </div>
       </div>
 
       <div class="control-group">
@@ -432,26 +483,11 @@
         <input
           type="range"
           id="textSizeLower"
-          min="30"
-          max="40"
-          step="1"
-          value="32"
+          min="24"
+          max="46"
+          step="0.5"
+          value="36.5"
         />
-      </div>
-
-      <div class="control-group">
-        <label
-          >Upper text offset <span class="val" id="textOffsetUpper-val"></span
-        ></label>
-        <input
-          type="range"
-          id="textOffsetUpper"
-          min="-20"
-          max="0"
-          step="1"
-          value="-12"
-        />
-        <div class="description">Positive = outward from band center</div>
       </div>
 
       <div class="control-group">
@@ -462,9 +498,9 @@
           type="range"
           id="textOffsetLower"
           min="0"
-          max="20"
-          step="1"
-          value="16"
+          max="28"
+          step="0.5"
+          value="17"
         />
       </div>
 
@@ -476,24 +512,27 @@
         <input
           type="range"
           id="textLetterSpacingLower"
-          min="5"
-          max="15"
+          min="0"
+          max="20"
           step="0.5"
-          value="9"
+          value="6.5"
         />
       </div>
 
-      <div class="select-row">
-        <label>Chinese font family</label>
-        <select id="fontFamilyChinese">
-          <option value="'Noto Serif SC', 'SimSun', serif">Noto Serif SC (default)</option>
-          <option value="'CloudShuiZhuGBK', 'Noto Serif SC', serif">CloudShuiZhuGBK</option>
-          <option value="'Ma Shan Zheng', cursive">Ma Shan Zheng (calligraphic)</option>
-          <option value="'Noto Sans SC', 'Microsoft YaHei', sans-serif">Noto Sans SC</option>
-          <option value="'SimSun', 'Songti SC', serif">SimSun / Songti SC</option>
-          <option value="'KaiTi', 'STKaiti', serif">KaiTi / STKaiti</option>
-          <option value="serif">Generic serif</option>
-        </select>
+      <div class="control-group">
+        <label
+          >Lower word spacing
+          <span class="val" id="textWordSpacingLower-val"></span
+        ></label>
+        <input
+          type="range"
+          id="textWordSpacingLower"
+          min="0"
+          max="55"
+          step="0.5"
+          value="37"
+        />
+        <div class="description">Arc gap between &ldquo;I&rdquo;, &ldquo;LIQ&rdquo;, and &ldquo;CHUAN&rdquo;</div>
       </div>
 
       <div class="select-row">
@@ -510,6 +549,62 @@
         </select>
       </div>
 
+      <div class="section-title">Letter Positions (I LIQ CHUAN)</div>
+      <div class="description" style="margin-bottom: 10px;">
+        Custom arc offset per letter (negative = left, positive = right)
+      </div>
+
+      <div class="control-group">
+        <label>I (&ldquo;I&rdquo;) <span class="val" id="letterOffsetI1-val"></span></label>
+        <input type="range" id="letterOffsetI1" min="-10" max="10" step="0.25" value="-0.25" />
+      </div>
+
+      <div class="control-group">
+        <label>L (&ldquo;LIQ&rdquo;) <span class="val" id="letterOffsetL-val"></span></label>
+        <input type="range" id="letterOffsetL" min="-10" max="10" step="0.25" value="-0.75" />
+      </div>
+
+      <div class="control-group">
+        <label>I (&ldquo;LIQ&rdquo;) <span class="val" id="letterOffsetI2-val"></span></label>
+        <input type="range" id="letterOffsetI2" min="-10" max="10" step="0.25" value="-0.5" />
+      </div>
+
+      <div class="control-group">
+        <label>Q (&ldquo;LIQ&rdquo;) <span class="val" id="letterOffsetQ-val"></span></label>
+        <input type="range" id="letterOffsetQ" min="-10" max="10" step="0.25" value="0.5" />
+      </div>
+
+      <div class="control-group">
+        <label>C (&ldquo;CHUAN&rdquo;) <span class="val" id="letterOffsetC-val"></span></label>
+        <input type="range" id="letterOffsetC" min="-10" max="10" step="0.25" value="-0.25" />
+      </div>
+
+      <div class="control-group">
+        <label>H (&ldquo;CHUAN&rdquo;) <span class="val" id="letterOffsetH-val"></span></label>
+        <input type="range" id="letterOffsetH" min="-10" max="10" step="0.25" value="0.75" />
+      </div>
+
+      <div class="control-group">
+        <label>U (&ldquo;CHUAN&rdquo;) <span class="val" id="letterOffsetU-val"></span></label>
+        <input type="range" id="letterOffsetU" min="-10" max="10" step="0.25" value="1.75" />
+      </div>
+
+      <div class="control-group">
+        <label>A (&ldquo;CHUAN&rdquo;) <span class="val" id="letterOffsetA-val"></span></label>
+        <input type="range" id="letterOffsetA" min="-10" max="10" step="0.25" value="-0.25" />
+      </div>
+
+      <div class="control-group">
+        <label>N (&ldquo;CHUAN&rdquo;) <span class="val" id="letterOffsetN-val"></span></label>
+        <input type="range" id="letterOffsetN" min="-10" max="10" step="0.25" value="0.5" />
+      </div>
+
+      <div class="btn-row" style="margin-bottom: 10px;">
+        <button class="action-btn secondary" id="reset-letter-offsets-btn" style="font-size: 11px; padding: 4px 10px;">
+          Reset Letter Offsets
+        </button>
+      </div>
+
       <div class="section-title">Ornamental Tips</div>
 
       <div class="control-group">
@@ -522,7 +617,7 @@
           id="nsewDecorationDistance"
           min="-20"
           max="20"
-          step="1"
+          step="0.5"
           value="9"
         />
       </div>
@@ -536,9 +631,9 @@
           type="range"
           id="nsewDecorationLength"
           min="20"
-          max="60"
-          step="1"
-          value="42"
+          max="55"
+          step="0.5"
+          value="47.5"
         />
       </div>
 
@@ -551,8 +646,8 @@
           id="nsewDecorationWidth"
           min="3"
           max="70"
-          step="1"
-          value="46"
+          step="0.5"
+          value="41"
         />
       </div>
 
@@ -566,7 +661,7 @@
           min="0"
           max="10"
           step="0.1"
-          value="5.7"
+          value="7.2"
         />
         <div class="description">0 = straight sides, &gt;1 = sharper point</div>
       </div>
@@ -583,7 +678,7 @@
           min="-20"
           max="30"
           step="0.5"
-          value="18"
+          value="17.5"
         />
       </div>
 
@@ -596,8 +691,8 @@
           id="nsewDecorationThirdBumpRadius"
           min="0"
           max="20"
-          step="0.5"
-          value="11.5"
+          step="0.25"
+          value="10.5"
         />
       </div>
 
@@ -611,7 +706,7 @@
           id="diagonalDecorationDistance"
           min="-20"
           max="20"
-          step="1"
+          step="0.5"
           value="10"
         />
       </div>
@@ -625,8 +720,8 @@
           id="diagonalDecorationWidth"
           min="25"
           max="40"
-          step="1"
-          value="33"
+          step="0.5"
+          value="29.5"
         />
       </div>
       <div class="section-title">Colors</div>
@@ -709,7 +804,7 @@
           class="action-btn secondary"
           style="cursor: pointer; font-size: 11px; padding: 4px 10px"
         >
-          Load reference PNG
+          Load reference image
           <input
             type="file"
             id="ref-image-input"
@@ -743,7 +838,7 @@
             </select>
           </div>
 
-          <div id="svg-final-render" style="margin-top: 20px; text-align: center; background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #0f3460;"></div>
+          <div id="svg-final-render" style="margin-top: 20px; text-align: center; background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-color: #ffffff; padding: 20px; border-radius: 8px; border: 5px solid #ffffff; outline: 1px solid #0f3460;"></div>
         </details>
       </div>
     </div>

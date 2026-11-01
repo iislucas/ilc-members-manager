@@ -698,21 +698,26 @@
         <div id="tab-sub-item" class="tab-pane">
           <pre><code><span class="code-keyword">export interface</span> <span class="code-type">MemberSubscriptionItem</span> {
   subscriptionId: <span class="code-type">string</span>;       <span class="code-comment">// Stripe sub_... ID</span>
-  type: <span class="code-type">SubscriptionItemType</span>;   <span class="code-comment">// Membership, InstructorLicense, VideoLibrary, Vod</span>
-  status: <span class="code-type">SubscriptionStatus</span>;   <span class="code-comment">// Active, PastDue, Canceled, etc.</span>
+  type: <span class="code-type">SubscriptionItemType</span>;   <span class="code-comment">// Membership, InstructorLicense, VideoLibrary, SchoolLicense, Vod</span>
+  status: <span class="code-type">SubscriptionStatus</span>;   <span class="code-comment">// Active, Trialing, PastDue, Canceled, etc.</span>
   planName: <span class="code-type">string</span>;             <span class="code-comment">// e.g. "Annual Membership"</span>
-  amount: <span class="code-type">number</span>;               <span class="code-comment">// in minor units (cents)</span>
+  amount: <span class="code-type">number</span>;               <span class="code-comment">// Recurring payment amount in minor units (cents), net of active forever/repeating discounts</span>
   currency: <span class="code-type">string</span>;             <span class="code-comment">// e.g. 'usd'</span>
   interval: <span class="code-type">SubscriptionInterval</span>; <span class="code-comment">// Month, Year</span>
 
-  currentPeriodStart: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD</span>
-  currentPeriodEnd: <span class="code-type">string</span>;     <span class="code-comment">// YYYY-MM-DD (access expiration date)</span>
-  nextAutoRenewDate: <span class="code-type">string</span>;    <span class="code-comment">// YYYY-MM-DD or '' (empty when auto-renewal cancelled)</span>
+  currentPeriodStart: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD (current Stripe billing cycle start)</span>
+  currentPeriodEnd: <span class="code-type">string</span>;     <span class="code-comment">// YYYY-MM-DD (current Stripe billing cycle end)</span>
+  nextAutoRenewDate: <span class="code-type">string</span>;    <span class="code-comment">// YYYY-MM-DD (next Stripe charge date) or '' when auto-renew is off</span>
 
   cancelAtPeriodEnd: <span class="code-type">boolean</span>;   <span class="code-comment">// true when recurring charge is turned off</span>
-  canceledAt?: <span class="code-type">string</span>;          <span class="code-comment">// ISO timestamp when cancellation was requested</span>
+  canceledAt?: <span class="code-type">string</span>;          <span class="code-comment">// ISO / YYYY-MM-DD date when cancellation was requested</span>
   stripePriceId?: <span class="code-type">string</span>;
   stripeProductId?: <span class="code-type">string</span>;
+  schoolDocId?: <span class="code-type">string</span>;         <span class="code-comment">// Linked /schools/{docId} for SchoolLicense subscriptions</span>
+  schoolId?: <span class="code-type">string</span>;            <span class="code-comment">// Human-readable school ID (e.g. "SCH-10")</span>
+  schoolName?: <span class="code-type">string</span>;          <span class="code-comment">// Display name of the licensed school</span>
+  paymentMethodBrand?: <span class="code-type">string</span>;  <span class="code-comment">// Masked card/account brand only (e.g. "visa", "sepa_debit")</span>
+  paymentMethodLast4?: <span class="code-type">string</span>;  <span class="code-comment">// Strictly 4-digit masked suffix (e.g. "4242")</span>
 }</code></pre>
         </div>
 
@@ -869,7 +874,19 @@
       <section id="auto-renew-semantics">
         <h2>5. Expiry &amp; Auto-Renew Semantics</h2>
         <p>
-          Rather than relying on a fragile boolean flag, renewal states are governed deterministically by the <strong>explicit next renewal date</strong>.
+          Access expiration dates (<code>currentMembershipExpires</code>, <code>instructorLicenseExpires</code>,
+          <code>classVideoLibraryExpirationDate</code>, and <code>school.schoolLicenseExpires</code>) are tracked
+          <strong>independently</strong> from Stripe's next recurring billing date (<code>*NextAutoRenewDate</code> and
+          <code>stripeSubscriptions[subId].nextAutoRenewDate</code>).
+          Members who purchase periods in advance keep their stacked future access expiration date while
+          <strong>Next auto-renewal payment:</strong> reports the actual upcoming Stripe charge date and recurring amount
+          (for example, <code>2026-11-23 ($25.00 USD)</code>), accompanied by an accessible unfolding triangle disclosure (<code>▸</code>)
+          that expands the transparent renewal price and projected extension note
+          (<code>You will pay $25.00 USD and the expiration date will be extended to 2028-04-23.</code>) and a <strong>Change renewal date</strong> control.
+          Members can reschedule their next auto-renewal date within <code>[tomorrow, expirationDate]</code> (defaulting to 7 days before the current expiration date) via
+          <code>updateSubscriptionRenewalDate</code>, which sets Stripe <code>trial_end</code> with <code>proration_behavior: 'none'</code> while <code>syncSubscriptionStatusToMember</code>
+          strictly restricts paid expiration extensions to <code>status === 'active'</code> (never <code>'trialing'</code>).
+          When <strong>Access Status</strong> is <strong>Lifetime</strong>, the <strong>Next auto-renewal payment:</strong> row is omitted completely.
           When a member cancels auto-renewal, the access expiration date remains intact while <code>*NextAutoRenewDate</code> is set to an empty string (<code>''</code>).
         </p>
 
@@ -878,9 +895,9 @@
             <thead>
               <tr>
                 <th>Subscription State</th>
-                <th><code>currentMembershipExpires</code></th>
-                <th><code>membershipNextAutoRenewDate</code></th>
-                <th>UI Badge &amp; Status Label</th>
+                <th><code>Access Expiration</code></th>
+                <th><code>*NextAutoRenewDate</code></th>
+                <th>UI Badge &amp; Next Payment Label</th>
                 <th>Available User Actions</th>
               </tr>
             </thead>
@@ -889,28 +906,35 @@
                 <td><strong>Active Auto-Renewing</strong></td>
                 <td><code>2027-05-15</code></td>
                 <td><code>2027-05-15</code></td>
-                <td><span class="badge badge-success">Active (Auto-Renewing)</span><br><small>Renews on May 15, 2027</small></td>
-                <td><code>Cancel Auto-Renewal</code></td>
+                <td><span class="badge badge-success">Active (Auto-Renewing)</span><br><small>Next auto-renewal payment: 2027-05-15 ($85.00 USD) ▸ (unfolds extension to 2028-05-15)</small></td>
+                <td><code>Change renewal date</code> · <code>Update Payment Method</code> · <code>Cancel Auto-Renewal</code></td>
+              </tr>
+              <tr>
+                <td><strong>Advance-Stacked + Monthly Auto-Renewing</strong></td>
+                <td><code>2028-03-23</code></td>
+                <td><code>2026-11-23</code></td>
+                <td><span class="badge badge-success">Active (Auto-Renewing)</span><br><small>Valid through 2028-03-23 • Next auto-renewal payment: 2026-11-23 ($25.00 USD) ▸ (unfolds extension to 2028-04-23)</small></td>
+                <td><code>Change renewal date</code> (defaults to <code>2028-03-16</code>) · <code>Update Payment Method</code> · <code>Cancel Auto-Renewal</code></td>
               </tr>
               <tr>
                 <td><strong>Renewal Cancelled (In Grace)</strong></td>
                 <td><code>2027-05-15</code></td>
                 <td><code>''</code> (empty)</td>
-                <td><span class="badge badge-primary">Active (Expires on date)</span><br><small>Valid through May 15, 2027 (Auto-renew off)</small></td>
-                <td><code>Resume Auto-Renewal</code></td>
+                <td><span class="badge badge-primary">Active (Expires on date)</span><br><small>Valid through 2027-05-15 • Off (Will not renew automatically)</small></td>
+                <td><code>Resume Auto-Renewal</code> · <code>Schedule Renewal Date</code> · <code>Update Payment Method</code></td>
               </tr>
               <tr>
                 <td><strong>Expired / Lapsed</strong></td>
                 <td><code>2025-05-15</code> (Past)</td>
                 <td><code>''</code> (empty)</td>
-                <td><span class="badge badge-danger">Expired</span><br><small>Expired on May 15, 2025</small></td>
-                <td><code>Renew Membership</code> (Stripe Checkout)</td>
+                <td><span class="badge badge-danger">Expired</span><br><small>Expired on 2025-05-15</small></td>
+                <td><code>Renew Now</code> (Stripe Checkout)</td>
               </tr>
               <tr>
-                <td><strong>Lifetime Member</strong></td>
-                <td><code>9999-12-31</code></td>
+                <td><strong>Lifetime Member / License</strong></td>
+                <td><code>9999-12-31</code> or <code>''</code> (School)</td>
                 <td><code>''</code> (empty)</td>
-                <td><span class="badge badge-purple">Lifetime Access</span><br><small>Never expires</small></td>
+                <td><span class="badge badge-purple">Lifetime Access</span><br><small>Lifetime (<code>Next auto-renewal payment:</code> row hidden)</small></td>
                 <td><em>None needed (Lifetime)</em></td>
               </tr>
             </tbody>
@@ -1227,10 +1251,15 @@
         <div class="journey-step">
           <div class="journey-marker">2</div>
           <div class="journey-content">
-            <strong>Viewing Active Subscriptions &amp; Renewal Status</strong>
+            <strong>Viewing Active Subscriptions &amp; Managed School Licenses (Shared <code>&lt;app-subscription-card&gt;</code>)</strong>
             <p>
-              The top section renders structured cards for Membership, Instructor License, Class Video Library, and custom Stripe plans.
-              Each card clearly highlights whether auto-renewal is active, the exact renewal date, and the currency amount.
+              Both <code>/my-orders</code> and the four dedicated subscription order pages (<code>/become-a-member</code>, <code>/class-video-library-subscription</code>,
+              <code>/instructor-license</code>, and <code>/school-license</code>) render the reusable <code>&lt;app-subscription-card&gt;</code> component for Membership,
+              Instructor / Group Leader License, Class Video Library, School Licenses where the signed-in member is the payer, and custom Stripe plans.
+              Each card displays <strong>Access Status</strong>, masked <strong>Payment method</strong> (e.g. <code>Visa •••• 4242</code> when cached), and (for non-Lifetime subscriptions)
+              <strong>Next auto-renewal payment:</strong> formatted as <code>YYYY-MM-DD ($XX.XX USD)</code> with an unfolding triangle disclosure for the projected expiration date,
+              inline renewal-date rescheduling, per-subscription payment method setup (<code>mode: 'setup'</code>), and non-blocking inline cancellation confirmation.
+              Every school owned or managed by the member also displays <strong>Payment linked to:</strong>, and schools paid by another member (or with no payment linked) appear in a dedicated <strong>Other Schools You Own or Manage</strong> list.
             </p>
           </div>
         </div>
@@ -1309,10 +1338,15 @@
         <div class="journey-step">
           <div class="journey-marker">2</div>
           <div class="journey-content">
-            <strong>Stripe Reactivation</strong>
+            <strong>Stripe Reactivation (or Optional Payment Method Removal)</strong>
             <p>
               <code>resumeSubscriptionRenewal({ subscriptionId })</code> calls Stripe with <code>cancel_at_period_end: false</code>,
               restores <code>*NextAutoRenewDate</code> to the period end date, and persists the update in Firestore.
+              Alternatively, while auto-renewal is cancelled, the member can click <strong>"Remove Payment Method"</strong>:
+              <code>removeSubscriptionPaymentMethod({ subscriptionId })</code> permanently cancels the Stripe subscription
+              (keeping all paid access expiration dates untouched), detaches the payment method from the Stripe Customer if no other
+              active subscription uses it, disables <em>Resume Auto-Renewal</em> and <em>Schedule Renewal Date</em>, and shows
+              <strong>"Subscribe Again"</strong> so the member can start a new subscription at any time.
             </p>
           </div>
         </div>
@@ -1699,17 +1733,22 @@
               <tr>
                 <td><code>functions/src/stripe-subscriptions.ts</code></td>
                 <td>Functions</td>
-                <td>Callable functions: <code>cancelSubscriptionRenewal</code>, <code>resumeSubscriptionRenewal</code>, <code>createCustomerPortalSession</code>.</td>
+                <td>Callable functions &amp; helpers: <code>cancelSubscriptionRenewal</code>, <code>resumeSubscriptionRenewal</code>, <code>updateSubscriptionRenewalDate</code> (reschedules charge date via <code>trial_end</code> + <code>proration_behavior: 'none'</code>), <code>createSubscriptionPaymentMethodSession</code> (per-subscription Checkout <code>mode: 'setup'</code>), <code>removeSubscriptionPaymentMethod</code> (cancels non-renewing subscription without revoking paid access and detaches unused payment method), <code>applySubscriptionPaymentMethodFromSetupSession</code>, <code>createCustomerPortalSession</code>, and <code>getManagedSchoolsBilling</code>.</td>
+              </tr>
+              <tr>
+                <td><code>functions/scripts/sync-stripe-subscriptions.ts</code></td>
+                <td>Admin Script</td>
+                <td>Idempotent backfill CLI (<code>pnpm sync:stripe-subscriptions</code>) reconciling <code>stripeSubscriptions</code> and <code>*NextAutoRenewDate</code> against live Stripe subscriptions without reducing advance expiration dates.</td>
               </tr>
               <tr>
                 <td><code>functions/src/stripe-webhook.ts</code></td>
                 <td>Functions</td>
-                <td>Stripe webhook receiver handling <code>checkout.session.completed</code>, <code>invoice.paid</code>, <code>customer.subscription.*</code>.</td>
+                <td>Stripe webhook receiver handling <code>checkout.session.completed</code> (routing <code>mode: 'setup'</code> payment-method updates separately from paid orders), <code>invoice.paid</code>, and <code>customer.subscription.*</code>.</td>
               </tr>
               <tr>
                 <td><code>functions/src/stripe-fulfillment.ts</code></td>
                 <td>Functions</td>
-                <td>Business fulfillment logic for memberships, instructor licenses, class video libraries, gradings, and <code>VideoGrant</code> provisioning.</td>
+                <td>Business fulfillment logic for memberships, instructor licenses, class video libraries, gradings, and <code>VideoGrant</code> provisioning, plus <code>syncSubscriptionStatusToMember</code> (restricting paid expiry extension to <code>status === 'active'</code>).</td>
               </tr>
               <tr>
                 <td><code>functions/src/vod/get-playback-session.ts</code></td>
@@ -1717,9 +1756,14 @@
                 <td>Callable function evaluating 7-tier playback authorization cascade and returning HLS stream URLs.</td>
               </tr>
               <tr>
+                <td><code>src/app/subscription-card/</code></td>
+                <td>Angular UI</td>
+                <td>Reusable standalone <code>&lt;app-subscription-card&gt;</code> component and pure card builders (<code>subscription-card.model.ts</code>) shared across <code>/my-orders</code> and all four dedicated subscription purchase flows.</td>
+              </tr>
+              <tr>
                 <td><code>src/app/member-orders/member-orders.ts</code></td>
                 <td>Angular UI</td>
-                <td>Component managing active subscription cards, cancellation modals, and the order history table.</td>
+                <td>Unified <code>/my-orders</code> dashboard rendering <code>&lt;app-subscription-card&gt;</code> instances, non-payer school license cards, and the chronological order history table.</td>
               </tr>
               <tr>
                 <td><code>src/app/videos-catalog/videos-catalog.ts</code></td>

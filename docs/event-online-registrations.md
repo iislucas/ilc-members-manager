@@ -300,3 +300,35 @@ Checkout sessions resolve the Stripe Product ID using a three-tier hierarchy:
 3. **Publishing Live (`status: 'listed'`)**:
    - When ready for public announcement, switch status to **Listed Publicly**.
    - The event immediately appears across all public calendar widgets, event lists, and search results.
+
+### 5.6 Rule-Based Conditions (`Timing` Custom Dates & Add-On `Payment` Condition)
+
+Defined in [`functions/src/data-model/event-pricing-rules.ts`](../functions/src/data-model/event-pricing-rules.ts) and edited via [`RuleConditionsEditorComponent`](../src/app/rule-conditions-editor/rule-conditions-editor.ts):
+
+1. **Timing Conditions (`TimingCondition`)**:
+   - Available on Registration Options, Discounts, Event Add-Ons, and Form Questions.
+   - Supports relative windows (`BeforeEarlyBird`, `BeforeEventStart`) as well as `TimingConditionKind.CustomDate` (`YYYY-MM-DD`, evaluated Anywhere-on-Earth UTC-12):
+     - **Before custom date** (`CustomDateDirection.Before`): active while `evaluationDateAoE <= date`.
+     - **On or after custom date** (`CustomDateDirection.OnOrAfter`): active when `evaluationDateAoE >= date`.
+2. **Add-On Payment Condition (`PaymentConditionKind.PaidInFull`)**:
+   - Shown and permitted **only** on Event Add-Ons (`allowPaymentCondition = true`; stripped to `AnyPayment` on Registration Options, Discounts, and Questions).
+   - Satisfied when the attendee pays in full online (`PaymentChoice.Full`, including upgrading from Deposit or Pay-at-Door to Full Payment) or when an admin records offline full payment (`paidInFullOffline: true`) via **Mark Paid in Full** on `/events/:eventId/registrations` (`markEventRegistrationPaid`).
+   - Marking a registration **Paid in Full** on `/events/:eventId/registrations` unlocks Paid-in-Full add-ons on `/events/:eventId/register` and automatically grants any matching free (`$0`) Paid-in-Full add-ons (recording `autoGrantedAddOnIds`, `hasVideoAccess`, and catalog VOD grants); **Unmark Paid** (`unmarkEventRegistrationPaid`) reverts `paidInFullOffline` and strips only `autoGrantedAddOnIds`.
+
+
+### 5.7 Viewing & Editing Individual Registrations (`/events/:eventId/registrations/:registrationId`)
+
+Implemented in [`EventRegistrationViewComponent`](../src/app/event-registration-view/event-registration-view.ts) (`Views.EventRegistrationView`) and backed by the [`adminUpdateEventRegistration`](../functions/src/stripe-product-checkout.ts) callable Cloud Function:
+
+1. **Navigation from Roster (`/events/:eventId/registrations`)**:
+   - Every attendee row and attendee name link on [`EventRegistrationsComponent`](../src/app/event-registrations/event-registrations.ts) navigates to `/events/:eventId/registrations/:registrationId` (preserving parent `q` and `filter` query parameters in the breadcrumb trail).
+   - Inline **Mark Paid in Full** / **Unmark Paid** action buttons on the roster isolate click events so quick settlement actions remain one-click from the table.
+2. **Role-Scoped Access**:
+   - **Event Organizers & Managers** (`ownerDocId`, `managerDocIds`, `ownerEmails`, `managerEmails`): Open `/events/:eventId/registrations/:registrationId` in **Organizer Read-Only View** (`<dl>` summary of attendee profile, option/sub-options/add-ons, payment breakdown, form question responses, and upgrade history) and can use the quick **Mark Paid in Full** / **Unmark Paid** action bar.
+   - **HQ Administrators** (`/acl/{email}.isAdmin === true`): Full edit form across attendee identity, linked member (`MemberSelectorComponent` with **Sync Role & Levels** and **Unlink**), configured registration options, sub-options, add-ons, video access, capacity pool unit overrides, registration status (`Paid`, `DepositPaid`, `PendingInPerson`, `Cancelled`, `Refunded`), payment settlement fields, and form question responses (including archived questions).
+3. **Manual Pricing & Rule Recalculation**:
+   - Changing the configured registration option or add-ons updates attendance mode and capacity pool defaults without silently overwriting negotiated or historical payment amounts.
+   - Clicking **Recalculate from rules** evaluates `Product.pricingRules` via `evaluateEventPricingQuote` to compute the option + add-ons total and remaining balance due on demand before saving.
+4. **Transactional Backend Updates (`adminUpdateEventRegistration`)**:
+   - Verifies HQ Admin privilege via `verifiedAuthEmail` and `/acl/{email}.isAdmin === true`.
+   - Transactionally updates `/events/{eventId}/registrations/{registrationId}`, reconciles `capacityCounts` and `inPersonRegistrationsCount` on `/events/{eventId}` and `/products/{productId}` (releasing spots when status becomes `Cancelled` or `Refunded`), syncs or removes `/members/{memberDocId}/registrations/{registrationId}` when the linked member changes, and provisions catalog VOD grants for active paid add-ons.
