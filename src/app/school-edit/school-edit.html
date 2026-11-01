@@ -326,7 +326,7 @@
                 [largeDimensions]="profileLargeDimensions"
                 [thumbDimensions]="profileThumbDimensions"
                 uploadPromptText="select a square (400x400 or larger) image"
-                [initialImageUrl]="s.publicProfileImageUrl"
+                [initialImageUrl]="s.publicProfileImageOriginalUrl || s.publicProfileImageUrl"
                 (imageCropped)="onProfileImageCropped($event)"
                 (cancel)="cancelProfileCrop()"
               />
@@ -360,7 +360,7 @@
                 [largeDimensions]="coverLargeDimensions"
                 [thumbDimensions]="coverThumbDimensions"
                 uploadPromptText="select a 1200x450 or larger image"
-                [initialImageUrl]="s.publicCoverImageUrl"
+                [initialImageUrl]="s.publicCoverImageOriginalUrl || s.publicCoverImageUrl"
                 (imageCropped)="onCoverImageCropped($event)"
                 (cancel)="cancelCoverCrop()"
               />

@@ -9007,8 +9007,8 @@ export const FILES_CATALOG: CodeFileEntry[] = [
   {
     path: "src/app/image-upload-preview/image-upload-preview.ts",
     layer: ArchitecturalLayer.ClientUIComponent,
-    responsibility: "Implements ImageUploadPreviewComponent",
-    keySymbols: ["ImageUploadPreviewComponent"],
+    responsibility: "Implements ImageUploadPreviewComponent, MIN_ZOOM_SCALE, MAX_ZOOM_SCALE",
+    keySymbols: ["ImageUploadPreviewComponent","MIN_ZOOM_SCALE","MAX_ZOOM_SCALE"],
     relatedJourneys: [],
     relatedDataTypes: [],
     relatedStories: [],

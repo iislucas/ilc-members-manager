@@ -296,18 +296,22 @@ describe('SchoolEditComponent', () => {
       );
     });
 
-    it('should allow removing cover image and profile image', () => {
+    it('should allow removing cover image and profile image (including original URLs)', () => {
       component.form.publicCoverImageUrl().value.set('https://example.com/cover.jpg');
+      component.form.publicCoverImageOriginalUrl().value.set('https://example.com/cover-orig.jpg');
       component.form.publicProfileImageUrl().value.set('https://example.com/profile.jpg');
       component.form.publicProfileImageThumbUrl().value.set('https://example.com/thumb.jpg');
+      component.form.publicProfileImageOriginalUrl().value.set('https://example.com/profile-orig.svg');
 
       component.removeCoverImage();
       expect(component.form.publicCoverImageUrl().value()).toBe('');
+      expect(component.form.publicCoverImageOriginalUrl().value()).toBe('');
       expect(component.form.publicCoverImageUrl().dirty()).toBe(true);
 
       component.removeProfileImage();
       expect(component.form.publicProfileImageUrl().value()).toBe('');
       expect(component.form.publicProfileImageThumbUrl().value()).toBe('');
+      expect(component.form.publicProfileImageOriginalUrl().value()).toBe('');
       expect(component.form.publicProfileImageUrl().dirty()).toBe(true);
     });
 

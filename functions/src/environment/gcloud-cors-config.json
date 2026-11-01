@@ -2,10 +2,14 @@
   {
     "origin": [
       "http://localhost:4200",
+      "http://localhost:4201",
+      "https://localhost:4200",
       "https://ilc-paris-class-tracker.web.app",
       "https://ilc-paris-class-tracker.firebaseapp.com",
       "https://app.zxd.fr",
+      "https://app.iliqchuan.com",
       "https://iliqchuan.com",
+      "https://www.iliqchuan.com",
       "http://iliqchuan.com",
       "http://www.iliqchuan.com",
       "https://storage.googleapis.com",

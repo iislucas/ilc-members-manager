@@ -54,7 +54,7 @@ Firestore rules operate under a strict **default-deny** paradigm:
   - **School Manager**: Restricted to whitelisted operational fields:
     - Personal & contact info: `name`, `address`, `city`, `countyOrState`, `zipCode`, `country`, `phone`, `emails`, `gender`, `dateOfBirth`.
     - School & instructor affiliations: `primaryInstructorId`, `primarySchoolId`, `primarySchoolDocId`.
-    - Public profiles: `instructorWebsite`, `publicClassGoogleCalendarId`, `publicRegionOrCity`, `publicCountyOrState`, `publicEmail`, `publicPhone`, `publicProfileImageUrl`, `publicProfileImageThumbUrl`, `publicCoverImageUrl`, `publicBioMarkdown`.
+    - Public profiles: `instructorWebsite`, `publicClassGoogleCalendarId`, `publicRegionOrCity`, `publicCountyOrState`, `publicEmail`, `publicPhone`, `publicProfileImageUrl`, `publicProfileImageThumbUrl`, `publicProfileImageOriginalUrl`, `publicCoverImageUrl`, `publicCoverImageOriginalUrl`, `publicBioMarkdown`.
     - Curriculum and license records: `membershipType`, `firstMembershipStarted`, `lastRenewalDate`, `currentMembershipExpires`, `studentLevel`, `applicationLevel`, `mastersLevels`, `instructorId`, `instructorLicenseExpires`, `instructorLicenseRenewalDate`, `instructorLicenseType`.
     - Management notes: `notes`, `notificationSettings`.
     - **Privilege Escalation Prevention**: School managers are strictly prohibited from modifying `isAdmin`, unique `memberId`, `gradingDocIds`, Stripe subscriptions, or class video library subscriptions.

@@ -19,7 +19,9 @@ export type School = {
   // page (mirrors the instructor profile page).
   publicProfileImageUrl: string; // Logo / profile picture (large).
   publicProfileImageThumbUrl: string; // Logo / profile picture (thumbnail).
+  publicProfileImageOriginalUrl: string; // Logo / profile picture (uncropped original, for re-cropping).
   publicCoverImageUrl: string; // Cover / header image.
+  publicCoverImageOriginalUrl: string; // Cover / header image (uncropped original, for re-cropping).
   publicBioMarkdown: string; // Markdown description of the school.
 
   // The `instructorId` (human readable) of the owner of this school; can set the managers, and
@@ -62,7 +64,9 @@ export function initSchool(): School {
     schoolClassGoogleCalendarId: '',
     publicProfileImageUrl: '',
     publicProfileImageThumbUrl: '',
+    publicProfileImageOriginalUrl: '',
     publicCoverImageUrl: '',
+    publicCoverImageOriginalUrl: '',
     publicBioMarkdown: '',
     ownerInstructorId: '',
     ownerMemberDocId: '',

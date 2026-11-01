@@ -110,7 +110,7 @@ service cloud.firestore {
           ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
            'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone',
            'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId',
-           'notificationSettings', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicCoverImageUrl', 'publicBioMarkdown',
+           'notificationSettings', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicProfileImageOriginalUrl', 'publicCoverImageUrl', 'publicCoverImageOriginalUrl', 'publicBioMarkdown',
            'membershipType', 'firstMembershipStarted', 'lastRenewalDate', 'currentMembershipExpires',
            'studentLevel', 'applicationLevel', 'mastersLevels',
            'instructorId', 'instructorLicenseExpires', 'instructorLicenseRenewalDate', 'instructorLicenseType',
@@ -121,7 +121,7 @@ service cloud.firestore {
           ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
            'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone',
            'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId',
-           'notificationSettings', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicCoverImageUrl', 'publicBioMarkdown']);
+           'notificationSettings', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicProfileImageOriginalUrl', 'publicCoverImageUrl', 'publicCoverImageOriginalUrl', 'publicBioMarkdown']);
 
       match /notifications/{notificationId} {
         function isNotificationOwner() {
@@ -273,7 +273,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if hasValidEditUpdate() && isSchoolManager() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'schoolName', 'schoolAddress', 'schoolCity', 'schoolZipCode', 'schoolCountyOrState', 'schoolCountry', 'schoolWebsite', 'schoolClassGoogleCalendarId', 'managerInstructorIds', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicCoverImageUrl', 'publicBioMarkdown']);
+            ['lastUpdated', 'schoolName', 'schoolAddress', 'schoolCity', 'schoolZipCode', 'schoolCountyOrState', 'schoolCountry', 'schoolWebsite', 'schoolClassGoogleCalendarId', 'managerInstructorIds', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicProfileImageOriginalUrl', 'publicCoverImageUrl', 'publicCoverImageOriginalUrl', 'publicBioMarkdown']);
     
       match /members/{memberDocId} {
         allow read: if isAdmin() || isSchoolManager();
