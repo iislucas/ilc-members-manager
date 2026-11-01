@@ -28,6 +28,7 @@ import {
   StripePriceType,
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
+import { SubscriptionStatus } from '../../../functions/src/data-model/members';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import {
@@ -160,8 +161,18 @@ export class ClassVideoLibraryPurchaseComponent {
 
   hasActiveStripeSubscription = computed(() => {
     const m = this.user()?.member;
-    if (!m) return false;
-    return !!m.classVideoLibrarySubscriptionId && this.hasVideoAccess();
+    if (!m || !m.classVideoLibrarySubscriptionId || !this.hasVideoAccess()) {
+      return false;
+    }
+    const sub = m.stripeSubscriptions?.[m.classVideoLibrarySubscriptionId];
+    if (
+      sub &&
+      sub.status !== SubscriptionStatus.Active &&
+      sub.status !== SubscriptionStatus.Trialing
+    ) {
+      return false;
+    }
+    return true;
   });
 
   isSubscribeFoldOpen = signal(false);

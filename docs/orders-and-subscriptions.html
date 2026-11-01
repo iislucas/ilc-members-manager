@@ -1338,10 +1338,15 @@
         <div class="journey-step">
           <div class="journey-marker">2</div>
           <div class="journey-content">
-            <strong>Stripe Reactivation</strong>
+            <strong>Stripe Reactivation (or Optional Payment Method Removal)</strong>
             <p>
               <code>resumeSubscriptionRenewal({ subscriptionId })</code> calls Stripe with <code>cancel_at_period_end: false</code>,
               restores <code>*NextAutoRenewDate</code> to the period end date, and persists the update in Firestore.
+              Alternatively, while auto-renewal is cancelled, the member can click <strong>"Remove Payment Method"</strong>:
+              <code>removeSubscriptionPaymentMethod({ subscriptionId })</code> permanently cancels the Stripe subscription
+              (keeping all paid access expiration dates untouched), detaches the payment method from the Stripe Customer if no other
+              active subscription uses it, disables <em>Resume Auto-Renewal</em> and <em>Schedule Renewal Date</em>, and shows
+              <strong>"Subscribe Again"</strong> so the member can start a new subscription at any time.
             </p>
           </div>
         </div>
@@ -1728,7 +1733,7 @@
               <tr>
                 <td><code>functions/src/stripe-subscriptions.ts</code></td>
                 <td>Functions</td>
-                <td>Callable functions &amp; helpers: <code>cancelSubscriptionRenewal</code>, <code>resumeSubscriptionRenewal</code>, <code>updateSubscriptionRenewalDate</code> (reschedules charge date via <code>trial_end</code> + <code>proration_behavior: 'none'</code>), <code>createSubscriptionPaymentMethodSession</code> (per-subscription Checkout <code>mode: 'setup'</code>), <code>applySubscriptionPaymentMethodFromSetupSession</code>, <code>createCustomerPortalSession</code>, and <code>getManagedSchoolsBilling</code>.</td>
+                <td>Callable functions &amp; helpers: <code>cancelSubscriptionRenewal</code>, <code>resumeSubscriptionRenewal</code>, <code>updateSubscriptionRenewalDate</code> (reschedules charge date via <code>trial_end</code> + <code>proration_behavior: 'none'</code>), <code>createSubscriptionPaymentMethodSession</code> (per-subscription Checkout <code>mode: 'setup'</code>), <code>removeSubscriptionPaymentMethod</code> (cancels non-renewing subscription without revoking paid access and detaches unused payment method), <code>applySubscriptionPaymentMethodFromSetupSession</code>, <code>createCustomerPortalSession</code>, and <code>getManagedSchoolsBilling</code>.</td>
               </tr>
               <tr>
                 <td><code>functions/scripts/sync-stripe-subscriptions.ts</code></td>

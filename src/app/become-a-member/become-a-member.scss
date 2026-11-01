@@ -127,9 +127,9 @@ app-step-track {
     transition: background 0.15s ease;
 
     &:hover {
-      background: v.$theme-error-bg-color;
-      border-color: v.$theme-error-border-color;
-      color: v.$theme-error-text-color;
+      background: #ffffff;
+      border-color: v.$heading-accent-color;
+      color: v.$heading-accent-color;
     }
   }
 }

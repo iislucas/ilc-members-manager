@@ -76,9 +76,9 @@
       flex-shrink: 0;
 
       &:hover {
-        background: #fef2f2;
-        border-color: #fecaca;
-        color: #ef4444;
+        background: #ffffff;
+        border-color: v.$heading-accent-color;
+        color: v.$heading-accent-color;
       }
     }
   }

@@ -106,42 +106,46 @@ a.button,
 }
 
 .delete-button {
-  background-color: unset;
+  background-color: transparent;
   border: 1px solid $border-color-light;
-  color: $text-muted;
-}
+  color: $text-secondary;
 
-.delete-button:hover {
-  background-color: $theme-error-bg-color;
-  border: 1px solid $theme-error-border-color;
-  color: $theme-error-text-color;
+  &:hover:not(:disabled) {
+    background-color: $separator-color;
+    border-color: $heading-accent-color;
+    color: $heading-accent-color;
+  }
 }
 
 .icon-only-button.delete-button {
-  border: none;
+  border: 1px solid transparent;
   background-color: transparent;
   color: $text-muted;
+  border-radius: 4px;
   transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 
-  &:hover {
-    background-color: $theme-error-bg-color;
-    color: $theme-error-text-color;
-    border: none;
+  &:hover:not(:disabled) {
+    background-color: $separator-color;
+    border-color: $heading-accent-color;
+    color: $heading-accent-color;
   }
 
-  &:active {
-    background-color: color.adjust($theme-error-bg-color, $lightness: -5%);
+  &:active:not(:disabled) {
+    background-color: $button-hover-bg-color;
+    border-color: $heading-accent-color;
     transform: translateY(1px);
   }
 }
 
-button:hover,
-a.button:hover,
-.button:hover {
-  // On hover, slightly darken the background for a flat interactive effect.
+button:hover:not(:disabled),
+a.button:hover:not(:disabled),
+.button:hover:not(:disabled) {
+  // Consistent hover across the app: neutral surface + crisp brand-red outline (never pink fill).
   background-color: $button-hover-bg-color;
+  border-color: $heading-accent-color;
   box-shadow: none;
   color: $button-text-color;
   text-decoration: none;
@@ -240,12 +244,14 @@ button.subtle-btn {
 
   &:hover {
     background-color: $menu-item-hover-color;
+    border-color: transparent;
     box-shadow: none;
     color: $text-primary;
   }
 
   &:active {
     background-color: color.adjust($menu-item-hover-color, $lightness: -5%);
+    border-color: transparent;
     transform: translateY(1px);
   }
 
@@ -265,6 +271,11 @@ button.subtle-btn {
 .outlined-button {
   @extend .subtle-button;
   border: 1px dashed $border-color-light;
+
+  &:hover:not(:disabled) {
+    background-color: $separator-color;
+    border-color: $heading-accent-color;
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -347,6 +358,37 @@ button.primary-btn {
 
   app-icon {
     color: #ffffff;
+  }
+}
+
+// ----------------------------------------------------------------------------
+//  Destructive Confirmation Button
+//  Solid red confirmation button reserved strictly for final confirmation
+//  prompts inside inline confirmation boxes or delete modals (e.g. "Confirm Cancel",
+//  "Confirm Remove", "Delete Permanently"). Never use pastel pink backgrounds.
+// ----------------------------------------------------------------------------
+.confirm-danger-btn,
+.danger-btn,
+button.confirm-danger-btn,
+button.danger-btn {
+  background-color: $danger-color;
+  border: 1px solid $danger-color;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: none;
+
+  &:hover:not(:disabled) {
+    background-color: color.adjust($danger-color, $lightness: -8%);
+    border-color: color.adjust($danger-color, $lightness: -8%);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  &:active:not(:disabled) {
+    background-color: color.adjust($danger-color, $lightness: -12%);
+    border-color: color.adjust($danger-color, $lightness: -12%);
+    color: #ffffff;
+    box-shadow: none;
   }
 }
 

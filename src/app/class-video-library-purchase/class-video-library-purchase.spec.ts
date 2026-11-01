@@ -34,6 +34,7 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     getCheckoutSession: ReturnType<typeof vi.fn>;
     cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
+    removeSubscriptionPaymentMethod: ReturnType<typeof vi.fn>;
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
   let mockStripeProducts: {
@@ -133,6 +134,10 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
         subscriptionId: 'sub_vid_123',
         cancelAtPeriodEnd: false,
         nextAutoRenewDate: '2027-01-01',
+      }),
+      removeSubscriptionPaymentMethod: vi.fn().mockResolvedValue({
+        success: true,
+        detachedPaymentMethod: true,
       }),
     };
 
@@ -427,5 +432,44 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     expect(subCard?.textContent).toContain(
       'You will pay $5.99 USD and the expiration date will be extended to 2028-04-23.',
     );
+  });
+
+  it('allows subscribing again via fold card when previous Stripe subscription was canceled after removing payment method', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleUser.member,
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '2027-01-01',
+        classVideoLibrarySubscriptionId: 'sub_vid_123',
+        classVideoLibraryNextAutoRenewDate: '',
+        stripeSubscriptions: {
+          sub_vid_123: {
+            subscriptionId: 'sub_vid_123',
+            type: SubscriptionItemType.VideoLibrary,
+            status: SubscriptionStatus.Canceled,
+            planName: 'Class Video Library',
+            amount: 599,
+            currency: 'usd',
+            interval: SubscriptionInterval.Month,
+            currentPeriodStart: '2026-12-01',
+            currentPeriodEnd: '2027-01-01',
+            nextAutoRenewDate: '',
+            cancelAtPeriodEnd: false,
+          },
+        },
+      },
+    });
+
+    await createComponent();
+    fixture.detectChanges();
+
+    expect(component.hasVideoAccess()).toBe(true);
+    expect(component.hasActiveStripeSubscription()).toBe(false);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.subscribe-fold-card',
+      ),
+    ).toBeTruthy();
   });
 });

@@ -31,6 +31,8 @@ import {
   CreateVodCheckoutSessionRequest,
   GetCheckoutSessionRequest,
   GetManagedSchoolsBillingResult,
+  RemoveSubscriptionPaymentMethodRequest,
+  RemoveSubscriptionPaymentMethodResult,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
   UpdateSubscriptionRenewalDateRequest,
@@ -299,6 +301,23 @@ export class StripeService {
       CreateSubscriptionPaymentMethodSessionResult
     >(this.functions, 'createSubscriptionPaymentMethodSession');
     const result = await fn({ subscriptionId, returnUrl });
+    return result.data;
+  }
+
+  /** Remove the payment method from a non-renewing subscription and permanently end the Stripe subscription schedule. */
+  async removeSubscriptionPaymentMethod(
+    subscriptionId: string,
+  ): Promise<RemoveSubscriptionPaymentMethodResult> {
+    if (this.networkState.isOffline()) {
+      throw new Error(
+        'You are currently offline. Please connect to the internet to remove your payment method.',
+      );
+    }
+    const fn = httpsCallable<
+      RemoveSubscriptionPaymentMethodRequest,
+      RemoveSubscriptionPaymentMethodResult
+    >(this.functions, 'removeSubscriptionPaymentMethod');
+    const result = await fn({ subscriptionId });
     return result.data;
   }
 

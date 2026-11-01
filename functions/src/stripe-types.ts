@@ -241,6 +241,15 @@ export interface CreateSubscriptionPaymentMethodSessionResult {
   sessionId: string;
 }
 
+export interface RemoveSubscriptionPaymentMethodRequest {
+  subscriptionId: string;
+}
+
+export interface RemoveSubscriptionPaymentMethodResult {
+  success: boolean;
+  detachedPaymentMethod: boolean;
+}
+
 export interface ManagedSchoolBillingInfo {
   schoolDocId: string;
   schoolId: string;

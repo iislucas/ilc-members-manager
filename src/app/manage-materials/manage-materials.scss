@@ -571,10 +571,14 @@
   border-top: 1px solid #f0f0f0;
 
   .icon-only-button.danger {
-    color: #dc2626;
+    color: v.$text-muted;
+    border: 1px solid transparent;
+    border-radius: 4px;
 
     &:hover {
-      background: #fee2e2;
+      background: v.$separator-color;
+      border-color: v.$heading-accent-color;
+      color: v.$heading-accent-color;
     }
   }
 }

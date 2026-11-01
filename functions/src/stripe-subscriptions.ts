@@ -22,6 +22,8 @@ import {
   CreateSubscriptionPaymentMethodSessionResult,
   GetManagedSchoolsBillingResult,
   ManagedSchoolBillingInfo,
+  RemoveSubscriptionPaymentMethodRequest,
+  RemoveSubscriptionPaymentMethodResult,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
   UpdateSubscriptionRenewalDateRequest,
@@ -128,6 +130,12 @@ export async function enrichSubscriptionWithPaymentMethod(
   subscription: Stripe.Subscription,
 ): Promise<Stripe.Subscription> {
   if (!subscription) return subscription;
+  if (
+    subscription.status === 'canceled' ||
+    subscription.status === 'incomplete_expired'
+  ) {
+    return subscription;
+  }
 
   // 1. Expanded PaymentMethod already on subscription
   if (
@@ -451,17 +459,22 @@ export function buildMemberSubscriptionItemFromStripe(
       ? existing?.canceledAt || ''
       : '';
 
-  const extractedPm = extractMaskedPaymentMethodSummary(
-    subscription.default_payment_method,
-  );
-  const paymentMethodBrand =
-    extractedPm.paymentMethodBrand ??
-    overrides?.paymentMethodBrand ??
-    existing?.paymentMethodBrand;
-  const paymentMethodLast4 =
-    extractedPm.paymentMethodLast4 ??
-    overrides?.paymentMethodLast4 ??
-    existing?.paymentMethodLast4;
+  const isTerminalStatus =
+    status === SubscriptionStatus.Canceled ||
+    subscription.status === 'incomplete_expired';
+  const extractedPm = isTerminalStatus
+    ? {}
+    : extractMaskedPaymentMethodSummary(subscription.default_payment_method);
+  const paymentMethodBrand = isTerminalStatus
+    ? undefined
+    : (extractedPm.paymentMethodBrand ??
+      overrides?.paymentMethodBrand ??
+      existing?.paymentMethodBrand);
+  const paymentMethodLast4 = isTerminalStatus
+    ? undefined
+    : (extractedPm.paymentMethodLast4 ??
+      overrides?.paymentMethodLast4 ??
+      existing?.paymentMethodLast4);
 
   return {
     subscriptionId: subscription.id,
@@ -1077,6 +1090,225 @@ export const createSubscriptionPaymentMethodSession = onCall<
     authEmail: verifiedAuthEmail(request),
     subscriptionId: request.data?.subscriptionId,
     returnUrl: request.data?.returnUrl,
+  });
+});
+
+function extractStripeId(
+  ref: string | { id: string } | null | undefined,
+): string {
+  if (!ref) return '';
+  return typeof ref === 'string' ? ref : ref.id || '';
+}
+
+export async function performRemoveSubscriptionPaymentMethod(params: {
+  db: admin.firestore.Firestore;
+  stripe: Stripe;
+  authEmail: string | undefined;
+  subscriptionId: unknown;
+}): Promise<RemoveSubscriptionPaymentMethodResult> {
+  const { db, stripe, authEmail, subscriptionId } = params;
+  if (
+    typeof subscriptionId !== 'string' ||
+    !subscriptionId.startsWith('sub_')
+  ) {
+    throw new HttpsError(
+      'invalid-argument',
+      'A valid subscriptionId is required.',
+    );
+  }
+
+  const member = await getCallerMember(authEmail, db);
+
+  let subscription: Stripe.Subscription;
+  try {
+    subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: [
+        'default_payment_method',
+        'customer.invoice_settings.default_payment_method',
+      ],
+    });
+  } catch {
+    throw new HttpsError('not-found', 'Subscription not found in Stripe.');
+  }
+
+  await verifySubscriptionOwnership(subscription, member, db, authEmail);
+
+  const isAutoRenewStillScheduled =
+    (subscription.status === 'active' || subscription.status === 'trialing') &&
+    !subscription.cancel_at_period_end;
+  if (isAutoRenewStillScheduled) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Cancel auto-renewal before removing the payment method.',
+    );
+  }
+
+  const customerId = extractStripeId(subscription.customer);
+  let customerObj: Stripe.Customer | null =
+    subscription.customer &&
+    typeof subscription.customer === 'object' &&
+    !('deleted' in subscription.customer && subscription.customer.deleted)
+      ? (subscription.customer as Stripe.Customer)
+      : null;
+
+  if (!customerObj && customerId && stripe.customers?.retrieve) {
+    try {
+      const retrievedCust = await stripe.customers.retrieve(customerId, {
+        expand: ['invoice_settings.default_payment_method'],
+      });
+      if (
+        retrievedCust &&
+        !('deleted' in retrievedCust && retrievedCust.deleted)
+      ) {
+        customerObj = retrievedCust as Stripe.Customer;
+      }
+    } catch (custErr) {
+      logger.warn('Could not retrieve Stripe customer during payment method removal', {
+        subscriptionId,
+        customerId,
+        error: custErr instanceof Error ? custErr.message : String(custErr),
+      });
+    }
+  }
+
+  const custDefaultPmId = extractStripeId(
+    customerObj?.invoice_settings?.default_payment_method,
+  );
+  let targetPmId = extractStripeId(subscription.default_payment_method) || custDefaultPmId;
+
+  if (!targetPmId && customerId && stripe.customers?.listPaymentMethods) {
+    try {
+      const pmList = await stripe.customers.listPaymentMethods(customerId, {
+        limit: 1,
+      });
+      targetPmId = pmList?.data?.[0]?.id || '';
+    } catch (pmListErr) {
+      logger.warn('Could not list customer payment methods during removal', {
+        subscriptionId,
+        customerId,
+        error: pmListErr instanceof Error ? pmListErr.message : String(pmListErr),
+      });
+    }
+  }
+
+  // Permanently end the non-renewing Stripe subscription so it can no longer be
+  // resumed or have a renewal date scheduled, while keeping paid access expiration
+  // dates on the member/school documents untouched.
+  const canceledSub =
+    subscription.status === 'canceled'
+      ? subscription
+      : await stripe.subscriptions.cancel(subscriptionId, {
+          invoice_now: false,
+          prorate: false,
+        });
+
+  let detachedPaymentMethod = false;
+  if (targetPmId && stripe.paymentMethods?.detach) {
+    let usedByOtherLiveSubscription = false;
+    if (customerId && stripe.subscriptions?.list) {
+      const allSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'all',
+        limit: 100,
+      });
+      const otherLiveSubs = (allSubs?.data || []).filter(
+        (s) =>
+          s.id !== subscriptionId &&
+          s.status !== 'canceled' &&
+          s.status !== 'incomplete_expired',
+      );
+      usedByOtherLiveSubscription = otherLiveSubs.some((other) => {
+        const otherPmId = extractStripeId(other.default_payment_method);
+        if (otherPmId) {
+          return otherPmId === targetPmId;
+        }
+        // An active subscription with no explicit default_payment_method relies
+        // on the customer's default / attached payment method.
+        return true;
+      });
+    }
+
+    if (!usedByOtherLiveSubscription) {
+      try {
+        await stripe.paymentMethods.detach(targetPmId);
+        detachedPaymentMethod = true;
+      } catch (detachErr) {
+        logger.warn('Could not detach payment method from Stripe customer', {
+          subscriptionId,
+          paymentMethodId: targetPmId,
+          error:
+            detachErr instanceof Error ? detachErr.message : String(detachErr),
+        });
+      }
+    }
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const memberRef = db.collection(FirestoreCollection.Members).doc(member.docId);
+  const updates: MemberUpdates = {
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (member.membershipSubscriptionId === subscriptionId) {
+    updates.membershipNextAutoRenewDate = '';
+  }
+  if (member.instructorLicenseSubscriptionId === subscriptionId) {
+    updates.instructorLicenseNextAutoRenewDate = '';
+  }
+  if (member.classVideoLibrarySubscriptionId === subscriptionId) {
+    updates.classVideoLibraryNextAutoRenewDate = '';
+  }
+
+  const existingSub = member.stripeSubscriptions?.[subscriptionId];
+  const syncedSub = buildMemberSubscriptionItemFromStripe(
+    {
+      ...canceledSub,
+      status: 'canceled',
+      cancel_at_period_end: false,
+      default_payment_method: null,
+    },
+    {
+      existing: existingSub,
+      member,
+    },
+  );
+  const {
+    paymentMethodBrand: _removedBrand,
+    paymentMethodLast4: _removedLast4,
+    ...cleanedSub
+  } = syncedSub;
+
+  updates.stripeSubscriptions = {
+    ...(member.stripeSubscriptions || {}),
+    [subscriptionId]: {
+      ...cleanedSub,
+      status: SubscriptionStatus.Canceled,
+      cancelAtPeriodEnd: false,
+      nextAutoRenewDate: '',
+      canceledAt: cleanedSub.canceledAt || today,
+    },
+  };
+
+  await memberRef.update(updates);
+
+  logger.info('removeSubscriptionPaymentMethod succeeded', {
+    memberDocId: member.docId,
+    subscriptionId,
+    detachedPaymentMethod,
+  });
+
+  return { success: true, detachedPaymentMethod };
+}
+
+export const removeSubscriptionPaymentMethod = onCall<
+  RemoveSubscriptionPaymentMethodRequest,
+  Promise<RemoveSubscriptionPaymentMethodResult>
+>({ cors: allowedOrigins, secrets: [stripeSecretKey] }, async (request) => {
+  return await performRemoveSubscriptionPaymentMethod({
+    db: admin.firestore(),
+    stripe: getStripeClient(),
+    authEmail: verifiedAuthEmail(request),
+    subscriptionId: request.data?.subscriptionId,
   });
 });
 

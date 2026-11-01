@@ -80,6 +80,7 @@ export {
   getManagedSchoolsBilling,
   updateSubscriptionRenewalDate,
   createSubscriptionPaymentMethodSession,
+  removeSubscriptionPaymentMethod,
 } from './stripe-subscriptions';
 
 export { stripeWebhook } from './stripe-webhook';

@@ -212,22 +212,27 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 
 | Class | Purpose | When to Use |
 | --- | --- | --- |
-| _(no class)_ | Default button | Standard actions (Save, Submit) |
-| `.primary-button` (alias: `.primary-btn`) | Official brand primary action (red `#950000`) | High-priority CTAs (Register & Pay, Checkout, Renew Now, Add to Series, Save Changes) |
-| `.icon-only-button` | Circular, transparent, icon-only | Dismiss, toggle, inline actions |
+| _(no class)_ | Default / secondary outlined button | Standard actions (Save, Submit, Cancel, Schedule, Update Payment Method) — neutral surface with **brand-red outline on hover** |
+| `.primary-button` (alias: `.primary-btn`) | Official brand primary action (solid red `#950000`) | High-priority CTAs (Register & Pay, Checkout, Renew Now, Subscribe Again, Save Changes) |
+| `.icon-only-button` | Circular/compact, transparent, icon-only | Dismiss, toggle, inline actions |
 | `.round-button` | Fully circular with padding | Floating actions |
-| `.delete-button` / `.danger-btn` | Neutral or red on hover/active | Destructive actions |
-| `.inline-link-button` | Looks like a dark text link (underlined) | Inline internal text references in sentences |
-| `.subtle-button` (alias: `.subtle-btn`) | Transparent with soft hover | Back/navigation, secondary actions, Cancel |
-| `.outlined-button` | Subtle-button with dashed border | File upload triggers, optional selection inputs — use with an icon (e.g. `upload_file`) |
+| `.delete-button` | Neutral resting state; **brand-red outline + red text on hover (never pink fill)** | Destructive trigger actions (Delete, Remove, Revoke, Sign Out) |
+| `.confirm-danger-btn` (alias: `.danger-btn`) | Solid red (`$danger-color`) with bold white text | Final confirmation buttons inside `.inline-confirm-box` or delete modals ("Confirm Cancel", "Confirm Remove", "Delete Permanently") |
+| `.inline-link-button` | Looks like a text link (underlined, no border/fill) | Inline internal text triggers in sentences ("Change renewal date", "Show more") |
+| `.subtle-button` (alias: `.subtle-btn`) | Transparent with soft neutral hover (borderless) | Back/navigation, lightweight toolbar actions |
+| `.outlined-button` | Subtle-button with dashed border (red outline on hover) | File upload triggers, optional selection inputs — use with an icon (e.g. `upload_file`) |
 | `.admin-button` | Transparent button with dashed red border | Administrative operation triggers (e.g. Create Article, toggle admin actions) |
 
 > [!IMPORTANT]
-> **NO DROP-SHADOWS ON BUTTONS (FLAT DESIGN)**:
-> The app enforces a modern, flat aesthetic across all buttons (`box-shadow: none`). Never add `box-shadow` or faux 3D bevels to buttons in component SCSS. Buttons rely on crisp borders, high-contrast typography, and subtle background color transitions for hover/active states.
-> - For **primary positive action CTAs (e.g. Register, Checkout, Pay)**: Use `.primary-button` (`background: $heading-accent-color` `#950000`, white text, bold, with hover `color.adjust($heading-accent-color, $lightness: -8%)`).
+> **CONSISTENT HOVER FEEL — RED OUTLINE ON HOVER, NEVER PINK FILL**:
+> Standard, secondary, cancel, and destructive-trigger buttons (including `button`, `.delete-button`, `.outlined-button`, `.sub-btn`, and `.logout-btn`) **must NEVER turn pastel pink (`#fee2e2`, `#fef2f2`, `$theme-error-bg-color`) on hover**.
+> - **Standard / Secondary / Delete-Trigger Hover Pattern**: Keep a clean neutral surface (`$separator-color` `#f4f4f5` or `$button-hover-bg-color` `#e4e4e7`) and transition `border-color` to the crisp **brand red outline (`$heading-accent-color`: `#950000`)** (optionally pairing `color: $heading-accent-color` for destructive triggers like `.delete-button` or Sign Out).
+> - `$theme-error-bg-color` (`#fef2f2`) and `$theme-error-border-color` (`#fecaca`) are reserved strictly for **non-button error/warning callout banners and status badges** (`.error-container`, `.inline-confirm-box`, `.status-expired`), never button hover fills.
+> - **NO DROP-SHADOWS ON BUTTONS (FLAT DESIGN)**: The app enforces a modern, flat aesthetic across all buttons (`box-shadow: none`). Never add `box-shadow` or faux 3D bevels to buttons in component SCSS.
+> - For **primary positive action CTAs (e.g. Register, Checkout, Pay, Renew Now, Subscribe Again)**: Use `.primary-button` (`background: $heading-accent-color` `#950000`, white text, bold, with hover `color.adjust($heading-accent-color, $lightness: -8%)`).
+> - For **final destructive confirmation inside a confirmation box/modal**: Use `.confirm-danger-btn` / `.danger-btn` (solid red `$danger-color`, white text).
 > - For **inline text triggers, expand/collapse toggles, "Show more" / "Show less" / "Fold" actions**: Always use `.inline-link-button` (plain text link style with no border, no background, and `box-shadow: none`).
-> - For **secondary toolbar or navigation actions**: Use `.subtle-button` (`box-shadow: none; border: 1px solid transparent;`).
+> - For **secondary borderless toolbar or navigation actions**: Use `.subtle-button` (`box-shadow: none; border: 1px solid transparent;`).
 > - **Never introduce new custom button styles** in component SCSS.
 
 > [!WARNING]
@@ -670,6 +675,6 @@ The global `button` selector in `styles.scss` defines `box-shadow: 0 2px 4px $sh
  9. **Transitions**: Did you add a `transition` for any interactive state changes (hover, focus, active)?
  10. **Class naming**: Are your class names descriptive and scoped to the component? (e.g., `.member-view-actions`, not `.actions`)
  11. **No height/width 100%**: Prefer flex-based sizing.
- 12. **Positive action buttons**: Did you ensure positive/CTA buttons use lighter blue accent styling or primary blue, and NEVER solid black backgrounds?
+ 12. **Consistent button styles**: Did you ensure primary/CTA buttons use `.primary-button` (`$heading-accent-color` `#950000`, never solid black or arbitrary blue), and secondary/cancel/delete-trigger buttons use the **red outline on hover** (`border-color: $heading-accent-color` on a neutral surface — **never** a pastel pink `#fee2e2` / `#fef2f2` hover fill)?
  13. **No accidental button drop-shadows**: Did you ensure inline text buttons, fold/unfold toggles, or secondary actions use `.inline-link-button` or `.subtle-button` instead of a custom or unclassed `<button>` that inherits the global `box-shadow`?
  14. **No bevel blur shadow page borders**: Verify that forms, articles, and full-page views sit directly on the page background without an artificial card border or blurred drop-shadow wrapping the page.

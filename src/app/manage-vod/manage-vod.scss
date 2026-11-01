@@ -735,11 +735,11 @@
         }
 
         &:hover {
-          background: #fee2e2;
-          color: #991b1b;
+          background: v.$row-highlight-bg;
+          color: v.$heading-accent-color;
 
           app-icon {
-            color: #991b1b;
+            color: v.$heading-accent-color;
           }
         }
       }

@@ -279,4 +279,138 @@ describe('subscription-card.model and helpers', () => {
     expect(combined.subscriptions.length).toBe(1);
     expect(combined.otherPayerSchoolSubscriptions.length).toBe(1);
   });
+
+  it('enables Remove Payment Method only after auto-renewal is cancelled, disables Resume & Schedule after removal while allowing Subscribe Again, and prevents duplicate Cancelled cards after re-subscribing', () => {
+    const baseSub = {
+      subscriptionId: 'sub_mem_old',
+      type: SubscriptionItemType.Membership,
+      status: SubscriptionStatus.Active,
+      planName: 'Annual Membership',
+      amount: 8500,
+      currency: 'usd',
+      interval: SubscriptionInterval.Year,
+      currentPeriodStart: '2026-05-15',
+      currentPeriodEnd: '2027-05-15',
+      nextAutoRenewDate: '2027-05-15',
+      cancelAtPeriodEnd: false,
+      paymentMethodBrand: 'visa',
+      paymentMethodLast4: '4242',
+    };
+
+    // 1. Auto-renewing -> cannot remove payment method yet
+    const autoRenewingMember = {
+      ...initMember(),
+      docId: 'mem_1',
+      membershipType: MembershipType.Annual,
+      currentMembershipExpires: '2027-05-15',
+      membershipSubscriptionId: 'sub_mem_old',
+      membershipNextAutoRenewDate: '2027-05-15',
+      stripeSubscriptions: { sub_mem_old: baseSub },
+    };
+    const card1 = buildMembershipSubscriptionCard({
+      member: autoRenewingMember,
+      todayStr: '2026-11-01',
+      subscribeUrl: '/become-a-member',
+    })!;
+    expect(card1.canCancel).toBe(true);
+    expect(card1.canRemovePaymentMethod).toBe(false);
+    expect(card1.canSubscribe).toBe(false);
+
+    // 2. Auto-renewal cancelled with card still on file -> canRemovePaymentMethod is true
+    const cancelledRenewalMember = {
+      ...autoRenewingMember,
+      membershipNextAutoRenewDate: '',
+      stripeSubscriptions: {
+        sub_mem_old: {
+          ...baseSub,
+          nextAutoRenewDate: '',
+          cancelAtPeriodEnd: true,
+        },
+      },
+    };
+    const card2 = buildMembershipSubscriptionCard({
+      member: cancelledRenewalMember,
+      todayStr: '2026-11-01',
+      subscribeUrl: '/become-a-member',
+    })!;
+    expect(card2.isAutoRenewing).toBe(false);
+    expect(card2.paymentMethodSummary).toBe('Visa •••• 4242');
+    expect(card2.canResume).toBe(true);
+    expect(card2.canEditRenewalDate).toBe(true);
+    expect(card2.canUpdatePaymentMethod).toBe(true);
+    expect(card2.canRemovePaymentMethod).toBe(true);
+    expect(card2.canSubscribe).toBe(false);
+
+    // 3. Payment method removed (Stripe sub canceled, PM fields stripped, paid expiration preserved)
+    const pmRemovedMember = {
+      ...cancelledRenewalMember,
+      stripeSubscriptions: {
+        sub_mem_old: {
+          subscriptionId: 'sub_mem_old',
+          type: SubscriptionItemType.Membership,
+          status: SubscriptionStatus.Canceled,
+          planName: 'Annual Membership',
+          amount: 8500,
+          currency: 'usd',
+          interval: SubscriptionInterval.Year,
+          currentPeriodStart: '2026-05-15',
+          currentPeriodEnd: '2027-05-15',
+          nextAutoRenewDate: '',
+          cancelAtPeriodEnd: false,
+        },
+      },
+    };
+    const card3 = buildMembershipSubscriptionCard({
+      member: pmRemovedMember,
+      todayStr: '2026-11-01',
+      subscribeUrl: '/become-a-member',
+    })!;
+    expect(card3.status).toBe(SubscriptionCardStatus.Active);
+    expect(card3.expirationDate).toBe('2027-05-15');
+    expect(card3.paymentMethodSummary).toBeUndefined();
+    expect(card3.canResume).toBe(false);
+    expect(card3.canEditRenewalDate).toBe(false);
+    expect(card3.canUpdatePaymentMethod).toBe(false);
+    expect(card3.canRemovePaymentMethod).toBe(false);
+    expect(card3.canSubscribe).toBe(true);
+    expect(card3.subscribeLabel).toBe('Subscribe Again');
+
+    // 4. Member subscribes again (new sub_mem_new alongside historical canceled sub_mem_old)
+    const resubscribedMember = {
+      ...pmRemovedMember,
+      currentMembershipExpires: '2028-05-15',
+      membershipSubscriptionId: 'sub_mem_new',
+      membershipNextAutoRenewDate: '2027-11-01',
+      stripeSubscriptions: {
+        ...pmRemovedMember.stripeSubscriptions,
+        sub_mem_new: {
+          ...baseSub,
+          subscriptionId: 'sub_mem_new',
+          currentPeriodStart: '2026-11-01',
+          currentPeriodEnd: '2027-11-01',
+          nextAutoRenewDate: '2027-11-01',
+          paymentMethodBrand: 'mastercard',
+          paymentMethodLast4: '8888',
+        },
+      },
+    };
+    const allCards = buildAllMemberSubscriptionCards({
+      member: resubscribedMember,
+      managedSchools: [],
+      billingMap: {},
+      orders: [],
+      todayStr: '2026-11-01',
+      urls: {
+        membership: '/become-a-member',
+        instructorLicense: '/instructor-license',
+        videoLibrary: '/class-video-library-subscription',
+        schoolLicense: '/school-license',
+      },
+    });
+    expect(allCards.subscriptions.length).toBe(1);
+    expect(allCards.subscriptions[0].subscriptionId).toBe('sub_mem_new');
+    expect(allCards.subscriptions[0].paymentMethodSummary).toBe(
+      'Mastercard •••• 8888',
+    );
+  });
 });
