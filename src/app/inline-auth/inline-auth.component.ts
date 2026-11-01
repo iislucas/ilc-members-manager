@@ -192,6 +192,9 @@ export class InlineAuthComponent implements OnInit {
    * and doubly so when they are doing it through Google.
    */
   private pendingAuth = signal<{ creating: boolean; google: boolean } | null>(null);
+  private googleAttemptId = 0;
+
+  isGooglePopupPending = computed(() => this.pendingAuth()?.google === true);
 
   /**
    * Whether an auth request is in flight — ours, or a session the service is
@@ -445,10 +448,14 @@ export class InlineAuthComponent implements OnInit {
 
   async loginWithGoogle(): Promise<void> {
     this.dismissMessages();
+    const attemptId = ++this.googleAttemptId;
     this.pendingAuth.set({ creating: !this.hasKnownAuthAccount(), google: true });
     this.authLoading.set(true);
     try {
       const result = await this.firebaseService.loginWithGoogle();
+      if (attemptId !== this.googleAttemptId) {
+        return;
+      }
       if (result.success) {
         this.rememberSuccessfulLogin('google');
       } else if (
@@ -461,9 +468,22 @@ export class InlineAuthComponent implements OnInit {
         this.loginWithGoogleError.set(googleSignInErrorMessage(result.errorCode));
       }
     } finally {
-      this.authLoading.set(false);
-      this.pendingAuth.set(null);
+      if (attemptId === this.googleAttemptId) {
+        this.authLoading.set(false);
+        this.pendingAuth.set(null);
+      }
     }
+  }
+
+  // Abandons an in-flight Google popup wait so the sign-in buttons return
+  // immediately (e.g. if the user closed the popup while COOP prevented
+  // Firebase from observing `popup.closed`).
+  cancelGoogleLogin(): void {
+    if (!this.isGooglePopupPending()) return;
+    this.googleAttemptId++;
+    this.authLoading.set(false);
+    this.pendingAuth.set(null);
+    this.firebaseService.cancelPendingLogin();
   }
 
   async loginWithEmail(): Promise<void> {
@@ -635,6 +655,7 @@ export class InlineAuthComponent implements OnInit {
    * can be corrected rather than retyped. Reached by tapping the email itself.
    */
   goBackToEmail(): void {
+    this.cancelGoogleLogin();
     this.password.set('');
     this.emailStatus.set(null);
     this.pendingGoogleCredential.set(null);

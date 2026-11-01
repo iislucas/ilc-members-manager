@@ -345,6 +345,8 @@
 .spinner-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75em;
   padding: 0.5em 0;
 }
 

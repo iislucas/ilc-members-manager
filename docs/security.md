@@ -130,3 +130,4 @@ Storage paths enforce resource scoping and MIME-type restrictions:
   - `Referrer-Policy: strict-origin-when-cross-origin`
   - `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`
   - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+  - `Cross-Origin-Opener-Policy: same-origin-allow-popups`

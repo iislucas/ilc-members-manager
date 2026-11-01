@@ -49,6 +49,16 @@
 <ng-template #busySpinner>
   <div class="spinner-row">
     <app-spinner>{{ progressMessage() }}</app-spinner>
+    @if (isGooglePopupPending()) {
+      <button
+        type="button"
+        id="cancel-google-signin-btn"
+        class="subtle-button"
+        (click)="cancelGoogleLogin()"
+      >
+        Cancel
+      </button>
+    }
   </div>
 </ng-template>
 
