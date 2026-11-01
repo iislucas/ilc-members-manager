@@ -39,6 +39,29 @@
             </div>
           }
         </div>
+        @if (editSchoolHref(); as editHref) {
+          <div class="profile-menu-container">
+            <button
+              type="button"
+              class="icon-only-button profile-menu-trigger"
+              (click)="toggleMenu()"
+              [attr.aria-expanded]="menuOpen()"
+              aria-label="School profile options"
+              title="School profile options"
+            >
+              <app-icon name="more_vert" />
+            </button>
+            @if (menuOpen()) {
+              <div class="menu-overlay transparent" (click)="closeMenu()"></div>
+              <div class="profile-actions-menu">
+                <a class="menu-item" [href]="editHref" (click)="closeMenu()">
+                  <app-icon name="edit" />
+                  <span>Edit school profile</span>
+                </a>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
 

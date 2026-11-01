@@ -661,9 +661,16 @@ export class DataManagerService implements OnDestroy {
       if (user) {
         const allSchools = this.schools.entries();
         const myInstructorId = user.member.instructorId;
+        const myMemberDocId = user.member.docId;
+        const managedIds = user.schoolsManaged;
         const mySchoolsList = allSchools.filter(
           (school) =>
-            school.ownerInstructorId === myInstructorId || school.managerInstructorIds.includes(myInstructorId),
+            (!!myInstructorId &&
+              (school.ownerInstructorId === myInstructorId ||
+                school.managerInstructorIds.includes(myInstructorId))) ||
+            (!!myMemberDocId && school.ownerMemberDocId === myMemberDocId) ||
+            (!!school.docId && managedIds.includes(school.docId)) ||
+            (!!school.schoolId && managedIds.includes(school.schoolId)),
         );
         this.mySchools.setEntries(mySchoolsList);
       } else {

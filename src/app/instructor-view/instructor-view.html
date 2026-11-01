@@ -52,6 +52,29 @@
             </div>
           }
         </div>
+        @if (editInstructorHref(); as editHref) {
+          <div class="profile-menu-container">
+            <button
+              type="button"
+              class="icon-only-button profile-menu-trigger"
+              (click)="toggleMenu()"
+              [attr.aria-expanded]="menuOpen()"
+              aria-label="Instructor profile options"
+              title="Instructor profile options"
+            >
+              <app-icon name="more_vert" />
+            </button>
+            @if (menuOpen()) {
+              <div class="menu-overlay transparent" (click)="closeMenu()"></div>
+              <div class="profile-actions-menu">
+                <a class="menu-item" [href]="editHref" (click)="closeMenu()">
+                  <app-icon name="edit" />
+                  <span>Edit instructor profile</span>
+                </a>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
 

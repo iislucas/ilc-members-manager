@@ -20,13 +20,13 @@
 .profile-header {
   border: 1px solid $border-color-light;
   border-radius: 12px;
-  overflow: hidden;
   background: white;
 }
 
 .cover {
   aspect-ratio: 1200 / 450;
   background: $theme-bg-color;
+  border-radius: 11px 11px 0 0;
   overflow: hidden;
 
   &.no-cover {
@@ -43,6 +43,7 @@
 }
 
 .header-body {
+  position: relative;
   display: flex;
   gap: 1em;
   padding: 0 1.2em 1.2em;
@@ -69,7 +70,24 @@
 
 .header-text {
   flex: 1;
+  padding-top: 0.6em;
   padding-bottom: 0.2em;
+}
+
+.profile-menu-container {
+  position: relative;
+  align-self: flex-start;
+  margin-top: 0.5em;
+  margin-right: -0.5em;
+  flex-shrink: 0;
+}
+
+.profile-actions-menu {
+  @extend .menu-style;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 12.5em;
 }
 
 .name-row {
@@ -211,6 +229,13 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+
+  .profile-menu-container {
+    position: absolute;
+    top: 0.5em;
+    right: 0.6em;
+    margin: 0;
   }
 
   .name-row {

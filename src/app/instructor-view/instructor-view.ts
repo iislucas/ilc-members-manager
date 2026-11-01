@@ -27,6 +27,7 @@ import { collection, getDocs, getFirestore, query, where, limit } from 'firebase
 import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { FindInstructorsService } from '../find-instructors.service';
 import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -45,10 +46,14 @@ import { EventItemComponent } from '../events-calendar/event-item/event-item';
   templateUrl: './instructor-view.html',
   styleUrl: './instructor-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:keydown.escape)': 'closeMenu()',
+  },
 })
 export class InstructorViewComponent implements OnInit {
   private findInstructorsService = inject(FindInstructorsService);
   private dataService = inject(DataManagerService);
+  private firebaseState = inject(FirebaseStateService);
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
   routingService = inject(RoutingService<AppPathPatterns>);
@@ -66,6 +71,43 @@ export class InstructorViewComponent implements OnInit {
 
   schools = signal<School[]>([]);
   schoolsLoading = signal(false);
+
+  menuOpen = signal(false);
+
+  // Edit route for the instructor profile when the signed-in user is this instructor or an admin.
+  editInstructorHref = computed<string | null>(() => {
+    const user = this.firebaseState.user();
+    const i = this.instructor();
+    if (!user || !i) return null;
+
+    const isOwnInstructorProfile =
+      (!!i.docId && user.member.docId === i.docId) ||
+      (!!i.instructorId && user.member.instructorId === i.instructorId);
+
+    if (isOwnInstructorProfile) {
+      return this.routingService.hrefForView(Views.MyProfile, {});
+    }
+
+    if (user.isAdmin) {
+      const memberId = i.memberId || i.docId;
+      if (!memberId) return null;
+      return this.routingService.hrefForView(Views.ManageMemberView, {
+        memberId,
+      });
+    }
+
+    return null;
+  });
+
+  toggleMenu() {
+    this.menuOpen.update((v) => !v);
+  }
+
+  closeMenu() {
+    if (this.menuOpen()) {
+      this.menuOpen.set(false);
+    }
+  }
 
 
   // Link to the events search page, pre-filtered to this instructor.
