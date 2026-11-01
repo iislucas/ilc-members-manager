@@ -575,20 +575,37 @@ export class DataManagerService implements OnDestroy {
       }
     });
 
-    // System listeners reactive to auth status (counters, email-templates, mail-settings, videos)
+    // System listeners reactive to auth/admin status (counters, email-templates,
+    // mail-settings, videos). Derived with value equality so unrelated member-doc
+    // snapshot updates on `user()` do not tear down and re-subscribe system listeners.
+    const systemSyncTarget = computed(
+      () => {
+        const loading = this.firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus;
+        const isAuthReady = this.firebaseService.isAuthReady();
+        const user = this.firebaseService.user();
+        return {
+          loading,
+          waitingForAuth: !isAuthReady && !!user,
+          isAdmin: Boolean(user?.isAdmin),
+        };
+      },
+      {
+        equal: (a, b) =>
+          a.loading === b.loading &&
+          a.waitingForAuth === b.waitingForAuth &&
+          a.isAdmin === b.isAdmin,
+      },
+    );
     effect(() => {
-      if (this.firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus) {
+      const { loading, waitingForAuth, isAdmin } = systemSyncTarget();
+      if (loading || waitingForAuth) {
         return;
       }
-      const isAuthReady = this.firebaseService.isAuthReady();
-      const user = this.firebaseService.user();
-      if (!isAuthReady && user) {
-        return;
-      }
-      this.updateCountersSync(user);
-      this.updateEmailTemplatesSync(user);
-      this.updateMailSettingsSync(user);
-      this.updateVideosSync(user);
+      const adminOnlyUser = isAdmin ? ({ isAdmin: true } as UserDetails) : null;
+      this.updateCountersSync(adminOnlyUser);
+      this.updateEmailTemplatesSync(adminOnlyUser);
+      this.updateMailSettingsSync(adminOnlyUser);
+      this.updateVideosSync(adminOnlyUser);
     });
 
     // Admin "Manage Gradings" subscription, kept separate so it can re-subscribe
@@ -869,6 +886,7 @@ export class DataManagerService implements OnDestroy {
       this.gradingsUnsubscribe();
       this.gradingsUnsubscribe = null;
     }
+    this.gradingsSubscribedLimit = null;
     if (this.countersUnsubscribe) {
       this.countersUnsubscribe();
       this.countersUnsubscribe = null;
@@ -1620,20 +1638,25 @@ export class DataManagerService implements OnDestroy {
   private countersUnsubscribe: (() => void) | null = null;
 
   updateCountersSync(user: UserDetails | null) {
+    if (user?.isAdmin && this.countersUnsubscribe) {
+      return;
+    }
     if (this.countersUnsubscribe) {
       this.countersUnsubscribe();
       this.countersUnsubscribe = null;
     }
     if (user?.isAdmin) {
       const countersRef = doc(this.db, 'system', 'counters');
-      this.countersUnsubscribe = onSnapshot(countersRef, (doc) => {
-        if (doc.exists()) {
-          this.counters.set(doc.data() as Counters);
+      this.countersUnsubscribe = onSnapshot(countersRef, (snap) => {
+        if (snap.exists()) {
+          this.counters.set(snap.data() as Counters);
         } else {
           // Don't write to Firestore here — creating/resetting counters is an
           // admin-only operation. Just provide a local default so the UI
           // doesn't hang.
-          console.warn('system/counters document does not exist.');
+          if (!snap.metadata?.fromCache) {
+            console.warn('system/counters document does not exist.');
+          }
           this.counters.set({
             memberIdCounters: {},
             instructorIdCounter: 100,
@@ -1642,6 +1665,7 @@ export class DataManagerService implements OnDestroy {
         }
       }, (error) => {
         console.error('Error fetching counters:', error);
+        this.countersUnsubscribe = null;
       });
     } else {
       this.counters.set(null);
@@ -1766,21 +1790,27 @@ export class DataManagerService implements OnDestroy {
   private emailTemplatesUnsubscribe: (() => void) | null = null;
 
   updateEmailTemplatesSync(user: UserDetails | null) {
+    if (user?.isAdmin && this.emailTemplatesUnsubscribe) {
+      return;
+    }
     if (this.emailTemplatesUnsubscribe) {
       this.emailTemplatesUnsubscribe();
       this.emailTemplatesUnsubscribe = null;
     }
     if (user?.isAdmin) {
       const emailTemplatesRef = doc(this.db, 'system', 'email-templates');
-      this.emailTemplatesUnsubscribe = onSnapshot(emailTemplatesRef, (doc) => {
-        if (doc.exists()) {
-          this.emailTemplates.set(doc.data() as EmailTemplates);
+      this.emailTemplatesUnsubscribe = onSnapshot(emailTemplatesRef, (snap) => {
+        if (snap.exists()) {
+          this.emailTemplates.set(snap.data() as EmailTemplates);
         } else {
-          console.warn('system/email-templates document does not exist, using defaults.');
+          if (!snap.metadata?.fromCache) {
+            console.warn('system/email-templates document does not exist, using defaults.');
+          }
           this.emailTemplates.set(initEmailTemplates());
         }
       }, (error) => {
         console.error('Error fetching email templates:', error);
+        this.emailTemplatesUnsubscribe = null;
       });
     } else {
       this.emailTemplates.set(null);
@@ -1789,10 +1819,9 @@ export class DataManagerService implements OnDestroy {
 
   private mailSettingsUnsubscribe: (() => void) | null = null;
 
-  updateMailSettingsSync(user: UserDetails | null) {
+  updateMailSettingsSync(_user: UserDetails | null) {
     if (this.mailSettingsUnsubscribe) {
-      this.mailSettingsUnsubscribe();
-      this.mailSettingsUnsubscribe = null;
+      return;
     }
     const mailSettingsRef = doc(this.db, 'system', 'mail-settings');
     this.mailSettingsUnsubscribe = onSnapshot(
@@ -1809,20 +1838,31 @@ export class DataManagerService implements OnDestroy {
       },
       (error) => {
         console.error('Error fetching mail settings:', error);
+        this.mailSettingsUnsubscribe = null;
       },
     );
   }
 
   private gradingsUnsubscribe: (() => void) | null = null;
+  private gradingsSubscribedLimit: number | null = null;
 
   updateGradingsSync(user: UserDetails | null, queryLimit: number) {
+    if (
+      user?.isAdmin &&
+      this.gradingsUnsubscribe &&
+      this.gradingsSubscribedLimit === queryLimit
+    ) {
+      return;
+    }
     // Tear down any previous subscription first so growing the page size (or a
     // login/logout) doesn't leave a stale listener attached.
     if (this.gradingsUnsubscribe) {
       this.gradingsUnsubscribe();
       this.gradingsUnsubscribe = null;
     }
+    this.gradingsSubscribedLimit = null;
     if (user?.isAdmin) {
+      this.gradingsSubscribedLimit = queryLimit;
       const gradingsCollection = collection(this.db, 'gradings');
       const q = query(gradingsCollection, orderBy('lastUpdated', 'desc'), limit(queryLimit));
       this.gradingsUnsubscribe = onSnapshot(
@@ -1834,6 +1874,8 @@ export class DataManagerService implements OnDestroy {
         (error) => {
           console.error('Error fetching gradings:', error);
           this.gradings.setError(error.message);
+          this.gradingsUnsubscribe = null;
+          this.gradingsSubscribedLimit = null;
         },
       );
     } else {
