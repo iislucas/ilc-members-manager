@@ -12638,7 +12638,7 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     path: "src/app/subscription-card/subscription-card.model.ts",
     layer: ArchitecturalLayer.ClientUIComponent,
     responsibility: "Implements DisplaySubscriptionCard, SubscriptionCardCategory, SubscriptionCardStatus",
-    keySymbols: ["DisplaySubscriptionCard","SubscriptionCardCategory","SubscriptionCardStatus","getManagedSchoolsForUser","isMemberInstructorTier","isMemberGroupLeaderTier","matchMembershipOrder","matchInstructorLicenseOrder","matchVideoLibraryOrder","buildMembershipSubscriptionCard"],
+    keySymbols: ["DisplaySubscriptionCard","SubscriptionCardCategory","SubscriptionCardStatus","getManagedSchoolsForUser","isMemberInstructorTier","isMemberGroupLeaderTier","buildMembershipSubscriptionCard","buildInstructorLicenseSubscriptionCard","buildVideoLibrarySubscriptionCard","buildSchoolSubscriptionCards"],
     relatedJourneys: [],
     relatedDataTypes: [],
     relatedStories: [],

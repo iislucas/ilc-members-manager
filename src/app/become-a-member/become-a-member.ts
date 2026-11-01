@@ -260,8 +260,6 @@ export class BecomeAMemberComponent {
     return buildMembershipSubscriptionCard({
       member: m,
       todayStr: this.today(),
-      orders: this.dataService.myOrders?.entries() ?? [],
-      fallbackPrice: this.applicableAnnualTier().price,
       includeIfNeverSubscribed: false,
     });
   });

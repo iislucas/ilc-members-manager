@@ -12,7 +12,13 @@ import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
-import { initMember, MembershipType } from '../../../functions/src/data-model/members';
+import {
+  initMember,
+  MembershipType,
+  SubscriptionInterval,
+  SubscriptionItemType,
+  SubscriptionStatus,
+} from '../../../functions/src/data-model/members';
 import {
   StripeProduct,
   StripePriceType,
@@ -157,6 +163,23 @@ describe('BecomeAMemberComponent', () => {
     currentMembershipExpires: '2027-01-01',
     membershipSubscriptionId: 'sub_123',
     membershipNextAutoRenewDate: '2027-01-01',
+    stripeSubscriptions: {
+      sub_123: {
+        subscriptionId: 'sub_123',
+        type: SubscriptionItemType.Membership,
+        status: SubscriptionStatus.Active,
+        planName: 'ILC Annual Membership',
+        amount: 8500,
+        currency: 'usd',
+        interval: SubscriptionInterval.Year,
+        currentPeriodStart: '2026-01-01',
+        currentPeriodEnd: '2027-01-01',
+        nextAutoRenewDate: '2027-01-01',
+        cancelAtPeriodEnd: false,
+        paymentMethodBrand: 'visa',
+        paymentMethodLast4: '4242',
+      },
+    },
   };
 
   const sampleUser: UserDetails = {
@@ -603,7 +626,7 @@ describe('BecomeAMemberComponent', () => {
     fixture.detectChanges();
     expect(triangleBtn?.getAttribute('aria-expanded')).toBe('true');
     expect(subCard?.textContent).toContain(
-      'On 2027-01-01, the expiration date will be extended to 2028-01-01.',
+      'You will pay $85.00 USD and the expiration date will be extended to 2028-01-01.',
     );
   });
 });

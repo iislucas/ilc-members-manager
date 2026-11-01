@@ -14,7 +14,13 @@ import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
-import { initMember, MembershipType } from '../../../functions/src/data-model/members';
+import {
+  initMember,
+  MembershipType,
+  SubscriptionInterval,
+  SubscriptionItemType,
+  SubscriptionStatus,
+} from '../../../functions/src/data-model/members';
 import {
   StripeProduct,
   StripePriceType,
@@ -80,6 +86,23 @@ describe('InstructorLicensePurchaseComponent', () => {
     instructorLicenseRenewalDate: '2026-01-01',
     instructorLicenseSubscriptionId: 'sub_lic_123',
     instructorLicenseNextAutoRenewDate: '2027-01-01',
+    stripeSubscriptions: {
+      sub_lic_123: {
+        subscriptionId: 'sub_lic_123',
+        type: SubscriptionItemType.InstructorLicense,
+        status: SubscriptionStatus.Active,
+        planName: 'Instructor License',
+        amount: 15000,
+        currency: 'usd',
+        interval: SubscriptionInterval.Year,
+        currentPeriodStart: '2026-01-01',
+        currentPeriodEnd: '2027-01-01',
+        nextAutoRenewDate: '2027-01-01',
+        cancelAtPeriodEnd: false,
+        paymentMethodBrand: 'visa',
+        paymentMethodLast4: '4242',
+      },
+    },
   };
 
   const sampleUser: UserDetails = {
@@ -412,7 +435,7 @@ describe('InstructorLicensePurchaseComponent', () => {
     expect(subCard?.textContent).toContain('Next auto-renewal payment:');
     expect(subCard?.textContent).toContain('2027-01-01 ($150.00 USD)');
     expect(subCard?.textContent).toContain(
-      'On 2027-01-01, the expiration date will be extended to 2028-01-01.',
+      'You will pay $150.00 USD and the expiration date will be extended to 2028-01-01.',
     );
   });
 });

@@ -68,6 +68,53 @@ describe('MemberOrdersComponent', () => {
     classVideoLibraryExpirationDate: '2027-06-01',
     classVideoLibrarySubscriptionId: 'sub_vid_123',
     classVideoLibraryNextAutoRenewDate: '2027-06-01',
+    stripeSubscriptions: {
+      sub_mem_123: {
+        subscriptionId: 'sub_mem_123',
+        type: SubscriptionItemType.Membership,
+        status: SubscriptionStatus.Active,
+        planName: 'Annual Membership',
+        amount: 8500,
+        currency: 'usd',
+        interval: SubscriptionInterval.Year,
+        currentPeriodStart: '2026-05-15',
+        currentPeriodEnd: '2027-05-15',
+        nextAutoRenewDate: '2027-05-15',
+        cancelAtPeriodEnd: false,
+        paymentMethodBrand: 'visa',
+        paymentMethodLast4: '4242',
+      },
+      sub_ins_123: {
+        subscriptionId: 'sub_ins_123',
+        type: SubscriptionItemType.InstructorLicense,
+        status: SubscriptionStatus.Active,
+        planName: 'Instructor License',
+        amount: 15000,
+        currency: 'usd',
+        interval: SubscriptionInterval.Year,
+        currentPeriodStart: '2026-05-15',
+        currentPeriodEnd: '2027-05-15',
+        nextAutoRenewDate: '',
+        cancelAtPeriodEnd: true,
+        paymentMethodBrand: 'visa',
+        paymentMethodLast4: '4242',
+      },
+      sub_vid_123: {
+        subscriptionId: 'sub_vid_123',
+        type: SubscriptionItemType.VideoLibrary,
+        status: SubscriptionStatus.Active,
+        planName: 'Class Video Library',
+        amount: 1500,
+        currency: 'usd',
+        interval: SubscriptionInterval.Month,
+        currentPeriodStart: '2027-05-01',
+        currentPeriodEnd: '2027-06-01',
+        nextAutoRenewDate: '2027-06-01',
+        cancelAtPeriodEnd: false,
+        paymentMethodBrand: 'visa',
+        paymentMethodLast4: '4242',
+      },
+    },
   };
 
   const sampleOrders: MemberOrder[] = [
@@ -600,7 +647,7 @@ describe('MemberOrdersComponent', () => {
     expect(vidCard?.textContent).toContain('Next auto-renewal payment:');
     expect(vidCard?.textContent).toContain('2026-11-23 ($25.00 USD)');
     expect(vidCard?.textContent).toContain(
-      'On 2026-11-23, the expiration date will be extended to 2028-04-23.',
+      'You will pay $25.00 USD and the expiration date will be extended to 2028-04-23.',
     );
   });
 
@@ -713,7 +760,7 @@ describe('MemberOrdersComponent', () => {
     expect(subSection?.textContent).toContain('Sifu Alice (US999)');
     expect(subSection?.textContent).toContain('2027-09-15 ($600.00 USD)');
     expect(subSection?.textContent).toContain(
-      'On 2027-09-15, the expiration date will be extended to 2028-09-15.',
+      'You will pay $600.00 USD and the expiration date will be extended to 2028-09-15.',
     );
   });
 

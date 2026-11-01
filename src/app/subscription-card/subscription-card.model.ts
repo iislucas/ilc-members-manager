@@ -19,9 +19,9 @@ import {
 import { School } from '../../../functions/src/data-model/schools';
 import { ManagedSchoolBillingInfo } from '../../../functions/src/stripe-types';
 import {
-  addBillingIntervalToDateString,
   computeProjectedRenewalExpirationDate,
   computeRenewalEditBounds,
+  formatAmountWithCurrency,
   formatNextAutoRenewalPayment,
   resolveMemberSubscriptionRenewal,
 } from '../stripe-price-format';
@@ -55,6 +55,7 @@ export interface DisplaySubscriptionCard {
   statusClass: string;
   expirationDate: string; // YYYY-MM-DD, 'Never expires', or 'Not active'
   nextAutoRenewDate: string; // YYYY-MM-DD or ''
+  renewalAmountText: string; // e.g. '$25.00 USD' or ''
   autoRenewalPaymentText: string; // e.g. '2026-11-23 ($25.00 USD)' or ''
   projectedExpirationDate: string; // YYYY-MM-DD after next auto-renewal, or ''
   interval: 'month' | 'year';
@@ -157,54 +158,10 @@ function buildEditAndPaymentFields(opts: {
   };
 }
 
-export function matchMembershipOrder(order: MemberOrder): boolean {
-  return (
-    order.lineItems?.some(
-      (li) =>
-        li.category === OrderItemCategory.Membership ||
-        (li.description || '').toLowerCase().includes('membership'),
-    ) || (order.description || '').toLowerCase().includes('membership')
-  );
-}
-
-export function matchInstructorLicenseOrder(order: MemberOrder): boolean {
-  const d = (order.description || '').toLowerCase();
-  return (
-    order.lineItems?.some((li) => {
-      const lid = (li.description || '').toLowerCase();
-      return (
-        li.category === OrderItemCategory.InstructorLicense ||
-        lid.includes('instructor') ||
-        lid.includes('group leader')
-      );
-    }) ||
-    d.includes('instructor') ||
-    d.includes('group leader')
-  );
-}
-
-export function matchVideoLibraryOrder(order: MemberOrder): boolean {
-  const d = (order.description || '').toLowerCase();
-  return (
-    order.lineItems?.some((li) => {
-      const lid = (li.description || '').toLowerCase();
-      return (
-        li.category === OrderItemCategory.VideoLibrary ||
-        lid.includes('library') ||
-        (lid.includes('class') && lid.includes('video'))
-      );
-    }) ||
-    d.includes('library') ||
-    (d.includes('class') && d.includes('video'))
-  );
-}
-
 export function buildMembershipSubscriptionCard(opts: {
   member: Member;
   todayStr: string;
-  orders?: MemberOrder[];
   subscribeUrl?: string;
-  fallbackPrice?: { unitAmount: number | null; currency: string } | null;
   includeIfNeverSubscribed?: boolean;
 }): DisplaySubscriptionCard | null {
   const m = opts.member;
@@ -222,6 +179,7 @@ export function buildMembershipSubscriptionCard(opts: {
       statusClass: 'status-active',
       expirationDate: 'Never expires',
       nextAutoRenewDate: '',
+      renewalAmountText: '',
       autoRenewalPaymentText: '',
       projectedExpirationDate: '',
       interval: 'year',
@@ -243,14 +201,10 @@ export function buildMembershipSubscriptionCard(opts: {
   const isExpired = !rawExpires || rawExpires < opts.todayStr;
   const resolved = resolveMemberSubscriptionRenewal({
     subscriptionId: subId,
-    fallbackNextAutoRenewDate: m.membershipNextAutoRenewDate,
     expirationDate: rawExpires,
     defaultInterval: 'year',
     todayStr: opts.todayStr,
     stripeSubscriptions: m.stripeSubscriptions,
-    orders: opts.orders,
-    orderMatcher: matchMembershipOrder,
-    fallbackPrice: opts.fallbackPrice,
   });
 
   const status = isExpired
@@ -279,6 +233,7 @@ export function buildMembershipSubscriptionCard(opts: {
     statusClass: isExpired ? 'status-expired' : 'status-active',
     expirationDate: rawExpires || 'Not active',
     nextAutoRenewDate: resolved.nextAutoRenewDate,
+    renewalAmountText: resolved.renewalAmountText,
     autoRenewalPaymentText: resolved.autoRenewalPaymentText,
     projectedExpirationDate: resolved.projectedExpirationDate,
     interval: resolved.interval,
@@ -300,9 +255,7 @@ export function buildMembershipSubscriptionCard(opts: {
 export function buildInstructorLicenseSubscriptionCard(opts: {
   member: Member;
   todayStr: string;
-  orders?: MemberOrder[];
   subscribeUrl?: string;
-  fallbackPrice?: { unitAmount: number | null; currency: string } | null;
 }): DisplaySubscriptionCard | null {
   const m = opts.member;
   const isLife =
@@ -351,6 +304,7 @@ export function buildInstructorLicenseSubscriptionCard(opts: {
       statusClass: memberActive ? 'status-active' : 'status-warning',
       expirationDate: 'Never expires',
       nextAutoRenewDate: '',
+      renewalAmountText: '',
       autoRenewalPaymentText: '',
       projectedExpirationDate: '',
       interval: 'year',
@@ -367,14 +321,10 @@ export function buildInstructorLicenseSubscriptionCard(opts: {
   const isExpired = !rawExpires || rawExpires < opts.todayStr;
   const resolved = resolveMemberSubscriptionRenewal({
     subscriptionId: subId,
-    fallbackNextAutoRenewDate: m.instructorLicenseNextAutoRenewDate,
     expirationDate: rawExpires,
     defaultInterval: 'year',
     todayStr: opts.todayStr,
     stripeSubscriptions: m.stripeSubscriptions,
-    orders: opts.orders,
-    orderMatcher: matchInstructorLicenseOrder,
-    fallbackPrice: opts.fallbackPrice,
   });
 
   const status = isExpired
@@ -409,6 +359,7 @@ export function buildInstructorLicenseSubscriptionCard(opts: {
         : 'status-active',
     expirationDate: rawExpires || 'Not active',
     nextAutoRenewDate: resolved.nextAutoRenewDate,
+    renewalAmountText: resolved.renewalAmountText,
     autoRenewalPaymentText: resolved.autoRenewalPaymentText,
     projectedExpirationDate: resolved.projectedExpirationDate,
     interval: resolved.interval,
@@ -431,9 +382,7 @@ export function buildInstructorLicenseSubscriptionCard(opts: {
 export function buildVideoLibrarySubscriptionCard(opts: {
   member: Member;
   todayStr: string;
-  orders?: MemberOrder[];
   subscribeUrl?: string;
-  fallbackPrice?: { unitAmount: number | null; currency: string } | null;
 }): DisplaySubscriptionCard | null {
   const m = opts.member;
   const rawExpires = (m.classVideoLibraryExpirationDate || '').trim();
@@ -458,6 +407,7 @@ export function buildVideoLibrarySubscriptionCard(opts: {
       statusClass: 'status-active',
       expirationDate: 'Never expires',
       nextAutoRenewDate: '',
+      renewalAmountText: '',
       autoRenewalPaymentText: '',
       projectedExpirationDate: '',
       interval: 'month',
@@ -480,14 +430,10 @@ export function buildVideoLibrarySubscriptionCard(opts: {
     !m.classVideoLibrarySubscription || !rawExpires || rawExpires < opts.todayStr;
   const resolved = resolveMemberSubscriptionRenewal({
     subscriptionId: subId,
-    fallbackNextAutoRenewDate: m.classVideoLibraryNextAutoRenewDate,
     expirationDate: rawExpires,
     defaultInterval: 'month',
     todayStr: opts.todayStr,
     stripeSubscriptions: m.stripeSubscriptions,
-    orders: opts.orders,
-    orderMatcher: matchVideoLibraryOrder,
-    fallbackPrice: opts.fallbackPrice,
   });
 
   const status = isExpired
@@ -515,6 +461,7 @@ export function buildVideoLibrarySubscriptionCard(opts: {
     statusClass: isExpired ? 'status-expired' : 'status-active',
     expirationDate: rawExpires || 'Not active',
     nextAutoRenewDate: resolved.nextAutoRenewDate,
+    renewalAmountText: resolved.renewalAmountText,
     autoRenewalPaymentText: resolved.autoRenewalPaymentText,
     projectedExpirationDate: resolved.projectedExpirationDate,
     interval: resolved.interval,
@@ -540,7 +487,6 @@ export function buildSchoolSubscriptionCards(opts: {
   orders: MemberOrder[];
   todayStr: string;
   baseSchoolLicenseUrl: string;
-  fallbackPrice?: { unitAmount: number | null; currency: string } | null;
 }): {
   allSchoolCards: DisplaySubscriptionCard[];
   ownPayerCards: DisplaySubscriptionCard[];
@@ -683,6 +629,7 @@ export function buildSchoolSubscriptionCards(opts: {
         statusClass: 'status-active',
         expirationDate: 'Never expires',
         nextAutoRenewDate: '',
+        renewalAmountText: '',
         autoRenewalPaymentText: '',
         projectedExpirationDate: '',
         interval: 'year',
@@ -707,6 +654,7 @@ export function buildSchoolSubscriptionCards(opts: {
     const isExpired = school.schoolLicenseExpires < todayStr;
     let isAutoRenewing = false;
     let nextAutoRenewDate = '';
+    let renewalAmountText = '';
     let autoRenewalPaymentText = '';
     let projectedExpirationDate = '';
     let interval: 'month' | 'year' =
@@ -716,17 +664,14 @@ export function buildSchoolSubscriptionCards(opts: {
     if (ownSubId) {
       const resolved = resolveMemberSubscriptionRenewal({
         subscriptionId: ownSubId,
-        fallbackNextAutoRenewDate: ownSub?.nextAutoRenewDate || '',
         expirationDate: school.schoolLicenseExpires,
         defaultInterval: interval,
         todayStr,
         stripeSubscriptions: m.stripeSubscriptions,
-        orders: myOrders,
-        orderMatcher: matchSchoolOrder,
-        fallbackPrice: opts.fallbackPrice,
       });
       isAutoRenewing = resolved.isAutoRenewing;
       nextAutoRenewDate = resolved.nextAutoRenewDate;
+      renewalAmountText = resolved.renewalAmountText;
       autoRenewalPaymentText = resolved.autoRenewalPaymentText;
       projectedExpirationDate = resolved.projectedExpirationDate;
       interval = resolved.interval;
@@ -738,28 +683,11 @@ export function buildSchoolSubscriptionCards(opts: {
     ) {
       isAutoRenewing = true;
       nextAutoRenewDate = billingInfo.nextAutoRenewDate;
-      interval =
-        billingInfo.interval ||
-        (billingInfo.amount !== null && billingInfo.amount <= 15000
-          ? 'month'
-          : 'year');
-      if (
-        nextAutoRenewDate === school.schoolLicenseExpires &&
-        /^\d{4}-\d{2}-\d{2}$/.test(billingInfo.lastPaymentDate)
-      ) {
-        const expectedEnd = addBillingIntervalToDateString(
-          billingInfo.lastPaymentDate,
-          interval,
-          1,
-        );
-        if (
-          expectedEnd &&
-          expectedEnd >= todayStr &&
-          expectedEnd < nextAutoRenewDate
-        ) {
-          nextAutoRenewDate = expectedEnd;
-        }
-      }
+      interval = billingInfo.interval || 'year';
+      renewalAmountText =
+        billingInfo.amount !== null && billingInfo.amount > 0
+          ? formatAmountWithCurrency(billingInfo.amount, billingInfo.currency)
+          : '';
       autoRenewalPaymentText = formatNextAutoRenewalPayment(
         nextAutoRenewDate,
         billingInfo.amount,
@@ -798,6 +726,7 @@ export function buildSchoolSubscriptionCards(opts: {
       statusClass: isExpired ? 'status-expired' : 'status-active',
       expirationDate: school.schoolLicenseExpires || 'Not active',
       nextAutoRenewDate,
+      renewalAmountText,
       autoRenewalPaymentText,
       projectedExpirationDate,
       interval,
@@ -833,14 +762,11 @@ export function buildSchoolSubscriptionCards(opts: {
     handledSubIds.add(subId);
     const resolved = resolveMemberSubscriptionRenewal({
       subscriptionId: subId,
-      fallbackNextAutoRenewDate: sub.nextAutoRenewDate,
       expirationDate: sub.currentPeriodEnd,
       defaultInterval:
         sub.interval === SubscriptionInterval.Month ? 'month' : 'year',
       todayStr,
       stripeSubscriptions: m.stripeSubscriptions,
-      orders: myOrders,
-      fallbackPrice: opts.fallbackPrice,
     });
     const isActiveSub =
       sub.status === SubscriptionStatus.Active ||
@@ -866,6 +792,7 @@ export function buildSchoolSubscriptionCards(opts: {
       statusClass: isActiveSub ? 'status-active' : 'status-expired',
       expirationDate: sub.currentPeriodEnd || 'Not active',
       nextAutoRenewDate: resolved.nextAutoRenewDate,
+      renewalAmountText: resolved.renewalAmountText,
       autoRenewalPaymentText: resolved.autoRenewalPaymentText,
       projectedExpirationDate: resolved.projectedExpirationDate,
       interval: resolved.interval,
@@ -915,7 +842,6 @@ export function buildAllMemberSubscriptionCards(opts: {
   const membershipCard = buildMembershipSubscriptionCard({
     member: m,
     todayStr: opts.todayStr,
-    orders: opts.orders,
     subscribeUrl: opts.urls.membership,
     includeIfNeverSubscribed: true,
   });
@@ -924,7 +850,6 @@ export function buildAllMemberSubscriptionCards(opts: {
   const instructorCard = buildInstructorLicenseSubscriptionCard({
     member: m,
     todayStr: opts.todayStr,
-    orders: opts.orders,
     subscribeUrl: opts.urls.instructorLicense,
   });
   if (instructorCard) cards.push(instructorCard);
@@ -932,7 +857,6 @@ export function buildAllMemberSubscriptionCards(opts: {
   const videoCard = buildVideoLibrarySubscriptionCard({
     member: m,
     todayStr: opts.todayStr,
-    orders: opts.orders,
     subscribeUrl: opts.urls.videoLibrary,
   });
   if (videoCard) cards.push(videoCard);
@@ -959,13 +883,11 @@ export function buildAllMemberSubscriptionCards(opts: {
       if (handledSubIds.has(subId)) continue;
       const resolved = resolveMemberSubscriptionRenewal({
         subscriptionId: subId,
-        fallbackNextAutoRenewDate: sub.nextAutoRenewDate,
         expirationDate: sub.currentPeriodEnd,
         defaultInterval:
           sub.interval === SubscriptionInterval.Month ? 'month' : 'year',
         todayStr: opts.todayStr,
         stripeSubscriptions: m.stripeSubscriptions,
-        orders: opts.orders,
       });
       const isActiveSub =
         sub.status === SubscriptionStatus.Active ||
@@ -987,6 +909,7 @@ export function buildAllMemberSubscriptionCards(opts: {
         statusClass: isActiveSub ? 'status-active' : 'status-expired',
         expirationDate: sub.currentPeriodEnd,
         nextAutoRenewDate: resolved.nextAutoRenewDate,
+        renewalAmountText: resolved.renewalAmountText,
         autoRenewalPaymentText: resolved.autoRenewalPaymentText,
         projectedExpirationDate: resolved.projectedExpirationDate,
         interval: resolved.interval,

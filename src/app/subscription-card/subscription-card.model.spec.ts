@@ -48,6 +48,7 @@ describe('subscription-card.model and helpers', () => {
     expect(formatMaskedPaymentMethod('visa', '4242')).toBe('Visa •••• 4242');
     expect(formatMaskedPaymentMethod('mastercard', '9876')).toBe('Mastercard •••• 9876');
     expect(formatMaskedPaymentMethod('sepa_debit', '3000')).toBe('SEPA Debit •••• 3000');
+    expect(formatMaskedPaymentMethod('link', '')).toBe('Stripe Link');
     expect(formatMaskedPaymentMethod('', '4242')).toBe('Card •••• 4242');
     expect(formatMaskedPaymentMethod('visa', 'not4digits')).toBe('Visa');
     expect(formatMaskedPaymentMethod('', '')).toBe('');
@@ -109,11 +110,11 @@ describe('subscription-card.model and helpers', () => {
     const card = buildMembershipSubscriptionCard({
       member,
       todayStr: '2026-11-01',
-      orders: [],
     });
 
     expect(card?.isAutoRenewing).toBe(true);
     expect(card?.nextAutoRenewDate).toBe('2028-04-23');
+    expect(card?.renewalAmountText).toBe('$85.00 USD');
     expect(card?.projectedExpirationDate).toBe('2029-04-23');
     expect(card?.canEditRenewalDate).toBe(true);
     expect(card?.defaultRenewalEditDate).toBe('2028-04-16');
@@ -133,6 +134,21 @@ describe('subscription-card.model and helpers', () => {
       instructorLicenseSubscriptionId: 'sub_ins_77',
       instructorLicenseNextAutoRenewDate: '2027-01-01',
       instructorLicenseType: InstructorLicenseType.Annual,
+      stripeSubscriptions: {
+        sub_ins_77: {
+          subscriptionId: 'sub_ins_77',
+          type: SubscriptionItemType.InstructorLicense,
+          status: SubscriptionStatus.Active,
+          planName: 'Instructor License',
+          amount: 15000,
+          currency: 'usd',
+          interval: SubscriptionInterval.Year,
+          currentPeriodStart: '2026-01-01',
+          currentPeriodEnd: '2027-01-01',
+          nextAutoRenewDate: '2027-01-01',
+          cancelAtPeriodEnd: false,
+        },
+      },
     };
 
     const card = buildInstructorLicenseSubscriptionCard({

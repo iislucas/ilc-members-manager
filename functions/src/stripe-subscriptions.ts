@@ -111,6 +111,99 @@ export function extractMaskedPaymentMethodSummary(
   return {};
 }
 
+/**
+ * Resolves the effective `Stripe.PaymentMethod` that Stripe will charge for a
+ * subscription, checking in order:
+ *  1. `subscription.default_payment_method`
+ *  2. `customer.invoice_settings.default_payment_method`
+ *  3. Most recent PaymentMethod attached to the customer (`customers.listPaymentMethods`)
+ *
+ * Returns a shallow copy of `subscription` with `default_payment_method` populated
+ * as an expanded `Stripe.PaymentMethod` when found, so downstream callers of
+ * `buildMemberSubscriptionItemFromStripe` always persist `paymentMethodBrand` and
+ * `paymentMethodLast4`. Gracefully no-ops on partial mocks or transient API errors.
+ */
+export async function enrichSubscriptionWithPaymentMethod(
+  stripe: Stripe | undefined,
+  subscription: Stripe.Subscription,
+): Promise<Stripe.Subscription> {
+  if (!subscription) return subscription;
+
+  // 1. Expanded PaymentMethod already on subscription
+  if (
+    subscription.default_payment_method &&
+    typeof subscription.default_payment_method === 'object'
+  ) {
+    return subscription;
+  }
+
+  try {
+    // 1b. Unexpanded `pm_...` ID on subscription
+    if (
+      typeof subscription.default_payment_method === 'string' &&
+      stripe?.paymentMethods?.retrieve
+    ) {
+      const pm = await stripe.paymentMethods.retrieve(
+        subscription.default_payment_method,
+      );
+      if (pm) {
+        return { ...subscription, default_payment_method: pm };
+      }
+    }
+
+    // 2. Customer invoice_settings.default_payment_method
+    const rawCustomer = subscription.customer;
+    const customerId =
+      typeof rawCustomer === 'string' ? rawCustomer : rawCustomer?.id;
+
+    let customerObj: Stripe.Customer | null =
+      rawCustomer && typeof rawCustomer === 'object' && !('deleted' in rawCustomer && rawCustomer.deleted)
+        ? (rawCustomer as Stripe.Customer)
+        : null;
+
+    if (!customerObj && customerId && stripe?.customers?.retrieve) {
+      const retrieved = await stripe.customers.retrieve(customerId, {
+        expand: ['invoice_settings.default_payment_method'],
+      });
+      if (retrieved && !('deleted' in retrieved && retrieved.deleted)) {
+        customerObj = retrieved as Stripe.Customer;
+      }
+    }
+
+    const custDefaultPm = customerObj?.invoice_settings?.default_payment_method;
+    if (custDefaultPm && typeof custDefaultPm === 'object') {
+      return {
+        ...subscription,
+        default_payment_method: custDefaultPm as Stripe.PaymentMethod,
+      };
+    }
+    if (typeof custDefaultPm === 'string' && stripe?.paymentMethods?.retrieve) {
+      const pm = await stripe.paymentMethods.retrieve(custDefaultPm);
+      if (pm) {
+        return { ...subscription, default_payment_method: pm };
+      }
+    }
+
+    // 3. Attached customer PaymentMethods (e.g. Stripe Checkout subscriptions
+    //    where Checkout attached the PaymentMethod to the Customer directly)
+    if (customerId && stripe?.customers?.listPaymentMethods) {
+      const pmList = await stripe.customers.listPaymentMethods(customerId, {
+        limit: 1,
+      });
+      if (pmList?.data?.[0]) {
+        return { ...subscription, default_payment_method: pmList.data[0] };
+      }
+    }
+  } catch (err) {
+    logger.warn('Could not resolve payment method for Stripe subscription', {
+      subscriptionId: subscription.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  return subscription;
+}
+
 export function requireAllowedReturnUrl(returnUrl: unknown): string {
   if (typeof returnUrl !== 'string') {
     throw new HttpsError('invalid-argument', 'A valid returnUrl is required.');
@@ -473,9 +566,14 @@ export const cancelSubscriptionRenewal = onCall<
 
   await verifySubscriptionOwnership(subscription, member, db, verifiedAuthEmail(request));
 
-  const updatedSub = await stripe.subscriptions.update(subscriptionId, {
+  const rawUpdatedSub = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: true,
+    expand: ['default_payment_method'],
   });
+  const updatedSub = await enrichSubscriptionWithPaymentMethod(
+    stripe,
+    rawUpdatedSub,
+  );
 
   const periodEnd = unixSecondsToDateString(
     getSubscriptionCurrentPeriodEnd(updatedSub),
@@ -552,9 +650,14 @@ export const resumeSubscriptionRenewal = onCall<
 
   await verifySubscriptionOwnership(subscription, member, db, verifiedAuthEmail(request));
 
-  const updatedSub = await stripe.subscriptions.update(subscriptionId, {
+  const rawUpdatedSub = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: false,
+    expand: ['default_payment_method'],
   });
+  const updatedSub = await enrichSubscriptionWithPaymentMethod(
+    stripe,
+    rawUpdatedSub,
+  );
 
   const nextAutoRenewDate = unixSecondsToDateString(
     getSubscriptionCurrentPeriodEnd(updatedSub),
@@ -818,12 +921,16 @@ export async function performUpdateSubscriptionRenewalDate(params: {
   const minFutureSeconds = Math.floor(nowMs / 1000) + 300;
   const targetTrialEndSeconds = Math.max(utcNoonSeconds, minFutureSeconds);
 
-  const updatedSub = await stripe.subscriptions.update(subscriptionId, {
+  const rawUpdatedSub = await stripe.subscriptions.update(subscriptionId, {
     trial_end: targetTrialEndSeconds,
     proration_behavior: 'none',
     cancel_at_period_end: false,
     expand: ['default_payment_method'],
   });
+  const updatedSub = await enrichSubscriptionWithPaymentMethod(
+    stripe,
+    rawUpdatedSub,
+  );
 
   const nextAutoRenewDate =
     unixSecondsToDateString(getSubscriptionCurrentPeriodEnd(updatedSub)) ||
