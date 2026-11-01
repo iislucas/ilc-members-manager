@@ -5,8 +5,11 @@ import {
   CalendarRequest,
   GoogleCalendarEventItem,
   GoogleCalendarResponse,
+  extractGoogleCalendarId,
 } from '../../functions/src/calendar.types';
 import { CalendarEvent } from './events-calendar/event.model';
+
+export const PREVIOUS_CLASSES_DAYS = 7;
 
 @Injectable({
   providedIn: 'root',
@@ -46,10 +49,10 @@ export class ClassCalendarService {
   getPreviousEvents(calendarId: string, date?: string): Promise<GoogleCalendarEventItem[]> {
     const selectedDate = date ? new Date(date) : new Date();
     const timeMax = new Date(selectedDate.getTime()).toISOString();
-    const sevenDaysAgo = new Date(
-      selectedDate.getTime() - 7 * 24 * 60 * 60 * 1000
+    const windowStart = new Date(
+      selectedDate.getTime() - PREVIOUS_CLASSES_DAYS * 24 * 60 * 60 * 1000
     );
-    const timeMin = sevenDaysAgo.toISOString();
+    const timeMin = windowStart.toISOString();
 
     return this.fetchEvents(calendarId, { timeMin, timeMax });
   }
@@ -74,8 +77,9 @@ export class ClassCalendarService {
       GoogleCalendarResponse
     >(this.functions, 'getCalendarEvents');
 
+    const normalizedCalendarId = extractGoogleCalendarId(calendarId);
     const requestData = {
-      calendarId,
+      calendarId: normalizedCalendarId,
       ...options,
     };
 

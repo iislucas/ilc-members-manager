@@ -33,6 +33,7 @@ import {
 import { NotificationKind } from '../../../functions/src/data-model/notifications';
 import { School } from '../../../functions/src/data-model/schools';
 import { normalizeEmails, emailListIncludes } from '../../../functions/src/data-model/email';
+import { extractGoogleCalendarId } from '../../../functions/src/calendar.types';
 import {
   form,
   FormField,
@@ -1360,10 +1361,16 @@ export class MemberDetailsComponent {
     this.isSaving.set(true);
     this.asyncError.set(null);
     try {
+      const normalizedCalendarId = extractGoogleCalendarId(
+        this.form.publicClassGoogleCalendarId().value(),
+      );
+      this.form.publicClassGoogleCalendarId().value.set(normalizedCalendarId);
+
       // Ensure we have a separate copy, and explicitly sync the array
       // fields which don't use conventional two-way bindings.
       const member = {
         ...this.editableMember(),
+        publicClassGoogleCalendarId: normalizedCalendarId,
         // Emails are always stored normalised (trimmed, lower-cased, de-duplicated).
         emails: normalizeEmails(this.form.emails().value()),
         tags: this.form

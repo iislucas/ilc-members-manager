@@ -19,6 +19,7 @@ import {
 } from '@angular/core';
 import { Member, InstructorPublicData, ExpiryStatus } from '../../../functions/src/data-model/members';
 import { School, initSchool } from '../../../functions/src/data-model/schools';
+import { extractGoogleCalendarId } from '../../../functions/src/calendar.types';
 import {
   form,
   FormField,
@@ -546,6 +547,12 @@ export class SchoolEditComponent {
     this.asyncError.set(null);
     try {
       const school = this.editableSchool()!;
+      const normalizedCalendarId = extractGoogleCalendarId(
+        school.schoolClassGoogleCalendarId,
+      );
+      school.schoolClassGoogleCalendarId = normalizedCalendarId;
+      this.form.schoolClassGoogleCalendarId().value.set(normalizedCalendarId);
+
       const schoolIdAssignment = this.schoolIdAssignment().kind;
       if (schoolIdAssignment === AssignKind.AssignNewAutoId) {
         school.schoolId = await this.membersService.createNextSchoolId();

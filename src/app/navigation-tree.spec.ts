@@ -157,6 +157,12 @@ describe('NavigationTreeService', () => {
     expect(ancestorLabels()).toEqual(['Train', 'Instructors', 'I7']);
   });
 
+  it('puts a school calendar under the school whose calendar it is', () => {
+    goTo(Views.SchoolCalendarView, { schoolId: 'SCH-1' });
+    expect(navTree.parent()?.url).toBe('/school-profile/SCH-1');
+    expect(ancestorLabels()).toEqual(['Train', 'Schools', 'SCH-1']);
+  });
+
   it('puts notification settings under Me in the navigation tree', () => {
     goTo(Views.UserNotificationSettings);
     expect(ancestorLabels()).toEqual(['Me']);

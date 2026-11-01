@@ -42,18 +42,20 @@
       </div>
     </div>
 
-    <div class="contact-row">
-      @if (s.schoolWebsite) {
-        <a class="contact-link" [href]="ensureUrl(s.schoolWebsite)" target="_blank" rel="noopener noreferrer">
-          <app-icon name="link" width="16px" height="16px" /> {{ stripUrlPrefix(s.schoolWebsite) }}
-        </a>
-      }
-      @if (s.schoolClassGoogleCalendarId) {
-        <a class="contact-link" [href]="'/calendar/school/' + s.schoolId">
-          <app-icon name="calendar_today" width="16px" height="16px" /> Class Calendar
-        </a>
-      }
-    </div>
+    @if (s.schoolWebsite || classCalendarHref()) {
+      <div class="contact-row">
+        @if (s.schoolWebsite) {
+          <a class="contact-link" [href]="ensureUrl(s.schoolWebsite)" target="_blank" rel="noopener noreferrer">
+            <app-icon name="link" width="16px" height="16px" /> {{ stripUrlPrefix(s.schoolWebsite) }}
+          </a>
+        }
+        @if (classCalendarHref(); as calendarHref) {
+          <a class="contact-link" [href]="calendarHref">
+            <app-icon name="calendar_today" width="16px" height="16px" /> Class Calendar
+          </a>
+        }
+      </div>
+    }
 
     @if (s.publicBioMarkdown) {
       <section class="bio-section">
@@ -118,6 +120,9 @@
       } @else {
         <p class="note">No upcoming events listed.</p>
       }
+      <a class="show-more-link" [href]="allEventsHref()">
+        See all events <app-icon name="arrow_forward" width="16px" height="16px" />
+      </a>
     </section>
 
     @if (!eventsLoading() && pastEvents().length > 0) {

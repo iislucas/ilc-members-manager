@@ -167,16 +167,21 @@
           />
         </div>
 
-        <label for="schoolClassGoogleCalendarId">Calendar ID</label>
+        <label for="schoolClassGoogleCalendarId">Class Calendar</label>
         <div class="rhs">
           <input
             class="long"
             type="text"
             id="schoolClassGoogleCalendarId"
-            placeholder="e.g. abc123@group.calendar.google.com"
+            placeholder="e.g. abc123@group.calendar.google.com or Google Calendar link"
             [formField]="form.schoolClassGoogleCalendarId"
           />
-          <span class="note">Google Calendar ID for public class schedule</span>
+          <span class="note">
+            Google Calendar ID or public Google Calendar link for the school's class schedule
+            @if (s.schoolId && s.schoolClassGoogleCalendarId) {
+              · <a [href]="'/calendar/school/' + s.schoolId" target="_blank" rel="noopener noreferrer">View Class Calendar</a>
+            }
+          </span>
         </div>
 
         <h3>License</h3>
