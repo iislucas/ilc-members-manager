@@ -25,9 +25,17 @@ The project uses [pnpm](https://pnpm.io/) for managing dependencies.
 
 ## 2. Configuration & Environments
 
-### Frontend Environment Configuration
+Both git-ignored local environment files (`src/environments/environment.local.ts` and `functions/src/environment/environment.ts`) are backed up as versioned secrets in Google Cloud Secret Manager (`CLIENT_ENVIRONMENT_LOCAL_TS` and `FUNCTIONS_ENVIRONMENT_TS`).
 
-The frontend project requires local environment configuration:
+- **Existing project (recommended — fresh clone or git worktree)**:
+  ```bash
+  pnpm env:pull
+  ```
+  Use `pnpm env:status` to compare local files against Secret Manager, `pnpm env:push` to upload local updates, and `pnpm env:check` (run automatically before `pnpm deploy*`) to verify client/server `vapidPublicKey` parity and validity.
+
+### Manual Frontend Environment Configuration
+
+If setting up a brand-new instance from scratch:
 
 - Copy the template file `src/environments/environment.ts` to `src/environments/environment.local.ts`.
 - Fill in the production keys, API endpoints, and Firebase credentials in `src/environments/environment.local.ts` (this file is git-ignored to prevent leak of credentials).

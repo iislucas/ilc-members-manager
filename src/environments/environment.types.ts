@@ -66,7 +66,16 @@ export interface AppEnvironment {
   // sender to look for (e.g. in a spam folder). The actual send is performed
   // by Firebase Auth, not this value.
   passwordResetEmailSender: string;
-  // Base64url VAPID public key used by browser PushManager to subscribe to Web Push
+  // Base64url VAPID public key used by browser PushManager.subscribe({ applicationServerKey })
+  // to bind device Web Push subscriptions to our backend sender.
+  //
+  // Format & invariants (enforced before deploy by `pnpm env:check`):
+  // - Must be an 87-character base64url uncompressed NIST P-256 public key (starts
+  //   with 'B' and decodes to 65 bytes beginning with 0x04), generated via
+  //   `pnpm dlx web-push generate-vapid-keys` — NOT a Stripe (`pk_...`) or Firebase key.
+  // - Must match `vapidPublicKey` in `functions/src/environment/environment.ts` and
+  //   correspond to the `VAPID_PRIVATE_KEY` secret in Google Cloud Secret Manager.
+  // - Set to '' (in both client and server environments) to disable Web Push.
   vapidPublicKey: string;
   // Outbound transactional email notifications flag. When false or omitted, email
   // sending is disabled and event details / Zoom joining links are accessed directly on the event page.

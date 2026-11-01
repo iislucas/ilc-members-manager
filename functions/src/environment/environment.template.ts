@@ -24,8 +24,12 @@ export const environment: FunctionsEnvironment = {
       maxAgeSeconds: 300,
     }
   ],
-  // Web Push (VAPID). Public key must match the client's environment.vapidPublicKey;
-  // the private key is provided via the VAPID_PRIVATE_KEY secret. Empty disables push.
+  // Web Push VAPID public key: an 87-char base64url uncompressed P-256 public key
+  // (starts with 'B', decodes to 65 bytes starting with 0x04 — NOT a Stripe `pk_...`
+  // or Firebase key). Generate a pair with `pnpm dlx web-push generate-vapid-keys`:
+  // - Put the PUBLIC key here AND identically in `src/environments/environment.local.ts`.
+  // - Store the PRIVATE key in Cloud Secret Manager (`firebase functions:secrets:set VAPID_PRIVATE_KEY`).
+  // - Leave '' (empty) in both files to disable Web Push. Verified on deploy by `pnpm env:check`.
   vapidPublicKey: '',
   pushContactEmail: 'mailto:admin@example.com',
   // Where the links in notifications and emails point. `appBase` is only needed

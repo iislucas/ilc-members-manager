@@ -153,6 +153,20 @@ export function deterministicUnpaidGradingsSummaryNotifDocId(
   return `${newDocId}_summary_unpaid_gradings`;
 }
 
+// Returns true when `key` is a base64url-encoded 65-byte uncompressed P-256
+// public key (starting with 0x04), matching browser PushManager requirements.
+export function isValidVapidPublicKey(key: string): boolean {
+  if (!key || !/^[A-Za-z0-9_-]+$/.test(key)) return false;
+  try {
+    const padding = '='.repeat((4 - (key.length % 4)) % 4);
+    const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(base64);
+    return binary.length === 65 && binary.charCodeAt(0) === 0x04;
+  } catch {
+    return false;
+  }
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -390,9 +404,12 @@ export class NotificationService implements OnDestroy {
   // ---------------------------------------------------------------------------
 
   // True when web push can be used on this device at all (service worker active
-  // and a VAPID key configured). The UI uses this to show/hide push controls.
+  // and a valid VAPID public key configured). The UI uses this to show/hide push controls.
   public get isPushSupported(): boolean {
-    return !!this.swPush?.isEnabled && !!environment.vapidPublicKey;
+    return (
+      !!this.swPush?.isEnabled &&
+      isValidVapidPublicKey(environment.vapidPublicKey)
+    );
   }
 
   // Re-reads the browser's live push subscription and updates pushDeviceEnabled
@@ -470,6 +487,12 @@ export class NotificationService implements OnDestroy {
     if (this.pushSubscribedForMemberDocId === memberDocId) return;
     if (!this.swPush?.isEnabled) return; // SW not active (e.g. dev server / unsupported)
     if (!environment.vapidPublicKey) return; // web push not configured
+    if (!isValidVapidPublicKey(environment.vapidPublicKey)) {
+      console.error(
+        'Invalid environment.vapidPublicKey: expected an 87-char base64url P-256 public key (65 bytes starting with 0x04).',
+      );
+      return;
+    }
     if (
       typeof Notification === 'undefined' ||
       Notification.permission !== 'granted'

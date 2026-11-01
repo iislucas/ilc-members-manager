@@ -141,11 +141,20 @@ Managed from [`src/app/settings/notification-settings/`](../src/app/settings/not
 Web push is authenticated with a [VAPID](https://datatracker.ietf.org/doc/html/rfc8292)
 key pair (generated with `pnpm dlx web-push generate-vapid-keys`):
 
-- **Public key** — must match on both ends:
-  - client: `environment.vapidPublicKey` (`src/environments/*`)
+- **Public key** — an 87‑character base64url uncompressed P‑256 point (65 bytes
+  beginning with `0x04`, starting with `B`), which must match on both ends:
+  - client: `environment.vapidPublicKey` (`src/environments/environment.local.ts`)
   - functions: `environment.vapidPublicKey` (`functions/src/environment/environment.ts`)
 - **Private key** — stored only as the Cloud Function secret `VAPID_PRIVATE_KEY`
   (never committed).
+- **Pre‑deploy & Secret Manager sync (`scripts/sync-env.ts`)**:
+  - `pnpm env:check` (run automatically before `pnpm deploy`, `pnpm deploy:hosting`,
+    and `pnpm deploy:functions`) verifies that both environment files carry the
+    exact same `vapidPublicKey`, that it is a valid point on the NIST P‑256 curve,
+    and that it matches `VAPID_PRIVATE_KEY` in Cloud Secret Manager.
+  - `pnpm env:push` / `pnpm env:pull` back up and restore both git‑ignored
+    environment files via Google Cloud Secret Manager (`CLIENT_ENVIRONMENT_LOCAL_TS`
+    and `FUNCTIONS_ENVIRONMENT_TS`).
 
 If either key is missing, the client quietly skips subscribing and the server
 quietly skips sending, so the in‑app feed still works.

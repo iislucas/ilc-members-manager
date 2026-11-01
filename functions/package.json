@@ -4,7 +4,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "deploy": "pnpm build && firebase deploy --only functions",
+    "deploy": "pnpm --prefix .. run env:check && pnpm build && firebase deploy --only functions",
     "emulate": "pnpm build && concurrently \"pnpm build:watch\" \"firebase emulators:start\"",
     "logs": "firebase functions:log",
     "admin": "ts-node scripts/admin.ts",

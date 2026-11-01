@@ -20,8 +20,10 @@ export const SETUP_CATALOG: SetupGuideEntry[] = [
     ],
     commands: [
       { command: 'pnpm install', explanation: 'Installs all dependencies for both Angular client and functions' },
-      { command: 'cp src/environments/environment.ts src/environments/environment.local.ts', explanation: 'Configures local Angular environment file' },
-      { command: 'cp functions/src/environment/environment.template.ts functions/src/environment/environment.ts', explanation: 'Creates functions environment file' },
+      { command: 'pnpm env:pull', explanation: 'Downloads git-ignored environment.local.ts and functions environment.ts from Cloud Secret Manager' },
+      { command: 'pnpm env:check', explanation: 'Validates client/server vapidPublicKey parity, P-256 curve validity, and VAPID_PRIVATE_KEY match' },
+      { command: 'cp src/environments/environment.ts src/environments/environment.local.ts', explanation: 'Configures local Angular environment file (manual setup for a new instance)' },
+      { command: 'cp functions/src/environment/environment.template.ts functions/src/environment/environment.ts', explanation: 'Creates functions environment file (manual setup for a new instance)' },
       { command: 'pnpm run stamp-version', explanation: 'Generates version.ts from Git and timestamp' },
     ],
     commonGotchas: [

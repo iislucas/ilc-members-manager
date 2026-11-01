@@ -4,7 +4,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "node"]
   },
-  "include": ["src/**/*.ts", "functions/src/data-model/**/*.ts"]
+  "include": ["src/**/*.ts", "functions/src/data-model/**/*.ts", "scripts/sync-env*.ts"]
 }

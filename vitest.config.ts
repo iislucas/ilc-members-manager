@@ -9,7 +9,10 @@ export default defineConfig(({ mode }) => ({
         globals: true,
         environment: 'jsdom',
         setupFiles: ['src/test-setup.ts'],
-        include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+        include: [
+            'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+            'scripts/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}',
+        ],
         reporters: ['default'],
         testTimeout: 15000,
     },
