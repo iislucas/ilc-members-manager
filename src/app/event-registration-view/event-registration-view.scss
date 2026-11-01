@@ -1,0 +1,577 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 1.25rem 1rem 4rem;
+}
+
+.registration-view-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 960px;
+}
+
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  background: v.$theme-bg-color;
+  color: v.$text-secondary;
+
+  h2 {
+    margin: 0;
+    color: v.$text-primary;
+    font-size: 1.3rem;
+  }
+
+  p {
+    margin: 0;
+    color: v.$text-muted;
+  }
+}
+
+.summary-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid v.$border-color-light;
+}
+
+.summary-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.summary-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: v.$separator-color;
+  color: v.$text-primary;
+
+  &.status-paid {
+    background: #e6f4ea;
+    color: #137333;
+  }
+
+  &.status-pending {
+    background: #fef7e0;
+    color: #b06000;
+  }
+
+  &.status-inactive {
+    background: #fce8e6;
+    color: #c5221f;
+  }
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: v.$separator-color;
+  color: v.$text-secondary;
+
+  &.readonly-pill {
+    border: 1px solid v.$border-color-light;
+    background: v.$theme-bg-color;
+  }
+}
+
+.summary-subtext {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  color: v.$text-muted;
+
+  .dot-sep {
+    color: v.$theme-chip-border-color;
+  }
+}
+
+.summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inline-confirm-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 6px;
+  background: v.$separator-color;
+  font-size: 0.88rem;
+  color: v.$text-primary;
+}
+
+.compact-btn {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.internal-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: v.$text-primary;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: v.$heading-accent-color;
+  }
+}
+
+.small-link {
+  font-size: 0.88rem;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.92rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+
+  &.banner-success {
+    background: #e6f4ea;
+    border: 1px solid #ceead6;
+    color: #137333;
+  }
+
+  &.banner-error {
+    background: #fce8e6;
+    border: 1px solid #fad2cf;
+    color: #c5221f;
+  }
+
+  &.banner-info {
+    background: v.$separator-color;
+    border: 1px solid v.$border-color-light;
+    color: v.$text-primary;
+    margin-bottom: 1rem;
+  }
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  background: v.$separator-color;
+
+  .meta-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .meta-label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: v.$text-muted;
+  }
+
+  .meta-value {
+    font-size: 0.9rem;
+    color: v.$text-primary;
+  }
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.86rem;
+}
+
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+.registration-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.detail-fieldset,
+.detail-section {
+  margin: 0;
+  padding: 1.25rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  background: v.$theme-bg-color;
+}
+
+.section-legend,
+.section-heading {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: v.$heading-accent-color;
+}
+
+.section-legend {
+  padding: 0 0.4rem;
+}
+
+.section-heading {
+  margin: 0 0 1rem;
+}
+
+.section-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  background: v.$separator-color;
+  border: 1px solid v.$border-color-light;
+
+  .toolbar-note {
+    font-size: 0.86rem;
+    color: v.$text-secondary;
+  }
+}
+
+/* Labels sit directly above inputs with tighter label-to-input proximity than group-to-group gap */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem 1.25rem;
+
+  @media (max-width: 680px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.field-span-full {
+  grid-column: 1 / -1;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+
+  > label,
+  .group-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+
+  .req-mark {
+    color: v.$heading-accent-color;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="number"],
+  select,
+  textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid v.$theme-chip-border-color;
+    border-radius: 6px;
+    background: v.$theme-bg-color;
+    color: v.$text-primary;
+    font-size: 0.94rem;
+    font-family: inherit;
+
+    &:focus-visible {
+      outline: 2px solid v.$heading-accent-color;
+      outline-offset: 1px;
+    }
+  }
+
+  textarea {
+    resize: vertical;
+  }
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: v.$text-muted;
+  line-height: 1.35;
+}
+
+.member-selector-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.member-link-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 6px;
+  background: v.$separator-color;
+  font-size: 0.88rem;
+  color: v.$text-primary;
+  cursor: pointer;
+
+  input[type="radio"] {
+    margin: 0;
+    accent-color: v.$heading-accent-color;
+  }
+}
+
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.checkbox-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: v.$text-primary;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    accent-color: v.$heading-accent-color;
+  }
+}
+
+.standalone-toggle {
+  padding-top: 0.2rem;
+}
+
+.muted-price {
+  color: v.$text-muted;
+  font-size: 0.86rem;
+}
+
+.inline-tag {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: v.$highlight-tag-bg;
+  color: v.$highlight-tag-text;
+}
+
+.readonly-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.capacity-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.capacity-edit-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 6px;
+  background: v.$separator-color;
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+
+  .cap-pool-meta {
+    font-weight: 400;
+    color: v.$text-muted;
+    margin-left: 0.25rem;
+  }
+}
+
+.inline-input-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  input[type="date"] {
+    flex: 1;
+  }
+}
+
+.upgrade-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  .upgrade-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    background: v.$separator-color;
+    font-size: 0.88rem;
+  }
+
+  .upgrade-date {
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+
+  .upgrade-amount {
+    font-weight: 600;
+    color: #137333;
+  }
+
+  .small-text {
+    color: v.$text-muted;
+  }
+}
+
+.save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  background: v.$separator-color;
+
+  .unsaved-indicator {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #b06000;
+  }
+
+  .saved-indicator {
+    font-size: 0.88rem;
+    color: v.$text-muted;
+  }
+
+  .save-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+}
+
+.readonly-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.readonly-dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.25rem;
+
+  @media (max-width: 680px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dl-span-full {
+    grid-column: 1 / -1;
+  }
+
+  dt {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: v.$text-muted;
+    margin-bottom: 0.2rem;
+  }
+
+  dd {
+    margin: 0;
+    font-size: 0.95rem;
+    color: v.$text-primary;
+  }
+
+  .pre-wrap {
+    white-space: pre-wrap;
+  }
+}

@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   assertValidQuoteOrThrow,
+  buildAdminUpdatedRegistration,
   buildMarkedPaidRegistrationUpdates,
   buildUnmarkedRegistrationUpdates,
+  computeAdminCapacityCounts,
   computeCapacityUpdateOrThrow,
   computePriorPaidCreditCents,
+  isRegistrationActiveForCapacity,
   resolveEffectiveRulesAndCapacities,
   resolveRequestRuleSelection,
 } from './stripe-product-checkout';
@@ -27,10 +30,13 @@ import {
   initEventRuleConditions,
   initProduct,
   PaymentConditionKind,
+  PaymentChoice,
   PersonStatusKind,
+  PricingTierType,
   Product,
   RegistrationConditionKind,
   RegistrationPaymentMethod,
+  RegistrationQuestionKind,
   SubSelectionKind,
   TimingConditionKind,
   TimingWindow,
@@ -549,5 +555,125 @@ describe('stripe-product-checkout rule resolution & capacity transactions', () =
     expect(memberQuote.isValid).toBe(true);
     expect(memberQuote.totalPriceCents).toBe(10000);
     expect(memberQuote.evaluatedCapacities[0].remaining).toBe(15);
+  });
+
+  it('normalizes fields, preserves audit metadata, and validates inputs in buildAdminUpdatedRegistration', () => {
+    const existing: EventRegistration = {
+      ...initEventRegistration(),
+      docId: 'reg_123',
+      eventDocId: 'event_abc',
+      productId: 'prod_abc',
+      orderDocId: 'ord_999',
+      stripeSessionId: 'cs_live_999',
+      registeredAt: '2026-08-01T10:00:00.000Z',
+      originalAmountPaidCents: 5000,
+      upgradeHistory: [
+        {
+          timestamp: '2026-08-10T10:00:00.000Z',
+          previousAttendance: AttendanceType.Online,
+          previousHasVideoAccess: false,
+          upgradeAmountCents: 3000,
+          stripeSessionId: 'cs_live_upg',
+        },
+      ],
+    };
+
+    const updated = buildAdminUpdatedRegistration(
+      existing,
+      {
+        name: '  Alice Chen  ',
+        email: '  ALICE@Example.COM ',
+        phone: ' +1 555-0100 ',
+        notes: ' Arriving Saturday morning ',
+        memberDocId: 'mem_doc_1',
+        memberId: 'US101',
+        studentLevel: '4',
+        applicationLevel: '1',
+        role: AttendeeRole.Member,
+        attendance: AttendanceType.InPersonAndOnline,
+        optionId: 'full_weekend',
+        optionLabel: 'Full Weekend',
+        selectedSuboptions: [' Saturday ', 'Sunday', ''],
+        selectedAddOnIds: ['rec_addon'],
+        selectedAddOnLabels: ['Event Recording'],
+        autoGrantedAddOnIds: [],
+        hasVideoAccess: true,
+        capacityUsage: { hall: 1, zero_pool: 0 },
+        status: EventRegistrationStatus.Paid,
+        paymentMethod: RegistrationPaymentMethod.Stripe,
+        paymentChoice: PaymentChoice.Full,
+        pricingTierType: PricingTierType.EarlyBird,
+        totalPriceCents: 18000,
+        depositPaidCents: 5000,
+        amountPaidCents: 18000,
+        amountDueCents: 0,
+        currency: 'EUR',
+        paidInFullOffline: true,
+        paidAt: '2026-08-15T00:00:00.000Z',
+        questionResponses: [
+          {
+            questionId: 'diet',
+            questionLabel: 'Dietary Needs',
+            kind: RegistrationQuestionKind.ShortText,
+            answerText: ' Vegetarian ',
+            selectedOptions: [],
+          },
+        ],
+      },
+      '2026-09-01T12:00:00.000Z',
+    );
+
+    expect(updated.docId).toBe('reg_123');
+    expect(updated.orderDocId).toBe('ord_999');
+    expect(updated.stripeSessionId).toBe('cs_live_999');
+    expect(updated.registeredAt).toBe('2026-08-01T10:00:00.000Z');
+    expect(updated.upgradeHistory).toHaveLength(1);
+    expect(updated.name).toBe('Alice Chen');
+    expect(updated.email).toBe('alice@example.com');
+    expect(updated.currency).toBe('eur');
+    expect(updated.selectedSuboptions).toEqual(['Saturday', 'Sunday']);
+    expect(updated.capacityUsage).toEqual({ hall: 1 });
+    expect(updated.questionResponses[0].answerText).toBe('Vegetarian');
+    expect(updated.lastUpdated).toBe('2026-09-01T12:00:00.000Z');
+
+    // Rejects missing name or invalid email
+    expect(() =>
+      buildAdminUpdatedRegistration(existing, {
+        ...updated,
+        name: '   ',
+      }),
+    ).toThrow(/Attendee name is required/);
+
+    expect(() =>
+      buildAdminUpdatedRegistration(existing, {
+        ...updated,
+        email: 'not-an-email',
+      }),
+    ).toThrow(/valid attendee email/);
+  });
+
+  it('adjusts capacity counts on admin edits and releases spots when cancelled or refunded', () => {
+    const caps = [initEventCapacity({ id: 'hall', label: 'Main Hall', limit: 2 })];
+    // Cancelling releases 1 spot from 2 -> 1
+    expect(computeAdminCapacityCounts(caps, { hall: 2 }, { hall: 1 }, {})).toEqual({
+      hall: 1,
+    });
+    // Admin manual override above limit (2 -> 3) is tallied without throwing
+    expect(computeAdminCapacityCounts(caps, { hall: 2 }, {}, { hall: 1 })).toEqual({
+      hall: 3,
+    });
+
+    const activeReg = { ...initEventRegistration(), status: EventRegistrationStatus.Paid };
+    const cancelledReg = {
+      ...initEventRegistration(),
+      status: EventRegistrationStatus.Cancelled,
+    };
+    const refundedReg = {
+      ...initEventRegistration(),
+      status: EventRegistrationStatus.Refunded,
+    };
+    expect(isRegistrationActiveForCapacity(activeReg)).toBe(true);
+    expect(isRegistrationActiveForCapacity(cancelledReg)).toBe(false);
+    expect(isRegistrationActiveForCapacity(refundedReg)).toBe(false);
   });
 });

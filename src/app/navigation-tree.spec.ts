@@ -559,4 +559,39 @@ describe('NavigationTreeService', () => {
     expect(navTree.currentTitle()).toBe('Buy');
     expect(breadcrumbLabels()).toEqual(['ILC Portal', 'Buy']);
   });
+
+  it('places EventRegistrationView under EventRegistrations and preserves parent filter/search params', () => {
+    navTree.loadedEventTitle.set('Summer Camp');
+    routing.signals[Views.EventRegistrations].urlParams.q.set('jane');
+    routing.signals[Views.EventRegistrations].urlParams.filter.set('in_person');
+
+    goTo(Views.EventRegistrationView, {
+      eventId: 'E1',
+      registrationId: 'R42',
+    });
+
+    expect(navTree.currentTitleIsLoading()).toBe(true);
+    expect(navTree.currentTitle()).toBe('Registration Details');
+    expect(ancestorLabels()).toEqual([
+      'Train',
+      'Events & Workshops',
+      'Summer Camp',
+      'Registered Attendees',
+    ]);
+    expect(navTree.parent()?.url).toContain('/events/E1/registrations');
+    expect(navTree.parent()?.url).toContain('q=jane');
+    expect(navTree.parent()?.url).toContain('filter=in_person');
+
+    navTree.loadedRegistrationTitle.set('Registration: Jane Smith');
+    expect(navTree.currentTitleIsLoading()).toBe(false);
+    expect(navTree.currentTitle()).toBe('Registration: Jane Smith');
+    expect(breadcrumbLabels()).toEqual([
+      'ILC Portal',
+      'Train',
+      'Events & Workshops',
+      'Summer Camp',
+      'Registered Attendees',
+      'Registration: Jane Smith',
+    ]);
+  });
 });

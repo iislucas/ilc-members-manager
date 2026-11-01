@@ -35,6 +35,9 @@ import {
   MarkEventRegistrationPaidResult,
   UnmarkEventRegistrationPaidRequest,
   UnmarkEventRegistrationPaidResult,
+  AdminUpdateEventRegistrationFields,
+  AdminUpdateEventRegistrationRequest,
+  AdminUpdateEventRegistrationResult,
 } from './stripe-types';
 import {
   AttendeeRole,
@@ -49,6 +52,7 @@ import {
   EventPricingQuote,
   EventPricingRules,
   EventRegistration,
+  EventRegistrationQuestionResponse,
   EventRegistrationStatus,
   firestoreDocToEventRegistration,
   firestoreDocToIlcEvent,
@@ -66,6 +70,7 @@ import {
   PricingValidationErrorCode,
   Product,
   RegistrationPaymentMethod,
+  RegistrationQuestionKind,
   resolveOwnedRegistrationAddOnIds,
   validateAndBuildQuestionResponses,
 } from './data-model/events';
@@ -1907,5 +1912,381 @@ export const unmarkEventRegistrationPaid = onCall<
     selectedAddOnLabels: updates.selectedAddOnLabels ?? reg.selectedAddOnLabels,
     autoGrantedAddOnIds: [],
     hasVideoAccess: updates.hasVideoAccess ?? reg.hasVideoAccess,
+  };
+});
+
+function requireEnumValue<T extends string>(
+  raw: unknown,
+  allowed: readonly T[],
+  fieldLabel: string,
+): T {
+  if (typeof raw === 'string' && (allowed as readonly string[]).includes(raw)) {
+    return raw as T;
+  }
+  throw new HttpsError('invalid-argument', `Invalid ${fieldLabel}.`);
+}
+
+function requireNonNegCents(raw: unknown, fieldLabel: string): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
+    throw new HttpsError(
+      'invalid-argument',
+      `${fieldLabel} must be a non-negative integer in minor units.`,
+    );
+  }
+  return Math.round(raw);
+}
+
+function normalizeStringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean);
+}
+
+function normalizeAdminQuestionResponses(
+  raw: unknown,
+): EventRegistrationQuestionResponse[] {
+  if (!Array.isArray(raw)) return [];
+  const validKinds = Object.values(RegistrationQuestionKind);
+  const out: EventRegistrationQuestionResponse[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Partial<EventRegistrationQuestionResponse>;
+    const questionId = typeof rec.questionId === 'string' ? rec.questionId.trim() : '';
+    if (!questionId) continue;
+    const kind =
+      typeof rec.kind === 'string' &&
+      (validKinds as readonly string[]).includes(rec.kind)
+        ? (rec.kind as RegistrationQuestionKind)
+        : RegistrationQuestionKind.ShortText;
+    out.push({
+      questionId,
+      questionLabel:
+        typeof rec.questionLabel === 'string' && rec.questionLabel.trim()
+          ? rec.questionLabel.trim()
+          : questionId,
+      kind,
+      answerText: typeof rec.answerText === 'string' ? rec.answerText.trim() : '',
+      selectedOptions: normalizeStringArray(rec.selectedOptions),
+    });
+  }
+  return out;
+}
+
+export function isRegistrationActiveForCapacity(reg: EventRegistration): boolean {
+  return (
+    reg.status !== EventRegistrationStatus.Cancelled &&
+    reg.status !== EventRegistrationStatus.Refunded
+  );
+}
+
+export function computeAdminCapacityCounts(
+  capacities: EventCapacity[],
+  currentCounts: Record<string, number>,
+  previousHeldUsage: Record<string, number>,
+  nextUsage: Record<string, number>,
+): Record<string, number> {
+  const updatedCounts: Record<string, number> = { ...normalizeCapacityMap(currentCounts) };
+  const prevNorm = normalizeCapacityMap(previousHeldUsage);
+  const nextNorm = normalizeCapacityMap(nextUsage);
+  const allCapIds = new Set<string>([
+    ...capacities.map((c) => c.id),
+    ...Object.keys(prevNorm),
+    ...Object.keys(nextNorm),
+  ]);
+
+  for (const capId of allCapIds) {
+    const used = updatedCounts[capId] || 0;
+    const prevHeld = prevNorm[capId] || 0;
+    const nextHeld = nextNorm[capId] || 0;
+    const projected = Math.max(0, used - prevHeld) + nextHeld;
+    if (projected > 0) {
+      updatedCounts[capId] = projected;
+    } else {
+      delete updatedCounts[capId];
+    }
+  }
+
+  return updatedCounts;
+}
+
+export function buildAdminUpdatedRegistration(
+  existing: EventRegistration,
+  updates: AdminUpdateEventRegistrationFields,
+  nowIso: string = new Date().toISOString(),
+): EventRegistration {
+  if (!updates || typeof updates !== 'object') {
+    throw new HttpsError('invalid-argument', 'Registration updates are required.');
+  }
+
+  const name = (updates.name || '').trim();
+  if (!name) {
+    throw new HttpsError('invalid-argument', 'Attendee name is required.');
+  }
+
+  const email = normalizeEmail(updates.email);
+  if (!email || !email.includes('@')) {
+    throw new HttpsError('invalid-argument', 'A valid attendee email is required.');
+  }
+
+  const role = requireEnumValue(updates.role, Object.values(AttendeeRole), 'attendee role');
+  const attendance = requireEnumValue(
+    updates.attendance,
+    Object.values(AttendanceType),
+    'attendance mode',
+  );
+  const status = requireEnumValue(
+    updates.status,
+    Object.values(EventRegistrationStatus),
+    'registration status',
+  );
+  const paymentMethod = requireEnumValue(
+    updates.paymentMethod,
+    Object.values(RegistrationPaymentMethod),
+    'payment method',
+  );
+  const paymentChoice = requireEnumValue(
+    updates.paymentChoice,
+    Object.values(PaymentChoice),
+    'payment choice',
+  );
+  const pricingTierType = requireEnumValue(
+    updates.pricingTierType,
+    Object.values(PricingTierType),
+    'pricing tier',
+  );
+
+  const totalPriceCents = requireNonNegCents(updates.totalPriceCents, 'Total price');
+  const depositPaidCents = requireNonNegCents(updates.depositPaidCents, 'Deposit paid');
+  const amountPaidCents = requireNonNegCents(updates.amountPaidCents, 'Amount paid');
+  const amountDueCents = requireNonNegCents(updates.amountDueCents, 'Amount due');
+
+  const rawCurrency = (updates.currency || existing.currency || 'usd').trim().toLowerCase();
+  if (!/^[a-z]{3}$/.test(rawCurrency)) {
+    throw new HttpsError('invalid-argument', 'Currency must be a 3-letter ISO code.');
+  }
+
+  return {
+    ...existing,
+    name,
+    email,
+    phone: (updates.phone || '').trim(),
+    notes: (updates.notes || '').trim(),
+    memberDocId: (updates.memberDocId || '').trim(),
+    memberId: (updates.memberId || '').trim(),
+    studentLevel: (updates.studentLevel || '').trim(),
+    applicationLevel: (updates.applicationLevel || '').trim(),
+    role,
+    attendance,
+    optionId: (updates.optionId || '').trim(),
+    optionLabel: (updates.optionLabel || '').trim(),
+    selectedSuboptions: normalizeStringArray(updates.selectedSuboptions),
+    selectedAddOnIds: normalizeStringArray(updates.selectedAddOnIds),
+    selectedAddOnLabels: normalizeStringArray(updates.selectedAddOnLabels),
+    autoGrantedAddOnIds: normalizeStringArray(updates.autoGrantedAddOnIds),
+    hasVideoAccess: Boolean(updates.hasVideoAccess),
+    capacityUsage: normalizeCapacityMap(updates.capacityUsage),
+    status,
+    paymentMethod,
+    paymentChoice,
+    pricingTierType,
+    totalPriceCents,
+    depositPaidCents,
+    amountPaidCents,
+    amountDueCents,
+    currency: rawCurrency,
+    paidInFullOffline: Boolean(updates.paidInFullOffline),
+    paidAt: (updates.paidAt || '').trim(),
+    questionResponses: normalizeAdminQuestionResponses(updates.questionResponses),
+    lastUpdated: nowIso,
+  };
+}
+
+export const adminUpdateEventRegistration = onCall<
+  AdminUpdateEventRegistrationRequest,
+  Promise<AdminUpdateEventRegistrationResult>
+>({ cors: allowedOrigins }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated.');
+  }
+
+  const callerEmail = verifiedAuthEmail(request);
+  if (!callerEmail) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated with a verified email.');
+  }
+
+  const { eventId, registrationId, updates } = request.data || {};
+  if (
+    typeof eventId !== 'string' ||
+    !eventId.trim() ||
+    typeof registrationId !== 'string' ||
+    !registrationId.trim()
+  ) {
+    throw new HttpsError('invalid-argument', 'eventId and registrationId are required.');
+  }
+
+  const db = admin.firestore();
+  const aclSnap = await db.collection(FirestoreCollection.Acl).doc(callerEmail).get();
+  const acl = aclSnap.data() as ACL | undefined;
+  if (acl?.isAdmin !== true) {
+    throw new HttpsError(
+      'permission-denied',
+      'Only HQ administrators are authorized to edit event registrations.',
+    );
+  }
+
+  const cleanEventId = eventId.trim();
+  const cleanRegId = registrationId.trim();
+  const eventRef = db.collection(FirestoreCollection.Events).doc(cleanEventId);
+  const regRef = eventRef.collection(FirestoreSubcollection.Registrations).doc(cleanRegId);
+  const nowIso = new Date().toISOString();
+
+  let updatedRegistration: EventRegistration | null = null;
+  let loadedRules: EventPricingRules | null = null;
+
+  await db.runTransaction(async (tx) => {
+    const [txEventSnap, txRegSnap] = await Promise.all([tx.get(eventRef), tx.get(regRef)]);
+    if (!txRegSnap.exists) {
+      throw new HttpsError('not-found', 'Registration not found.');
+    }
+
+    const freshExisting = firestoreDocToEventRegistration(txRegSnap);
+    const freshEvent = txEventSnap.exists ? firestoreDocToIlcEvent(txEventSnap) : null;
+    const productId = freshEvent?.productId || freshExisting.productId || '';
+    const prodRef = productId
+      ? db.collection(FirestoreCollection.Products).doc(productId)
+      : null;
+    const txProdSnap = prodRef ? await tx.get(prodRef) : null;
+    const freshProduct =
+      txProdSnap && txProdSnap.exists ? firestoreDocToProduct(txProdSnap) : null;
+
+    if (freshProduct) {
+      loadedRules = resolveEffectiveRulesAndCapacities(freshProduct, freshEvent).rules;
+    }
+
+    const nextReg = buildAdminUpdatedRegistration(freshExisting, updates, nowIso);
+    updatedRegistration = nextReg;
+
+    // 1. Update canonical registration record
+    tx.set(regRef, nextReg);
+
+    // 2. Sync /members/{memberDocId}/registrations/{registrationId} mirror (and remove old if re-linked)
+    const prevMemberDocId = (freshExisting.memberDocId || '').trim();
+    const nextMemberDocId = (nextReg.memberDocId || '').trim();
+    if (prevMemberDocId && prevMemberDocId !== nextMemberDocId) {
+      const oldMemberRegRef = db
+        .collection(FirestoreCollection.Members)
+        .doc(prevMemberDocId)
+        .collection(FirestoreSubcollection.Registrations)
+        .doc(cleanRegId);
+      tx.delete(oldMemberRegRef);
+    }
+    if (nextMemberDocId) {
+      const nextMemberRegRef = db
+        .collection(FirestoreCollection.Members)
+        .doc(nextMemberDocId)
+        .collection(FirestoreSubcollection.Registrations)
+        .doc(cleanRegId);
+      tx.set(nextMemberRegRef, nextReg);
+    }
+
+    // 3. Adjust inPersonRegistrationsCount & capacityCounts immediately on event + product
+    const effectiveCapacities: EventCapacity[] =
+      freshEvent && freshEvent.capacities.length > 0
+        ? freshEvent.capacities
+        : freshProduct?.pricingRules.capacities ?? [];
+
+    const wasActive = isRegistrationActiveForCapacity(freshExisting);
+    const willBeActive = isRegistrationActiveForCapacity(nextReg);
+    const prevHeld = wasActive
+      ? computeEffectiveCapacityUsage(freshExisting, effectiveCapacities)
+      : {};
+    const nextHeld = willBeActive
+      ? computeEffectiveCapacityUsage(nextReg, effectiveCapacities)
+      : {};
+
+    const wasInPerson =
+      wasActive &&
+      (freshExisting.attendance === AttendanceType.InPerson ||
+        freshExisting.attendance === AttendanceType.InPersonAndOnline);
+    const willBeInPerson =
+      willBeActive &&
+      (nextReg.attendance === AttendanceType.InPerson ||
+        nextReg.attendance === AttendanceType.InPersonAndOnline);
+    const inPersonDelta = (willBeInPerson ? 1 : 0) - (wasInPerson ? 1 : 0);
+
+    if (txEventSnap.exists && freshEvent) {
+      const nextEventCapCounts = computeAdminCapacityCounts(
+        effectiveCapacities,
+        freshEvent.capacityCounts,
+        prevHeld,
+        nextHeld,
+      );
+      tx.update(eventRef, {
+        capacityCounts: nextEventCapCounts,
+        inPersonRegistrationsCount: Math.max(
+          0,
+          (freshEvent.inPersonRegistrationsCount ?? 0) + inPersonDelta,
+        ),
+        lastUpdated: FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (prodRef && txProdSnap?.exists && freshProduct) {
+      const nextProdCapCounts = computeAdminCapacityCounts(
+        effectiveCapacities,
+        freshProduct.capacityCounts,
+        prevHeld,
+        nextHeld,
+      );
+      tx.update(prodRef, {
+        capacityCounts: nextProdCapCounts,
+        inPersonRegistrationsCount: Math.max(
+          0,
+          freshProduct.inPersonRegistrationsCount + inPersonDelta,
+        ),
+        lastUpdated: FieldValue.serverTimestamp(),
+      });
+    }
+  });
+
+  const saved = updatedRegistration!;
+
+  // 4. Provision catalog VOD grants if active & not unpaid at door
+  if (
+    loadedRules &&
+    isRegistrationActiveForCapacity(saved) &&
+    !isRegistrationPendingInPerson(saved) &&
+    saved.selectedAddOnIds.length > 0
+  ) {
+    try {
+      await provisionAddOnCatalogGrants(
+        db,
+        loadedRules,
+        saved.selectedAddOnIds,
+        saved.memberDocId,
+        saved.email,
+        cleanRegId,
+      );
+    } catch (grantErr) {
+      logger.warn('Failed to provision catalog VOD grants on adminUpdateEventRegistration', {
+        eventId: cleanEventId,
+        registrationId: cleanRegId,
+        grantErr,
+      });
+    }
+  }
+
+  logger.info('adminUpdateEventRegistration updated registration', {
+    eventId: cleanEventId,
+    registrationId: cleanRegId,
+    adminEmail: callerEmail,
+    status: saved.status,
+    attendance: saved.attendance,
+  });
+
+  return {
+    success: true,
+    registration: saved,
   };
 });

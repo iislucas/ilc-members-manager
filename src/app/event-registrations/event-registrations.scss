@@ -335,8 +335,12 @@
       border-bottom: 1px solid v.$border-color-light;
       transition: background 0.1s ease;
 
+      &.clickable-row {
+        cursor: pointer;
+      }
+
       &:hover {
-        background: rgba(0, 0, 0, 0.02);
+        background: rgba(0, 0, 0, 0.03);
       }
 
       &:last-child {
@@ -354,6 +358,16 @@
     .attendee-name {
       font-weight: 600;
       color: v.$text-primary;
+    }
+    .attendee-link {
+      display: inline-block;
+      text-decoration: none;
+      transition: color 0.15s ease;
+
+      &:hover,
+      &:focus-visible {
+        color: v.$heading-accent-color;
+      }
     }
     .attendee-email {
       font-size: 0.85em;

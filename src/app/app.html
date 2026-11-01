@@ -630,9 +630,23 @@
         }
         @case (Views.EventRegistrations) {
           @defer {
-            <app-event-registrations></app-event-registrations>
+            <app-event-registrations
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-registrations>
           } @loading (minimum 150ms) {
             <app-spinner class="view-loading">Loading registrations...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.EventRegistrationView) {
+          @defer {
+            <app-event-registration-view
+              (titleLoaded)="onRegistrationTitleLoaded($event)"
+              (eventTitleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-registration-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading registration...</app-spinner>
           } @placeholder {
             <div></div>
           }

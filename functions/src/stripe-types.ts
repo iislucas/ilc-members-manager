@@ -9,8 +9,13 @@
 import {
   AttendeeRole,
   AttendanceType,
+  EventRegistration,
+  EventRegistrationQuestionResponse,
+  EventRegistrationStatus,
   PaymentChoice,
+  PricingTierType,
   QuestionAnswerInput,
+  RegistrationPaymentMethod,
 } from './data-model/events';
 
 export enum StripePriceType {
@@ -310,4 +315,48 @@ export interface UnmarkEventRegistrationPaidResult {
   selectedAddOnLabels?: string[];
   autoGrantedAddOnIds?: string[];
   hasVideoAccess?: boolean;
+}
+
+export interface AdminUpdateEventRegistrationFields {
+  name: string;
+  email: string;
+  phone: string;
+  notes: string;
+  memberDocId: string;
+  memberId: string;
+  studentLevel: string;
+  applicationLevel: string;
+  role: AttendeeRole;
+  attendance: AttendanceType;
+  optionId: string;
+  optionLabel: string;
+  selectedSuboptions: string[];
+  selectedAddOnIds: string[];
+  selectedAddOnLabels: string[];
+  autoGrantedAddOnIds: string[];
+  hasVideoAccess: boolean;
+  capacityUsage: Record<string, number>;
+  status: EventRegistrationStatus;
+  paymentMethod: RegistrationPaymentMethod;
+  paymentChoice: PaymentChoice;
+  pricingTierType: PricingTierType;
+  totalPriceCents: number;
+  depositPaidCents: number;
+  amountPaidCents: number;
+  amountDueCents: number;
+  currency: string;
+  paidInFullOffline: boolean;
+  paidAt: string;
+  questionResponses: EventRegistrationQuestionResponse[];
+}
+
+export interface AdminUpdateEventRegistrationRequest {
+  eventId: string;
+  registrationId: string;
+  updates: AdminUpdateEventRegistrationFields;
+}
+
+export interface AdminUpdateEventRegistrationResult {
+  success: boolean;
+  registration: EventRegistration;
 }

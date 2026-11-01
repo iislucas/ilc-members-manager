@@ -62,6 +62,7 @@ export class NavigationTreeService {
   public loadedGradingTitle = signal<string | null>(null);
   public loadedInstructorTitle = signal<string | null>(null);
   public loadedVideoTitle = signal<string | null>(null);
+  public loadedRegistrationTitle = signal<string | null>(null);
 
   /** The matched route, with the two "index" routes mapped to what they render. */
   public currentView = computed(() => {
@@ -85,6 +86,7 @@ export class NavigationTreeService {
       if (view !== Views.GradingView) this.loadedGradingTitle.set(null);
       if (view !== Views.InstructorView) this.loadedInstructorTitle.set(null);
       if (view !== Views.VideoView) this.loadedVideoTitle.set(null);
+      if (view !== Views.EventRegistrationView) this.loadedRegistrationTitle.set(null);
     });
   }
 
@@ -151,6 +153,7 @@ export class NavigationTreeService {
     if (view === Views.InstructorView) return !this.loadedInstructorTitle();
     if (view === Views.GradingView) return !this.loadedGradingTitle();
     if (view === Views.VideoView) return !this.loadedVideoTitle();
+    if (view === Views.EventRegistrationView) return !this.loadedRegistrationTitle();
     return false;
   });
 
@@ -243,6 +246,9 @@ export class NavigationTreeService {
       view === Views.EventsCalendar ||
       view === Views.EventView ||
       view === Views.EventEdit ||
+      view === Views.EventRegister ||
+      view === Views.EventRegistrations ||
+      view === Views.EventRegistrationView ||
       view === Views.FindSchool ||
       view === Views.SchoolView ||
       view === Views.SchoolCalendarView ||
@@ -393,6 +399,15 @@ export class NavigationTreeService {
         return [
           this.node(Views.EventsCalendar, 'Events & Workshops'),
           this.node(Views.EventView, this.loadedEventTitle() || 'Event Details', { eventId }),
+        ];
+      }
+
+      case Views.EventRegistrationView: {
+        const eventId = this.routing.signals[Views.EventRegistrationView].pathVars.eventId();
+        return [
+          this.node(Views.EventsCalendar, 'Events & Workshops'),
+          this.node(Views.EventView, this.loadedEventTitle() || 'Event Details', { eventId }),
+          this.node(Views.EventRegistrations, 'Registered Attendees', { eventId }),
         ];
       }
 
@@ -908,6 +923,8 @@ export class NavigationTreeService {
         return 'Edit Registration Setup';
       case Views.EventRegistrations:
         return 'Registered Attendees';
+      case Views.EventRegistrationView:
+        return this.loadedRegistrationTitle() || 'Registration Details';
       case Views.MyMaterials:
         return 'Uploads';
       case Views.ManageMaterials:
@@ -1001,6 +1018,7 @@ const EVENT_VIEWS: ReadonlySet<Views> = new Set([
 const EVENT_ANCESTOR_TITLE_VIEWS: ReadonlySet<Views> = new Set([
   Views.ManageEventRegistration,
   Views.EventRegistrations,
+  Views.EventRegistrationView,
 ]);
 
 /** Every page whose title is the school it shows. */

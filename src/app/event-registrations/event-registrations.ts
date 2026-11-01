@@ -10,6 +10,7 @@ import {
   computed,
   inject,
   OnInit,
+  output,
   signal,
 } from '@angular/core';
 import { studentLevelLabel, toApplicationLevel } from '../../../functions/src/data-model/curriculum';
@@ -142,6 +143,7 @@ export class EventRegistrationsComponent implements OnInit {
   event = signal<IlcEvent | null>(null);
   product = signal<Product | null>(null);
   registrations = signal<EventRegistration[]>([]);
+  titleLoaded = output<string>();
 
   eventId = computed(() => {
     return this.routingService.signals.eventRegistrations.pathVars.eventId() || '';
@@ -360,6 +362,9 @@ export class EventRegistrationsComponent implements OnInit {
       this.event.set(ev || null);
       this.product.set(prod || null);
       this.registrations.set(regs);
+      if (ev?.title) {
+        this.titleLoaded.emit(ev.title);
+      }
     } catch (err) {
       console.error('Error loading event registrations:', err);
     } finally {
@@ -933,5 +938,24 @@ export class EventRegistrationsComponent implements OnInit {
 
   backToEventUrl(): string {
     return this.routingService.hrefForView(Views.EventView, { eventId: this.eventId() });
+  }
+
+  registrationUrl(reg: EventRegistration): string {
+    return this.routingService.hrefForView(Views.EventRegistrationView, {
+      eventId: this.eventId(),
+      registrationId: reg.docId,
+    });
+  }
+
+  onRowClick(event: MouseEvent, reg: EventRegistration) {
+    const target = event.target as HTMLElement | null;
+    if (target && target.closest('a, button, input, select, textarea')) {
+      return;
+    }
+    const selection = typeof window !== 'undefined' ? window.getSelection() : null;
+    if (selection && selection.toString().length > 0) {
+      return;
+    }
+    this.routingService.navigateTo(`events/${this.eventId()}/registrations/${reg.docId}`);
   }
 }

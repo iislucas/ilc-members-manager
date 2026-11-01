@@ -105,6 +105,7 @@ export enum Views {
   ManageEventRegistrationsEdit = 'manageEventRegistrationsEdit',
   ManageEventRegistration = 'manageEventRegistration',
   EventRegistrations = 'eventRegistrations',
+  EventRegistrationView = 'eventRegistrationView',
   AppNotificationSettings = 'appNotificationSettings',
   OfflineActionQueue = 'offlineActionQueue',
 }
@@ -329,6 +330,7 @@ export const initPathPatterns = {
   [Views.ManageEventRegistrationsEdit]: pathPattern`manage-event-registrations/${pv('eventId')}`,
   [Views.ManageEventRegistration]: pathPattern`manage-events/${pv('eventId')}/registration`,
   [Views.EventRegistrations]: addUrlParams(pathPattern`events/${pv('eventId')}/registrations`, ['q', 'filter']),
+  [Views.EventRegistrationView]: pathPattern`events/${pv('eventId')}/registrations/${pv('registrationId')}`,
   [Views.OfflineActionQueue]: pathPattern`offline-queue`,
 };
 
