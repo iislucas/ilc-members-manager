@@ -16,7 +16,7 @@ import {
   InstructorPublicData,
 } from '../../../functions/src/data-model/members';
 import { InstructorLicenseType } from '../../../functions/src/data-model/curriculum';
-import { School } from '../../../functions/src/data-model/schools';
+import { School, initSchool } from '../../../functions/src/data-model/schools';
 import {
   VideoItem,
   VideoGrant,
@@ -46,6 +46,7 @@ describe('MemberDetailsComponent', () => {
   };
 
   beforeEach(async () => {
+    window.history.replaceState({}, '', '/');
     dataManagerServiceMock = {
       updateMember: vi.fn(),
       addMember: vi.fn(),
@@ -347,7 +348,17 @@ describe('MemberDetailsComponent', () => {
   });
 
   describe('navigation buttons', () => {
-    it('should show aspect management links for admin viewing an existing member', async () => {
+    it('should show aspect management links for admin viewing another member who manages schools', async () => {
+      dataManagerServiceMock.schools.setEntries([
+        {
+          ...initSchool(),
+          docId: 's-doc-1',
+          schoolId: 'SCH01',
+          schoolName: 'Doe Kung Fu',
+          ownerInstructorId: '101',
+        },
+      ]);
+
       const memberWithDetails: Member = {
         ...mockMember,
         docId: 'm123',
@@ -403,13 +414,79 @@ describe('MemberDetailsComponent', () => {
         'a[href="/instructors/101"]',
       );
       expect(publicProfileLink).toBeTruthy();
-      expect(publicProfileLink?.textContent).toContain('Public Profile');
-
-      const schoolLink = navButtons?.querySelector(
-        'a[href*="school/SCH01/members"]',
+      expect(publicProfileLink?.textContent).toContain(
+        'Public Instructor Profile',
       );
-      expect(schoolLink).toBeTruthy();
-      expect(schoolLink?.textContent).toContain('School');
+
+      const schoolsLink = navButtons?.querySelector(
+        'a[href="/schools?instructorId=101"]',
+      );
+      expect(schoolsLink).toBeTruthy();
+      expect(schoolsLink?.textContent).toContain('Schools');
+    });
+
+    it('should omit Schools link when admin views a member who does not own or manage any schools', async () => {
+      dataManagerServiceMock.schools.setEntries([
+        {
+          ...initSchool(),
+          docId: 's-doc-1',
+          schoolId: 'SCH01',
+          schoolName: 'Other Owner School',
+          ownerInstructorId: '999',
+        },
+      ]);
+
+      const studentOnlyMember: Member = {
+        ...mockMember,
+        docId: 'm456',
+        memberId: 'US002',
+        name: 'Student Only',
+        emails: ['student@example.com'],
+        primarySchoolId: 'SCH01',
+      };
+      fixture.componentRef.setInput('member', studentOnlyMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const navButtons = compiled.querySelector('.nav-buttons');
+      expect(navButtons).toBeTruthy();
+      expect(navButtons?.textContent).not.toContain('Schools');
+    });
+
+    it('should link Schools to /my-schools on /myProfile for admins and non-admin school managers', async () => {
+      component.routingService.navigateTo('/myProfile');
+      const schoolManager: Member = {
+        ...mockMember,
+        docId: 'mgr-1',
+        instructorId: '197',
+      };
+      firebaseStateServiceMock.user.set({
+        isAdmin: false,
+        member: schoolManager,
+        schoolsManaged: ['SCH-101'],
+        firebaseUser: { email: 'test@example.com' } as User,
+        memberProfiles: [schoolManager],
+      } as UserDetails);
+
+      fixture.componentRef.setInput('member', schoolManager);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const navButtons = compiled.querySelector('.nav-buttons');
+      expect(navButtons).toBeTruthy();
+
+      const publicProfileLink = navButtons?.querySelector(
+        'a[href="/instructors/197"]',
+      );
+      expect(publicProfileLink?.textContent).toContain(
+        'Public Instructor Profile',
+      );
+
+      const schoolsLink = navButtons?.querySelector('a[href="/my-schools"]');
+      expect(schoolsLink).toBeTruthy();
+      expect(schoolsLink?.textContent).toContain('Schools');
     });
 
     it('should not show admin aspect links for non-admin viewing own profile', async () => {

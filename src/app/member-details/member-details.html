@@ -48,30 +48,38 @@
           target="_blank"
           rel="noopener noreferrer"
         >
-          <app-icon name="person" /> Public Profile
+          <app-icon name="person" /> Public Instructor Profile
         </a>
       }
-      @if (e.primarySchoolId && e.primarySchoolId.trim() !== "") {
-        <a class="subtle-button" [href]="memberSchoolLink()">
-          <app-icon name="map" /> School
+      @if (memberSchoolsLink(); as schoolsHref) {
+        <a class="subtle-button" [href]="schoolsHref">
+          <app-icon name="map" /> Schools
         </a>
       }
     </div>
   } @else if (
-    isOwnProfile() && e.instructorId && e.instructorId.trim() !== ""
+    isOwnProfile() &&
+    ((e.instructorId && e.instructorId.trim() !== "") || memberSchoolsLink())
   ) {
     <div class="nav-buttons">
-      <a class="subtle-button" [href]="memberStudentsLink()">
-        <app-icon name="salut" /> Students
-      </a>
-      <a
-        class="subtle-button"
-        [href]="memberPublicProfileLink()"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <app-icon name="person" /> Public Profile
-      </a>
+      @if (e.instructorId && e.instructorId.trim() !== "") {
+        <a class="subtle-button" [href]="memberStudentsLink()">
+          <app-icon name="salut" /> Students
+        </a>
+        <a
+          class="subtle-button"
+          [href]="memberPublicProfileLink()"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <app-icon name="person" /> Public Instructor Profile
+        </a>
+      }
+      @if (memberSchoolsLink(); as schoolsHref) {
+        <a class="subtle-button" [href]="schoolsHref">
+          <app-icon name="map" /> Schools
+        </a>
+      }
     </div>
   }
 

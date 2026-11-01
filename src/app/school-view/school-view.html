@@ -39,7 +39,7 @@
             </div>
           }
         </div>
-        @if (editSchoolHref(); as editHref) {
+        @if (editSchoolHref() || schoolStudentsHref()) {
           <div class="profile-menu-container">
             <button
               type="button"
@@ -54,10 +54,18 @@
             @if (menuOpen()) {
               <div class="menu-overlay transparent" (click)="closeMenu()"></div>
               <div class="profile-actions-menu">
-                <a class="menu-item" [href]="editHref" (click)="closeMenu()">
-                  <app-icon name="edit" />
-                  <span>Edit school profile</span>
-                </a>
+                @if (editSchoolHref(); as editHref) {
+                  <a class="menu-item" [href]="editHref" (click)="closeMenu()">
+                    <app-icon name="edit" />
+                    <span>Edit school profile</span>
+                  </a>
+                }
+                @if (schoolStudentsHref(); as studentsHref) {
+                  <a class="menu-item" [href]="studentsHref" (click)="closeMenu()">
+                    <app-icon name="salut" />
+                    <span>View students</span>
+                  </a>
+                }
               </div>
             }
           </div>

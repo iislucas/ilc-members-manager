@@ -33,16 +33,53 @@ export class SchoolListComponent {
   // Constants
   ExpiryStatus = ExpiryStatus;
 
-  // Both ManageSchools and MySchools share the same URL param shape (q).
-  private viewSignals = computed(() => {
-    const match = this.routingService.matchedPatternId();
-    if (match === Views.MySchools) return this.routingService.signals[Views.MySchools];
-    return this.routingService.signals[Views.ManageSchools];
+  isMySchools = computed(() => this.routingService.matchedPatternId() === Views.MySchools);
+
+  searchTerm = computed(() => {
+    if (this.isMySchools()) {
+      return this.routingService.signals[Views.MySchools].urlParams.q();
+    }
+    return this.routingService.signals[Views.ManageSchools].urlParams.q();
   });
 
-  searchTerm = computed(() => this.viewSignals().urlParams.q());
+  instructorIdParam = computed(() =>
+    this.isMySchools()
+      ? ''
+      : this.routingService.signals[Views.ManageSchools].urlParams.instructorId(),
+  );
 
-  isMySchools = computed(() => this.routingService.matchedPatternId() === Views.MySchools);
+  memberDocIdParam = computed(() =>
+    this.isMySchools()
+      ? ''
+      : this.routingService.signals[Views.ManageSchools].urlParams.memberDocId(),
+  );
+
+  // Label for the active owner/manager filter chip when filtering /schools by a member.
+  managerFilterLabel = computed(() => {
+    const insId = this.instructorIdParam();
+    const memDocId = this.memberDocIdParam();
+    if (!insId && !memDocId) return '';
+    if (insId) {
+      const instructor = this.membersService.instructors.get(insId);
+      return instructor
+        ? `Managed by ${instructor.name} [${insId}]`
+        : `Managed by Instructor [${insId}]`;
+    }
+    const member = this.membersService.members.get(memDocId);
+    if (member) {
+      return member.memberId
+        ? `Managed by (${member.memberId}) ${member.name}`
+        : `Managed by ${member.name}`;
+    }
+    return `Managed by ${memDocId}`;
+  });
+
+  clearManagerFilter() {
+    if (this.isMySchools()) return;
+    const urlParams = this.routingService.signals[Views.ManageSchools].urlParams;
+    urlParams.instructorId.set('');
+    urlParams.memberDocId.set('');
+  }
 
   // Expose signals from the service to the template
   @Input() schoolSet: SearchableSet<'schoolId', School> | null = null;
@@ -50,13 +87,34 @@ export class SchoolListComponent {
   targetSchoolSet = computed<SearchableSet<'schoolId', School>>(() => this.schoolSet || this.membersService.schools);
 
   limit = signal(50);
-  schools = computed(() => {
-    const all = this.targetSchoolSet().search(this.searchTerm());
-    return all.slice(0, this.limit());
+  private filteredSchools = computed(() => {
+    let list = this.targetSchoolSet().search(this.searchTerm());
+    const insId = this.instructorIdParam();
+    const memDocId = this.memberDocIdParam();
+    if (insId || memDocId) {
+      const resolvedMember = memDocId
+        ? this.membersService.members.get(memDocId)
+        : insId
+          ? this.membersService.members
+              .entries()
+              .find((m) => m.instructorId === insId)
+          : undefined;
+      const effectiveInsId = insId || resolvedMember?.instructorId || '';
+      const effectiveDocId = memDocId || resolvedMember?.docId || '';
+
+      list = list.filter(
+        (s) =>
+          (!!effectiveInsId &&
+            (s.ownerInstructorId === effectiveInsId ||
+              s.managerInstructorIds.includes(effectiveInsId))) ||
+          (!!effectiveDocId && s.ownerMemberDocId === effectiveDocId),
+      );
+    }
+    return list;
   });
-  totalSchools = computed(
-    () => this.targetSchoolSet().search(this.searchTerm()).length,
-  );
+
+  schools = computed(() => this.filteredSchools().slice(0, this.limit()));
+  totalSchools = computed(() => this.filteredSchools().length);
 
   duplicateEntries = computed(() => this.targetSchoolSet().duplicateEntries().sort((a, b) => a.schoolId.localeCompare(b.schoolId)));
   errorsExist = computed(() => this.duplicateEntries().length > 0);
@@ -75,7 +133,11 @@ export class SchoolListComponent {
 
   onSearch(event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    this.viewSignals().urlParams.q.set(value);
+    if (this.isMySchools()) {
+      this.routingService.signals[Views.MySchools].urlParams.q.set(value);
+    } else {
+      this.routingService.signals[Views.ManageSchools].urlParams.q.set(value);
+    }
     this.limit.set(50);
   }
 
