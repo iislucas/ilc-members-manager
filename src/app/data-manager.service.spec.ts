@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { DataManagerService } from './data-manager.service';
 import { IncrementalSyncService } from './incremental-sync.service';
@@ -5,7 +6,7 @@ import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { getDocs, getDoc, query, where, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { getDocs, getDoc, query, where, orderBy, collection, onSnapshot, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { Member, initMember } from '../../functions/src/data-model/members';
 import { School, initSchool } from '../../functions/src/data-model/schools';
 import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
@@ -1117,6 +1118,137 @@ describe('DataManagerService - searchEvents', () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].docId).toBe('DQJCygchO8qG71QaEDPK');
+    });
+  });
+
+  describe('updateMyGradingsAssessedSync', () => {
+    interface AssessedListener {
+      target: string;
+      next: (snap: { docs: Array<{ id: string; data: () => Record<string, unknown> }> }) => void;
+      error: (err: Error) => void;
+      unsubscribe: ReturnType<typeof vi.fn>;
+    }
+    let listeners: AssessedListener[];
+
+    beforeEach(() => {
+      listeners = [];
+      vi.mocked(collection).mockImplementation(((_db: unknown, ...segments: string[]) => ({
+        path: segments.join('/'),
+      })) as never);
+      vi.mocked(orderBy).mockImplementation(((field: string, dir: string) => ({
+        clause: `orderBy:${field}:${dir}`,
+      })) as never);
+      vi.mocked(query).mockImplementation(((ref: { path?: string }, ...rest: Array<{ clause?: string }>) => ({
+        path: `${ref?.path ?? ''}?${rest.map((r) => r?.clause ?? '').join('&')}`,
+      })) as never);
+      vi.mocked(onSnapshot).mockImplementation(((
+        target: { path?: string },
+        next: AssessedListener['next'],
+        error: AssessedListener['error'],
+      ) => {
+        const unsubscribe = vi.fn();
+        listeners.push({ target: target?.path ?? '', next, error, unsubscribe });
+        return unsubscribe;
+      }) as never);
+    });
+
+    afterEach(() => {
+      vi.mocked(collection).mockReset();
+      vi.mocked(orderBy).mockReset();
+      vi.mocked(query).mockReset();
+      vi.mocked(onSnapshot).mockReset();
+      vi.mocked(onSnapshot).mockImplementation((() => () => {}) as never);
+    });
+
+    const makeInstructorUser = (docId: string, instructorId = '197'): UserDetails =>
+      ({
+        member: { ...initMember(), docId, instructorId },
+        memberProfiles: [],
+        firebaseUser: { uid: 'u1', email: 'inst@example.com' },
+        isAdmin: false,
+        schoolsManaged: [],
+      }) as unknown as UserDetails;
+
+    it('skips redundant re-subscribes for the same instructor docId and unsubscribes on null', () => {
+      service.updateMyGradingsAssessedSync(makeInstructorUser('inst_doc_1'));
+      const assessedListeners = () =>
+        listeners.filter((l) => l.target.startsWith('instructors/'));
+      expect(assessedListeners()).toHaveLength(1);
+      const first = assessedListeners()[0];
+
+      // Calling again with a fresh UserDetails object for the same member docId must not re-subscribe.
+      service.updateMyGradingsAssessedSync(makeInstructorUser('inst_doc_1'));
+      expect(assessedListeners()).toHaveLength(1);
+      expect(first.unsubscribe).not.toHaveBeenCalled();
+
+      // Switching profile unsubscribes the old listener and attaches the new one.
+      service.updateMyGradingsAssessedSync(makeInstructorUser('inst_doc_2'));
+      expect(first.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(assessedListeners()).toHaveLength(2);
+      const second = assessedListeners()[1];
+
+      // Signing out (user === null) unsubscribes immediately and clears entries.
+      service.updateMyGradingsAssessedSync(null);
+      expect(second.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(service.myGradingsAssessed.entries()).toEqual([]);
+    });
+
+    it('re-subscribes cleanly after a listener error', () => {
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      service.updateMyGradingsAssessedSync(makeInstructorUser('inst_doc_1'));
+      const first = listeners.find((l) => l.target.startsWith('instructors/'))!;
+      first.error(new Error('Missing or insufficient permissions.'));
+      expect(service.myGradingsAssessed.error()).toBe('Missing or insufficient permissions.');
+
+      // Subsequent auth/profile refresh for the same docId re-attaches a fresh listener.
+      service.updateMyGradingsAssessedSync(makeInstructorUser('inst_doc_1'));
+      const matching = listeners.filter((l) => l.target.startsWith('instructors/inst_doc_1/gradings'));
+      expect(matching).toHaveLength(2);
+      errSpy.mockRestore();
+    });
+
+    it('reactive user effect tears down myGradingsAssessed listener when user becomes null on logout', () => {
+      TestBed.resetTestingModule();
+      const userSignal = signal<UserDetails | null>(makeInstructorUser('inst_doc_logout'));
+      const mockFirebaseState = {
+        ...createFirebaseStateServiceMock(),
+        app,
+        user: userSignal,
+        isAuthReady: signal(true),
+        updateCachedMemberProfile: vi.fn().mockResolvedValue(undefined),
+      };
+      const mockSyncService = {
+        loadCachedData: vi.fn().mockResolvedValue(true),
+        syncCollection: vi.fn().mockResolvedValue(undefined),
+        saveCachedBundle: vi.fn().mockResolvedValue(undefined),
+        upsertCachedEntry: vi.fn().mockResolvedValue(undefined),
+        deleteCachedEntry: vi.fn().mockResolvedValue(undefined),
+        clearCache: vi.fn().mockResolvedValue(undefined),
+        clearAllCaches: vi.fn().mockResolvedValue(undefined),
+      };
+      TestBed.configureTestingModule({
+        providers: [
+          { provide: FirebaseStateService, useValue: mockFirebaseState },
+          { provide: FIREBASE_APP, useValue: app },
+          { provide: IncrementalSyncService, useValue: mockSyncService },
+          DataManagerService,
+          IdbStorageService,
+        ],
+      });
+
+      TestBed.inject(DataManagerService);
+      TestBed.flushEffects();
+
+      const assessed = listeners.find((l) =>
+        l.target.startsWith('instructors/inst_doc_logout/gradings'),
+      );
+      expect(assessed).toBeDefined();
+      expect(assessed!.unsubscribe).not.toHaveBeenCalled();
+
+      userSignal.set(null);
+      TestBed.flushEffects();
+
+      expect(assessed!.unsubscribe).toHaveBeenCalledTimes(1);
     });
   });
 });

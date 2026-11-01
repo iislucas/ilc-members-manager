@@ -7,7 +7,15 @@ import {
 } from '@angular/core';
 import { provideServiceWorker } from '@angular/service-worker';
 import { FirebaseApp, initializeApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  browserSessionPersistence,
+  connectAuthEmulator,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from 'firebase/auth';
 import {
   connectFirestoreEmulator,
   getFirestore,
@@ -370,6 +378,38 @@ export const appConfig: ApplicationConfig = {
       // Emulator connections are also set up here, before any service accesses Firestore.
       useValue: (() => {
         const app = initializeApp(environment.firebase);
+        // Register Firebase Auth on `app` BEFORE `initializeFirestore(..., persistentMultipleTabManager())`.
+        // Otherwise `@firebase/firestore`'s `FirebaseAuthCredentialsProvider` may start its multi-tab
+        // primary Watch stream in unauthenticated mode before Angular instantiates `FirebaseStateService`,
+        // causing secondary tabs to receive spurious `Missing or insufficient permissions` rejections.
+        // Configuring `browserLocalPersistence` upfront also syncs auth state across tabs via `localStorage`
+        // without an async post-init `setPersistence()` swap.
+        let auth: ReturnType<typeof getAuth> | undefined;
+        try {
+          if (
+            typeof browserLocalPersistence === 'function' &&
+            typeof browserPopupRedirectResolver === 'function'
+          ) {
+            const persistence = [
+              browserLocalPersistence,
+              indexedDBLocalPersistence,
+              browserSessionPersistence,
+            ].filter((p) => typeof p === 'function');
+            auth = initializeAuth(app, {
+              persistence,
+              popupRedirectResolver: browserPopupRedirectResolver,
+            });
+          } else {
+            auth = getAuth(app);
+          }
+        } catch {
+          try {
+            auth = getAuth(app);
+          } catch {
+            auth = undefined;
+          }
+        }
+
         let firestore: ReturnType<typeof getFirestore>;
         try {
           firestore = initializeFirestore(app, {
@@ -383,7 +423,7 @@ export const appConfig: ApplicationConfig = {
 
         if (environment.useEmulator) {
           connectFirestoreEmulator(firestore, 'localhost', 8080);
-          connectAuthEmulator(getAuth(app), 'http://127.0.0.1:9099', { disableWarnings: true });
+          connectAuthEmulator(auth ?? getAuth(app), 'http://127.0.0.1:9099', { disableWarnings: true });
           connectFunctionsEmulator(getFunctions(app), 'localhost', 5001);
           connectStorageEmulator(getStorage(app), 'localhost', 9199);
         }

@@ -131,4 +131,15 @@ describe('FirebaseStateService', () => {
     expect(service.isAuthReady()).toBe(false);
     expect(service.isAuthSyncing()).toBe(false);
   });
+
+  it('unsubscribes member snapshot listener during logout', async () => {
+    const memberUnsub = vi.fn();
+    (service as unknown as { unsubscribeFromMember: (() => void) | null }).unsubscribeFromMember =
+      memberUnsub;
+    await service.logout();
+    expect(memberUnsub).toHaveBeenCalledTimes(1);
+    expect(
+      (service as unknown as { unsubscribeFromMember: (() => void) | null }).unsubscribeFromMember,
+    ).toBeNull();
+  });
 });

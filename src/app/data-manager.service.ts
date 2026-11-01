@@ -570,7 +570,7 @@ export class DataManagerService implements OnDestroy {
       } else {
         this.members.setEntries([]);
         this.myStudents.setEntries([]);
-        this.myGradingsAssessed.setEntries([]);
+        this.updateMyGradingsAssessedSync(null);
         this.orders.setEntries([]);
       }
     });
@@ -859,6 +859,7 @@ export class DataManagerService implements OnDestroy {
       this.myGradingsAssessedUnsubscribe();
       this.myGradingsAssessedUnsubscribe = null;
     }
+    this.myGradingsAssessedDocId = null;
     if (this.myOrdersUnsubscribe) {
       this.myOrdersUnsubscribe();
       this.myOrdersUnsubscribe = null;
@@ -1949,16 +1950,25 @@ export class DataManagerService implements OnDestroy {
   }
 
   private myGradingsAssessedUnsubscribe: (() => void) | null = null;
+  private myGradingsAssessedDocId: string | null = null;
 
-  updateMyGradingsAssessedSync(user: UserDetails) {
+  updateMyGradingsAssessedSync(user: UserDetails | null) {
+    const nextDocId =
+      user?.member?.instructorId && user?.member?.docId ? user.member.docId : null;
+    if (nextDocId && nextDocId === this.myGradingsAssessedDocId && this.myGradingsAssessedUnsubscribe) {
+      return;
+    }
+
     if (this.myGradingsAssessedUnsubscribe) {
       this.myGradingsAssessedUnsubscribe();
       this.myGradingsAssessedUnsubscribe = null;
     }
+    this.myGradingsAssessedDocId = null;
 
-    if (user.member.instructorId && user.member.docId) {
+    if (nextDocId) {
+      this.myGradingsAssessedDocId = nextDocId;
       const q = query(
-        collection(this.db, `instructors/${user.member.docId}/gradings`),
+        collection(this.db, `instructors/${nextDocId}/gradings`),
         orderBy('lastUpdated', 'desc'),
       );
       this.myGradingsAssessedUnsubscribe = onSnapshot(
@@ -1970,6 +1980,8 @@ export class DataManagerService implements OnDestroy {
         (error) => {
           console.error('Error fetching my gradings assessed:', error);
           this.myGradingsAssessed.setError(error.message);
+          this.myGradingsAssessedUnsubscribe = null;
+          this.myGradingsAssessedDocId = null;
         },
       );
     } else {
