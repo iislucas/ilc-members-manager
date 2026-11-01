@@ -467,6 +467,9 @@ describe('SchoolLicensePurchaseComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('Payment linked to: Sifu Other (US555)');
     expect(element.textContent).toContain('2027-06-15 ($600.00 USD)');
+    expect(element.textContent).toContain(
+      'On 2027-06-15, the expiration date will be extended to 2028-06-15.',
+    );
   });
 
   it('should support inline non-blocking cancel auto-renewal when current user owns the school subscription', async () => {

@@ -150,6 +150,10 @@
             @if (hasActiveSubscription()) {
               Next auto-renewal payment:
               <strong>{{ nextAutoRenewPaymentText() }}</strong>.
+              @if (projectedLicenseExpires()) {
+                On {{ nextAutoRenewDate() }}, the expiration date will be
+                extended to <strong>{{ projectedLicenseExpires() }}</strong>.
+              }
             }
           </p>
         </div>

@@ -381,5 +381,8 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     expect(banner?.textContent).toContain(
       'Next auto-renewal payment: 2026-11-23 ($5.99 USD)',
     );
+    expect(banner?.textContent).toContain(
+      'On 2026-11-23, the expiration date will be extended to 2028-04-23.',
+    );
   });
 });

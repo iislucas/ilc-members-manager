@@ -223,6 +223,12 @@
                         Off (Will not renew automatically)
                       }
                     </span>
+                    @if (billing.isAutoRenewing && billing.projectedExpirationDate) {
+                      <span class="renewal-extension-note">
+                        On {{ billing.nextAutoRenewDate }}, the expiration date will be extended to
+                        <strong>{{ billing.projectedExpirationDate }}</strong>.
+                      </span>
+                    }
                   }
                 </div>
               </div>

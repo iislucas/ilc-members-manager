@@ -147,6 +147,35 @@ export interface ResolvedSubscriptionRenewal {
   amount: number | null;
   currency: string;
   autoRenewalPaymentText: string;
+  projectedExpirationDate: string;
+}
+
+/**
+ * Compute the new access expiration date (`YYYY-MM-DD`) that will apply once
+ * a forthcoming auto-renewal payment succeeds on `nextAutoRenewDate`.
+ *
+ * Matches backend fulfillment stacking (`extendDateByYears` / `extendDateByMonths`):
+ * if `currentExpirationDate` is on or after `nextAutoRenewDate` (e.g. when access
+ * was purchased in advance), 1 billing interval is stacked onto `currentExpirationDate`;
+ * otherwise 1 billing interval is added starting from `nextAutoRenewDate`.
+ */
+export function computeProjectedRenewalExpirationDate(opts: {
+  currentExpirationDate?: string | null;
+  nextAutoRenewDate?: string | null;
+  interval: 'month' | 'year';
+}): string {
+  const renewDate = (opts.nextAutoRenewDate || '').split('T')[0].trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(renewDate)) return '';
+
+  const cleanedCurrent = (opts.currentExpirationDate || '').split('T')[0].trim();
+  if (cleanedCurrent === '9999-12-31') return '';
+
+  const baseDateStr =
+    /^\d{4}-\d{2}-\d{2}$/.test(cleanedCurrent) && cleanedCurrent >= renewDate
+      ? cleanedCurrent
+      : renewDate;
+
+  return addBillingIntervalToDateString(baseDateStr, opts.interval, 1);
 }
 
 /**
@@ -267,6 +296,32 @@ export function resolveMemberSubscriptionRenewal(opts: {
     }
   }
 
+  let resolvedInterval: 'month' | 'year' =
+    sub?.interval === SubscriptionInterval.Month
+      ? 'month'
+      : sub?.interval === SubscriptionInterval.Year
+        ? 'year'
+        : opts.defaultInterval;
+
+  if (!sub?.interval) {
+    const orderForInterval =
+      (subId ? paidOrders.find((o) => o.subscriptionId === subId) : undefined) ||
+      (opts.orderMatcher ? paidOrders.find((o) => opts.orderMatcher!(o)) : undefined);
+    if (orderForInterval) {
+      const descLower = [
+        orderForInterval.description || '',
+        ...(orderForInterval.lineItems || []).map((li) => li.description || ''),
+      ]
+        .join(' ')
+        .toLowerCase();
+      if (descLower.includes('annual') || descLower.includes('year')) {
+        resolvedInterval = 'year';
+      } else if (descLower.includes('month')) {
+        resolvedInterval = 'month';
+      }
+    }
+  }
+
   return {
     isAutoRenewing,
     nextAutoRenewDate,
@@ -274,6 +329,13 @@ export function resolveMemberSubscriptionRenewal(opts: {
     currency,
     autoRenewalPaymentText: isAutoRenewing
       ? formatNextAutoRenewalPayment(nextAutoRenewDate, amount, currency)
+      : '',
+    projectedExpirationDate: isAutoRenewing
+      ? computeProjectedRenewalExpirationDate({
+          currentExpirationDate: opts.expirationDate,
+          nextAutoRenewDate,
+          interval: resolvedInterval,
+        })
       : '',
   };
 }

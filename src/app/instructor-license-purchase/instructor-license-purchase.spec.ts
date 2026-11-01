@@ -384,7 +384,7 @@ describe('InstructorLicensePurchaseComponent', () => {
     expect(element.textContent).toContain('Become a Member / Renew');
   });
 
-  it('should display Next auto-renewal payment with formatted amount on active license banner', async () => {
+  it('should display Next auto-renewal payment with formatted amount and projected expiration extension on active license banner', async () => {
     await createComponent();
     const banner = (fixture.nativeElement as HTMLElement).querySelector(
       '.current-membership-banner',
@@ -392,6 +392,9 @@ describe('InstructorLicensePurchaseComponent', () => {
     expect(banner?.textContent).toContain('Valid through 2027-01-01');
     expect(banner?.textContent).toContain(
       'Next auto-renewal payment: 2027-01-01 ($150.00 USD)',
+    );
+    expect(banner?.textContent).toContain(
+      'On 2027-01-01, the expiration date will be extended to 2028-01-01.',
     );
   });
 });

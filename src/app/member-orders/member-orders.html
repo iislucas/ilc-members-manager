@@ -147,6 +147,13 @@
                 }
               </span>
             </div>
+
+            @if (sub.isAutoRenewing && sub.projectedExpirationDate) {
+              <div class="renewal-extension-note">
+                On {{ sub.nextAutoRenewDate }}, the expiration date will be
+                extended to <strong>{{ sub.projectedExpirationDate }}</strong>.
+              </div>
+            }
           </div>
 
           @if (sub.canCancel || sub.canResume || sub.canSubscribe) {
@@ -257,6 +264,14 @@
                     }
                   </span>
                 </div>
+
+                @if (sub.isAutoRenewing && sub.projectedExpirationDate) {
+                  <div class="renewal-extension-note">
+                    On {{ sub.nextAutoRenewDate }}, the expiration date will be
+                    extended to
+                    <strong>{{ sub.projectedExpirationDate }}</strong>.
+                  </div>
+                }
               </div>
 
               @if (sub.canSubscribe) {

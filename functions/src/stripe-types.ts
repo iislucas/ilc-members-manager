@@ -231,6 +231,7 @@ export interface ManagedSchoolBillingInfo {
   nextAutoRenewDate: string; // YYYY-MM-DD or ''
   amount: number | null; // in currency minor units (cents), or null if unknown
   currency: string | null; // e.g. 'usd'
+  interval?: 'month' | 'year';
   lastPaymentDate: string; // YYYY-MM-DD or ''
 }
 

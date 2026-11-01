@@ -878,7 +878,8 @@
           <code>stripeSubscriptions[subId].nextAutoRenewDate</code>).
           Members who purchase periods in advance keep their stacked future access expiration date while
           <strong>Next auto-renewal payment:</strong> reports the actual upcoming Stripe charge date and recurring amount
-          (for example, <code>2026-11-23 ($25.00 USD)</code>).
+          (for example, <code>2026-11-23 ($25.00 USD)</code>), accompanied by a projected extension note
+          (<code>On 2026-11-23, the expiration date will be extended to 2028-04-23.</code>).
           When a member cancels auto-renewal, the access expiration date remains intact while <code>*NextAutoRenewDate</code> is set to an empty string (<code>''</code>).
         </p>
 
@@ -898,14 +899,14 @@
                 <td><strong>Active Auto-Renewing</strong></td>
                 <td><code>2027-05-15</code></td>
                 <td><code>2027-05-15</code></td>
-                <td><span class="badge badge-success">Active (Auto-Renewing)</span><br><small>Next auto-renewal payment: 2027-05-15 ($85.00 USD)</small></td>
+                <td><span class="badge badge-success">Active (Auto-Renewing)</span><br><small>Next auto-renewal payment: 2027-05-15 ($85.00 USD) • Extends to 2028-05-15</small></td>
                 <td><code>Cancel Auto-Renewal</code></td>
               </tr>
               <tr>
                 <td><strong>Advance-Stacked + Monthly Auto-Renewing</strong></td>
                 <td><code>2028-03-23</code></td>
                 <td><code>2026-11-23</code></td>
-                <td><span class="badge badge-success">Active (Auto-Renewing)</span><br><small>Valid through 2028-03-23 • Next auto-renewal payment: 2026-11-23 ($25.00 USD)</small></td>
+                <td><span class="badge badge-success">Active (Auto-Renewing)</span><br><small>Valid through 2028-03-23 • Next auto-renewal payment: 2026-11-23 ($25.00 USD) • Extends to 2028-04-23</small></td>
                 <td><code>Cancel Auto-Renewal</code></td>
               </tr>
               <tr>

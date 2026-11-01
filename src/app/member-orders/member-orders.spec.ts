@@ -551,12 +551,16 @@ describe('MemberOrdersComponent', () => {
     expect(vid?.expirationDate).toBe('2028-03-23');
     expect(vid?.nextAutoRenewDate).toBe('2026-11-23');
     expect(vid?.autoRenewalPaymentText).toBe('2026-11-23 ($25.00 USD)');
+    expect(vid?.projectedExpirationDate).toBe('2028-04-23');
 
     const element = fixture.nativeElement as HTMLElement;
     const vidCard = element.querySelector('.sub-card.video_library');
     expect(vidCard?.textContent).toContain('Valid through 2028-03-23');
     expect(vidCard?.textContent).toContain('Next auto-renewal payment:');
     expect(vidCard?.textContent).toContain('2026-11-23 ($25.00 USD)');
+    expect(vidCard?.textContent).toContain(
+      'On 2026-11-23, the expiration date will be extended to 2028-04-23.',
+    );
   });
 
   it('separates payer school licenses into main grid and non-payer managed schools into subsection below', async () => {
@@ -649,6 +653,7 @@ describe('MemberOrdersComponent', () => {
     expect(mainSchools[0].title).toBe('School License: Seattle ILC Academy');
     expect(mainSchools[0].payerLabel).toBe('You (Bruce Lee)');
     expect(mainSchools[0].autoRenewalPaymentText).toBe('2027-08-01 ($600.00 USD)');
+    expect(mainSchools[0].projectedExpirationDate).toBe('2028-08-01');
     expect(mainSchools[0].canCancel).toBe(true);
 
     const otherSchools = component.otherPayerSchoolSubscriptions();
@@ -656,6 +661,7 @@ describe('MemberOrdersComponent', () => {
     expect(otherSchools[0].title).toBe('School License: Portland ILC Branch');
     expect(otherSchools[0].payerLabel).toBe('Sifu Alice (US999)');
     expect(otherSchools[0].autoRenewalPaymentText).toBe('2027-09-15 ($600.00 USD)');
+    expect(otherSchools[0].projectedExpirationDate).toBe('2028-09-15');
     expect(otherSchools[0].canCancel).toBe(false);
     expect(otherSchools[0].canResume).toBe(false);
 
@@ -665,6 +671,31 @@ describe('MemberOrdersComponent', () => {
     expect(subSection?.textContent).toContain('Other Schools You Own or Manage');
     expect(subSection?.textContent).toContain('Sifu Alice (US999)');
     expect(subSection?.textContent).toContain('2027-09-15 ($600.00 USD)');
+    expect(subSection?.textContent).toContain(
+      'On 2027-09-15, the expiration date will be extended to 2028-09-15.',
+    );
+  });
+
+  it('omits the projected expiration extension note when auto-renewal is off', async () => {
+    mockFirebaseStateService.user.set({
+      member: {
+        ...sampleMember,
+        currentMembershipExpires: '2027-05-01',
+        membershipSubscriptionId: 'sub-mem-1',
+        membershipNextAutoRenewDate: '',
+      },
+      memberProfiles: [{ ...sampleMember }],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: { uid: 'mem-123' } as never,
+    });
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const memCard = element.querySelector('.sub-card.membership');
+    expect(memCard?.querySelector('.renewal-extension-note')).toBeNull();
   });
 });
 

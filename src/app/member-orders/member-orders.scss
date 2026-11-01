@@ -289,6 +289,18 @@
         }
       }
     }
+
+    .renewal-extension-note {
+      margin-top: 2px;
+      font-size: 0.84em;
+      line-height: 1.4;
+      color: v.$text-secondary;
+
+      strong {
+        color: v.$text-primary;
+        font-weight: 600;
+      }
+    }
   }
 
   .sub-card-actions {

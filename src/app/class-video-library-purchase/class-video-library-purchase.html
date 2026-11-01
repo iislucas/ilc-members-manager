@@ -83,6 +83,10 @@
             }
             @if (hasActiveAutoRenew()) {
               Next auto-renewal payment: <strong>{{ nextAutoRenewPaymentText() }}</strong>.
+              @if (expirationDate() && projectedExpirationDate()) {
+                On {{ nextAutoRenewDate() }}, the expiration date will be extended to
+                <strong>{{ projectedExpirationDate() }}</strong>.
+              }
             }
           </p>
         </div>
