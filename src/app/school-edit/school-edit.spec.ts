@@ -681,4 +681,58 @@ describe('SchoolEditComponent', () => {
       expect(navSpy).toHaveBeenCalled();
     });
   });
+
+  describe('ownerMemberDocId ownership and empty instructorId safety', () => {
+    it('recognizes owner via ownerMemberDocId and allows saving without ownerInstructorId', async () => {
+      const ownerViaMemberDocUser: UserDetails = {
+        isAdmin: false,
+        member: {
+          ...initMember(),
+          docId: 'stripe-buyer-doc',
+          instructorId: '',
+        },
+        schoolsManaged: [],
+        firebaseUser: { email: 'buyer@example.com' } as User,
+        memberProfiles: [],
+      };
+      await setupComponent(ownerViaMemberDocUser);
+      dataManagerServiceMock.schools!.setEntries([
+        {
+          ...mockSchool,
+          ownerInstructorId: '',
+          ownerMemberDocId: 'stripe-buyer-doc',
+        },
+      ]);
+      await fixture.whenStable();
+
+      expect(component.userIsSchoolManager()).toBe(true);
+      expect(component.errorMessage()).toEqual([]);
+      expect(component.form().valid()).toBe(true);
+    });
+
+    it('does not treat an unrelated non-instructor as manager when ownerInstructorId is empty', async () => {
+      const unrelatedUser: UserDetails = {
+        isAdmin: false,
+        member: {
+          ...initMember(),
+          docId: 'random-member-doc',
+          instructorId: '',
+        },
+        schoolsManaged: [],
+        firebaseUser: { email: 'random@example.com' } as User,
+        memberProfiles: [],
+      };
+      await setupComponent(unrelatedUser);
+      dataManagerServiceMock.schools!.setEntries([
+        {
+          ...mockSchool,
+          ownerInstructorId: '',
+          ownerMemberDocId: 'stripe-buyer-doc',
+        },
+      ]);
+      await fixture.whenStable();
+
+      expect(component.userIsSchoolManager()).toBe(false);
+    });
+  });
 });

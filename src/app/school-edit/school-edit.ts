@@ -128,7 +128,10 @@ export class SchoolEditComponent {
   // Use form() to create a FieldTree for validation and state tracking.
   form: FieldTree<School> = form(this.schoolFormModel, (schema) => {
     required(schema.schoolName, { message: 'School Name is required.' });
-    required(schema.ownerInstructorId, { message: 'School must have an owner.' });
+    required(schema.ownerInstructorId, {
+      message: 'School must have an owner.',
+      when: () => !this.editableSchool().ownerMemberDocId,
+    });
     required(schema.schoolId, {
       message: 'School ID is required.',
       when: () =>
@@ -243,13 +246,26 @@ export class SchoolEditComponent {
 
   userIsAdmin = computed(() => this.stateService.user()?.isAdmin ?? false);
   userIsSchoolManager = computed(() => {
-    const member = this.stateService.user()?.member;
-    if (!member) return false;
+    const user = this.stateService.user();
+    if (!user) return false;
     const school = this.school();
     if (!school) return false;
+    const member = user.member;
+    const insId = member.instructorId;
+    if (
+      insId &&
+      (insId === school.ownerInstructorId ||
+        school.managerInstructorIds.includes(insId))
+    ) {
+      return true;
+    }
+    if (member.docId && member.docId === school.ownerMemberDocId) {
+      return true;
+    }
+    const managed = user.schoolsManaged;
     return (
-      member.instructorId === school.ownerInstructorId ||
-      school.managerInstructorIds.includes(member.instructorId)
+      (!!school.docId && managed.includes(school.docId)) ||
+      (!!school.schoolId && managed.includes(school.schoolId))
     );
   });
 
@@ -637,7 +653,10 @@ export class SchoolEditComponent {
     ) {
       errors.push(schoolNameErrors[0].message ?? 'School Name is invalid.');
     }
-    if (this.form.ownerInstructorId().value().trim() === '') {
+    if (
+      this.form.ownerInstructorId().value().trim() === '' &&
+      !school.ownerMemberDocId
+    ) {
       errors.push('School must have an owner.');
     }
     if (

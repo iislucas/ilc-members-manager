@@ -25,6 +25,7 @@ import { School, firestoreDocToSchool } from '../../../functions/src/data-model/
 import { collection, getDocs, getFirestore, query, where, limit } from 'firebase/firestore';
 import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -43,9 +44,13 @@ import { EventItemComponent } from '../events-calendar/event-item/event-item';
   templateUrl: './school-view.html',
   styleUrl: './school-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:keydown.escape)': 'closeMenu()',
+  },
 })
 export class SchoolViewComponent implements OnInit {
   private dataService = inject(DataManagerService);
+  private firebaseState = inject(FirebaseStateService);
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
   routingService = inject(RoutingService<AppPathPatterns>);
@@ -62,6 +67,48 @@ export class SchoolViewComponent implements OnInit {
   pastEvents = signal<IlcEvent[]>([]);
   pastEventsTotal = signal(0);
   eventsLoading = signal(false);
+
+  menuOpen = signal(false);
+
+  // Edit route for the school when the signed-in user is an admin or owns/manages it.
+  editSchoolHref = computed<string | null>(() => {
+    const user = this.firebaseState.user();
+    const s = this.school();
+    if (!user || !s) return null;
+
+    const insId = user.member.instructorId;
+    const memberDocId = user.member.docId;
+    const profileDocIds = user.memberProfiles.map((p) => p.docId);
+    const managed = user.schoolsManaged;
+
+    const isOwnerOrManager =
+      (!!insId &&
+        (s.ownerInstructorId === insId ||
+          s.managerInstructorIds.includes(insId))) ||
+      (!!s.ownerMemberDocId &&
+        (memberDocId === s.ownerMemberDocId ||
+          profileDocIds.includes(s.ownerMemberDocId))) ||
+      (!!s.docId && managed.includes(s.docId)) ||
+      (!!s.schoolId && managed.includes(s.schoolId));
+
+    if (!user.isAdmin && !isOwnerOrManager) return null;
+
+    const targetId = s.schoolId || s.docId;
+    if (!targetId) return null;
+
+    const view = user.isAdmin ? Views.ManageSchoolEdit : Views.MySchoolEdit;
+    return this.routingService.hrefForView(view, { schoolId: targetId });
+  });
+
+  toggleMenu() {
+    this.menuOpen.update((v) => !v);
+  }
+
+  closeMenu() {
+    if (this.menuOpen()) {
+      this.menuOpen.set(false);
+    }
+  }
 
 
   // Link to the school's public class calendar, when configured.
