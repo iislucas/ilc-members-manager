@@ -50,6 +50,7 @@ import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { SubscriptionCardComponent } from '../subscription-card/subscription-card';
 import {
   DisplaySubscriptionCard,
+  SubscriptionCardStatus,
   buildSchoolSubscriptionCards,
   getManagedSchoolsForUser,
 } from '../subscription-card/subscription-card.model';
@@ -87,6 +88,7 @@ export class SchoolLicensePurchaseComponent {
   isOffline = this.networkState.isOffline;
 
   Views = Views;
+  SubscriptionCardStatus = SubscriptionCardStatus;
   environment = environment;
   adminEmail = environment.adminEmail;
   user = this.firebaseService.user;
@@ -133,23 +135,74 @@ export class SchoolLicensePurchaseComponent {
       '',
   );
 
+  // Optional `?tab=renew|new` URL param for deep-linking to either tab.
+  urlTab = computed(
+    () =>
+      this.routingService.signals[Views.SchoolLicensePurchase].urlParams.tab() ||
+      '',
+  );
+
   // Mode: renew existing vs new school. Defaults to 'renew' when the member
-  // manages any school; re-derives only if that changes (e.g. once the schools
-  // list loads), so a manual choice is kept.
-  licenseAction = linkedSignal<boolean, SchoolLicenseAction>({
-    source: () => this.mySchools().length > 0,
-    computation: (hasSchools) => (hasSchools ? 'renew' : 'new'),
+  // manages any renewable school (unless `?tab=new` is in the URL); re-derives
+  // only if that changes (e.g. once the schools list loads), so a manual choice
+  // is kept.
+  licenseAction = linkedSignal<
+    { hasRenewableSchools: boolean; urlTab: string },
+    SchoolLicenseAction
+  >({
+    source: () => ({
+      hasRenewableSchools: this.renewableSchools().length > 0,
+      urlTab: this.urlTab(),
+    }),
+    computation: ({ hasRenewableSchools, urlTab }) => {
+      if (!hasRenewableSchools) return 'new';
+      if (urlTab === 'new' || urlTab === 'renew') return urlTab;
+      return 'renew';
+    },
   });
 
+  setLicenseAction(action: SchoolLicenseAction): void {
+    const resolved: SchoolLicenseAction =
+      action === 'renew' && this.renewableSchools().length === 0
+        ? 'new'
+        : action;
+    this.licenseAction.set(resolved);
+    this.routingService.signals[Views.SchoolLicensePurchase].urlParams.tab.set(
+      resolved,
+    );
+  }
+
+  onLicenseTabKeydown(event: KeyboardEvent): void {
+    let next: SchoolLicenseAction | null = null;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      next = this.licenseAction() === 'renew' ? 'new' : 'renew';
+    } else if (event.key === 'Home') {
+      next = 'renew';
+    } else if (event.key === 'End') {
+      next = 'new';
+    }
+    if (!next) return;
+
+    event.preventDefault();
+    this.setLicenseAction(next);
+    const tablist = (event.currentTarget as HTMLElement | null)?.closest(
+      '[role="tablist"]',
+    );
+    const targetTab = tablist?.querySelector<HTMLButtonElement>(
+      `#school-license-tab-${this.licenseAction()}`,
+    );
+    targetTab?.focus();
+  }
+
   // The school being renewed. Keeps the current choice while it is still one
-  // of the member's schools; otherwise defaults to the school named in the URL,
-  // falling back to the first managed school.
+  // of the member's renewable schools; otherwise defaults to the school named
+  // in the URL, falling back to the first renewable managed school.
   selectedSchoolDocId = linkedSignal<
     { schools: School[]; wantedSchoolId: string },
     string | null
   >({
     source: () => ({
-      schools: this.mySchools(),
+      schools: this.renewableSchools(),
       wantedSchoolId: this.urlSchoolId(),
     }),
     computation: ({ schools, wantedSchoolId }, previous) => {
@@ -225,7 +278,7 @@ export class SchoolLicensePurchaseComponent {
    */
   schoolDetailsComplete = computed(() => {
     if (this.licenseAction() === 'renew') {
-      return !!this.selectedSchoolDocId() || this.mySchools().length === 0;
+      return !!this.selectedSchool();
     }
     return !!(
       this.newSchoolName().trim() &&
@@ -252,9 +305,7 @@ export class SchoolLicensePurchaseComponent {
       const parts = [this.newSchoolName(), this.newSchoolCity(), this.newSchoolCountry()];
       return parts.filter((part) => !!part.trim()).join(' • ');
     }
-    const docId = this.selectedSchoolDocId();
-    const school = this.mySchools().find((s) => s.docId === docId);
-    return school?.schoolName || '';
+    return this.selectedSchool()?.schoolName || '';
   });
 
   async onLogout(): Promise<void> {
@@ -271,10 +322,15 @@ export class SchoolLicensePurchaseComponent {
     getManagedSchoolsForUser(this.dataService.schools.entries(), this.user()),
   );
 
+  // Managed schools eligible for renewal (excludes lifetime licenses)
+  renewableSchools = computed<School[]>(() =>
+    this.mySchools().filter((s) => !this.isSchoolLifetimeLicense(s)),
+  );
+
   selectedSchool = computed<School | null>(() => {
     const docId = this.selectedSchoolDocId();
     if (!docId) return null;
-    return this.mySchools().find((s) => s.docId === docId) || null;
+    return this.renewableSchools().find((s) => s.docId === docId) || null;
   });
 
   managedSchoolCards = computed<DisplaySubscriptionCard[]>(() => {
@@ -313,7 +369,10 @@ export class SchoolLicensePurchaseComponent {
   });
 
   selectSchoolForRenewal(schoolDocId: string): void {
-    this.licenseAction.set('renew');
+    if (!this.renewableSchools().some((s) => s.docId === schoolDocId)) {
+      return;
+    }
+    this.setLicenseAction('renew');
     this.selectedSchoolDocId.set(schoolDocId);
     this.flow.goTo(this.StepSchool);
   }
@@ -388,11 +447,17 @@ export class SchoolLicensePurchaseComponent {
     return formatStripeAmount(unitAmount, currency);
   }
 
-  // An empty schoolLicenseExpires means a life license (as in the ACL builder
-  // in on-member-update.ts), so it counts as active.
+  // An empty schoolLicenseExpires (or 'life' / '9999-12-31' sentinel) means a
+  // lifetime license (as in the ACL builder in on-member-update.ts), which
+  // counts as active and never needs renewing.
+  isSchoolLifetimeLicense(school: School): boolean {
+    const exp = school.schoolLicenseExpires.trim().toLowerCase();
+    return !exp || exp === 'life' || exp === '9999-12-31';
+  }
+
   isSchoolActive(school: School): boolean {
-    const exp = school.schoolLicenseExpires;
-    return !exp || exp >= this.today();
+    if (this.isSchoolLifetimeLicense(school)) return true;
+    return school.schoolLicenseExpires >= this.today();
   }
 
   async onPurchaseSchoolLicense(): Promise<void> {
@@ -409,7 +474,7 @@ export class SchoolLicensePurchaseComponent {
     }
 
     if (this.licenseAction() === 'renew') {
-      if (!this.selectedSchoolDocId()) {
+      if (!this.selectedSchool()) {
         this.checkoutError.set('Please select the school you want to renew.');
         return;
       }

@@ -35,6 +35,7 @@ describe('SchoolLicensePurchaseComponent', () => {
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
   let schoolIdParam: ReturnType<typeof signal<string | null>>;
+  let tabParam: ReturnType<typeof signal<string | null>>;
   let mockStripeProducts: {
     products: ReturnType<typeof signal<StripeProduct[]>>;
     loading: ReturnType<typeof signal<boolean>>;
@@ -157,6 +158,7 @@ describe('SchoolLicensePurchaseComponent', () => {
 
     userSignal = signal<UserDetails | null>(sampleUser);
     schoolIdParam = signal<string | null>(null);
+    tabParam = signal<string | null>(null);
 
     mockStripeProducts = {
       products: signal(sampleProducts),
@@ -217,6 +219,7 @@ describe('SchoolLicensePurchaseComponent', () => {
                 urlParams: {
                   session_id: signal(null),
                   schoolId: schoolIdParam,
+                  tab: tabParam,
                 },
               },
             },
@@ -520,5 +523,153 @@ describe('SchoolLicensePurchaseComponent', () => {
       'sub_sch_1',
     );
     expect(subCard.textContent).toContain('cancelled');
+  });
+
+  it('uses accessible pill-tabs with tablist/tabpanel semantics, URL sync, and arrow-key navigation', async () => {
+    await createComponent();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.school-mode-toggle')).toBeNull();
+    expect(element.querySelector('input[type="radio"]')).toBeNull();
+
+    const tablist = element.querySelector('[role="tablist"].pill-tabs');
+    expect(tablist).toBeTruthy();
+
+    const pillTabs = Array.from(
+      element.querySelectorAll<HTMLButtonElement>('.pill-tabs .pill-tab[role="tab"]'),
+    );
+    expect(pillTabs.length).toBe(2);
+    expect(pillTabs[0].textContent?.trim()).toBe('Renew an Existing School');
+    expect(pillTabs[0].getAttribute('data-label')).toBe('Renew an Existing School');
+    expect(pillTabs[0].classList.contains('active')).toBe(true);
+    expect(pillTabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(pillTabs[0].getAttribute('tabindex')).toBe('0');
+
+    expect(pillTabs[1].textContent?.trim()).toBe('Register a New School');
+    expect(pillTabs[1].getAttribute('data-label')).toBe('Register a New School');
+    expect(pillTabs[1].classList.contains('active')).toBe(false);
+    expect(pillTabs[1].getAttribute('aria-selected')).toBe('false');
+    expect(pillTabs[1].getAttribute('tabindex')).toBe('-1');
+
+    const renewPanel = element.querySelector('[role="tabpanel"]#school-license-panel-renew');
+    expect(renewPanel).toBeTruthy();
+
+    // Keyboard navigation: ArrowRight switches to Register a New School and moves focus
+    pillTabs[0].focus();
+    pillTabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    expect(component.licenseAction()).toBe('new');
+    expect(tabParam()).toBe('new');
+    expect(document.activeElement).toBe(pillTabs[1]);
+    expect(pillTabs[1].getAttribute('aria-selected')).toBe('true');
+    expect(pillTabs[1].getAttribute('tabindex')).toBe('0');
+    expect(pillTabs[0].getAttribute('tabindex')).toBe('-1');
+    expect(element.querySelector('[role="tabpanel"]#school-license-panel-new')).toBeTruthy();
+    expect(element.querySelector('.schools-grid')).toBeNull();
+
+    // Home returns to Renew an Existing School
+    pillTabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    fixture.detectChanges();
+    expect(component.licenseAction()).toBe('renew');
+    expect(tabParam()).toBe('renew');
+    expect(document.activeElement).toBe(pillTabs[0]);
+    expect(element.querySelector('[role="tabpanel"]#school-license-panel-renew')).toBeTruthy();
+  });
+
+  it('respects ?tab=new URL parameter on initial load even when renewable schools exist', async () => {
+    tabParam.set('new');
+    await createComponent();
+    fixture.detectChanges();
+
+    expect(component.licenseAction()).toBe('new');
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('#school-license-panel-new')).toBeTruthy();
+    expect(element.querySelector('.schools-grid')).toBeNull();
+  });
+
+  it('excludes schools with a lifetime license from Renew an Existing School while keeping their top subscription card', async () => {
+    const lifetimeSchool: School = {
+      ...sampleSchool,
+      docId: 'school_doc_life',
+      schoolId: 'SCH-LIFE-01',
+      schoolName: 'Lifetime Headquarters School',
+      schoolLicenseExpires: '',
+    };
+    const annualSchool: School = {
+      ...sampleSchool,
+      docId: 'school_doc_annual',
+      schoolId: 'SCH-ANN-02',
+      schoolName: 'Annual Branch School',
+      schoolLicenseExpires: '2027-05-01',
+    };
+
+    mockDataManager.schools.entries.mockReturnValue([lifetimeSchool, annualSchool]);
+    userSignal.set({
+      ...sampleUser,
+      schoolsManaged: ['SCH-LIFE-01', 'SCH-ANN-02'],
+    });
+    // Even if URL points to the lifetime school, it must not be selected for renewal.
+    schoolIdParam.set('SCH-LIFE-01');
+
+    await createComponent();
+    fixture.detectChanges();
+
+    expect(component.mySchools().map((s) => s.docId)).toEqual([
+      'school_doc_life',
+      'school_doc_annual',
+    ]);
+    expect(component.renewableSchools().map((s) => s.docId)).toEqual([
+      'school_doc_annual',
+    ]);
+    expect(component.licenseAction()).toBe('renew');
+    expect(component.selectedSchoolDocId()).toBe('school_doc_annual');
+
+    const element = fixture.nativeElement as HTMLElement;
+    const topCards = element.querySelectorAll('app-subscription-card');
+    expect(topCards.length).toBe(2);
+    expect(topCards[0].textContent).toContain('Lifetime Headquarters School');
+    expect(topCards[0].textContent).toContain('Lifetime Access');
+
+    const renewalChoices = element.querySelectorAll('.schools-grid .school-card-choice');
+    expect(renewalChoices.length).toBe(1);
+    expect(renewalChoices[0].textContent).toContain('Annual Branch School');
+    expect(renewalChoices[0].textContent).not.toContain('Lifetime Headquarters School');
+  });
+
+  it('defaults to Register a New School and hides Renew tab when all managed schools have lifetime licenses', async () => {
+    const lifetimeSchool: School = {
+      ...sampleSchool,
+      docId: 'school_doc_life',
+      schoolId: 'SCH-LIFE-01',
+      schoolName: 'Lifetime Headquarters School',
+      schoolLicenseExpires: '',
+    };
+
+    mockDataManager.schools.entries.mockReturnValue([lifetimeSchool]);
+    userSignal.set({
+      ...sampleUser,
+      schoolsManaged: ['SCH-LIFE-01'],
+    });
+
+    await createComponent();
+    fixture.detectChanges();
+
+    expect(component.mySchools().length).toBe(1);
+    expect(component.renewableSchools().length).toBe(0);
+    expect(component.licenseAction()).toBe('new');
+    expect(component.selectedSchoolDocId()).toBeNull();
+
+    const element = fixture.nativeElement as HTMLElement;
+    // Top subscription card still displays the lifetime school
+    const topCards = element.querySelectorAll('app-subscription-card');
+    expect(topCards.length).toBe(1);
+    expect(topCards[0].textContent).toContain('Lifetime Headquarters School');
+    expect(topCards[0].textContent).toContain('Lifetime Access');
+
+    // Step 2 omits the Renew pill-tabs and shows the new-school registration form directly
+    expect(element.querySelector('.pill-tabs')).toBeNull();
+    expect(element.querySelector('.schools-grid')).toBeNull();
+    expect(element.querySelector('.new-school-form')).toBeTruthy();
   });
 });

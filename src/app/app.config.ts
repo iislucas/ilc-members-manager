@@ -308,6 +308,7 @@ export const initPathPatterns = {
   [Views.SchoolLicensePurchase]: addUrlParams(pathPattern`school-license`, [
     { name: 'session_id', ephemeral: true },
     'schoolId',
+    'tab',
   ]),
   [Views.ClassVideoLibraryPurchase]: addUrlParams(pathPattern`class-video-library-subscription`, [
     { name: 'session_id', ephemeral: true },
