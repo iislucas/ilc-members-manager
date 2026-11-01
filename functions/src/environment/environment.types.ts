@@ -36,10 +36,16 @@ export interface FunctionsEnvironment {
   // push these to the bucket via setCorsConfiguration() so browsers on the
   // allowed origins can load the deployed components.
   CORS_CONFIG: CorsConfigItem[];
-  // Base64url VAPID public key passed to webpush.setVapidDetails() in
-  // send-push.ts. Must match the client's environment.vapidPublicKey, or
-  // browsers reject the push; the paired private key comes from the
-  // VAPID_PRIVATE_KEY secret, not this file.
+  // Base64url VAPID public key passed to webpush.setVapidDetails() in send-push.ts.
+  //
+  // Format & invariants (enforced before deploy by `pnpm env:check`):
+  // - Must be an 87-character base64url uncompressed NIST P-256 public key (starts
+  //   with 'B' and decodes to 65 bytes beginning with 0x04), generated via
+  //   `pnpm dlx web-push generate-vapid-keys` — NOT a Stripe (`pk_...`) or Firebase key.
+  // - Must match `vapidPublicKey` in `src/environments/environment.local.ts`, or
+  //   push services reject deliveries with 401/403 (VapidPkHashMismatch).
+  // - Must correspond to the paired `VAPID_PRIVATE_KEY` secret in Cloud Secret Manager.
+  // - Set to '' (in both client and server environments) to disable Web Push.
   vapidPublicKey: string;
   // Contact mailto: URI included in Web Push VAPID headers per Web Push specification
   pushContactEmail: string;

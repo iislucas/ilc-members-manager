@@ -1,6 +1,6 @@
 /* files-catalog.ts
  *
- * Automatically cataloged index of 100% of repository tracked files (1253 files).
+ * Automatically cataloged index of 100% of repository tracked files (1255 files).
  */
 
 import { CodeFileEntry, ArchitecturalLayer } from '../models/code-file';
@@ -3947,8 +3947,8 @@ export const FILES_CATALOG: CodeFileEntry[] = [
   {
     path: "functions/src/calendar.types.ts",
     layer: ArchitecturalLayer.CloudFunction,
-    responsibility: "Provides implementation for calendar.types.ts",
-    keySymbols: [],
+    responsibility: "Implements extractGoogleCalendarId",
+    keySymbols: ["extractGoogleCalendarId"],
     relatedJourneys: [],
     relatedDataTypes: [],
     relatedStories: [],
@@ -7091,6 +7091,28 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     relatedPatterns: [],
   },
   {
+    path: "scripts/sync-env.spec.ts",
+    layer: ArchitecturalLayer.Script,
+    responsibility: "Unit and regression tests for sync-env",
+    keySymbols: ["environment","environment"],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "scripts/sync-env.ts",
+    layer: ArchitecturalLayer.Script,
+    responsibility: "Implements ManagedEnvTarget, CliOptions, SecretStore",
+    keySymbols: ["ManagedEnvTarget","CliOptions","SecretStore","CheckResult","EnvSyncCommand","EnvSecretName","EnvFileStatus","parseArgs","assertValidProjectId","resolveRepoFilePath"],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
     path: "scripts/vimeo-inventory.ts",
     layer: ArchitecturalLayer.Script,
     responsibility: "Implements VimeoVideoItem, VimeoOrderItem",
@@ -7434,8 +7456,8 @@ export const FILES_CATALOG: CodeFileEntry[] = [
   {
     path: "src/app/class-calendar.service.ts",
     layer: ArchitecturalLayer.ClientCoreService,
-    responsibility: "Implements ClassCalendarService",
-    keySymbols: ["ClassCalendarService"],
+    responsibility: "Implements ClassCalendarService, PREVIOUS_CLASSES_DAYS",
+    keySymbols: ["ClassCalendarService","PREVIOUS_CLASSES_DAYS"],
     relatedJourneys: [],
     relatedDataTypes: [],
     relatedStories: [],

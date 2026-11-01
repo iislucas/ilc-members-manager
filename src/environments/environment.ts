@@ -31,11 +31,13 @@ export const environment: AppEnvironment = {
   firebase: firebaseConfig,
   adminEmail: 'web-helper-team@iliqchuan.com',
   passwordResetEmailSender: 'noreply@app.iliqchuan.com',
-  // Web Push VAPID public key (base64url). Generate a key pair with
-  // `pnpm dlx web-push generate-vapid-keys`; put the PUBLIC key here and store
-  // the PRIVATE key as the VAPID_PRIVATE_KEY Cloud Function secret. Leave empty
-  // to disable web push.
-  vapidPublicKey: 'YOUR_VAPID_PUBLIC_KEY',
+  // Web Push VAPID public key: an 87-char base64url uncompressed P-256 public key
+  // (starts with 'B', decodes to 65 bytes starting with 0x04 — NOT a Stripe `pk_...`
+  // or Firebase key). Generate a pair with `pnpm dlx web-push generate-vapid-keys`:
+  // - Put the PUBLIC key here AND identically in `functions/src/environment/environment.ts`.
+  // - Store the PRIVATE key in Cloud Secret Manager (`firebase functions:secrets:set VAPID_PRIVATE_KEY`).
+  // - Leave '' (empty) in both files to disable Web Push. Verified on deploy by `pnpm env:check`.
+  vapidPublicKey: '',
   emailNotificationsEnabled: false,
   links: {
     membership: 'YOUR_MEMBERSHIP_PRODUCT_URL',

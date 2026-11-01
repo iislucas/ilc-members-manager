@@ -13,6 +13,7 @@ import {
   deterministicUploadsSummaryNotifDocId,
   deterministicUnpaidGradingNotifDocId,
   deterministicUnpaidGradingsSummaryNotifDocId,
+  isValidVapidPublicKey,
 } from './notification.service';
 import {
   FirebaseStateService,
@@ -1282,6 +1283,30 @@ describe('NotificationService', () => {
       const expectedDocId = 'AWLLIsvC79IkACHHWbm5_blog_members-post';
       expect(writes[0].ref.id).toBe(expectedDocId);
       expect(writes[0].notif.docId).toBe(expectedDocId);
+    });
+  });
+
+  describe('isValidVapidPublicKey', () => {
+    it('accepts a valid 87-char base64url P-256 uncompressed public key', () => {
+      expect(
+        isValidVapidPublicKey(
+          'BKhd6tZ2q-jwmad4yuUStcgHDfI8pW8WbzfpnsWQdJo2ycvuqrWVcUtGBbtiqDhwRxgLOXAp0NBB-NuVs0PYqcA',
+        ),
+      ).toBe(true);
+    });
+
+    it('rejects empty strings, placeholders, Stripe keys, and 32-byte private keys', () => {
+      expect(isValidVapidPublicKey('')).toBe(false);
+      expect(isValidVapidPublicKey('YOUR_VAPID_PUBLIC_KEY')).toBe(false);
+      expect(
+        isValidVapidPublicKey(
+          'pk_test_51TpwRFIFnS8TD5ax4NEbNVSMUWvi6JAPCvNQsXzHvXuZIjbNmRLCSNKh7OsKVcAVW0G6eXeByObTaPjiOpNIriam006j1FFENS',
+        ),
+      ).toBe(false);
+      // 43-char base64url (32 bytes, private key shape)
+      expect(
+        isValidVapidPublicKey('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'),
+      ).toBe(false);
     });
   });
 });
