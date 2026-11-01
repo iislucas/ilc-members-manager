@@ -126,7 +126,13 @@ describe('EventRegistrationsComponent', () => {
         },
       },
     },
-    hrefForView: vi.fn().mockReturnValue('/events/event-1'),
+    hrefForView: vi.fn().mockImplementation((view: string, vars?: Record<string, string>) => {
+      if (view === 'eventRegistrationView' && vars) {
+        return `/events/${vars['eventId']}/registrations/${vars['registrationId']}`;
+      }
+      return `/events/${vars?.['eventId'] || 'event-1'}`;
+    }),
+    navigateTo: vi.fn(),
   };
 
   const mockFirebaseState = {
@@ -765,5 +771,38 @@ describe('EventRegistrationsComponent', () => {
     expect(unmarked.selectedAddOnLabels).toEqual([]);
     expect(unmarked.autoGrantedAddOnIds).toEqual([]);
     expect(unmarked.hasVideoAccess).toBe(false);
+  });
+
+  it('links each attendee row to /events/:eventId/registrations/:registrationId without interfering with inline buttons', async () => {
+    mockRoutingService.navigateTo.mockClear();
+    await component.loadData();
+    fixture.detectChanges();
+
+    const links = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('a.attendee-link'),
+    ) as HTMLAnchorElement[];
+    expect(links.length).toBe(3);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      '/events/event-1/registrations/reg-3',
+      '/events/event-1/registrations/reg-2',
+      '/events/event-1/registrations/reg-1',
+    ]);
+
+    // Clicking a non-interactive cell on the row navigates to that registration detail view
+    const firstRow = (fixture.nativeElement as HTMLElement).querySelector(
+      'tbody tr.clickable-row',
+    ) as HTMLTableRowElement;
+    const cells = firstRow.querySelectorAll('td');
+    cells[1].click();
+    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith(
+      'events/event-1/registrations/reg-3',
+    );
+
+    // Clicking the inline Mark Paid button does NOT trigger row navigation
+    mockRoutingService.navigateTo.mockClear();
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const markBtn = firstRow.querySelector('button.mark-paid-btn') as HTMLButtonElement;
+    markBtn.click();
+    expect(mockRoutingService.navigateTo).not.toHaveBeenCalled();
   });
 });

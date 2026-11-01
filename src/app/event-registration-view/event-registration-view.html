@@ -1,0 +1,1055 @@
+<div class="registration-view-page">
+  @if (isLoading()) {
+    <div class="state-box">
+      <app-spinner>Loading registration details...</app-spinner>
+    </div>
+  } @else if (loadError()) {
+    <div class="banner banner-error" role="alert">
+      <app-icon name="error"></app-icon>
+      <span>{{ loadError() }}</span>
+    </div>
+  } @else if (!canView()) {
+    <div class="state-box restricted-state">
+      <app-icon name="lock" width="40px" height="40px"></app-icon>
+      <h2>Access Restricted</h2>
+      <p>Only event hosts, managers, and HQ administrators can view registration details.</p>
+    </div>
+  } @else if (!registration()) {
+    <div class="state-box empty-state">
+      <app-icon name="info" width="40px" height="40px"></app-icon>
+      <h2>Registration Not Found</h2>
+      <p>No registration with ID <code>{{ registrationId() }}</code> was found on this event.</p>
+    </div>
+  } @else if (registration(); as reg) {
+    <!-- Top Identity & Quick Actions Bar -->
+    <div class="summary-bar">
+      <div class="summary-identity">
+        <div class="summary-badges">
+          <span
+            class="status-pill"
+            [class.status-paid]="reg.status === EventRegistrationStatus.Paid"
+            [class.status-pending]="
+              reg.status === EventRegistrationStatus.PendingInPerson ||
+              reg.status === EventRegistrationStatus.DepositPaid
+            "
+            [class.status-inactive]="
+              reg.status === EventRegistrationStatus.Cancelled ||
+              reg.status === EventRegistrationStatus.Refunded
+            "
+          >
+            {{ formatStatusBadge(reg) }}
+          </span>
+          <span class="meta-pill attendance-pill">
+            <app-icon
+              [name]="
+                reg.attendance === AttendanceType.InPerson
+                  ? 'location_on'
+                  : reg.attendance === AttendanceType.VideoOnly
+                    ? 'live_tv'
+                    : 'videocam'
+              "
+            ></app-icon>
+            {{ reg.optionLabel || formatAttendance(reg.attendance) }}
+          </span>
+          <span class="meta-pill role-pill">{{ formatRole(reg.role) }}</span>
+          @if (!canEdit()) {
+            <span class="meta-pill readonly-pill">Organizer Read-Only View</span>
+          }
+        </div>
+        <div class="summary-subtext">
+          <span>{{ reg.email }}</span>
+          @if (reg.phone) {
+            <span class="dot-sep">&middot;</span>
+            <span>{{ reg.phone }}</span>
+          }
+          @if (event(); as ev) {
+            <span class="dot-sep">&middot;</span>
+            <a class="internal-link" [href]="eventUrl()">{{ ev.title }}</a>
+          }
+        </div>
+      </div>
+
+      <div class="summary-actions">
+        @if (isQuickUpdatingPay()) {
+          <app-spinner>Updating payment...</app-spinner>
+        } @else if (quickPayConfirm() === QuickPayConfirmAction.MarkPaid) {
+          <div class="inline-confirm-bar">
+            <span>Mark paid in full &amp; unlock Paid-in-Full add-ons?</span>
+            <button
+              type="button"
+              class="primary-button compact-btn"
+              (click)="confirmQuickPayToggle()"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              class="subtle-button compact-btn"
+              (click)="quickPayConfirm.set(QuickPayConfirmAction.None)"
+            >
+              Cancel
+            </button>
+          </div>
+        } @else if (quickPayConfirm() === QuickPayConfirmAction.UnmarkPaid) {
+          <div class="inline-confirm-bar">
+            <span>Revert offline payment back to balance due?</span>
+            <button
+              type="button"
+              class="primary-button compact-btn"
+              (click)="confirmQuickPayToggle()"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              class="subtle-button compact-btn"
+              (click)="quickPayConfirm.set(QuickPayConfirmAction.None)"
+            >
+              Cancel
+            </button>
+          </div>
+        } @else {
+          @if (canMarkPaidInFull(reg)) {
+            <button
+              type="button"
+              class="subtle-button"
+              (click)="quickPayConfirm.set(QuickPayConfirmAction.MarkPaid)"
+            >
+              <app-icon name="check"></app-icon>
+              <span>Mark Paid in Full</span>
+            </button>
+          } @else if (canUnmarkPaid(reg)) {
+            <button
+              type="button"
+              class="subtle-button"
+              (click)="quickPayConfirm.set(QuickPayConfirmAction.UnmarkPaid)"
+            >
+              <app-icon name="undo"></app-icon>
+              <span>Unmark Paid</span>
+            </button>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- Status / Error Banners -->
+    <div aria-live="polite">
+      @if (saveSuccessMessage(); as msg) {
+        <div class="banner banner-success">
+          <app-icon name="check_circle"></app-icon>
+          <span>{{ msg }}</span>
+        </div>
+      }
+      @if (saveErrorMessage(); as err) {
+        <div class="banner banner-error" role="alert">
+          <app-icon name="error"></app-icon>
+          <span>{{ err }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- Metadata Strip -->
+    <div class="metadata-grid">
+      <div class="meta-cell">
+        <span class="meta-label">Registration ID</span>
+        <span class="meta-value mono">{{ reg.docId }}</span>
+      </div>
+      <div class="meta-cell">
+        <span class="meta-label">Registered</span>
+        <span class="meta-value">{{ formatDateTime(reg.registeredAt) }}</span>
+      </div>
+      <div class="meta-cell">
+        <span class="meta-label">Paid At</span>
+        <span class="meta-value">{{ formatDateTime(reg.paidAt) }}</span>
+      </div>
+      <div class="meta-cell">
+        <span class="meta-label">Last Updated</span>
+        <span class="meta-value">{{ formatDateTime(reg.lastUpdated) }}</span>
+      </div>
+      @if (hasLinkedStripeOrder(reg)) {
+        <div class="meta-cell">
+          <span class="meta-label">Order Record</span>
+          @if (isAdmin()) {
+            <a class="meta-value internal-link mono" [href]="orderUrl(reg.orderDocId)">
+              {{ reg.orderDocId }}
+              <app-icon name="visibility" width="14px" height="14px"></app-icon>
+            </a>
+          } @else {
+            <span class="meta-value mono">{{ reg.orderDocId }}</span>
+          }
+        </div>
+      }
+      @if (reg.stripeSessionId) {
+        <div class="meta-cell">
+          <span class="meta-label">Stripe Session</span>
+          <span class="meta-value mono wrap-anywhere">{{ reg.stripeSessionId }}</span>
+        </div>
+      }
+    </div>
+
+    @if (canEdit()) {
+      <!-- HQ ADMIN EDITABLE FORM -->
+      <form class="registration-edit-form" (submit)="onSubmit($event)" novalidate>
+        <!-- 1. Attendee & Member Profile -->
+        <fieldset class="detail-fieldset">
+          <legend class="section-legend">Attendee &amp; Member Profile</legend>
+
+          <div class="field-grid">
+            <div class="form-field">
+              <label for="reg-name">Full Name <span class="req-mark">*</span></label>
+              <input
+                type="text"
+                id="reg-name"
+                name="name"
+                autocomplete="off"
+                required
+                [value]="formName()"
+                (input)="formName.set(eventValue($event))"
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="reg-email">Email Address <span class="req-mark">*</span></label>
+              <input
+                type="email"
+                id="reg-email"
+                name="email"
+                autocomplete="off"
+                required
+                [value]="formEmail()"
+                (input)="formEmail.set(eventValue($event))"
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="reg-phone">Phone Number</label>
+              <input
+                type="tel"
+                id="reg-phone"
+                name="phone"
+                autocomplete="off"
+                [value]="formPhone()"
+                (input)="formPhone.set(eventValue($event))"
+              />
+            </div>
+
+            <div class="form-field">
+              <span class="group-label">Linked Member Record</span>
+              <div class="member-selector-stack">
+                <app-member-selector
+                  name="memberSelector"
+                  placeholder="Search member by ID or name..."
+                  [showNoneSelected]="false"
+                  [value]="formMemberSelectorValue()"
+                  (valueChange)="onMemberSelectorValueChange($event)"
+                  (memberSelected)="onMemberSelected($event)"
+                ></app-member-selector>
+                @if (formMemberDocId() || formMemberId()) {
+                  <div class="member-link-actions">
+                    <a
+                      class="internal-link small-link"
+                      [href]="memberUrl(formMemberId() || formMemberDocId())"
+                    >
+                      <app-icon name="person" width="15px" height="15px"></app-icon>
+                      <span>
+                        Open Member ({{ formMemberId() || formMemberDocId() }})
+                      </span>
+                    </a>
+                    @if (linkedMember()) {
+                      <button
+                        type="button"
+                        class="subtle-button compact-btn"
+                        (click)="syncRoleAndLevelsFromMember()"
+                      >
+                        Sync Role &amp; Levels
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      class="subtle-button compact-btn"
+                      (click)="unlinkMember()"
+                    >
+                      Unlink
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="form-field field-span-full">
+              <span class="group-label" id="role-group-label">Attendee Role</span>
+              <div class="radio-group" role="radiogroup" aria-labelledby="role-group-label">
+                @for (roleOpt of attendeeRoles; track roleOpt) {
+                  <label class="radio-option" [for]="'reg-role-' + roleOpt">
+                    <input
+                      type="radio"
+                      [id]="'reg-role-' + roleOpt"
+                      name="role"
+                      [value]="roleOpt"
+                      [checked]="formRole() === roleOpt"
+                      (change)="formRole.set(roleOpt)"
+                    />
+                    <span>{{ formatRole(roleOpt) }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label for="reg-student-level">Student Level Snapshot</label>
+              <select
+                id="reg-student-level"
+                name="studentLevel"
+                [value]="formStudentLevel()"
+                (change)="formStudentLevel.set(eventValue($event))"
+              >
+                <option value="" [selected]="formStudentLevel() === ''">None</option>
+                @for (lvl of studentLevelOptions; track lvl) {
+                  <option [value]="lvl" [selected]="formStudentLevel() === lvl">
+                    {{ formatStudentLevel(lvl) }}
+                  </option>
+                }
+                @if (formStudentLevel() && !isKnownStudentLevel(formStudentLevel())) {
+                  <option [value]="formStudentLevel()" [selected]="true">
+                    {{ formStudentLevel() }} (Stored)
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label for="reg-app-level">Application Level Snapshot</label>
+              <select
+                id="reg-app-level"
+                name="applicationLevel"
+                [value]="formApplicationLevel()"
+                (change)="formApplicationLevel.set(eventValue($event))"
+              >
+                <option value="" [selected]="formApplicationLevel() === ''">None</option>
+                @for (lvl of applicationLevelOptions; track lvl) {
+                  <option [value]="lvl" [selected]="formApplicationLevel() === lvl">
+                    {{ formatApplicationLevel(lvl) }}
+                  </option>
+                }
+                @if (
+                  formApplicationLevel() &&
+                  !isKnownApplicationLevel(formApplicationLevel())
+                ) {
+                  <option [value]="formApplicationLevel()" [selected]="true">
+                    {{ formApplicationLevel() }} (Stored)
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="form-field field-span-full">
+              <label for="reg-notes">Attendee / Admin Notes</label>
+              <textarea
+                id="reg-notes"
+                name="notes"
+                rows="3"
+                placeholder="Dietary notes, arrival details, or internal admin remarks..."
+                [value]="formNotes()"
+                (input)="formNotes.set(eventValue($event))"
+              ></textarea>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- 2. Participation, Options & Add-Ons -->
+        <fieldset class="detail-fieldset">
+          <legend class="section-legend">Participation, Options &amp; Add-Ons</legend>
+
+          <div class="field-grid">
+            @if (configuredOptions().length > 0) {
+              <div class="form-field">
+                <label for="reg-configured-option">Configured Registration Option</label>
+                <select
+                  id="reg-configured-option"
+                  name="optionId"
+                  [value]="formOptionId()"
+                  (change)="onConfiguredOptionChange(eventValue($event))"
+                  aria-describedby="option-change-hint"
+                >
+                  <option value="" [selected]="formOptionId() === ''">
+                    — Custom / Legacy Option —
+                  </option>
+                  @for (opt of configuredOptions(); track opt.id) {
+                    <option [value]="opt.id" [selected]="formOptionId() === opt.id">
+                      {{ opt.label }} ({{ formatAttendance(opt.attendanceType) }} &middot;
+                      {{ formatAmount(opt.priceCents, product()?.currency || formCurrency()) }})
+                    </option>
+                  }
+                </select>
+                <span id="option-change-hint" class="field-hint">
+                  Changing the option updates attendance &amp; capacity pools. Prices stay unchanged unless you click "Recalculate from rules" below.
+                </span>
+              </div>
+            }
+
+            <div class="form-field">
+              <label for="reg-option-label">Option Display Label</label>
+              <input
+                type="text"
+                id="reg-option-label"
+                name="optionLabel"
+                placeholder="e.g. Full Weekend (In-Person)"
+                [value]="formOptionLabel()"
+                (input)="formOptionLabel.set(eventValue($event))"
+              />
+            </div>
+
+            <div class="form-field field-span-full">
+              <span class="group-label" id="attendance-group-label">Attendance Mode</span>
+              <div class="radio-group" role="radiogroup" aria-labelledby="attendance-group-label">
+                @for (att of attendanceModes; track att) {
+                  <label class="radio-option" [for]="'reg-att-' + att">
+                    <input
+                      type="radio"
+                      [id]="'reg-att-' + att"
+                      name="attendance"
+                      [value]="att"
+                      [checked]="formAttendance() === att"
+                      (change)="formAttendance.set(att)"
+                    />
+                    <span>{{ formatAttendance(att) }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+
+            @if (availableSuboptionsForSelectedOption().length > 0) {
+              <div class="form-field field-span-full">
+                <span class="group-label">Selected Sub-Options</span>
+                <div class="checkbox-list">
+                  @for (sub of availableSuboptionsForSelectedOption(); track sub; let i = $index) {
+                    <label class="checkbox-option" [for]="'reg-sub-' + i">
+                      <input
+                        type="checkbox"
+                        [id]="'reg-sub-' + i"
+                        [name]="'suboption_' + i"
+                        [checked]="isSuboptionChecked(sub)"
+                        (change)="toggleSuboption(sub, eventChecked($event))"
+                      />
+                      <span>{{ sub }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (configuredAddOns().length > 0) {
+              <div class="form-field field-span-full">
+                <span class="group-label">Event Add-Ons</span>
+                <div class="checkbox-list">
+                  @for (addOn of configuredAddOns(); track addOn.id) {
+                    <label class="checkbox-option" [for]="'reg-addon-' + addOn.id">
+                      <input
+                        type="checkbox"
+                        [id]="'reg-addon-' + addOn.id"
+                        [name]="'addon_' + addOn.id"
+                        [checked]="isAddOnChecked(addOn.id)"
+                        (change)="toggleConfiguredAddOn(addOn, eventChecked($event))"
+                      />
+                      <span>
+                        {{ addOn.label }}
+                        <span class="muted-price">
+                          ({{ formatAmount(addOn.priceCents, product()?.currency || formCurrency()) }})
+                        </span>
+                        @if (isAutoGrantedAddOn(addOn.id)) {
+                          <span class="inline-tag">Auto-granted (Paid in Full)</span>
+                        }
+                      </span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (unmatchedAddOnLabels().length > 0) {
+              <div class="form-field field-span-full">
+                <span class="group-label">Additional Recorded Add-On Labels</span>
+                <div class="readonly-tags">
+                  @for (lbl of unmatchedAddOnLabels(); track lbl) {
+                    <span class="inline-tag">{{ lbl }}</span>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="form-field field-span-full">
+              <label class="checkbox-option standalone-toggle" for="reg-video-access">
+                <input
+                  type="checkbox"
+                  id="reg-video-access"
+                  name="hasVideoAccess"
+                  [checked]="formHasVideoAccess()"
+                  (change)="formHasVideoAccess.set(eventChecked($event))"
+                />
+                <span>Grant Event Video Recording Access</span>
+              </label>
+            </div>
+
+            @if (capacityPoolRows().length > 0) {
+              <div class="form-field field-span-full">
+                <span class="group-label">Capacity Pool Usage (Units Held by This Registration)</span>
+                <div class="capacity-edit-grid">
+                  @for (cap of capacityPoolRows(); track cap.id) {
+                    <div class="capacity-edit-item">
+                      <label [for]="'reg-cap-' + cap.id">
+                        {{ cap.label }}
+                        @if (cap.limit !== null) {
+                          <span class="cap-pool-meta">
+                            (Event total: {{ cap.totalUsed }}/{{ cap.limit }})
+                          </span>
+                        }
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        [id]="'reg-cap-' + cap.id"
+                        [name]="'capacity_' + cap.id"
+                        [value]="cap.heldUnits"
+                        (input)="updateCapacityUnits(cap.id, eventValue($event))"
+                      />
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </fieldset>
+
+        <!-- 3. Payment & Settlement -->
+        <fieldset class="detail-fieldset">
+          <legend class="section-legend">Payment &amp; Settlement</legend>
+
+          @if (product()) {
+            <div class="section-toolbar">
+              <span class="toolbar-note">
+                Amounts stay as entered unless you recalculate them from the event's pricing rules.
+              </span>
+              <button
+                type="button"
+                class="subtle-button compact-btn"
+                (click)="recalculatePriceFromRules()"
+              >
+                <app-icon name="refresh"></app-icon>
+                <span>Recalculate from rules</span>
+              </button>
+            </div>
+          }
+
+          @if (recalcMessage(); as recalcMsg) {
+            <div class="banner banner-info" aria-live="polite">
+              <app-icon name="info"></app-icon>
+              <span>{{ recalcMsg }}</span>
+            </div>
+          }
+
+          <div class="field-grid">
+            <div class="form-field">
+              <label for="reg-status">Registration Status</label>
+              <select
+                id="reg-status"
+                name="status"
+                [value]="formStatus()"
+                (change)="onStatusSelectChange($event)"
+                aria-describedby="status-cancel-hint"
+              >
+                @for (st of registrationStatuses; track st) {
+                  <option [value]="st" [selected]="formStatus() === st">
+                    {{ formatStatusOptionLabel(st) }}
+                  </option>
+                }
+              </select>
+              <span id="status-cancel-hint" class="field-hint">
+                Setting status to Cancelled or Refunded releases this attendee's spots from event capacity counts.
+              </span>
+            </div>
+
+            <div class="form-field">
+              <label for="reg-currency">Currency (ISO)</label>
+              <input
+                type="text"
+                id="reg-currency"
+                name="currency"
+                maxlength="3"
+                autocomplete="off"
+                [value]="formCurrency()"
+                (input)="formCurrency.set(eventValue($event).toUpperCase())"
+              />
+            </div>
+
+            <div class="form-field field-span-full">
+              <label class="checkbox-option standalone-toggle" for="reg-paid-offline">
+                <input
+                  type="checkbox"
+                  id="reg-paid-offline"
+                  name="paidInFullOffline"
+                  [checked]="formPaidInFullOffline()"
+                  (change)="formPaidInFullOffline.set(eventChecked($event))"
+                />
+                <span>Paid in Full Offline (door cash, bank transfer, or admin settlement)</span>
+              </label>
+            </div>
+
+            <div class="form-field">
+              <span class="group-label" id="pay-method-label">Payment Method</span>
+              <div class="radio-group" role="radiogroup" aria-labelledby="pay-method-label">
+                @for (pm of paymentMethods; track pm) {
+                  <label class="radio-option" [for]="'reg-pm-' + pm">
+                    <input
+                      type="radio"
+                      [id]="'reg-pm-' + pm"
+                      name="paymentMethod"
+                      [value]="pm"
+                      [checked]="formPaymentMethod() === pm"
+                      (change)="formPaymentMethod.set(pm)"
+                    />
+                    <span>{{ formatPaymentMethodLabel(pm) }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+
+            <div class="form-field">
+              <span class="group-label" id="pay-choice-label">Payment Choice</span>
+              <div class="radio-group" role="radiogroup" aria-labelledby="pay-choice-label">
+                @for (pc of paymentChoices; track pc) {
+                  <label class="radio-option" [for]="'reg-pc-' + pc">
+                    <input
+                      type="radio"
+                      [id]="'reg-pc-' + pc"
+                      name="paymentChoice"
+                      [value]="pc"
+                      [checked]="formPaymentChoice() === pc"
+                      (change)="formPaymentChoice.set(pc)"
+                    />
+                    <span>{{ formatPaymentChoiceLabel(pc) }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+
+            <div class="form-field">
+              <span class="group-label" id="tier-group-label">Pricing Tier</span>
+              <div class="radio-group" role="radiogroup" aria-labelledby="tier-group-label">
+                @for (tier of pricingTiers; track tier) {
+                  <label class="radio-option" [for]="'reg-tier-' + tier">
+                    <input
+                      type="radio"
+                      [id]="'reg-tier-' + tier"
+                      name="pricingTierType"
+                      [value]="tier"
+                      [checked]="formPricingTierType() === tier"
+                      (change)="formPricingTierType.set(tier)"
+                    />
+                    <span>{{ formatPricingTierLabel(tier) }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label for="reg-paid-date">Paid Date</label>
+              <div class="inline-input-actions">
+                <input
+                  type="date"
+                  id="reg-paid-date"
+                  name="paidAtDate"
+                  [value]="formPaidAtDate()"
+                  (input)="formPaidAtDate.set(eventValue($event))"
+                />
+                <button
+                  type="button"
+                  class="subtle-button compact-btn"
+                  (click)="setPaidAtToday()"
+                >
+                  Today
+                </button>
+                @if (formPaidAtDate()) {
+                  <button
+                    type="button"
+                    class="subtle-button compact-btn"
+                    (click)="clearPaidAt()"
+                  >
+                    Clear
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label for="reg-total-price">Total Price ({{ formCurrency() }})</label>
+              <input
+                type="text"
+                inputmode="decimal"
+                id="reg-total-price"
+                name="totalPrice"
+                autocomplete="off"
+                [value]="formTotalPriceMajor()"
+                (input)="formTotalPriceMajor.set(eventValue($event))"
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="reg-deposit-paid">Deposit Paid ({{ formCurrency() }})</label>
+              <input
+                type="text"
+                inputmode="decimal"
+                id="reg-deposit-paid"
+                name="depositPaid"
+                autocomplete="off"
+                [value]="formDepositPaidMajor()"
+                (input)="formDepositPaidMajor.set(eventValue($event))"
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="reg-amount-paid">Amount Paid ({{ formCurrency() }})</label>
+              <input
+                type="text"
+                inputmode="decimal"
+                id="reg-amount-paid"
+                name="amountPaid"
+                autocomplete="off"
+                [value]="formAmountPaidMajor()"
+                (input)="formAmountPaidMajor.set(eventValue($event))"
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="reg-amount-due">Amount Due ({{ formCurrency() }})</label>
+              <input
+                type="text"
+                inputmode="decimal"
+                id="reg-amount-due"
+                name="amountDue"
+                autocomplete="off"
+                [value]="formAmountDueMajor()"
+                (input)="formAmountDueMajor.set(eventValue($event))"
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- 4. Form Question Responses -->
+        @if (mergedQuestions().length > 0) {
+          <fieldset class="detail-fieldset">
+            <legend class="section-legend">Form Question Responses</legend>
+
+            <div class="field-grid">
+              @for (q of mergedQuestions(); track q.questionId) {
+                <div class="form-field field-span-full">
+                  @if (q.kind === RegistrationQuestionKind.Checkboxes) {
+                    <span class="group-label">
+                      {{ q.label }}
+                      @if (q.isArchived) {
+                        <span class="inline-tag">Archived question</span>
+                      }
+                    </span>
+                    @if (q.description) {
+                      <span class="field-hint">{{ q.description }}</span>
+                    }
+                    <div class="checkbox-list">
+                      @for (opt of q.options; track opt; let optIdx = $index) {
+                        <label
+                          class="checkbox-option"
+                          [for]="'reg-q-' + q.questionId + '-' + optIdx"
+                        >
+                          <input
+                            type="checkbox"
+                            [id]="'reg-q-' + q.questionId + '-' + optIdx"
+                            [name]="'q_' + q.questionId + '_' + optIdx"
+                            [checked]="isQuestionOptionChecked(q, opt)"
+                            (change)="
+                              toggleQuestionCheckbox(q, opt, eventChecked($event))
+                            "
+                          />
+                          <span>{{ opt }}</span>
+                        </label>
+                      }
+                    </div>
+                  } @else if (q.kind === RegistrationQuestionKind.Select && q.options.length > 0) {
+                    <label [for]="'reg-q-' + q.questionId">
+                      {{ q.label }}
+                      @if (q.isArchived) {
+                        <span class="inline-tag">Archived question</span>
+                      }
+                    </label>
+                    @if (q.description) {
+                      <span class="field-hint">{{ q.description }}</span>
+                    }
+                    <select
+                      [id]="'reg-q-' + q.questionId"
+                      [name]="'q_' + q.questionId"
+                      [value]="getQuestionSelectedOption(q)"
+                      (change)="updateQuestionSelect(q, eventValue($event))"
+                    >
+                      <option value="" [selected]="getQuestionSelectedOption(q) === ''">
+                        — No response —
+                      </option>
+                      @for (opt of q.options; track opt) {
+                        <option
+                          [value]="opt"
+                          [selected]="getQuestionSelectedOption(q) === opt"
+                        >
+                          {{ opt }}
+                        </option>
+                      }
+                    </select>
+                  } @else if (q.kind === RegistrationQuestionKind.LongText) {
+                    <label [for]="'reg-q-' + q.questionId">
+                      {{ q.label }}
+                      @if (q.isArchived) {
+                        <span class="inline-tag">Archived question</span>
+                      }
+                    </label>
+                    @if (q.description) {
+                      <span class="field-hint">{{ q.description }}</span>
+                    }
+                    <textarea
+                      [id]="'reg-q-' + q.questionId"
+                      [name]="'q_' + q.questionId"
+                      rows="3"
+                      [placeholder]="q.placeholder"
+                      [value]="getQuestionTextAnswer(q)"
+                      (input)="updateQuestionText(q, eventValue($event))"
+                    ></textarea>
+                  } @else {
+                    <label [for]="'reg-q-' + q.questionId">
+                      {{ q.label }}
+                      @if (q.isArchived) {
+                        <span class="inline-tag">Archived question</span>
+                      }
+                    </label>
+                    @if (q.description) {
+                      <span class="field-hint">{{ q.description }}</span>
+                    }
+                    <input
+                      type="text"
+                      [id]="'reg-q-' + q.questionId"
+                      [name]="'q_' + q.questionId"
+                      autocomplete="off"
+                      [placeholder]="q.placeholder"
+                      [value]="getQuestionTextAnswer(q)"
+                      (input)="updateQuestionText(q, eventValue($event))"
+                    />
+                  }
+                </div>
+              }
+            </div>
+          </fieldset>
+        }
+
+        <!-- 5. Upgrade History (Read-Only Audit Trail) -->
+        @if (reg.upgradeHistory.length > 0) {
+          <section class="detail-section">
+            <h2 class="section-heading">Upgrade History</h2>
+            <ul class="upgrade-list" role="list">
+              @for (upg of reg.upgradeHistory; track upg.timestamp + upg.stripeSessionId) {
+                <li class="upgrade-item">
+                  <span class="upgrade-date">{{ formatDateTime(upg.timestamp) }}</span>
+                  <span>
+                    From {{ formatAttendance(upg.previousAttendance) }}
+                    ({{ upg.previousHasVideoAccess ? 'with video' : 'no video' }})
+                  </span>
+                  @if (upg.upgradeAmountCents > 0) {
+                    <span class="upgrade-amount">
+                      +{{ formatAmount(upg.upgradeAmountCents, reg.currency) }}
+                    </span>
+                  }
+                  @if (upg.stripeSessionId) {
+                    <span class="mono small-text">{{ upg.stripeSessionId }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
+        <!-- Save Bar -->
+        <div class="save-bar">
+          <div class="save-bar-status">
+            @if (isDirty()) {
+              <span class="unsaved-indicator">Unsaved changes</span>
+            } @else {
+              <span class="saved-indicator">All changes saved</span>
+            }
+          </div>
+          <div class="save-bar-actions">
+            <button
+              type="button"
+              class="subtle-button"
+              [disabled]="!isDirty() || isSaving()"
+              (click)="resetChanges()"
+            >
+              Reset Changes
+            </button>
+            @if (isSaving()) {
+              <app-spinner>Saving registration...</app-spinner>
+            } @else {
+              <button type="submit" class="primary-button">Save Changes</button>
+            }
+          </div>
+        </div>
+      </form>
+    } @else {
+      <!-- EVENT ORGANIZER / MANAGER READ-ONLY DETAILS -->
+      <div class="readonly-sections">
+        <section class="detail-section">
+          <h2 class="section-heading">Attendee &amp; Member Profile</h2>
+          <dl class="readonly-dl">
+            <div>
+              <dt>Full Name</dt>
+              <dd>{{ reg.name || '—' }}</dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd>{{ reg.email || '—' }}</dd>
+            </div>
+            <div>
+              <dt>Phone</dt>
+              <dd>{{ reg.phone || '—' }}</dd>
+            </div>
+            <div>
+              <dt>Role</dt>
+              <dd>{{ formatRole(reg.role) }}</dd>
+            </div>
+            <div>
+              <dt>Member ID</dt>
+              <dd>{{ reg.memberId || '—' }}</dd>
+            </div>
+            <div>
+              <dt>Levels</dt>
+              <dd>
+                {{ formatStudentLevel(reg.studentLevel) || '—' }}
+                @if (reg.applicationLevel) {
+                  &middot; {{ formatApplicationLevel(reg.applicationLevel) }}
+                }
+              </dd>
+            </div>
+            <div class="dl-span-full">
+              <dt>Notes</dt>
+              <dd class="pre-wrap">{{ reg.notes || '—' }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="detail-section">
+          <h2 class="section-heading">Participation &amp; Add-Ons</h2>
+          <dl class="readonly-dl">
+            <div>
+              <dt>Option</dt>
+              <dd>{{ reg.optionLabel || formatAttendance(reg.attendance) }}</dd>
+            </div>
+            <div>
+              <dt>Attendance Mode</dt>
+              <dd>{{ formatAttendance(reg.attendance) }}</dd>
+            </div>
+            <div>
+              <dt>Sub-Options</dt>
+              <dd>
+                {{
+                  reg.selectedSuboptions.length > 0
+                    ? reg.selectedSuboptions.join(', ')
+                    : '—'
+                }}
+              </dd>
+            </div>
+            <div>
+              <dt>Add-Ons</dt>
+              <dd>
+                {{
+                  reg.selectedAddOnLabels.length > 0
+                    ? reg.selectedAddOnLabels.join(', ')
+                    : '—'
+                }}
+              </dd>
+            </div>
+            <div>
+              <dt>Video Recording Access</dt>
+              <dd>{{ reg.hasVideoAccess ? 'Yes' : 'No' }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="detail-section">
+          <h2 class="section-heading">Payment &amp; Settlement</h2>
+          <dl class="readonly-dl">
+            <div>
+              <dt>Status</dt>
+              <dd>{{ formatStatusBadge(reg) }}</dd>
+            </div>
+            <div>
+              <dt>Payment Method</dt>
+              <dd>{{ formatPaymentMethodLabel(reg.paymentMethod) }}</dd>
+            </div>
+            <div>
+              <dt>Payment Choice</dt>
+              <dd>{{ formatPaymentChoiceLabel(reg.paymentChoice) }}</dd>
+            </div>
+            <div>
+              <dt>Pricing Tier</dt>
+              <dd>{{ formatPricingTierLabel(reg.pricingTierType) }}</dd>
+            </div>
+            <div>
+              <dt>Total Price</dt>
+              <dd>{{ formatAmount(reg.totalPriceCents, reg.currency) }}</dd>
+            </div>
+            <div>
+              <dt>Deposit Paid</dt>
+              <dd>{{ formatAmount(reg.depositPaidCents, reg.currency) }}</dd>
+            </div>
+            <div>
+              <dt>Amount Paid</dt>
+              <dd>{{ formatAmount(reg.amountPaidCents, reg.currency) }}</dd>
+            </div>
+            <div>
+              <dt>Amount Due</dt>
+              <dd>{{ formatAmount(reg.amountDueCents, reg.currency) }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        @if (mergedQuestions().length > 0) {
+          <section class="detail-section">
+            <h2 class="section-heading">Form Question Responses</h2>
+            <dl class="readonly-dl">
+              @for (q of mergedQuestions(); track q.questionId) {
+                <div class="dl-span-full">
+                  <dt>{{ q.label }}</dt>
+                  <dd class="pre-wrap">{{ formatQuestionReadonly(q) }}</dd>
+                </div>
+              }
+            </dl>
+          </section>
+        }
+
+        @if (reg.upgradeHistory.length > 0) {
+          <section class="detail-section">
+            <h2 class="section-heading">Upgrade History</h2>
+            <ul class="upgrade-list" role="list">
+              @for (upg of reg.upgradeHistory; track upg.timestamp + upg.stripeSessionId) {
+                <li class="upgrade-item">
+                  <span class="upgrade-date">{{ formatDateTime(upg.timestamp) }}</span>
+                  <span>
+                    From {{ formatAttendance(upg.previousAttendance) }}
+                    ({{ upg.previousHasVideoAccess ? 'with video' : 'no video' }})
+                  </span>
+                  @if (upg.upgradeAmountCents > 0) {
+                    <span class="upgrade-amount">
+                      +{{ formatAmount(upg.upgradeAmountCents, reg.currency) }}
+                    </span>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+    }
+  }
+</div>

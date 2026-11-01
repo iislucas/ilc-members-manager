@@ -69,6 +69,7 @@ export {
   registerEventInPerson,
   markEventRegistrationPaid,
   unmarkEventRegistrationPaid,
+  adminUpdateEventRegistration,
 } from './stripe-product-checkout';
 export { onEventRegistrationWritten } from './on-event-registration-update';
 

@@ -38,6 +38,8 @@ import {
   MarkEventRegistrationPaidResult,
   UnmarkEventRegistrationPaidRequest,
   UnmarkEventRegistrationPaidResult,
+  AdminUpdateEventRegistrationRequest,
+  AdminUpdateEventRegistrationResult,
 } from '../../functions/src/stripe-types';
 
 @Injectable({ providedIn: 'root' })
@@ -192,6 +194,23 @@ export class StripeService {
       UnmarkEventRegistrationPaidRequest,
       UnmarkEventRegistrationPaidResult
     >(this.functions, 'unmarkEventRegistrationPaid');
+    const result = await fn(request);
+    return result.data;
+  }
+
+  /**
+   * Update all editable fields of an event registration (HQ Admin only).
+   */
+  async adminUpdateEventRegistration(
+    request: AdminUpdateEventRegistrationRequest,
+  ): Promise<AdminUpdateEventRegistrationResult> {
+    if (this.networkState.isOffline()) {
+      throw new Error('You are currently offline. Please connect to the internet to save registration changes.');
+    }
+    const fn = httpsCallable<
+      AdminUpdateEventRegistrationRequest,
+      AdminUpdateEventRegistrationResult
+    >(this.functions, 'adminUpdateEventRegistration');
     const result = await fn(request);
     return result.data;
   }

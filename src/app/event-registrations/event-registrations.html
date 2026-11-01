@@ -299,9 +299,11 @@
             </thead>
             <tbody>
               @for (reg of filteredRegistrations(); track reg.docId) {
-                <tr>
+                <tr class="clickable-row" (click)="onRowClick($event, reg)">
                   <td class="cell-attendee">
-                    <div class="attendee-name">{{ reg.name || 'Anonymous' }}</div>
+                    <a class="attendee-name attendee-link" [href]="registrationUrl(reg)">
+                      {{ reg.name || 'Anonymous' }}
+                    </a>
                     <div class="attendee-email">{{ reg.email }}</div>
                     @if (reg.phone) {
                       <div class="attendee-phone">{{ reg.phone }}</div>
@@ -411,7 +413,7 @@
                           <button
                             type="button"
                             class="mark-paid-btn subtle-button"
-                            (click)="markPaid(reg)"
+                            (click)="$event.stopPropagation(); markPaid(reg)"
                             [disabled]="isUpdating() === reg.docId"
                             title="Record that this attendee paid in full (at the door, bank transfer, or other offline method)"
                           >
@@ -426,7 +428,7 @@
                             <button
                               type="button"
                               class="unmark-paid-btn subtle-button"
-                              (click)="unmarkPaid(reg)"
+                              (click)="$event.stopPropagation(); unmarkPaid(reg)"
                               [disabled]="isUpdating() === reg.docId"
                               title="Revert offline payment back to unpaid / deposit balance due"
                             >

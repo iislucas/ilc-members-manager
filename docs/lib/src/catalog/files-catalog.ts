@@ -1,6 +1,6 @@
 /* files-catalog.ts
  *
- * Automatically cataloged index of 100% of repository tracked files (1249 files).
+ * Automatically cataloged index of 100% of repository tracked files (1253 files).
  */
 
 import { CodeFileEntry, ArchitecturalLayer } from '../models/code-file';
@@ -7821,6 +7821,50 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     layer: ArchitecturalLayer.ClientUIComponent,
     responsibility: "Implements EventEditComponent",
     keySymbols: ["EventEditComponent"],
+    relatedJourneys: [],
+    relatedDataTypes: ["ilc-event"],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/event-registration-view/event-registration-view.html",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "HTML template for event-registration-view",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: ["ilc-event"],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/event-registration-view/event-registration-view.scss",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "SCSS stylesheet for event-registration-view",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: ["ilc-event"],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/event-registration-view/event-registration-view.spec.ts",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "Unit and regression tests for event-registration-view",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: ["ilc-event"],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/event-registration-view/event-registration-view.ts",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "Implements EventRegistrationViewComponent, MergedQuestionItem, QuickPayConfirmAction",
+    keySymbols: ["EventRegistrationViewComponent","MergedQuestionItem","QuickPayConfirmAction"],
     relatedJourneys: [],
     relatedDataTypes: ["ilc-event"],
     relatedStories: [],

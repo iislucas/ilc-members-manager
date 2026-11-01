@@ -27,6 +27,8 @@ export function provideNavigationTreeStub(): Provider {
       loadedSchoolTitle: signal(null),
       loadedGradingTitle: signal(null),
       loadedInstructorTitle: signal(null),
+      loadedVideoTitle: signal(null),
+      loadedRegistrationTitle: signal(null),
       isHome: signal(false),
       upNode: signal(null),
     },

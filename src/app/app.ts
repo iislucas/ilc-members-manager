@@ -70,6 +70,7 @@ import { ProductViewComponent } from './product-view/product-view';
 import { ProductEditComponent } from './product-edit/product-edit';
 import { ManageProductsComponent } from './manage-products/manage-products';
 import { EventRegistrationsComponent } from './event-registrations/event-registrations';
+import { EventRegistrationViewComponent } from './event-registration-view/event-registration-view';
 import { MembershipType } from '../../functions/src/data-model/members';
 import { APP_VERSION } from './version';
 import { NavigationTreeService } from './navigation-tree';
@@ -148,6 +149,7 @@ import { environment } from '../environments/environment';
     ProductEditComponent,
     ManageProductsComponent,
     EventRegistrationsComponent,
+    EventRegistrationViewComponent,
     UpdateNotificationComponent,
     ActionQueueDialogComponent,
   ],
@@ -256,6 +258,9 @@ export class App {
   }
   onVideoTitleLoaded(title: string) {
     this.navTree.loadedVideoTitle.set(title);
+  }
+  onRegistrationTitleLoaded(title: string) {
+    this.navTree.loadedRegistrationTitle.set(title);
   }
   // Breadcrumbs, the current view and its title all come from the navigation
   // tree, which the in-page back links are derived from too — see

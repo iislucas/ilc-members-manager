@@ -23,6 +23,10 @@ import {
 } from 'firebase/firestore';
 import { FIREBASE_APP } from './app.config';
 import {
+  FirestoreCollection,
+  FirestoreSubcollection,
+} from '../../functions/src/data-model/collections';
+import {
   EventRegistration,
   firestoreDocToEventRegistration,
   firestoreDocToIlcEvent,
@@ -173,6 +177,29 @@ export class ProductService {
     } catch (err) {
       console.error('Error loading event registrations:', err);
       return [];
+    }
+  }
+
+  /** Fetch a single registration document for a given event. */
+  async getEventRegistration(
+    eventId: string,
+    registrationId: string,
+  ): Promise<EventRegistration | null> {
+    if (!eventId || !registrationId) return null;
+    try {
+      const regDoc = doc(
+        this.db,
+        FirestoreCollection.Events,
+        eventId,
+        FirestoreSubcollection.Registrations,
+        registrationId,
+      );
+      const snap = await getDoc(regDoc);
+      if (!snap.exists()) return null;
+      return firestoreDocToEventRegistration(snap);
+    } catch (err) {
+      console.error('Error loading event registration:', err);
+      return null;
     }
   }
 
