@@ -10,14 +10,19 @@
  * Pre-deploy validation (`check`, also run automatically before `push` and all
  * `pnpm deploy*` commands):
  *   1. Verifies both local environment files exist and export `environment`.
- *   2. Extracts `vapidPublicKey` via TypeScript AST parsing (no eval/vm) and
+ *   2. Scans AST string/template literals to reject template/emulator
+ *      placeholders (`YOUR_*`, `emulator-api-key`, `@example.com`) and verifies
+ *      client Firebase config invariants (`useEmulator: false`, valid `AIza...`
+ *      `firebase.apiKey`, valid `firebase.projectId`, non-empty `firebase.appId`).
+ *   3. Extracts `vapidPublicKey` via TypeScript AST parsing (no eval/vm) and
  *      asserts client and server values are identical.
- *   3. When non-empty, verifies `vapidPublicKey` is a cryptographically valid
+ *   4. When non-empty, verifies `vapidPublicKey` is a cryptographically valid
  *      65-byte uncompressed NIST P-256 public key (87 base64url chars starting
  *      with 'B', valid point on prime256v1).
- *   4. Unless `--offline` is passed, reads `VAPID_PRIVATE_KEY` from Cloud
- *      Secret Manager, derives its P-256 public key, and verifies it matches
- *      `vapidPublicKey`.
+ *   5. Unless `--offline` is passed, verifies `VAPID_PRIVATE_KEY` in Cloud
+ *      Secret Manager matches `vapidPublicKey`, and (for `check` / `deploy*`)
+ *      verifies both local files are in sync with `CLIENT_ENVIRONMENT_LOCAL_TS`
+ *      and `FUNCTIONS_ENVIRONMENT_TS` in Cloud Secret Manager.
  *
  * Usage (requires an authenticated `gcloud` CLI for cloud commands):
  *   pnpm env:check                       # Validate local env files + VAPID secret match
@@ -96,6 +101,7 @@ export interface SecretStore {
 export interface CheckResult {
   vapidPublicKey: string;
   verifiedAgainstCloudSecret: boolean;
+  verifiedEnvSecretsSync: boolean;
 }
 
 const GCP_PROJECT_ID_PATTERN = /^[a-z][a-z0-9-]{4,29}$/;
@@ -226,13 +232,28 @@ export function deriveVapidPublicKeyFromPrivate(privateKeyBase64Url: string): st
   return ecdh.getPublicKey().toString('base64url');
 }
 
-// Extracts a string literal property from `export const environment = { ... }` in a TypeScript
-// source string using the TypeScript AST parser (without executing any code).
-export function extractEnvironmentStringField(
-  sourceText: string,
-  fileLabel: string,
-  fieldName: string,
-): string {
+interface ParsedEnvAst {
+  sourceFile: ts.SourceFile;
+  envObject: ts.ObjectLiteralExpression;
+  constObjects: ReadonlyMap<string, ts.ObjectLiteralExpression>;
+}
+
+// Unwraps TypeScript `as ...`, `satisfies ...`, and parenthesized expressions.
+function unwrapTsExpression(expr: ts.Expression): ts.Expression {
+  let current = expr;
+  while (
+    ts.isAsExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isParenthesizedExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+// Parses a TypeScript environment source file and locates `export const environment = { ... }`
+// along with any top-level `const name = { ... }` object literals it may reference.
+function parseEnvironmentAst(sourceText: string, fileLabel: string): ParsedEnvAst {
   const sourceFile = ts.createSourceFile(
     fileLabel,
     sourceText,
@@ -242,27 +263,26 @@ export function extractEnvironmentStringField(
   );
 
   let envObject: ts.ObjectLiteralExpression | undefined;
+  const constObjects = new Map<string, ts.ObjectLiteralExpression>();
 
   for (const stmt of sourceFile.statements) {
     if (!ts.isVariableStatement(stmt)) continue;
     const isExported = stmt.modifiers?.some(
       (m) => m.kind === ts.SyntaxKind.ExportKeyword,
     );
-    if (!isExported) continue;
+    const isConst =
+      (stmt.declarationList.flags & ts.NodeFlags.Const) === ts.NodeFlags.Const;
 
     for (const decl of stmt.declarationList.declarations) {
-      if (
-        ts.isIdentifier(decl.name) &&
-        decl.name.text === 'environment' &&
-        decl.initializer
-      ) {
-        let init = decl.initializer;
-        while (ts.isAsExpression(init) || ts.isSatisfiesExpression(init)) {
-          init = init.expression;
-        }
-        if (ts.isObjectLiteralExpression(init)) {
-          envObject = init;
-        }
+      if (!ts.isIdentifier(decl.name) || !decl.initializer) continue;
+      const init = unwrapTsExpression(decl.initializer);
+      if (!ts.isObjectLiteralExpression(init)) continue;
+
+      if (isConst) {
+        constObjects.set(decl.name.text, init);
+      }
+      if (isExported && decl.name.text === 'environment') {
+        envObject = init;
       }
     }
   }
@@ -273,38 +293,165 @@ export function extractEnvironmentStringField(
     );
   }
 
-  for (const prop of envObject.properties) {
-    if (!ts.isPropertyAssignment(prop)) continue;
-    const propName =
-      ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)
-        ? prop.name.text
-        : undefined;
-    if (propName !== fieldName) continue;
+  return { sourceFile, envObject, constObjects };
+}
 
-    let val = prop.initializer;
-    while (ts.isAsExpression(val) || ts.isSatisfiesExpression(val)) {
-      val = val.expression;
+// Resolves a nested property assignment expression along `fieldPath` inside `environment`,
+// following references to top-level `const` object literals (e.g. `firebase: firebaseConfig`).
+function resolveEnvironmentPropertyExpression(
+  ast: ParsedEnvAst,
+  fileLabel: string,
+  fieldPath: readonly string[],
+): ts.Expression {
+  let currentObj = ast.envObject;
+
+  for (let i = 0; i < fieldPath.length; i++) {
+    const segment = fieldPath[i];
+    const pathLabel = fieldPath.slice(0, i + 1).join('.');
+    let foundExpr: ts.Expression | undefined;
+
+    for (const prop of currentObj.properties) {
+      if (ts.isPropertyAssignment(prop)) {
+        const propName =
+          ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)
+            ? prop.name.text
+            : undefined;
+        if (propName === segment) {
+          foundExpr = unwrapTsExpression(prop.initializer);
+          break;
+        }
+      } else if (ts.isShorthandPropertyAssignment(prop)) {
+        if (prop.name.text === segment) {
+          foundExpr = prop.name;
+          break;
+        }
+      }
     }
-    if (ts.isStringLiteral(val) || ts.isNoSubstitutionTemplateLiteral(val)) {
-      return val.text;
+
+    if (!foundExpr) {
+      throw new Error(
+        `${fileLabel}: missing \`${pathLabel}\` property on \`environment\`.`,
+      );
     }
-    throw new Error(
-      `${fileLabel}: expected \`environment.${fieldName}\` to be a string literal.`,
-    );
+
+    if (i < fieldPath.length - 1) {
+      if (ts.isObjectLiteralExpression(foundExpr)) {
+        currentObj = foundExpr;
+      } else if (ts.isIdentifier(foundExpr)) {
+        const referenced = ast.constObjects.get(foundExpr.text);
+        if (!referenced) {
+          throw new Error(
+            `${fileLabel}: expected \`environment.${pathLabel}\` (${foundExpr.text}) to resolve to a top-level const object literal.`,
+          );
+        }
+        currentObj = referenced;
+      } else {
+        throw new Error(
+          `${fileLabel}: expected \`environment.${pathLabel}\` to be an object literal.`,
+        );
+      }
+    } else {
+      return foundExpr;
+    }
   }
 
+  throw new Error(`${fileLabel}: empty field path.`);
+}
+
+// Extracts a string literal property at `fieldPath` from `export const environment = { ... }`.
+export function extractEnvironmentStringPath(
+  sourceText: string,
+  fileLabel: string,
+  fieldPath: readonly string[],
+): string {
+  const ast = parseEnvironmentAst(sourceText, fileLabel);
+  const expr = resolveEnvironmentPropertyExpression(ast, fileLabel, fieldPath);
+  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
+    return expr.text;
+  }
   throw new Error(
-    `${fileLabel}: missing \`${fieldName}\` property on \`environment\`.`,
+    `${fileLabel}: expected \`environment.${fieldPath.join('.')}\` to be a string literal.`,
   );
 }
 
-// Validates both local environment files and verifies that `vapidPublicKey` is identical,
-// cryptographically valid, and (when online) matches `VAPID_PRIVATE_KEY` in Cloud Secret Manager.
+// Extracts a boolean literal property at `fieldPath` from `export const environment = { ... }`.
+export function extractEnvironmentBooleanPath(
+  sourceText: string,
+  fileLabel: string,
+  fieldPath: readonly string[],
+): boolean {
+  const ast = parseEnvironmentAst(sourceText, fileLabel);
+  const expr = resolveEnvironmentPropertyExpression(ast, fileLabel, fieldPath);
+  if (expr.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (expr.kind === ts.SyntaxKind.FalseKeyword) return false;
+  throw new Error(
+    `${fileLabel}: expected \`environment.${fieldPath.join('.')}\` to be a boolean literal (\`true\` or \`false\`).`,
+  );
+}
+
+// Extracts a string literal property from `export const environment = { ... }` in a TypeScript
+// source string using the TypeScript AST parser (without executing any code).
+export function extractEnvironmentStringField(
+  sourceText: string,
+  fileLabel: string,
+  fieldName: string,
+): string {
+  return extractEnvironmentStringPath(sourceText, fileLabel, [fieldName]);
+}
+
+// Scans all non-import string and template literals in an environment file for unreplaced
+// template or emulator placeholders (`YOUR_*`, `emulator-api-key`, `@example.com`).
+export function findPlaceholderLiterals(
+  sourceText: string,
+  fileLabel: string,
+): string[] {
+  const { sourceFile } = parseEnvironmentAst(sourceText, fileLabel);
+  const issues: string[] = [];
+
+  function checkText(text: string, node: ts.Node): void {
+    const lower = text.toLowerCase();
+    if (
+      text.includes('YOUR_') ||
+      lower === 'emulator-api-key' ||
+      lower.includes('@example.com')
+    ) {
+      const { line } = sourceFile.getLineAndCharacterOfPosition(
+        node.getStart(sourceFile),
+      );
+      issues.push(`line ${line + 1} ('${text}')`);
+    }
+  }
+
+  function visit(node: ts.Node): void {
+    if (ts.isImportDeclaration(node)) return;
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      checkText(node.text, node);
+      return;
+    }
+    if (ts.isTemplateExpression(node)) {
+      checkText(node.head.text, node.head);
+      for (const span of node.templateSpans) {
+        visit(span.expression);
+        checkText(span.literal.text, span.literal);
+      }
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return issues;
+}
+
+// Validates both local environment files against template/emulator placeholders, client Firebase
+// invariants, VAPID public/private key agreement, and (when online & `verifyRemoteEnvSync` is not
+// disabled) byte-for-byte sync with Cloud Secret Manager.
 export function checkEnvironments(params: {
   repoRoot: string;
   offline: boolean;
   project?: string;
   secretStore?: SecretStore;
+  verifyRemoteEnvSync?: boolean;
 }): CheckResult {
   const clientTarget = MANAGED_ENV_TARGETS[0];
   const functionsTarget = MANAGED_ENV_TARGETS[1];
@@ -326,6 +473,67 @@ export function checkEnvironments(params: {
 
   const clientSource = fs.readFileSync(clientPath, 'utf8');
   const functionsSource = fs.readFileSync(functionsPath, 'utf8');
+
+  for (const [label, source] of [
+    [clientTarget.relativePath, clientSource],
+    [functionsTarget.relativePath, functionsSource],
+  ] as const) {
+    const placeholders = findPlaceholderLiterals(source, label);
+    if (placeholders.length > 0) {
+      throw new Error(
+        `${label} contains template or emulator placeholder value(s): ${placeholders.join(', ')}. Run \`pnpm env:pull -- --force\` to fetch the real configuration from Cloud Secret Manager.`,
+      );
+    }
+  }
+
+  const useEmulator = extractEnvironmentBooleanPath(
+    clientSource,
+    clientTarget.relativePath,
+    ['useEmulator'],
+  );
+  if (useEmulator) {
+    throw new Error(
+      `${clientTarget.relativePath}: \`useEmulator\` must be \`false\` (emulator builds use \`environment.emulator.ts\`).`,
+    );
+  }
+
+  const firebaseApiKey = extractEnvironmentStringPath(
+    clientSource,
+    clientTarget.relativePath,
+    ['firebase', 'apiKey'],
+  );
+  if (
+    !firebaseApiKey.startsWith('AIza') ||
+    firebaseApiKey.length < 30 ||
+    !BASE64URL_PATTERN.test(firebaseApiKey)
+  ) {
+    throw new Error(
+      `${clientTarget.relativePath}: \`firebase.apiKey\` is not a valid Firebase Web API key (expected 'AIza...' key). Run \`pnpm env:pull -- --force\`.`,
+    );
+  }
+
+  const firebaseProjectId = extractEnvironmentStringPath(
+    clientSource,
+    clientTarget.relativePath,
+    ['firebase', 'projectId'],
+  );
+  assertValidProjectId(firebaseProjectId);
+  if (params.project && firebaseProjectId !== assertValidProjectId(params.project)) {
+    throw new Error(
+      `${clientTarget.relativePath}: \`firebase.projectId\` ('${firebaseProjectId}') does not match target project '${params.project}'.`,
+    );
+  }
+
+  const firebaseAppId = extractEnvironmentStringPath(
+    clientSource,
+    clientTarget.relativePath,
+    ['firebase', 'appId'],
+  );
+  if (!firebaseAppId.trim()) {
+    throw new Error(
+      `${clientTarget.relativePath}: \`firebase.appId\` must not be empty.`,
+    );
+  }
 
   const clientVapidKey = extractEnvironmentStringField(
     clientSource,
@@ -359,34 +567,63 @@ export function checkEnvironments(params: {
   }
 
   let verifiedAgainstCloudSecret = false;
-  if (!params.offline && clientVapidKey !== '') {
+  let verifiedEnvSecretsSync = false;
+
+  if (!params.offline) {
     if (!params.project || !params.secretStore) {
       throw new Error(
-        'Project ID and SecretStore are required for online VAPID secret verification (or pass --offline).',
+        'Project ID and SecretStore are required for online verification (or pass --offline).',
       );
     }
     const validProject = assertValidProjectId(params.project);
-    const privateKey = params.secretStore.readLatestSecret(
-      validProject,
-      EnvSecretName.VapidPrivateKey,
-    );
-    if (!privateKey) {
-      throw new Error(
-        `vapidPublicKey is configured locally, but secret '${EnvSecretName.VapidPrivateKey}' was not found in Cloud Secret Manager (project '${validProject}'). Set it via \`firebase functions:secrets:set VAPID_PRIVATE_KEY\`.`,
+
+    if (clientVapidKey !== '') {
+      const privateKey = params.secretStore.readLatestSecret(
+        validProject,
+        EnvSecretName.VapidPrivateKey,
       );
+      if (!privateKey) {
+        throw new Error(
+          `vapidPublicKey is configured locally, but secret '${EnvSecretName.VapidPrivateKey}' was not found in Cloud Secret Manager (project '${validProject}'). Set it via \`firebase functions:secrets:set VAPID_PRIVATE_KEY\`.`,
+        );
+      }
+      const derivedPublicKey = deriveVapidPublicKeyFromPrivate(privateKey);
+      if (derivedPublicKey !== clientVapidKey) {
+        throw new Error(
+          `vapidPublicKey in local environment files does not match the public key derived from Cloud Secret '${EnvSecretName.VapidPrivateKey}' (expected '${derivedPublicKey}').`,
+        );
+      }
+      verifiedAgainstCloudSecret = true;
     }
-    const derivedPublicKey = deriveVapidPublicKeyFromPrivate(privateKey);
-    if (derivedPublicKey !== clientVapidKey) {
-      throw new Error(
-        `vapidPublicKey in local environment files does not match the public key derived from Cloud Secret '${EnvSecretName.VapidPrivateKey}' (expected '${derivedPublicKey}').`,
-      );
+
+    if (params.verifyRemoteEnvSync ?? true) {
+      for (const [target, localContent] of [
+        [clientTarget, clientSource],
+        [functionsTarget, functionsSource],
+      ] as const) {
+        const remoteContent = params.secretStore.readLatestSecret(
+          validProject,
+          target.secretName,
+        );
+        if (remoteContent === null) {
+          throw new Error(
+            `Secret '${target.secretName}' was not found in Cloud Secret Manager (project '${validProject}'). Run \`pnpm env:push\` from a configured checkout first.`,
+          );
+        }
+        if (remoteContent !== localContent) {
+          throw new Error(
+            `Local file '${target.relativePath}' (${shortSha256(localContent)}) differs from Cloud Secret Manager '${target.secretName}' (${shortSha256(remoteContent)}). Run \`pnpm env:pull -- --force\` to restore the canonical configuration, or \`pnpm env:push\` first if your local environment change is intentional.`,
+          );
+        }
+      }
+      verifiedEnvSecretsSync = true;
     }
-    verifiedAgainstCloudSecret = true;
   }
 
   return {
     vapidPublicKey: clientVapidKey,
     verifiedAgainstCloudSecret,
+    verifiedEnvSecretsSync,
   };
 }
 
@@ -447,6 +684,7 @@ export function pushEnvironments(params: {
     offline: false,
     project: validProject,
     secretStore: params.secretStore,
+    verifyRemoteEnvSync: false,
   });
 
   return MANAGED_ENV_TARGETS.map((target) => {
@@ -700,14 +938,19 @@ function main(): void {
         project,
         secretStore,
       });
+      const syncNote = res.verifiedEnvSecretsSync
+        ? ', in sync with Cloud Secret Manager'
+        : ' (offline check)';
       if (res.vapidPublicKey === '') {
-        console.log('Environment check passed: Web Push is disabled (`vapidPublicKey` is empty in both files).');
+        console.log(
+          `Environment check passed: no placeholders, valid Firebase config${syncNote}, Web Push disabled (\`vapidPublicKey\` is empty).`,
+        );
       } else {
         const secretNote = res.verifiedAgainstCloudSecret
-          ? ` and matches Cloud Secret ${EnvSecretName.VapidPrivateKey}`
-          : ' (offline check)';
+          ? ` and matches ${EnvSecretName.VapidPrivateKey}`
+          : '';
         console.log(
-          `Environment check passed: client & server vapidPublicKey match, valid P-256 point${secretNote}.`,
+          `Environment check passed: no placeholders, valid Firebase config${syncNote}, client & server vapidPublicKey valid${secretNote}.`,
         );
       }
       break;
@@ -727,11 +970,12 @@ function main(): void {
         offline: false,
         project,
         secretStore,
+        verifyRemoteEnvSync: false,
       });
       console.log(
         checkRes.vapidPublicKey
-          ? `  - VAPID check: valid & matched against ${EnvSecretName.VapidPrivateKey}`
-          : '  - VAPID check: disabled (empty in both files)',
+          ? `  - Validation & VAPID check: valid & matched against ${EnvSecretName.VapidPrivateKey}`
+          : '  - Validation & VAPID check: valid (Web Push disabled)',
       );
       break;
     }
