@@ -186,7 +186,11 @@ export const initPathPatterns = {
   [Views.FindAnInstructor]: addUrlParams(pathPattern`find-an-instructor`, ['instructorId', 'q']),
   [Views.InstructorView]: pathPattern`instructors/${pv('instructorId')}`,
   [Views.FindSchool]: addUrlParams(pathPattern`find-school`, ['schoolId', 'q']),
-  [Views.ManageSchools]: addUrlParams(pathPattern`schools`, ['q']),
+  [Views.ManageSchools]: addUrlParams(pathPattern`schools`, [
+    'q',
+    'instructorId',
+    'memberDocId',
+  ]),
   [Views.SchoolView]: pathPattern`school-profile/${pv('schoolId')}`,
   [Views.ManageSchoolEdit]: pathPattern`schools/${pv('schoolId')}/edit`,
   [Views.MyProfile]: pathPattern`myProfile`,

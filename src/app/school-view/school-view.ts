@@ -70,11 +70,11 @@ export class SchoolViewComponent implements OnInit {
 
   menuOpen = signal(false);
 
-  // Edit route for the school when the signed-in user is an admin or owns/manages it.
-  editSchoolHref = computed<string | null>(() => {
+  // Whether the signed-in user is an admin or owns/manages this school.
+  private canManageSchool = computed<boolean>(() => {
     const user = this.firebaseState.user();
     const s = this.school();
-    if (!user || !s) return null;
+    if (!user || !s) return false;
 
     const insId = user.member.instructorId;
     const memberDocId = user.member.docId;
@@ -91,13 +91,30 @@ export class SchoolViewComponent implements OnInit {
       (!!s.docId && managed.includes(s.docId)) ||
       (!!s.schoolId && managed.includes(s.schoolId));
 
-    if (!user.isAdmin && !isOwnerOrManager) return null;
+    return user.isAdmin || isOwnerOrManager;
+  });
+
+  // Edit route for the school when the signed-in user is an admin or owns/manages it.
+  editSchoolHref = computed<string | null>(() => {
+    const user = this.firebaseState.user();
+    const s = this.school();
+    if (!user || !s || !this.canManageSchool()) return null;
 
     const targetId = s.schoolId || s.docId;
     if (!targetId) return null;
 
     const view = user.isAdmin ? Views.ManageSchoolEdit : Views.MySchoolEdit;
     return this.routingService.hrefForView(view, { schoolId: targetId });
+  });
+
+  // Students route for the school when the signed-in user is an admin or owns/manages it.
+  schoolStudentsHref = computed<string | null>(() => {
+    const s = this.school();
+    if (!s || !s.schoolId || !this.canManageSchool()) return null;
+
+    return this.routingService.hrefForView(Views.SchoolMembers, {
+      schoolId: s.schoolId,
+    });
   });
 
   toggleMenu() {

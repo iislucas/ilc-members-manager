@@ -74,6 +74,9 @@ describe('SchoolViewComponent', () => {
       if (view === Views.ManageSchoolEdit) {
         return `/schools/${pathVars?.['schoolId']}/edit`;
       }
+      if (view === Views.SchoolMembers) {
+        return `/school/${pathVars?.['schoolId']}/members`;
+      }
       return '#';
     });
 
@@ -196,7 +199,7 @@ describe('SchoolViewComponent', () => {
       expect(fixture.nativeElement.querySelector('.profile-menu-trigger')).toBeNull();
     });
 
-    it('shows the 3-dots menu for the school owner and links to MySchoolEdit', async () => {
+    it('shows the 3-dots menu for the school owner with Edit and View students links', async () => {
       await (component as unknown as { loadSchool: () => Promise<void> }).loadSchool();
       firebaseStateMock.user.set(makeUser({ docId: 'member-doc-1', instructorId: 'I-101' }));
       fixture.detectChanges();
@@ -209,15 +212,39 @@ describe('SchoolViewComponent', () => {
       trigger!.click();
       fixture.detectChanges();
 
-      const editLink: HTMLAnchorElement | null =
-        fixture.nativeElement.querySelector('.profile-actions-menu a.menu-item');
-      expect(editLink).toBeTruthy();
-      expect(editLink!.textContent).toContain('Edit school profile');
-      expect(editLink!.getAttribute('href')).toBe('/my-schools/SCH-1/edit');
+      const menuItems: HTMLAnchorElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('.profile-actions-menu a.menu-item'),
+      );
+      expect(menuItems.length).toBe(2);
+      expect(menuItems[0].textContent).toContain('Edit school profile');
+      expect(menuItems[0].getAttribute('href')).toBe('/my-schools/SCH-1/edit');
+      expect(menuItems[1].textContent).toContain('View students');
+      expect(menuItems[1].getAttribute('href')).toBe('/school/SCH-1/members');
 
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector('.profile-actions-menu')).toBeNull();
+    });
+
+    it('shows the 3-dots menu with View students for a school manager', async () => {
+      await (component as unknown as { loadSchool: () => Promise<void> }).loadSchool();
+      firebaseStateMock.user.set(makeUser({ docId: 'member-doc-2', instructorId: 'I-202' }));
+      fixture.detectChanges();
+
+      const trigger: HTMLButtonElement | null =
+        fixture.nativeElement.querySelector('.profile-menu-trigger');
+      expect(trigger).toBeTruthy();
+
+      trigger!.click();
+      fixture.detectChanges();
+
+      const menuItems: HTMLAnchorElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('.profile-actions-menu a.menu-item'),
+      );
+      expect(menuItems.length).toBe(2);
+      expect(menuItems[0].getAttribute('href')).toBe('/my-schools/SCH-1/edit');
+      expect(menuItems[1].textContent).toContain('View students');
+      expect(menuItems[1].getAttribute('href')).toBe('/school/SCH-1/members');
     });
 
     it('shows the 3-dots menu when owned via ownerMemberDocId without instructorId', async () => {
@@ -231,10 +258,11 @@ describe('SchoolViewComponent', () => {
       fixture.detectChanges();
 
       expect(component.editSchoolHref()).toBe('/my-schools/SCH-1/edit');
+      expect(component.schoolStudentsHref()).toBe('/school/SCH-1/members');
       expect(fixture.nativeElement.querySelector('.profile-menu-trigger')).toBeTruthy();
     });
 
-    it('shows the 3-dots menu for an admin and links to ManageSchoolEdit', async () => {
+    it('shows the 3-dots menu for an admin with ManageSchoolEdit and View students links', async () => {
       await (component as unknown as { loadSchool: () => Promise<void> }).loadSchool();
       firebaseStateMock.user.set(makeUser({ isAdmin: true, docId: 'admin-doc', instructorId: '' }));
       fixture.detectChanges();
@@ -246,10 +274,13 @@ describe('SchoolViewComponent', () => {
       trigger!.click();
       fixture.detectChanges();
 
-      const editLink: HTMLAnchorElement | null =
-        fixture.nativeElement.querySelector('.profile-actions-menu a.menu-item');
-      expect(editLink).toBeTruthy();
-      expect(editLink!.getAttribute('href')).toBe('/schools/SCH-1/edit');
+      const menuItems: HTMLAnchorElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('.profile-actions-menu a.menu-item'),
+      );
+      expect(menuItems.length).toBe(2);
+      expect(menuItems[0].getAttribute('href')).toBe('/schools/SCH-1/edit');
+      expect(menuItems[1].textContent).toContain('View students');
+      expect(menuItems[1].getAttribute('href')).toBe('/school/SCH-1/members');
     });
   });
 });

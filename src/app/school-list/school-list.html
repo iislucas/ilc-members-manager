@@ -21,6 +21,22 @@
       }
     </div>
 
+    @if (managerFilterLabel(); as filterLabel) {
+      <div class="active-tag-filter">
+        <span class="active-tag-chip">
+          {{ filterLabel }}
+          <button
+            type="button"
+            class="tag-clear-btn"
+            (click)="clearManagerFilter()"
+            aria-label="Remove school manager filter"
+          >
+            <app-icon name="close"></app-icon>
+          </button>
+        </span>
+      </div>
+    }
+
     @if (errorsExist()) {
       <div class="error-box">
         <div class="error-box-header" (click)="toggleErrors()">

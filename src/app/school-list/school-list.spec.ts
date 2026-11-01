@@ -12,14 +12,22 @@ import { AppPathPatterns } from '../app.config';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
 import { School, initSchool } from '../../../functions/src/data-model/schools';
-import { signal } from '@angular/core';
+import {
+  InstructorPublicData,
+  Member,
+  initInstructor,
+  initMember,
+} from '../../../functions/src/data-model/members';
+import { signal, WritableSignal } from '@angular/core';
 
 describe('SchoolListComponent', () => {
   let component: SchoolListComponent;
   let fixture: ComponentFixture<SchoolListComponent>;
   let mockFirebaseStateService: FirebaseStateService;
   let mockDataManagerService: DataManagerService;
-  let mockRoutingService: RoutingService<AppPathPatterns>;
+  let qSignal: WritableSignal<string>;
+  let instructorIdSignal: WritableSignal<string>;
+  let memberDocIdSignal: WritableSignal<string>;
 
   beforeEach(async () => {
     mockFirebaseStateService = {
@@ -33,6 +41,9 @@ describe('SchoolListComponent', () => {
       s.docId = `school-${i}`;
       s.schoolName = `School ${i}`;
       s.schoolId = `SCH-${i}`;
+      if (i === 1) s.ownerInstructorId = '101';
+      if (i === 2) s.managerInstructorIds = ['101'];
+      if (i === 3) s.ownerMemberDocId = 'buyer-doc-1';
       schools.push(s);
     }
     const schoolSet = new SearchableSet<'docId', School>(
@@ -41,14 +52,36 @@ describe('SchoolListComponent', () => {
       schools,
     );
 
+    const instructor: InstructorPublicData = {
+      ...initInstructor(),
+      docId: 'inst-doc-101',
+      instructorId: '101',
+      name: 'Jane Sifu',
+    };
+    const buyer: Member = {
+      ...initMember(),
+      docId: 'buyer-doc-1',
+      memberId: 'US200',
+      name: 'Buyer Owner',
+    };
+
     mockDataManagerService = {
       schools: schoolSet,
-      instructors: new SearchableSet<'instructorId', any>(
+      instructors: new SearchableSet<'instructorId', InstructorPublicData>(
         ['name'],
         'instructorId',
-        [],
+        [instructor],
+      ),
+      members: new SearchableSet<'docId', Member>(
+        ['name'],
+        'docId',
+        [buyer],
       ),
     } as never as DataManagerService;
+
+    qSignal = signal('');
+    instructorIdSignal = signal('');
+    memberDocIdSignal = signal('');
 
     await TestBed.configureTestingModule({
       imports: [SchoolListComponent],
@@ -59,7 +92,20 @@ describe('SchoolListComponent', () => {
           provide: RoutingService,
           useValue: {
             matchedPatternId: signal('schools'),
-            signals: { schools: { urlParams: { q: signal('') } } },
+            signals: {
+              schools: {
+                urlParams: {
+                  q: qSignal,
+                  instructorId: instructorIdSignal,
+                  memberDocId: memberDocIdSignal,
+                },
+              },
+              mySchools: {
+                urlParams: {
+                  q: signal(''),
+                },
+              },
+            },
             hrefForView: vi.fn(),
             navigateTo: vi.fn(),
           }
@@ -109,5 +155,33 @@ describe('SchoolListComponent', () => {
     school.schoolId = 'SCH-123';
     const link = component.editLink(school);
     expect(link).toBe('/schools/test-doc-id/edit');
+  });
+
+  it('should filter schools owned or managed by instructorId and clear filter on chip click', () => {
+    instructorIdSignal.set('101');
+    fixture.detectChanges();
+
+    expect(component.schools().map((s) => s.schoolId)).toEqual(['SCH-1', 'SCH-2']);
+    expect(component.managerFilterLabel()).toBe('Managed by Jane Sifu [101]');
+
+    const chip = fixture.nativeElement.querySelector('.active-tag-chip');
+    expect(chip?.textContent).toContain('Managed by Jane Sifu [101]');
+
+    const clearBtn: HTMLButtonElement | null =
+      fixture.nativeElement.querySelector('.tag-clear-btn');
+    expect(clearBtn).toBeTruthy();
+    clearBtn!.click();
+    fixture.detectChanges();
+
+    expect(instructorIdSignal()).toBe('');
+    expect(component.totalSchools()).toBe(60);
+  });
+
+  it('should filter schools owned via memberDocId for non-instructor school owners', () => {
+    memberDocIdSignal.set('buyer-doc-1');
+    fixture.detectChanges();
+
+    expect(component.schools().map((s) => s.schoolId)).toEqual(['SCH-3']);
+    expect(component.managerFilterLabel()).toBe('Managed by (US200) Buyer Owner');
   });
 });

@@ -656,13 +656,44 @@ export class MemberDetailsComponent {
       : '';
   });
 
-  /** Href to view the member's primary school members. */
-  memberSchoolLink = computed(() => {
+  /** Whether this member owns or manages at least one school. */
+  memberHasManagedSchools = computed(() => {
     const m = this.editableMember();
-    if (!m.primarySchoolId || m.primarySchoolId.trim() === '') return '';
-    return this.routingService.hrefForView(Views.SchoolMembers, {
-      schoolId: m.primarySchoolId,
-    });
+    if (this.isOwnProfile()) {
+      const managed = this.firebaseState.user()?.schoolsManaged ?? [];
+      if (managed.length > 0) return true;
+    }
+    const insId = m.instructorId?.trim();
+    const docId = m.docId?.trim();
+    if (!insId && !docId) return false;
+    return this.membersService.schools.entries().some(
+      (s) =>
+        (!!insId &&
+          (s.ownerInstructorId === insId ||
+            s.managerInstructorIds.includes(insId))) ||
+        (!!docId && s.ownerMemberDocId === docId),
+    );
+  });
+
+  /** Href to view schools owned or managed by this member. */
+  memberSchoolsLink = computed(() => {
+    if (!this.memberHasManagedSchools()) return '';
+    if (this.isOwnProfile()) {
+      return this.routingService.hrefForView(Views.MySchools);
+    }
+    const m = this.editableMember();
+    const insId = m.instructorId?.trim();
+    if (insId) {
+      return this.routingService.hrefForView(Views.ManageSchools, {
+        instructorId: insId,
+      });
+    }
+    if (m.docId) {
+      return this.routingService.hrefForView(Views.ManageSchools, {
+        memberDocId: m.docId,
+      });
+    }
+    return '';
   });
 
   // Error handling.
