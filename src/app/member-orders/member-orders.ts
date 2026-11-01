@@ -29,6 +29,7 @@ import { School } from '../../../functions/src/data-model/schools';
 import { ManagedSchoolBillingInfo } from '../../../functions/src/stripe-types';
 import {
   addBillingIntervalToDateString,
+  computeProjectedRenewalExpirationDate,
   formatNextAutoRenewalPayment,
   resolveMemberSubscriptionRenewal,
 } from '../stripe-price-format';
@@ -60,6 +61,7 @@ export interface DisplaySubscriptionCard {
   expirationDate: string;
   nextAutoRenewDate: string; // YYYY-MM-DD or ''
   autoRenewalPaymentText: string; // e.g. '2026-11-23 ($25.00 USD)' or ''
+  projectedExpirationDate: string; // YYYY-MM-DD after next auto-renewal, or ''
   isAutoRenewing: boolean;
   canCancel: boolean;
   canResume: boolean;
@@ -344,6 +346,7 @@ export class MemberOrdersComponent {
           expirationDate: 'Never expires',
           nextAutoRenewDate: '',
           autoRenewalPaymentText: '',
+          projectedExpirationDate: '',
           isAutoRenewing: false,
           canCancel: false,
           canResume: false,
@@ -364,6 +367,7 @@ export class MemberOrdersComponent {
       let isAutoRenewing = false;
       let nextAutoRenewDate = '';
       let autoRenewalPaymentText = '';
+      let projectedExpirationDate = '';
 
       if (ownSubId) {
         const resolved = resolveMemberSubscriptionRenewal({
@@ -380,6 +384,7 @@ export class MemberOrdersComponent {
         isAutoRenewing = resolved.isAutoRenewing;
         nextAutoRenewDate = resolved.nextAutoRenewDate;
         autoRenewalPaymentText = resolved.autoRenewalPaymentText;
+        projectedExpirationDate = resolved.projectedExpirationDate;
       } else if (
         billingInfo?.isAutoRenewing &&
         billingInfo.nextAutoRenewDate &&
@@ -387,14 +392,15 @@ export class MemberOrdersComponent {
       ) {
         isAutoRenewing = true;
         nextAutoRenewDate = billingInfo.nextAutoRenewDate;
+        const interval: 'month' | 'year' =
+          billingInfo.interval ||
+          (billingInfo.amount !== null && billingInfo.amount <= 15000
+            ? 'month'
+            : 'year');
         if (
           nextAutoRenewDate === school.schoolLicenseExpires &&
           /^\d{4}-\d{2}-\d{2}$/.test(billingInfo.lastPaymentDate)
         ) {
-          const interval: 'month' | 'year' =
-            billingInfo.amount !== null && billingInfo.amount <= 15000
-              ? 'month'
-              : 'year';
           const expectedEnd = addBillingIntervalToDateString(
             billingInfo.lastPaymentDate,
             interval,
@@ -413,6 +419,11 @@ export class MemberOrdersComponent {
           billingInfo.amount,
           billingInfo.currency,
         );
+        projectedExpirationDate = computeProjectedRenewalExpirationDate({
+          currentExpirationDate: school.schoolLicenseExpires,
+          nextAutoRenewDate,
+          interval,
+        });
       }
 
       const status = isExpired
@@ -435,6 +446,7 @@ export class MemberOrdersComponent {
         expirationDate: school.schoolLicenseExpires || 'Not active',
         nextAutoRenewDate,
         autoRenewalPaymentText,
+        projectedExpirationDate,
         isAutoRenewing,
         canCancel: canManageOwnSub && isAutoRenewing,
         canResume: canManageOwnSub && !isAutoRenewing && !isExpired,
@@ -487,6 +499,7 @@ export class MemberOrdersComponent {
         expirationDate: sub.currentPeriodEnd || 'Not active',
         nextAutoRenewDate: resolved.nextAutoRenewDate,
         autoRenewalPaymentText: resolved.autoRenewalPaymentText,
+        projectedExpirationDate: resolved.projectedExpirationDate,
         isAutoRenewing: resolved.isAutoRenewing,
         canCancel: resolved.isAutoRenewing,
         canResume: !resolved.isAutoRenewing && isActiveSub,
@@ -529,6 +542,7 @@ export class MemberOrdersComponent {
         expirationDate: 'Never expires',
         nextAutoRenewDate: '',
         autoRenewalPaymentText: '',
+        projectedExpirationDate: '',
         isAutoRenewing: false,
         canCancel: false,
         canResume: false,
@@ -571,6 +585,7 @@ export class MemberOrdersComponent {
         expirationDate: m.currentMembershipExpires || 'Not active',
         nextAutoRenewDate: resolved.nextAutoRenewDate,
         autoRenewalPaymentText: resolved.autoRenewalPaymentText,
+        projectedExpirationDate: resolved.projectedExpirationDate,
         isAutoRenewing: resolved.isAutoRenewing,
         canCancel: resolved.isAutoRenewing && !!m.membershipSubscriptionId,
         canResume:
@@ -610,6 +625,7 @@ export class MemberOrdersComponent {
           expirationDate: 'Never expires',
           nextAutoRenewDate: '',
           autoRenewalPaymentText: '',
+          projectedExpirationDate: '',
           isAutoRenewing: false,
           canCancel: false,
           canResume: false,
@@ -662,6 +678,7 @@ export class MemberOrdersComponent {
           expirationDate: m.instructorLicenseExpires || 'Not active',
           nextAutoRenewDate: resolved.nextAutoRenewDate,
           autoRenewalPaymentText: resolved.autoRenewalPaymentText,
+          projectedExpirationDate: resolved.projectedExpirationDate,
           isAutoRenewing: resolved.isAutoRenewing,
           canCancel:
             resolved.isAutoRenewing && !!m.instructorLicenseSubscriptionId,
@@ -729,6 +746,7 @@ export class MemberOrdersComponent {
         expirationDate: m.classVideoLibraryExpirationDate || 'Not active',
         nextAutoRenewDate: resolved.nextAutoRenewDate,
         autoRenewalPaymentText: resolved.autoRenewalPaymentText,
+        projectedExpirationDate: resolved.projectedExpirationDate,
         isAutoRenewing: resolved.isAutoRenewing,
         canCancel:
           resolved.isAutoRenewing && !!m.classVideoLibrarySubscriptionId,
@@ -789,6 +807,7 @@ export class MemberOrdersComponent {
           expirationDate: sub.currentPeriodEnd,
           nextAutoRenewDate: resolved.nextAutoRenewDate,
           autoRenewalPaymentText: resolved.autoRenewalPaymentText,
+          projectedExpirationDate: resolved.projectedExpirationDate,
           isAutoRenewing: resolved.isAutoRenewing,
           canCancel: resolved.isAutoRenewing,
           canResume: !resolved.isAutoRenewing && isActiveSub,

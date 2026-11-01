@@ -160,6 +160,7 @@ export class ClassVideoLibraryPurchaseComponent {
         amount: null,
         currency: 'usd',
         autoRenewalPaymentText: '',
+        projectedExpirationDate: '',
       };
     }
     return resolveMemberSubscriptionRenewal({
@@ -207,6 +208,10 @@ export class ClassVideoLibraryPurchaseComponent {
 
   nextAutoRenewPaymentText = computed(
     () => this.videoRenewal().autoRenewalPaymentText,
+  );
+
+  projectedExpirationDate = computed(
+    () => this.videoRenewal().projectedExpirationDate,
   );
 
   selectedPrice = computed<StripeProductPrice | null>(() => {

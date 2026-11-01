@@ -246,6 +246,7 @@ export class InstructorLicensePurchaseComponent {
         amount: null,
         currency: 'usd',
         autoRenewalPaymentText: '',
+        projectedExpirationDate: '',
       };
     }
     return resolveMemberSubscriptionRenewal({
@@ -281,6 +282,10 @@ export class InstructorLicensePurchaseComponent {
 
   nextAutoRenewPaymentText = computed(
     () => this.licenseRenewal().autoRenewalPaymentText,
+  );
+
+  projectedLicenseExpires = computed(
+    () => this.licenseRenewal().projectedExpirationDate,
   );
 
   productOptionTitle = computed<string>(() => {

@@ -43,6 +43,11 @@
             @if (hasActiveSubscription()) {
               Next auto-renewal payment:
               <strong>{{ membershipAutoRenewPaymentText() }}</strong>.
+              @if (membershipProjectedExpirationDate()) {
+                On {{ membershipNextAutoRenewDate() }}, the expiration date will
+                be extended to
+                <strong>{{ membershipProjectedExpirationDate() }}</strong>.
+              }
             }
           </p>
         </div>

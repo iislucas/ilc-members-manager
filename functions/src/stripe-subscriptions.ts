@@ -777,6 +777,7 @@ export async function resolveManagedSchoolsBillingForEmail(
         nextAutoRenewDate: isAutoRenewing ? sub.nextAutoRenewDate : '',
         amount: typeof sub.amount === 'number' ? sub.amount : null,
         currency: sub.currency || 'usd',
+        interval: sub.interval === SubscriptionInterval.Month ? 'month' : 'year',
         lastPaymentDate: sub.currentPeriodStart || school.schoolLicenseRenewalDate || '',
       };
       continue;

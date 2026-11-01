@@ -12583,7 +12583,7 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     path: "src/app/stripe-price-format.ts",
     layer: ArchitecturalLayer.ClientUIComponent,
     responsibility: "Implements ResolvedSubscriptionRenewal, formatStripePrice, formatStripeAmount",
-    keySymbols: ["ResolvedSubscriptionRenewal","formatStripePrice","formatStripeAmount","tidyStripeLabel","formatAmountWithCurrency","formatNextAutoRenewalPayment","addBillingIntervalToDateString","resolveMemberSubscriptionRenewal"],
+    keySymbols: ["ResolvedSubscriptionRenewal","formatStripePrice","formatStripeAmount","tidyStripeLabel","formatAmountWithCurrency","formatNextAutoRenewalPayment","addBillingIntervalToDateString","computeProjectedRenewalExpirationDate","resolveMemberSubscriptionRenewal"],
     relatedJourneys: [],
     relatedDataTypes: ["order"],
     relatedStories: [],

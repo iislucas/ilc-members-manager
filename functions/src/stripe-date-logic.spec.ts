@@ -1244,6 +1244,7 @@ describe('Stripe Date Logic & Expiration Guarantees', () => {
         nextAutoRenewDate: '2027-06-01',
         amount: 60000,
         currency: 'usd',
+        interval: 'year',
         lastPaymentDate: '2026-06-01',
       });
 

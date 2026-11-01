@@ -266,6 +266,7 @@ export class BecomeAMemberComponent {
         amount: null,
         currency: 'usd',
         autoRenewalPaymentText: '',
+        projectedExpirationDate: '',
       };
     }
     return resolveMemberSubscriptionRenewal({
@@ -294,6 +295,10 @@ export class BecomeAMemberComponent {
 
   membershipAutoRenewPaymentText = computed(
     () => this.membershipRenewal().autoRenewalPaymentText,
+  );
+
+  membershipProjectedExpirationDate = computed(
+    () => this.membershipRenewal().projectedExpirationDate,
   );
 
   annualProduct = computed(() => {

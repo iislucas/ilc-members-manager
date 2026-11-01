@@ -54,6 +54,7 @@ import {
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 import {
   addBillingIntervalToDateString,
+  computeProjectedRenewalExpirationDate,
   formatNextAutoRenewalPayment,
   formatStripeAmount,
   formatStripePrice,
@@ -74,6 +75,7 @@ export interface SchoolBillingDisplay {
   isAutoRenewing: boolean;
   nextAutoRenewDate: string;
   autoRenewalPaymentText: string;
+  projectedExpirationDate: string;
   canCancel: boolean;
   canResume: boolean;
 }
@@ -442,6 +444,7 @@ export class SchoolLicensePurchaseComponent {
           isAutoRenewing: false,
           nextAutoRenewDate: '',
           autoRenewalPaymentText: '',
+          projectedExpirationDate: '',
           canCancel: false,
           canResume: false,
         };
@@ -451,6 +454,7 @@ export class SchoolLicensePurchaseComponent {
       let isAutoRenewing = false;
       let nextAutoRenewDate = '';
       let autoRenewalPaymentText = '';
+      let projectedExpirationDate = '';
 
       if (ownSubId) {
         const resolved = resolveMemberSubscriptionRenewal({
@@ -468,6 +472,7 @@ export class SchoolLicensePurchaseComponent {
         isAutoRenewing = resolved.isAutoRenewing;
         nextAutoRenewDate = resolved.nextAutoRenewDate;
         autoRenewalPaymentText = resolved.autoRenewalPaymentText;
+        projectedExpirationDate = resolved.projectedExpirationDate;
       } else if (
         billingInfo?.isAutoRenewing &&
         billingInfo.nextAutoRenewDate &&
@@ -475,14 +480,15 @@ export class SchoolLicensePurchaseComponent {
       ) {
         isAutoRenewing = true;
         nextAutoRenewDate = billingInfo.nextAutoRenewDate;
+        const interval: 'month' | 'year' =
+          billingInfo.interval ||
+          (billingInfo.amount !== null && billingInfo.amount <= 15000
+            ? 'month'
+            : 'year');
         if (
           nextAutoRenewDate === school.schoolLicenseExpires &&
           /^\d{4}-\d{2}-\d{2}$/.test(billingInfo.lastPaymentDate)
         ) {
-          const interval: 'month' | 'year' =
-            billingInfo.amount !== null && billingInfo.amount <= 15000
-              ? 'month'
-              : 'year';
           const expectedEnd = addBillingIntervalToDateString(
             billingInfo.lastPaymentDate,
             interval,
@@ -501,6 +507,11 @@ export class SchoolLicensePurchaseComponent {
           billingInfo.amount,
           billingInfo.currency,
         );
+        projectedExpirationDate = computeProjectedRenewalExpirationDate({
+          currentExpirationDate: school.schoolLicenseExpires,
+          nextAutoRenewDate,
+          interval,
+        });
       }
 
       const activeSchool = school.schoolLicenseExpires >= todayStr;
@@ -512,6 +523,7 @@ export class SchoolLicensePurchaseComponent {
         isAutoRenewing,
         nextAutoRenewDate,
         autoRenewalPaymentText,
+        projectedExpirationDate,
         canCancel: Boolean(ownSubId) && isAutoRenewing,
         canResume: Boolean(ownSubId) && !isAutoRenewing && activeSchool,
       };
