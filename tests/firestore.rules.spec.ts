@@ -633,6 +633,27 @@ describe('Firestore Rules', () => {
       );
     });
 
+    it('should allow school manager to update public profile and cover image URLs including original URLs', async () => {
+      const db = testEnv
+        .authenticatedContext('school_manager', {
+          email: 'school_manager@ilc.com',
+        })
+        .firestore();
+      await assertSucceeds(
+        db.collection('schools').doc('FirestoreDocID-school1').update({
+          publicProfileImageUrl: 'https://example.com/school_profile.jpg',
+          publicProfileImageThumbUrl: 'https://example.com/school_thumb.jpg',
+          publicProfileImageOriginalUrl:
+            'https://example.com/school_profile_original.jpg',
+          publicCoverImageUrl: 'https://example.com/school_cover.jpg',
+          publicCoverImageOriginalUrl:
+            'https://example.com/school_cover_original.jpg',
+          publicBioMarkdown: 'Welcome to our school.',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
     it('should allow admin to write (create) a school', async () => {
       const db = testEnv
         .authenticatedContext('admin', { email: 'admin@ilc.com' })
@@ -1596,8 +1617,36 @@ describe('Firestore Rules', () => {
             lastUpdated: serverTimestamp(),
             publicProfileImageUrl: 'https://example.com/profile_large.jpg',
             publicProfileImageThumbUrl: 'https://example.com/profile_thumb.jpg',
+            publicProfileImageOriginalUrl:
+              'https://example.com/profile_original.jpg',
             publicCoverImageUrl: 'https://example.com/cover.jpg',
+            publicCoverImageOriginalUrl:
+              'https://example.com/cover_original.jpg',
             publicBioMarkdown: 'I train for **health** and mindfulness.',
+          }),
+      );
+    });
+
+    it('should allow school manager of member school to update member public profile and cover original URLs', async () => {
+      const db = testEnv
+        .authenticatedContext('school_manager', {
+          email: 'school_manager@ilc.com',
+        })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .update({
+            lastUpdated: serverTimestamp(),
+            publicProfileImageUrl: 'https://example.com/profile_large.jpg',
+            publicProfileImageThumbUrl: 'https://example.com/profile_thumb.jpg',
+            publicProfileImageOriginalUrl:
+              'https://example.com/profile_original.jpg',
+            publicCoverImageUrl: 'https://example.com/cover.jpg',
+            publicCoverImageOriginalUrl:
+              'https://example.com/cover_original.jpg',
+            publicBioMarkdown: 'Updated bio by school manager.',
           }),
       );
     });

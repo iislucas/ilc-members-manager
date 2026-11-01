@@ -287,7 +287,15 @@ export class MemberDetailsComponent {
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );
     disabled(
+      schema.publicProfileImageOriginalUrl,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
       schema.publicCoverImageUrl,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicCoverImageOriginalUrl,
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );
     disabled(
@@ -1098,7 +1106,11 @@ export class MemberDetailsComponent {
     this.isEditingCoverCrop.set(false);
   }
 
-  async onProfileImageCropped(event: { thumbBlob: Blob; largeBlob: Blob }) {
+  async onProfileImageCropped(event: {
+    thumbBlob: Blob;
+    largeBlob: Blob;
+    originalFile?: File;
+  }) {
     const docId = this.member().docId;
     if (!docId) {
       this.profileImageError.set(
@@ -1128,6 +1140,19 @@ export class MemberDetailsComponent {
       });
       const thumbUrl = await getDownloadURL(thumbRef);
 
+      if (event.originalFile) {
+        const origRef = ref(
+          storage,
+          `instructors/${docId}/images/profile_original`,
+        );
+        await uploadBytes(origRef, event.originalFile, {
+          contentType: event.originalFile.type || 'application/octet-stream',
+        });
+        const origUrl = await getDownloadURL(origRef);
+        this.form.publicProfileImageOriginalUrl().value.set(origUrl);
+        this.form.publicProfileImageOriginalUrl().markAsDirty();
+      }
+
       this.form.publicProfileImageUrl().value.set(largeUrl);
       this.form.publicProfileImageUrl().markAsDirty();
       this.form.publicProfileImageThumbUrl().value.set(thumbUrl);
@@ -1142,7 +1167,7 @@ export class MemberDetailsComponent {
     }
   }
 
-  async onCoverImageCropped(event: { largeBlob: Blob }) {
+  async onCoverImageCropped(event: { largeBlob: Blob; originalFile?: File }) {
     const docId = this.member().docId;
     if (!docId) {
       this.coverImageError.set(
@@ -1159,6 +1184,19 @@ export class MemberDetailsComponent {
         contentType: event.largeBlob.type || 'image/png',
       });
       const coverUrl = await getDownloadURL(coverRef);
+
+      if (event.originalFile) {
+        const origRef = ref(
+          storage,
+          `instructors/${docId}/images/cover_original`,
+        );
+        await uploadBytes(origRef, event.originalFile, {
+          contentType: event.originalFile.type || 'application/octet-stream',
+        });
+        const origUrl = await getDownloadURL(origRef);
+        this.form.publicCoverImageOriginalUrl().value.set(origUrl);
+        this.form.publicCoverImageOriginalUrl().markAsDirty();
+      }
 
       this.form.publicCoverImageUrl().value.set(coverUrl);
       this.form.publicCoverImageUrl().markAsDirty();
@@ -1177,11 +1215,15 @@ export class MemberDetailsComponent {
     this.form.publicProfileImageUrl().markAsDirty();
     this.form.publicProfileImageThumbUrl().value.set('');
     this.form.publicProfileImageThumbUrl().markAsDirty();
+    this.form.publicProfileImageOriginalUrl().value.set('');
+    this.form.publicProfileImageOriginalUrl().markAsDirty();
   }
 
   removeCoverImage() {
     this.form.publicCoverImageUrl().value.set('');
     this.form.publicCoverImageUrl().markAsDirty();
+    this.form.publicCoverImageOriginalUrl().value.set('');
+    this.form.publicCoverImageOriginalUrl().markAsDirty();
   }
 
   onBioChanged(markdown: string) {

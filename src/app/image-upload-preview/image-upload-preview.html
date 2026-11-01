@@ -1,11 +1,21 @@
 <div class="image-uploader-container">
-  @if (!imageUrl()) {
+  @if (isLoadingImage() && !imageUrl()) {
+    <app-spinner>Loading image preview...</app-spinner>
+  } @else if (!imageUrl()) {
     <label class="upload-prompt">
       <span class="outlined-button upload-button">
         <app-icon name="upload_file" /> {{ uploadPromptText() }}
       </span>
       <input type="file" (change)="onFileSelected($event)" accept="image/*" style="display: none;" />
     </label>
+    @if (imageLoadError(); as err) {
+      <div class="inline-error">
+        <span>{{ err }}</span>
+        <button type="button" class="icon-only-button" (click)="imageLoadError.set(null)" title="Dismiss">
+          <app-icon name="close" />
+        </button>
+      </div>
+    }
   } @else {
     <div class="preview-area">
       <div 
@@ -25,14 +35,26 @@
         <img 
           #previewImg
           [src]="imageUrl()" 
-          crossorigin="anonymous"
+          [attr.crossorigin]="useCrossOrigin() ? 'anonymous' : null"
           alt="Preview" 
           (load)="onImageLoad()"
+          (error)="onImageError()"
+          [style.width.px]="intrinsicSize()?.width ?? null"
+          [style.height.px]="intrinsicSize()?.height ?? null"
           [style.transform]="'translate(' + translateX() + 'px, ' + translateY() + 'px) scale(' + totalScale() + ')'"
           style="transform-origin: 0 0; cursor: move; user-select: none;"
         />
         <div class="crop-frame"></div>
       </div>
+
+      @if (imageLoadError(); as err) {
+        <div class="inline-error">
+          <span>{{ err }}</span>
+          <button type="button" class="icon-only-button" (click)="imageLoadError.set(null)" title="Dismiss">
+            <app-icon name="close" />
+          </button>
+        </div>
+      }
 
       <div class="controls">
         @if (allowAspectRatioChoice()) {
@@ -101,17 +123,23 @@
           <input 
             type="range" 
             [value]="scale()" 
-            min="1" 
-            max="5" 
-            step="0.1" 
+            [min]="minScale" 
+            [max]="maxScale" 
+            step="0.05" 
             (input)="onZoomChange($event)" 
           />
           <span>{{ scaleText() }}x</span>
-          <button type="button" class="subtle-button" (click)="resetView()" style="margin-left: 10px;">Reset View</button>
+          <button type="button" class="subtle-button" (click)="resetView()">Reset View</button>
         </div>
 
         <div class="actions">
           <button type="button" class="button" (click)="applyCrop()">Use this image</button>
+          <label class="upload-prompt">
+            <span class="subtle-button upload-button">
+              <app-icon name="upload_file" /> Choose Different Image
+            </span>
+            <input type="file" (change)="onFileSelected($event)" accept="image/*" style="display: none;" />
+          </label>
           <button type="button" class="subtle-button" (click)="onCancel()">Cancel</button>
         </div>
       </div>

@@ -128,7 +128,9 @@ export type Member = {
   // URLs point to Firebase Storage under instructors/{docId}/images/.
   publicProfileImageUrl: string; // Square profile picture (large, e.g. 400x400).
   publicProfileImageThumbUrl: string; // Square profile thumbnail (e.g. 96x96), used in cards.
+  publicProfileImageOriginalUrl: string; // Uncropped original profile picture, used when re-editing crop.
   publicCoverImageUrl: string; // Cover/banner image (e.g. 1200x450).
+  publicCoverImageOriginalUrl: string; // Uncropped original cover image, used when re-editing crop.
   // Markdown self-description shown on the instructor's public profile page.
   publicBioMarkdown: string;
 
@@ -212,7 +214,9 @@ export function initMember(): Member {
     publicClassGoogleCalendarId: '',
     publicProfileImageUrl: '',
     publicProfileImageThumbUrl: '',
+    publicProfileImageOriginalUrl: '',
     publicCoverImageUrl: '',
+    publicCoverImageOriginalUrl: '',
     publicBioMarkdown: '',
     memberId: '',
     primaryInstructorId: '',

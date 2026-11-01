@@ -40,7 +40,8 @@ import { SearchableSet } from './searchable-set';
 //   8 — EventPricingRules.questions & EventRegistration.questionResponses.
 //   9 — Unified EventRuleConditions (Who: Members/Instructors, Timing, Registration).
 //  10 — EventPricingRules aligned with UI terminology (earlyBird, registrationOptions, EventRegistrationOption, conditions.registration).
-export const CACHE_SCHEMA_VERSION = 10;
+//  11 — Added publicProfileImageOriginalUrl & publicCoverImageOriginalUrl to School and Member.
+export const CACHE_SCHEMA_VERSION = 11;
 
 export interface CachedCollectionBundle<T> {
   entries: T[];

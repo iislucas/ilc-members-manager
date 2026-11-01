@@ -178,7 +178,15 @@ export class SchoolEditComponent {
       () => !this.userIsAdmin() && !this.userIsSchoolManager(),
     );
     disabled(
+      schema.publicProfileImageOriginalUrl,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
+    disabled(
       schema.publicCoverImageUrl,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
+    disabled(
+      schema.publicCoverImageOriginalUrl,
       () => !this.userIsAdmin() && !this.userIsSchoolManager(),
     );
     disabled(
@@ -351,7 +359,11 @@ export class SchoolEditComponent {
     this.isEditingCoverCrop.set(false);
   }
 
-  async onProfileImageCropped(event: { thumbBlob: Blob; largeBlob: Blob }) {
+  async onProfileImageCropped(event: {
+    thumbBlob: Blob;
+    largeBlob: Blob;
+    originalFile?: File;
+  }) {
     const docId = this.editableSchool().docId;
     if (!docId) {
       this.profileImageError.set('Please save the school before uploading images.');
@@ -369,6 +381,16 @@ export class SchoolEditComponent {
       await uploadBytes(thumbRef, event.thumbBlob, { contentType: event.thumbBlob.type || 'image/png' });
       const thumbUrl = await getDownloadURL(thumbRef);
 
+      if (event.originalFile) {
+        const origRef = ref(storage, `schools/${docId}/images/profile_original`);
+        await uploadBytes(origRef, event.originalFile, {
+          contentType: event.originalFile.type || 'application/octet-stream',
+        });
+        const origUrl = await getDownloadURL(origRef);
+        this.form.publicProfileImageOriginalUrl().value.set(origUrl);
+        this.form.publicProfileImageOriginalUrl().markAsDirty();
+      }
+
       this.form.publicProfileImageUrl().value.set(largeUrl);
       this.form.publicProfileImageUrl().markAsDirty();
       this.form.publicProfileImageThumbUrl().value.set(thumbUrl);
@@ -383,7 +405,7 @@ export class SchoolEditComponent {
     }
   }
 
-  async onCoverImageCropped(event: { largeBlob: Blob }) {
+  async onCoverImageCropped(event: { largeBlob: Blob; originalFile?: File }) {
     const docId = this.editableSchool().docId;
     if (!docId) {
       this.coverImageError.set('Please save the school before uploading images.');
@@ -396,6 +418,16 @@ export class SchoolEditComponent {
       const coverRef = ref(storage, `schools/${docId}/images/cover_large`);
       await uploadBytes(coverRef, event.largeBlob, { contentType: event.largeBlob.type || 'image/png' });
       const coverUrl = await getDownloadURL(coverRef);
+
+      if (event.originalFile) {
+        const origRef = ref(storage, `schools/${docId}/images/cover_original`);
+        await uploadBytes(origRef, event.originalFile, {
+          contentType: event.originalFile.type || 'application/octet-stream',
+        });
+        const origUrl = await getDownloadURL(origRef);
+        this.form.publicCoverImageOriginalUrl().value.set(origUrl);
+        this.form.publicCoverImageOriginalUrl().markAsDirty();
+      }
 
       this.form.publicCoverImageUrl().value.set(coverUrl);
       this.form.publicCoverImageUrl().markAsDirty();
@@ -414,11 +446,15 @@ export class SchoolEditComponent {
     this.form.publicProfileImageUrl().markAsDirty();
     this.form.publicProfileImageThumbUrl().value.set('');
     this.form.publicProfileImageThumbUrl().markAsDirty();
+    this.form.publicProfileImageOriginalUrl().value.set('');
+    this.form.publicProfileImageOriginalUrl().markAsDirty();
   }
 
   removeCoverImage() {
     this.form.publicCoverImageUrl().value.set('');
     this.form.publicCoverImageUrl().markAsDirty();
+    this.form.publicCoverImageOriginalUrl().value.set('');
+    this.form.publicCoverImageOriginalUrl().markAsDirty();
   }
 
   onBioChanged(markdown: string) {
