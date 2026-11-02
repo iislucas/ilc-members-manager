@@ -1,14 +1,16 @@
 // @vitest-environment node
 /*
  * Unit tests for scripts/sync-env.ts covering VAPID public/private key
- * cryptography checks, TypeScript AST extraction, path boundary containment,
- * pre-deploy validation, and idempotent Secret Manager push/pull workflows.
+ * cryptography checks, direct environment module loading, path boundary
+ * containment, pre-deploy validation, and idempotent Secret Manager workflows.
  */
 
 import { createECDH } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { FunctionsEnvironment } from '../functions/src/environment/environment.types';
+import type { AppEnvironment } from '../src/environments/environment.types';
 import {
   assertValidProjectId,
   checkEnvironments,
@@ -16,11 +18,9 @@ import {
   EnvFileStatus,
   EnvSecretName,
   EnvSyncCommand,
-  extractEnvironmentBooleanPath,
-  extractEnvironmentStringField,
-  extractEnvironmentStringPath,
-  findPlaceholderLiterals,
+  findPlaceholderValues,
   getEnvStatuses,
+  loadEnvironmentModule,
   parseArgs,
   pullEnvironments,
   pushEnvironments,
@@ -179,63 +179,54 @@ describe('scripts/sync-env', () => {
     });
   });
 
-  describe('extractEnvironmentStringField & AST helpers', () => {
-    it('extracts top-level and nested properties across const object references', () => {
-      const pair = generateTestVapidKeyPair();
-      const src = makeClientEnvSource(pair.publicKey);
-      expect(
-        extractEnvironmentStringField(src, 'environment.local.ts', 'vapidPublicKey'),
-      ).toBe(pair.publicKey);
-      expect(
-        extractEnvironmentStringPath(src, 'environment.local.ts', [
-          'firebase',
-          'apiKey',
-        ]),
-      ).toBe(FAKE_FIREBASE_API_KEY);
-      expect(
-        extractEnvironmentBooleanPath(src, 'environment.local.ts', ['useEmulator']),
-      ).toBe(false);
+  describe('loadEnvironmentModule & findPlaceholderValues', () => {
+    it('loads TypeScript environment files directly into typed objects and refreshes on edits', () => {
+      const pair1 = generateTestVapidKeyPair();
+      const pair2 = generateTestVapidKeyPair();
+      const clientFile = path.join(tmpDir, 'environment.local.ts');
+
+      fs.writeFileSync(clientFile, makeClientEnvSource(pair1.publicKey), 'utf8');
+      const loaded1 = loadEnvironmentModule<AppEnvironment>(
+        clientFile,
+        'environment.local.ts',
+      );
+      expect(loaded1.vapidPublicKey).toBe(pair1.publicKey);
+      expect(loaded1.firebase.apiKey).toBe(FAKE_FIREBASE_API_KEY);
+      expect(loaded1.useEmulator).toBe(false);
+
+      // Re-writing the same path must not return a stale require.cache copy.
+      fs.writeFileSync(clientFile, makeClientEnvSource(pair2.publicKey), 'utf8');
+      const loaded2 = loadEnvironmentModule<AppEnvironment>(
+        clientFile,
+        'environment.local.ts',
+      );
+      expect(loaded2.vapidPublicKey).toBe(pair2.publicKey);
     });
 
-    it('detects YOUR_*, emulator-api-key, and @example.com placeholders while ignoring comments', () => {
-      const pair = generateTestVapidKeyPair();
-      const cleanWithComment =
-        `// Comment mentioning YOUR_API_KEY and admin@example.com\n` +
-        makeClientEnvSource(pair.publicKey);
-      expect(
-        findPlaceholderLiterals(cleanWithComment, 'environment.local.ts'),
-      ).toEqual([]);
-
+    it('detects YOUR_*, emulator-api-key, and @example.com values in committed templates', () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const clientTemplate = fs.readFileSync(
+      const clientTemplate = loadEnvironmentModule<AppEnvironment>(
         path.join(repoRoot, 'src/environments/environment.ts'),
-        'utf8',
+        'environment.ts',
       );
-      const emulatorEnv = fs.readFileSync(
+      const emulatorEnv = loadEnvironmentModule<AppEnvironment>(
         path.join(repoRoot, 'src/environments/environment.emulator.ts'),
-        'utf8',
+        'environment.emulator.ts',
       );
-      const functionsTemplate = fs.readFileSync(
+      const functionsTemplate = loadEnvironmentModule<FunctionsEnvironment>(
         path.join(repoRoot, 'functions/src/environment/environment.template.ts'),
-        'utf8',
+        'environment.template.ts',
       );
 
-      expect(
-        findPlaceholderLiterals(clientTemplate, 'environment.ts').some((m) =>
-          m.includes('YOUR_API_KEY'),
-        ),
-      ).toBe(true);
-      expect(
-        findPlaceholderLiterals(emulatorEnv, 'environment.emulator.ts').some((m) =>
-          m.includes('emulator-api-key'),
-        ),
-      ).toBe(true);
-      expect(
-        findPlaceholderLiterals(
-          functionsTemplate,
-          'environment.template.ts',
-        ).some((m) => m.includes('mailto:admin@example.com')),
-      ).toBe(true);
+      expect(findPlaceholderValues(clientTemplate)).toContain(
+        "environment.firebase.apiKey ('YOUR_API_KEY')",
+      );
+      expect(findPlaceholderValues(emulatorEnv)).toContain(
+        "environment.firebase.apiKey ('emulator-api-key')",
+      );
+      expect(findPlaceholderValues(functionsTemplate)).toContain(
+        "environment.pushContactEmail ('mailto:admin@example.com')",
+      );
     });
   });
 
