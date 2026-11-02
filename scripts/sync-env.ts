@@ -9,17 +9,16 @@
  *
  * Pre-deploy validation (`check`, also run automatically before `push` and all
  * `pnpm deploy*` commands):
- *   1. Verifies both local environment files exist and export `environment`.
- *   2. Scans AST string/template literals to reject template/emulator
- *      placeholders (`YOUR_*`, `emulator-api-key`, `@example.com`) and verifies
- *      client Firebase config invariants (`useEmulator: false`, valid `AIza...`
- *      `firebase.apiKey`, valid `firebase.projectId`, non-empty `firebase.appId`).
- *   3. Extracts `vapidPublicKey` via TypeScript AST parsing (no eval/vm) and
- *      asserts client and server values are identical.
- *   4. When non-empty, verifies `vapidPublicKey` is a cryptographically valid
- *      65-byte uncompressed NIST P-256 public key (87 base64url chars starting
- *      with 'B', valid point on prime256v1).
- *   5. Unless `--offline` is passed, verifies `VAPID_PRIVATE_KEY` in Cloud
+ *   1. Verifies both local environment files exist and loads their exported
+ *      `environment` objects (`AppEnvironment` / `FunctionsEnvironment`).
+ *   2. Rejects template/emulator placeholder values (`YOUR_*`,
+ *      `emulator-api-key`, `@example.com`) anywhere in either object and
+ *      verifies client Firebase config invariants (`useEmulator: false`, valid
+ *      `AIza...` `firebase.apiKey`, valid `firebase.projectId`, non-empty
+ *      `firebase.appId`).
+ *   3. Verifies client and server `vapidPublicKey` values are identical and (when
+ *      non-empty) form a valid 65-byte uncompressed NIST P-256 public key.
+ *   4. Unless `--offline` is passed, verifies `VAPID_PRIVATE_KEY` in Cloud
  *      Secret Manager matches `vapidPublicKey`, and (for `check` / `deploy*`)
  *      verifies both local files are in sync with `CLIENT_ENVIRONMENT_LOCAL_TS`
  *      and `FUNCTIONS_ENVIRONMENT_TS` in Cloud Secret Manager.
@@ -38,7 +37,10 @@ import { execFileSync } from 'node:child_process';
 import { createECDH, createHash, ECDH } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as vm from 'node:vm';
 import * as ts from 'typescript';
+import type { FunctionsEnvironment } from '../functions/src/environment/environment.types';
+import type { AppEnvironment } from '../src/environments/environment.types';
 
 export enum EnvSyncCommand {
   Check = 'check',
@@ -232,215 +234,61 @@ export function deriveVapidPublicKeyFromPrivate(privateKeyBase64Url: string): st
   return ecdh.getPublicKey().toString('base64url');
 }
 
-interface ParsedEnvAst {
-  sourceFile: ts.SourceFile;
-  envObject: ts.ObjectLiteralExpression;
-  constObjects: ReadonlyMap<string, ts.ObjectLiteralExpression>;
-}
-
-// Unwraps TypeScript `as ...`, `satisfies ...`, and parenthesized expressions.
-function unwrapTsExpression(expr: ts.Expression): ts.Expression {
-  let current = expr;
-  while (
-    ts.isAsExpression(current) ||
-    ts.isSatisfiesExpression(current) ||
-    ts.isParenthesizedExpression(current)
-  ) {
-    current = current.expression;
-  }
-  return current;
-}
-
-// Parses a TypeScript environment source file and locates `export const environment = { ... }`
-// along with any top-level `const name = { ... }` object literals it may reference.
-function parseEnvironmentAst(sourceText: string, fileLabel: string): ParsedEnvAst {
-  const sourceFile = ts.createSourceFile(
-    fileLabel,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
+// Transpiles a TypeScript environment file and evaluates it in an isolated VM context
+// to return its exported `environment` object directly as a plain JS value.
+export function loadEnvironmentModule<T>(filePath: string, fileLabel: string): T {
+  const sourceText = fs.readFileSync(filePath, 'utf8');
+  const { outputText } = ts.transpileModule(sourceText, {
+    fileName: fileLabel,
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  });
+  const exportsObj: { environment?: T } = {};
+  const moduleObj = { exports: exportsObj };
+  vm.runInNewContext(
+    outputText,
+    { exports: exportsObj, module: moduleObj },
+    { filename: fileLabel, timeout: 1000 },
   );
-
-  let envObject: ts.ObjectLiteralExpression | undefined;
-  const constObjects = new Map<string, ts.ObjectLiteralExpression>();
-
-  for (const stmt of sourceFile.statements) {
-    if (!ts.isVariableStatement(stmt)) continue;
-    const isExported = stmt.modifiers?.some(
-      (m) => m.kind === ts.SyntaxKind.ExportKeyword,
-    );
-    const isConst =
-      (stmt.declarationList.flags & ts.NodeFlags.Const) === ts.NodeFlags.Const;
-
-    for (const decl of stmt.declarationList.declarations) {
-      if (!ts.isIdentifier(decl.name) || !decl.initializer) continue;
-      const init = unwrapTsExpression(decl.initializer);
-      if (!ts.isObjectLiteralExpression(init)) continue;
-
-      if (isConst) {
-        constObjects.set(decl.name.text, init);
-      }
-      if (isExported && decl.name.text === 'environment') {
-        envObject = init;
-      }
-    }
-  }
-
-  if (!envObject) {
+  const env = moduleObj.exports.environment;
+  if (typeof env !== 'object' || env === null) {
     throw new Error(
-      `${fileLabel}: could not find \`export const environment = { ... }\`.`,
+      `${fileLabel}: missing \`export const environment = { ... }\`.`,
     );
   }
-
-  return { sourceFile, envObject, constObjects };
+  return env;
 }
 
-// Resolves a nested property assignment expression along `fieldPath` inside `environment`,
-// following references to top-level `const` object literals (e.g. `firebase: firebaseConfig`).
-function resolveEnvironmentPropertyExpression(
-  ast: ParsedEnvAst,
-  fileLabel: string,
-  fieldPath: readonly string[],
-): ts.Expression {
-  let currentObj = ast.envObject;
-
-  for (let i = 0; i < fieldPath.length; i++) {
-    const segment = fieldPath[i];
-    const pathLabel = fieldPath.slice(0, i + 1).join('.');
-    let foundExpr: ts.Expression | undefined;
-
-    for (const prop of currentObj.properties) {
-      if (ts.isPropertyAssignment(prop)) {
-        const propName =
-          ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)
-            ? prop.name.text
-            : undefined;
-        if (propName === segment) {
-          foundExpr = unwrapTsExpression(prop.initializer);
-          break;
-        }
-      } else if (ts.isShorthandPropertyAssignment(prop)) {
-        if (prop.name.text === segment) {
-          foundExpr = prop.name;
-          break;
-        }
-      }
-    }
-
-    if (!foundExpr) {
-      throw new Error(
-        `${fileLabel}: missing \`${pathLabel}\` property on \`environment\`.`,
-      );
-    }
-
-    if (i < fieldPath.length - 1) {
-      if (ts.isObjectLiteralExpression(foundExpr)) {
-        currentObj = foundExpr;
-      } else if (ts.isIdentifier(foundExpr)) {
-        const referenced = ast.constObjects.get(foundExpr.text);
-        if (!referenced) {
-          throw new Error(
-            `${fileLabel}: expected \`environment.${pathLabel}\` (${foundExpr.text}) to resolve to a top-level const object literal.`,
-          );
-        }
-        currentObj = referenced;
-      } else {
-        throw new Error(
-          `${fileLabel}: expected \`environment.${pathLabel}\` to be an object literal.`,
-        );
-      }
-    } else {
-      return foundExpr;
-    }
-  }
-
-  throw new Error(`${fileLabel}: empty field path.`);
-}
-
-// Extracts a string literal property at `fieldPath` from `export const environment = { ... }`.
-export function extractEnvironmentStringPath(
-  sourceText: string,
-  fileLabel: string,
-  fieldPath: readonly string[],
-): string {
-  const ast = parseEnvironmentAst(sourceText, fileLabel);
-  const expr = resolveEnvironmentPropertyExpression(ast, fileLabel, fieldPath);
-  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
-    return expr.text;
-  }
-  throw new Error(
-    `${fileLabel}: expected \`environment.${fieldPath.join('.')}\` to be a string literal.`,
-  );
-}
-
-// Extracts a boolean literal property at `fieldPath` from `export const environment = { ... }`.
-export function extractEnvironmentBooleanPath(
-  sourceText: string,
-  fileLabel: string,
-  fieldPath: readonly string[],
-): boolean {
-  const ast = parseEnvironmentAst(sourceText, fileLabel);
-  const expr = resolveEnvironmentPropertyExpression(ast, fileLabel, fieldPath);
-  if (expr.kind === ts.SyntaxKind.TrueKeyword) return true;
-  if (expr.kind === ts.SyntaxKind.FalseKeyword) return false;
-  throw new Error(
-    `${fileLabel}: expected \`environment.${fieldPath.join('.')}\` to be a boolean literal (\`true\` or \`false\`).`,
-  );
-}
-
-// Extracts a string literal property from `export const environment = { ... }` in a TypeScript
-// source string using the TypeScript AST parser (without executing any code).
-export function extractEnvironmentStringField(
-  sourceText: string,
-  fileLabel: string,
-  fieldName: string,
-): string {
-  return extractEnvironmentStringPath(sourceText, fileLabel, [fieldName]);
-}
-
-// Scans all non-import string and template literals in an environment file for unreplaced
+// Walks a loaded `environment` object and returns any string values that still carry
 // template or emulator placeholders (`YOUR_*`, `emulator-api-key`, `@example.com`).
-export function findPlaceholderLiterals(
-  sourceText: string,
-  fileLabel: string,
+export function findPlaceholderValues(
+  value: unknown,
+  currentPath = 'environment',
 ): string[] {
-  const { sourceFile } = parseEnvironmentAst(sourceText, fileLabel);
-  const issues: string[] = [];
-
-  function checkText(text: string, node: ts.Node): void {
-    const lower = text.toLowerCase();
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase();
     if (
-      text.includes('YOUR_') ||
+      value.includes('YOUR_') ||
       lower === 'emulator-api-key' ||
       lower.includes('@example.com')
     ) {
-      const { line } = sourceFile.getLineAndCharacterOfPosition(
-        node.getStart(sourceFile),
-      );
-      issues.push(`line ${line + 1} ('${text}')`);
+      return [`${currentPath} ('${value}')`];
     }
+    return [];
   }
-
-  function visit(node: ts.Node): void {
-    if (ts.isImportDeclaration(node)) return;
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-      checkText(node.text, node);
-      return;
-    }
-    if (ts.isTemplateExpression(node)) {
-      checkText(node.head.text, node.head);
-      for (const span of node.templateSpans) {
-        visit(span.expression);
-        checkText(span.literal.text, span.literal);
-      }
-      return;
-    }
-    ts.forEachChild(node, visit);
+  if (Array.isArray(value)) {
+    return value.flatMap((item, idx) =>
+      findPlaceholderValues(item, `${currentPath}[${idx}]`),
+    );
   }
-
-  visit(sourceFile);
-  return issues;
+  if (typeof value === 'object' && value !== null) {
+    return Object.entries(value).flatMap(([key, val]) =>
+      findPlaceholderValues(val, `${currentPath}.${key}`),
+    );
+  }
+  return [];
 }
 
 // Validates both local environment files against template/emulator placeholders, client Firebase
@@ -474,11 +322,20 @@ export function checkEnvironments(params: {
   const clientSource = fs.readFileSync(clientPath, 'utf8');
   const functionsSource = fs.readFileSync(functionsPath, 'utf8');
 
-  for (const [label, source] of [
-    [clientTarget.relativePath, clientSource],
-    [functionsTarget.relativePath, functionsSource],
+  const clientEnv = loadEnvironmentModule<AppEnvironment>(
+    clientPath,
+    clientTarget.relativePath,
+  );
+  const functionsEnv = loadEnvironmentModule<FunctionsEnvironment>(
+    functionsPath,
+    functionsTarget.relativePath,
+  );
+
+  for (const [label, envObj] of [
+    [clientTarget.relativePath, clientEnv],
+    [functionsTarget.relativePath, functionsEnv],
   ] as const) {
-    const placeholders = findPlaceholderLiterals(source, label);
+    const placeholders = findPlaceholderValues(envObj);
     if (placeholders.length > 0) {
       throw new Error(
         `${label} contains template or emulator placeholder value(s): ${placeholders.join(', ')}. Run \`pnpm env:pull -- --force\` to fetch the real configuration from Cloud Secret Manager.`,
@@ -486,23 +343,15 @@ export function checkEnvironments(params: {
     }
   }
 
-  const useEmulator = extractEnvironmentBooleanPath(
-    clientSource,
-    clientTarget.relativePath,
-    ['useEmulator'],
-  );
-  if (useEmulator) {
+  if (typeof clientEnv.useEmulator !== 'boolean' || clientEnv.useEmulator) {
     throw new Error(
       `${clientTarget.relativePath}: \`useEmulator\` must be \`false\` (emulator builds use \`environment.emulator.ts\`).`,
     );
   }
 
-  const firebaseApiKey = extractEnvironmentStringPath(
-    clientSource,
-    clientTarget.relativePath,
-    ['firebase', 'apiKey'],
-  );
+  const firebaseApiKey = clientEnv.firebase?.apiKey ?? '';
   if (
+    typeof firebaseApiKey !== 'string' ||
     !firebaseApiKey.startsWith('AIza') ||
     firebaseApiKey.length < 30 ||
     !BASE64URL_PATTERN.test(firebaseApiKey)
@@ -512,39 +361,34 @@ export function checkEnvironments(params: {
     );
   }
 
-  const firebaseProjectId = extractEnvironmentStringPath(
-    clientSource,
-    clientTarget.relativePath,
-    ['firebase', 'projectId'],
+  const firebaseProjectId = assertValidProjectId(
+    String(clientEnv.firebase?.projectId ?? ''),
   );
-  assertValidProjectId(firebaseProjectId);
   if (params.project && firebaseProjectId !== assertValidProjectId(params.project)) {
     throw new Error(
       `${clientTarget.relativePath}: \`firebase.projectId\` ('${firebaseProjectId}') does not match target project '${params.project}'.`,
     );
   }
 
-  const firebaseAppId = extractEnvironmentStringPath(
-    clientSource,
-    clientTarget.relativePath,
-    ['firebase', 'appId'],
-  );
-  if (!firebaseAppId.trim()) {
+  if (typeof clientEnv.firebase?.appId !== 'string' || !clientEnv.firebase.appId.trim()) {
     throw new Error(
       `${clientTarget.relativePath}: \`firebase.appId\` must not be empty.`,
     );
   }
 
-  const clientVapidKey = extractEnvironmentStringField(
-    clientSource,
-    clientTarget.relativePath,
-    'vapidPublicKey',
-  );
-  const functionsVapidKey = extractEnvironmentStringField(
-    functionsSource,
-    functionsTarget.relativePath,
-    'vapidPublicKey',
-  );
+  if (typeof clientEnv.vapidPublicKey !== 'string') {
+    throw new Error(
+      `${clientTarget.relativePath}: missing string \`vapidPublicKey\` on \`environment\`.`,
+    );
+  }
+  if (typeof functionsEnv.vapidPublicKey !== 'string') {
+    throw new Error(
+      `${functionsTarget.relativePath}: missing string \`vapidPublicKey\` on \`environment\`.`,
+    );
+  }
+
+  const clientVapidKey = clientEnv.vapidPublicKey;
+  const functionsVapidKey = functionsEnv.vapidPublicKey;
 
   const clientErr = validateVapidPublicKey(clientVapidKey);
   if (clientErr) {
