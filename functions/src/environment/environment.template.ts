@@ -15,15 +15,6 @@ const domains = [
 ];
 export const environment: FunctionsEnvironment = {
   domains,
-  CLOUD_BUCKET_NAME_AND_ROOT_PATH: 'resources.zxd.fr',
-  CORS_CONFIG: [
-    {
-      origin: [...domains, 'https://storage.googleapis.com'],
-      method: ['GET'],
-      responseHeader: ['Content-Type'],
-      maxAgeSeconds: 300,
-    }
-  ],
   // Web Push VAPID public key: an 87-char base64url uncompressed P-256 public key
   // (starts with 'B', decodes to 65 bytes starting with 0x04 — NOT a Stripe `pk_...`
   // or Firebase key). Generate a pair with `pnpm dlx web-push generate-vapid-keys`:

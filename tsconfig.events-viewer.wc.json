@@ -1,5 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "files": ["src/events-viewer.wc.ts"],
-  "include": ["src/**/*.d.ts"]
-}

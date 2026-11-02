@@ -340,8 +340,8 @@ export const USER_JOURNEYS_CATALOG: UserJourneyEntry[] = [
     ],
     relatedStories: [],
     relatedDataTypes: ['ilc-event', 'event-registration', 'product', 'order'],
-    relatedFlows: ['ecommerce-webhooks', 'micro-frontends'],
-    relatedPatterns: ['early-domain-typing-snapshots', 'micro-frontend-web-components'],
+    relatedFlows: ['ecommerce-webhooks'],
+    relatedPatterns: ['early-domain-typing-snapshots'],
     setupPrerequisites: ['firebase-emulators'],
   },
   {

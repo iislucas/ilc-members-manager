@@ -154,7 +154,7 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     affectedTriggers: ['proposed-events.ts', 'on-event-registration-update.ts'],
     mirrorTargets: [],
     relatedJourneys: ['event-hosting-ticketing'],
-    relatedFlows: ['client-reactivity', 'ecommerce-webhooks', 'micro-frontends'],
+    relatedFlows: ['client-reactivity', 'ecommerce-webhooks'],
     relatedPersonas: ["event-organizer","external-attendee","school-manager","hq-admin","anonymous-visitor"],
     enforcingPermissions: ["read:public-events","purchase:event-ticket","manage:event","manage:event-gradings","admin:all"],
     tsInterface: `export interface IlcEvent {
@@ -298,7 +298,7 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     affectedTriggers: ['mirror-instructors-to-public-profile.ts'],
     mirrorTargets: [],
     relatedJourneys: ['instructor-licensing'],
-    relatedFlows: ['trigger-mirroring', 'micro-frontends'],
+    relatedFlows: ['trigger-mirroring'],
     relatedPersonas: ["sifu-instructor","apprentice-instructor","anonymous-visitor","hq-admin"],
     enforcingPermissions: ["read:public-instructors","update:instructor-profile","mentor:students","admin:all"],
     tsInterface: `export interface InstructorPublicData {

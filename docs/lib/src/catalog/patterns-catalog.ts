@@ -164,23 +164,6 @@ export const PATTERNS_CATALOG: PatternEntry[] = [
     relatedFlows: ['media-transcoding'],
   },
   {
-    id: 'micro-frontend-web-components',
-    name: 'Autonomous Micro-Frontend Web Components Pattern',
-    tagline: 'Embedding Angular components into third-party CMS platforms without framework conflicts.',
-    problem:
-      'Affiliate schools and external organizers need to embed the event calendar and instructor locator into WordPress or Squarespace sites without loading the entire application.',
-    solution:
-      'Build standalone Angular Elements projects (`events-viewer-wc`, `find-an-instructor-wc`) bundled as self-contained Web Components that communicate directly with public Firestore collections.',
-    consequences:
-      'Embeddable via `<script>` and `<events-viewer>` custom elements on any third-party webpage with zero styling or JavaScript framework interference.',
-    canonicalCodePointers: [
-      { file: 'src/events-viewer.wc.ts', lineRange: 'L1-L50', description: 'Angular Elements registration for events viewer' },
-      { file: 'src/find-an-instructor.wc.ts', lineRange: 'L1-L50', description: 'Angular Elements registration for instructor finder' },
-    ],
-    relatedDataTypes: ['ilc-event', 'instructor-profile'],
-    relatedFlows: ['micro-frontends'],
-  },
-  {
     id: 'mail-sending-status-lifecycle',
     name: 'The 3-State MailSendingStatus & Zero-Write Lifecycle Pattern',
     tagline: '3-state outbound mail dispatch, zero-write on Off, placeholder queuing when Paused, deferred template interpretation, and admin test bypass.',
