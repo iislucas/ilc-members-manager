@@ -439,5 +439,68 @@ describe('IncrementalSyncService', () => {
     expect(bundle?.entries.length).toBe(1);
     expect(bundle?.entries[0].docId).toBe('1');
   });
+
+  it('does not poison IndexedDB when performFullSync resolves from offline Firestore local cache (fromCache: true)', async () => {
+    // 1. Offline initial sync: Firestore persistentLocalCache returns empty snapshot with fromCache: true
+    vi.mocked(firestore.getDocs).mockResolvedValueOnce({
+      empty: true,
+      docs: [],
+      metadata: { fromCache: true },
+    } as any);
+
+    const config: SyncCollectionConfig<'docId', TestItem> = {
+      cacheKey: 'public_instructors',
+      collectionPath: 'instructors',
+      idField: 'docId',
+      targetSet,
+      docConverter: firestoreDocToTestItem,
+    };
+
+    await service.syncCollection(config);
+
+    // UI finishes loading with [] while offline, but IndexedDB is NOT poisoned
+    expect(targetSet.loading()).toBe(false);
+    expect(targetSet.entries()).toEqual([]);
+    expect(await mockIdb.get('public_instructors')).toBeUndefined();
+
+    // 2. Subsequent sync back online performs a full server fetch and populates all instructors
+    vi.mocked(firestore.getDocs).mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        {
+          id: '1',
+          data: () => ({ name: 'Sam Chin', country: 'US', lastUpdated: '2026-11-01T10:00:00.000Z' }),
+        },
+      ],
+      metadata: { fromCache: false },
+    } as any);
+
+    await service.syncCollection(config);
+    expect(targetSet.entries().length).toBe(1);
+    expect(targetSet.get('1')?.name).toBe('Sam Chin');
+    const saved = await mockIdb.get<CachedCollectionBundle<TestItem>>('public_instructors');
+    expect(saved?.entries.length).toBe(1);
+    expect(saved?.lastSyncTimestamp).toBe('2026-11-01T10:00:00.000Z');
+  });
+
+  it('stores empty lastSyncTimestamp when confirmed server full sync is empty so future syncs do not skip records', async () => {
+    vi.mocked(firestore.getDocs).mockResolvedValueOnce({
+      empty: true,
+      docs: [],
+      metadata: { fromCache: false },
+    } as any);
+
+    await service.performFullSync({
+      cacheKey: 'empty_server_col',
+      collectionPath: 'orders',
+      idField: 'docId',
+      targetSet,
+      docConverter: firestoreDocToTestItem,
+    });
+
+    const saved = await mockIdb.get<CachedCollectionBundle<TestItem>>('empty_server_col');
+    expect(saved?.entries).toEqual([]);
+    expect(saved?.lastSyncTimestamp).toBe('');
+  });
 });
 

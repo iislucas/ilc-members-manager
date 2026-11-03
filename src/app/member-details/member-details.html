@@ -275,8 +275,8 @@
         <h3>Membership Status & Level</h3>
 
         @if (userIsMemberOrAdmin()) {
-          <label for="primaryInstructorId" class="align-top">
-            Primary Instructor ID
+          <label class="align-top">
+            Primary Instructor
             <app-icon
               name="info"
               (click)="showInstructorNotes.set(!showInstructorNotes())"
@@ -284,31 +284,15 @@
             ></app-icon>
           </label>
           <div class="rhs">
-            <app-autocomplete
+            <app-public-instructor-selector
               name="Primary Instructor"
-              [searchableSet]="membersService.instructors"
-              [placeholder]="'Search for an instructor'"
-              [displayFns]="instructorDisplayFns"
-              [searchOptions]="{
-                strictDigits: true,
-                interpretQuotesAsStrict: true,
-              }"
-              [initSearchTerm]="form.primaryInstructorId().value()"
-              (textUpdated)="updatePrimaryInstructorId($event)"
-            ></app-autocomplete>
-            @if (e.primaryInstructorId === "") {
-              <div class="note">No primary instructor set</div>
-            } @else if (
-              membersService.instructors.get(e.primaryInstructorId);
-              as sifuData
-            ) {
-              <div class="note">{{ sifuData.name }}</div>
-            } @else {
-              <div class="error-message">
-                invalid instructor ID:
-                <span class="identifier-chip">{{ e.primaryInstructorId }}</span>
-              </div>
-            }
+              [value]="form.primaryInstructorId().value()"
+              [disabled]="form.primaryInstructorId().disabled()"
+              [allowClear]="true"
+              emptyLabel="No primary instructor set"
+              selectLabel="Select instructor"
+              (valueChange)="updatePrimaryInstructorId($event)"
+            ></app-public-instructor-selector>
             @if (showInstructorNotes()) {
               <p class="note">
                 Members choose who they consider to be their primary instructor,
@@ -1312,7 +1296,11 @@
           @if (isDirty()) {
             <button
               type="submit"
-              [disabled]="isDupMemberId() || form().invalid()"
+              [disabled]="
+                isDupMemberId() ||
+                isInvalidPrimaryInstructorId() ||
+                form().invalid()
+              "
             >
               Save
             </button>

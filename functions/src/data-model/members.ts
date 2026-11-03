@@ -321,6 +321,22 @@ export function normalizeMemberLevels<T extends Member>(member: T): T {
   };
 }
 
+/**
+ * True when `id` is a valid ILC Instructor ID (strictly numerical digits, e.g. "1", "249").
+ * Instructor IDs live in a separate numeric namespace from Member IDs (e.g. "US23", "DE62").
+ */
+export function isValidInstructorId(id: string): boolean {
+  return /^\d+$/.test(id.trim());
+}
+
+/**
+ * True when `id` is empty (no primary instructor set) or a valid numeric Instructor ID.
+ */
+export function isValidPrimaryInstructorId(id: string): boolean {
+  const trimmed = id.trim();
+  return trimmed === '' || isValidInstructorId(trimmed);
+}
+
 // Public information about instructors; mirrored from the member data into
 // firestore path /instructors/{instructorId}
 export type InstructorPublicData = {

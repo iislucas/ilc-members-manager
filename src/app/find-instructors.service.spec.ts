@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { FindInstructorsService, sortInstructors } from './find-instructors.service';
 import { IncrementalSyncService } from './incremental-sync.service';
+import { NetworkStateService } from './network-state.service';
 import { ApplicationLevel, StudentLevel } from '../../functions/src/data-model/curriculum';
 import { initInstructor, InstructorPublicData } from '../../functions/src/data-model/members';
 
@@ -69,5 +70,16 @@ describe('FindInstructorsService', () => {
     expect(list[0].country).toBe('Australia');
     expect(list[1].name).toBe('Beta'); // Higher applicationLevel in France
     expect(list[2].name).toBe('Alpha');
+  });
+
+  it('re-syncs instructors when NetworkStateService reconnects online', async () => {
+    const networkState = TestBed.inject(NetworkStateService);
+    mockSyncService.syncCollection.mockClear();
+
+    window.dispatchEvent(new Event('online'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(networkState.isOnline()).toBe(true);
+    expect(mockSyncService.syncCollection).toHaveBeenCalled();
   });
 });

@@ -41,7 +41,8 @@ import { SearchableSet } from './searchable-set';
 //   9 — Unified EventRuleConditions (Who: Members/Instructors, Timing, Registration).
 //  10 — EventPricingRules aligned with UI terminology (earlyBird, registrationOptions, EventRegistrationOption, conditions.registration).
 //  11 — Added publicProfileImageOriginalUrl & publicCoverImageOriginalUrl to School and Member.
-export const CACHE_SCHEMA_VERSION = 11;
+//  12 — Prevent full sync from persisting offline/fromCache snapshots or advancing empty-cache cursors.
+export const CACHE_SCHEMA_VERSION = 12;
 
 export interface CachedCollectionBundle<T> {
   entries: T[];
@@ -264,12 +265,17 @@ export class IncrementalSyncService {
       // Update SearchableSet
       targetSet.setEntries(sorted);
 
-      // Update IndexedDB cache
-      await this.idb.set(cacheKey, {
-        schemaVersion: CACHE_SCHEMA_VERSION,
-        entries: sorted,
-        lastSyncTimestamp: maxLastUpdated,
-      });
+      const deltaFromCache = Boolean(
+        (deltaSnap as { metadata?: { fromCache?: boolean } }).metadata?.fromCache,
+      );
+      if (!deltaFromCache) {
+        // Update IndexedDB cache only when delta snapshot came from the server
+        await this.idb.set(cacheKey, {
+          schemaVersion: CACHE_SCHEMA_VERSION,
+          entries: sorted,
+          lastSyncTimestamp: maxLastUpdated,
+        });
+      }
     } catch (err: unknown) {
       console.warn(`[IncrementalSync] Network error syncing ${collectionPath}:`, err);
       if (targetSet.entries().length > 0) {
@@ -301,6 +307,9 @@ export class IncrementalSyncService {
     const constraints: QueryConstraint[] = config.queryConstraints ? [...config.queryConstraints] : [];
     const baseQuery = constraints.length > 0 ? query(colRef, ...constraints) : colRef;
     const snap = await getDocs(baseQuery);
+    const fromCache = Boolean(
+      (snap as { metadata?: { fromCache?: boolean } }).metadata?.fromCache,
+    );
 
     let maxLastUpdated = new Date(0).toISOString();
     const entries: T[] = [];
@@ -316,17 +325,28 @@ export class IncrementalSyncService {
       }
     }
 
-    if (maxLastUpdated === new Date(0).toISOString()) {
-      maxLastUpdated = new Date().toISOString();
+    const sorted = sortFn ? entries.sort(sortFn) : entries;
+    if (!fromCache || targetSet.entries().length === 0) {
+      targetSet.setEntries(sorted);
     }
 
-    const sorted = sortFn ? entries.sort(sortFn) : entries;
-    targetSet.setEntries(sorted);
+    // Never persist an offline Firestore local-cache snapshot (`fromCache: true`)
+    // to IndexedDB, as it may be empty or incomplete and would permanently poison
+    // future delta queries (`lastUpdated > lastSyncTimestamp`).
+    if (fromCache) {
+      return;
+    }
+
+    // Only advance the sync cursor from confirmed server document timestamps;
+    // when a collection is empty on the server, keep `lastSyncTimestamp: ''` so
+    // the next sync performs a clean server fetch without client clock skew.
+    const confirmedTimestamp =
+      maxLastUpdated === new Date(0).toISOString() ? '' : maxLastUpdated;
 
     await this.idb.set(cacheKey, {
       schemaVersion: CACHE_SCHEMA_VERSION,
       entries: sorted,
-      lastSyncTimestamp: maxLastUpdated,
+      lastSyncTimestamp: confirmedTimestamp,
     });
   }
 

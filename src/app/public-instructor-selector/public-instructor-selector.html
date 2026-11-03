@@ -1,10 +1,12 @@
 <div class="public-instructor-selector">
-  @if (isEditing()) {
+  @if (isEditing() && !disabled()) {
     <div class="edit-panel">
       <app-instructor-selector
         [name]="name()"
         [placeholder]="placeholder()"
         [value]="draft()"
+        [showNoneSelected]="false"
+        notFoundMessage="Select an instructor from the dropdown or enter a numeric Instructor ID (not a Member ID)."
         (valueChange)="draft.set($event)"
       ></app-instructor-selector>
       <div class="edit-actions">
@@ -16,6 +18,11 @@
         >
           Set
         </button>
+        @if (allowClear() && value()) {
+          <button type="button" class="subtle-button" (click)="clearValue()">
+            Clear
+          </button>
+        }
         <button type="button" class="subtle-button" (click)="cancel()">
           Cancel
         </button>
@@ -30,30 +37,79 @@
           class="icon-only-button"
           [href]="'/instructors/' + inst.instructorId"
           title="View instructor profile"
+          aria-label="View instructor profile"
         >
           <app-icon name="visibility"></app-icon>
         </a>
-        <button
-          type="button"
-          class="icon-only-button"
-          (click)="startEdit()"
-          title="Change instructor"
-        >
-          <app-icon name="edit"></app-icon>
-        </button>
+        @if (!disabled()) {
+          <button
+            type="button"
+            class="icon-only-button"
+            (click)="startEdit()"
+            title="Change instructor"
+            aria-label="Change instructor"
+          >
+            <app-icon name="edit"></app-icon>
+          </button>
+          @if (allowClear()) {
+            <button
+              type="button"
+              class="icon-only-button"
+              (click)="clearValue()"
+              title="Clear instructor"
+              aria-label="Clear instructor"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
+          }
+        }
       </div>
     } @else {
       <div class="selected-display empty">
-        <span class="empty-label">
-          @if (value()) {
-            Instructor "{{ value() }}" does not have a public profile
+        @if (value()) {
+          @if (hasInvalidFormat()) {
+            <span class="error-message">
+              Invalid instructor ID "{{ value() }}" (must be a numeric Instructor ID)
+            </span>
+          } @else if (instructorsLoading()) {
+            <span class="empty-label">
+              Instructor <span class="identifier-chip">{{ value() }}</span>
+            </span>
           } @else {
-            {{ emptyLabel() }}
+            <span class="empty-label">
+              Instructor "{{ value() }}" does not have a public profile
+            </span>
           }
-        </span>
-        <button type="button" class="subtle-button" (click)="startEdit()">
-          <app-icon name="edit"></app-icon> {{ selectLabel() }}
-        </button>
+          @if (!disabled()) {
+            <button
+              type="button"
+              class="icon-only-button"
+              (click)="startEdit()"
+              title="Change instructor"
+              aria-label="Change instructor"
+            >
+              <app-icon name="edit"></app-icon>
+            </button>
+            @if (allowClear()) {
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="clearValue()"
+                title="Clear instructor"
+                aria-label="Clear instructor"
+              >
+                <app-icon name="close"></app-icon>
+              </button>
+            }
+          }
+        } @else {
+          <span class="empty-label">{{ emptyLabel() }}</span>
+          @if (!disabled()) {
+            <button type="button" class="subtle-button" (click)="startEdit()">
+              <app-icon name="edit"></app-icon> {{ selectLabel() }}
+            </button>
+          }
+        }
       </div>
     }
   }

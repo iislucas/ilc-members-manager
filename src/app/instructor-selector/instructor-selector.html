@@ -7,6 +7,7 @@
     [displayFns]="instructorDisplayFns"
     [initSearchTerm]="value()"
     [inputBoxIsChip]="true"
+    [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
     (textUpdated)="updateValue($event)"
   ></app-autocomplete>
   @if (selectedInstructor(); as inst) {
