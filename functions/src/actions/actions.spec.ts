@@ -26,6 +26,7 @@ import {
   updateMember,
   renewMembership,
   setMemberStatus,
+  assignMemberInstructor,
   scheduleMemberAccountDeletion,
   cancelMemberAccountDeletion,
   createSchool,
@@ -431,6 +432,34 @@ describe('Database Actions Library', () => {
 
       const cancelRes = await cancelMemberAccountDeletion(ctx, created.data!.docId);
       expect(cancelRes.success).toBe(true);
+    });
+
+    it('enforces strictly numerical primaryInstructorId and rejects Member IDs or names', async () => {
+      const badCreate = await createMember(ctx, {
+        name: 'Student A',
+        email: 'student.a@example.com',
+        countryCode: 'US',
+        primaryInstructorId: 'US1',
+      });
+      expect(badCreate.success).toBe(false);
+      expect(badCreate.error).toContain('Invalid primaryInstructorId');
+
+      const created = await createMember(ctx, {
+        name: 'Student B',
+        email: 'student.b@example.com',
+        countryCode: 'US',
+        primaryInstructorId: '1',
+      });
+      expect(created.success).toBe(true);
+      expect(created.data?.primaryInstructorId).toBe('1');
+
+      const badAssign = await assignMemberInstructor(ctx, created.data!.docId, 'SAM CHIN');
+      expect(badAssign.success).toBe(false);
+      expect(badAssign.error).toContain('Invalid primaryInstructorId');
+
+      const clearAssign = await assignMemberInstructor(ctx, created.data!.docId, '');
+      expect(clearAssign.success).toBe(true);
+      expect(clearAssign.data?.primaryInstructorId).toBe('');
     });
   });
 

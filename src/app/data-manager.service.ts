@@ -52,7 +52,7 @@ import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
 import { IlcEvent, EventStatus, initEvent, firestoreDocToIlcEvent, Product, firestoreDocToProduct } from '../../functions/src/data-model/events';
 import { Grading, GradingFsDoc, firestoreDocToGrading } from '../../functions/src/data-model/gradings';
 import { UploadItem, firestoreDocToUploadItem, initUploadItem } from '../../functions/src/data-model/materials';
-import { Member, initMember, InstructorPublicData, initInstructor, MemberFsDoc, firestoreDocToMember, firestoreDocToInstructorPublicData } from '../../functions/src/data-model/members';
+import { Member, initMember, InstructorPublicData, initInstructor, MemberFsDoc, firestoreDocToMember, firestoreDocToInstructorPublicData, isValidPrimaryInstructorId } from '../../functions/src/data-model/members';
 import { Order, firestoreDocToOrder, OrderFsDoc, SquareSpaceOrder, SquareSpaceLineItem, MemberOrder, firestoreDocToMemberOrder, OrderKind } from '../../functions/src/data-model/orders';
 import { School, initSchool, SchoolFsDoc, firestoreDocToSchool } from '../../functions/src/data-model/schools';
 import { Counters } from '../../functions/src/data-model/system';
@@ -2283,9 +2283,14 @@ export class DataManagerService implements OnDestroy {
       ...member,
       memberId: member.memberId ? member.memberId.trim().toUpperCase() : member.memberId,
       instructorId: member.instructorId ? member.instructorId.trim().toUpperCase() : member.instructorId,
-      primaryInstructorId: member.primaryInstructorId ? member.primaryInstructorId.trim().toUpperCase() : member.primaryInstructorId,
+      primaryInstructorId: member.primaryInstructorId ? member.primaryInstructorId.trim() : member.primaryInstructorId,
       emails: normalizeEmails(member.emails),
     };
+    if (!isValidPrimaryInstructorId(cleanMember.primaryInstructorId || '')) {
+      throw new Error(
+        `Invalid Primary Instructor ID "${cleanMember.primaryInstructorId}". Instructor IDs must be strictly numerical (not Member IDs or names).`,
+      );
+    }
     const memberWithNewTimestamp: MemberFsDoc = {
       ...cleanMember,
       lastUpdated: serverTimestamp() as Timestamp,
@@ -2306,9 +2311,14 @@ export class DataManagerService implements OnDestroy {
       ...newMember,
       memberId: newMember.memberId ? newMember.memberId.trim().toUpperCase() : newMember.memberId,
       instructorId: newMember.instructorId ? newMember.instructorId.trim().toUpperCase() : newMember.instructorId,
-      primaryInstructorId: newMember.primaryInstructorId ? newMember.primaryInstructorId.trim().toUpperCase() : newMember.primaryInstructorId,
+      primaryInstructorId: newMember.primaryInstructorId ? newMember.primaryInstructorId.trim() : newMember.primaryInstructorId,
       emails: normalizeEmails(newMember.emails),
     };
+    if (!isValidPrimaryInstructorId(cleanMember.primaryInstructorId || '')) {
+      throw new Error(
+        `Invalid Primary Instructor ID "${cleanMember.primaryInstructorId}". Instructor IDs must be strictly numerical (not Member IDs or names).`,
+      );
+    }
     const originalMember = oldMember ?? this.members.get(cleanMember.docId);
     const oldSchoolId = originalMember?.primarySchoolId || this.members.get(cleanMember.docId)?.primarySchoolId;
 
@@ -4306,6 +4316,8 @@ export class DataManagerService implements OnDestroy {
       this.products.setEntries([]);
     } else if (key === 'admin_orders') {
       this.orders.setEntries([]);
+    } else if (key === 'public_instructors') {
+      this.instructors.setEntries([]);
     }
   }
 
@@ -4318,6 +4330,7 @@ export class DataManagerService implements OnDestroy {
     this.myStudents.setEntries([]);
     this.myGradingsAssessed.setEntries([]);
     this.orders.setEntries([]);
+    this.instructors.setEntries([]);
   }
 
   async forceRefreshAllData(user: UserDetails): Promise<void> {

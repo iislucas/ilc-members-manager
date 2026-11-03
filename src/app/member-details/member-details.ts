@@ -21,9 +21,9 @@ import {
 import {
   Member,
   MembershipType,
-  InstructorPublicData,
   AgeCategory,
   initMember,
+  isValidPrimaryInstructorId,
 } from '../../../functions/src/data-model/members';
 import {
   VideoGrant,
@@ -54,6 +54,7 @@ import {
   IdAssignmentComponent,
 } from '../id-assignment/id-assignment';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
+import { PublicInstructorSelectorComponent } from '../public-instructor-selector/public-instructor-selector';
 import { CountryCode } from '../country-codes';
 import {
   Timestamp,
@@ -109,6 +110,7 @@ export interface GroupedSeriesGrant {
     SpinnerComponent,
     IdAssignmentComponent,
     AutocompleteComponent,
+    PublicInstructorSelectorComponent,
     MemberRowHeaderComponent,
     ImageUploadPreviewComponent,
     MarkdownEditor,
@@ -468,11 +470,10 @@ export class MemberDetailsComponent {
     toChipId: (s: School) => s.schoolId,
     toName: (s: School) => s.schoolName,
   };
-  instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) =>
-      i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
-  };
+
+  isInvalidPrimaryInstructorId = computed(
+    () => !isValidPrimaryInstructorId(this.form.primaryInstructorId().value()),
+  );
 
   updateStudentsCheckbox = signal<boolean>(true);
   studentsToUpdateCount = signal<number>(0);
@@ -1084,9 +1085,11 @@ export class MemberDetailsComponent {
   }
 
   updatePrimaryInstructorId(value: string) {
-    const match = value.match(/\[([^\]]+)\]$/);
-    const rawId = match ? match[1] : value;
-    this.form.primaryInstructorId().value.set(rawId.trim().toUpperCase());
+    const trimmed = value.trim();
+    if (!isValidPrimaryInstructorId(trimmed)) {
+      return;
+    }
+    this.form.primaryInstructorId().value.set(trimmed);
     this.form.primaryInstructorId().markAsDirty();
   }
 
@@ -1485,9 +1488,13 @@ export class MemberDetailsComponent {
       }
 
       if (member.primaryInstructorId) {
-        member.primaryInstructorId = member.primaryInstructorId
-          .trim()
-          .toUpperCase();
+        member.primaryInstructorId = member.primaryInstructorId.trim();
+        if (!isValidPrimaryInstructorId(member.primaryInstructorId)) {
+          const err = `Invalid Primary Instructor ID "${member.primaryInstructorId}". Instructor IDs must be strictly numerical (not Member IDs or names).`;
+          this.asyncError.set(new Error(err));
+          this.isSaving.set(false);
+          return;
+        }
       }
       if (member.instructorId) {
         member.instructorId = member.instructorId.trim().toUpperCase();

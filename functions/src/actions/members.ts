@@ -11,6 +11,7 @@ import {
   initMember,
   firestoreDocToMember,
   MembershipType,
+  isValidPrimaryInstructorId,
 } from '../data-model/members';
 import { StudentLevel, ApplicationLevel, toStudentLevel, toApplicationLevel } from '../data-model/curriculum';
 import { assignNextMemberId } from '../counters';
@@ -201,7 +202,13 @@ export async function createMember(
   const baseDefaults = initMember();
   const emails = input.emails && input.emails.length > 0 ? normalizeEmails(input.emails) : [cleanEmail];
   const cleanMemberId = memberId ? memberId.trim().toUpperCase() : '';
-  const cleanPrimaryInstructorId = input.primaryInstructorId ? input.primaryInstructorId.trim().toUpperCase() : '';
+  const cleanPrimaryInstructorId = input.primaryInstructorId ? input.primaryInstructorId.trim() : '';
+  if (!isValidPrimaryInstructorId(cleanPrimaryInstructorId)) {
+    return {
+      success: false,
+      error: `Invalid primaryInstructorId "${input.primaryInstructorId}". Instructor IDs must be strictly numerical (e.g. "1"), not Member IDs or names.`,
+    };
+  }
 
   const newMember: Member = {
     ...baseDefaults,
@@ -271,8 +278,14 @@ export async function updateMember(
   if (patchCopy.instructorId) {
     patchCopy.instructorId = patchCopy.instructorId.trim().toUpperCase();
   }
-  if (patchCopy.primaryInstructorId) {
-    patchCopy.primaryInstructorId = patchCopy.primaryInstructorId.trim().toUpperCase();
+  if (patchCopy.primaryInstructorId !== undefined) {
+    patchCopy.primaryInstructorId = patchCopy.primaryInstructorId.trim();
+    if (!isValidPrimaryInstructorId(patchCopy.primaryInstructorId)) {
+      return {
+        success: false,
+        error: `Invalid primaryInstructorId "${patch.primaryInstructorId}". Instructor IDs must be strictly numerical (e.g. "1"), not Member IDs or names.`,
+      };
+    }
   }
   // Emails are always stored normalised (trimmed, lower-cased, de-duplicated).
   if (patchCopy.emails) {
@@ -360,7 +373,7 @@ export async function assignMemberInstructor(
   instructorId: string,
 ): Promise<ActionResult<Member>> {
   return updateMember(ctx, studentMemberDocId, {
-    primaryInstructorId: (instructorId || '').trim().toUpperCase(),
+    primaryInstructorId: (instructorId || '').trim(),
   });
 }
 

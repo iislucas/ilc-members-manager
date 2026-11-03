@@ -11,6 +11,7 @@ import { inject, Injectable } from '@angular/core';
 import { InstructorPublicData, firestoreDocToInstructorPublicData } from '../../functions/src/data-model/members';
 import { SyncedCollection } from './synced-collection';
 import { IncrementalSyncService } from './incremental-sync.service';
+import { NetworkStateService } from './network-state.service';
 
 export function sortInstructors(a: InstructorPublicData, b: InstructorPublicData): number {
   return (
@@ -25,6 +26,7 @@ export function sortInstructors(a: InstructorPublicData, b: InstructorPublicData
 })
 export class FindInstructorsService {
   private syncService = inject(IncrementalSyncService);
+  private networkState = inject(NetworkStateService);
 
   public instructors = new SyncedCollection<'instructorId', InstructorPublicData>({
     collectionPath: 'instructors',
@@ -51,6 +53,9 @@ export class FindInstructorsService {
 
     // 2. Perform background incremental delta sync
     this.updateInstructorsSync();
+
+    // 3. Re-sync automatically when connectivity returns (e.g. if opened offline)
+    this.networkState.registerOnlineHandler(() => this.updateInstructorsSync());
   }
 
   async updateInstructorsSync(forceFullRefresh = false): Promise<void> {

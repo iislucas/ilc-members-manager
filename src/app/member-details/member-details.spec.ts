@@ -11,6 +11,7 @@ import { ROUTING_CONFIG, initPathPatterns, FIREBASE_APP } from '../app.config';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import {
   initMember,
+  initInstructor,
   Member,
   MembershipType,
   InstructorPublicData,
@@ -1015,6 +1016,64 @@ describe('MemberDetailsComponent', () => {
       expect(deleteSpy).toHaveBeenCalledWith('other-id');
       expect(component.showDeleteConfirmModal()).toBe(false);
       expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('primary instructor selector and strict numeric instructor IDs', () => {
+    beforeEach(async () => {
+      dataManagerServiceMock.instructors.setEntries([
+        {
+          ...initInstructor(),
+          docId: 'inst-doc-1',
+          instructorId: '1',
+          memberId: 'US1',
+          name: 'Sam Chin',
+        },
+      ]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    it('renders app-public-instructor-selector and updates/clears numeric primaryInstructorId', async () => {
+      const selector = fixture.nativeElement.querySelector(
+        'app-public-instructor-selector',
+      );
+      expect(selector).toBeTruthy();
+
+      component.updatePrimaryInstructorId('1');
+      fixture.detectChanges();
+      expect(component.form.primaryInstructorId().value()).toBe('1');
+      expect(component.isDirty()).toBe(true);
+      expect(component.isInvalidPrimaryInstructorId()).toBe(false);
+
+      component.updatePrimaryInstructorId('');
+      fixture.detectChanges();
+      expect(component.form.primaryInstructorId().value()).toBe('');
+      expect(component.isInvalidPrimaryInstructorId()).toBe(false);
+    });
+
+    it('rejects non-numeric values such as Member IDs or names in updatePrimaryInstructorId and saveMember', async () => {
+      component.updatePrimaryInstructorId('US1');
+      expect(component.form.primaryInstructorId().value()).toBe('');
+
+      component.updatePrimaryInstructorId('SAM CHIN');
+      expect(component.form.primaryInstructorId().value()).toBe('');
+
+      // If loaded with a corrupt non-numeric primaryInstructorId, saving is blocked until fixed/cleared
+      fixture.componentRef.setInput('member', {
+        ...mockMember,
+        primaryInstructorId: 'SAM CHIN',
+      });
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.isInvalidPrimaryInstructorId()).toBe(true);
+      const event = { preventDefault: vi.fn() } as unknown as Event;
+      await component.saveMember(event);
+      expect(dataManagerServiceMock.updateMember).not.toHaveBeenCalled();
+      expect(component.errorMessage().join(' ')).toContain(
+        'Invalid Primary Instructor ID',
+      );
     });
   });
 });

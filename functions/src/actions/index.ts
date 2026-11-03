@@ -21,6 +21,8 @@ export {
   hasActiveMembership,
   hasActiveInstructorLicense,
   isActiveInstructor,
+  isValidInstructorId,
+  isValidPrimaryInstructorId,
 } from '../data-model/members';
 export {
   School,

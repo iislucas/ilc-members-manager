@@ -62,7 +62,14 @@ describe(`seed fixture integrity (${dir})`, () => {
   it('every member primaryInstructorId/primarySchoolId resolves (or is blank)', () => {
     for (const m of members) {
       const inst = str(m, 'primaryInstructorId');
-      if (inst) expect(instructorIds).toContain(inst);
+      if (inst) {
+        expect(inst).toMatch(/^\d+$/);
+        expect(instructorIds).toContain(inst);
+      }
+      const ownInst = str(m, 'instructorId');
+      if (ownInst) {
+        expect(ownInst).toMatch(/^\d+$/);
+      }
       const sid = str(m, 'primarySchoolId');
       if (sid) expect(schoolIds).toContain(sid);
       const sdoc = str(m, 'primarySchoolDocId');
