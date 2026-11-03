@@ -58,7 +58,6 @@ All system documentation is organised into **five interrelated and interlinked p
   - Seed test accounts & credentials (`member-us536@example.com`, `testpassword123`).
   - Production GCP / Firebase cloud instance provisioning: Firestore DB creation, Auth configuration, Storage bucket CORS, Cloud Functions deploy, Security rules deploy.
   - Third-party integrations: Stripe webhook registration (`pnpm register:stripe-webhook`), Stripe products & prices sync (`pnpm sync:video-products`), GCP Transcoder API & Pub/Sub configuration for VOD.
-  - Standalone Web Components build & deploy (`find-an-instructor-wc`, `events-viewer-wc`, `markdown-editor-wc`).
   - Backup & Disaster Recovery: Scheduled Cloud Function exports (`functions/src/backup.ts`) to GCS.
 
 ---
@@ -117,7 +116,6 @@ All system documentation is organised into **five interrelated and interlinked p
     2. **Document Mutation & Cloud Trigger Automation Pipeline**: Client write -> `firestore.rules` validation -> Firestore mutation -> Cloud triggers (`onGradingUpdate`, `onMemberUpdate`, `onSchoolUpdate`, `mirrorInstructorsToPublicProfile`) -> Subcollection mirroring -> ACL recalculation -> Notification generation -> Connected client snapshot auto-update.
     3. **E-Commerce & Stripe Webhook Pipeline**: Client checkout request -> `createStripeCheckoutSession` -> Stripe hosted checkout -> Webhook `checkout.session.completed` -> `stripeWebhook` Cloud Function -> Order recording -> `stripe-fulfillment.ts` -> Member subscription extension / Grading doc creation / Video grant / Event ticket issuance.
     4. **VOD Media Transcoding & Streaming Pipeline**: Video upload to GCS -> Transcode trigger -> GCP Cloud Transcoder API -> Multi-bitrate HLS playlist & fragments -> Pub/Sub -> `onTranscodeFinished` -> Video doc status update -> `getVideoPlaybackSession` authentication -> Signed URLs -> Hls.js playback + IndexedDB offline caching.
-    5. **Web Components Embedding Pipeline**: Angular Elements packaging -> `events-viewer.wc`, `find-an-instructor.wc` -> Embed script distribution -> Public Firestore read integration.
   - Interactive orthogonal architecture diagrams generated via `@ilc/diagram-router`.
 
 ---
@@ -156,8 +154,6 @@ All system documentation is organised into **five interrelated and interlinked p
   9. **Protected VOD Streaming & Offline IndexedDB Storage Pattern:**
      - Two-phase authorization: Cloud Function checks grant -> short-lived signed playback token -> Hls.js segment streaming.
      - Offline caching: IndexedDB chunk storage with service worker intercept.
-  10. **Autonomous Micro-Frontend Web Components Pattern:**
-     - Packaging standalone components (`find-an-instructor.wc`, `events-viewer.wc`) using `@angular/elements` for external CMS embed without Angular framework collision.
 
 ---
 

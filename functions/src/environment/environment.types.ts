@@ -3,16 +3,12 @@
 // This file defines the TypeScript interface contract for backend Cloud Functions environments
 // (`functions/src/environment/environment.ts` and `functions/src/environment/environment.template.ts`).
 
-// A single Cloud Storage CORS rule, matching the shape passed to
-// `bucket.setCorsConfiguration()` by the web-component deploy scripts
-// (scripts/deploy-events-wc.ts, scripts/deploy-find-instructor-wc.ts). These
-// rules govern browser access to the deployed web components served from the
-// resources bucket.
+// A single Cloud Storage CORS rule (legacy shape retained as optional so existing
+// git-ignored `environment.ts` files remain valid).
 export interface CorsConfigItem {
-  // Origins permitted to read the bucket's objects; the app `domains` list plus
-  // 'https://storage.googleapis.com'.
+  // Origins permitted to read the bucket's objects.
   origin: string[];
-  // HTTP methods allowed against the bucket (web components only need ['GET']).
+  // HTTP methods allowed against the bucket.
   method: string[];
   // Response headers the browser is allowed to read (e.g. ['Content-Type']).
   responseHeader: string[];
@@ -27,15 +23,11 @@ export interface FunctionsEnvironment {
   // onCall/onRequest function; the current project's `<project>.web.app` origin
   // is appended at runtime.
   domains: string[];
-  // Deploy target for the standalone web components, in `bucket/root-path` form
-  // (e.g. 'resources.zxd.fr'). The deploy scripts split off the bucket name
-  // before the first '/' and upload each component to its own subdirectory
-  // (e.g. `<root>/calendar-viewer`, `<root>/find-an-instructor`).
-  CLOUD_BUCKET_NAME_AND_ROOT_PATH: string;
-  // CORS rules applied to the web-component storage bucket. The deploy scripts
-  // push these to the bucket via setCorsConfiguration() so browsers on the
-  // allowed origins can load the deployed components.
-  CORS_CONFIG: CorsConfigItem[];
+  // Deprecated: previously used by removed standalone web-component deploy scripts.
+  // Kept optional so existing git-ignored `environment.ts` files compile without error.
+  CLOUD_BUCKET_NAME_AND_ROOT_PATH?: string;
+  // Deprecated: previously used by removed standalone web-component deploy scripts.
+  CORS_CONFIG?: CorsConfigItem[];
   // Base64url VAPID public key passed to webpush.setVapidDetails() in send-push.ts.
   //
   // Format & invariants (enforced before deploy by `pnpm env:check`):

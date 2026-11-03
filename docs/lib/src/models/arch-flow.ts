@@ -8,7 +8,6 @@ export enum FlowCategory {
   TriggerMirroring = 'TriggerMirroring',
   ECommerceWebhooks = 'ECommerceWebhooks',
   MediaTranscoding = 'MediaTranscoding',
-  MicroFrontends = 'MicroFrontends',
   EmailAndNotifications = 'EmailAndNotifications',
 }
 

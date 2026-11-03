@@ -11,7 +11,6 @@ var FlowCategory;
     FlowCategory["TriggerMirroring"] = "TriggerMirroring";
     FlowCategory["ECommerceWebhooks"] = "ECommerceWebhooks";
     FlowCategory["MediaTranscoding"] = "MediaTranscoding";
-    FlowCategory["MicroFrontends"] = "MicroFrontends";
     FlowCategory["EmailAndNotifications"] = "EmailAndNotifications";
 })(FlowCategory || (exports.FlowCategory = FlowCategory = {}));
 //# sourceMappingURL=arch-flow.js.map

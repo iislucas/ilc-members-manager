@@ -3,7 +3,6 @@ export declare enum FlowCategory {
     TriggerMirroring = "TriggerMirroring",
     ECommerceWebhooks = "ECommerceWebhooks",
     MediaTranscoding = "MediaTranscoding",
-    MicroFrontends = "MicroFrontends",
     EmailAndNotifications = "EmailAndNotifications"
 }
 export type FlowTierType = 'client' | 'cloud-functions' | 'database' | 'external' | 'user';
