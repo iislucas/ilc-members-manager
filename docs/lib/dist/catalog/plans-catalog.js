@@ -64,7 +64,7 @@ exports.PLANS_CATALOG = [
         nodes: [
             { id: 'e1', label: 'Draft Event Proposal', type: interaction_plan_1.PlanNodeType.ActorAction, actor: user_journey_1.UserActor.EventOrganizer, description: 'Organizer defines dates, venue, and ticket tiers' },
             { id: 'e2', label: 'Admin Review & Approval', type: interaction_plan_1.PlanNodeType.DecisionGate, actor: user_journey_1.UserActor.HQAdmin, description: 'HQ Admin reviews and publishes event' },
-            { id: 'e3', label: 'Publish to Public Calendar', type: interaction_plan_1.PlanNodeType.StateMilestone, actor: 'System', description: 'Event visible on calendar and Web Components' },
+            { id: 'e3', label: 'Publish to Public Calendar', type: interaction_plan_1.PlanNodeType.StateMilestone, actor: 'System', description: 'Event visible on public calendar' },
             { id: 'e4', label: 'Discover & Select Tier', type: interaction_plan_1.PlanNodeType.ActorAction, actor: user_journey_1.UserActor.Member, description: 'Attendee selects In-Person or Online ticket tier' },
             { id: 'e5', label: 'Complete Stripe Checkout', type: interaction_plan_1.PlanNodeType.ActorAction, actor: user_journey_1.UserActor.Member, description: 'Payment completed on Stripe' },
             { id: 'e6', label: 'Webhook Fulfillment', type: interaction_plan_1.PlanNodeType.SystemTrigger, actor: 'System', description: 'stripeWebhook creates EventRegistration and confirmation' },
@@ -79,7 +79,7 @@ exports.PLANS_CATALOG = [
             { fromNodeId: 'e6', toNodeId: 'e7', label: 'Ticket issued' },
         ],
         relatedDataTypes: ['ilc-event', 'event-registration', 'product', 'order'],
-        relatedFlows: ['ecommerce-webhooks', 'micro-frontends'],
+        relatedFlows: ['ecommerce-webhooks'],
         relatedStories: [],
         mermaidGraph: `flowchart TD
     e1[Draft Event Proposal] --> e2{Admin Review & Approval}

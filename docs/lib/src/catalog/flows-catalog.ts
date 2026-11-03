@@ -284,54 +284,6 @@ export const FLOWS_CATALOG: ArchFlowEntry[] = [
     Session --> Player[Hls.js Player + IndexedDB Cache]`,
   },
   {
-    id: 'micro-frontends',
-    title: 'Public Micro-Frontend Web Components Embedding Pipeline',
-    category: FlowCategory.MicroFrontends,
-    summary:
-      'Packaging Angular components as standalone Web Components for embedding the event calendar and instructor directory on external affiliate websites.',
-    trigger: 'A third-party website loads the embed script.',
-    steps: [
-      {
-        stepNumber: 1,
-        sourceTier: 'Angular Build',
-        targetTier: 'Angular Elements Bundle',
-        action: 'Compiles events-viewer-wc and find-an-instructor-wc into standalone JS/CSS assets',
-        payloadDescription: 'dist/events-viewer-wc/events-viewer.wc.js',
-        codePointers: ['src/events-viewer.wc.ts', 'src/find-an-instructor.wc.ts'],
-        tierType: 'client',
-        protocol: 'Angular Elements Build',
-      },
-      {
-        stepNumber: 2,
-        sourceTier: 'Third-Party Webpage',
-        targetTier: 'Custom Element DOM',
-        action: 'Includes script tag and places <events-viewer> custom element on page',
-        payloadDescription: 'Custom element initialization',
-        codePointers: ['src/events-viewer.wc.html'],
-        tierType: 'external',
-        protocol: 'Script Tag & Custom Element DOM',
-      },
-      {
-        stepNumber: 3,
-        sourceTier: 'Web Component',
-        targetTier: 'Public Firestore',
-        action: 'Component queries public events and published instructors directly without authentication',
-        payloadDescription: 'Public published snapshot streams',
-        codePointers: ['src/app/events-viewer/events-viewer.component.ts'],
-        tierType: 'database',
-        protocol: 'Public Firestore REST / SDK',
-      },
-    ],
-    inputDataTypes: ['ilc-event', 'instructor-profile'],
-    outputDataTypes: [],
-    cloudFunctions: [],
-    clientServices: ['FindInstructorsService'],
-    mermaidDiagram: `flowchart LR
-    Build[ng build --project events-viewer-wc] --> Bundle[Standalone Web Component]
-    Bundle --> Embed[Third-Party Site <events-viewer>]
-    Embed --> Read[(Public Firestore Collections)]`,
-  },
-  {
     id: 'email-queue-processor',
     title: 'Outbound Email Notification & Queue Processing Pipeline',
     category: FlowCategory.EmailAndNotifications,
