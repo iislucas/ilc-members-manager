@@ -119,7 +119,7 @@
 
 .editor-header-sticky {
   position: sticky;
-  top: 0;
+  top: var(--markdown-sticky-top, 0px);
   z-index: 99;
   display: flex;
   align-items: center;

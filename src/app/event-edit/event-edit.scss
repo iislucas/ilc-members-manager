@@ -342,6 +342,38 @@
   display: flex;
   flex-direction: column;
   gap: 1em;
+
+  &.draft-registration-card {
+    border-style: dashed;
+    background: rgba(0, 0, 0, 0.02);
+  }
+}
+
+.draft-setup-note {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.88em;
+  color: v.$text-secondary;
+}
+
+.inline-draft-discard-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75em;
+  padding-top: 0.75em;
+  border-top: 1px dashed v.$border-color-light;
+  font-size: 0.9em;
+  color: v.$text-primary;
+
+  .inline-draft-discard-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+  }
 }
 
 .linked-product-header {

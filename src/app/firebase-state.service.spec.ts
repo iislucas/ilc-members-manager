@@ -286,4 +286,20 @@ describe('FirebaseStateService', () => {
     expect(service.failedEmailLinkAddress()).toBeNull();
     expect(service.passwordSavedNotice()).toBe(false);
   });
+
+  it('purges local product_draft keys for the signed-out user during logout', async () => {
+    const idb = TestBed.inject(IdbStorageService);
+    await idb.set('ilc_last_active_user_uid', 'u123');
+    await idb.set('cached_user_details_u123', { uid: 'u123' });
+    await idb.set('product_draft:u123:event_ev1', { docId: 'event_ev1' });
+    await idb.set('product_draft:u123:event_ev2', { docId: 'event_ev2' });
+    await idb.set('product_draft:other_uid:event_ev9', { docId: 'event_ev9' });
+
+    await service.logout();
+
+    expect(await idb.get('cached_user_details_u123')).toBeUndefined();
+    expect(await idb.get('product_draft:u123:event_ev1')).toBeUndefined();
+    expect(await idb.get('product_draft:u123:event_ev2')).toBeUndefined();
+    expect(await idb.get('product_draft:other_uid:event_ev9')).toEqual({ docId: 'event_ev9' });
+  });
 });

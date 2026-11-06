@@ -717,6 +717,55 @@ export const DATA_TYPES_CATALOG: DataTypeEntry[] = [
     ],
   },
   {
+    id: 'product-draft',
+    name: 'ProductDraft',
+    domain: DataDomainGroup.EventsTicketing,
+    collectionPath: '/product_drafts/{docId}',
+    isSubcollection: false,
+    sourceFile: 'functions/src/data-model/events.ts',
+    summary:
+      'Admin-only work-in-progress registration setup draft auto-saved locally in IndexedDB (400ms) and synced to Firestore (10s idle) without affecting live /products documents.',
+    cardinality: 'At most one deterministic draft document per event or standalone product.',
+    ownership: 'Authored and managed exclusively by HQ Administrators.',
+    keyRelations: [
+      { targetTypeId: 'ilc-event', targetTypeName: 'IlcEvent', relation: 'Keyed deterministically by event_{eventDocId}' },
+      { targetTypeId: 'product', targetTypeName: 'Product', relation: 'Tracks baseProductLastUpdated against the live Product' },
+    ],
+    readRoles: ['HQ Admin only'],
+    writeRoles: ['HQ Admin only (server-enforced lastUpdated == request.time)'],
+    rulesSummary: 'Restricted strictly to verified HQ Admins (isAdmin()) with server timestamp enforcement on create/update.',
+    affectedTriggers: [],
+    mirrorTargets: [],
+    relatedJourneys: ['event-hosting-ticketing'],
+    relatedFlows: ['client-reactivity'],
+    relatedPersonas: ['hq-admin'],
+    enforcingPermissions: ['admin:all'],
+    tsInterface: `export type ProductDraft = {
+  docId: string;
+  eventDocId: string;
+  productDocId: string;
+  baseProductLastUpdated: string;
+  draftProduct: Product;
+  updatedByEmail: string;
+  updatedByName: string;
+  clientSavedAt: string;
+  createdAt: string;
+  lastUpdated: string;
+};`,
+    initDefaults: 'initProductDraft(): baseProductLastUpdated: "", draftProduct: initProduct()',
+    converterFunction: 'firestoreDocToProductDraft',
+    fields: [
+      { name: 'docId', type: 'string', required: true, description: 'Deterministic draft ID (event_{eventDocId} or product_{productDocId})' },
+      { name: 'eventDocId', type: 'string', required: true, description: 'Linked IlcEvent document ID' },
+      { name: 'productDocId', type: 'string', required: true, description: 'Linked live Product document ID when editing an existing setup' },
+      { name: 'baseProductLastUpdated', type: 'string', required: true, description: 'Live Product lastUpdated baseline for conflict detection' },
+      { name: 'draftProduct', type: 'Product', required: true, description: 'Full work-in-progress Product snapshot' },
+      { name: 'updatedByEmail', type: 'string', required: true, description: 'Normalized email of the admin who saved the draft' },
+      { name: 'clientSavedAt', type: 'string', required: true, description: 'Client ISO timestamp used to reconcile local IndexedDB vs cloud drafts' },
+      { name: 'lastUpdated', type: 'string', required: true, description: 'Server timestamp enforced by Firestore rules' },
+    ],
+  },
+  {
     id: 'post',
     name: 'Post',
     domain: DataDomainGroup.CommunityContent,

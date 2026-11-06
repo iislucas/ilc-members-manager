@@ -26,13 +26,29 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, initEventContact, EventContact, EventDocument, Product, formatProductPriceRange } from '../../../functions/src/data-model/events';
+import {
+  IlcEvent,
+  EventStatus,
+  eventStatusLabel,
+  initEvent,
+  initEventContact,
+  EventContact,
+  EventDocument,
+  Product,
+  ProductDraft,
+  productDraftIdFor,
+  formatProductPriceRange,
+} from '../../../functions/src/data-model/events';
 import { UploadItem, UploadItemSource } from '../../../functions/src/data-model/materials';
 import { InstructorPublicData, Member } from '../../../functions/src/data-model/members';
 import { School } from '../../../functions/src/data-model/schools';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';
+import {
+  areProductsEquivalentForDraft,
+  ProductDraftService,
+} from '../product-draft.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq, computeObjectDiff, formatFieldSummary, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../utils';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
@@ -206,13 +222,40 @@ export class EventEditComponent implements OnInit {
   firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   protected productService = inject(ProductService);
+  protected productDraftService = inject(ProductDraftService);
   public networkState = inject(NetworkStateService);
   public actionQueue = inject(ActionQueueService);
   private resumableService = inject(ResumableUploadService);
 
   products = signal<Product[]>([]);
+  eventDraft = signal<ProductDraft | null>(null);
+  confirmingDiscardRegistrationDraft = signal(false);
   protected readonly Views = Views;
   showUnsavedRegistrationPrompt = signal(false);
+
+  draftSavedSummary = computed(() => {
+    const draft = this.eventDraft();
+    if (!draft) return '';
+    const parts: string[] = [];
+    const savedIso = draft.clientSavedAt || draft.lastUpdated;
+    if (savedIso) {
+      const date = new Date(savedIso);
+      if (!Number.isNaN(date.getTime())) {
+        parts.push(
+          date.toLocaleString([], {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        );
+      }
+    }
+    if (draft.updatedByName || draft.updatedByEmail) {
+      parts.push(`by ${draft.updatedByName || draft.updatedByEmail}`);
+    }
+    return parts.join(' · ');
+  });
 
   registrationSetupHref = computed(() => {
     const id = this.event()?.docId || this.eventId();
@@ -267,6 +310,58 @@ export class EventEditComponent implements OnInit {
     }
   }
 
+  async refreshEventDraft(eventDocId?: string): Promise<void> {
+    if (!this.userIsAdmin()) {
+      this.eventDraft.set(null);
+      return;
+    }
+    const id = eventDocId || this.event()?.docId || this.eventId();
+    if (!id) {
+      this.eventDraft.set(null);
+      return;
+    }
+    try {
+      const uid = this.firebaseState.user()?.firebaseUser.uid;
+      const draft = await this.productDraftService.getDraftForEvent(id, uid);
+      if (!draft) {
+        this.eventDraft.set(null);
+        return;
+      }
+      const live = this.linkedProduct();
+      if (
+        live &&
+        (!draft.baseProductLastUpdated || draft.baseProductLastUpdated === live.lastUpdated) &&
+        areProductsEquivalentForDraft(draft.draftProduct, live)
+      ) {
+        this.eventDraft.set(null);
+        return;
+      }
+      this.eventDraft.set(draft);
+    } catch (err) {
+      console.warn('Could not load event registration draft:', err);
+      this.eventDraft.set(null);
+    }
+  }
+
+  requestDiscardRegistrationDraft(): void {
+    this.confirmingDiscardRegistrationDraft.set(true);
+  }
+
+  cancelDiscardRegistrationDraft(): void {
+    this.confirmingDiscardRegistrationDraft.set(false);
+  }
+
+  async confirmDiscardRegistrationDraft(): Promise<void> {
+    const draft = this.eventDraft();
+    this.confirmingDiscardRegistrationDraft.set(false);
+    this.eventDraft.set(null);
+    if (!draft) return;
+    await this.productDraftService.deleteDraftEverywhere(
+      this.firebaseState.user()?.firebaseUser.uid,
+      draft.docId,
+    );
+  }
+
   async removeRegistration(): Promise<void> {
     const pId = this.eventFormModel().productId;
     if (!pId) return;
@@ -286,13 +381,19 @@ export class EventEditComponent implements OnInit {
       console.error('Error deleting product:', err);
     }
 
+    const evDocId = this.event()?.docId || this.eventId();
+    const uid = this.firebaseState.user()?.firebaseUser.uid;
+    const draftId = productDraftIdFor({ eventDocId: evDocId, productDocId: pId });
+    await this.productDraftService.deleteDraftEverywhere(uid, draftId);
+    this.eventDraft.set(null);
+    this.confirmingDiscardRegistrationDraft.set(false);
+
     this.eventFormModel.update((m) => ({ ...m, productId: '' }));
     this.showUnsavedRegistrationPrompt.set(false);
 
-    const evDocId = this.event()?.docId;
-    if (evDocId) {
+    if (this.event()?.docId) {
       try {
-        await updateDoc(doc(this.db, 'events', evDocId), {
+        await updateDoc(doc(this.db, 'events', this.event()!.docId), {
           productId: '',
           lastUpdated: serverTimestamp(),
         });
@@ -620,6 +721,7 @@ export class EventEditComponent implements OnInit {
         this.initialDescription.set(initialModel.description);
         this.event.set(loadedEvent);
         this.eventFormModel.set(initialModel);
+        await this.refreshEventDraft(loadedEvent.docId || id);
         this.titleLoaded.emit(loadedEvent.title);
         if (loadedEvent.docId && this.canManageMaterials()) {
           this.loadMaterials(loadedEvent.docId);

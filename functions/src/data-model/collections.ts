@@ -9,6 +9,7 @@ export enum FirestoreCollection {
   Schools = 'schools',
   Instructors = 'instructors',
   Products = 'products',
+  ProductDrafts = 'product_drafts',
   Gradings = 'gradings',
   Orders = 'orders',
   Acl = 'acl',

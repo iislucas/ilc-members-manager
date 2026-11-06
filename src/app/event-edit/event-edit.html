@@ -204,7 +204,20 @@
                     <div class="product-title-row">
                       <h4 class="product-title">{{ prod.title }}</h4>
                       <span class="currency-tag">{{ (prod.currency || 'usd').toUpperCase() }}</span>
+                      @if (eventDraft()) {
+                        <span class="identifier-chip">Unpublished Draft</span>
+                      }
                     </div>
+                    @if (eventDraft()) {
+                      <p class="draft-setup-note">
+                        <app-icon name="pending_actions" />
+                        <span>
+                          Unpublished draft edits saved@if (draftSavedSummary(); as summary) {
+                            <span> · {{ summary }}</span>
+                          }
+                        </span>
+                      </p>
+                    }
                     <div class="product-pricing-summary">
                       <span class="price-range"><strong>Price:</strong> {{ getProductPriceRange(prod) }}</span>
                     </div>
@@ -261,7 +274,7 @@
                        [href]="registrationSetupHref()"
                        (click)="onNavigateToRegistrationSetup($event)">
                       <app-icon name="edit" />
-                      <span>Edit Registration Setup</span>
+                      <span>{{ eventDraft() ? 'Resume Registration Draft' : 'Edit Registration Setup' }}</span>
                     </a>
                     <a class="subtle-button"
                        [href]="routingService.hrefForView(Views.EventRegister, { eventId: event()?.docId || '' })"
@@ -269,12 +282,80 @@
                       <app-icon name="visibility" />
                       <span>View Registration Page</span>
                     </a>
+                    @if (eventDraft()) {
+                      <button type="button" class="subtle-button" (click)="requestDiscardRegistrationDraft()">
+                        <app-icon name="undo" />
+                        <span>Discard Draft</span>
+                      </button>
+                    }
                     <button type="button" class="subtle-button danger-text" (click)="removeRegistration()">
                       <app-icon name="delete" />
                       <span>Remove Registration Setup</span>
                     </button>
                   </div>
                 </div>
+                @if (confirmingDiscardRegistrationDraft()) {
+                  <div class="inline-draft-discard-confirm" role="region" aria-label="Confirm discard registration draft">
+                    <span>Discard unpublished registration draft edits and keep the live setup?</span>
+                    <div class="inline-draft-discard-actions">
+                      <button type="button" class="confirm-danger-btn" (click)="confirmDiscardRegistrationDraft()">
+                        <span>Confirm Discard</span>
+                      </button>
+                      <button type="button" class="subtle-button" (click)="cancelDiscardRegistrationDraft()">
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else if (eventDraft(); as draft) {
+              <!-- Unpublished Registration Draft in Progress -->
+              <div class="linked-product-card draft-registration-card">
+                <div class="linked-product-header">
+                  <div class="product-info-block">
+                    <div class="product-title-row">
+                      <h4 class="product-title">{{ draft.draftProduct.title || 'Untitled Registration Setup' }}</h4>
+                      <span class="listing-chip unlisted">Draft — Not Live</span>
+                      <span class="currency-tag">{{ (draft.draftProduct.currency || 'usd').toUpperCase() }}</span>
+                    </div>
+                    <p class="draft-setup-note">
+                      <app-icon name="pending_actions" />
+                      <span>
+                        Registration setup draft in progress@if (draftSavedSummary(); as summary) {
+                          <span> ({{ summary }})</span>
+                        } — not yet published to attendees.
+                      </span>
+                    </p>
+                    <div class="product-pricing-summary">
+                      <span class="price-range"><strong>Draft Price:</strong> {{ getProductPriceRange(draft.draftProduct) }}</span>
+                    </div>
+                  </div>
+                  <div class="linked-product-actions">
+                    <a class="button"
+                       [href]="registrationSetupHref()"
+                       (click)="onNavigateToRegistrationSetup($event)">
+                      <app-icon name="edit" />
+                      <span>Resume Registration Setup</span>
+                    </a>
+                    <button type="button" class="subtle-button" (click)="requestDiscardRegistrationDraft()">
+                      <app-icon name="undo" />
+                      <span>Discard Draft</span>
+                    </button>
+                  </div>
+                </div>
+                @if (confirmingDiscardRegistrationDraft()) {
+                  <div class="inline-draft-discard-confirm" role="region" aria-label="Confirm discard registration draft">
+                    <span>Discard this unpublished registration setup draft?</span>
+                    <div class="inline-draft-discard-actions">
+                      <button type="button" class="confirm-danger-btn" (click)="confirmDiscardRegistrationDraft()">
+                        <span>Confirm Discard</span>
+                      </button>
+                      <button type="button" class="subtle-button" (click)="cancelDiscardRegistrationDraft()">
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                  </div>
+                }
               </div>
             } @else {
               <!-- No Registration Configured -->

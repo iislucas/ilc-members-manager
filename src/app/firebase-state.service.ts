@@ -34,6 +34,7 @@ import {
 import { firestoreDocToMember, initMember, Member, normalizeMemberLevels } from '../../functions/src/data-model/members';
 import { CheckEmailStatusResult, FetchUserDetailsResult } from '../../functions/src/data-model/system';
 import { IdbStorageService } from './idb-storage.service';
+import { LOCAL_DRAFT_KEY_PREFIX } from './product-draft.service';
 import { NetworkStateService } from './network-state.service';
 import { RoutingService } from './routing.service';
 import { AuthBlockReason } from '../../functions/src/data-model/auth';
@@ -889,9 +890,24 @@ export class FirebaseStateService {
         this.unsubscribeFromMember();
         this.unsubscribeFromMember = null;
       }
+      const currentUid = this.user()?.firebaseUser.uid;
       const lastUid = await this.idb.get<string>(LAST_ACTIVE_USER_UID_KEY);
-      if (lastUid) {
-        await this.idb.delete(`cached_user_details_${lastUid}`);
+      const uidsToPurge = new Set<string>(
+        [currentUid, lastUid].filter((uid): uid is string => Boolean(uid)),
+      );
+      if (uidsToPurge.size > 0) {
+        const allKeys = await this.idb.keys();
+        const deletions: Promise<void>[] = [];
+        for (const uid of uidsToPurge) {
+          deletions.push(this.idb.delete(`cached_user_details_${uid}`));
+          const draftPrefix = `${LOCAL_DRAFT_KEY_PREFIX}${uid}:`;
+          for (const key of allKeys) {
+            if (key.startsWith(draftPrefix)) {
+              deletions.push(this.idb.delete(key));
+            }
+          }
+        }
+        await Promise.all(deletions);
       }
       await this.idb.delete(LAST_ACTIVE_USER_UID_KEY);
       this.user.set(null);

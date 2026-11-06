@@ -100,9 +100,11 @@ describe('IncrementalSyncService', () => {
     expect(targetSet.entries().length).toBe(0);
   });
 
-  it('clearCache and clearAllCaches delete stored entries', async () => {
+  it('clearCache and clearAllCaches delete stored entries while preserving drafts and action queue', async () => {
     await mockIdb.set('k1', { schemaVersion: CACHE_SCHEMA_VERSION, entries: [{ docId: '1' }], lastSyncTimestamp: '2026-01-01' });
     await mockIdb.set('k2', { schemaVersion: CACHE_SCHEMA_VERSION, entries: [{ docId: '2' }], lastSyncTimestamp: '2026-01-01' });
+    await mockIdb.set('product_draft:u1:event_ev1', { docId: 'event_ev1' });
+    await mockIdb.set('ilc_offline_action_queue', [{ id: 'act1' }]);
 
     await service.clearCache('k1');
     expect(await mockIdb.get('k1')).toBeUndefined();
@@ -110,6 +112,8 @@ describe('IncrementalSyncService', () => {
 
     await service.clearAllCaches();
     expect(await mockIdb.get('k2')).toBeUndefined();
+    expect(await mockIdb.get('product_draft:u1:event_ev1')).toEqual({ docId: 'event_ev1' });
+    expect(await mockIdb.get('ilc_offline_action_queue')).toEqual([{ id: 'act1' }]);
   });
 
   it('getAllCachedCollectionSummaries and getCachedBundle return formatted inspection metadata', async () => {

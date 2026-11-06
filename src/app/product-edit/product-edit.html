@@ -1,4 +1,8 @@
-<div class="product-edit-container" [class.embedded]="embedded()">
+<div
+  class="product-edit-container"
+  [class.embedded]="embedded()"
+  [style.--markdown-sticky-top.px]="markdownStickyTopPx()"
+>
   @if (isLoading()) {
     <app-spinner>Loading product editor...</app-spinner>
   } @else {
@@ -41,12 +45,256 @@
       </div>
     }
 
-    @if (errorMessage(); as msg) {
-      <div class="error-banner" role="alert">
-        <app-icon name="error"></app-icon>
-        <span>{{ msg }}</span>
+    <!-- Sticky Floating Draft Status & Action Header -->
+    <div class="draft-sticky-container" #draftHeaderRef>
+      <div class="draft-floating-header">
+        <div class="draft-header-main">
+          <div class="draft-status-group" aria-live="polite">
+            @if (draftSyncStatus() === DraftSyncStatus.ConflictWithLive) {
+              <span class="identifier-chip status-issue">Conflict</span>
+              <span class="draft-status-copy status-warning">
+                <app-icon name="warning"></app-icon>
+                <span>Live setup was updated since this draft started</span>
+              </span>
+            } @else if (draftSyncStatus() === DraftSyncStatus.Error) {
+              <span class="identifier-chip status-issue">Sync Issue</span>
+              <span class="draft-status-copy status-warning">
+                <app-icon name="warning"></app-icon>
+                <span>Saved on device · Cloud sync failed</span>
+                <button
+                  type="button"
+                  class="inline-link-button"
+                  (click)="saveDraftNow()"
+                >
+                  Retry
+                </button>
+              </span>
+            } @else if (draftSyncStatus() === DraftSyncStatus.SavingCloud) {
+              <span class="identifier-chip">Draft</span>
+              <span class="draft-status-copy">
+                <app-icon name="sync"></app-icon>
+                <span>Saving draft to cloud…</span>
+              </span>
+            } @else if (draftSyncStatus() === DraftSyncStatus.SavedCloud && !isOffline()) {
+              <span class="identifier-chip">Unpublished Draft</span>
+              <span class="draft-status-copy">
+                <app-icon name="check_circle"></app-icon>
+                <span>
+                  Draft saved to cloud@if (draftSavedMetaText(); as meta) {
+                    <span class="draft-status-meta"> · {{ meta }}</span>
+                  }
+                </span>
+              </span>
+            } @else if (
+              (draftSyncStatus() === DraftSyncStatus.SavedLocal ||
+                draftSyncStatus() === DraftSyncStatus.SavedCloud) &&
+              isOffline()
+            ) {
+              <span class="identifier-chip">Draft (Offline)</span>
+              <span class="draft-status-copy">
+                <app-icon name="cloud_off"></app-icon>
+                <span>Saved on this device (offline)</span>
+              </span>
+            } @else if (draftSyncStatus() === DraftSyncStatus.SavedLocal) {
+              <span class="identifier-chip">Draft</span>
+              <span class="draft-status-copy">
+                <app-icon name="storage"></app-icon>
+                <span>Saved on this device · Cloud sync pending</span>
+              </span>
+            } @else if (draftSyncStatus() === DraftSyncStatus.SavingLocal) {
+              <span class="identifier-chip">Draft</span>
+              <span class="draft-status-copy">
+                <app-icon name="pending_actions"></app-icon>
+                <span>Unsaved edits…</span>
+              </span>
+            } @else if (isNew()) {
+              <span class="listing-chip unlisted">Not Published</span>
+              <span class="draft-status-copy">
+                <app-icon name="info"></app-icon>
+                <span>New registration setup</span>
+              </span>
+            } @else {
+              <span class="listing-chip listed">Live</span>
+              <span class="draft-status-copy">
+                <app-icon name="check_circle"></app-icon>
+                <span>All changes published</span>
+              </span>
+            }
+          </div>
+
+          <div class="draft-header-actions">
+            @if (isSaving()) {
+              <app-spinner>{{
+                isNew()
+                  ? embedded()
+                    ? 'Setting up online registration...'
+                    : 'Publishing setup...'
+                  : 'Publishing changes...'
+              }}</app-spinner>
+            } @else {
+              @if (hasDraftSession()) {
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="requestDiscardDraft()"
+                >
+                  <app-icon name="undo"></app-icon>
+                  <span>Discard Draft</span>
+                </button>
+                @if (!isOffline()) {
+                  <button
+                    type="button"
+                    [disabled]="!canSaveDraftNow()"
+                    (click)="saveDraftNow()"
+                  >
+                    <app-icon name="cloud_upload"></app-icon>
+                    <span>Save Draft</span>
+                  </button>
+                }
+              }
+              @if (embedded()) {
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="editCancelled.emit()"
+                >
+                  <app-icon name="close"></app-icon>
+                  <span>Cancel</span>
+                </button>
+              }
+              <button
+                type="button"
+                class="primary-button"
+                [disabled]="!canPublish()"
+                (click)="saveProduct()"
+              >
+                <app-icon name="save"></app-icon>
+                <span>{{
+                  isNew()
+                    ? embedded()
+                      ? 'Set Up Online Registration'
+                      : 'Publish Setup'
+                    : 'Publish Changes'
+                }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (draftSyncStatus() === DraftSyncStatus.ConflictWithLive) {
+          <div class="draft-inline-strip conflict-strip" role="alert">
+            <div class="strip-text">
+              <strong>Live registration setup changed:</strong>
+              <span>
+                Another update was published since this draft started ({{
+                  conflictSummary()
+                }}). Live attendee capacity counts are preserved automatically.
+              </span>
+            </div>
+            <div class="strip-actions">
+              <button
+                type="button"
+                (click)="keepDraftOverLiveConflict()"
+              >
+                <app-icon name="edit"></app-icon>
+                <span>Keep Editing Draft</span>
+              </button>
+              <button
+                type="button"
+                class="delete-button"
+                (click)="confirmDiscardDraft()"
+              >
+                <app-icon name="undo"></app-icon>
+                <span>Load Live &amp; Discard Draft</span>
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (confirmingDiscardDraft()) {
+          <div
+            class="draft-inline-strip confirm-strip"
+            role="region"
+            aria-label="Confirm discard draft"
+          >
+            <div class="strip-text">
+              <span>{{
+                isNew()
+                  ? 'Discard unpublished draft edits and reset this registration setup?'
+                  : 'Discard unpublished draft edits and revert to the live setup?'
+              }}</span>
+            </div>
+            <div class="strip-actions">
+              <button
+                type="button"
+                class="confirm-danger-btn"
+                (click)="confirmDiscardDraft()"
+              >
+                <span>Confirm Discard</span>
+              </button>
+              <button
+                type="button"
+                class="subtle-button"
+                (click)="cancelDiscardDraft()"
+              >
+                <span>Cancel</span>
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (confirmingVideoNotification()) {
+          <div
+            class="draft-inline-strip confirm-strip"
+            role="region"
+            aria-label="Confirm video release notifications"
+          >
+            <div class="strip-text">
+              <strong>Send VOD release notifications?</strong>
+              <span>
+                Publishing this video recording update will grant VOD access and send release emails to
+                <strong>{{ attendeesWithVideoAccess().length }}</strong> attendee(s) ({{
+                  videoOnlyAttendeesCount()
+                }}
+                video-only, {{ includedVideoAttendeesCount() }} included).
+              </span>
+            </div>
+            <div class="strip-actions">
+              <button
+                type="button"
+                class="primary-button"
+                (click)="saveProduct(true)"
+              >
+                <app-icon name="mail"></app-icon>
+                <span>Confirm &amp; Publish</span>
+              </button>
+              <button
+                type="button"
+                class="subtle-button"
+                (click)="cancelVideoNotificationConfirm()"
+              >
+                <span>Cancel</span>
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (errorMessage(); as msg) {
+          <div class="error-banner" role="alert">
+            <app-icon name="error"></app-icon>
+            <span class="error-banner-text">{{ msg }}</span>
+            <button
+              type="button"
+              class="icon-only-button"
+              aria-label="Dismiss error"
+              (click)="dismissError()"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+        }
       </div>
-    }
+    </div>
 
     <div class="product-form">
       <!-- 1. Basic Info Card -->
@@ -58,6 +306,7 @@
             <label for="productTitle">Registration Title *</label>
             <input
               id="productTitle"
+              name="productTitle"
               type="text"
               placeholder="e.g. 2-Day Zhong Xin Dao Intensive Workshop"
               [value]="productModel().title"
@@ -121,6 +370,7 @@
                   productModel().description ||
                   ''
                 "
+                (initialized)="onMarkdownFieldInitialized('descriptionMarkdown', $event)"
                 (changed)="onMarkdownChange($event)"
               ></app-markdown-editor>
             </div>
@@ -160,6 +410,7 @@
                   <app-markdown-editor
                     [bordered]="true"
                     [initialValue]="productModel().inPersonDetailsMarkdown"
+                    (initialized)="onMarkdownFieldInitialized('inPersonDetailsMarkdown', $event)"
                     (changed)="updateInPersonDetailsMarkdown($event)"
                   ></app-markdown-editor>
                 </div>
@@ -184,6 +435,7 @@
                       productModel().purchaseDetailsMarkdown ||
                       productModel().onlineJoiningLink
                     "
+                    (initialized)="onMarkdownFieldInitialized('purchaseDetailsMarkdown', $event)"
                     (changed)="updatePurchaseDetailsMarkdown($event)"
                   ></app-markdown-editor>
                 </div>
@@ -219,6 +471,7 @@
                       <span class="manual-vod-label">Or enter VOD ID manually:</span>
                       <input
                         type="text"
+                        name="recordedVideoId"
                         placeholder="e.g. series_123 or vid_456"
                         [value]="productModel().recordedVideoId"
                         (input)="updateRecordedVideoId($any($event.target).value)"
@@ -228,8 +481,12 @@
                 }
 
                 <div class="secondary-video-url">
-                  <label class="sub-label">External Video URL (Optional fallback)</label>
+                  <label class="sub-label" for="recordedVideoUrl"
+                    >External Video URL (Optional fallback)</label
+                  >
                   <input
+                    id="recordedVideoUrl"
+                    name="recordedVideoUrl"
                     type="url"
                     placeholder="https://vimeo.com/... or https://youtube.com/..."
                     [value]="productModel().recordedVideoUrl"
@@ -256,16 +513,16 @@
                         [class.impact-badge-active]="attendeesWithVideoAccess().length > 0"
                       >
                         {{ attendeesWithVideoAccess().length }} attendee{{
-                          attendeesWithVideoAccess().length === 1 ? "" : "s"
+                          attendeesWithVideoAccess().length === 1 ? '' : 's'
                         }}
                       </span>
                     </div>
                     <p class="info-desc">
                       @if (attendeesWithVideoAccess().length > 0) {
-                        Saving a new or changed video recording will grant VOD access and send release notification emails to
+                        Publishing a new or changed video recording will grant VOD access and send release notification emails to
                         <strong>{{ attendeesWithVideoAccess().length }}</strong> attendee(s):
                         <strong>{{ videoOnlyAttendeesCount() }}</strong> video-only pre-order{{
-                          videoOnlyAttendeesCount() === 1 ? "" : "s"
+                          videoOnlyAttendeesCount() === 1 ? '' : 's'
                         }}
                         and <strong>{{ includedVideoAttendeesCount() }}</strong> with video included in registration.
                       } @else {
@@ -280,29 +537,61 @@
         </div>
       }
 
-      <!-- Action Bar -->
+      <!-- Bottom Action Bar -->
       <div class="form-actions">
         @if (!isNew()) {
-          <button
-            type="button"
-            class="delete-button"
-            [disabled]="isSaving()"
-            (click)="deleteProduct()"
-          >
-            <app-icon name="delete"></app-icon>
-            <span>Delete Registration Setup</span>
-          </button>
+          @if (confirmingDeleteProduct()) {
+            <div class="inline-delete-confirm" role="region" aria-label="Confirm delete setup">
+              <span>Delete this live registration setup permanently?</span>
+              <button
+                type="button"
+                class="confirm-danger-btn"
+                [disabled]="isSaving()"
+                (click)="confirmDeleteProduct()"
+              >
+                <span>Confirm Delete</span>
+              </button>
+              <button
+                type="button"
+                class="subtle-button"
+                [disabled]="isSaving()"
+                (click)="cancelDeleteProduct()"
+              >
+                <span>Cancel</span>
+              </button>
+            </div>
+          } @else {
+            <button
+              type="button"
+              class="delete-button"
+              [disabled]="isSaving()"
+              (click)="requestDeleteProduct()"
+            >
+              <app-icon name="delete"></app-icon>
+              <span>Delete Registration Setup</span>
+            </button>
+          }
         }
         <div class="save-group">
           @if (isSaving()) {
             <app-spinner>{{
               isNew()
                 ? embedded()
-                  ? "Setting up online registration..."
-                  : "Saving registration setup..."
-                : "Saving changes..."
+                  ? 'Setting up online registration...'
+                  : 'Publishing setup...'
+                : 'Publishing changes...'
             }}</app-spinner>
           } @else {
+            @if (hasDraftSession() && !isOffline()) {
+              <button
+                type="button"
+                [disabled]="!canSaveDraftNow()"
+                (click)="saveDraftNow()"
+              >
+                <app-icon name="cloud_upload"></app-icon>
+                <span>Save Draft</span>
+              </button>
+            }
             @if (embedded()) {
               <button
                 type="button"
@@ -316,15 +605,16 @@
             <button
               type="button"
               class="primary-button"
+              [disabled]="!canPublish()"
               (click)="saveProduct()"
             >
               <app-icon name="save"></app-icon>
               <span>{{
                 isNew()
                   ? embedded()
-                    ? "Set Up Online Registration"
-                    : "Save Registration Setup"
-                  : "Save Changes"
+                    ? 'Set Up Online Registration'
+                    : 'Publish Setup'
+                  : 'Publish Changes'
               }}</span>
             </button>
           }
