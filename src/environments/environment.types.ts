@@ -45,7 +45,9 @@ export interface EnvironmentLinks {
 
 // Global frontend Angular application environment configuration contract.
 export interface AppEnvironment {
-  // Set to true in production builds
+  // Legacy flag (remains false in `environment.local.ts`, which backs both dev and
+  // production builds via `angular.json`). Use Angular's `!isDevMode()` (together
+  // with `!environment.useEmulator`) to detect production builds at runtime.
   production: boolean;
   // Set to true when connecting to the local Firebase Emulator Suite
   useEmulator: boolean;

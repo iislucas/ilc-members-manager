@@ -4,19 +4,28 @@ import {
   AuthOperationResult,
   LoginStatus,
   LogoutResult,
+  shouldEnableAnalytics,
 } from './firebase-state.service';
 import { User, UserCredential } from 'firebase/auth';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { FIREBASE_APP } from './app.config';
 import { deleteApp, FirebaseApp, initializeApp } from 'firebase/app';
+import { Analytics, getAnalytics, isSupported } from 'firebase/analytics';
 import { IdbStorageService } from './idb-storage.service';
 import { REMEMBERED_LOGIN_KEY } from './inline-auth/remembered-login';
+
+vi.mock('firebase/analytics', () => ({
+  getAnalytics: vi.fn(),
+  isSupported: vi.fn().mockResolvedValue(false),
+}));
 
 describe('FirebaseStateService', () => {
   let service: FirebaseStateService;
   let app: FirebaseApp;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isSupported).mockResolvedValue(false);
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
@@ -177,5 +186,90 @@ describe('FirebaseStateService', () => {
     expect(service.offerPasswordSetup()).toBe(false);
     expect(service.completedEmailLinkSignIn()).toBeNull();
     expect(localStorage.getItem(REMEMBERED_LOGIN_KEY)).toBeNull();
+  });
+
+  describe('Firebase Analytics initialization', () => {
+    it('shouldEnableAnalytics returns true only in production builds with a real measurementId and no emulator', () => {
+      expect(
+        shouldEnableAnalytics(false, {
+          useEmulator: false,
+          firebase: { measurementId: 'G-QKCXJJGZKW' },
+        }),
+      ).toBe(true);
+
+      // Dev mode disabled even when measurementId is configured
+      expect(
+        shouldEnableAnalytics(true, {
+          useEmulator: false,
+          firebase: { measurementId: 'G-QKCXJJGZKW' },
+        }),
+      ).toBe(false);
+
+      // Emulator mode disabled even in non-dev mode
+      expect(
+        shouldEnableAnalytics(false, {
+          useEmulator: true,
+          firebase: { measurementId: 'G-QKCXJJGZKW' },
+        }),
+      ).toBe(false);
+
+      // Empty or template placeholder measurementId disabled
+      expect(
+        shouldEnableAnalytics(false, {
+          useEmulator: false,
+          firebase: { measurementId: '' },
+        }),
+      ).toBe(false);
+      expect(
+        shouldEnableAnalytics(false, {
+          useEmulator: false,
+          firebase: { measurementId: 'YOUR_MEASUREMENT_ID_FROM_FIREBASE' },
+        }),
+      ).toBe(false);
+    });
+
+    it('initializes getAnalytics when !isDevMode(), supported, and measurementId is present', async () => {
+      const fakeAnalytics = { app } as Analytics;
+      vi.mocked(isSupported).mockResolvedValue(true);
+      vi.mocked(getAnalytics).mockReturnValue(fakeAnalytics);
+
+      await service.initAnalytics(false, {
+        useEmulator: false,
+        firebase: { measurementId: 'G-QKCXJJGZKW' },
+      });
+
+      expect(isSupported).toHaveBeenCalledTimes(1);
+      expect(getAnalytics).toHaveBeenCalledWith(app);
+      expect(service.analytics).toBe(fakeAnalytics);
+    });
+
+    it('skips getAnalytics when browser does not support Firebase Analytics', async () => {
+      vi.mocked(isSupported).mockResolvedValue(false);
+
+      await service.initAnalytics(false, {
+        useEmulator: false,
+        firebase: { measurementId: 'G-QKCXJJGZKW' },
+      });
+
+      expect(isSupported).toHaveBeenCalledTimes(1);
+      expect(getAnalytics).not.toHaveBeenCalled();
+      expect(service.analytics).toBeUndefined();
+    });
+
+    it('handles isSupported rejection gracefully without throwing', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.mocked(isSupported).mockRejectedValue(new Error('IndexedDB blocked'));
+
+      await expect(
+        service.initAnalytics(false, {
+          useEmulator: false,
+          firebase: { measurementId: 'G-QKCXJJGZKW' },
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(getAnalytics).not.toHaveBeenCalled();
+      expect(service.analytics).toBeUndefined();
+      warnSpy.mockRestore();
+    });
   });
 });
