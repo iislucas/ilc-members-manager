@@ -69,6 +69,7 @@ import { MemberRowHeaderComponent } from '../member-row-header/member-row-header
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ConfirmDeleteModalComponent } from '../confirm-delete-modal/confirm-delete-modal.component';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import { environment } from '../../environments/environment';
 import { NotificationService } from '../notification.service';
 
@@ -115,6 +116,7 @@ export interface GroupedSeriesGrant {
     ImageUploadPreviewComponent,
     MarkdownEditor,
     ConfirmDeleteModalComponent,
+    PasswordSetupComponent,
   ],
   templateUrl: './member-details.html',
   styleUrl: './member-details.scss',
@@ -554,6 +556,11 @@ export class MemberDetailsComponent {
     if (emailListIncludes(currentMember.emails, user.firebaseUser?.email)) return true;
     return false;
   });
+
+  /** True when the signed-in user can set or change their own account password here. */
+  canManageOwnPassword = computed(
+    () => this.isEditingSelf() && !!this.firebaseState.user()?.firebaseUser?.email,
+  );
 
   /** Primary email for filtering orders / events. */
   memberPrimaryEmail = computed(() => {

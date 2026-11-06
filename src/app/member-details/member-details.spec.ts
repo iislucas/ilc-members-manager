@@ -1076,4 +1076,55 @@ describe('MemberDetailsComponent', () => {
       );
     });
   });
+
+  describe('Self-service password management', () => {
+    it('shows Set or change password on own profile and saves via setAccountPassword', async () => {
+      const setPasswordSpy = vi
+        .spyOn(firebaseStateServiceMock, 'setAccountPassword')
+        .mockResolvedValue({ success: true });
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const openBtn = el.querySelector<HTMLButtonElement>('#open-password-setup-btn');
+      expect(openBtn).not.toBeNull();
+
+      openBtn!.click();
+      fixture.detectChanges();
+
+      const input = el.querySelector<HTMLInputElement>('#profile-password-input');
+      expect(input).not.toBeNull();
+      input!.value = 'new-trusted-password';
+      input!.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      el.querySelector<HTMLButtonElement>('#save-password-btn')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(setPasswordSpy).toHaveBeenCalledWith('new-trusted-password');
+      expect(el.querySelector('#password-saved')).not.toBeNull();
+      expect(dataManagerServiceMock.updateMember).not.toHaveBeenCalled();
+    });
+
+    it('hides Set or change password when an admin views another member', async () => {
+      const otherMember: Member = {
+        ...initMember(),
+        docId: 'other-member-doc',
+        name: 'Another Student',
+        emails: ['student@example.com'],
+        memberId: 'US099',
+        country: 'United States',
+        membershipType: MembershipType.Annual,
+      };
+      fixture.componentRef.setInput('member', otherMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('#open-password-setup-btn')).toBeNull();
+    });
+  });
 });

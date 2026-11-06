@@ -90,7 +90,23 @@ describe('story: email-first-signup', () => {
   it('lets a verified user set a password and then sign in with it', async () => {
     const email = uniqueEmail('setpw');
     await signInByLink(email);
+
+    // Before choosing a password, checkEmailStatus reports hasPasswordProvider: false
+    // so returning users are sent to the email link step, not a dead-end password prompt.
+    const statusBefore = await httpsCallable<{ email: string }, { hasPasswordProvider?: boolean }>(
+      getFunctions(app),
+      'checkEmailStatus',
+    )({ email });
+    expect(statusBefore.data.hasPasswordProvider).toBe(false);
+
     await httpsCallable(getFunctions(app), 'setAccountPassword')({ password: 'owner-password' });
+
+    const statusAfter = await httpsCallable<{ email: string }, { hasPasswordProvider?: boolean }>(
+      getFunctions(app),
+      'checkEmailStatus',
+    )({ email });
+    expect(statusAfter.data.hasPasswordProvider).toBe(true);
+
     await signOut(auth);
     const cred = await signInWithEmailAndPassword(auth, email, 'owner-password');
     expect(cred.user.emailVerified).toBe(true);

@@ -125,21 +125,3 @@ export function googleSignInErrorMessage(code: string | undefined): string {
       return `Google sign-in failed (${code || 'unknown error'}). Please try again, or use a password instead.`;
   }
 }
-
-/** A human explanation of a failed password reset request. */
-export function passwordResetErrorMessage(code: string | undefined): string {
-  switch (code) {
-    case 'auth/invalid-email':
-      return "That doesn't look like a valid email address. Please check it and try again.";
-    case 'auth/user-not-found':
-      // Only reachable with email-enumeration protection off; the wording
-      // still avoids confirming whether the address is registered.
-      return 'If an account exists for that email, a reset link is on its way. Please check your inbox and spam folder.';
-    case 'auth/too-many-requests':
-      return 'Too many reset requests from this device. Please wait a few minutes and try again.';
-    case 'auth/network-request-failed':
-      return 'We could not reach the server. Please check your connection and try again.';
-    default:
-      return `We could not send the reset link (${code || 'unknown error'}). Please try again in a moment.`;
-  }
-}

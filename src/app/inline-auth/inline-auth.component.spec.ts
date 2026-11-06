@@ -16,9 +16,11 @@ import { AuthErrorCodes, UserCredential } from 'firebase/auth';
 import {
   InlineAuthComponent,
   InlineAuthStep,
+} from './inline-auth.component';
+import {
   RememberedLogin,
   REMEMBERED_LOGIN_KEY,
-} from './inline-auth.component';
+} from './remembered-login';
 import {
   AuthOperationResult,
   createFirebaseStateServiceMock,
@@ -870,6 +872,54 @@ describe('InlineAuthComponent', () => {
       component.usePasswordInstead();
       expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
     });
+
+    it('should route a verified email-link-only account to the email link step, not password login', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({
+          hasMemberRecord: true,
+          hasAuthAccount: true,
+          hasPasswordProvider: false,
+          hasGoogleProvider: false,
+          isGoogleManaged: false,
+          emailVerified: true,
+        }),
+      );
+      await createComponent();
+      component.email.set('linkonly@example.com');
+      await component.checkEmail();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
+      expect(html().querySelector('#send-link-btn')).toBeTruthy();
+      expect(html().querySelector('#password-input')).toBeNull();
+    });
+
+    it('should route a Google-only account without a password to the email link when skipping Google', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({
+          hasMemberRecord: true,
+          hasAuthAccount: true,
+          hasPasswordProvider: false,
+          hasGoogleProvider: true,
+          isGoogleManaged: true,
+          emailVerified: true,
+        }),
+      );
+      await createComponent();
+      component.email.set('googleonly@gmail.com');
+      await component.checkEmail();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe(InlineAuthStep.GoogleSignin);
+      expect(html().querySelector('#use-password-btn')!.textContent!.trim()).toBe(
+        'Use email instead',
+      );
+
+      html().querySelector<HTMLButtonElement>('#use-password-btn')!.click();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe(InlineAuthStep.EmailLink);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -1048,7 +1098,8 @@ describe('InlineAuthComponent', () => {
       expect(component.highlightPasswordReset()).toBe(false);
     });
 
-    it('should send a password that cannot be used yet to the email link', async () => {
+    it('should send a password that cannot be used yet to the email link and forget stale remembered password', async () => {
+      remember({ email: 'jane@example.com', method: 'password' });
       vi.spyOn(mockService, 'loginWithEmail').mockResolvedValue({
         success: false,
         errorCode: 'auth/internal-error',
@@ -1059,29 +1110,50 @@ describe('InlineAuthComponent', () => {
       component.password.set('abcdef');
       await component.loginWithEmail();
 
+      expect(readRemembered()).toBeNull();
       expect(component.loginError()).toContain('confirm its email address');
-      // A reset wouldn't help here; the email link does.
       expect(component.highlightPasswordReset()).toBe(false);
       expect(component.highlightEmailLink()).toBe(true);
       component.useEmailLinkInstead();
       expect(component.step()).toBe(InlineAuthStep.EmailLink);
     });
 
-    it('should confirm where a reset link was sent', async () => {
+    it('should send a sign-in link and advance to LinkSent when resetting a forgotten password', async () => {
+      const sendLink = vi.spyOn(mockService, 'sendSignInLink');
       await createComponent();
-      component.email.set('jane@example.com');
+      component.email.set('Jane@Example.com');
+      component.step.set(InlineAuthStep.PasswordLogin);
       await component.resetPassword();
-      expect(component.resetPasswordSuccess()).toContain('jane@example.com');
+      fixture.detectChanges();
+
+      expect(sendLink).toHaveBeenCalledWith('jane@example.com');
+      expect(component.step()).toBe(InlineAuthStep.LinkSent);
+      expect(component.linkSentTo()).toBe('Jane@Example.com');
+      expect(html().querySelector('#link-sent-notice')!.textContent).toContain('Jane@Example.com');
     });
 
-    it('should ask for an email before sending a reset link', async () => {
-      const reset = vi.spyOn(mockService, 'resetPassword');
+    it('should ask for an email before sending a reset sign-in link', async () => {
+      const sendLink = vi.spyOn(mockService, 'sendSignInLink');
       await createComponent();
       component.email.set('');
       await component.resetPassword();
 
-      expect(reset).not.toHaveBeenCalled();
+      expect(sendLink).not.toHaveBeenCalled();
       expect(component.resetPasswordError()).toContain('Please enter your email');
+    });
+
+    it('should surface an error when sending a reset sign-in link fails', async () => {
+      vi.spyOn(mockService, 'sendSignInLink').mockResolvedValue({
+        success: false,
+        errorCode: 'auth/too-many-requests',
+      });
+      await createComponent();
+      component.email.set('jane@example.com');
+      component.step.set(InlineAuthStep.PasswordLogin);
+      await component.resetPassword();
+
+      expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
+      expect(component.resetPasswordError()).toContain('Too many sign-in emails');
     });
   });
 
@@ -1198,22 +1270,43 @@ describe('InlineAuthComponent', () => {
         member: { emails: ['jane@example.com'], memberId: 'ILC-1' },
       });
       (mockService.offerPasswordSetup as unknown as { set: (v: boolean) => void }).set(true);
-      const setPassword = vi.spyOn(mockService, 'setAccountPassword');
+      const setPassword = vi.spyOn(mockService, 'setAccountPassword').mockImplementation(
+        async () => {
+          mockService.offerPasswordSetup.set(false);
+          return { success: true };
+        },
+      );
       await createComponent();
       fixture.detectChanges();
       expect(html().querySelector('#password-setup')).toBeTruthy();
 
-      component.newPassword.set('owner-password');
-      await component.savePassword();
+      const input = html().querySelector<HTMLInputElement>('#setup-password-input')!;
+      input.value = 'owner-password';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      html().querySelector<HTMLButtonElement>('#save-password-btn')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
       expect(setPassword).toHaveBeenCalledWith('owner-password');
-      expect(component.passwordSaved()).toBe(true);
+      expect(html().querySelector('#password-saved')).toBeTruthy();
       expect(readRemembered()?.method).toBe('password');
     });
 
     it('should let the user skip choosing a password', async () => {
+      (mockService.user as unknown as { set: (v: unknown) => void }).set({
+        firebaseUser: { email: 'jane@example.com' } as never,
+        member: { emails: ['jane@example.com'], memberId: 'ILC-1' },
+      });
       (mockService.offerPasswordSetup as unknown as { set: (v: boolean) => void }).set(true);
       await createComponent();
-      component.skipPasswordSetup();
+      fixture.detectChanges();
+
+      html().querySelector<HTMLButtonElement>('#skip-password-btn')!.click();
+      fixture.detectChanges();
+
       expect(mockService.offerPasswordSetup()).toBe(false);
     });
 

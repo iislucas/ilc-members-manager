@@ -202,6 +202,13 @@
         }
       </div>
 
+      @if (canManageOwnPassword()) {
+        <label class="align-top">Password</label>
+        <div class="rhs">
+          <app-password-setup mode="profile" />
+        </div>
+      }
+
       <label for="address" class="align-top">Address</label>
       <div class="rhs">
         <textarea id="address" [formField]="form.address"></textarea>

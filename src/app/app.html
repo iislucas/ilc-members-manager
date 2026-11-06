@@ -19,6 +19,9 @@
   }
 
   <main>
+    @if (user && !viewHasInlineAuth()) {
+      <app-password-setup [framed]="true" />
+    }
     @if (isNotFound()) {
       <app-not-found></app-not-found>
     } @else if (isPublicPage()) {

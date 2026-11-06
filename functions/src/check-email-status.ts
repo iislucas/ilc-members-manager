@@ -17,6 +17,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import * as dns from 'dns';
 import { allowedOrigins } from './common';
+import { TRUSTED_PASSWORD_CLAIM } from './data-model/auth';
 import { CheckEmailStatusResult } from './data-model/system';
 import { normalizeEmail, isValidEmail } from './data-model/email';
 import { emailHasMemberRecord } from './member-docs-for-email';
@@ -148,9 +149,12 @@ export async function checkEmailStatusHandler(
     hasGoogleProvider = userRecord.providerData.some(
       (p) => p.providerId === 'google.com',
     );
+    // Firebase Auth reports providerId: 'password' for passwordless email-link
+    // accounts too, and beforeSignIn refuses password sign-in unless the email
+    // is verified and the password was explicitly marked trusted.
     hasPasswordProvider =
-      userRecord.providerData.some((p) => p.providerId === 'password') ||
-      !!userRecord.passwordHash;
+      userRecord.emailVerified &&
+      userRecord.customClaims?.[TRUSTED_PASSWORD_CLAIM] === true;
   } catch {
     // User not found in Firebase Auth — expected for new members.
   }
