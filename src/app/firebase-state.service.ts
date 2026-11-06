@@ -38,9 +38,14 @@ import { NetworkStateService } from './network-state.service';
 import { RoutingService } from './routing.service';
 import { AuthBlockReason } from '../../functions/src/data-model/auth';
 import { authBlockReasonOf } from './inline-auth/auth-error-messages';
+import {
+  buildAuthCompleteActionUrl,
+  EMAIL_LINK_QUERY_PARAMS,
+  EmailLinkIntent,
+} from './inline-auth/auth-link-return';
 import { forgetRememberedLogin, writeRememberedLogin } from './inline-auth/remembered-login';
 
-type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
+export type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
 export type AuthOperationResult =
   | {
@@ -106,9 +111,6 @@ export const LAST_ACTIVE_USER_UID_KEY = 'ilc_last_active_user_uid';
 // link on the same device finishes sign-in without retyping it.
 export const EMAIL_FOR_SIGN_IN_KEY = 'ilc-email-for-sign-in';
 
-// Query parameters Firebase adds to an email sign-in link's return URL.
-const EMAIL_LINK_PARAMS = ['apiKey', 'oobCode', 'mode', 'lang', 'continueUrl', 'tenantId'];
-
 // Returns true when Firebase Analytics should be initialized (production Angular
 // build, not connected to emulators, and configured with a real Measurement ID).
 // Note: `environment.local.ts` backs both `development` and `production` build
@@ -164,6 +166,25 @@ export class FirebaseStateService {
   public offerPasswordSetup = signal<boolean>(false);
 
   /**
+   * True while an email sign-in link is actively being verified and its member
+   * profile is being loaded. Prevents `onAuthStateChanged(null)` from briefly
+   * overwriting `LoginStatus.LoggingIn` back to `SignedOut`.
+   */
+  public isCompletingEmailLink = signal<boolean>(false);
+
+  /** Error code from the most recent email-link sign-in attempt, if it failed. */
+  public emailLinkSignInError = signal<AuthErrorCodeStr | null>(null);
+
+  /** Email address whose email-link sign-in failed (e.g. expired code), for one-tap retry. */
+  public failedEmailLinkAddress = signal<string | null>(null);
+
+  /**
+   * True right after a password was saved (e.g. on `/auth/complete` during a
+   * password reset), so the destination portal view can show a confirmation notice.
+   */
+  public passwordSavedNotice = signal<boolean>(false);
+
+  /**
    * Indicates whether live Firebase Auth has completed initialization and settled.
    * True when a live verified User token is active (or in offline mode with a restored session).
    * Guarding authenticated Firestore queries with isAuthReady prevents transient
@@ -214,9 +235,21 @@ export class FirebaseStateService {
 
     // Eagerly restore last active user from IndexedDB for instant offline readiness
     this.idb.get<string>(LAST_ACTIVE_USER_UID_KEY).then(async (lastUid) => {
-      if (lastUid && !this.user() && this.loginStatus() === LoginStatus.FirebaseLoadingStatus) {
+      if (
+        lastUid &&
+        !this.user() &&
+        !this.pendingEmailLink() &&
+        !this.isCompletingEmailLink() &&
+        this.loginStatus() === LoginStatus.FirebaseLoadingStatus
+      ) {
         const cached = await this.idb.get<CachedUserDetails>(`cached_user_details_${lastUid}`);
-        if (cached && !this.user() && this.loginStatus() === LoginStatus.FirebaseLoadingStatus) {
+        if (
+          cached &&
+          !this.user() &&
+          !this.pendingEmailLink() &&
+          !this.isCompletingEmailLink() &&
+          this.loginStatus() === LoginStatus.FirebaseLoadingStatus
+        ) {
           console.log('FirebaseStateService: Eagerly restoring cached profile from IndexedDB:', cached.email);
           const mockUser = {
             uid: cached.uid,
@@ -250,11 +283,13 @@ export class FirebaseStateService {
 
     if (typeof this.auth.authStateReady === 'function') {
       this.auth.authStateReady().then(() => {
-        if (!this.auth.currentUser && !this.user()) {
+        if (!this.auth.currentUser && !this.user() && !this.isCompletingEmailLink()) {
           this.isAuthSyncing.set(false);
         }
       }).catch(() => {
-        this.isAuthSyncing.set(false);
+        if (!this.isCompletingEmailLink()) {
+          this.isAuthSyncing.set(false);
+        }
       });
     }
 
@@ -265,6 +300,11 @@ export class FirebaseStateService {
       }
 
       if (!user || !user.email) {
+        // Keep LoggingIn intact while `signInWithEmailLink` is awaiting the network.
+        if (this.isCompletingEmailLink()) {
+          return;
+        }
+
         // If offline and we already have a cached user session, preserve it!
         if (this.networkState.isOffline() && this.user()) {
           console.log('FirebaseStateService: onAuthStateChanged received null user while offline; preserving local session.');
@@ -289,10 +329,11 @@ export class FirebaseStateService {
       }
 
       if (!user.emailVerified) {
-        console.log('FirebaseStateService: User email is not verified:', user.email);
+        console.log('FirebaseStateService: User email is not verified');
         this.user.set(null);
         this.unverifiedUser.set(user);
         this.loginStatus.set(LoginStatus.NeedsEmailVerification);
+        this.isCompletingEmailLink.set(false);
         this.isAuthReady.set(false);
         this.isAuthSyncing.set(false);
         return;
@@ -310,6 +351,8 @@ export class FirebaseStateService {
           ...currentUserDetails,
           firebaseUser: user,
         });
+        this.loginStatus.set(LoginStatus.SignedIn);
+        this.isCompletingEmailLink.set(false);
         this.setupMemberSnapshotListener();
         this.isAuthReady.set(true);
         this.isAuthSyncing.set(false);
@@ -339,6 +382,7 @@ export class FirebaseStateService {
 
   public async fetchUserDetails(user: User): Promise<void> {
     this.loginStatus.set(LoginStatus.LoggingIn);
+    try {
     let userDetailsResult: FetchUserDetailsResult;
     try {
       const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
@@ -446,6 +490,9 @@ export class FirebaseStateService {
 
     // From now on, listen to changes to the member document.
     this.setupMemberSnapshotListener();
+    } finally {
+      this.isCompletingEmailLink.set(false);
+    }
   }
 
   public async selectProfile(memberDocId: string) {
@@ -695,20 +742,23 @@ export class FirebaseStateService {
   }
 
   /**
-   * Email a sign-in link to `email`. Clicking it proves the address and signs
-   * the user in (creating the account if needed). This is the only way to
-   * create an email account: a password can be chosen afterwards. The link
-   * returns to the current page.
+   * Email a sign-in link to `email`. Clicking it opens the minimal
+   * `/auth/complete` landing screen, proves the address, signs the user in
+   * (creating the account if needed), optionally collects a new password when
+   * `intent === EmailLinkIntent.ResetPassword`, and redirects back to the
+   * originating page.
    */
-  public async sendSignInLink(email: string): Promise<SimpleAuthResult> {
+  public async sendSignInLink(
+    email: string,
+    options?: { intent?: EmailLinkIntent },
+  ): Promise<SimpleAuthResult> {
     try {
-      const returnTo = new URL(window.location.href);
-      returnTo.hash = '';
-      for (const param of EMAIL_LINK_PARAMS) {
-        returnTo.searchParams.delete(param);
-      }
+      const actionUrl = buildAuthCompleteActionUrl(
+        window.location.href,
+        options?.intent ?? EmailLinkIntent.SignIn,
+      );
       await sendSignInLinkToEmail(this.auth, email, {
-        url: returnTo.toString(),
+        url: actionUrl,
         handleCodeInApp: true,
       });
       try {
@@ -719,7 +769,7 @@ export class FirebaseStateService {
       return { success: true };
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
-      console.error('sendSignInLink failed:', error);
+      console.error('sendSignInLink failed:', error.code);
       return { success: false, errorCode: error.code };
     }
   }
@@ -769,6 +819,8 @@ export class FirebaseStateService {
     if (!link) {
       return { success: false, errorCode: 'auth/invalid-action-code' as AuthErrorCodeStr };
     }
+    this.isCompletingEmailLink.set(true);
+    this.emailLinkSignInError.set(null);
     this.loginStatus.set(LoginStatus.LoggingIn);
     try {
       await signInWithEmailLink(this.auth, email, link);
@@ -779,17 +831,21 @@ export class FirebaseStateService {
       }
       this.stripEmailLinkParams();
       this.pendingEmailLink.set(null);
+      this.failedEmailLinkAddress.set(null);
       this.completedEmailLinkSignIn.set(email);
       this.offerPasswordSetup.set(true);
       writeRememberedLogin({ email, method: 'emailLink', canUseGoogle: false });
       return { success: true };
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
-      console.error('finishEmailLinkSignIn failed:', error);
+      console.error('finishEmailLinkSignIn failed:', error.code);
+      this.isCompletingEmailLink.set(false);
       this.loginStatus.set(LoginStatus.SignedOut);
+      this.emailLinkSignInError.set(error.code);
       if (error.code !== 'auth/invalid-email') {
         // The link itself is unusable (expired, already used); asking for the
         // email again won't help, the user needs a fresh link.
+        this.failedEmailLinkAddress.set(email);
         this.stripEmailLinkParams();
         this.pendingEmailLink.set(null);
       }
@@ -799,7 +855,7 @@ export class FirebaseStateService {
 
   private stripEmailLinkParams(): void {
     const url = new URL(window.location.href);
-    for (const param of EMAIL_LINK_PARAMS) {
+    for (const param of EMAIL_LINK_QUERY_PARAMS) {
       url.searchParams.delete(param);
     }
     window.history.replaceState(window.history.state, '', url.toString());
@@ -840,6 +896,10 @@ export class FirebaseStateService {
       await this.idb.delete(LAST_ACTIVE_USER_UID_KEY);
       this.user.set(null);
       this.offerPasswordSetup.set(false);
+      this.isCompletingEmailLink.set(false);
+      this.emailLinkSignInError.set(null);
+      this.failedEmailLinkAddress.set(null);
+      this.passwordSavedNotice.set(false);
       this.completedEmailLinkSignIn.set(null);
       forgetRememberedLogin();
       this.loginStatus.set(LoginStatus.SignedOut);
@@ -890,6 +950,10 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
     pendingEmailLink: signal(null),
     completedEmailLinkSignIn: signal(null),
     offerPasswordSetup: signal(false),
+    isCompletingEmailLink: signal(false),
+    emailLinkSignInError: signal(null),
+    failedEmailLinkAddress: signal(null),
+    passwordSavedNotice: signal(false),
     loginStatus,
     loggedIn: signal(Promise.resolve({} as UserDetails)),
     loginError: signal(null),

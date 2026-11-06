@@ -145,7 +145,7 @@
               <tr><td><code>PasswordLogin</code></td><td>A verified, trusted password is the route for this address.</td></tr>
               <tr><td><code>EmailLink</code></td><td>Email sign-in link (new account, passwordless account, or unverified account).</td></tr>
               <tr><td><code>GuestCreateAccount</code></td><td>Creating an account via email link with no membership behind it.</td></tr>
-              <tr><td><code>LinkSent</code></td><td>A sign-in link was emailed (including for "Forgotten your password?"); waiting for the click.</td></tr>
+              <tr><td><code>LinkSent</code></td><td>A sign-in link was emailed (including for "Forgotten your password?"); waiting for the click, which opens the minimal <code>/auth/complete</code> (<code>AuthCompleteComponent</code>) view.</td></tr>
               <tr><td><code>NoMember</code></td><td>Login page only; nothing matched this address.</td></tr>
             </tbody>
           </table>

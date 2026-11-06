@@ -272,4 +272,18 @@ describe('FirebaseStateService', () => {
       warnSpy.mockRestore();
     });
   });
+
+  it('clears email-link completion state and passwordSavedNotice on logout', async () => {
+    service.isCompletingEmailLink.set(true);
+    service.emailLinkSignInError.set('auth/expired-action-code');
+    service.failedEmailLinkAddress.set('test@example.com');
+    service.passwordSavedNotice.set(true);
+
+    await service.logout();
+
+    expect(service.isCompletingEmailLink()).toBe(false);
+    expect(service.emailLinkSignInError()).toBeNull();
+    expect(service.failedEmailLinkAddress()).toBeNull();
+    expect(service.passwordSavedNotice()).toBe(false);
+  });
 });

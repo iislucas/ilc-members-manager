@@ -116,10 +116,12 @@ export enum Views {
   EventRegistrationView = 'eventRegistrationView',
   AppNotificationSettings = 'appNotificationSettings',
   OfflineActionQueue = 'offlineActionQueue',
+  AuthComplete = 'authComplete',
 }
 
 // Views that are accessible without login.
 export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
+  Views.AuthComplete,
   Views.OfflineActionQueue,
   Views.FindAnInstructor,
   Views.InstructorView,
@@ -180,6 +182,10 @@ export const initPathPatterns = {
     { name: 'welcome', ephemeral: true },
   ]),
   [Views.Login]: addUrlParams(pathPattern`login`, [{ name: 'returnUrl', ephemeral: true }]),
+  [Views.AuthComplete]: addUrlParams(pathPattern`auth/complete`, [
+    { name: 'returnTo', ephemeral: true },
+    { name: 'intent', ephemeral: true },
+  ]),
   [Views.ClassCalendarView]: pathPattern`calendar/instructor/${pv('instructorId')}`,
   [Views.SchoolCalendarView]: pathPattern`calendar/school/${pv('schoolId')}`,
   [Views.ImportExport]: addUrlParams(pathPattern`import-export`, ['tab']),

@@ -1,6 +1,6 @@
 /* files-catalog.ts
  *
- * Automatically cataloged index of 100% of repository tracked files (1250 files).
+ * Automatically cataloged index of 100% of repository tracked files (1256 files).
  */
 
 import { CodeFileEntry, ArchitecturalLayer } from '../models/code-file';
@@ -7322,6 +7322,50 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     relatedPatterns: [],
   },
   {
+    path: "src/app/auth-complete/auth-complete.html",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "HTML template for auth-complete",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/auth-complete/auth-complete.scss",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "SCSS stylesheet for auth-complete",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/auth-complete/auth-complete.spec.ts",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "Unit and regression tests for auth-complete",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/auth-complete/auth-complete.ts",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "Implements AuthCompleteComponent",
+    keySymbols: ["AuthCompleteComponent"],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
     path: "src/app/autocomplete/autocomplete.html",
     layer: ArchitecturalLayer.ClientUIComponent,
     responsibility: "HTML template for autocomplete",
@@ -9218,6 +9262,28 @@ export const FILES_CATALOG: CodeFileEntry[] = [
     layer: ArchitecturalLayer.ClientUIComponent,
     responsibility: "Implements isPasswordResettable, signInErrorMessage, authBlockReasonOf",
     keySymbols: ["isPasswordResettable","signInErrorMessage","authBlockReasonOf","emailLinkErrorMessage","googleSignInErrorMessage","PASSWORD_NOT_TRUSTED_MESSAGE"],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/inline-auth/auth-link-return.spec.ts",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "Unit and regression tests for auth-link-return",
+    keySymbols: [],
+    relatedJourneys: [],
+    relatedDataTypes: [],
+    relatedStories: [],
+    relatedFlows: [],
+    relatedPatterns: [],
+  },
+  {
+    path: "src/app/inline-auth/auth-link-return.ts",
+    layer: ArchitecturalLayer.ClientUIComponent,
+    responsibility: "Implements EmailLinkIntent, sanitizeInternalReturnPath, buildAuthCompleteActionUrl",
+    keySymbols: ["EmailLinkIntent","sanitizeInternalReturnPath","buildAuthCompleteActionUrl","upgradeLegacyEmailLinkUrl","EMAIL_LINK_QUERY_PARAMS"],
     relatedJourneys: [],
     relatedDataTypes: [],
     relatedStories: [],

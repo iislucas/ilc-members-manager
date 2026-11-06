@@ -18,6 +18,7 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -42,11 +43,21 @@ import { readRememberedLogin, writeRememberedLogin } from './remembered-login';
 export class PasswordSetupComponent {
   public firebaseService = inject(FirebaseStateService);
 
-  /** 'prompt' renders only after email-link sign-in; 'profile' renders an on-demand action. */
-  mode = input<'prompt' | 'profile'>('prompt');
+  /**
+   * - 'prompt': Shown after email-link sign-in when `offerPasswordSetup()` is true.
+   * - 'reset': Shown on `/auth/complete?intent=reset-password` before redirecting.
+   * - 'profile': Shown on a member's own profile as an on-demand action.
+   */
+  mode = input<'prompt' | 'profile' | 'reset'>('prompt');
 
   /** Optional visual framing ('card' for top-level portal banner, 'inline' inside auth/profile). */
   framed = input<boolean>(false);
+
+  /** Emitted once a new password has been saved. */
+  saved = output<void>();
+
+  /** Emitted when the user skips optional/reset password setup. */
+  skipped = output<void>();
 
   minPasswordLength = MIN_PASSWORD_LENGTH;
   newPassword = signal<string>('');
@@ -67,17 +78,25 @@ export class PasswordSetupComponent {
     this.mode() === 'profile' ? 'profile-password-input' : 'setup-password-input',
   );
 
-  isFormExpanded = computed(() =>
-    this.mode() === 'profile'
-      ? this.profileEditorOpen()
-      : this.firebaseService.offerPasswordSetup(),
+  isFormExpanded = computed(() => {
+    const m = this.mode();
+    if (m === 'profile') return this.profileEditorOpen();
+    if (m === 'reset') return true;
+    return this.firebaseService.offerPasswordSetup();
+  });
+
+  showSavedBanner = computed(
+    () =>
+      this.passwordSaved() ||
+      (this.mode() === 'prompt' && this.firebaseService.passwordSavedNotice()),
   );
 
-  isVisible = computed(() =>
-    this.mode() === 'profile'
-      ? !!this.signedInEmail()
-      : this.firebaseService.offerPasswordSetup() || this.passwordSaved(),
-  );
+  isVisible = computed(() => {
+    const m = this.mode();
+    if (m === 'profile') return !!this.signedInEmail();
+    if (m === 'reset') return true;
+    return this.firebaseService.offerPasswordSetup() || this.showSavedBanner();
+  });
 
   private clearOnSignOut = effect(() => {
     if (!this.firebaseService.user()) {
@@ -134,7 +153,12 @@ export class PasswordSetupComponent {
         this.newPassword.set('');
         this.showPassword.set(false);
         this.profileEditorOpen.set(false);
-        this.passwordSaved.set(true);
+        if (this.mode() === 'reset') {
+          this.firebaseService.passwordSavedNotice.set(true);
+        } else {
+          this.passwordSaved.set(true);
+        }
+        this.saved.emit();
       } else {
         this.passwordSetupError.set(result.message);
       }
@@ -148,9 +172,11 @@ export class PasswordSetupComponent {
     this.showPassword.set(false);
     this.passwordSetupError.set(null);
     this.firebaseService.offerPasswordSetup.set(false);
+    this.skipped.emit();
   }
 
   dismissSavedNotice(): void {
     this.passwordSaved.set(false);
+    this.firebaseService.passwordSavedNotice.set(false);
   }
 }

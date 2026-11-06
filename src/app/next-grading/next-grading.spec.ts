@@ -8,7 +8,11 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextGradingComponent } from './next-grading';
 import { StripeService } from '../stripe.service';
-import { FirebaseStateService, UserDetails } from '../firebase-state.service';
+import {
+  FirebaseStateService,
+  UserDetails,
+  createFirebaseStateServiceMock,
+} from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
@@ -186,11 +190,8 @@ describe('NextGradingComponent', () => {
         {
           provide: FirebaseStateService,
           useValue: {
+            ...createFirebaseStateServiceMock(),
             user: userSignal,
-            loginError: signal<string | null>(null),
-            completedEmailLinkSignIn: signal<string | null>(null),
-            offerPasswordSetup: signal<boolean>(false),
-            pendingEmailLink: signal<string | null>(null),
           },
         },
         { provide: DataManagerService, useValue: mockDataManager },

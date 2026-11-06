@@ -714,5 +714,25 @@ describe('App', () => {
       expect(compiled.querySelector('main > app-password-setup')).toBeNull();
     });
   });
+
+  describe('Minimal /auth/complete shell', () => {
+    it('renders <app-auth-complete> without <app-header>, <app-footer>, or share link', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+
+      firebaseStateServiceMock.isCompletingEmailLink!.set(true);
+      firebaseStateServiceMock.loginStatus!.set(LoginStatus.LoggingIn);
+      app.routingService.matchedPatternId.set(Views.AuthComplete);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('app-auth-complete')).not.toBeNull();
+      expect(compiled.querySelector('app-header')).toBeNull();
+      expect(compiled.querySelector('app-footer')).toBeNull();
+      expect(compiled.querySelector('.share-page-link')).toBeNull();
+    });
+  });
 });
 

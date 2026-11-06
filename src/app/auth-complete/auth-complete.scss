@@ -1,0 +1,113 @@
+@use "../../scss_variables" as *;
+@use "../../styles" as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 75vh;
+  width: 100%;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+}
+
+.auth-complete-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+  gap: 0.75rem;
+}
+
+.auth-complete-brand {
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: $text-muted;
+  text-align: center;
+}
+
+.auth-complete-heading {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0 0 0.5rem 0;
+  text-align: center;
+}
+
+.auth-complete-status {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.auth-complete-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: 100%;
+}
+
+.auth-complete-hint {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: $text-secondary;
+  text-align: center;
+
+  strong {
+    font-family: monospace;
+    color: $text-primary;
+  }
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+
+  label {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: $text-secondary;
+  }
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1rem;
+    min-height: 48px;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid $border-color-light;
+    border-radius: 4px;
+    background-color: $theme-bg-color;
+    color: $text-primary;
+
+    &:focus-visible {
+      outline: 2px solid $focus-ring-color;
+      outline-offset: 1px;
+    }
+  }
+}
+
+.auth-complete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.subtle-link {
+  font-size: 0.9rem;
+  color: $text-secondary;
+  text-decoration: underline;
+
+  &:hover {
+    color: $text-primary;
+  }
+}

@@ -554,19 +554,27 @@ export class RoutingService<T extends PathPatterns> {
 
   navigateTo(
     pathAndParams: string,
-    options?: { clearUrlParams?: boolean; isBackNavigation?: boolean },
+    options?: {
+      clearUrlParams?: boolean;
+      isBackNavigation?: boolean;
+      replaceState?: boolean;
+    },
   ) {
-    if (!options?.isBackNavigation) {
+    if (!options?.isBackNavigation && !options?.replaceState) {
       this.saveCurrentScrollPosition(pathAndParams);
     }
     this.isBackNavigation = options?.isBackNavigation ?? false;
     const clearUrlParams = options?.clearUrlParams ?? false;
     const resolved = clearUrlParams ? pathAndParams : this.resolveUrlWithParams(pathAndParams);
     const url = resolved.startsWith('/') ? resolved : `/${resolved}`;
-    // pushState creates a new history entry but does not emit a popstate event,
+    // pushState/replaceState updates the URL without emitting a popstate event,
     // so we manually re-derive the signal state from the new URL.
     try {
-      window.history.pushState(null, '', url);
+      if (options?.replaceState) {
+        window.history.replaceState(null, '', url);
+      } else {
+        window.history.pushState(null, '', url);
+      }
       this.handleUrlChange();
     } finally {
       this.isBackNavigation = false;

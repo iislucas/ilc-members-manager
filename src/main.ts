@@ -1,6 +1,7 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app/app.config';
 import { App } from './app/app';
+import { upgradeLegacyEmailLinkUrl } from './app/inline-auth/auth-link-return';
 
 // Legacy-link compatibility: the app used to use hash-based routing
 // (e.g. https://app.iliqchuan.com/#/events/E1). Now that we use path-based
@@ -10,6 +11,13 @@ const hash = window.location.hash;
 if (hash.startsWith('#/')) {
   const target = hash.substring(1); // drop the leading '#', keep the leading '/'
   window.history.replaceState(null, '', target);
+}
+
+// Upgrade any pre-existing email sign-in links (e.g. `/login?oobCode=...&mode=signIn`)
+// onto the minimal `/auth/complete` view before the router initializes.
+const upgradedAuthUrl = upgradeLegacyEmailLinkUrl(window.location.href);
+if (upgradedAuthUrl) {
+  window.history.replaceState(null, '', upgradedAuthUrl);
 }
 
 bootstrapApplication(App, appConfig)

@@ -45,6 +45,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns } from '../app.config';
 import { SignInFlowService } from './sign-in-flow.service';
 import { PasswordSetupComponent } from './password-setup.component';
+import { EmailLinkIntent } from './auth-link-return';
 import {
   LoginMethod,
   RememberedLogin,
@@ -554,7 +555,9 @@ export class InlineAuthComponent implements OnInit {
     }
     this.resetPasswordSending.set(true);
     try {
-      const result = await this.firebaseService.sendSignInLink(normalizeEmail(emailVal));
+      const result = await this.firebaseService.sendSignInLink(normalizeEmail(emailVal), {
+        intent: EmailLinkIntent.ResetPassword,
+      });
       if (result.success) {
         this.linkSentTo.set(emailVal);
         this.step.set(InlineAuthStep.LinkSent);

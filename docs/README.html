@@ -985,6 +985,12 @@ pnpm test:e2e     # story-driven tests through real Cloud Function triggers</cod
                     <td>Sign-in page. A thin wrapper around <code>&lt;app-inline-auth&gt;</code>, the flow every purchase page also embeds — see <a href="authentication.html">Authentication</a>.</td>
                   </tr>
                   <tr>
+                    <td><code>/auth/complete</code></td>
+                    <td><code>Views.AuthComplete</code></td>
+                    <td><code>AuthCompleteComponent</code></td>
+                    <td>Minimal, distraction-free landing view for email sign-in and password-reset links (renders without header/footer chrome, collects a new password when <code>intent=reset-password</code>, and forwards to sanitized <code>returnTo</code>).</td>
+                  </tr>
+                  <tr>
                     <td><code>/become-a-member</code></td>
                     <td><code>Views.BecomeAMember</code></td>
                     <td><code>BecomeAMemberComponent</code></td>

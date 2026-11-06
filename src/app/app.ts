@@ -79,6 +79,7 @@ import { UpdateNotificationComponent } from './update-notification/update-notifi
 import { ActionQueueDialogComponent } from './action-queue-dialog/action-queue-dialog.component';
 import { ActionQueueService } from './action-queue.service';
 import { PasswordSetupComponent } from './inline-auth/password-setup.component';
+import { AuthCompleteComponent } from './auth-complete/auth-complete';
 import { environment } from '../environments/environment';
 
 /**
@@ -88,6 +89,7 @@ import { environment } from '../environments/environment';
  * saved notice never sit above the pill navigation bar.
  */
 const VIEWS_WITH_OWN_PASSWORD_SETUP: ReadonlySet<Views> = new Set([
+  Views.AuthComplete,
   Views.BecomeAMember,
   Views.NextGrading,
   Views.InstructorLicensePurchase,
@@ -186,6 +188,7 @@ const VIEWS_WITH_OWN_PASSWORD_SETUP: ReadonlySet<Views> = new Set([
     UpdateNotificationComponent,
     ActionQueueDialogComponent,
     PasswordSetupComponent,
+    AuthCompleteComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -210,6 +213,10 @@ export class App {
     const view = this.currentView();
     return !!view && PUBLIC_VIEWS.has(view);
   });
+
+  public isMinimalAuthShell = computed(
+    () => this.currentView() === Views.AuthComplete,
+  );
 
   public viewRendersOwnPasswordSetup = computed(() => {
     const view = this.currentView();

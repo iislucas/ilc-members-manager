@@ -17,6 +17,7 @@ import {
   InlineAuthComponent,
   InlineAuthStep,
 } from './inline-auth.component';
+import { EmailLinkIntent } from './auth-link-return';
 import {
   RememberedLogin,
   REMEMBERED_LOGIN_KEY,
@@ -1126,7 +1127,9 @@ describe('InlineAuthComponent', () => {
       await component.resetPassword();
       fixture.detectChanges();
 
-      expect(sendLink).toHaveBeenCalledWith('jane@example.com');
+      expect(sendLink).toHaveBeenCalledWith('jane@example.com', {
+        intent: EmailLinkIntent.ResetPassword,
+      });
       expect(component.step()).toBe(InlineAuthStep.LinkSent);
       expect(component.linkSentTo()).toBe('Jane@Example.com');
       expect(html().querySelector('#link-sent-notice')!.textContent).toContain('Jane@Example.com');
