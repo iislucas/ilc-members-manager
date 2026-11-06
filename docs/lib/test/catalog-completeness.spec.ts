@@ -30,6 +30,7 @@ describe('Catalog Completeness Verification', () => {
       FirestoreCollection.Schools,
       FirestoreCollection.Instructors,
       FirestoreCollection.Products,
+      FirestoreCollection.ProductDrafts,
       FirestoreCollection.Gradings,
       FirestoreCollection.Orders,
       FirestoreCollection.Acl,

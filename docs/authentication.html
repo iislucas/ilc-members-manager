@@ -142,9 +142,10 @@
               <tr><td><code>Email</code></td><td>Nothing known yet; the user types an address.</td></tr>
               <tr><td><code>Checking</code></td><td><code>checkEmailStatus</code> is in flight.</td></tr>
               <tr><td><code>GoogleSignin</code></td><td>Google is the route for this address.</td></tr>
-              <tr><td><code>PasswordLogin</code></td><td>A password is the route for this address.</td></tr>
-              <tr><td><code>CreateAccount</code></td><td>No auth account exists; one will be made.</td></tr>
-              <tr><td><code>GuestCreateAccount</code></td><td>Creating an account with no membership behind it.</td></tr>
+              <tr><td><code>PasswordLogin</code></td><td>A verified, trusted password is the route for this address.</td></tr>
+              <tr><td><code>EmailLink</code></td><td>Email sign-in link (new account, passwordless account, or unverified account).</td></tr>
+              <tr><td><code>GuestCreateAccount</code></td><td>Creating an account via email link with no membership behind it.</td></tr>
+              <tr><td><code>LinkSent</code></td><td>A sign-in link was emailed (including for "Forgotten your password?"); waiting for the click, which opens the minimal <code>/auth/complete</code> (<code>AuthCompleteComponent</code>) view.</td></tr>
               <tr><td><code>NoMember</code></td><td>Login page only; nothing matched this address.</td></tr>
             </tbody>
           </table>
@@ -219,8 +220,9 @@
 
         <ol>
           <li><code>hasGoogleProvider</code> → <strong>Google</strong>. One click beats recalling a password.</li>
-          <li><code>hasPasswordProvider</code> → <strong>password</strong>. Confirmed password, no Google linked.</li>
-          <li>Neither flag known → fall back to <code>isGoogleManaged</code>.</li>
+          <li><code>emailVerified === false</code> → <strong>email sign-in link</strong>. A password cannot be used until the email is proven.</li>
+          <li><code>hasPasswordProvider</code> (<code>emailVerified &amp;&amp; passwordTrusted</code>) → <strong>password</strong>. Confirmed trusted password, no Google linked.</li>
+          <li><code>hasPasswordProvider === false</code> → <strong>Google</strong> if <code>isGoogleManaged</code>, otherwise <strong>email sign-in link</strong>.</li>
         </ol>
 
         <div class="callout callout-warning">
@@ -250,7 +252,7 @@
               <tr>
                 <td><code>GoogleSignin</code></td>
                 <td>Sign in / Sign up with Google</td>
-                <td>Use / Set a password — <strong>always</strong></td>
+                <td>Use a password (if <code>canUsePassword()</code>) or Use email instead — <strong>always</strong></td>
               </tr>
             </tbody>
           </table>
@@ -446,8 +448,8 @@
         <p>Stored in <code>localStorage</code> under <code>ilc-remembered-login</code>:</p>
         <pre><code>type RememberedLogin = {
   email: string;
-  method: 'password' | 'google';  // the provider that actually worked
-  canUseGoogle: boolean;          // whether Google was available when last checked
+  method: 'password' | 'google' | 'emailLink'; // the method that actually worked
+  canUseGoogle: boolean;                       // whether Google was available when last checked
 };</code></pre>
 
         <p>The rules that make it trustworthy:</p>
