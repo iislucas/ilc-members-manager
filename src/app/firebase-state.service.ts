@@ -18,7 +18,6 @@ import {
   AuthCredential,
   linkWithCredential,
   linkWithPopup,
-  sendPasswordResetEmail,
   AuthErrorCodes,
 } from 'firebase/auth';
 import { environment } from '../environments/environment';
@@ -39,6 +38,7 @@ import { NetworkStateService } from './network-state.service';
 import { RoutingService } from './routing.service';
 import { AuthBlockReason } from '../../functions/src/data-model/auth';
 import { authBlockReasonOf } from './inline-auth/auth-error-messages';
+import { forgetRememberedLogin, writeRememberedLogin } from './inline-auth/remembered-login';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
@@ -67,15 +67,6 @@ export type LogoutResult =
   | {
     success: false;
     errorCode: AuthErrorCodeStr;
-  };
-
-export type ResetPasswordResult =
-  | {
-    success: true;
-  }
-  | {
-    success: false;
-    errorMessage: AuthErrorCodeStr;
   };
 
 export type FirebaseAuthError = Error & { code: AuthErrorCodeStr };
@@ -678,8 +669,13 @@ export class FirebaseStateService {
    */
   public async sendSignInLink(email: string): Promise<SimpleAuthResult> {
     try {
+      const returnTo = new URL(window.location.href);
+      returnTo.hash = '';
+      for (const param of EMAIL_LINK_PARAMS) {
+        returnTo.searchParams.delete(param);
+      }
       await sendSignInLinkToEmail(this.auth, email, {
-        url: `${window.location.origin}${window.location.pathname}`,
+        url: returnTo.toString(),
         handleCodeInApp: true,
       });
       try {
@@ -752,6 +748,7 @@ export class FirebaseStateService {
       this.pendingEmailLink.set(null);
       this.completedEmailLinkSignIn.set(email);
       this.offerPasswordSetup.set(true);
+      writeRememberedLogin({ email, method: 'emailLink', canUseGoogle: false });
       return { success: true };
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
@@ -809,6 +806,9 @@ export class FirebaseStateService {
       }
       await this.idb.delete(LAST_ACTIVE_USER_UID_KEY);
       this.user.set(null);
+      this.offerPasswordSetup.set(false);
+      this.completedEmailLinkSignIn.set(null);
+      forgetRememberedLogin();
       this.loginStatus.set(LoginStatus.SignedOut);
       this.isAuthReady.set(false);
       this.isAuthSyncing.set(false);
@@ -827,23 +827,6 @@ export class FirebaseStateService {
       return {
         success: false,
         errorCode: error.code,
-      };
-    }
-  }
-
-  public async resetPassword(email: string): Promise<ResetPasswordResult> {
-    try {
-      await sendPasswordResetEmail(this.auth, email);
-      return { success: true };
-    } catch (exception: unknown) {
-      const error = exception as FirebaseAuthError;
-      console.error('Password reset failed:', error);
-      console.error(error);
-      console.error(error.name);
-      console.error(error.message);
-      return {
-        success: false,
-        errorMessage: error.code,
       };
     }
   }
@@ -905,8 +888,6 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
     finishEmailLinkSignIn: (): Promise<SimpleAuthResult> => Promise.resolve({ success: true }),
     setAccountPassword: () => Promise.resolve({ success: true as const }),
     logout: (): Promise<LogoutResult> => Promise.resolve({ success: true }),
-    resetPassword: (): Promise<ResetPasswordResult> =>
-      Promise.resolve({ success: true }),
     checkEmailStatus: (): Promise<CheckEmailStatusResult> =>
       Promise.resolve({ hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: false }),
   } as Partial<FirebaseStateService> as FirebaseStateService;

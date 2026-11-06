@@ -31,12 +31,11 @@ import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
 import {
   googleSignInErrorMessage,
   isPasswordResettable,
-  passwordResetErrorMessage,
   signInErrorMessage,
   emailLinkErrorMessage,
   PASSWORD_NOT_TRUSTED_MESSAGE,
 } from './auth-error-messages';
-import { AuthBlockReason, MIN_PASSWORD_LENGTH } from '../../../functions/src/data-model/auth';
+import { AuthBlockReason } from '../../../functions/src/data-model/auth';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { environment } from '../../environments/environment';
@@ -45,6 +44,15 @@ import { isValidEmail, normalizeEmail } from '../../../functions/src/data-model/
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns } from '../app.config';
 import { SignInFlowService } from './sign-in-flow.service';
+import { PasswordSetupComponent } from './password-setup.component';
+import {
+  LoginMethod,
+  RememberedLogin,
+  forgetLegacyLoginCache,
+  forgetRememberedLogin,
+  readRememberedLogin,
+  writeRememberedLogin,
+} from './remembered-login';
 
 export enum InlineAuthStep {
   Email = 'email',
@@ -61,80 +69,16 @@ export enum InlineAuthStep {
   NoMember = 'no-member',
 }
 
-export type LoginMethod = 'password' | 'google' | 'emailLink';
-const LOGIN_METHODS: readonly string[] = ['password', 'google', 'emailLink'];
-
-/**
- * A sign-in this browser has actually completed before.
- *
- * Written only after authentication succeeds, so every field records something
- * observed rather than assumed. (An earlier version cached the email as soon as
- * it was typed, which pinned typos forever and let a signed-out browser show
- * the previous person's address.)
- */
-export type RememberedLogin = {
-  email: string;
-  /** The provider that actually worked last time. */
-  method: LoginMethod;
-  /** Whether Google sign-in was available for this email when last checked. */
-  canUseGoogle: boolean;
-};
-
-export const REMEMBERED_LOGIN_KEY = 'ilc-remembered-login';
-
-/** The pre-authentication cache this replaced; removed wherever it lingers. */
-const LEGACY_LOGIN_KEY = 'ilc-login-info';
-
-export function readRememberedLogin(): RememberedLogin | null {
-  try {
-    const raw = localStorage.getItem(REMEMBERED_LOGIN_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<RememberedLogin>;
-    // Anything not written by the current code is discarded rather than
-    // half-trusted; the cost is one extra email entry.
-    if (!parsed || typeof parsed.email !== 'string' || !parsed.email.trim()) {
-      return null;
-    }
-    if (!parsed.method || !LOGIN_METHODS.includes(parsed.method)) return null;
-    return {
-      email: parsed.email,
-      method: parsed.method as LoginMethod,
-      canUseGoogle: parsed.canUseGoogle === true,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function writeRememberedLogin(info: RememberedLogin): void {
-  try {
-    localStorage.setItem(REMEMBERED_LOGIN_KEY, JSON.stringify(info));
-  } catch {
-    // localStorage may be unavailable or full; remembering is best-effort.
-  }
-}
-
-export function forgetRememberedLogin(): void {
-  try {
-    localStorage.removeItem(REMEMBERED_LOGIN_KEY);
-  } catch {
-    // ignore
-  }
-}
-
-/** One-time cleanup of the cache this replaced. */
-export function forgetLegacyLoginCache(): void {
-  try {
-    localStorage.removeItem(LEGACY_LOGIN_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 @Component({
   selector: 'app-inline-auth',
   standalone: true,
-  imports: [FormsModule, NgTemplateOutlet, IconComponent, SpinnerComponent],
+  imports: [
+    FormsModule,
+    NgTemplateOutlet,
+    IconComponent,
+    SpinnerComponent,
+    PasswordSetupComponent,
+  ],
   templateUrl: './inline-auth.component.html',
   styleUrl: './inline-auth.component.scss',
 })
@@ -160,7 +104,6 @@ export class InlineAuthComponent implements OnInit {
 
   InlineAuthStep = InlineAuthStep;
   LoginStatus = LoginStatus;
-  minPasswordLength = MIN_PASSWORD_LENGTH;
   adminEmail = environment.adminEmail;
 
   // Flow state
@@ -244,14 +187,8 @@ export class InlineAuthComponent implements OnInit {
    */
   highlightEmailLink = signal<boolean>(false);
 
-  // Optional password setup offered right after an email-link sign-in.
-  newPassword = signal<string>('');
-  passwordSaving = signal<boolean>(false);
-  passwordSetupError = signal<string | null>(null);
-  passwordSaved = signal<boolean>(false);
   resetPasswordError = signal<string | null>(null);
-  resetPasswordSuccess = signal<string | null>(null);
-  /** True while a reset email is being requested, so the link can say so. */
+  /** True while a reset sign-in link is being requested, so the link can say so. */
   resetPasswordSending = signal<boolean>(false);
   /**
    * Whether the failure the user just hit is one a password reset would fix.
@@ -273,6 +210,24 @@ export class InlineAuthComponent implements OnInit {
   hasKnownAuthAccount = computed(
     () => this.emailStatus()?.hasAuthAccount ?? this.remembered() !== null,
   );
+
+  /**
+   * Whether the account is known to have a usable password (as opposed to a
+   * Google-only or email-link-only account, which should fall back to an email
+   * sign-in link rather than a password prompt).
+   */
+  canUsePassword = computed(() => {
+    const status = this.emailStatus();
+    if (status) {
+      return (
+        status.hasAuthAccount &&
+        status.hasPasswordProvider !== false &&
+        status.emailVerified !== false
+      );
+    }
+    const rem = this.remembered();
+    return rem !== null && rem.method !== 'emailLink';
+  });
 
   /**
    * Whether the lookup found a membership record for this email but no login
@@ -419,6 +374,11 @@ export class InlineAuthComponent implements OnInit {
       // proves the email, which is exactly what the sign-in link does.
       if (result.emailVerified === false) return InlineAuthStep.EmailLink;
       if (result.hasPasswordProvider) return InlineAuthStep.PasswordLogin;
+      if (result.hasPasswordProvider === false) {
+        return result.isGoogleManaged
+          ? InlineAuthStep.GoogleSignin
+          : InlineAuthStep.EmailLink;
+      }
       return result.isGoogleManaged
         ? InlineAuthStep.GoogleSignin
         : InlineAuthStep.PasswordLogin;
@@ -503,8 +463,10 @@ export class InlineAuthComponent implements OnInit {
         this.rememberSuccessfulLogin(pendingCredential ? 'google' : 'password');
         this.pendingGoogleCredential.set(null);
       } else if (result.blockReason === AuthBlockReason.PasswordNotTrusted) {
-        // The password is right but can't be used until the email is proven;
-        // a reset wouldn't help, an email link does.
+        // The password can't be used until the email is proven and a trusted
+        // password is saved; clear any stale remembered password route and
+        // highlight the email sign-in link.
+        forgetRememberedLogin();
         this.loginError.set(PASSWORD_NOT_TRUSTED_MESSAGE);
         this.highlightEmailLink.set(true);
       } else {
@@ -575,32 +537,14 @@ export class InlineAuthComponent implements OnInit {
     }
   }
 
-  /** Save the password chosen right after an email-link sign-in. */
-  async savePassword(): Promise<void> {
-    const password = this.newPassword();
-    if (password.length < MIN_PASSWORD_LENGTH) return;
-    this.passwordSetupError.set(null);
-    this.passwordSaving.set(true);
-    try {
-      const result = await this.firebaseService.setAccountPassword(password);
-      if (result.success) {
-        this.newPassword.set('');
-        this.passwordSaved.set(true);
-        this.rememberSuccessfulLogin('password');
-      } else {
-        this.passwordSetupError.set(result.message);
-      }
-    } finally {
-      this.passwordSaving.set(false);
-    }
-  }
-
-  skipPasswordSetup(): void {
-    this.newPassword.set('');
-    this.passwordSetupError.set(null);
-    this.firebaseService.offerPasswordSetup.set(false);
-  }
-
+  /**
+   * "Forgotten your password?" sends a sign-in link rather than Firebase's
+   * hosted password-reset email: Firebase's hosted reset page updates
+   * passwordHash directly without granting `passwordTrusted`, which would leave
+   * the new password blocked by `beforeSignIn`. Clicking a sign-in link proves
+   * the email, signs the user in immediately, and offers setting a new trusted
+   * password via `setAccountPassword`.
+   */
   async resetPassword(): Promise<void> {
     this.dismissMessages();
     const emailVal = this.email().trim();
@@ -610,15 +554,12 @@ export class InlineAuthComponent implements OnInit {
     }
     this.resetPasswordSending.set(true);
     try {
-      const result = await this.firebaseService.resetPassword(emailVal);
+      const result = await this.firebaseService.sendSignInLink(normalizeEmail(emailVal));
       if (result.success) {
-        this.resetPasswordSuccess.set(
-          `A password reset link has been sent to ${emailVal} from ` +
-          `${environment.passwordResetEmailSender}. It can take a minute to ` +
-          `arrive — please check your spam folder too.`,
-        );
+        this.linkSentTo.set(emailVal);
+        this.step.set(InlineAuthStep.LinkSent);
       } else {
-        this.resetPasswordError.set(passwordResetErrorMessage(result.errorMessage));
+        this.resetPasswordError.set(emailLinkErrorMessage(result.errorCode));
       }
     } finally {
       this.resetPasswordSending.set(false);
@@ -628,7 +569,7 @@ export class InlineAuthComponent implements OnInit {
   usePasswordInstead(): void {
     this.dismissMessages();
     this.step.set(
-      this.hasKnownAuthAccount()
+      this.canUsePassword()
         ? InlineAuthStep.PasswordLogin
         : InlineAuthStep.EmailLink,
     );
@@ -676,7 +617,6 @@ export class InlineAuthComponent implements OnInit {
     this.remembered.set(null);
     this.signInFlow.clear();
     this.step.set(InlineAuthStep.Email);
-    this.passwordSaved.set(false);
     this.dismissMessages();
     forgetRememberedLogin();
   }
@@ -689,7 +629,6 @@ export class InlineAuthComponent implements OnInit {
     this.emailLinkError.set(null);
     this.highlightEmailLink.set(false);
     this.resetPasswordError.set(null);
-    this.resetPasswordSuccess.set(null);
     this.firebaseService.loginError.set(null);
   }
 }

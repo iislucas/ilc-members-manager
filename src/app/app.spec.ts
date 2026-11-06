@@ -668,5 +668,38 @@ describe('App', () => {
       expect(compiled.querySelector('app-action-queue-dialog')).toBeTruthy();
     });
   });
+
+  describe('Post-email-link password setup prompt', () => {
+    it('renders top-level #password-setup on Home after email-link sign-in, and avoids duplicating it on views with InlineAuth', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+
+      firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
+      firebaseStateServiceMock.user!.set({
+        member: {
+          membershipType: 'Life',
+          name: 'Test Member',
+          emails: ['member@example.com'],
+          dateOfBirth: '2000-01-01',
+          country: 'Testland',
+        },
+        firebaseUser: { email: 'member@example.com', photoURL: null },
+      } as unknown as UserDetails);
+      firebaseStateServiceMock.offerPasswordSetup!.set(true);
+
+      app.routingService.matchedPatternId.set(Views.Home);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('main > app-password-setup #password-setup')).not.toBeNull();
+
+      app.routingService.matchedPatternId.set(Views.BecomeAMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(compiled.querySelector('main > app-password-setup')).toBeNull();
+    });
+  });
 });
 

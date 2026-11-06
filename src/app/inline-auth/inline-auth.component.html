@@ -23,19 +23,17 @@
   >
     Forgotten your password?
     <button
+      type="button"
       id="reset-password-btn"
       class="inline-link-button"
       [disabled]="resetPasswordSending()"
       (click)="resetPassword()"
     >
       {{
-        resetPasswordSending() ? "Sending…" : "Email me a password reset link"
+        resetPasswordSending() ? "Sending…" : "Email me a sign-in link to reset it"
       }}</button
     >.
   </p>
-  @if (resetPasswordSuccess(); as message) {
-    <div class="success-message">{{ message }}</div>
-  }
   @if (resetPasswordError(); as message) {
     <div class="error-container">
       <span class="error-message">{{ message }}</span>
@@ -153,75 +151,7 @@
       <span>Log Out</span>
     </button>
   </div>
-  @if (firebaseService.offerPasswordSetup()) {
-    <!-- Right after an email-link sign-in: the email is proven, so this is
-         the moment a password can safely be chosen. -->
-    <div class="password-setup-box" id="password-setup">
-      <p class="step-guidance">
-        <strong>Your email is confirmed.</strong> Choose a password if you'd
-        like to sign in without an email link next time (optional, minimum
-        {{ minPasswordLength }} characters).
-      </p>
-      <div class="input-field">
-        <label for="setup-password-input">New password</label>
-        <div class="password-input-row">
-          <input
-            id="setup-password-input"
-            autocomplete="new-password"
-            [type]="showPassword() ? 'text' : 'password'"
-            name="new-password"
-            [ngModel]="newPassword()"
-            (ngModelChange)="newPassword.set($event)"
-            (keyup.enter)="savePassword()"
-            [disabled]="passwordSaving()"
-            placeholder="Choose a password"
-          />
-          <button
-            class="icon-only-button"
-            type="button"
-            (click)="showPassword.set(!showPassword())"
-            [title]="showPassword() ? 'Hide password' : 'Show password'"
-          >
-            <app-icon
-              [name]="showPassword() ? 'visibility_off' : 'visibility'"
-            ></app-icon>
-          </button>
-        </div>
-      </div>
-      @if (passwordSetupError(); as message) {
-        <div class="error-container">
-          <span class="error-message">{{ message }}</span>
-        </div>
-      }
-      @if (passwordSaving()) {
-        <div class="spinner-row">
-          <app-spinner>Saving your password…</app-spinner>
-        </div>
-      } @else {
-        <div class="step-actions">
-          <button
-            id="save-password-btn"
-            (click)="savePassword()"
-            [disabled]="newPassword().length < minPasswordLength"
-          >
-            Save password
-          </button>
-          <button
-            type="button"
-            id="skip-password-btn"
-            class="secondary-action"
-            (click)="skipPasswordSetup()"
-          >
-            Not now
-          </button>
-        </div>
-      }
-    </div>
-  } @else if (passwordSaved()) {
-    <div class="success-message" id="password-saved">
-      Your password is saved. Next time you can sign in with it.
-    </div>
-  }
+  <app-password-setup />
   <ng-content></ng-content>
 } @else if (isNeedsVerification()) {
   <div class="verification-box">
@@ -283,6 +213,7 @@
           autocomplete="email"
           type="email"
           name="email"
+          required
           [ngModel]="email()"
           (ngModelChange)="onEmailChange($event)"
           (keyup.enter)="finishEmailLinkSignIn()"
@@ -319,6 +250,7 @@
             autocomplete="email"
             type="email"
             name="email"
+            required
             [ngModel]="email()"
             (ngModelChange)="onEmailChange($event)"
             (keyup.enter)="checkEmail()"
@@ -403,14 +335,14 @@
                 }}
               </button>
               <!-- Email is always a route from here: a password if the account
-                   has one, otherwise a sign-in link. -->
+                   actually has a trusted one, otherwise a sign-in link. -->
               <button
                 type="button"
                 id="use-password-btn"
                 class="secondary-action"
                 (click)="usePasswordInstead()"
               >
-                {{ hasKnownAuthAccount() ? "Use a password" : "Use email instead" }}
+                {{ canUsePassword() ? "Use a password" : "Use email instead" }}
               </button>
             </div>
           }
@@ -439,6 +371,7 @@
               autocomplete="current-password"
               [type]="showPassword() ? 'text' : 'password'"
               name="password"
+              required
               [ngModel]="password()"
               (ngModelChange)="password.set($event)"
               (keyup.enter)="loginWithEmail()"
@@ -449,6 +382,7 @@
               class="icon-only-button"
               type="button"
               (click)="showPassword.set(!showPassword())"
+              [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
               [title]="showPassword() ? 'Hide password' : 'Show password'"
             >
               <app-icon

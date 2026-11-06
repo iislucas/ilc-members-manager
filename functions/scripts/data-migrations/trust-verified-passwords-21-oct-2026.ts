@@ -45,7 +45,9 @@ async function main() {
     const page = await admin.auth().listUsers(1000, pageToken);
     for (const user of page.users) {
       total++;
-      const hasPassword = user.providerData.some((p) => p.providerId === 'password');
+      // Check passwordHash (populated by listUsers) rather than providerData:
+      // Firebase Auth also lists providerId 'password' on passwordless emailLink accounts.
+      const hasPassword = !!user.passwordHash;
       if (!hasPassword) continue;
       if (!user.emailVerified) {
         skippedUnverified++;

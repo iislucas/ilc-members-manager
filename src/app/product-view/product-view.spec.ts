@@ -270,7 +270,6 @@ describe('ProductViewComponent', () => {
     signInWithEmailAndPassword: vi.fn(),
     signInWithGoogle: vi.fn(),
     createUserWithEmailAndPassword: vi.fn(),
-    sendPasswordResetEmail: vi.fn(),
     sendEmailVerification: vi.fn(),
     user: signal<unknown>({
       email: 'member@example.com',

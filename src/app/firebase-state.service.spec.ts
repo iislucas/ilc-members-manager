@@ -10,6 +10,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { FIREBASE_APP } from './app.config';
 import { deleteApp, FirebaseApp, initializeApp } from 'firebase/app';
 import { IdbStorageService } from './idb-storage.service';
+import { REMEMBERED_LOGIN_KEY } from './inline-auth/remembered-login';
 
 describe('FirebaseStateService', () => {
   let service: FirebaseStateService;
@@ -161,5 +162,20 @@ describe('FirebaseStateService', () => {
     service.loginStatus.set(LoginStatus.SignedIn);
     service.cancelPendingLogin();
     expect(service.loginStatus()).toBe(LoginStatus.SignedIn);
+  });
+
+  it('clears offerPasswordSetup, completedEmailLinkSignIn, and remembered login on logout', async () => {
+    service.offerPasswordSetup.set(true);
+    service.completedEmailLinkSignIn.set('test@example.com');
+    localStorage.setItem(
+      REMEMBERED_LOGIN_KEY,
+      JSON.stringify({ email: 'test@example.com', method: 'emailLink', canUseGoogle: false }),
+    );
+
+    await service.logout();
+
+    expect(service.offerPasswordSetup()).toBe(false);
+    expect(service.completedEmailLinkSignIn()).toBeNull();
+    expect(localStorage.getItem(REMEMBERED_LOGIN_KEY)).toBeNull();
   });
 });

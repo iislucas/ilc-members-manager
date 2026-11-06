@@ -7,6 +7,7 @@ import {
   checkEmailStatusHandler,
   isCheckEmailRateLimited,
 } from './check-email-status';
+import { TRUSTED_PASSWORD_CLAIM } from './data-model/auth';
 import { CallableRequest } from 'firebase-functions/v2/https';
 import { InMemoryFirestore } from './testing/in-memory-firestore';
 
@@ -114,8 +115,8 @@ describe('check-email-status', () => {
       vi.spyOn(admin, 'auth').mockReturnValue({
         getUserByEmail: vi.fn().mockResolvedValue({
           providerData: [{ providerId: 'password' }],
-          passwordHash: 'hashed',
           emailVerified: true,
+          customClaims: { [TRUSTED_PASSWORD_CLAIM]: true },
         }),
       } as any);
 
@@ -131,6 +132,28 @@ describe('check-email-status', () => {
       expect(res.hasGoogleProvider).toBe(false);
       expect(res.isGoogleManaged).toBe(true); // From MX record!
       expect(res.emailVerified).toBe(true);
+    });
+
+    it('reports hasPasswordProvider false for email-link or untrusted password accounts lacking passwordTrusted', async () => {
+      vi.spyOn(dns.promises, 'resolveMx').mockResolvedValue([]);
+      vi.spyOn(admin, 'firestore').mockReturnValue(new InMemoryFirestore().asFirestore());
+      vi.spyOn(admin, 'auth').mockReturnValue({
+        getUserByEmail: vi.fn().mockResolvedValue({
+          // Firebase Auth sets providerId: 'password' even for passwordless emailLink sign-ins
+          providerData: [{ providerId: 'password' }],
+          emailVerified: true,
+          customClaims: {},
+        }),
+      } as any);
+
+      const res = await checkEmailStatusHandler({
+        data: { email: 'emaillink@example.com' },
+        rawRequest: { ip: '10.0.0.6' },
+      } as CallableRequest<{ email: string }>);
+
+      expect(res.hasAuthAccount).toBe(true);
+      expect(res.emailVerified).toBe(true);
+      expect(res.hasPasswordProvider).toBe(false);
     });
 
     it('sets isGoogleManaged to true if user has google provider even if domain is not google', async () => {

@@ -78,7 +78,19 @@ import { AppUpdateService } from './app-update.service';
 import { UpdateNotificationComponent } from './update-notification/update-notification.component';
 import { ActionQueueDialogComponent } from './action-queue-dialog/action-queue-dialog.component';
 import { ActionQueueService } from './action-queue.service';
+import { PasswordSetupComponent } from './inline-auth/password-setup.component';
 import { environment } from '../environments/environment';
+
+/** Public views that already embed `<app-inline-auth>` (and therefore render its password setup box inline). */
+const VIEWS_WITH_INLINE_AUTH: ReadonlySet<Views> = new Set([
+  Views.BecomeAMember,
+  Views.NextGrading,
+  Views.InstructorLicensePurchase,
+  Views.SchoolLicensePurchase,
+  Views.ClassVideoLibraryPurchase,
+  Views.EventRegister,
+  Views.EventView,
+]);
 
 @Component({
   selector: 'app-root',
@@ -152,6 +164,7 @@ import { environment } from '../environments/environment';
     EventRegistrationViewComponent,
     UpdateNotificationComponent,
     ActionQueueDialogComponent,
+    PasswordSetupComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -175,6 +188,11 @@ export class App {
   public isPublicPage = computed(() => {
     const view = this.currentView();
     return !!view && PUBLIC_VIEWS.has(view);
+  });
+
+  public viewHasInlineAuth = computed(() => {
+    const view = this.currentView();
+    return !!view && VIEWS_WITH_INLINE_AUTH.has(view);
   });
 
   public isLoginPage = computed(() => {

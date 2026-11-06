@@ -13,8 +13,7 @@
   width: 100%;
 }
 
-.verification-box,
-.password-setup-box {
+.verification-box {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -292,16 +291,6 @@
     color: $text-primary;
     font-weight: 600;
   }
-}
-
-.success-message {
-  color: #2e7d32;
-  background-color: #e8f5e9;
-  border: 1px solid #a5d6a7;
-  border-radius: 4px;
-  padding: 0.5em 0.75em;
-  font-size: 0.9em;
-  max-width: 400px;
 }
 
 .global-error {
