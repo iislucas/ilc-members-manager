@@ -87,11 +87,29 @@
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
   }
 
+  &.draft-only-card {
+    border-style: dashed;
+    background: rgba(0, 0, 0, 0.02);
+  }
+
   .product-card-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.75em;
+
+    .product-card-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35em;
+      min-width: 0;
+    }
+
+    .card-status-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35em;
+    }
 
     h3 {
       margin: 0;
@@ -106,6 +124,7 @@
       font-size: 0.75em;
       font-weight: bold;
       color: v.$text-muted;
+      flex-shrink: 0;
     }
   }
 
@@ -154,11 +173,30 @@
     }
   }
 
+  .card-discard-confirm {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    padding-top: 0.75em;
+    border-top: 1px dashed v.$border-color-light;
+    font-size: 0.85em;
+    color: v.$text-primary;
+
+    .card-discard-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+    }
+  }
+
   .product-card-footer {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.75em;
+    flex-wrap: wrap;
+    gap: 0.6em;
     padding-top: 0.75em;
     border-top: 1px solid v.$border-color-light;
 
@@ -181,13 +219,14 @@
       }
 
       &.primary-action {
-        background: #18181b;
-        border-color: #18181b;
+        background: v.$heading-accent-color;
+        border-color: v.$heading-accent-color;
         color: #ffffff;
         font-weight: 600;
 
         &:hover {
-          background: #27272a;
+          background: #7a0000;
+          border-color: #7a0000;
         }
       }
     }

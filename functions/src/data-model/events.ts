@@ -1,4 +1,5 @@
 import { GenericFsDoc, normalizeLastUpdated } from './base';
+import { normalizeEmail } from './email';
 import {
   applyDiscount,
   buildEarlyBirdDiscountsFromOptionMap,
@@ -1099,6 +1100,126 @@ export function firestoreDocToProduct(doc: GenericFsDoc): Product {
   };
 
   return syncProductSummaryFlagsFromRules(product);
+}
+
+// ------------------------------------------------------------------
+// Event Registration Setup Drafts (/product_drafts/{draftId})
+// ------------------------------------------------------------------
+
+export enum DraftSyncStatus {
+  Clean = 'clean',
+  SavingLocal = 'saving_local',
+  SavedLocal = 'saved_local',
+  SavingCloud = 'saving_cloud',
+  SavedCloud = 'saved_cloud',
+  ConflictWithLive = 'conflict_with_live',
+  Error = 'error',
+}
+
+export type ProductDraft = {
+  docId: string; // Deterministic draftId ('event_<eventDocId>' | 'product_<productId>' | 'standalone_new')
+  eventDocId: string; // Linked IlcEvent docId ('' if standalone)
+  productDocId: string; // Linked live Product docId ('' if not yet published)
+  baseProductLastUpdated: string; // Live Product.lastUpdated when draft branched ('' if unpublished)
+  draftProduct: Product; // Full normalized Product WIP snapshot
+  updatedByEmail: string; // Normalized lowercase email of editing admin
+  updatedByName: string; // Display name of editing admin
+  clientSavedAt: string; // Client ISO timestamp for local-vs-cloud recency comparison
+  createdAt: string; // ISO timestamp when draft was started
+  lastUpdated: string; // Normalized ISO timestamp (from Firestore serverTimestamp on read)
+};
+
+// Derives a deterministic draft key shared across local IndexedDB and /product_drafts/{draftId}.
+export function productDraftIdFor(params: {
+  eventDocId?: string;
+  productDocId?: string;
+}): string {
+  const eventDocId = (params.eventDocId ?? '').trim();
+  if (eventDocId) {
+    return `event_${eventDocId}`;
+  }
+  const productDocId = (params.productDocId ?? '').trim();
+  if (productDocId) {
+    return `product_${productDocId}`;
+  }
+  return 'standalone_new';
+}
+
+export function initProductDraft(overrides: Partial<ProductDraft> = {}): ProductDraft {
+  const nowIso = new Date().toISOString();
+  const eventDocId = overrides.eventDocId ?? overrides.draftProduct?.eventDocId ?? '';
+  const productDocId = overrides.productDocId ?? overrides.draftProduct?.docId ?? '';
+  const docId =
+    overrides.docId || productDraftIdFor({ eventDocId, productDocId });
+  const baseDraftProduct = overrides.draftProduct ?? initProduct();
+  return {
+    docId,
+    eventDocId,
+    productDocId,
+    baseProductLastUpdated: overrides.baseProductLastUpdated ?? '',
+    draftProduct: {
+      ...baseDraftProduct,
+      docId: productDocId,
+      eventDocId: baseDraftProduct.eventDocId || eventDocId,
+    },
+    updatedByEmail: normalizeEmail(overrides.updatedByEmail),
+    updatedByName: overrides.updatedByName ?? '',
+    clientSavedAt: overrides.clientSavedAt ?? nowIso,
+    createdAt: overrides.createdAt ?? nowIso,
+    lastUpdated: overrides.lastUpdated ?? nowIso,
+  };
+}
+
+export function firestoreDocToProductDraft(doc: GenericFsDoc): ProductDraft {
+  const data = (doc.data() as Record<string, unknown>) || {};
+  const defaults = initProductDraft({ docId: doc.id });
+  const eventDocId =
+    typeof data['eventDocId'] === 'string' ? data['eventDocId'] : defaults.eventDocId;
+  const productDocId =
+    typeof data['productDocId'] === 'string' ? data['productDocId'] : defaults.productDocId;
+  const rawDraftProduct =
+    data['draftProduct'] && typeof data['draftProduct'] === 'object'
+      ? (data['draftProduct'] as Record<string, unknown>)
+      : {};
+  const normalizedProduct = firestoreDocToProduct({
+    id: productDocId,
+    data: () => ({
+      ...rawDraftProduct,
+      eventDocId:
+        typeof rawDraftProduct['eventDocId'] === 'string' && rawDraftProduct['eventDocId']
+          ? rawDraftProduct['eventDocId']
+          : eventDocId,
+    }),
+  });
+  const clientSavedAt =
+    typeof data['clientSavedAt'] === 'string' && data['clientSavedAt']
+      ? data['clientSavedAt']
+      : defaults.clientSavedAt;
+  const lastUpdated = data['lastUpdated']
+    ? normalizeLastUpdated(data['lastUpdated'])
+    : clientSavedAt;
+
+  return {
+    docId: doc.id || productDraftIdFor({ eventDocId, productDocId }),
+    eventDocId,
+    productDocId,
+    baseProductLastUpdated:
+      typeof data['baseProductLastUpdated'] === 'string'
+        ? data['baseProductLastUpdated']
+        : '',
+    draftProduct: normalizedProduct,
+    updatedByEmail: normalizeEmail(
+      typeof data['updatedByEmail'] === 'string' ? data['updatedByEmail'] : '',
+    ),
+    updatedByName:
+      typeof data['updatedByName'] === 'string' ? data['updatedByName'] : '',
+    clientSavedAt,
+    createdAt:
+      typeof data['createdAt'] === 'string' && data['createdAt']
+        ? data['createdAt']
+        : clientSavedAt,
+    lastUpdated,
+  };
 }
 
 // ------------------------------------------------------------------

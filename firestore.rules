@@ -362,6 +362,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Work-in-progress event registration & pricing drafts (ProductDraft).
+    // Stored separately from publicly-readable /products/{productId} so unpublished
+    // pricing and private attendee instructions (e.g. Zoom links/passwords in
+    // purchaseDetailsMarkdown / inPersonDetailsMarkdown) remain strictly restricted
+    // to verified HQ admins until explicitly published.
+    match /product_drafts/{draftId} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin() && request.resource.data.lastUpdated == request.time;
+    }
+
     // Cached calendar events — publicly readable as events are public.
     // Owner/manager access uses the ACL's memberDocIds rather than
     // redundant email arrays on the event document.

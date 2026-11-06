@@ -20,7 +20,7 @@
 
   @if (isLoading()) {
     <app-spinner>Loading registration setups...</app-spinner>
-  } @else if (filteredProducts().length === 0) {
+  } @else if (filteredItems().length === 0) {
     <div class="empty-state">
       <app-icon name="inventory_2"></app-icon>
       <h3>No registration setups found</h3>
@@ -28,10 +28,20 @@
     </div>
   } @else {
     <div class="products-grid">
-      @for (product of filteredProducts(); track product.docId) {
-        <div class="product-card">
+      @for (item of filteredItems(); track item.key) {
+        @let product = item.product;
+        <div class="product-card" [class.draft-only-card]="item.isDraftOnly">
           <div class="product-card-header">
-            <h3>{{ product.title }}</h3>
+            <div class="product-card-title-group">
+              <h3>{{ product.title || 'Untitled Registration Setup' }}</h3>
+              <div class="card-status-chips">
+                @if (item.isDraftOnly) {
+                  <span class="listing-chip unlisted">Draft — Not Live</span>
+                } @else if (item.draft) {
+                  <span class="identifier-chip">Unpublished Draft</span>
+                }
+              </div>
+            </div>
             <span class="currency-tag">{{ (product.currency || 'usd').toUpperCase() }}</span>
           </div>
 
@@ -50,7 +60,7 @@
             </div>
 
             <div class="info-row">
-              <span class="info-label">Pricing:</span>
+              <span class="info-label">{{ item.isDraftOnly ? 'Draft Pricing:' : 'Pricing:' }}</span>
               <span class="info-value">{{ getPriceRange(product) }}</span>
             </div>
 
@@ -80,19 +90,57 @@
             </div>
           </div>
 
+          @if (item.draft && confirmingDiscardDraftId() === item.draft.docId) {
+            <div class="card-discard-confirm" role="region" aria-label="Confirm discard draft">
+              <span>{{
+                item.isDraftOnly
+                  ? 'Discard this unpublished setup draft?'
+                  : 'Discard unpublished draft edits?'
+              }}</span>
+              <div class="card-discard-actions">
+                <button
+                  type="button"
+                  class="confirm-danger-btn"
+                  (click)="confirmDiscardDraft(item.draft.docId)"
+                >
+                  <span>Confirm Discard</span>
+                </button>
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="cancelDiscardDraft()"
+                >
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </div>
+          }
+
           <div class="product-card-footer">
             @if (product.eventDocId) {
-              <a class="card-action-btn"
-                 [href]="routingService.hrefForView(Views.EventRegister, { eventId: product.eventDocId })"
-                 title="View Public Registration Page">
-                <app-icon name="visibility"></app-icon>
-                <span>View Page</span>
-              </a>
+              @if (item.draft) {
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="requestDiscardDraft(item.draft.docId)"
+                >
+                  <app-icon name="undo"></app-icon>
+                  <span>Discard Draft</span>
+                </button>
+              }
+              @if (!item.isDraftOnly) {
+                <a class="card-action-btn"
+                   [href]="routingService.hrefForView(Views.EventRegister, { eventId: product.eventDocId })"
+                   title="View Public Registration Page">
+                  <app-icon name="visibility"></app-icon>
+                  <span>View Page</span>
+                </a>
+              }
               <a class="card-action-btn primary-action"
                  [href]="routingService.hrefForView(Views.ManageEventRegistrationsEdit, { eventId: product.eventDocId })"
-                 title="Edit Pricing & Configuration">
+                 [title]="item.draft ? 'Resume Draft Configuration' : 'Edit Pricing & Configuration'">
                 <app-icon name="edit"></app-icon>
-                <span>Edit</span>
+                <span>{{ item.draft ? 'Resume Draft' : 'Edit' }}</span>
               </a>
             } @else {
               <span class="text-muted">No linked event</span>

@@ -7,7 +7,8 @@ import { EventEditComponent } from './event-edit';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';
-import { IlcEvent, EventStatus, initProduct } from '../../../functions/src/data-model/events';
+import { IlcEvent, EventStatus, initProduct, initProductDraft } from '../../../functions/src/data-model/events';
+import { ProductDraftService } from '../product-draft.service';
 import { updateDoc } from 'firebase/firestore';
 import { SearchableSet } from '../searchable-set';
 import { provideNavigationTreeStub } from '../navigation-tree.testing';
@@ -914,5 +915,102 @@ describe('EventEditComponent', () => {
     component.onNavigateToRegistrationSetup(clickEvent);
     expect(clickEvent.defaultPrevented).toBe(false);
     expect(component.showUnsavedRegistrationPrompt()).toBe(false);
+  });
+
+  it('renders Draft — Not Live card and supports inline discard when an unpublished registration draft exists', async () => {
+    mockFirebaseState.user.set({
+      firebaseUser: { uid: 'admin-uid-1', email: 'admin@example.com' } as never,
+      member: { docId: 'admin-doc-id', name: 'Admin User', memberId: 'ADM-1' } as never,
+      isAdmin: true,
+      memberProfiles: [],
+      schoolsManaged: [],
+    });
+
+    const draftService = TestBed.inject(ProductDraftService);
+    const draftProduct = initProduct();
+    draftProduct.eventDocId = 'ev-draft-only';
+    draftProduct.title = 'Spring Push Hands Draft';
+    const draft = initProductDraft({
+      docId: 'event_ev-draft-only',
+      eventDocId: 'ev-draft-only',
+      productDocId: '',
+      draftProduct,
+      updatedByEmail: 'admin@example.com',
+      updatedByName: 'Admin User',
+      clientSavedAt: '2026-06-05T10:15:00.000Z',
+    });
+
+    vi.spyOn(draftService, 'getDraftForEvent').mockResolvedValue(draft);
+    const deleteSpy = vi.spyOn(draftService, 'deleteDraftEverywhere').mockResolvedValue(undefined);
+
+    await renderEvent({
+      docId: 'ev-draft-only',
+      title: 'Spring Push Hands',
+      productId: '',
+    });
+    fixture.detectChanges();
+
+    const hostText = fixture.nativeElement.textContent as string;
+    expect(hostText).toContain('Spring Push Hands Draft');
+    expect(hostText).toContain('Draft — Not Live');
+    expect(hostText).toContain('Resume Registration Setup');
+
+    // Inline discard without window.confirm
+    component.requestDiscardRegistrationDraft();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Confirm Discard');
+
+    await component.confirmDiscardRegistrationDraft();
+    fixture.detectChanges();
+
+    expect(deleteSpy).toHaveBeenCalledWith('admin-uid-1', 'event_ev-draft-only');
+    expect(component.eventDraft()).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Set Up Online Registration');
+  });
+
+  it('shows Unpublished Draft badge alongside live registration setup when draft has pending edits', async () => {
+    mockFirebaseState.user.set({
+      firebaseUser: { uid: 'admin-uid-1', email: 'admin@example.com' } as never,
+      member: { docId: 'admin-doc-id', name: 'Admin User', memberId: 'ADM-1' } as never,
+      isAdmin: true,
+      memberProfiles: [],
+      schoolsManaged: [],
+    });
+
+    const liveProd = {
+      ...initProduct(),
+      docId: 'prod-live-2',
+      eventDocId: 'ev-with-draft',
+      title: 'Live Seminar',
+      lastUpdated: '2026-06-01T00:00:00.000Z',
+    };
+    mockProductService.getProduct.mockResolvedValue(liveProd);
+    mockProductService.getAllProducts.mockResolvedValue([liveProd]);
+
+    const draftProd = {
+      ...liveProd,
+      title: 'Live Seminar — Updated Title in Draft',
+    };
+    const draftService = TestBed.inject(ProductDraftService);
+    vi.spyOn(draftService, 'getDraftForEvent').mockResolvedValue(
+      initProductDraft({
+        docId: 'event_ev-with-draft',
+        eventDocId: 'ev-with-draft',
+        productDocId: 'prod-live-2',
+        baseProductLastUpdated: '2026-06-01T00:00:00.000Z',
+        draftProduct: draftProd,
+      }),
+    );
+
+    await renderEvent({
+      docId: 'ev-with-draft',
+      title: 'Live Seminar Event',
+      productId: 'prod-live-2',
+    });
+    fixture.detectChanges();
+
+    const hostText = fixture.nativeElement.textContent as string;
+    expect(hostText).toContain('Unpublished Draft');
+    expect(hostText).toContain('Resume Registration Draft');
   });
 });

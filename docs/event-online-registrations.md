@@ -194,6 +194,10 @@ Key fields supporting online registration and digital assets:
   - read: isPublic()
   - create / update / delete: isAdmin()
 
+/product_drafts/{draftId}
+  - read / delete: isAdmin()
+  - create / update: isAdmin() && request.resource.data.lastUpdated == request.time
+
 /events/{eventId}/registrations/{registrationId}
   - read: isAdmin() ||
           isEventOwnerOrManager(eventId) ||
@@ -332,3 +336,23 @@ Implemented in [`EventRegistrationViewComponent`](../src/app/event-registration-
 4. **Transactional Backend Updates (`adminUpdateEventRegistration`)**:
    - Verifies HQ Admin privilege via `verifiedAuthEmail` and `/acl/{email}.isAdmin === true`.
    - Transactionally updates `/events/{eventId}/registrations/{registrationId}`, reconciles `capacityCounts` and `inPersonRegistrationsCount` on `/events/{eventId}` and `/products/{productId}` (releasing spots when status becomes `Cancelled` or `Refunded`), syncs or removes `/members/{memberDocId}/registrations/{registrationId}` when the linked member changes, and provisions catalog VOD grants for active paid add-ons.
+
+### 5.8 Hybrid Registration Setup Drafts & Auto-Save
+
+Implemented across [`ProductDraftService`](../src/app/product-draft.service.ts), [`ProductEditComponent`](../src/app/product-edit/product-edit.ts), [`EventEditComponent`](../src/app/event-edit/event-edit.ts), and [`ManageProductsComponent`](../src/app/manage-products/manage-products.ts):
+
+1. **Isolation from Public `/products` & `/events`**:
+   - Work-in-progress edits (including partial pricing rules, unconfigured capacities, or incomplete delivery markdown) are never written to publicly readable `/products/{productId}` or `/events/{eventId}` until the admin explicitly clicks **Publish Setup** / **Publish Changes**.
+   - Draft documents use deterministic IDs (`event_{eventDocId}` when linked to an event, or `product_{productDocId}` for standalone setups) via `productDraftIdFor()`.
+2. **Two-Tier Local + Cloud Auto-Save**:
+   - **Local IndexedDB (`400ms` debounce + `visibilitychange` / `pagehide` flush)**: Saves immediately under `product_draft:${uid}:${draftId}` via [`IdbStorageService`](../src/app/idb-storage.service.ts). Preserved across [`IncrementalSyncService.clearAllCaches()`](../src/app/incremental-sync.service.ts) and purged for the signing-out UID during [`FirebaseStateService.logout()`](../src/app/firebase-state.service.ts).
+   - **Cloud Firestore (`10s` idle debounce + explicit `Save Draft`)**: Syncs to admin-only `/product_drafts/{draftId}` 10 seconds after the last edit (or immediately when clicking **Save Draft**) without running publish-time pricing rule validation. If offline, edits remain safely stored on device (`Saved on this device (offline)`) and auto-sync when connectivity returns.
+3. **Sticky Floating Status Header & Baseline Alignment**:
+   - [`ProductEditComponent`](../src/app/product-edit/product-edit.ts) renders a sticky floating status bar (`DraftSyncStatus`: `Clean`, `SavingLocal`, `SavedLocal`, `SavingCloud`, `SavedCloud`, `ConflictWithLive`, `Error`) above the form and coordinates sticky offset (`--markdown-sticky-top`) with nested [`MarkdownEditor`](../src/app/markdown-editor/markdown-editor.ts) toolbars via `ResizeObserver`.
+   - Initial Milkdown canonicalization (`(initialized)`) aligns `baselineProduct` without triggering phantom dirty drafts.
+4. **Conflict Detection & Live `capacityCounts` Protection**:
+   - Each `ProductDraft` records `baseProductLastUpdated` from the live `Product`. If another admin publishes changes to the live setup while a draft is open or saved, reopening surfaces `ConflictWithLive` with a field-level diff summary and actions to **Keep Editing Draft** (rebasing onto the new `lastUpdated`) or **Load Live & Discard Draft**.
+   - Both reconciliation (`mergeLiveCountersIntoProduct`) and final publishing fetch and overlay live `capacityCounts` and `inPersonRegistrationsCount` from `/products/{productId}`, ensuring multi-day draft editing never overwrites real-time attendee spot reservations.
+5. **Cross-Page Draft Visibility**:
+   - **Event Edit (`/manage-events/:id/edit`)**: Displays an **Unpublished Draft** badge + **Resume Registration Draft** when editing a live setup with pending draft changes, or a **Draft — Not Live** card (**Resume Registration Setup** / inline **Discard Draft**) when registration setup was started for an event that has not yet been published.
+   - **Event Registration Setups Catalogue (`/manage-event-registrations`)**: Lists unpublished **Draft — Not Live** setups alongside live products (with **Unpublished Draft** chips and inline discard confirmation).

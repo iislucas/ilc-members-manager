@@ -23,6 +23,8 @@ import {
 import { FIREBASE_APP } from './app.config';
 import { GenericFsDoc } from '../../functions/src/data-model/base';
 import { IdbStorageService } from './idb-storage.service';
+import { ACTION_QUEUE_STORAGE_KEY } from './action-queue.service';
+import { LOCAL_DRAFT_KEY_PREFIX } from './product-draft.service';
 import { SearchableSet } from './searchable-set';
 
 // Version of what cached entries look like. Cached entries are stored
@@ -484,11 +486,17 @@ export class IncrementalSyncService {
     await this.idb.delete(cacheKey);
   }
 
-  /**
-   * Clears all cached collections.
-   */
+  // Clears all cached collections while preserving unsaved local drafts and offline queued actions.
   async clearAllCaches(): Promise<void> {
-    await this.idb.clear();
+    const keys = await this.idb.keys();
+    await Promise.all(
+      keys
+        .filter(
+          (key) =>
+            !key.startsWith(LOCAL_DRAFT_KEY_PREFIX) && key !== ACTION_QUEUE_STORAGE_KEY,
+        )
+        .map((key) => this.idb.delete(key)),
+    );
   }
 }
 

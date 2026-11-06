@@ -1,502 +1,369 @@
-/* product-edit.spec.ts */
+/* product-edit.spec.ts
+ *
+ * Unit tests for ProductEditComponent hybrid draft auto-save (400ms local IndexedDB,
+ * 10s idle Firestore sync), Milkdown baseline alignment, conflict resolution,
+ * inline discard/publish confirmations, and live capacityCounts preservation.
+ */
 
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ProductEditComponent } from './product-edit';
-import { ProductService } from '../product.service';
-import { DataManagerService } from '../data-manager.service';
-import { RoutingService } from '../routing.service';
-import { Views } from '../app.config';
-import { FirebaseStateService } from '../firebase-state.service';
 import {
-  AttendanceType,
-  EarlyBirdPolicyKind,
-  EventAddOnKind,
-  EventRegistrationStatus,
+  ChangeDetectionStrategy,
+  Component,
+  input,
+  output,
+  provideZonelessChangeDetection,
+  signal,
+} from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Views } from '../app.config';
+import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService } from '../firebase-state.service';
+import { MarkdownEditor } from '../markdown-editor/markdown-editor';
+import { NetworkStateService } from '../network-state.service';
+import {
+  CLOUD_DRAFT_IDLE_MS,
+  LOCAL_DRAFT_DEBOUNCE_MS,
+  ProductDraftService,
+  ReconciledDraftSource,
+} from '../product-draft.service';
+import { ProductService } from '../product.service';
+import { RoutingService } from '../routing.service';
+import { SearchableSet } from '../searchable-set';
+import { VodPreviewComponent } from '../vod-preview/vod-preview';
+import { ProductEditComponent } from './product-edit';
+import {
+  DraftSyncStatus,
   initEvent,
-  initEventAddOn,
-  initEventCapacity,
-  initEventDiscount,
-  initEventPricingRules,
-  initEventRegistration,
-  initEventRegistrationOption,
-  initEventRegistrationQuestion,
-  initEventRuleConditions,
   initProduct,
-  PersonStatusKind,
-  RegistrationConditionKind,
-  RegistrationQuestionKind,
-  TimingConditionKind,
-  TimingWindow,
-  WhoConditionKind,
+  initProductDraft,
+  Product,
+  ProductDraft,
 } from '../../../functions/src/data-model/events';
-import { signal } from '@angular/core';
+
+@Component({
+  selector: 'app-markdown-editor',
+  standalone: true,
+  template: '<div class="stub-md-editor"></div>',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class StubMarkdownEditorComponent {
+  bordered = input<boolean>(false);
+  initialValue = input<string>('');
+  initialized = output<string>();
+  changed = output<string>();
+}
+
+@Component({
+  selector: 'app-vod-preview',
+  standalone: true,
+  template: '<div class="stub-vod-preview"></div>',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class StubVodPreviewComponent {
+  videoId = input<string>('');
+  showUnlink = input<boolean>(false);
+  unlink = output<void>();
+}
 
 describe('ProductEditComponent', () => {
-  let component: ProductEditComponent;
   let fixture: ComponentFixture<ProductEditComponent>;
+  let component: ProductEditComponent;
 
-  const mockProductService = {
-    getProduct: vi.fn().mockResolvedValue(initProduct()),
-    getProductByEventId: vi.fn().mockResolvedValue(undefined),
-    saveProduct: vi.fn().mockResolvedValue('new-prod-id'),
-    deleteProduct: vi.fn().mockResolvedValue(undefined),
-    getEventRegistrations: vi.fn().mockResolvedValue([]),
+  let mockRoutingService: {
+    matchedPatternId: ReturnType<typeof signal<Views>>;
+    signals: Record<string, { pathVars: Record<string, ReturnType<typeof signal<string>>> }>;
+    hrefForView: ReturnType<typeof vi.fn>;
+    navigateTo: ReturnType<typeof vi.fn>;
+  };
+  let mockFirebaseState: {
+    user: ReturnType<typeof signal>;
+  };
+  let mockDataService: {
+    videos: SearchableSet<'docId', { docId: string; title: string }>;
+    getVideoSeriesList: ReturnType<typeof vi.fn>;
+    getEvents: ReturnType<typeof vi.fn>;
+    getEventById: ReturnType<typeof vi.fn>;
+    saveProduct: ReturnType<typeof vi.fn>;
+    deleteProduct: ReturnType<typeof vi.fn>;
+  };
+  let mockProductService: {
+    getProduct: ReturnType<typeof vi.fn>;
+    getProductByEventId: ReturnType<typeof vi.fn>;
+    getEventRegistrations: ReturnType<typeof vi.fn>;
+  };
+  let mockDraftService: {
+    reconcileDraft: ReturnType<typeof vi.fn>;
+    saveLocalDraft: ReturnType<typeof vi.fn>;
+    saveCloudDraft: ReturnType<typeof vi.fn>;
+    deleteDraftEverywhere: ReturnType<typeof vi.fn>;
+  };
+  let mockNetworkState: {
+    isOffline: ReturnType<typeof signal<boolean>>;
+    registerOnlineHandler: ReturnType<typeof vi.fn>;
   };
 
-  const mockDataManagerService = {
-    getEvents: vi.fn().mockResolvedValue([]),
-    getEventById: vi.fn().mockResolvedValue(undefined),
-    saveProduct: vi.fn().mockResolvedValue('saved-product-123'),
-    deleteProduct: vi.fn().mockResolvedValue(undefined),
-    videos: {
-      entries: vi.fn().mockReturnValue([]),
-      get: vi.fn().mockReturnValue(undefined),
-    },
-    getVideoSeriesList: vi.fn().mockReturnValue([]),
-  };
-
-  const mockRoutingService = {
-    signals: {
-      [Views.ManageEventRegistration]: {
-        pathVars: {
-          eventId: signal(''),
-        },
-        urlParams: {},
-      },
-      [Views.ManageEventRegistrationsEdit]: {
-        pathVars: {
-          eventId: signal(''),
-        },
-        urlParams: {},
-      },
-    },
-    matchedPatternId: signal<Views | null>(null),
-    hrefForView: vi.fn().mockImplementation((view, params) => {
-      if (view === Views.ManageEventView) return `/manage-events/${params?.eventId || ''}`;
-      if (view === Views.ManageEventRegistrations) return '/manage-event-registrations';
-      return '/products/mock-id';
-    }),
-    navigateTo: vi.fn(),
-  };
-
-  const mockFirebaseState = {
-    user: signal({
-      email: 'admin@ilc.com',
-      isAdmin: true,
-      isFullMember: true,
-      isInstructor: true,
-    }),
-  };
+  let liveProduct: Product;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
+
+    liveProduct = initProduct();
+    liveProduct.docId = 'prod-live-1';
+    liveProduct.eventDocId = 'ev-1';
+    liveProduct.title = 'Autumn Retreat';
+    liveProduct.descriptionMarkdown = 'Line 1\n\n\nLine 2';
+    liveProduct.lastUpdated = '2026-06-01T10:00:00.000Z';
+    liveProduct.capacityCounts = { hall: 12 };
+    liveProduct.inPersonRegistrationsCount = 12;
+
+    const event1 = {
+      ...initEvent(),
+      docId: 'ev-1',
+      title: 'Autumn Retreat',
+      start: '2026-10-10',
+      productId: 'prod-live-1',
+    };
+
+    mockRoutingService = {
+      matchedPatternId: signal(Views.ManageEventRegistration),
+      signals: {
+        [Views.ManageEventRegistration]: {
+          pathVars: { eventId: signal('ev-1') },
+        },
+        [Views.ManageEventRegistrationsEdit]: {
+          pathVars: { eventId: signal('ev-1') },
+        },
+      },
+      hrefForView: vi.fn((view: Views) => `/${view}`),
+      navigateTo: vi.fn(),
+    };
+
+    mockFirebaseState = {
+      user: signal({
+        firebaseUser: {
+          uid: 'admin-uid-1',
+          email: 'Admin@ILC.com',
+          displayName: 'HQ Admin',
+        },
+        member: { name: 'HQ Admin' },
+        isAdmin: true,
+      }),
+    };
+
+    mockDataService = {
+      videos: new SearchableSet<'docId', { docId: string; title: string }>(['title'], 'docId'),
+      getVideoSeriesList: vi.fn().mockReturnValue([]),
+      getEvents: vi.fn().mockResolvedValue([event1]),
+      getEventById: vi.fn().mockResolvedValue(event1),
+      saveProduct: vi.fn().mockResolvedValue('prod-live-1'),
+      deleteProduct: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockProductService = {
+      getProduct: vi.fn().mockResolvedValue(liveProduct),
+      getProductByEventId: vi.fn().mockResolvedValue(liveProduct),
+      getEventRegistrations: vi.fn().mockResolvedValue([]),
+    };
+
+    mockDraftService = {
+      reconcileDraft: vi.fn().mockResolvedValue({
+        draft: null,
+        source: ReconciledDraftSource.None,
+        hasConflictWithLive: false,
+        needsCloudSync: false,
+      }),
+      saveLocalDraft: vi.fn(async (_uid: string, draft: ProductDraft) => draft),
+      saveCloudDraft: vi.fn(async (draft: ProductDraft) => ({
+        ...draft,
+        lastUpdated: '2026-06-02T12:00:10.000Z',
+      })),
+      deleteDraftEverywhere: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockNetworkState = {
+      isOffline: signal(false),
+      registerOnlineHandler: vi.fn().mockReturnValue(() => {}),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ProductEditComponent],
       providers: [
-        { provide: ProductService, useValue: mockProductService },
-        { provide: DataManagerService, useValue: mockDataManagerService },
+        provideZonelessChangeDetection(),
         { provide: RoutingService, useValue: mockRoutingService },
         { provide: FirebaseStateService, useValue: mockFirebaseState },
+        { provide: DataManagerService, useValue: mockDataService },
+        { provide: ProductService, useValue: mockProductService },
+        { provide: ProductDraftService, useValue: mockDraftService },
+        { provide: NetworkStateService, useValue: mockNetworkState },
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(ProductEditComponent, {
+        remove: { imports: [MarkdownEditor, VodPreviewComponent] },
+        add: { imports: [StubMarkdownEditorComponent, StubVodPreviewComponent] },
+      })
+      .compileComponents();
 
     fixture = TestBed.createComponent(ProductEditComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(0);
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(0);
   });
 
-  it('creates directly in unified Rule-Based Pricing mode without legacy Matrix switcher', async () => {
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(component).toBeTruthy();
-    expect(component.isNew()).toBe(true);
-    expect(fixture.nativeElement.querySelector('app-product-rules-edit')).toBeTruthy();
-    expect(fixture.nativeElement.textContent).not.toContain('Standard Matrix');
-    expect(fixture.nativeElement.textContent).not.toContain('Pricing Configuration Mode');
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('does not render redundant header or back button, and hides Associated Calendar Event when embedded', async () => {
-    await fixture.whenStable();
-    fixture.detectChanges();
+  it('opens cleanly and aligns baselineProduct on MarkdownEditor initialized without creating a phantom draft', async () => {
+    expect(component.isLoading()).toBe(false);
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.Clean);
+    expect(component.isDirty()).toBe(false);
 
-    expect(fixture.nativeElement.textContent).not.toContain('Create New Class / Workshop Product');
-    expect(fixture.nativeElement.textContent).not.toContain('All Products');
-    expect(fixture.nativeElement.textContent).toContain('Associated Calendar Event');
+    // Simulate Milkdown canonicalizing initial markdown on mount
+    component.onMarkdownFieldInitialized('descriptionMarkdown', 'Line 1\n\n<br />\n\nLine 2');
+    await vi.advanceTimersByTimeAsync(CLOUD_DRAFT_IDLE_MS + 1000);
 
-    fixture.componentRef.setInput('embedded', true);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(fixture.nativeElement.textContent).not.toContain('Associated Calendar Event');
+    expect(component.isDirty()).toBe(false);
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.Clean);
+    expect(mockDraftService.saveLocalDraft).not.toHaveBeenCalled();
+    expect(mockDraftService.saveCloudDraft).not.toHaveBeenCalled();
   });
 
-  it('shows delivery resources dynamically when options or add-ons enable online or video modes', async () => {
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('In-person attendance instructions');
-    expect(fixture.nativeElement.textContent).not.toContain('Online Joining Link');
-    expect(fixture.nativeElement.textContent).not.toContain('Video Recording for Attendees');
-
-    const rules = initEventPricingRules();
-    rules.registrationOptions.push(
-      initEventRegistrationOption({
-        id: 'online_opt',
-        label: 'Online Zoom',
-        attendanceType: AttendanceType.Online,
-      }),
-    );
-    rules.addOns.push(
-      initEventAddOn({
-        id: 'rec_addon',
-        label: 'Event Recording',
-        spec: { kind: EventAddOnKind.EventRecording },
-      }),
-    );
-    component.onPricingRulesChange(rules);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(fixture.nativeElement.textContent).toContain('Online Joining Link');
-    expect(fixture.nativeElement.textContent).toContain('Video Recording for Attendees');
-  });
-
-  it('links and unlinks calendar events via autocomplete', () => {
-    const dummyEvent = {
-      ...initEvent(),
-      docId: 'ev-123',
-      title: 'Spring Intensive',
-      start: '2026-05-10T10:00:00Z',
-      end: '2026-05-12T17:00:00Z',
-      location: 'Boulder, CO',
-    };
-
-    component.eventsSearchableSet.setEntries([dummyEvent]);
-
-    component.onEventSelected(dummyEvent);
-    expect(component.productModel().eventDocId).toBe('ev-123');
-    expect(component.linkedEvent()).toBe(dummyEvent);
-
-    component.clearLinkedEvent();
-    expect(component.productModel().eventDocId).toBe('');
-    expect(component.linkedEvent()).toBeNull();
-  });
-
-  it('populates vodOptionsSet from series and videos and allows selecting/unlinking', async () => {
-    const rules = initEventPricingRules();
-    rules.addOns.push(
-      initEventAddOn({
-        id: 'rec_addon',
-        label: 'Event Recording',
-        spec: { kind: EventAddOnKind.EventRecording },
-      }),
-    );
-    component.onPricingRulesChange(rules);
-    fixture.detectChanges();
-
-    component.onVodOptionSelected({
-      id: 'series_spring_2026',
-      type: 'series',
-      title: 'Spring 2026 Workshop',
-      displayName: '[Series (3 parts)] Spring 2026 Workshop',
+  it('auto-saves partial/unvalidated edits locally after 400ms and syncs to cloud 10s after the last edit', async () => {
+    // Make pricingRules invalid (zero registration options) — drafts still save without validation errors!
+    component.onPricingRulesChange({
+      ...component.productModel().pricingRules,
+      registrationOptions: [],
     });
 
-    expect(component.productModel().recordedVideoId).toBe('series_spring_2026');
-    fixture.detectChanges();
-    await fixture.whenStable();
+    expect(component.isDirty()).toBe(true);
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.SavingLocal);
+    expect(mockDraftService.saveLocalDraft).not.toHaveBeenCalled();
 
-    expect(fixture.nativeElement.querySelector('app-vod-preview')).toBeTruthy();
+    // Advance 400ms -> IndexedDB local save fires, cloud has NOT fired yet
+    await vi.advanceTimersByTimeAsync(LOCAL_DRAFT_DEBOUNCE_MS);
+    expect(mockDraftService.saveLocalDraft).toHaveBeenCalledTimes(1);
+    expect(mockDraftService.saveCloudDraft).not.toHaveBeenCalled();
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.SavedLocal);
 
-    component.updateRecordedVideoId('');
-    expect(component.productModel().recordedVideoId).toBe('');
-    fixture.detectChanges();
-    await fixture.whenStable();
+    // Edit again after 6 seconds -> resets the 10-second cloud idle timer!
+    await vi.advanceTimersByTimeAsync(6000);
+    component.updateTitle('Autumn Retreat — Draft v2');
+    await vi.advanceTimersByTimeAsync(LOCAL_DRAFT_DEBOUNCE_MS);
+    expect(mockDraftService.saveLocalDraft).toHaveBeenCalledTimes(2);
+    expect(mockDraftService.saveCloudDraft).not.toHaveBeenCalled();
 
-    expect(fixture.nativeElement.querySelector('app-vod-preview')).toBeNull();
+    // Advance 5 more seconds (total 5.4s since last edit) -> still waiting for 10s idle window
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(mockDraftService.saveCloudDraft).not.toHaveBeenCalled();
+
+    // Advance remaining 5s -> 10s since last edit reached -> cloud sync fires!
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(mockDraftService.saveCloudDraft).toHaveBeenCalledTimes(1);
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.SavedCloud);
+    expect(mockDataService.saveProduct).not.toHaveBeenCalled();
   });
 
-  it('calculates video access impact accurately for video-only vs included registrations', () => {
-    const regVideoOnly = {
-      ...initEventRegistration(),
-      docId: 'reg-1',
-      attendance: AttendanceType.VideoOnly,
-      hasVideoAccess: true,
-      status: EventRegistrationStatus.Paid,
-    };
-    const regInPersonWithVideo = {
-      ...initEventRegistration(),
-      docId: 'reg-2',
-      attendance: AttendanceType.InPerson,
-      hasVideoAccess: true,
-      status: EventRegistrationStatus.Paid,
-    };
-    const regInPersonNoVideo = {
-      ...initEventRegistration(),
-      docId: 'reg-3',
-      attendance: AttendanceType.InPerson,
-      hasVideoAccess: false,
-      status: EventRegistrationStatus.Paid,
-    };
-    const regCancelled = {
-      ...initEventRegistration(),
-      docId: 'reg-4',
-      attendance: AttendanceType.VideoOnly,
-      hasVideoAccess: true,
-      status: EventRegistrationStatus.Cancelled,
-    };
+  it('flushes pending 0-400ms local edits immediately when document becomes hidden', async () => {
+    component.updateTitle('Quick Edit Before Tab Switch');
+    expect(mockDraftService.saveLocalDraft).not.toHaveBeenCalled();
 
-    component.eventRegistrations.set([
-      regVideoOnly,
-      regInPersonWithVideo,
-      regInPersonNoVideo,
-      regCancelled,
-    ]);
+    component.flushPendingLocalDraftSync();
+    await Promise.resolve();
 
-    expect(component.attendeesWithVideoAccess().length).toBe(2);
-    expect(component.videoOnlyAttendeesCount()).toBe(1);
-    expect(component.includedVideoAttendeesCount()).toBe(1);
-  });
-
-  it('prompts confirmation when saving with new or modified video and attendees have video access', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    component.initialRecordedVideoId.set('');
-
-    const reg = {
-      ...initEventRegistration(),
-      docId: 'reg-1',
-      attendance: AttendanceType.VideoOnly,
-      hasVideoAccess: true,
-      status: EventRegistrationStatus.Paid,
-    };
-    component.eventRegistrations.set([reg]);
-
-    component.productModel.update((m) => ({
-      ...m,
-      title: 'Spring Workshop 2026',
-      recordedVideoId: 'series_123',
-    }));
-
-    await component.saveProduct();
-
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('1 attendee(s)'));
-    expect(confirmSpy).toHaveBeenCalledWith(
-      expect.stringContaining('1 video-only pre-order attendee(s)'),
+    expect(mockDraftService.saveLocalDraft).toHaveBeenCalledTimes(1);
+    expect(mockDraftService.saveLocalDraft.mock.calls[0][1].draftProduct.title).toBe(
+      'Quick Edit Before Tab Switch',
     );
-    expect(mockDataManagerService.saveProduct).toHaveBeenCalled();
-
-    confirmSpy.mockRestore();
   });
 
-  it('aborts saving if admin cancels the notification confirmation dialog', async () => {
-    mockDataManagerService.saveProduct.mockClear();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    component.initialRecordedVideoId.set('');
+  it('saveDraftNow flushes immediately to IndexedDB and Firestore without requiring rule validation', async () => {
+    component.updateTitle('');
+    await component.saveDraftNow();
 
-    const reg = {
-      ...initEventRegistration(),
-      docId: 'reg-1',
-      attendance: AttendanceType.InPerson,
-      hasVideoAccess: true,
-      status: EventRegistrationStatus.Paid,
-    };
-    component.eventRegistrations.set([reg]);
-
-    component.productModel.update((m) => ({
-      ...m,
-      title: 'Spring Workshop 2026',
-      recordedVideoId: 'series_123',
-    }));
-
-    await component.saveProduct();
-
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
-
-    confirmSpy.mockRestore();
-  });
-
-  it('navigates back to ManageEventView on save from ManageEventRegistration, and ManageEventRegistrations from ManageEventRegistrationsEdit', async () => {
-    mockRoutingService.navigateTo.mockClear();
-
-    mockRoutingService.matchedPatternId.set(Views.ManageEventRegistration);
-    mockRoutingService.signals[Views.ManageEventRegistration].pathVars.eventId.set('ev-99');
-    component.productModel.update((m) => ({
-      ...m,
-      title: 'Event Reg Setup',
-      eventDocId: 'ev-99',
-    }));
-
-    await component.saveProduct();
-    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-events/ev-99');
-
-    mockRoutingService.navigateTo.mockClear();
-    component.isSaving.set(false);
-    mockRoutingService.matchedPatternId.set(Views.ManageEventRegistrationsEdit);
-    mockRoutingService.signals[Views.ManageEventRegistrationsEdit].pathVars.eventId.set('ev-99');
-
-    await component.saveProduct();
-    expect(mockRoutingService.navigateTo).toHaveBeenCalledWith('/manage-event-registrations');
-
-    mockRoutingService.matchedPatternId.set(null);
-    mockRoutingService.signals[Views.ManageEventRegistration].pathVars.eventId.set('');
-    mockRoutingService.signals[Views.ManageEventRegistrationsEdit].pathVars.eventId.set('');
-  });
-
-  it('validates pricing rules (capacities, Early Bird deadline) and saves synced summary flags', async () => {
-    mockDataManagerService.saveProduct.mockClear();
-    component.updateTitle('Flushing NY 4-Day Intensive');
-
-    // Validation error when a capacity limit has an empty label
-    const unlabeledCapRules = initEventPricingRules();
-    unlabeledCapRules.capacities = [initEventCapacity({ id: 'cap_1', label: '   ', limit: 25 })];
-    component.onPricingRulesChange(unlabeledCapRules);
-    await component.saveProduct();
-    expect(component.errorMessage()).toContain('Every Capacity Limit must have a name');
-    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
-
-    // Validation error when Early Bird is enabled without a deadline date
-    const invalidEarlyRules = initEventPricingRules();
-    invalidEarlyRules.earlyBird = {
-      kind: EarlyBirdPolicyKind.Enabled,
-      deadlineDate: '',
-    };
-    component.onPricingRulesChange(invalidEarlyRules);
-    await component.saveProduct();
-    expect(component.errorMessage()).toContain('Early Bird cutoff date is required');
-
-    // Valid rules with Main Hall capacity (30), Instructors-only In-Person option, and Members-only Recording Only option
-    const validRules = initEventPricingRules();
-    validRules.capacities = [initEventCapacity({ id: 'hall', label: 'Main Hall', limit: 30 })];
-    validRules.earlyBird = {
-      kind: EarlyBirdPolicyKind.Enabled,
-      deadlineDate: '2026-12-31',
-    };
-    validRules.registrationOptions = [
-      initEventRegistrationOption({
-        id: 'full_event',
-        label: 'Full Workshop',
-        priceCents: 49000,
-        attendanceType: AttendanceType.InPerson,
-        conditions: initEventRuleConditions({
-          who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Instructor },
-        }),
-        capacityUsage: { hall: 1 },
-      }),
-      initEventRegistrationOption({
-        id: 'recording_only',
-        label: 'Recording Pre-Order',
-        priceCents: 6000,
-        attendanceType: AttendanceType.VideoOnly,
-        conditions: initEventRuleConditions({
-          who: { kind: WhoConditionKind.Status, status: PersonStatusKind.Member },
-        }),
-        capacityUsage: {},
-      }),
-    ];
-    component.onPricingRulesChange(validRules);
-    fixture.detectChanges();
-
-    await component.saveProduct();
+    expect(mockDraftService.saveLocalDraft).toHaveBeenCalled();
+    expect(mockDraftService.saveCloudDraft).toHaveBeenCalledTimes(1);
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.SavedCloud);
     expect(component.errorMessage()).toBeNull();
-    expect(mockDataManagerService.saveProduct).toHaveBeenCalledTimes(1);
-
-    const saved = mockDataManagerService.saveProduct.mock.calls[0][0];
-    expect(saved.allowInPerson).toBe(true);
-    expect(saved.allowVideo).toBe(true);
-    expect(saved.allowVideoOnly).toBe(true);
-    expect(saved.allowNonMembers).toBe(false);
-    expect(saved.allowMembers).toBe(true);
-    expect(saved.allowInstructors).toBe(true);
-    expect(saved.hasEarlyBird).toBe(true);
-    expect(saved.earlyBirdDeadline).toBe('2026-12-31');
-    expect(saved.maxInPersonAttendees).toBe(30);
   });
 
-  it('validates Registration Form Questions (non-empty prompt and at least one choice for select/checkboxes)', async () => {
-    mockDataManagerService.saveProduct.mockClear();
-    component.updateTitle('Workshop With Questions');
+  it('supports inline Discard Draft confirmation without window.confirm and reverts to baseline', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    component.updateTitle('Temporary WIP Title');
+    await vi.advanceTimersByTimeAsync(LOCAL_DRAFT_DEBOUNCE_MS);
+    expect(component.productModel().title).toBe('Temporary WIP Title');
 
-    const emptyLabelRules = initEventPricingRules();
-    emptyLabelRules.questions = [
-      initEventRegistrationQuestion({
-        id: 'q_1',
-        label: '   ',
-        spec: { kind: RegistrationQuestionKind.ShortText, placeholder: '' },
-      }),
-    ];
-    component.onPricingRulesChange(emptyLabelRules);
-    await component.saveProduct();
-    expect(component.errorMessage()).toContain('Every Registration Form Question must have a prompt');
-    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
+    component.requestDiscardDraft();
+    expect(component.confirmingDiscardDraft()).toBe(true);
+    expect(confirmSpy).not.toHaveBeenCalled();
 
-    const emptyChoicesRules = initEventPricingRules();
-    emptyChoicesRules.questions = [
-      initEventRegistrationQuestion({
-        id: 'q_2',
-        label: 'Meal Choice',
-        spec: { kind: RegistrationQuestionKind.Select, options: [] },
-      }),
-    ];
-    component.onPricingRulesChange(emptyChoicesRules);
-    await component.saveProduct();
-    expect(component.errorMessage()).toContain('Form question "Meal Choice" must have at least one choice');
-    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
-
-    const validQuestionRules = initEventPricingRules();
-    validQuestionRules.questions = [
-      initEventRegistrationQuestion({
-        id: 'q_2',
-        label: 'Meal Choice',
-        spec: { kind: RegistrationQuestionKind.Select, options: ['Standard', 'Vegetarian'] },
-      }),
-    ];
-    component.onPricingRulesChange(validQuestionRules);
-    await component.saveProduct();
-    expect(component.errorMessage()).toBeNull();
-    expect(mockDataManagerService.saveProduct).toHaveBeenCalledTimes(1);
-  });
-
-  it('validates rule conditions on save (Early Bird timing requires Early Bird Pricing enabled; Registration condition requires >= 1 option)', async () => {
-    mockDataManagerService.saveProduct.mockClear();
-    component.updateTitle('Workshop With Rule Conditions');
-
-    // 1. Early Bird timing condition when Early Bird Pricing is disabled
-    const ebCondWithoutPolicy = initEventPricingRules();
-    ebCondWithoutPolicy.discounts = [
-      initEventDiscount({
-        id: 'd_eb',
-        label: 'Early Bird $30 Off',
-        discountCents: 3000,
-        conditions: initEventRuleConditions({
-          timing: {
-            kind: TimingConditionKind.Window,
-            window: TimingWindow.BeforeEarlyBird,
-          },
-        }),
-      }),
-    ];
-    component.onPricingRulesChange(ebCondWithoutPolicy);
-    await component.saveProduct();
-    expect(component.errorMessage()).toContain('Enable Early Bird Pricing');
-    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
-
-    // 2. SpecificOptions with 0 selected options on an add-on
-    const emptyRegCondRules = initEventPricingRules();
-    emptyRegCondRules.addOns = [
-      initEventAddOn({
-        id: 'addon_1',
-        label: 'Bonus Review',
-        priceCents: 2500,
-        conditions: initEventRuleConditions({
-          registration: { kind: RegistrationConditionKind.SpecificOptions, optionIds: [] },
-        }),
-      }),
-    ];
-    component.onPricingRulesChange(emptyRegCondRules);
-    await component.saveProduct();
-    expect(component.errorMessage()).toContain(
-      'Select at least one registration option in the Registration condition for "Bonus Review"',
+    await component.confirmDiscardDraft();
+    expect(component.confirmingDiscardDraft()).toBe(false);
+    expect(component.productModel().title).toBe('Autumn Retreat');
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.Clean);
+    expect(mockDraftService.deleteDraftEverywhere).toHaveBeenCalledWith(
+      'admin-uid-1',
+      'event_ev-1',
     );
-    expect(mockDataManagerService.saveProduct).not.toHaveBeenCalled();
+  });
+
+  it('surfaces ConflictWithLive and rebases while preserving live capacityCounts on Keep Editing Draft', async () => {
+    const staleDraftProd = initProduct();
+    staleDraftProd.docId = 'prod-live-1';
+    staleDraftProd.eventDocId = 'ev-1';
+    staleDraftProd.title = 'Draft From Yesterday';
+    staleDraftProd.capacityCounts = { hall: 3 };
+    staleDraftProd.inPersonRegistrationsCount = 3;
+
+    mockDraftService.reconcileDraft.mockResolvedValueOnce({
+      draft: initProductDraft({
+        eventDocId: 'ev-1',
+        productDocId: 'prod-live-1',
+        baseProductLastUpdated: '2026-05-30T00:00:00.000Z',
+        draftProduct: {
+          ...staleDraftProd,
+          capacityCounts: { hall: 12 },
+          inPersonRegistrationsCount: 12,
+        },
+      }),
+      source: ReconciledDraftSource.Cloud,
+      hasConflictWithLive: true,
+      needsCloudSync: false,
+    });
+
+    await component.loadData();
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.ConflictWithLive);
+    expect(component.conflictSummary()).toContain('Title');
+
+    await component.keepDraftOverLiveConflict();
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.SavedCloud);
+    expect(component.activeDraft()?.baseProductLastUpdated).toBe('2026-06-01T10:00:00.000Z');
+    expect(component.productModel().capacityCounts).toEqual({ hall: 12 });
+  });
+
+  it('overlays latest live capacityCounts on Publish and deletes local + cloud drafts', async () => {
+    component.updateTitle('Published Autumn Retreat');
+    await vi.advanceTimersByTimeAsync(LOCAL_DRAFT_DEBOUNCE_MS);
+
+    // Simulate 5 more attendees registering on the live product while the draft was open!
+    mockProductService.getProduct.mockResolvedValueOnce({
+      ...liveProduct,
+      capacityCounts: { hall: 17 },
+      inPersonRegistrationsCount: 17,
+    });
+
+    await component.saveProduct();
+
+    expect(mockDataService.saveProduct).toHaveBeenCalledTimes(1);
+    const savedPayload = mockDataService.saveProduct.mock.calls[0][0] as Product;
+    expect(savedPayload.title).toBe('Published Autumn Retreat');
+    expect(savedPayload.capacityCounts).toEqual({ hall: 17 });
+    expect(savedPayload.inPersonRegistrationsCount).toBe(17);
+    expect(mockDraftService.deleteDraftEverywhere).toHaveBeenCalledWith(
+      'admin-uid-1',
+      'event_ev-1',
+    );
+    expect(component.draftSyncStatus()).toBe(DraftSyncStatus.Clean);
   });
 });

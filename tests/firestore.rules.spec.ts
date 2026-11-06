@@ -2341,6 +2341,111 @@ describe('Firestore Rules', () => {
     });
   });
 
+  describe('Product Drafts Collection (/product_drafts)', () => {
+    it('allows verified admins to create, read, update (with serverTimestamp), and delete drafts', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'Admin@ILC.com' })
+        .firestore();
+
+      await assertSucceeds(
+        adminDb.collection('product_drafts').doc('event_ev-1').set({
+          eventDocId: 'ev-1',
+          productDocId: '',
+          updatedByEmail: 'admin@ilc.com',
+          draftProduct: { title: 'Draft Setup', purchaseDetailsMarkdown: 'Zoom secret' },
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+
+      await assertSucceeds(adminDb.collection('product_drafts').doc('event_ev-1').get());
+
+      await assertSucceeds(
+        adminDb.collection('product_drafts').doc('event_ev-1').update({
+          'draftProduct.title': 'Updated Draft Setup',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+
+      await assertSucceeds(adminDb.collection('product_drafts').doc('event_ev-1').delete());
+    });
+
+    it('denies admin create or update when lastUpdated is missing or not serverTimestamp()', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+
+      await assertFails(
+        adminDb.collection('product_drafts').doc('event_ev-bad').set({
+          eventDocId: 'ev-1',
+          draftProduct: { title: 'Forged Timestamp' },
+          lastUpdated: '2026-05-01T00:00:00.000Z',
+        }),
+      );
+
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('product_drafts').doc('event_ev-existing').set({
+          eventDocId: 'ev-1',
+          draftProduct: { title: 'Seeded' },
+          lastUpdated: '2026-05-01T00:00:00.000Z',
+        });
+      });
+
+      await assertFails(
+        adminDb.collection('product_drafts').doc('event_ev-existing').update({
+          'draftProduct.title': 'No Server Timestamp',
+        }),
+      );
+    });
+
+    it('denies read and write to unauthenticated users, unverified admins, members, instructors, school managers, and non-admin event organizers', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('events').doc('ev-org').set({
+          title: 'Organizer Event',
+          ownerDocId: 'FirestoreDocID-instructor1',
+          managerDocIds: ['FirestoreDocID-instructor2'],
+          status: 'listed',
+        });
+        await context.firestore().collection('product_drafts').doc('event_ev-org').set({
+          eventDocId: 'ev-org',
+          draftProduct: { title: 'Private HQ Draft', purchaseDetailsMarkdown: 'Zoom password 123' },
+          lastUpdated: '2026-05-01T00:00:00.000Z',
+        });
+      });
+
+      const deniedContexts = [
+        testEnv.unauthenticatedContext().firestore(),
+        rawAuthenticatedContext('unverified-admin', {
+          email: 'admin@ilc.com',
+          email_verified: false,
+        }).firestore(),
+        testEnv.authenticatedContext('member1', { email: 'member1@ilc.com' }).firestore(),
+        testEnv.authenticatedContext('instructor1', { email: 'instructor1@ilc.com' }).firestore(),
+        testEnv.authenticatedContext('instructor2', { email: 'instructor2@ilc.com' }).firestore(),
+        testEnv
+          .authenticatedContext('school_manager', { email: 'school_manager@ilc.com' })
+          .firestore(),
+      ];
+
+      for (const db of deniedContexts) {
+        await assertFails(db.collection('product_drafts').doc('event_ev-org').get());
+        await assertFails(db.collection('product_drafts').get());
+        await assertFails(
+          db.collection('product_drafts').doc('event_ev-org').set({
+            eventDocId: 'ev-org',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+        await assertFails(
+          db.collection('product_drafts').doc('event_ev-org').update({
+            eventDocId: 'ev-org',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+        await assertFails(db.collection('product_drafts').doc('event_ev-org').delete());
+      }
+    });
+  });
+
   describe('Outbound Mail Queue (/mail)', () => {
     it('should allow admin to read mail queue documents, but deny regular members and unauthenticated users', async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
