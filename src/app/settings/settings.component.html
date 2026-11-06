@@ -17,6 +17,8 @@
       (click)="setActiveTab('app-version')">Version &amp; Updates</button>
   </div>
 
+  <app-password-setup [framed]="true" />
+
   @if (activeTab() === 'admins') {
   <div class="tab-content">
     <app-admins-settings></app-admins-settings>

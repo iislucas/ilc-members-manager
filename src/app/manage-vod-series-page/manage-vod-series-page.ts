@@ -15,6 +15,7 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { VodAccessListComponent } from '../vod-access-list/vod-access-list';
 import { ManageVodEditSeriesComponent } from '../manage-vod-edit-series/manage-vod-edit-series';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import {
   VideoItem,
   VideoSeries,
@@ -29,7 +30,7 @@ import { formatRecordedDate, formatRecordedDateRange } from '../utils';
 @Component({
   selector: 'app-manage-vod-series-page',
   standalone: true,
-  imports: [IconComponent, SpinnerComponent, VodAccessListComponent, ManageVodEditSeriesComponent],
+  imports: [IconComponent, SpinnerComponent, VodAccessListComponent, ManageVodEditSeriesComponent, PasswordSetupComponent],
   templateUrl: './manage-vod-series-page.html',
   styleUrl: './manage-vod-series-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

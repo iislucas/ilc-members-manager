@@ -3,6 +3,7 @@ import { Component, input, signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ManageVodVideoPageComponent } from './manage-vod-video-page';
 import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import { VodAccessListComponent } from '../vod-access-list/vod-access-list';
@@ -95,6 +96,7 @@ describe('ManageVodVideoPageComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ManageVodVideoPageComponent],
       providers: [
+        { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
         { provide: DataManagerService, useValue: mockDataService },
         { provide: RoutingService, useValue: mockRoutingService },
       ],

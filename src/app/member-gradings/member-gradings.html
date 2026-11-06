@@ -31,6 +31,8 @@
     </div>
   }
 
+  <app-password-setup [framed]="true" />
+
   @if (isInstructor() && activeTab() !== "mine") {
     <div class="grading-list-wrapper">
       <app-grading-list

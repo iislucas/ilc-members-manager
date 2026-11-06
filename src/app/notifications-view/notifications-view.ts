@@ -31,6 +31,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 
 type NotificationFilter = 'all' | 'unread';
 const VALID_FILTERS: NotificationFilter[] = ['all', 'unread'];
@@ -39,7 +40,7 @@ const DEFAULT_FILTER: NotificationFilter = 'all';
 @Component({
   selector: 'app-notifications-view',
   standalone: true,
-  imports: [DatePipe, NgTemplateOutlet, IconComponent, MarkdownViewer],
+  imports: [DatePipe, NgTemplateOutlet, IconComponent, MarkdownViewer, PasswordSetupComponent],
   templateUrl: './notifications-view.html',
   styleUrl: './notifications-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

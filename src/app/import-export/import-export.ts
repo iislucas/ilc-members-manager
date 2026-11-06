@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { ImportMembersComponent } from './import-members/import-members.component';
 import { ImportSchoolsComponent } from './import-schools/import-schools.component';
 import { ImportOrdersComponent } from './import-orders/import-orders.component';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 
@@ -12,7 +13,7 @@ const DEFAULT_TAB: Tab = 'members';
 @Component({
   selector: 'app-import-export',
   standalone: true,
-  imports: [ImportMembersComponent, ImportSchoolsComponent, ImportOrdersComponent],
+  imports: [ImportMembersComponent, ImportSchoolsComponent, ImportOrdersComponent, PasswordSetupComponent],
   templateUrl: './import-export.html',
   styleUrl: './import-export.scss',
 })

@@ -5,6 +5,8 @@
     <button class="pill-tab" data-label="Orders" [class.active]="activeTab() === 'orders'" (click)="setActiveTab('orders')">Orders</button>
   </div>
 
+  <app-password-setup [framed]="true" />
+
   @if (activeTab() === 'members') {
     <div class="tab-content">
       <app-import-members></app-import-members>

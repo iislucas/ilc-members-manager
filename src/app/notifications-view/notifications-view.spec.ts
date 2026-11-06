@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { NotificationsViewComponent } from './notifications-view';
 import { MemberNotification, NotificationKind } from '../../../functions/src/data-model/notifications';
 import { NotificationService } from '../notification.service';
+import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 
@@ -66,6 +67,7 @@ describe('NotificationsViewComponent', () => {
       imports: [NotificationsViewComponent],
       providers: [
         provideZonelessChangeDetection(),
+        { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: RoutingService, useValue: mockRoutingService },
       ],

@@ -24,6 +24,10 @@
     </div>
   }
 
+  @if (firebaseState.user()) {
+    <app-password-setup [framed]="true" />
+  }
+
   <!-- Page Header -->
   <div class="catalog-header">
     <div class="header-content">

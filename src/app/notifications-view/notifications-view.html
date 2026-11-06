@@ -20,6 +20,8 @@
     </div>
   </div>
 
+  <app-password-setup [framed]="true" />
+
   @if (syncError(); as err) {
     <div class="notification-error-banner">
       <app-icon name="error" width="20px" height="20px" fill="#dc2626"></app-icon>

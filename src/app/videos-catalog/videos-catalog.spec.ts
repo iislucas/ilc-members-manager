@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { VideosCatalogComponent } from './videos-catalog';
 import { DataManagerService } from '../data-manager.service';
-import { FirebaseStateService } from '../firebase-state.service';
+import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import { InstructorPublicData } from '../../../functions/src/data-model/members';
@@ -30,7 +30,7 @@ describe('VideosCatalogComponent', () => {
     getMyVideoGrants: ReturnType<typeof vi.fn>;
     getTagMeta: ReturnType<typeof vi.fn>;
   };
-  let mockFirebaseState: {
+  let mockFirebaseState: ReturnType<typeof createFirebaseStateServiceMock> & {
     user: WritableSignal<any>;
   };
   let mockRoutingService: {
@@ -128,6 +128,7 @@ describe('VideosCatalogComponent', () => {
     };
 
     mockFirebaseState = {
+      ...createFirebaseStateServiceMock(),
       user: signal(null),
     };
 

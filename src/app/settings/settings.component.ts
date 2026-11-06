@@ -7,6 +7,7 @@ import { ContentCacheComponent } from './content-cache/content-cache';
 import { ResourcesComponent } from './resources/resources';
 import { LocalCacheSettingsComponent } from './local-cache/local-cache';
 import { AppVersionSettingsComponent } from './app-version/app-version';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 
@@ -27,6 +28,7 @@ const DEFAULT_TAB: SettingsTab = 'admins';
     ResourcesComponent,
     LocalCacheSettingsComponent,
     AppVersionSettingsComponent,
+    PasswordSetupComponent,
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],

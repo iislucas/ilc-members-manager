@@ -6,6 +6,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { NotificationsListComponent } from '../notifications-list/notifications-list';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import { ExpiryStatus, hasActiveMembership } from '../../../functions/src/data-model/members';
 import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags';
 
@@ -14,7 +15,7 @@ export type HomeTab = 'learn' | 'practice' | 'buy' | 'me' | 'admin';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, IconComponent, NotificationsListComponent],
+  imports: [CommonModule, IconComponent, NotificationsListComponent, PasswordSetupComponent],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })

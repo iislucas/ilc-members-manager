@@ -81,8 +81,13 @@ import { ActionQueueService } from './action-queue.service';
 import { PasswordSetupComponent } from './inline-auth/password-setup.component';
 import { environment } from '../environments/environment';
 
-/** Public views that already embed `<app-inline-auth>` (and therefore render its password setup box inline). */
-const VIEWS_WITH_INLINE_AUTH: ReadonlySet<Views> = new Set([
+/**
+ * Views that render `<app-password-setup>` themselves: either inside
+ * `<app-inline-auth>` (purchase/registration flows) or directly underneath
+ * their top `.pill-tabs` / `.header-extension-tabs` bar so the prompt and
+ * saved notice never sit above the pill navigation bar.
+ */
+const VIEWS_WITH_OWN_PASSWORD_SETUP: ReadonlySet<Views> = new Set([
   Views.BecomeAMember,
   Views.NextGrading,
   Views.InstructorLicensePurchase,
@@ -90,6 +95,22 @@ const VIEWS_WITH_INLINE_AUTH: ReadonlySet<Views> = new Set([
   Views.ClassVideoLibraryPurchase,
   Views.EventRegister,
   Views.EventView,
+  Views.Home,
+  Views.MembersArea,
+  Views.MembersAreaCategory,
+  Views.InstructorsArea,
+  Views.InstructorsAreaCategory,
+  Views.Articles,
+  Views.ArticlesCategory,
+  Views.Videos,
+  Views.ClassVideoLibrary,
+  Views.MemberGradings,
+  Views.Notifications,
+  Views.ManageVodVideo,
+  Views.ManageVodSeries,
+  Views.AppNotificationSettings,
+  Views.Settings,
+  Views.ImportExport,
 ]);
 
 @Component({
@@ -190,9 +211,9 @@ export class App {
     return !!view && PUBLIC_VIEWS.has(view);
   });
 
-  public viewHasInlineAuth = computed(() => {
+  public viewRendersOwnPasswordSetup = computed(() => {
     const view = this.currentView();
-    return !!view && VIEWS_WITH_INLINE_AUTH.has(view);
+    return !!view && VIEWS_WITH_OWN_PASSWORD_SETUP.has(view);
   });
 
   public isLoginPage = computed(() => {

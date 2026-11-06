@@ -370,5 +370,37 @@ describe('HomeComponent', () => {
     expect(cards[6].getAttribute('href')).toContain('/class-video-library-subscription');
     expect(cards[7].getAttribute('href')).toContain('/videos');
   });
+
+  it('renders both #password-setup and #password-saved underneath the pill-tabs bar', async () => {
+    firebaseService.offerPasswordSetup.set(true);
+    vi.spyOn(firebaseService, 'setAccountPassword').mockImplementation(async () => {
+      firebaseService.offerPasswordSetup.set(false);
+      return { success: true };
+    });
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const pillTabs = element.querySelector('.header-extension-tabs .pill-tabs')!;
+    const setupBox = element.querySelector('#password-setup')!;
+    expect(pillTabs).not.toBeNull();
+    expect(setupBox).not.toBeNull();
+    expect(pillTabs.compareDocumentPosition(setupBox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const input = element.querySelector<HTMLInputElement>('#setup-password-input')!;
+    input.value = 'new-trusted-pass';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    element.querySelector<HTMLButtonElement>('#save-password-btn')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const savedBanner = element.querySelector('#password-saved')!;
+    expect(savedBanner).not.toBeNull();
+    expect(pillTabs.compareDocumentPosition(savedBanner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 

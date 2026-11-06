@@ -19,7 +19,7 @@
   }
 
   <main>
-    @if (user && !viewHasInlineAuth()) {
+    @if (user && !viewRendersOwnPasswordSetup()) {
       <app-password-setup [framed]="true" />
     }
     @if (isNotFound()) {

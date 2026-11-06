@@ -24,6 +24,7 @@ import {
     MemberStatusLevel,
 } from '../../../functions/src/data-model/members';
 import { IconComponent, IconName } from '../icons/icon.component';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import { getInstructorExpiryStatus } from '../member-tags';
 import { compileMarkdownToHtml } from '../markdown-editor/markdown-config';
 
@@ -61,7 +62,7 @@ export { isDraftPost };
 @Component({
     selector: 'app-squarespace-content',
     standalone: true,
-    imports: [CommonModule, SpinnerComponent, IconComponent],
+    imports: [CommonModule, SpinnerComponent, IconComponent, PasswordSetupComponent],
     templateUrl: './squarespace-content.component.html',
     styleUrls: ['./squarespace-content.component.scss'],
     encapsulation: ViewEncapsulation.None,

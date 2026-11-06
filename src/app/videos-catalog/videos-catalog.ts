@@ -28,6 +28,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 import { formatRecordedDate } from '../utils';
 
@@ -64,6 +65,7 @@ export interface CatalogEntry {
     FormsModule,
     IconComponent,
     AutocompleteComponent,
+    PasswordSetupComponent,
   ],
   templateUrl: './videos-catalog.html',
   styleUrl: './videos-catalog.scss',

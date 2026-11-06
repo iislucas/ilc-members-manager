@@ -15,6 +15,7 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { VodAccessListComponent } from '../vod-access-list/vod-access-list';
 import { ManageVodEditVideoComponent } from '../manage-vod-edit-video/manage-vod-edit-video';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import {
   VideoItem,
   VideoSeries,
@@ -30,7 +31,7 @@ import { VOD_ADMIN_TABS, VodAdminTab, formatVodDuration, parseVodAdminTab } from
 @Component({
   selector: 'app-manage-vod-video-page',
   standalone: true,
-  imports: [IconComponent, SpinnerComponent, VodAccessListComponent, ManageVodEditVideoComponent],
+  imports: [IconComponent, SpinnerComponent, VodAccessListComponent, ManageVodEditVideoComponent, PasswordSetupComponent],
   templateUrl: './manage-vod-video-page.html',
   styleUrl: './manage-vod-video-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

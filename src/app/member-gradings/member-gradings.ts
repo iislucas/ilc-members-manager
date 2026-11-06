@@ -5,6 +5,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { GradingListComponent } from '../grading-list/grading-list';
 import { GradingLevelsComponent } from '../grading-levels/grading-levels';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -17,7 +18,7 @@ const DEFAULT_TAB: GradingTab = 'mine';
 @Component({
   selector: 'app-member-gradings',
   standalone: true,
-  imports: [CommonModule, GradingListComponent, GradingLevelsComponent, SpinnerComponent],
+  imports: [CommonModule, GradingListComponent, GradingLevelsComponent, SpinnerComponent, PasswordSetupComponent],
   templateUrl: './member-gradings.html',
   styleUrl: './member-gradings.scss',
 })

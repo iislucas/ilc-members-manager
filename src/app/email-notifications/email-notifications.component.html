@@ -62,6 +62,7 @@
   </div>
 
   <div class="card-body-content">
+    <app-password-setup [framed]="true" />
     @if (statusActionFeedback(); as feedback) {
       <div class="feedback-toast" [class.success]="feedback.success" [class.error]="!feedback.success">
         {{ feedback.message }}

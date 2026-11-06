@@ -670,7 +670,7 @@ describe('App', () => {
   });
 
   describe('Post-email-link password setup prompt', () => {
-    it('renders top-level #password-setup on Home after email-link sign-in, and avoids duplicating it on views with InlineAuth', async () => {
+    it('renders #password-setup below the pill-nav bar on Home, at top of main on non-pill views, and avoids duplicating it on InlineAuth views', async () => {
       const fixture = TestBed.createComponent(App);
       const app = fixture.componentInstance;
 
@@ -683,21 +683,34 @@ describe('App', () => {
           dateOfBirth: '2000-01-01',
           country: 'Testland',
         },
+        schoolsManaged: [],
         firebaseUser: { email: 'member@example.com', photoURL: null },
       } as unknown as UserDetails);
       firebaseStateServiceMock.offerPasswordSetup!.set(true);
 
+      // 1. On Home: rendered inside <app-home> underneath .header-extension-tabs, not above it in <main>.
       app.routingService.matchedPatternId.set(Views.Home);
       fixture.detectChanges();
       await fixture.whenStable();
 
       const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('main > app-password-setup')).toBeNull();
+      const pillNav = compiled.querySelector('app-home .header-extension-tabs')!;
+      const homePrompt = compiled.querySelector('app-home #password-setup')!;
+      expect(pillNav).not.toBeNull();
+      expect(homePrompt).not.toBeNull();
+      expect(pillNav.compareDocumentPosition(homePrompt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+      // 2. On non-pill-nav view without InlineAuth (e.g. FindAnInstructor): rendered at top of <main>.
+      app.routingService.matchedPatternId.set(Views.FindAnInstructor);
+      fixture.detectChanges();
+      await fixture.whenStable();
       expect(compiled.querySelector('main > app-password-setup #password-setup')).not.toBeNull();
 
+      // 3. On InlineAuth view (e.g. BecomeAMember): not duplicated at top of <main>.
       app.routingService.matchedPatternId.set(Views.BecomeAMember);
       fixture.detectChanges();
       await fixture.whenStable();
-
       expect(compiled.querySelector('main > app-password-setup')).toBeNull();
     });
   });

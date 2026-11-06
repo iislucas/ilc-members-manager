@@ -53,6 +53,10 @@
         </div>
         }
 
+        @if (firebaseService.user()) {
+          <app-password-setup [framed]="true" />
+        }
+
         <div class="blog-grid">
             @for (entry of filteredEntries(); track entry.id) {
             <article class="blog-card">

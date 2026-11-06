@@ -9,6 +9,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownEditor, EditorChip, MarkdownFeature } from '../markdown-editor/markdown-editor';
 import { IconComponent } from '../icons/icon.component';
 import { MemberSelectorComponent } from '../member-selector/member-selector';
+import { PasswordSetupComponent } from '../inline-auth/password-setup.component';
 import { Member } from '../../../functions/src/data-model/members';
 import {
   IlcEvent,
@@ -247,7 +248,7 @@ export const NOTIFICATION_LABELS_BY_KEY: ReadonlyMap<string, string> = new Map(
 @Component({
   selector: 'app-email-notifications',
   standalone: true,
-  imports: [CommonModule, FormsModule, SpinnerComponent, MarkdownEditor, IconComponent, MemberSelectorComponent],
+  imports: [CommonModule, FormsModule, SpinnerComponent, MarkdownEditor, IconComponent, MemberSelectorComponent, PasswordSetupComponent],
   templateUrl: './email-notifications.component.html',
   styleUrl: './email-notifications.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

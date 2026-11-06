@@ -3,7 +3,7 @@ import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EmailNotificationsComponent } from './email-notifications.component';
 import { DataManagerService } from '../data-manager.service';
-import { FirebaseStateService } from '../firebase-state.service';
+import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import { signal } from '@angular/core';
@@ -179,6 +179,7 @@ describe('EmailNotificationsComponent', () => {
     };
 
     mockFirebaseState = {
+      ...createFirebaseStateServiceMock(),
       user: signal({
         firebaseUser: { email: 'admin@iliqchuan.com' },
         isAdmin: true,
