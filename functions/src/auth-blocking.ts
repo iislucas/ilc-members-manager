@@ -78,8 +78,14 @@ export function beforeSignInHandler(event: AuthBlockingEvent): void {
   }
 }
 
-export const beforeCreate = beforeUserCreated((event) => beforeCreateHandler(event));
-export const beforeSignIn = beforeUserSignedIn((event) => beforeSignInHandler(event));
+const BLOCKING_FUNCTION_OPTIONS = { memory: '512MiB', cpu: 1 } as const;
+
+export const beforeCreate = beforeUserCreated(BLOCKING_FUNCTION_OPTIONS, (event) =>
+  beforeCreateHandler(event),
+);
+export const beforeSignIn = beforeUserSignedIn(BLOCKING_FUNCTION_OPTIONS, (event) =>
+  beforeSignInHandler(event),
+);
 
 export interface SetAccountPasswordRequest {
   password: string;

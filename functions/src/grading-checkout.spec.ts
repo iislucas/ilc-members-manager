@@ -13,13 +13,20 @@ import {
   parseRequestedLevels,
   checkLevelsArePurchasable,
   pricesForLevels,
+  resolveGradingPrices,
 } from './grading-checkout';
 import { findGradingPrice } from './data-model/grading-prices';
 import { awardGradingLevel, AwardOutcome } from './award-level';
 import { GradingLevel, StudentLevel, ApplicationLevel } from './data-model/curriculum';
 import { Grading, GradingStatus, PaymentStatus, initGrading } from './data-model/gradings';
 import { initMember, Member } from './data-model/members';
-import { StripePriceType, StripeProduct, StripeProductPrice } from './stripe-types';
+import {
+  CachedStripeProducts,
+  StripeCacheSource,
+  StripePriceType,
+  StripeProduct,
+  StripeProductPrice,
+} from './stripe-types';
 
 function price(
   id: string,
@@ -219,5 +226,136 @@ describe('awardGradingLevel', () => {
   it('reports a missing member', async () => {
     const { db, ref } = fakeDb(undefined);
     expect(await awardGradingLevel(db, ref, GradingLevel.Student1)).toBe(AwardOutcome.MemberNotFound);
+  });
+});
+
+describe('resolveGradingPrices', () => {
+  function fakeCacheDb(initialCache?: CachedStripeProducts) {
+    let stored: CachedStripeProducts | undefined = initialCache;
+    const set = vi.fn(async (data: unknown) => {
+      if (data && typeof data === 'object' && 'products' in (data as Record<string, unknown>)) {
+        stored = data as CachedStripeProducts;
+      }
+    });
+    const db = {
+      collection: (col: string) => ({
+        doc: (docId: string) => ({
+          get: async () => ({
+            exists: col === 'system' && docId === 'stripe-products' && !!stored,
+            data: () => (col === 'system' && docId === 'stripe-products' ? stored : undefined),
+          }),
+          set,
+        }),
+      }),
+    } as never;
+    return { db, set, getStored: () => stored };
+  }
+
+  function fakeLiveStripe() {
+    const listProducts = vi.fn(() => ({
+      autoPagingToArray: async () => [
+        {
+          id: 'prod_student',
+          name: 'GRADING : Student Levels',
+          description: null,
+          active: true,
+          images: [],
+          metadata: {},
+          created: 1,
+          updated: 1,
+          default_price: null,
+        },
+      ],
+    }));
+    const listPrices = vi.fn(() => ({
+      autoPagingToArray: async () => [
+        {
+          id: 'price_s1_live',
+          product: 'prod_student',
+          active: true,
+          currency: 'usd',
+          unit_amount: 8000,
+          type: 'one_time',
+          recurring: null,
+          nickname: 'Student Level 1',
+          created: 10,
+        },
+        {
+          id: 'price_s3_live',
+          product: 'prod_student',
+          active: true,
+          currency: 'usd',
+          unit_amount: 8000,
+          type: 'one_time',
+          recurring: null,
+          nickname: 'Student Level 3',
+          created: 11,
+        },
+      ],
+    }));
+    return {
+      stripe: { products: { list: listProducts }, prices: { list: listPrices } } as never,
+      listProducts,
+      listPrices,
+    };
+  }
+
+  it('uses /system/stripe-products without enumerating Stripe when the cache has the price', async () => {
+    const { db } = fakeCacheDb({
+      products: catalogue,
+      lastRefreshed: '2026-11-01T00:00:00.000Z',
+      source: StripeCacheSource.Schedule,
+    });
+    const { stripe, listProducts, listPrices } = fakeLiveStripe();
+
+    const result = await resolveGradingPrices(db, stripe, [GradingLevel.Student1]);
+
+    expect(result.prices.map((p) => p.price.id)).toEqual(['price_s1']);
+    expect(result.freshlyFetched).toBe(false);
+    expect(listProducts).not.toHaveBeenCalled();
+    expect(listPrices).not.toHaveBeenCalled();
+  });
+
+  it('populates the cache from Stripe when /system/stripe-products does not exist yet', async () => {
+    const { db, getStored } = fakeCacheDb(undefined);
+    const { stripe, listProducts } = fakeLiveStripe();
+
+    const result = await resolveGradingPrices(db, stripe, [GradingLevel.Student1]);
+
+    expect(result.prices.map((p) => p.price.id)).toEqual(['price_s1_live']);
+    expect(result.freshlyFetched).toBe(true);
+    expect(listProducts).toHaveBeenCalledTimes(1);
+    expect(getStored()?.source).toBe(StripeCacheSource.CheckoutFallback);
+  });
+
+  it('refreshes a stale cache once when a newly added grading price is missing from cache', async () => {
+    // In `catalogue`, Student 3 is inactive, so pricesForLevels(catalogue, [Student3]) fails;
+    // the live Stripe mock has an active `price_s3_live`.
+    const { db } = fakeCacheDb({
+      products: catalogue,
+      lastRefreshed: new Date(Date.now() - 120_000).toISOString(),
+      source: StripeCacheSource.Schedule,
+    });
+    const { stripe, listProducts } = fakeLiveStripe();
+
+    const result = await resolveGradingPrices(db, stripe, [GradingLevel.Student3]);
+
+    expect(result.prices.map((p) => p.price.id)).toEqual(['price_s3_live']);
+    expect(result.freshlyFetched).toBe(true);
+    expect(listProducts).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-enumerate Stripe when the cache was refreshed within the cooldown window', async () => {
+    const { db } = fakeCacheDb({
+      products: catalogue,
+      lastRefreshed: new Date().toISOString(),
+      source: StripeCacheSource.CheckoutFallback,
+    });
+    const { stripe, listProducts } = fakeLiveStripe();
+
+    await expect(resolveGradingPrices(db, stripe, [GradingLevel.Student3])).rejects.toThrow(
+      /Student 3/,
+    );
+    expect(listProducts).not.toHaveBeenCalled();
   });
 });

@@ -87,6 +87,7 @@ export enum StripeCacheSource {
   Schedule = 'schedule',
   Webhook = 'webhook',
   Manual = 'manual',
+  CheckoutFallback = 'checkout_fallback',
 }
 
 /**

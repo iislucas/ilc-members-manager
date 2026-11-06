@@ -47,6 +47,9 @@ export {
 /** Firestore location of the cached catalogue. */
 export const STRIPE_PRODUCTS_DOC = { collection: 'system', doc: 'stripe-products' };
 
+/** Minimum age before a checkout miss may trigger a live cache refresh. */
+export const CHECKOUT_CACHE_REFRESH_COOLDOWN_MS = 60_000;
+
 function mapPrice(price: Stripe.Price): StripeProductPrice {
   return {
     id: price.id,
@@ -169,6 +172,43 @@ export async function refreshStripeProductCache(
     count: products.length,
   });
   return cached;
+}
+
+/**
+ * Reads the cached Stripe catalogue from `/system/stripe-products`. When the
+ * cache document does not exist yet (e.g. a freshly provisioned project or
+ * emulator), populates it from Stripe and returns the result.
+ */
+export async function getCachedStripeProducts(
+  db: admin.firestore.Firestore,
+  stripe: Stripe,
+): Promise<{ cached: CachedStripeProducts; freshlyFetched: boolean }> {
+  const snap = await db
+    .collection(STRIPE_PRODUCTS_DOC.collection)
+    .doc(STRIPE_PRODUCTS_DOC.doc)
+    .get();
+  const data = snap.data() as CachedStripeProducts | undefined;
+  if (snap.exists && Array.isArray(data?.products) && data.products.length > 0) {
+    return { cached: data, freshlyFetched: false };
+  }
+  const cached = await refreshStripeProductCache(
+    stripe,
+    db,
+    StripeCacheSource.CheckoutFallback,
+  );
+  return { cached, freshlyFetched: true };
+}
+
+/**
+ * Whether `cached` is old enough that a checkout price miss or deactivated-price
+ * error justifies refreshing `/system/stripe-products` from Stripe once.
+ */
+export function canRefreshStaleStripeCache(
+  cached: Pick<CachedStripeProducts, 'lastRefreshed'>,
+  nowMs = Date.now(),
+): boolean {
+  const refreshedMs = Date.parse(cached.lastRefreshed);
+  return Number.isNaN(refreshedMs) || nowMs - refreshedMs >= CHECKOUT_CACHE_REFRESH_COOLDOWN_MS;
 }
 
 // Scheduled backstop: webhooks carry most refreshes, this catches anything

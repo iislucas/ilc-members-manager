@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
 import type { AuthBlockingEvent } from 'firebase-functions/v2/identity';
 import {
+  beforeCreate,
   beforeCreateHandler,
+  beforeSignIn,
   beforeSignInHandler,
   setAccountPasswordHandler,
   signInMethodOf,
@@ -112,5 +114,17 @@ describe('setAccountPasswordHandler', () => {
       setAccountPasswordHandler(req({ email: 'marco@example.com', email_verified: true }, '123')),
     ).rejects.toThrow('at least');
     expect(authMock.updateUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('blocking trigger runtime options', () => {
+  it('allocates 512MiB and 1 vCPU to beforeCreate and beforeSignIn to stay under the 7s auth deadline', () => {
+    const createEndpoint = (beforeCreate as unknown as { __endpoint: Record<string, unknown> }).__endpoint;
+    const signInEndpoint = (beforeSignIn as unknown as { __endpoint: Record<string, unknown> }).__endpoint;
+
+    expect(createEndpoint.availableMemoryMb).toBe(512);
+    expect(createEndpoint.cpu).toBe(1);
+    expect(signInEndpoint.availableMemoryMb).toBe(512);
+    expect(signInEndpoint.cpu).toBe(1);
   });
 });

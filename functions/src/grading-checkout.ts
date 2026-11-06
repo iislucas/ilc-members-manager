@@ -9,9 +9,10 @@
  *  - the levels must be exactly the next ones this member can buy, in order
  *    (a prefix of `upcomingGradingPayments`, skipping a free retake) — so only
  *    syllabus levels (student and application) can ever be bought;
- *  - the price for each level is looked up by the server in the live Stripe
- *    catalogue (`findGradingPrice`), never taken from the browser, and all
- *    prices must share one currency (Stripe Checkout cannot mix currencies);
+ *  - the price for each level is looked up by the server in the cached Stripe
+ *    catalogue at `/system/stripe-products` (`findGradingPrice`, refreshing
+ *    from Stripe on cache miss), never taken from the browser, and all prices
+ *    must share one currency (Stripe Checkout cannot mix currencies);
  *  - the order metadata that grading fulfillment trusts (`gradingLevel`,
  *    `gradingLevels`, `orderType`) is written here and nowhere else.
  *
@@ -25,11 +26,18 @@ import * as logger from 'firebase-functions/logger';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { allowedOrigins, getUserMemberDocIds, verifiedAuthEmail } from './common';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
-import { fetchStripeProducts } from './stripe-products';
+import {
+  canRefreshStaleStripeCache,
+  getCachedStripeProducts,
+  refreshStripeProductCache,
+} from './stripe-products';
 import { requireAllowedOrigin, stripeCustomerForMember } from './stripe-checkout';
 import {
+  CachedStripeProducts,
   CreateCheckoutSessionResult,
   CreateGradingCheckoutSessionRequest,
+  StripeCacheSource,
+  StripeProduct,
 } from './stripe-types';
 import { FirestoreCollection } from './data-model/collections';
 import { GradingLevel, gradingProgression, toGradingLevel } from './data-model/curriculum';
@@ -82,7 +90,7 @@ export function checkLevelsArePurchasable(
 // Resolves each level's price from the catalogue, checking they are all on
 // sale and share one currency. Throws when any is missing.
 export function pricesForLevels(
-  products: Awaited<ReturnType<typeof fetchStripeProducts>>['products'],
+  products: StripeProduct[],
   levels: GradingLevel[],
 ): GradingPrice[] {
   const prices = levels.map((level) => ({ level, match: findGradingPrice(products, level) }));
@@ -102,6 +110,44 @@ export function pricesForLevels(
     );
   }
   return matched;
+}
+
+// Resolves grading prices from the Firestore `/system/stripe-products` cache,
+// refreshing once from Stripe if a requested syllabus level is missing and the
+// cache is past the refresh cooldown.
+export async function resolveGradingPrices(
+  db: admin.firestore.Firestore,
+  stripe: Stripe,
+  levels: GradingLevel[],
+): Promise<{ prices: GradingPrice[]; cached: CachedStripeProducts; freshlyFetched: boolean }> {
+  const { cached, freshlyFetched } = await getCachedStripeProducts(db, stripe);
+  try {
+    return { prices: pricesForLevels(cached.products, levels), cached, freshlyFetched };
+  } catch (err) {
+    if (freshlyFetched || !canRefreshStaleStripeCache(cached)) {
+      throw err;
+    }
+    const refreshed = await refreshStripeProductCache(
+      stripe,
+      db,
+      StripeCacheSource.CheckoutFallback,
+    );
+    return {
+      prices: pricesForLevels(refreshed.products, levels),
+      cached: refreshed,
+      freshlyFetched: true,
+    };
+  }
+}
+
+function isInvalidPriceStripeError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const candidate = err as { type?: string; param?: string; code?: string };
+  return (
+    candidate.type === 'StripeInvalidRequestError' &&
+    (candidate.code === 'resource_missing' ||
+      (typeof candidate.param === 'string' && candidate.param.startsWith('line_items')))
+  );
 }
 
 export const createGradingCheckoutSession = onCall<
@@ -140,11 +186,12 @@ export const createGradingCheckoutSession = onCall<
   checkLevelsArePurchasable(member, gradings, levels);
 
   const stripe = getStripeClient();
-  const { products } = await fetchStripeProducts(stripe);
-  const prices = pricesForLevels(products, levels);
-  const customerId = await stripeCustomerForMember(stripe, db, member, email);
+  const [resolved, customerId] = await Promise.all([
+    resolveGradingPrices(db, stripe, levels),
+    stripeCustomerForMember(stripe, db, member, email),
+  ]);
 
-  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+  const buildSessionParams = (prices: GradingPrice[]): Stripe.Checkout.SessionCreateParams => ({
     mode: 'payment',
     line_items: prices.map((p) => ({ price: p.price.id, quantity: 1 })),
     allow_promotion_codes: true,
@@ -161,8 +208,30 @@ export const createGradingCheckoutSession = onCall<
       gradingLevel: levels[0],
       gradingLevels: levels.join(','),
     },
-  };
-  const session = await stripe.checkout.sessions.create(sessionParams);
+  });
+
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripe.checkout.sessions.create(buildSessionParams(resolved.prices));
+  } catch (err) {
+    if (
+      resolved.freshlyFetched ||
+      !canRefreshStaleStripeCache(resolved.cached) ||
+      !isInvalidPriceStripeError(err)
+    ) {
+      throw err;
+    }
+    // A cached price was rotated/archived in Stripe before the webhook landed;
+    // refresh the cache once and retry with the updated catalogue.
+    const refreshed = await refreshStripeProductCache(
+      stripe,
+      db,
+      StripeCacheSource.CheckoutFallback,
+    );
+    const refreshedPrices = pricesForLevels(refreshed.products, levels);
+    session = await stripe.checkout.sessions.create(buildSessionParams(refreshedPrices));
+  }
+
   if (!session.url) {
     throw new HttpsError('internal', 'Stripe did not return a checkout URL.');
   }
