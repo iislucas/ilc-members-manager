@@ -1,21 +1,23 @@
 <div class="app-container">
   @let user = firebaseService.user();
 
-  <app-header
-    [breadcrumbs]="breadcrumbs()"
-    [abbreviateParents]="currentView() !== Views.Home && currentView() !== Views.Login"
-    [isLoggedIn]="!!user"
-    [isPublicPage]="isPublicPage()"
-    [(menuOpen)]="menuOpen"
-  ></app-header>
+  @if (!isMinimalAuthShell()) {
+    <app-header
+      [breadcrumbs]="breadcrumbs()"
+      [abbreviateParents]="currentView() !== Views.Home && currentView() !== Views.Login"
+      [isLoggedIn]="!!user"
+      [isPublicPage]="isPublicPage()"
+      [(menuOpen)]="menuOpen"
+    ></app-header>
 
-  @if (user && logoutError(); as message) {
-    <div class="error-container">
-      Logout error: <span>{{ message }}</span>
-      <button class="icon-only-button" (click)="dismissMessages()">
-        <app-icon name="close"></app-icon>
-      </button>
-    </div>
+    @if (user && logoutError(); as message) {
+      <div class="error-container">
+        Logout error: <span>{{ message }}</span>
+        <button class="icon-only-button" (click)="dismissMessages()">
+          <app-icon name="close"></app-icon>
+        </button>
+      </div>
+    }
   }
 
   <main>
@@ -30,6 +32,9 @@
            previously in both the logged-in and logged-out branches, eliminating
            the visible "re-load" flash when the user auto-logs in. -->
       @switch (currentView()) {
+        @case (Views.AuthComplete) {
+          <app-auth-complete />
+        }
         @case (Views.OfflineActionQueue) {
           <div></div>
         }
@@ -1163,20 +1168,24 @@
       }
     }
   </main>
-  <app-footer></app-footer>
+  @if (!isMinimalAuthShell()) {
+    <app-footer></app-footer>
+  }
 </div>
 <app-update-notification></app-update-notification>
-<a
-  class="share-page-link"
-  [class.copied]="shareCopied()"
-  [href]="currentUrl()"
-  (click)="onSharePage($event)"
-  [title]="shareCopied() ? 'Link copied to clipboard!' : 'Share or copy page link'"
-  aria-label="Share current page"
->
-  <app-icon [name]="shareCopied() ? 'check' : 'share'"></app-icon>
-  <span>{{ shareCopied() ? 'Copied!' : 'Share' }}</span>
-</a>
+@if (!isMinimalAuthShell()) {
+  <a
+    class="share-page-link"
+    [class.copied]="shareCopied()"
+    [href]="currentUrl()"
+    (click)="onSharePage($event)"
+    [title]="shareCopied() ? 'Link copied to clipboard!' : 'Share or copy page link'"
+    aria-label="Share current page"
+  >
+    <app-icon [name]="shareCopied() ? 'check' : 'share'"></app-icon>
+    <span>{{ shareCopied() ? 'Copied!' : 'Share' }}</span>
+  </a>
+}
 @if (updateService.isUpdateAvailable()) {
   <button
     type="button"

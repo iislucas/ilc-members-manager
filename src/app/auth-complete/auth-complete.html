@@ -1,0 +1,132 @@
+<div class="auth-complete-container" id="auth-complete">
+  <div class="auth-complete-brand">I Liq Chuan Members Portal</div>
+
+  @if (isSigningIn()) {
+    <h1 class="auth-complete-heading">
+      {{ isResetIntent() ? 'Resetting your password' : 'Signing you in' }}
+    </h1>
+    <div class="auth-complete-status" id="auth-complete-signing-in">
+      <app-spinner>Verifying your link…</app-spinner>
+    </div>
+  } @else if (showResetPasswordPrompt()) {
+    <h1 class="auth-complete-heading">Choose a new password</h1>
+    <div class="auth-complete-body">
+      <app-password-setup
+        mode="reset"
+        (saved)="continueToDestination()"
+        (skipped)="continueToDestination()"
+      />
+    </div>
+  } @else if (needsEmailConfirmation()) {
+    <h1 class="auth-complete-heading">Confirm your email</h1>
+    <div class="auth-complete-body">
+      <p class="auth-complete-hint" id="auth-complete-email-hint">
+        To finish signing in, enter the email address this link was sent to.
+      </p>
+
+      <div class="input-field">
+        <label for="auth-complete-email">Email</label>
+        <input
+          id="auth-complete-email"
+          type="email"
+          name="email"
+          autocomplete="email"
+          required
+          aria-describedby="auth-complete-email-hint"
+          [ngModel]="emailInput()"
+          (ngModelChange)="onEmailInput($event)"
+          (keyup.enter)="confirmEmailAndSignIn()"
+          placeholder="you@example.com"
+        />
+      </div>
+
+      @if (errorMessage(); as message) {
+        <div class="error-container" role="alert">
+          <span class="error-message">{{ message }}</span>
+        </div>
+      }
+
+      <div class="auth-complete-actions">
+        <button
+          type="button"
+          id="auth-complete-confirm-btn"
+          class="primary-button"
+          [disabled]="!emailInput().trim()"
+          (click)="confirmEmailAndSignIn()"
+        >
+          Finish signing in
+        </button>
+      </div>
+    </div>
+  } @else if (resendSentTo(); as sentEmail) {
+    <h1 class="auth-complete-heading">Check your email</h1>
+    <div class="auth-complete-body" id="auth-complete-resent">
+      <p class="auth-complete-hint">
+        We sent a new sign-in link to <strong>{{ sentEmail }}</strong>. Open the
+        newest email and click the link inside to continue.
+      </p>
+      <div class="auth-complete-actions">
+        <a class="subtle-link" [href]="loginHref()">Return to sign-in page</a>
+      </div>
+    </div>
+  } @else if (errorMessage(); as message) {
+    <h1 class="auth-complete-heading">Sign-in link couldn't be completed</h1>
+    <div class="auth-complete-body" id="auth-complete-error">
+      <div class="error-container" role="alert">
+        <span class="error-message">{{ message }}</span>
+      </div>
+
+      @if (!firebaseService.failedEmailLinkAddress()) {
+        <div class="input-field">
+          <label for="auth-complete-retry-email">Email a fresh link to</label>
+          <input
+            id="auth-complete-retry-email"
+            type="email"
+            name="email"
+            autocomplete="email"
+            [ngModel]="emailInput()"
+            (ngModelChange)="onEmailInput($event)"
+            (keyup.enter)="sendFreshLink()"
+            placeholder="you@example.com"
+          />
+        </div>
+      }
+
+      @if (resendSending()) {
+        <div class="auth-complete-status">
+          <app-spinner>Sending a new link…</app-spinner>
+        </div>
+      } @else {
+        <div class="auth-complete-actions">
+          @if (retryEmailAddress()) {
+            <button
+              type="button"
+              id="auth-complete-resend-btn"
+              class="primary-button"
+              (click)="sendFreshLink()"
+            >
+              Email me a new link
+            </button>
+          }
+          <a class="subtle-link" [href]="loginHref()">Go to sign-in page</a>
+        </div>
+      }
+    </div>
+  } @else if (firebaseService.isAuthSyncing()) {
+    <h1 class="auth-complete-heading">Signing you in</h1>
+    <div class="auth-complete-status">
+      <app-spinner>Loading your account…</app-spinner>
+    </div>
+  } @else {
+    <h1 class="auth-complete-heading">Sign-in link inactive</h1>
+    <div class="auth-complete-body" id="auth-complete-inactive">
+      <p class="auth-complete-hint">
+        This sign-in link has already been completed or is missing its
+        verification code.
+      </p>
+      <div class="auth-complete-actions">
+        <a class="button primary-button" [href]="loginHref()">Continue to sign in</a>
+      </div>
+    </div>
+  }
+</div>

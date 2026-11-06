@@ -9,9 +9,92 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#808080" />
     <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (
+          window.location.pathname === '/auth/complete' ||
+          (params.get('mode') === 'signIn' && params.has('oobCode'))
+        ) {
+          document.documentElement.classList.add('auth-preboot');
+          if (params.get('intent') === 'reset-password') {
+            document.documentElement.classList.add('auth-preboot-reset');
+          }
+        }
+      })();
+    </script>
+    <style>
+      .preboot-auth-shell {
+        display: none;
+      }
+      html.auth-preboot .preboot-auth-shell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 75vh;
+        padding: 2rem 1.25rem;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #181818;
+        text-align: center;
+      }
+      .preboot-auth-brand {
+        font-size: 0.85rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #555;
+        margin-bottom: 0.5rem;
+      }
+      .preboot-auth-title {
+        font-size: 1.4rem;
+        margin: 0 0 1.25rem 0;
+        font-weight: 600;
+      }
+      .preboot-auth-reset-title {
+        display: none;
+      }
+      html.auth-preboot-reset .preboot-auth-signin-title {
+        display: none;
+      }
+      html.auth-preboot-reset .preboot-auth-reset-title {
+        display: inline;
+      }
+      .preboot-auth-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        font-size: 0.95rem;
+        color: #444;
+      }
+      .preboot-auth-spinner {
+        width: 18px;
+        height: 18px;
+        border: 2.5px solid #d4d4d8;
+        border-top-color: #950000;
+        border-radius: 50%;
+        animation: ilc-preboot-spin 0.8s linear infinite;
+      }
+      @keyframes ilc-preboot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
-    <app-root></app-root>
+    <app-root>
+      <main class="preboot-auth-shell">
+        <div class="preboot-auth-brand">I Liq Chuan Members Portal</div>
+        <h1 class="preboot-auth-title">
+          <span class="preboot-auth-signin-title">Signing you in</span>
+          <span class="preboot-auth-reset-title">Resetting your password</span>
+        </h1>
+        <div class="preboot-auth-status">
+          <span class="preboot-auth-spinner" aria-hidden="true"></span>
+          <span>Verifying your link…</span>
+        </div>
+      </main>
+    </app-root>
     <noscript>Please enable JavaScript to use the ILC Members Portal.</noscript>
   </body>
 </html>

@@ -8,7 +8,11 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BecomeAMemberComponent } from './become-a-member';
 import { StripeService } from '../stripe.service';
-import { FirebaseStateService, UserDetails } from '../firebase-state.service';
+import {
+  FirebaseStateService,
+  UserDetails,
+  createFirebaseStateServiceMock,
+} from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
@@ -190,13 +194,7 @@ describe('BecomeAMemberComponent', () => {
     firebaseUser: { email: 'test@example.com', uid: 'uid_test_123' } as never,
   };
 
-  let mockFirebaseService: {
-    user: typeof userSignal;
-    loginError: ReturnType<typeof signal<string | null>>;
-    completedEmailLinkSignIn: ReturnType<typeof signal<string | null>>;
-    offerPasswordSetup: ReturnType<typeof signal<boolean>>;
-    pendingEmailLink: ReturnType<typeof signal<string | null>>;
-  };
+  let mockFirebaseService: FirebaseStateService;
 
   beforeEach(async () => {
     mockStripeService = {
@@ -219,11 +217,8 @@ describe('BecomeAMemberComponent', () => {
     userSignal = signal<UserDetails | null>(sampleUser);
 
     mockFirebaseService = {
+      ...createFirebaseStateServiceMock(),
       user: userSignal,
-      loginError: signal<string | null>(null),
-      completedEmailLinkSignIn: signal<string | null>(null),
-      offerPasswordSetup: signal<boolean>(false),
-      pendingEmailLink: signal<string | null>(null),
     };
 
     mockStripeProducts = {
