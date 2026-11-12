@@ -313,22 +313,6 @@ label {
   }
 }
 
-.save-btn {
-  background: #e3f2fd;
-  color: #1565c0;
-  border: 1px solid #90caf9;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: #bbdefb;
-  }
-  &:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-}
-
 .inferred-member-saved {
   display: flex;
   align-items: center;

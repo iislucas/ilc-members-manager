@@ -17,30 +17,12 @@
 }
 
 .primary-btn {
-  background-color: v.$heading-accent-color;
-  border: 1px solid v.$heading-accent-color;
-  color: #ffffff;
-  font-weight: 600;
   font-size: 0.85rem;
   padding: 6px 14px;
   border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background-color 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-
-  &:hover {
-    background-color: color.adjust(v.$heading-accent-color, $lightness: -8%);
-    border-color: color.adjust(v.$heading-accent-color, $lightness: -8%);
-    color: #ffffff;
-    text-decoration: none;
-  }
 
   app-icon {
-    color: #ffffff;
     font-size: 1.05rem;
   }
 }

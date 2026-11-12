@@ -241,17 +241,29 @@ export class NextGradingComponent {
     return nextGradingLevel(m.studentLevel, m.applicationLevel);
   });
 
-  // All pending/open (unfinalized) gradings for the current member, sorted in canonical progression order
+  // All pending/open (unfinalized) gradings for the current member at levels
+  // they have not yet achieved, sorted in canonical progression order. Open
+  // gradings at already-achieved levels (e.g. after an admin corrected the
+  // member's level) are excluded so they don't show up alongside the new level.
   pendingGradings = computed<Grading[]>(() => {
     const user = this.user();
     if (!user) return [];
+    const achieved = this.achievedLevels();
     const gradings = this.dataService.myGradings.entries();
-    const open = gradings.filter(
-      (g) =>
-        g.status !== GradingStatus.Passed &&
-        g.status !== GradingStatus.NotPassed &&
-        !!g.level,
-    );
+    const open = gradings.filter((g) => {
+      if (
+        g.status === GradingStatus.Passed ||
+        g.status === GradingStatus.NotPassed ||
+        !g.level
+      ) {
+        return false;
+      }
+      const canonical = toGradingLevel(g.level);
+      if (canonical && achieved.has(canonical)) {
+        return false;
+      }
+      return true;
+    });
     return [...open].sort((a, b) => {
       const idxA = progressionIndex(a.level);
       const idxB = progressionIndex(b.level);

@@ -203,6 +203,7 @@ export class FirebaseStateService {
   private db: Firestore;
   private unsubscribeFromMember: Unsubscribe | null = null;
   private googleLoginAttemptId = 0;
+  private isRestoredFromCache = false;
 
   constructor() {
     this.db = getFirestore(this.app);
@@ -230,7 +231,7 @@ export class FirebaseStateService {
       const currentUser = this.auth.currentUser;
       if (currentUser && this.loginStatus() === LoginStatus.SignedIn) {
         console.log('FirebaseStateService: Online event, refreshing user details in background...');
-        await this.fetchUserDetails(currentUser);
+        await this.fetchUserDetails(currentUser, { backgroundRefresh: true });
       }
     });
 
@@ -270,6 +271,7 @@ export class FirebaseStateService {
             isAdmin: cached.isAdmin,
             schoolsManaged: cached.schoolsManaged,
           };
+          this.isRestoredFromCache = true;
           this.user.set(cachedDetails);
           this.loggedInResolverFn(cachedDetails);
           this.loginStatus.set(LoginStatus.SignedIn);
@@ -316,6 +318,7 @@ export class FirebaseStateService {
 
         // SignedOut
         console.log('FirebaseStateService: User is null or has no email, setting SignedOut state.');
+        this.isRestoredFromCache = false;
         this.user.set(null);
         this.unverifiedUser.set(null);
         this.loginStatus.set(LoginStatus.SignedOut);
@@ -342,12 +345,14 @@ export class FirebaseStateService {
 
       this.unverifiedUser.set(null);
 
-      // If the user is already signed in with the same UID, do not trigger the login/fetch flow again!
-      // This prevents redundant calls and transient errors during automatic token refreshes or
-      // concurrent tab loads from logging the user out.
+      // If the user is already signed in with the same UID, do not trigger the full login flow again
+      // during mid-session token refreshes. However, if `this.user()` was only eagerly restored from
+      // IndexedDB on startup (`isRestoredFromCache`), attach the live listener immediately AND
+      // refresh `getUserDetails` in the background so roles and memberProfiles never stay stale.
       const currentUserDetails = this.user();
       if (currentUserDetails && currentUserDetails.firebaseUser.uid === user.uid) {
-        console.log('FirebaseStateService: onAuthStateChanged fired for already signed-in user, updating firebaseUser reference.');
+        const needsServerRefresh = this.isRestoredFromCache;
+        this.isRestoredFromCache = false;
         this.user.set({
           ...currentUserDetails,
           firebaseUser: user,
@@ -357,6 +362,9 @@ export class FirebaseStateService {
         this.setupMemberSnapshotListener();
         this.isAuthReady.set(true);
         this.isAuthSyncing.set(false);
+        if (needsServerRefresh) {
+          void this.fetchUserDetails(user, { backgroundRefresh: true });
+        }
         return;
       }
 
@@ -381,8 +389,15 @@ export class FirebaseStateService {
     }
   }
 
-  public async fetchUserDetails(user: User): Promise<void> {
-    this.loginStatus.set(LoginStatus.LoggingIn);
+  public async fetchUserDetails(
+    user: User,
+    options?: { backgroundRefresh?: boolean },
+  ): Promise<void> {
+    this.isRestoredFromCache = false;
+    const previousSelectedDocId = this.user()?.member.docId;
+    if (!options?.backgroundRefresh) {
+      this.loginStatus.set(LoginStatus.LoggingIn);
+    }
     try {
     let userDetailsResult: FetchUserDetailsResult;
     try {
@@ -460,9 +475,15 @@ export class FirebaseStateService {
       return;
     }
 
+    const existingCached = await this.idb.get<CachedUserDetails>(`cached_user_details_${user.uid}`);
+    const preferredDocId = previousSelectedDocId || existingCached?.selectedMemberDocId;
+    const selectedMember =
+      (preferredDocId ? profiles.find((p) => p.docId === preferredDocId) : undefined) ||
+      profiles[0];
+
     const userDetails: UserDetails = {
       firebaseUser: user,
-      member: profiles[0],
+      member: selectedMember,
       memberProfiles: profiles,
       isAdmin: userDetailsResult.isAdmin,
       schoolsManaged: userDetailsResult.schoolsManaged,
@@ -483,7 +504,7 @@ export class FirebaseStateService {
       isAdmin: userDetailsResult.isAdmin,
       schoolsManaged: userDetailsResult.schoolsManaged,
       userMemberProfiles: profiles,
-      selectedMemberDocId: profiles[0].docId,
+      selectedMemberDocId: selectedMember.docId,
       cachedAt: new Date().toISOString(),
     };
     await this.idb.set(`cached_user_details_${user.uid}`, cacheObj);
@@ -550,10 +571,13 @@ export class FirebaseStateService {
     };
     this.user.set(updatedDetails);
 
+    await this.persistMemberToCache(currentUserDetails.firebaseUser.uid, updatedMember);
+  }
+
+  private async persistMemberToCache(uid: string, updatedMember: Member): Promise<void> {
+    if (!uid) return;
     try {
-      const cached = await this.idb.get<CachedUserDetails>(
-        `cached_user_details_${currentUserDetails.firebaseUser.uid}`,
-      );
+      const cached = await this.idb.get<CachedUserDetails>(`cached_user_details_${uid}`);
       if (cached) {
         const cachedIdx = cached.userMemberProfiles.findIndex(
           (p) => p.docId === updatedMember.docId,
@@ -561,10 +585,7 @@ export class FirebaseStateService {
         if (cachedIdx >= 0) {
           cached.userMemberProfiles[cachedIdx] = updatedMember;
         }
-        await this.idb.set(
-          `cached_user_details_${currentUserDetails.firebaseUser.uid}`,
-          cached,
-        );
+        await this.idb.set(`cached_user_details_${uid}`, cached);
       }
     } catch (err) {
       console.warn('FirebaseStateService: Failed updating cached user profile:', err);
@@ -580,43 +601,65 @@ export class FirebaseStateService {
     const currentUserDetails = this.user();
     if (!currentUserDetails || !currentUserDetails.member.docId) return;
 
-    const memberDocRef = doc(this.db, 'members', currentUserDetails.member.docId);
-    this.unsubscribeFromMember = onSnapshot(
-      memberDocRef,
-      (doc) => {
-        if (!doc.exists()) {
-          console.warn(`FirebaseStateService: Member doc snapshot says NOT EXISTS for ${currentUserDetails.member.docId}`);
-          const status = this.loginStatus();
-          if (status === LoginStatus.SignedIn) {
-            console.warn('FirebaseStateService: Signing out because doc no longer exists in SignedIn state.');
-            this.loginStatus.set(LoginStatus.SignedOut);
-            console.warn(
-              `The users membership doc (${currentUserDetails.member.docId}) was removed while they were signed in, and they've been signed out.`,
-            );
-            this.logout();
-          }
-          return;
-        }
-        const updatedDetails = this.user();
-        if (updatedDetails) {
-          const updatedMember = firestoreDocToMember(doc);
-          this.user.set({
-            ...updatedDetails,
-            member: updatedMember,
-            isAdmin: updatedDetails.isAdmin,
-            // Update the profile in the list as well
-            memberProfiles: updatedDetails.memberProfiles.map((p) =>
-              p.docId === updatedMember.docId ? updatedMember : p,
-            ),
-          });
-        }
-      },
-      (error) => {
-        console.error('Error in member snapshot listener:', error);
-        // We DON'T sign out here yet, just log it. 
-        // If it's a permission error, it might be transient or a rule change.
-      },
+    const docIds = Array.from(
+      new Set(
+        [
+          currentUserDetails.member.docId,
+          ...currentUserDetails.memberProfiles.map((p) => p.docId),
+        ].filter((id) => Boolean(id)),
+      ),
     );
+
+    const unsubs = docIds.map((docId) => {
+      const memberDocRef = doc(this.db, 'members', docId);
+      return onSnapshot(
+        memberDocRef,
+        (docSnap) => {
+          if (!docSnap.exists()) {
+            const activeDocId = this.user()?.member.docId;
+            if (docId === activeDocId) {
+              console.warn(
+                `FirebaseStateService: Member doc snapshot says NOT EXISTS for ${docId}`,
+              );
+              const status = this.loginStatus();
+              if (status === LoginStatus.SignedIn) {
+                console.warn(
+                  'FirebaseStateService: Signing out because doc no longer exists in SignedIn state.',
+                );
+                this.loginStatus.set(LoginStatus.SignedOut);
+                this.logout();
+              }
+            }
+            return;
+          }
+          const updatedDetails = this.user();
+          if (updatedDetails) {
+            const updatedMember = firestoreDocToMember(docSnap);
+            const isActiveProfile = updatedDetails.member.docId === updatedMember.docId;
+            this.user.set({
+              ...updatedDetails,
+              member: isActiveProfile ? updatedMember : updatedDetails.member,
+              isAdmin: updatedDetails.isAdmin,
+              memberProfiles: updatedDetails.memberProfiles.map((p) =>
+                p.docId === updatedMember.docId ? updatedMember : p,
+              ),
+            });
+            void this.persistMemberToCache(updatedDetails.firebaseUser.uid, updatedMember);
+          }
+        },
+        (error) => {
+          console.error('Error in member snapshot listener:', error);
+          // We DON'T sign out here yet, just log it.
+          // If it's a permission error, it might be transient or a rule change.
+        },
+      );
+    });
+
+    this.unsubscribeFromMember = () => {
+      for (const unsub of unsubs) {
+        unsub();
+      }
+    };
   }
 
   public async loginWithGoogle(): Promise<AuthOperationResult> {
@@ -910,6 +953,7 @@ export class FirebaseStateService {
         await Promise.all(deletions);
       }
       await this.idb.delete(LAST_ACTIVE_USER_UID_KEY);
+      this.isRestoredFromCache = false;
       this.user.set(null);
       this.offerPasswordSetup.set(false);
       this.isCompletingEmailLink.set(false);

@@ -287,7 +287,7 @@
         <button type="button" class="subtle-button" (click)="closeFormModal()">
           Cancel
         </button>
-        <button type="button" class="primary-save-btn" (click)="submitForm()">
+        <button type="button" class="primary-button" (click)="submitForm()">
           {{ editingId() ? 'Save Changes' : 'Add Time Range' }}
         </button>
       </div>
@@ -409,7 +409,7 @@
         </button>
         <button
           type="button"
-          class="primary-save-btn"
+          class="primary-button"
           [disabled]="!importJsonText().trim()"
           (click)="processImport()"
         >

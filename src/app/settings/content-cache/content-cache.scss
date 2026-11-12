@@ -135,19 +135,6 @@
   font-family: inherit;
   white-space: nowrap;
 
-  &.primary-action {
-    background-color: $heading-accent-color;
-    color: #ffffff;
-    border: 1px solid $heading-accent-color;
-    box-shadow: none;
-
-    &:hover:not(:disabled) {
-      background-color: #7f1d1d;
-      border-color: #7f1d1d;
-      box-shadow: none;
-    }
-  }
-
   &.secondary-action {
     background-color: $button-bg-color;
     color: $text-primary;

@@ -474,6 +474,9 @@
               <option [value]="level">{{ level || "None" }}</option>
             }
           </select>
+          @if (userIsSchoolManagerOrAdmin() && levelTrackMismatchWarning(); as warning) {
+            <div class="warning-message">⚠ {{ warning }}</div>
+          }
         </div>
 
         @if (isOwnProfile()) {
@@ -488,26 +491,25 @@
           </div>
         }
 
-        @if (userIsAdmin() || e.mastersLevels.length > 0) {
-          <label for="masterLevels">Master</label>
+        @if (userIsAdmin() || selectedMasterLevel()) {
+          <label for="masterLevel">Master</label>
           <div class="rhs">
             @if (userIsAdmin()) {
-              @for (level of masterLevels; track level) {
-                <div class="masterLevel">
-                  <input
-                    id="masterLevels"
-                    name="masterLevels"
-                    type="checkbox"
-                    [checked]="e.mastersLevels.includes(level)"
-                    (change)="onMasterLevelChange(level, $event)"
-                  />
-                  {{ level }}
-                </div>
-              }
+              <select
+                id="masterLevel"
+                name="masterLevel"
+                [value]="selectedMasterLevel()"
+                (change)="onMasterLevelSelect($event)"
+              >
+                <option value="">None</option>
+                @for (level of masterLevels; track level) {
+                  <option [value]="level" [selected]="level === selectedMasterLevel()">
+                    {{ masterLevelLabel(level) }}
+                  </option>
+                }
+              </select>
             } @else {
-              @for (level of e.mastersLevels; track level) {
-                <span class="identifier-chip">{{ level }}</span>
-              }
+              <span class="identifier-chip">{{ masterLevelLabel(selectedMasterLevel()) }}</span>
             }
           </div>
         }
@@ -1303,6 +1305,7 @@
           @if (isDirty()) {
             <button
               type="submit"
+              class="primary-button"
               [disabled]="
                 isDupMemberId() ||
                 isInvalidPrimaryInstructorId() ||

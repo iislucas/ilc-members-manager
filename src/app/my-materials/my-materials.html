@@ -764,16 +764,16 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="outlined-button" (click)="closeEditModal()" [disabled]="isSavingEdit()">
-            Cancel
-          </button>
-          <button type="button" class="button" (click)="saveEdit()" [disabled]="isSavingEdit()">
-            @if (isSavingEdit()) {
-              <app-spinner>Saving...</app-spinner>
-            } @else {
+          @if (isSavingEdit()) {
+            <app-spinner>Saving...</app-spinner>
+          } @else {
+            <button type="button" class="outlined-button" (click)="closeEditModal()">
+              Cancel
+            </button>
+            <button type="button" class="primary-button" (click)="saveEdit()">
               Save Changes
-            }
-          </button>
+            </button>
+          }
         </div>
       </div>
     </div>

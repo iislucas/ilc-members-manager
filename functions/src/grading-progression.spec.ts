@@ -1,8 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter, unachievedEarlierLevels, GradingLevel, StudentLevel, ApplicationLevel, toGradingLevel, toStudentLevel, toApplicationLevel, studentLevelOf, applicationLevelOf, gradingLevelForStudent, gradingLevelForApplication, gradingProgression } from './data-model/curriculum';
+import {
+  nextGradingLevel,
+  achievedGradingLevels,
+  instructorCanAssessLevel,
+  previousGradingLevel,
+  normalizeGradingLevel,
+  levelAfter,
+  unachievedEarlierLevels,
+  GradingLevel,
+  StudentLevel,
+  ApplicationLevel,
+  MasterLevel,
+  MASTER_LEVEL_ORDER,
+  masterLevelLabel,
+  toMasterLevel,
+  highestMasterLevel,
+  normalizeMasterLevels,
+  expectedMinStudentLevelForApplication,
+  toGradingLevel,
+  toStudentLevel,
+  toApplicationLevel,
+  studentLevelOf,
+  applicationLevelOf,
+  gradingLevelForStudent,
+  gradingLevelForApplication,
+  gradingProgression,
+} from './data-model/curriculum';
 import { nextGradingPayment, upcomingGradingPayments, freeRetakeLevel, levelsBlockingResult, levelsIncludingPassedGradings, unpaidGradingsInProgressionOrder, orderDisplayNumber, gradingDisplayId, isGradingPaid, PaymentStatus, GradingStatus } from './data-model/gradings';
 import { notificationStyle, NotificationKind } from './data-model/notifications';
-import { memberLevelNormalization } from './data-model/members';
+import { memberLevelNormalization, firestoreDocToMember } from './data-model/members';
 
 describe('grading progression helpers', () => {
   describe('nextGradingLevel', () => {
@@ -400,6 +426,24 @@ describe('grading progression helpers', () => {
       expect(result.grading).toBe(passedUnpaid);
     });
 
+    it('skips an unconducted unpaid grading at an already-achieved level after an admin level update', () => {
+      const staleOpenUnpaid = unpaid('Student 2', GradingStatus.AwaitingRequest);
+      const result = nextGradingPayment('3', '', [staleOpenUnpaid]);
+      expect(result).toEqual({
+        level: 'Application 1',
+        grading: null,
+      });
+    });
+
+    it('still settles an already-conducted (Passed) unpaid grading even if the member level was updated past it', () => {
+      const passedUnpaid = unpaid('Student 2', GradingStatus.Passed);
+      const result = nextGradingPayment('3', '', [passedUnpaid]);
+      expect(result).toEqual({
+        level: 'Student 2',
+        grading: passedUnpaid,
+      });
+    });
+
     it('steps over a paid, still-open grading so a level can be bought ahead', () => {
       expect(nextGradingPayment('3', '', [paid('Application 1')])).toEqual({
         level: 'Student 4',
@@ -592,5 +636,57 @@ describe('memberLevelNormalization', () => {
         { field: 'applicationLevel', value: 'Level 9' },
       ],
     });
+  });
+});
+
+describe('MasterLevel ordering and normalisation', () => {
+  it('orders Master levels 1..4: Good, Wonder, Mystery, Compassion', () => {
+    expect(MASTER_LEVEL_ORDER.map(masterLevelLabel)).toEqual([
+      '1. Good Hand',
+      '2. Wonder Hand',
+      '3. Mystery Hand',
+      '4. Compassion Hand',
+    ]);
+  });
+
+  it('parses singular, plural, and numbered spellings of Master levels', () => {
+    expect(toMasterLevel('Good Hands')).toBe(MasterLevel.Good);
+    expect(toMasterLevel('1. Good Hand')).toBe(MasterLevel.Good);
+    expect(toMasterLevel('2. Wonder Hand')).toBe(MasterLevel.Wonder);
+    expect(toMasterLevel('Mystery Hand')).toBe(MasterLevel.Mystery);
+    expect(toMasterLevel('4. Compassion Hand')).toBe(MasterLevel.Compassion);
+    expect(toMasterLevel('')).toBeNull();
+    expect(toMasterLevel('None')).toBeNull();
+  });
+
+  it('collapses legacy multi-entry mastersLevels arrays to the single highest Master level', () => {
+    expect(
+      highestMasterLevel([
+        'Compassion Hands',
+        'Good Hands',
+        'Mystery Hands',
+        'Wonder Hands',
+      ]),
+    ).toBe(MasterLevel.Compassion);
+    expect(
+      normalizeMasterLevels(['Good Hands', 'Mystery Hands']),
+    ).toEqual([MasterLevel.Mystery]);
+    expect(normalizeMasterLevels([])).toEqual([]);
+
+    const member = firestoreDocToMember({
+      id: 'us1',
+      data: () => ({
+        mastersLevels: ['Compassion Hands', 'Good Hands', 'Mystery Hands', 'Wonder Hands'],
+      }),
+    });
+    expect(member.mastersLevels).toEqual([MasterLevel.Compassion]);
+  });
+
+  it('computes expected minimum Student level for each Application level', () => {
+    expect(expectedMinStudentLevelForApplication('1')).toBe(StudentLevel.Level3);
+    expect(expectedMinStudentLevelForApplication('2')).toBe(StudentLevel.Level4);
+    expect(expectedMinStudentLevelForApplication('3')).toBe(StudentLevel.Level6);
+    expect(expectedMinStudentLevelForApplication('6')).toBe(StudentLevel.Level11);
+    expect(expectedMinStudentLevelForApplication('')).toBe(StudentLevel.None);
   });
 });

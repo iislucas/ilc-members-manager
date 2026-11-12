@@ -27,31 +27,78 @@
     <!-- ILC event search -->
     <div class="event-search-section">
       <label class="small-label">Grading happened at event:</label>
-      <app-autocomplete
-        class="event-autocomplete"
-        name="Event"
-        [searchableSet]="eventsSet"
-        [displayFns]="eventDisplayFns"
-        [inputBoxIsChip]="false"
-        [initSearchTerm]="linkedEventName() || editEvent()"
-        placeholder="Search ILC events…"
-        (itemSelected)="onEventSelected($event)"
-      ></app-autocomplete>
-      <div class="event-range-hint">
-        <span class="small-label">(events from</span>
-        <input
-          type="date"
-          [value]="eventRangeFrom()"
-          (change)="eventRangeFrom.set(asDateStr($event))"
-        />
-        <span class="small-label">to</span>
-        <input
-          type="date"
-          [value]="eventRangeTo()"
-          (change)="eventRangeTo.set(asDateStr($event))"
-        />
-        <span class="small-label">)</span>
+      <div class="event-search-row">
+        <app-autocomplete
+          class="event-autocomplete"
+          name="Event"
+          [searchableSet]="eventsSet"
+          [displayFns]="eventDisplayFns"
+          [inputBoxIsChip]="false"
+          [initSearchTerm]="linkedEventName() || editEvent()"
+          placeholder="Search ILC events…"
+          (itemSelected)="onEventSelected($event)"
+        ></app-autocomplete>
+        <div class="event-menu-container">
+          <button
+            type="button"
+            class="icon-only-button event-menu-trigger"
+            (click)="toggleMenu($event)"
+            [attr.aria-expanded]="menuOpen()"
+            aria-label="Event search options"
+            title="Event search options"
+          >
+            <app-icon name="more_vert" />
+          </button>
+          @if (menuOpen()) {
+            <div
+              class="menu-overlay transparent"
+              (click)="closeMenu(); $event.stopPropagation()"
+            ></div>
+            <div class="event-options-menu">
+              @if (!showDateRange()) {
+                <button
+                  type="button"
+                  class="menu-item"
+                  (click)="openOtherDatesSearch()"
+                >
+                  <app-icon name="calendar_today" />
+                  <span>Show events on other dates</span>
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="menu-item"
+                  (click)="hideOtherDatesSearch()"
+                >
+                  <app-icon name="close" />
+                  <span>Hide date range (last 3 months)</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
       </div>
+      @if (showDateRange()) {
+        <div class="event-range-hint">
+          <span class="small-label">Events from</span>
+          <input
+            type="date"
+            aria-label="Events from date"
+            [value]="eventRangeFrom()"
+            (change)="eventRangeFrom.set(asDateStr($event))"
+          />
+          <span class="small-label">to</span>
+          <input
+            type="date"
+            aria-label="Events to date"
+            [value]="eventRangeTo()"
+            (change)="eventRangeTo.set(asDateStr($event))"
+          />
+          @if (!eventRangeTo()) {
+            <span class="small-label">(no future limit)</span>
+          }
+        </div>
+      }
       @if (editDocId()) {
         <div class="linked-event-status">
           <span>Linked Event:</span>

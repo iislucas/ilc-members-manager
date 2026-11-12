@@ -460,6 +460,27 @@ describe('NextGradingComponent', () => {
       await createComponent();
       expect(component.targetLevel()).toBe('Student 4');
     });
+
+    it('hides stale open/unpaid gradings at already-achieved levels after an admin updates studentLevel', async () => {
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'stale_stu_2',
+          level: 'Student 2',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      ]);
+      await createComponent();
+
+      expect(component.currentStudentLevel()).toBe('Student 3');
+      expect(component.pendingGradings()).toEqual([]);
+      expect(component.targetLevel()).toBe('Application 1');
+      expect(component.selectableLevels()[0].level).toBe('Application 1');
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.open-grading-banner')).toBeNull();
+      expect(el.querySelector('.pay-btn')?.classList.contains('primary-button')).toBe(true);
+    });
   });
 
   it('should identify free retake eligibility when member only has NotPassed grading and initiate retake', async () => {

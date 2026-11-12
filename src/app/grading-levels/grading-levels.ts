@@ -99,19 +99,30 @@ function isOpen(g: Grading): boolean {
 }
 
 // Builds one row per level of `gradingProgression` from the member's levels and
-// their gradings. A level counts as achieved when the member record says so or
-// a passed & paid grading awards it (the record is updated by a trigger, so it
-// can lag a moment behind).
+// their gradings. A level counts as achieved when the member record says so, or
+// when a passed & paid grading updated more recently than `memberLastUpdated`
+// awards it (the member record is updated by a trigger, so it can lag a moment
+// behind — whereas an older passed grading must not override a more recent
+// admin correction to the member's level).
 export function buildGradingLevelRows(
   studentLevel: string,
   applicationLevel: string,
   gradings: Grading[],
+  memberLastUpdated = '',
 ): GradingLevelRows {
-  const held = levelsIncludingPassedGradings(studentLevel, applicationLevel, gradings);
+  const inFlightGradings = memberLastUpdated
+    ? gradings.filter((g) => !!g.lastUpdated && g.lastUpdated > memberLastUpdated)
+    : gradings;
+  const held = levelsIncludingPassedGradings(studentLevel, applicationLevel, inFlightGradings);
   const achieved = achievedGradingLevels(held.studentLevel, held.applicationLevel);
   const next = nextGradingLevel(held.studentLevel, held.applicationLevel);
-  const retake = freeRetakeLevel(studentLevel, applicationLevel, gradings);
-  const payment = nextGradingPayment(studentLevel, applicationLevel, gradings, retake).level;
+  const retake = freeRetakeLevel(held.studentLevel, held.applicationLevel, gradings);
+  const payment = nextGradingPayment(
+    held.studentLevel,
+    held.applicationLevel,
+    gradings,
+    retake,
+  ).level;
 
   const byLevel = new Map<GradingLevel, Grading[]>();
   const nonSyllabusGradings: Grading[] = [];
@@ -181,6 +192,7 @@ export class GradingLevelsComponent {
       this.member().studentLevel,
       this.member().applicationLevel,
       this.gradings(),
+      this.member().lastUpdated,
     ),
   );
 

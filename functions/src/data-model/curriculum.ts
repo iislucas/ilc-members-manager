@@ -415,3 +415,100 @@ export enum MasterLevel {
   Mystery = 'Mystery Hands',
   Compassion = 'Compassion Hands',
 }
+
+/** Canonical progression order of Master levels (lowest to highest). */
+export const MASTER_LEVEL_ORDER: readonly MasterLevel[] = [
+  MasterLevel.Good,
+  MasterLevel.Wonder,
+  MasterLevel.Mystery,
+  MasterLevel.Compassion,
+];
+
+/** Ordered UI display labels for each Master level. */
+export const MASTER_LEVEL_LABELS: Record<MasterLevel, string> = {
+  [MasterLevel.Good]: '1. Good Hand',
+  [MasterLevel.Wonder]: '2. Wonder Hand',
+  [MasterLevel.Mystery]: '3. Mystery Hand',
+  [MasterLevel.Compassion]: '4. Compassion Hand',
+};
+
+/**
+ * Parses any known spelling of a Master level ('Good Hands', 'Good Hand',
+ * '1. Good Hand', etc., case-insensitive) into its canonical `MasterLevel` enum,
+ * or null if unrecognised / empty.
+ */
+export function toMasterLevel(raw: string | null | undefined): MasterLevel | null {
+  const cleaned = (raw ?? '')
+    .trim()
+    .replace(/^\d+\.\s*/, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+  if (!cleaned) return null;
+  if (cleaned === 'good hand' || cleaned === 'good hands') return MasterLevel.Good;
+  if (cleaned === 'wonder hand' || cleaned === 'wonder hands') return MasterLevel.Wonder;
+  if (cleaned === 'mystery hand' || cleaned === 'mystery hands') return MasterLevel.Mystery;
+  if (cleaned === 'compassion hand' || cleaned === 'compassion hands') return MasterLevel.Compassion;
+  return null;
+}
+
+/**
+ * Returns the ordered UI display label for a Master level ('1. Good Hand' …
+ * '4. Compassion Hand'), or '' when empty/unrecognised.
+ */
+export function masterLevelLabel(raw: string | null | undefined): string {
+  const level = toMasterLevel(raw);
+  return level ? MASTER_LEVEL_LABELS[level] : '';
+}
+
+/**
+ * Returns the highest Master level in progression order from a list of stored
+ * values, or '' when none are present.
+ */
+export function highestMasterLevel(
+  levels: readonly string[] | null | undefined,
+): MasterLevel | '' {
+  if (!Array.isArray(levels) || levels.length === 0) return '';
+  let bestIdx = -1;
+  for (const item of levels) {
+    const parsed = toMasterLevel(item);
+    if (!parsed) continue;
+    const idx = MASTER_LEVEL_ORDER.indexOf(parsed);
+    if (idx > bestIdx) bestIdx = idx;
+  }
+  return bestIdx >= 0 ? MASTER_LEVEL_ORDER[bestIdx] : '';
+}
+
+/**
+ * Normalises a raw `mastersLevels` value (array or comma-separated string) to
+ * at most one canonical `[MasterLevel]` (the highest achieved), or `[]` for None.
+ */
+export function normalizeMasterLevels(raw: unknown): MasterLevel[] {
+  if (Array.isArray(raw)) {
+    const highest = highestMasterLevel(raw.map((v) => String(v ?? '')));
+    return highest ? [highest] : [];
+  }
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const highest = highestMasterLevel(raw.split(','));
+    return highest ? [highest] : [];
+  }
+  return [];
+}
+
+/**
+ * Returns the student level that precedes `applicationLevel` in `gradingProgression`
+ * (e.g. Application 1 follows Student 3; Application 2 follows Student 4), or
+ * `StudentLevel.None` when `applicationLevel` is empty/unrecognised.
+ */
+export function expectedMinStudentLevelForApplication(
+  applicationLevel: string | null | undefined,
+): StudentLevel {
+  const app = toApplicationLevel(applicationLevel);
+  const appGrading = gradingLevelForApplication(app);
+  if (!appGrading) return StudentLevel.None;
+  const appIdx = gradingProgression.indexOf(appGrading);
+  for (let i = appIdx - 1; i >= 0; i--) {
+    const stu = studentLevelOf(gradingProgression[i]);
+    if (stu !== StudentLevel.None) return stu;
+  }
+  return StudentLevel.None;
+}

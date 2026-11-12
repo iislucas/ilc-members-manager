@@ -16,7 +16,12 @@ import {
   MembershipType,
   InstructorPublicData,
 } from '../../../functions/src/data-model/members';
-import { InstructorLicenseType } from '../../../functions/src/data-model/curriculum';
+import {
+  InstructorLicenseType,
+  MasterLevel,
+  StudentLevel,
+  ApplicationLevel,
+} from '../../../functions/src/data-model/curriculum';
 import { School, initSchool } from '../../../functions/src/data-model/schools';
 import {
   VideoItem,
@@ -1125,6 +1130,59 @@ describe('MemberDetailsComponent', () => {
 
       const el = fixture.nativeElement as HTMLElement;
       expect(el.querySelector('#open-password-setup-btn')).toBeNull();
+    });
+  });
+
+  describe('Master level selector & cross-track level warning', () => {
+    it('renders Master level menu selector with None and ordered 1..4 options, saving a single level', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const select = el.querySelector<HTMLSelectElement>('#masterLevel');
+      expect(select).not.toBeNull();
+
+      const optionLabels = Array.from(select!.options).map((o) => o.textContent?.trim());
+      expect(optionLabels).toEqual([
+        'None',
+        '1. Good Hand',
+        '2. Wonder Hand',
+        '3. Mystery Hand',
+        '4. Compassion Hand',
+      ]);
+      expect(select!.value).toBe('');
+      expect(component.isDirty()).toBe(false);
+
+      select!.value = MasterLevel.Wonder;
+      select!.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.isDirty()).toBe(true);
+      const saveBtn = el.querySelector<HTMLButtonElement>('button[type="submit"]');
+      expect(saveBtn?.classList.contains('primary-button')).toBe(true);
+
+      (dataManagerServiceMock.updateMember as Mock).mockResolvedValue(undefined);
+      await component.saveMember({ preventDefault: vi.fn() } as unknown as Event);
+
+      expect(dataManagerServiceMock.updateMember).toHaveBeenCalledWith(
+        mockMember.docId,
+        expect.objectContaining({ mastersLevels: [MasterLevel.Wonder] }),
+        mockMember,
+      );
+    });
+
+    it('warns when Application level is ahead of Student level in the syllabus', async () => {
+      const mismatchedMember: Member = {
+        ...mockMember,
+        studentLevel: StudentLevel.Level2,
+        applicationLevel: ApplicationLevel.Level2,
+      };
+      fixture.componentRef.setInput('member', mismatchedMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.levelTrackMismatchWarning()).toContain('Application 2 normally comes after Student 4');
     });
   });
 });

@@ -131,19 +131,8 @@
 
       .update-now-btn {
         align-self: flex-start;
-        background: #2563eb;
-        color: #ffffff;
-        border: 1px solid #1d4ed8;
-        font-weight: 600;
         padding: 0.45em 1em;
-        border-radius: 4px;
-        cursor: pointer;
         font-size: 0.85em;
-        transition: background-color 0.15s ease;
-
-        &:hover {
-          background: #1d4ed8;
-        }
       }
     }
 

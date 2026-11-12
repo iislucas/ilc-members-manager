@@ -42,18 +42,18 @@
           [disabled]="isProcessing()"
           required
         />
-        <button
-          type="submit"
-          class="action-button primary"
-          [disabled]="isProcessing() || !newAdminEmail().trim()"
-        >
-          @if (isProcessing()) {
-            <app-spinner></app-spinner>
-          } @else {
+        @if (isProcessing()) {
+          <app-spinner>Saving...</app-spinner>
+        } @else {
+          <button
+            type="submit"
+            class="primary-button"
+            [disabled]="!newAdminEmail().trim()"
+          >
             <app-icon name="add"></app-icon>
-          }
-          <span>Grant Admin</span>
-        </button>
+            <span>Grant Admin</span>
+          </button>
+        }
       </div>
       <p class="form-hint">
         Enter the Google or login email address. If this email already has associated member profiles, they will automatically be linked.

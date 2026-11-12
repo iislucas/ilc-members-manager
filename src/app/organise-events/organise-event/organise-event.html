@@ -560,6 +560,7 @@
       } @else {
         <button
           type="submit"
+          class="primary-button"
           [disabled]="!proposeForm().valid() || !ownerValid() || !leadingInstructorIsPublic() || isOffline()"
           [title]="isOffline() ? 'Submitting event proposals requires an internet connection.' : ''"
         >

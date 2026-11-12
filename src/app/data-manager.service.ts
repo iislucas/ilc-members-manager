@@ -2111,12 +2111,13 @@ export class DataManagerService implements OnDestroy {
       const adminCacheKey = `members_admin_${user.firebaseUser?.uid || 'admin'}`;
       await this.syncService.upsertCachedEntry(adminCacheKey, 'docId', member);
     }
-    if (member.primarySchoolId) {
-      const schoolCacheKey = `school_members_${member.primarySchoolId}`;
+    const currentSchoolCacheId = member.primarySchoolDocId || member.primarySchoolId;
+    if (currentSchoolCacheId) {
+      const schoolCacheKey = `school_members_${currentSchoolCacheId}`;
       await this.syncService.upsertCachedEntry(schoolCacheKey, 'docId', member);
     }
     // If the member's school changed, remove from previous school's local cache
-    if (oldSchoolId && oldSchoolId !== member.primarySchoolId) {
+    if (oldSchoolId && oldSchoolId !== currentSchoolCacheId) {
       const oldSchoolCacheKey = `school_members_${oldSchoolId}`;
       await this.syncService.deleteCachedEntry(oldSchoolCacheKey, 'docId', member.docId);
     }
@@ -2320,7 +2321,11 @@ export class DataManagerService implements OnDestroy {
       );
     }
     const originalMember = oldMember ?? this.members.get(cleanMember.docId);
-    const oldSchoolId = originalMember?.primarySchoolId || this.members.get(cleanMember.docId)?.primarySchoolId;
+    const oldSchoolId =
+      originalMember?.primarySchoolDocId ||
+      originalMember?.primarySchoolId ||
+      this.members.get(cleanMember.docId)?.primarySchoolDocId ||
+      this.members.get(cleanMember.docId)?.primarySchoolId;
 
     if (this.networkState.isOffline()) {
       const diff = computeObjectDiff<Member>(originalMember, cleanMember, {

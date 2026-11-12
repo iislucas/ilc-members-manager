@@ -1,4 +1,5 @@
 @use "../../scss_variables" as v;
+@use "../../styles" as *;
 
 :host {
   display: block;
@@ -29,12 +30,35 @@
   gap: 0.3em;
 }
 
+.event-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  width: 100%;
+}
+
+.event-menu-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.event-options-menu {
+  @extend .menu-style;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+}
+
 // The autocomplete markup lives in a child component, so pierce view
 // encapsulation to stretch its input to the full parent width and give it the
 // same white-input look as the manual entry fields.
 .event-autocomplete {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 
   ::ng-deep {
     .autocomplete-container {

@@ -145,8 +145,17 @@ export function nextGradingPayment<T extends UnpaidGradingCandidate>(
 
   for (const level of gradingProgression) {
     const unpaid = unpaidByLevel.get(level);
+    if (achieved.has(level)) {
+      // An already-conducted (Passed) unpaid grading still owes its HQ fee even if
+      // the member's level is already recorded; an unconducted open request at a
+      // level the member already holds (e.g. after an admin corrected their level)
+      // is superseded by the achieved level and does not owe another fee.
+      if (unpaid && unpaid.status === GradingStatus.Passed) {
+        return { level, grading: unpaid };
+      }
+      continue;
+    }
     if (unpaid) return { level, grading: unpaid };
-    if (achieved.has(level)) continue;
     if (paidAndOpen.has(level)) continue;
     if (level === skip) continue;
     return { level, grading: null };

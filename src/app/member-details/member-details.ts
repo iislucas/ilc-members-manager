@@ -14,6 +14,12 @@ import {
 import { CommonModule } from '@angular/common';
 import {
   MasterLevel,
+  MASTER_LEVEL_ORDER,
+  masterLevelLabel,
+  highestMasterLevel,
+  toMasterLevel,
+  expectedMinStudentLevelForApplication,
+  studentLevelRank,
   InstructorLicenseType,
   StudentLevel,
   ApplicationLevel,
@@ -142,7 +148,8 @@ export class MemberDetailsComponent {
   instructorLicenseTypes = Object.values(InstructorLicenseType);
   studentLevels = Object.values(StudentLevel);
   applicationLevels = Object.values(ApplicationLevel);
-  masterLevels = Object.values(MasterLevel).sort();
+  masterLevels = MASTER_LEVEL_ORDER;
+  masterLevelLabel = masterLevelLabel;
   Views = Views;
   membershipLink = computed(() =>
     this.routingService.hrefForView(Views.BecomeAMember),
@@ -399,12 +406,35 @@ export class MemberDetailsComponent {
     );
   });
 
+  selectedMasterLevel = computed<MasterLevel | ''>(() =>
+    highestMasterLevel(this.form.mastersLevels().value()),
+  );
+
+  mastersLevelsChanged = computed(() => {
+    const current = highestMasterLevel(this.form.mastersLevels().value());
+    const original = highestMasterLevel(this.member().mastersLevels);
+    return current !== original;
+  });
+
+  levelTrackMismatchWarning = computed<string | null>(() => {
+    const appLvl = this.form.applicationLevel().value();
+    if (!appLvl) return null;
+    const expectedMinStu = expectedMinStudentLevelForApplication(appLvl);
+    if (!expectedMinStu) return null;
+    const stuLvl = this.form.studentLevel().value();
+    if (studentLevelRank(stuLvl) < studentLevelRank(expectedMinStu)) {
+      return `Application ${appLvl} normally comes after Student ${expectedMinStu}. Check whether Application should also be updated or set to None.`;
+    }
+    return null;
+  });
+
   isDirty = computed(
     () =>
-      // For emails or tags, check if they've actually changed, not just if the field is dirty
+      // For emails, tags, or master level, check if they've actually changed, not just if the field is dirty
       this.emailsChanged() ||
       this.tagsChanged() ||
-      // For other fields, use the standard dirty check but exclude emails/tags
+      this.mastersLevelsChanged() ||
+      // For other fields, use the standard dirty check
       (this.form().dirty() && this.hasNonArrayChanges()) ||
       this.memberIdAssignment().kind !== AssignKind.UnchangedExistingId ||
       this.instructorIdAssignment().kind !== AssignKind.UnchangedExistingId,
@@ -1460,7 +1490,9 @@ export class MemberDetailsComponent {
           .tags()
           .value()
           .filter((t) => t.trim() !== ''),
-        mastersLevels: this.form.mastersLevels().value(),
+        mastersLevels: this.selectedMasterLevel()
+          ? [this.selectedMasterLevel() as MasterLevel]
+          : [],
       };
 
       if (member.country?.trim() && !this.countryWithCode()) {
@@ -1669,17 +1701,10 @@ export class MemberDetailsComponent {
     }
   }
 
-  onMasterLevelChange(level: MasterLevel, event: Event) {
-    const isChecked = (event.target as HTMLInputElement).checked;
-    const current = this.form.mastersLevels().value();
-    if (isChecked) {
-      this.form.mastersLevels().value.set([...current, level]);
-    } else {
-      this.form
-        .mastersLevels()
-        .value.set(current.filter((l: MasterLevel) => l !== level));
-    }
-    this.form.mastersLevels().markAsDirty();
+  onMasterLevelSelect(event: Event) {
+    const rawValue = (event.target as HTMLSelectElement).value;
+    const parsed = toMasterLevel(rawValue);
+    this.form.mastersLevels().value.set(parsed ? [parsed] : []);
   }
 
   closeErrors() {

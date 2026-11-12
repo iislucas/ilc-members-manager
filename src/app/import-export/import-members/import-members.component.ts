@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ImportMappingComponent } from '../import-mapping/import-mapping';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
-import { InstructorLicenseType, MasterLevel } from '../../../../functions/src/data-model/curriculum';
+import { InstructorLicenseType, MasterLevel, normalizeMasterLevels } from '../../../../functions/src/data-model/curriculum';
 import { Member, initMember, MembershipType } from '../../../../functions/src/data-model/members';
 import { normalizeEmails } from '../../../../functions/src/data-model/email';
 import * as Papa from 'papaparse';
@@ -565,7 +565,7 @@ export class ImportMembersComponent {
           member.publicEmail = value.toLowerCase();
           break;
         case 'mastersLevels':
-          member.mastersLevels = value.split(',').map((s) => s.trim()) as MasterLevel[];
+          member.mastersLevels = normalizeMasterLevels(value);
           break;
         default:
           (member as any)[key] = value;

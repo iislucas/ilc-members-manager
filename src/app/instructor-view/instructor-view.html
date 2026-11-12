@@ -35,7 +35,7 @@
               <span class="level-chip">Application {{ i.applicationLevel }}</span>
             }
             @for (master of i.mastersLevels; track master) {
-              <span class="level-chip master">{{ master }}</span>
+              <span class="level-chip master">{{ masterLevelLabel(master) || master }}</span>
             }
             @for (tag of i.tags; track tag) {
               <span class="tag-chip">{{ tag }}</span>

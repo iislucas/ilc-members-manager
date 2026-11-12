@@ -113,14 +113,6 @@
   border: 1px solid transparent;
   transition: background-color 0.15s ease, opacity 0.15s ease;
 
-  &.primary {
-    background-color: var(--primary-color, #1976d2);
-    color: #fff;
-    &:hover:not(:disabled) {
-      filter: brightness(0.92);
-    }
-  }
-
   &.subtle {
     background-color: transparent;
     color: var(--text-color);

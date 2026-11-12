@@ -38,10 +38,14 @@
   </div>
 
   <div>
-    <button class="action-button primary" (click)="saveCountryCodes()" [disabled]="isSaving()">
-      {{ isSaving() ? 'Saving...' : 'Save Country Codes' }}
-    </button>
-    </div>
+    @if (isSaving()) {
+      <app-spinner>Saving...</app-spinner>
+    } @else {
+      <button type="button" class="primary-button" (click)="saveCountryCodes()">
+        Save Country Codes
+      </button>
+    }
+  </div>
   @if (statusMessage()) {
   <p class="status-message">{{ statusMessage() }}</p>
   }

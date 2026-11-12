@@ -178,7 +178,7 @@
                 (gradingEventChange)="onEventInputChange($event)"
               ></app-grading-event-input>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
+                <button class="primary-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
                 <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
               </div>
             </div>
@@ -291,6 +291,7 @@
                 </button>
               }
               <button
+                class="primary-button"
                 (click)="saveRequestFields()"
                 [disabled]="isSaving() || !editInstructorId() || requestBlockedByUnpaid() || eventBlocksSave()"
               >
@@ -318,6 +319,7 @@
           </p>
           <div class="action-buttons">
             <button
+              class="primary-button"
               (click)="acceptAndGradeMyself()"
               [disabled]="isSaving() || eventBlocksSave()"
             >
@@ -355,7 +357,7 @@
               <app-icon name="error" width="18" height="18"></app-icon>
               <span class="unsaved-note">You have unsaved changes.</span>
               <button
-                class="subtle-button"
+                class="primary-button"
                 (click)="saveEdits()"
                 [disabled]="isSaving() || eventBlocksSave()"
               >
@@ -373,6 +375,7 @@
 
           <div class="action-buttons">
             <button
+              class="primary-button"
               (click)="acceptAndGradeMyself()"
               [disabled]="isSaving() || isDirty() || eventBlocksSave()"
               [title]="isDirty() ? 'Save or discard your changes first' : ''"
@@ -458,7 +461,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
+              <button class="primary-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -551,7 +554,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
+              <button class="primary-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -732,7 +735,7 @@
             <app-icon name="error" width="18" height="18"></app-icon>
             <span class="unsaved-note">You have unsaved changes.</span>
             <button
-              class="subtle-button"
+              class="primary-button"
               (click)="saveEdits()"
               [disabled]="isSaving()"
             >
@@ -917,7 +920,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
+              <button class="primary-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -1065,7 +1068,7 @@
                 (gradingEventChange)="onEventInputChange($event)"
               ></app-grading-event-input>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
+                <button class="primary-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
                 <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
               </div>
             </div>
@@ -1102,7 +1105,7 @@
                 ></app-instructor-selector>
               </div>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveGradingInstructor()" [disabled]="!editInstructorId()">Save</button>
+                <button class="primary-button" (click)="saveGradingInstructor()" [disabled]="!editInstructorId()">Save</button>
                 <button class="subtle-button" (click)="isEditingInstructor.set(false)">Cancel</button>
               </div>
             </div>
@@ -1137,7 +1140,7 @@
                 </div>
               }
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveManagers()">Save</button>
+                <button class="primary-button" (click)="saveManagers()">Save</button>
                 <button class="subtle-button" (click)="cancelManagerEdit()">Cancel</button>
               </div>
             </div>
@@ -1195,7 +1198,7 @@
                 />
               </div>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="savePaymentDetails()">Save</button>
+                <button class="primary-button" (click)="savePaymentDetails()">Save</button>
                 <button class="subtle-button" (click)="cancelPaymentEdit()">Cancel</button>
               </div>
             </div>
@@ -1238,7 +1241,7 @@
                 placeholder="Feedback or comments for the student..."
               ></textarea>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveResultNotes()">Save</button>
+                <button class="primary-button" (click)="saveResultNotes()">Save</button>
                 <button class="subtle-button" (click)="cancelResultNotesEdit()">Cancel</button>
               </div>
             </div>
@@ -1278,7 +1281,7 @@
                   placeholder="Notes for admins / grading managers only..."
                 ></textarea>
                 <div class="detail-edit-actions">
-                  <button class="subtle-button" (click)="saveInternalNotes()">Save</button>
+                  <button class="primary-button" (click)="saveInternalNotes()">Save</button>
                   <button class="subtle-button" (click)="cancelInternalNotesEdit()">Cancel</button>
                 </div>
               </div>

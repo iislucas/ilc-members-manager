@@ -411,6 +411,7 @@
             @if (isDirty()) {
               <button
                 type="submit"
+                class="primary-button"
                 [disabled]="isDupSchoolId() || form().invalid() || hasOwnerAsManager()"
               >
                 Save

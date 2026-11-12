@@ -50,7 +50,7 @@
 
   <div class="refresh-all-section">
     <button
-      class="action-button primary-action"
+      class="primary-button action-button"
       (click)="refreshBlogs()"
       [disabled]="isRefreshing() || isRefreshingStripe() || isClearing()"
     >
@@ -61,7 +61,7 @@
       }
     </button>
     <button
-      class="action-button primary-action"
+      class="primary-button action-button"
       (click)="refreshStripeProducts()"
       [disabled]="isRefreshing() || isRefreshingStripe() || isClearing()"
     >

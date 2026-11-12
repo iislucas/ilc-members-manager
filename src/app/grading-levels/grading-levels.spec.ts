@@ -61,11 +61,37 @@ describe('buildGradingLevelRows', () => {
   });
 
   it('treats a passed & paid grading as achieved even before the record updates', () => {
-    const passed = grading({ docId: 'p', level: GradingLevel.StudentEntry, status: GradingStatus.Passed });
-    const result = buildGradingLevelRows('', '', [passed]);
+    const passed = grading({
+      docId: 'p',
+      level: GradingLevel.StudentEntry,
+      status: GradingStatus.Passed,
+      lastUpdated: '2026-11-12T10:00:05.000Z',
+    });
+    const result = buildGradingLevelRows('', '', [passed], '2026-11-12T10:00:00.000Z');
     expect(rowFor(result, GradingLevel.StudentEntry).state).toBe(LevelRowState.Achieved);
     expect(rowFor(result, GradingLevel.StudentEntry).mainGrading).toBe(passed);
     expect(rowFor(result, GradingLevel.Student1).isNext).toBe(true);
+    expect(rowFor(result, GradingLevel.Student1).isNextPayment).toBe(true);
+  });
+
+  it('honours an admin level correction over an older passed grading so next and purchase agree', () => {
+    const olderWrongPassed = grading({
+      docId: 'old_s4',
+      level: GradingLevel.Student4,
+      status: GradingStatus.Passed,
+      lastUpdated: '2026-11-01T10:00:00.000Z',
+    });
+    const result = buildGradingLevelRows(
+      StudentLevel.Level2,
+      ApplicationLevel.None,
+      [olderWrongPassed],
+      '2026-11-10T10:00:00.000Z',
+    );
+    // Student Entry, 1, 2 are achieved; Student 3 is both Next level and Next payment.
+    expect(result.leadingAchievedCount).toBe(3);
+    expect(rowFor(result, GradingLevel.Student3).isNext).toBe(true);
+    expect(rowFor(result, GradingLevel.Student3).isNextPayment).toBe(true);
+    expect(rowFor(result, GradingLevel.Student4).state).not.toBe(LevelRowState.Achieved);
   });
 
   it('shows a paid open grading as purchased and moves the payment on', () => {

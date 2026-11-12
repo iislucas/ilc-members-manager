@@ -226,7 +226,7 @@
 
                 @if (hasUnsavedChange(item)) {
                   <button
-                    class="subtle-button save-btn"
+                    class="primary-button save-btn"
                     (click)="saveInferredMemberId(item)"
                     [disabled]="savingLineItems().has(item.id)">
                     <app-icon name="refresh"></app-icon>
@@ -286,7 +286,7 @@
 
                 @if (hasSchoolUnsavedChange(item)) {
                   <button
-                    class="subtle-button save-btn"
+                    class="primary-button save-btn"
                     (click)="saveInferredSchoolId(item)"
                     [disabled]="savingLineItems().has(item.id)">
                     <app-icon name="refresh"></app-icon>
@@ -326,7 +326,7 @@
 
               @if (hasCountryUnsavedChange(item)) {
                 <button
-                  class="subtle-button save-btn"
+                  class="primary-button save-btn"
                   (click)="saveCountryOverride(item)"
                   [disabled]="savingLineItems().has(item.id)">
                   <app-icon name="refresh"></app-icon>

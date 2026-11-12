@@ -21,6 +21,7 @@ import {
   signal,
 } from '@angular/core';
 import { IlcEvent } from '../../../functions/src/data-model/events';
+import { masterLevelLabel } from '../../../functions/src/data-model/curriculum';
 import { InstructorPublicData, firestoreDocToInstructorPublicData } from '../../../functions/src/data-model/members';
 import { School } from '../../../functions/src/data-model/schools';
 import { collection, getDocs, getFirestore, query, where, limit } from 'firebase/firestore';
@@ -61,6 +62,7 @@ export class InstructorViewComponent implements OnInit {
   // Human-readable instructor ID from the route.
   instructorId = input.required<string>();
   titleLoaded = output<string>();
+  masterLevelLabel = masterLevelLabel;
 
   instructor = signal<InstructorPublicData | null>(null);
   isLoading = signal(true);

@@ -6,6 +6,7 @@ import {
   InstructorLicenseType,
   toStudentLevel,
   toApplicationLevel,
+  normalizeMasterLevels,
 } from './curriculum';
 import { MemberNotificationSettings } from './notifications';
 
@@ -266,6 +267,7 @@ export function firestoreDocToMember(doc: GenericFsDoc): Member {
     // Older/imported records may spell levels as 'Student 2', 'Level 2', …
     studentLevel: toStudentLevel(docData.studentLevel),
     applicationLevel: toApplicationLevel(docData.applicationLevel),
+    mastersLevels: normalizeMasterLevels(docData.mastersLevels),
     lastUpdated,
     docId: doc.id,
   };
@@ -318,6 +320,7 @@ export function normalizeMemberLevels<T extends Member>(member: T): T {
     ...member,
     studentLevel: toStudentLevel(member.studentLevel),
     applicationLevel: toApplicationLevel(member.applicationLevel),
+    mastersLevels: normalizeMasterLevels(member.mastersLevels),
   };
 }
 
@@ -407,6 +410,7 @@ export function firestoreDocToInstructorPublicData(
     ...docData,
     studentLevel: toStudentLevel(docData.studentLevel),
     applicationLevel: toApplicationLevel(docData.applicationLevel),
+    mastersLevels: normalizeMasterLevels(docData.mastersLevels),
     lastUpdated,
     docId: doc.id,
   };

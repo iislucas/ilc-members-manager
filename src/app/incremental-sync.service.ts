@@ -44,7 +44,8 @@ import { SearchableSet } from './searchable-set';
 //  10 — EventPricingRules aligned with UI terminology (earlyBird, registrationOptions, EventRegistrationOption, conditions.registration).
 //  11 — Added publicProfileImageOriginalUrl & publicCoverImageOriginalUrl to School and Member.
 //  12 — Prevent full sync from persisting offline/fromCache snapshots or advancing empty-cache cursors.
-export const CACHE_SCHEMA_VERSION = 12;
+//  13 — Normalise Member & InstructorPublicData mastersLevels to single ordered MasterLevel.
+export const CACHE_SCHEMA_VERSION = 13;
 
 export interface CachedCollectionBundle<T> {
   entries: T[];

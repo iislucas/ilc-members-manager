@@ -39,7 +39,7 @@
         <div class="confirmation-actions">
           <button
             type="button"
-            class="button pay-btn"
+            class="primary-button pay-btn"
             (click)="routingService.navigateToParts(['my-gradings'])"
           >
             <app-icon name="salut"></app-icon>
@@ -284,7 +284,7 @@
               } @else {
                 <button
                   type="button"
-                  class="button pay-btn"
+                  class="primary-button pay-btn"
                   (click)="onStartRetake()"
                 >
                   <span>Start Free Retake for {{ retakeEligibleLevel() }}</span>
@@ -391,7 +391,7 @@
               } @else {
                 <button
                   type="button"
-                  class="button pay-btn"
+                  class="primary-button pay-btn"
                   [disabled]="isOffline() || selectedPurchases().length === 0 || selectedLevelsWithoutPrice().length > 0 || selectedMixedCurrencies()"
                   [title]="isOffline() ? 'Checkout requires an active internet connection' : ''"
                   (click)="onPurchaseNextGrading()"

@@ -409,7 +409,7 @@
             } @else {
               <button
                 type="button"
-                class="pay-btn"
+                class="primary-button pay-btn"
                 [disabled]="!membershipSelectionComplete() || isOffline()"
                 [title]="isOffline() ? 'Payment requires an active internet connection' : ''"
                 (click)="onProceedToPayment()"
