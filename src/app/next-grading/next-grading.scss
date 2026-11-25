@@ -452,6 +452,11 @@ app-step-track {
     border-color: v.$row-highlight-border;
   }
 
+  &.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
   .grading-choice-text {
     display: flex;
     flex-direction: column;
@@ -473,6 +478,12 @@ app-step-track {
     color: v.$primary-color;
     white-space: nowrap;
   }
+}
+
+.past-levels-toggle {
+  margin: 0.25rem 0 1rem;
+  font-size: 0.92rem;
+  color: v.$text-secondary;
 }
 
 .selected-total {

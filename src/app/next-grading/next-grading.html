@@ -266,7 +266,7 @@
       }
 
       <div class="step-footer checkout">
-        @if (retakeEligible() && !buyingAdvanceLevel()) {
+        @if (retakeEligible() && !buyingAdvanceLevel() && !showAllLevels()) {
           <div class="retake-fee-notice">
             <app-icon name="check" width="24px" height="24px" fill="#155724"></app-icon>
             <div>
@@ -293,11 +293,27 @@
               }
             </div>
           </div>
-        } @else if (!targetLevel()) {
+          @if (hasAchievedLevels()) {
+            <p class="past-levels-toggle">
+              Need to pay for an older grading?
+              <button type="button" class="inline-link-button" (click)="toggleShowAllLevels(true)">
+                Show all levels
+              </button>
+            </p>
+          }
+        } @else if (!targetLevel() && !showAllLevels()) {
           <p class="step-todo-hint">
             You have reached the highest level, so there is no grading to
             purchase.
           </p>
+          @if (hasAchievedLevels()) {
+            <p class="past-levels-toggle">
+              Need to pay for an older grading?
+              <button type="button" class="inline-link-button" (click)="toggleShowAllLevels(true)">
+                Show all levels
+              </button>
+            </p>
+          }
         } @else if (productsLoading()) {
           <app-spinner>Looking up grading fee...</app-spinner>
         } @else if (productsError()) {
@@ -305,19 +321,32 @@
             <span class="error-message">{{ productsError() }}</span>
           </div>
         } @else if (purchaseOptions().length > 0) {
-          <p class="step-guidance">
-            Choose which gradings to buy. You can buy several levels ahead in one
-            payment: later gradings can be requested and scheduled straight away,
-            and their results are recorded once the earlier levels are passed.
-          </p>
+          @if (showAllLevels()) {
+            <p class="step-guidance">
+              Showing all syllabus levels, including levels you already hold.
+              Paying for an older grading settles your headquarters fee without
+              changing your current level.
+            </p>
+          } @else {
+            <p class="step-guidance">
+              Choose which gradings to buy. You can buy several levels ahead in one
+              payment: later gradings can be requested and scheduled straight away,
+              and their results are recorded once the earlier levels are passed.
+            </p>
+          }
           <ul class="grading-choice-list">
-            @for (opt of purchaseOptions(); track opt.level; let i = $index) {
+            @for (opt of purchaseOptions(); track opt.level) {
               <li>
-                <label class="grading-choice" [class.selected]="opt.selected">
+                <label
+                  class="grading-choice"
+                  [class.selected]="opt.selected"
+                  [class.disabled]="opt.disabled"
+                >
                   <input
                     type="checkbox"
                     [checked]="opt.selected"
-                    (change)="toggleLevel(i)"
+                    [disabled]="opt.disabled"
+                    (change)="onToggleOption(opt)"
                   />
                   <span class="grading-choice-text">
                     <span class="option-title">{{ opt.level }}</span>
@@ -335,7 +364,22 @@
             }
           </ul>
 
-          @if (isPayingForExistingGrading() && purchaseOptions()[0].selected) {
+          @if (hasAchievedLevels()) {
+            <p class="past-levels-toggle">
+              @if (showAllLevels()) {
+                <button type="button" class="inline-link-button" (click)="toggleShowAllLevels(false)">
+                  Show only upcoming levels
+                </button>
+              } @else {
+                Need to pay for an older grading?
+                <button type="button" class="inline-link-button" (click)="toggleShowAllLevels(true)">
+                  Show all levels
+                </button>
+              }
+            </p>
+          }
+
+          @if (!showAllLevels() && isPayingForExistingGrading() && purchaseOptions()[0].selected) {
             <p class="option-subtext">
               Paying for {{ targetLevel() }} settles the outstanding fee on the
               {{ targetLevel() }} grading you already have — no extra grading record is created.
@@ -398,8 +442,10 @@
                 >
                   @if (selectedPurchases().length > 1) {
                     <span>Purchase {{ selectedPurchases().length }} Gradings</span>
+                  } @else if (selectedPurchases().length === 1) {
+                    <span>Purchase {{ selectedPurchases()[0].level }} Grading</span>
                   } @else {
-                    <span>Purchase {{ targetLevel() }} Grading</span>
+                    <span>Select a Grading to Purchase</span>
                   }
                   <app-icon name="arrow_forward"></app-icon>
                 </button>

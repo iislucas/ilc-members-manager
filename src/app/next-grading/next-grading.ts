@@ -26,7 +26,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, progressionIndex, toGradingLevel, studentLevelLabel, applicationLevelLabel } from '../../../functions/src/data-model/curriculum';
+import { GradingLevel, nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, progressionIndex, toGradingLevel, studentLevelLabel, applicationLevelLabel } from '../../../functions/src/data-model/curriculum';
 import { Grading, GradingStatus, isGradingPaid, unpaidGradingsInProgressionOrder, upcomingGradingPayments, NextGradingPayment, freeRetakeLevel } from '../../../functions/src/data-model/gradings';
 import { findGradingPrice, GradingPrice } from '../../../functions/src/data-model/grading-prices';
 import { MembershipType, hasActiveMembership } from '../../../functions/src/data-model/members';
@@ -164,6 +164,13 @@ export class NextGradingComponent {
   // Whether user explicitly chose to buy advance subsequent level while retake is available
   buyingAdvanceLevel = signal(false);
 
+  // Whether the user asked to list all syllabus levels (including older /
+  // already-achieved levels) so they can pay retrospectively for a past grading.
+  showAllLevels = signal(false);
+
+  // Older (already-achieved) levels ticked while `showAllLevels` is active.
+  selectedPastLevels = signal<ReadonlySet<GradingLevel>>(new Set());
+
   // ──────────────────────────────────────────────────────────────────────────
   //  Wizard state — see become-a-member.ts for the same pattern.
   //
@@ -188,11 +195,14 @@ export class NextGradingComponent {
   levelSummary = computed(() => {
     const target = this.targetLevel();
     const from = this.currentStudentLevel();
+    const selected = this.selectedPurchases().map((o) => o.level);
+    if (this.showAllLevels()) {
+      return selected.length > 0 ? `${from} → ${selected.join(', ')}` : `${from} — select levels`;
+    }
     if (!target) return `${from} — highest level achieved`;
     const isFreeRetake = this.retakeEligible() && !this.buyingAdvanceLevel();
     if (isFreeRetake) return `${from} → ${target} (free retake)`;
-    const selected = this.selectedPurchases().map((o) => o.level);
-    return `${from} → ${selected.length > 1 ? selected.join(', ') : target}`;
+    return `${from} → ${selected.length > 1 ? selected.join(', ') : (selected[0] || target)}`;
   });
 
   // Return landing state
@@ -228,10 +238,35 @@ export class NextGradingComponent {
   );
 
   // Achieved levels from member record
-  achievedLevels = computed(() => {
+  achievedLevels = computed<ReadonlySet<GradingLevel>>(() => {
     const m = this.user()?.member;
-    if (!m) return new Set<string>();
+    if (!m) return new Set<GradingLevel>();
     return achievedGradingLevels(m.studentLevel, m.applicationLevel);
+  });
+
+  hasAchievedLevels = computed(() => this.achievedLevels().size > 0);
+
+  // Levels for which the member already has a paid grading record.
+  paidLevelSet = computed<ReadonlySet<GradingLevel>>(() => {
+    const user = this.user();
+    if (!user) return new Set<GradingLevel>();
+    return new Set(
+      this.dataService.myGradings
+        .entries()
+        .filter((g) => isGradingPaid(g))
+        .map((g) => toGradingLevel(g.level))
+        .filter((l): l is GradingLevel => l !== null),
+    );
+  });
+
+  // Earliest unpaid grading record per level, for describing settled fees.
+  unpaidGradingByLevel = computed<ReadonlyMap<GradingLevel, Grading>>(() => {
+    const map = new Map<GradingLevel, Grading>();
+    for (const g of this.unpaidGradings()) {
+      const lvl = toGradingLevel(g.level);
+      if (lvl && !map.has(lvl)) map.set(lvl, g);
+    }
+    return map;
   });
 
   // The immediate next unpassed grading level based on student's current recorded member levels
@@ -355,45 +390,173 @@ export class NextGradingComponent {
   // bought (and graded). `settlesExisting` marks a level whose payment settles
   // an existing unpaid grading rather than creating a new one.
   selectableLevels = computed<
-    Array<{ level: string; description: string; settlesExisting: boolean }>
+    Array<{ level: GradingLevel; description: string; settlesExisting: boolean }>
   >(() => {
     const retake = this.retakeEligibleLevel();
     const paidPending = this.pendingGradings().filter((g) => isGradingPaid(g));
 
-    return this.upcomingPayments().map((p, i, all) => {
-      let desc = 'Next target grading level in the curriculum';
-      if (p.grading) {
-        desc = `Outstanding fee for your existing ${p.level} grading`;
-      } else if (i > 0) {
-        desc = `In advance — graded after your ${all[i - 1].level} grading`;
-      } else if (retake) {
-        desc = `Subsequent progression level (in advance, after your ${retake} retake)`;
-      } else if (paidPending.length > 0) {
-        desc = `Subsequent progression level (after your pending ${paidPending[paidPending.length - 1].level} grading)`;
-      }
-      return { level: p.level, description: desc, settlesExisting: !!p.grading };
-    });
+    return this.upcomingPayments()
+      .filter((p): p is NextGradingPayment<Grading> & { level: GradingLevel } => !!p.level)
+      .map((p, i, all) => {
+        let desc = 'Next target grading level in the curriculum';
+        if (p.grading) {
+          desc = `Outstanding fee for your existing ${p.level} grading`;
+        } else if (i > 0) {
+          desc = `In advance — graded after your ${all[i - 1].level} grading`;
+        } else if (retake) {
+          desc = `Subsequent progression level (in advance, after your ${retake} retake)`;
+        } else if (paidPending.length > 0) {
+          desc = `Subsequent progression level (after your pending ${paidPending[paidPending.length - 1].level} grading)`;
+        }
+        return { level: p.level, description: desc, settlesExisting: !!p.grading };
+      });
   });
 
-  // How many of `selectableLevels` (from the start) the member has chosen to
-  // buy. Levels are bought in order, so the selection is always a prefix.
+  // Unachieved upcoming levels, used for prefix selection when `showAllLevels`
+  // is active so future levels are still bought in progression order.
+  private upcomingUnachievedLevels = computed(() => {
+    const achieved = this.achievedLevels();
+    return this.selectableLevels().filter((o) => !achieved.has(o.level));
+  });
+
+  // How many of `selectableLevels` (or `upcomingUnachievedLevels` in all-levels
+  // mode) from the start the member has chosen to buy.
   selectedCount = signal(1);
 
-  // Tick or untick the level at `index`. Ticking a level also ticks every
-  // earlier one; unticking it also unticks every later one.
+  // Switch between the default upcoming-only list and the full syllabus list
+  // (which includes older, already-achieved levels for retrospective payment).
+  toggleShowAllLevels(show: boolean): void {
+    this.showAllLevels.set(show);
+    this.checkoutError.set(null);
+    if (show) {
+      this.selectedCount.set(0);
+      this.selectedPastLevels.set(new Set());
+    } else {
+      this.selectedPastLevels.set(new Set());
+      this.selectedCount.set(1);
+    }
+  }
+
+  // Tick or untick the upcoming level at `index`. Ticking a level also ticks
+  // every earlier one; unticking it also unticks every later one.
   toggleLevel(index: number): void {
     this.selectedCount.set(index < this.selectedCount() ? index : index + 1);
   }
 
+  // Tick or untick an older (already-achieved) level independently.
+  togglePastLevel(level: GradingLevel): void {
+    this.selectedPastLevels.update((prev) => {
+      const next = new Set(prev);
+      if (next.has(level)) {
+        next.delete(level);
+      } else {
+        next.add(level);
+      }
+      return next;
+    });
+  }
+
+  onToggleOption(opt: {
+    level: GradingLevel;
+    isPastLevel: boolean;
+    disabled: boolean;
+    upcomingIndex: number;
+  }): void {
+    if (opt.disabled) return;
+    if (opt.isPastLevel) {
+      this.togglePastLevel(opt.level);
+    } else if (opt.upcomingIndex >= 0) {
+      this.toggleLevel(opt.upcomingIndex);
+    }
+  }
+
   // The levels on offer with their Stripe price (null when no price is found),
   // and whether each is currently selected.
-  purchaseOptions = computed(() =>
-    this.selectableLevels().map((opt, i) => ({
-      ...opt,
-      selected: i < this.selectedCount(),
-      match: this.findGradingPrice(opt.level),
-    })),
-  );
+  purchaseOptions = computed(() => {
+    if (!this.showAllLevels()) {
+      return this.selectableLevels().map((opt, i) => ({
+        ...opt,
+        isPastLevel: false,
+        disabled: false,
+        upcomingIndex: i,
+        selected: i < this.selectedCount(),
+        match: this.findGradingPrice(opt.level),
+      }));
+    }
+
+    const achieved = this.achievedLevels();
+    const paid = this.paidLevelSet();
+    const unpaidByLevel = this.unpaidGradingByLevel();
+    const retake = this.retakeEligibleLevel();
+    const upcomingUnachieved = this.upcomingUnachievedLevels();
+    const upcomingByLevel = new Map(
+      upcomingUnachieved.map((opt, idx) => [opt.level, { opt, idx }]),
+    );
+    const pastSelected = this.selectedPastLevels();
+
+    return gradingProgression.map((level) => {
+      const isAchieved = achieved.has(level);
+      const alreadyPaid = paid.has(level);
+      const unpaid = unpaidByLevel.get(level) ?? null;
+      const upcomingEntry = upcomingByLevel.get(level);
+
+      if (alreadyPaid) {
+        return {
+          level,
+          description: isAchieved
+            ? 'Already achieved and paid'
+            : 'Already paid (in progress)',
+          settlesExisting: false,
+          isPastLevel: isAchieved,
+          disabled: true,
+          upcomingIndex: -1,
+          selected: false,
+          match: this.findGradingPrice(level),
+        };
+      }
+
+      if (level === retake) {
+        return {
+          level,
+          description: 'Free retake available — no headquarters fee required',
+          settlesExisting: false,
+          isPastLevel: false,
+          disabled: true,
+          upcomingIndex: -1,
+          selected: false,
+          match: this.findGradingPrice(level),
+        };
+      }
+
+      if (isAchieved) {
+        return {
+          level,
+          description: unpaid
+            ? `Outstanding fee for your existing ${level} grading`
+            : "Retrospective payment — already achieved (won't change your current level)",
+          settlesExisting: !!unpaid,
+          isPastLevel: true,
+          disabled: false,
+          upcomingIndex: -1,
+          selected: pastSelected.has(level),
+          match: this.findGradingPrice(level),
+        };
+      }
+
+      const idx = upcomingEntry?.idx ?? -1;
+      return {
+        level,
+        description:
+          upcomingEntry?.opt.description ?? 'Next target grading level in the curriculum',
+        settlesExisting: upcomingEntry?.opt.settlesExisting ?? false,
+        isPastLevel: false,
+        disabled: idx < 0,
+        upcomingIndex: idx,
+        selected: idx >= 0 && idx < this.selectedCount(),
+        match: this.findGradingPrice(level),
+      };
+    });
+  });
 
   // The selected levels, in purchase order.
   selectedPurchases = computed(() =>
@@ -546,10 +709,12 @@ export class NextGradingComponent {
     this.checkoutError.set(null);
 
     try {
+      const hasPastLevel = selected.some((o) => o.isPastLevel);
       const { checkoutUrl } = await this.stripeService.createGradingCheckoutSession({
         memberDocId: user.member.docId,
         levels: selected.map((o) => o.level),
         origin: window.location.origin,
+        ...(hasPastLevel ? { allowPastLevels: true } : {}),
       });
       this.redirectTo(checkoutUrl);
     } catch (err) {

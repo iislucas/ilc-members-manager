@@ -140,6 +140,12 @@ export interface CreateGradingCheckoutSessionRequest {
   levels: string[];
   /** The app origin to return the buyer to, e.g. `https://app.iliqchuan.com`. */
   origin: string;
+  /**
+   * When true, the member explicitly asked to pay retrospectively for one or
+   * more older (already-achieved) syllabus levels rather than only buying ahead
+   * from their next progression level.
+   */
+  allowPastLevels?: boolean;
 }
 
 export interface CreateVodCheckoutSessionRequest {

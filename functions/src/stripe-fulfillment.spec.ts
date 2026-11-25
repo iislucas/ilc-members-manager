@@ -783,6 +783,58 @@ describe('stripe-fulfillment', () => {
     expect(notif.data.issues).toHaveLength(2);
   });
 
+  it('fulfills a retrospective payment for an already-achieved level without flagging for review', async () => {
+    mockMemberGradings([]);
+    const order = multiLevelOrder(['Student 1'], 'cs_retro');
+    order.metadata = {
+      ...order.metadata,
+      retrospectiveGrading: 'true',
+    };
+
+    await fulfillStripeOrder(mockDb, gradingMember, order, 'order_doc_retro');
+
+    expect(mockGradingsCollection.add).toHaveBeenCalledTimes(1);
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'Student 1',
+        status: GradingStatus.AwaitingRequest,
+        paymentStatus: PaymentStatus.PaidByStripe,
+        paymentNote: 'Retrospective payment for already-achieved level',
+        reviewIssue: '',
+      }),
+    );
+    expect(mockNotificationSet).not.toHaveBeenCalled();
+  });
+
+  it('still flags already-purchased when a retrospective payment duplicates an existing paid grading', async () => {
+    mockMemberGradings([
+      {
+        id: 'paid_s1',
+        update: vi.fn(),
+        data: {
+          level: 'Student 1',
+          status: GradingStatus.Passed,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+      },
+    ]);
+    const order = multiLevelOrder(['Student 1'], 'cs_retro_dup');
+    order.metadata = {
+      ...order.metadata,
+      retrospectiveGrading: 'true',
+    };
+
+    await fulfillStripeOrder(mockDb, gradingMember, order, 'order_doc_retro_dup');
+
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'Student 1',
+        status: GradingStatus.RequiresReview,
+      }),
+    );
+    expect(mockNotificationSet).toHaveBeenCalledTimes(1);
+  });
+
   describe('gradingLevelForItem', () => {
     it('reads each line item level from gradingLevels, in order', () => {
       const order = multiLevelOrder(['Student 2', 'Student 3'], 'cs_x');

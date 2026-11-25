@@ -540,6 +540,7 @@ async function fulfillGradingForMember(
   lineItem: StripeOrderLineItem,
   orderDocId: string,
   metadataLevel = '',
+  isRetrospective = false,
 ): Promise<GradingFulfillment> {
   const purchaseDate = new Date().toISOString().split('T')[0];
   // The purchase page records the level it charged for in the order metadata;
@@ -612,14 +613,18 @@ async function fulfillGradingForMember(
   }
 
   // Otherwise a grading is created for the level bought. Buying ahead of the
-  // current level is fine; only these cases need a human to look.
+  // current level is fine, and an explicit retrospective payment for an
+  // already-achieved level without a prior paid grading is fine too; only
+  // these cases need a human to look.
+  const isAlreadyAchieved =
+    !!level && achievedGradingLevels(member.studentLevel, member.applicationLevel).has(level);
   let problem: GradingPaymentProblem | null = null;
   if (!level) {
     problem = { kind: 'unknown-level', level: rawLevel };
-  } else if (achievedGradingLevels(member.studentLevel, member.applicationLevel).has(level)) {
-    problem = { kind: 'already-achieved', level };
   } else if (atPurchasedLevel.some((g) => isGradingPaid(g))) {
     problem = { kind: 'already-purchased', level };
+  } else if (!isRetrospective && isAlreadyAchieved) {
+    problem = { kind: 'already-achieved', level };
   }
 
   const newGrading: Grading = {
@@ -644,6 +649,10 @@ async function fulfillGradingForMember(
         ).issue
       : '',
     paymentStatus: PaymentStatus.PaidByStripe,
+    paymentNote:
+      isRetrospective && isAlreadyAchieved && !problem
+        ? 'Retrospective payment for already-achieved level'
+        : '',
     lastUpdated: new Date().toISOString(),
   };
 
@@ -1933,6 +1942,7 @@ export async function fulfillStripeOrder(
           item,
           orderDocId,
           gradingLevelForItem(order, gradingItemIndex),
+          order.metadata?.['retrospectiveGrading'] === 'true',
         ),
       );
       gradingItemIndex++;

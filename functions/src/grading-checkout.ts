@@ -40,10 +40,17 @@ import {
   StripeProduct,
 } from './stripe-types';
 import { FirestoreCollection } from './data-model/collections';
-import { GradingLevel, gradingProgression, toGradingLevel } from './data-model/curriculum';
+import {
+  GradingLevel,
+  achievedGradingLevels,
+  gradingProgression,
+  progressionIndex,
+  toGradingLevel,
+} from './data-model/curriculum';
 import {
   Grading,
   freeRetakeLevel,
+  isGradingPaid,
   upcomingGradingPayments,
 } from './data-model/gradings';
 import { findGradingPrice, GradingPrice } from './data-model/grading-prices';
@@ -66,24 +73,77 @@ export function parseRequestedLevels(raw: unknown): GradingLevel[] {
   return canonical;
 }
 
-// Checks `requested` is exactly the first N levels this member can buy next.
+// Checks `requested` can be bought by `member`.
+//
+// Normally `requested` must be a prefix of `upcomingGradingPayments` (the next
+// levels this member can buy, in order). When `allowPastLevels` is true (the
+// member explicitly asked to pay retrospectively for older levels), any
+// already-achieved level without an existing paid grading is also allowed in
+// progression order, while any unachieved levels must still be a prefix of the
+// unachieved upcoming payments.
 export function checkLevelsArePurchasable(
   member: Member,
   gradings: Grading[],
   requested: GradingLevel[],
+  allowPastLevels = false,
 ): void {
   const upcoming = upcomingGradingPayments(
     member.studentLevel,
     member.applicationLevel,
     gradings,
     freeRetakeLevel(member.studentLevel, member.applicationLevel, gradings),
-  ).map((p) => p.level);
-  const expected = upcoming.slice(0, requested.length);
-  if (expected.length !== requested.length || expected.some((l, i) => l !== requested[i])) {
+  )
+    .map((p) => p.level)
+    .filter((l): l is GradingLevel => !!l);
+
+  if (!allowPastLevels) {
+    const expected = upcoming.slice(0, requested.length);
+    if (expected.length !== requested.length || expected.some((l, i) => l !== requested[i])) {
+      throw new HttpsError(
+        'failed-precondition',
+        `These gradings can't be bought now. The next levels available are: ${upcoming.slice(0, 3).join(', ') || 'none'}.`,
+      );
+    }
+    return;
+  }
+
+  for (let i = 1; i < requested.length; i++) {
+    if (progressionIndex(requested[i]) <= progressionIndex(requested[i - 1])) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Grading levels must be selected in progression order.',
+      );
+    }
+  }
+
+  const alreadyPaid = new Set(
+    gradings
+      .filter((g) => isGradingPaid(g))
+      .map((g) => toGradingLevel(g.level))
+      .filter((l): l is GradingLevel => l !== null),
+  );
+  const duplicatePaid = requested.filter((l) => alreadyPaid.has(l));
+  if (duplicatePaid.length > 0) {
     throw new HttpsError(
       'failed-precondition',
-      `These gradings can't be bought now. The next levels available are: ${upcoming.slice(0, 3).join(', ') || 'none'}.`,
+      `You have already paid for: ${duplicatePaid.join(', ')}.`,
     );
+  }
+
+  const achieved = achievedGradingLevels(member.studentLevel, member.applicationLevel);
+  const futureRequested = requested.filter((l) => !achieved.has(l));
+  if (futureRequested.length > 0) {
+    const upcomingUnachieved = upcoming.filter((l) => !achieved.has(l));
+    const expectedFuture = upcomingUnachieved.slice(0, futureRequested.length);
+    if (
+      expectedFuture.length !== futureRequested.length ||
+      expectedFuture.some((l, i) => l !== futureRequested[i])
+    ) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Future gradings must be bought in order. The next levels available are: ${upcomingUnachieved.slice(0, 3).join(', ') || 'none'}.`,
+      );
+    }
   }
 }
 
@@ -178,12 +238,16 @@ export const createGradingCheckoutSession = onCall<
     throw new HttpsError('failed-precondition', 'An active membership is required to purchase a grading.');
   }
 
+  const allowPastLevels = request.data?.allowPastLevels === true;
   const gradingsSnap = await db
     .collection(FirestoreCollection.Gradings)
     .where('studentMemberDocId', '==', memberDocId)
     .get();
   const gradings = gradingsSnap.docs.map((d) => ({ ...(d.data() as Grading), docId: d.id }));
-  checkLevelsArePurchasable(member, gradings, levels);
+  checkLevelsArePurchasable(member, gradings, levels, allowPastLevels);
+
+  const achieved = achievedGradingLevels(member.studentLevel, member.applicationLevel);
+  const hasRetrospectiveLevel = allowPastLevels && levels.some((l) => achieved.has(l));
 
   const stripe = getStripeClient();
   const [resolved, customerId] = await Promise.all([
@@ -207,6 +271,7 @@ export const createGradingCheckoutSession = onCall<
       // Line-item order; grading fulfillment maps item i to gradingLevels[i].
       gradingLevel: levels[0],
       gradingLevels: levels.join(','),
+      ...(hasRetrospectiveLevel ? { retrospectiveGrading: 'true' } : {}),
     },
   });
 

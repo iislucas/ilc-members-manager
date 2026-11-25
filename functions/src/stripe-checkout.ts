@@ -61,7 +61,7 @@ import { Member } from './data-model/members';
 import { normalizeEmail } from './data-model/email';
 
 // Metadata keys that grading fulfillment trusts; only the server sets them.
-const GRADING_METADATA_KEYS = ['gradingLevel', 'gradingLevels'];
+const GRADING_METADATA_KEYS = ['gradingLevel', 'gradingLevels', 'retrospectiveGrading'];
 
 /** The Stripe customer and member a checkout is for (all undefined for a guest). */
 export type CheckoutCustomer = {

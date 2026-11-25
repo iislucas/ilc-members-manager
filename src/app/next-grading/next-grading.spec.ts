@@ -670,4 +670,94 @@ describe('NextGradingComponent', () => {
     expect(studentNicknames).toContain('Student Level 1');
     expect(studentNicknames).not.toContain('Meditation & Philosophy');
   });
+
+  describe('retrospective payments for older levels', () => {
+    it('lets a Student 2 member toggle "Show all levels" and pay for an older level without changing level', async () => {
+      userSignal.set({
+        ...sampleUser,
+        member: { ...sampleMember, studentLevel: StudentLevel.Level2 },
+      });
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'paid_entry',
+          level: 'Student Entry',
+          status: GradingStatus.Passed,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+      ]);
+      await createComponent();
+      vi.spyOn(component, 'redirectTo').mockImplementation(() => {});
+
+      expect(component.hasAchievedLevels()).toBe(true);
+      expect(component.showAllLevels()).toBe(false);
+      // Default view only shows upcoming levels (starting at Student 3).
+      expect(component.purchaseOptions()[0].level).toBe('Student 3');
+
+      component.toggleShowAllLevels(true);
+      fixture.detectChanges();
+
+      const options = component.purchaseOptions();
+      // Full progression is shown, starting with Student Entry.
+      expect(options[0].level).toBe('Student Entry');
+      // Entry is already paid so it is disabled.
+      expect(options[0].disabled).toBe(true);
+      // Student 1 and Student 2 are achieved but unpaid, so they are enabled and selectable independently.
+      const s1 = options.find((o) => o.level === 'Student 1')!;
+      const s2 = options.find((o) => o.level === 'Student 2')!;
+      expect(s1.disabled).toBe(false);
+      expect(s1.isPastLevel).toBe(true);
+      expect(s2.disabled).toBe(false);
+      expect(s2.isPastLevel).toBe(true);
+      // Nothing is pre-selected when switching to all-levels mode.
+      expect(component.selectedPurchases()).toEqual([]);
+
+      // Pick just Student 2 (without being forced to also buy Student 1).
+      component.onToggleOption(s2);
+      expect(component.selectedPurchases().map((o) => o.level)).toEqual(['Student 2']);
+
+      await component.onPurchaseNextGrading();
+      expect(mockStripeService.createGradingCheckoutSession).toHaveBeenCalledWith({
+        memberDocId: 'mem_student_1',
+        levels: ['Student 2'],
+        origin: window.location.origin,
+        allowPastLevels: true,
+      });
+    });
+
+    it('lets a highest-level member open all levels to pay for an older grading', async () => {
+      userSignal.set({
+        ...sampleUser,
+        member: {
+          ...sampleMember,
+          studentLevel: StudentLevel.Level11,
+          applicationLevel: ApplicationLevel.Level6,
+        },
+      });
+      await createComponent();
+
+      expect(component.targetLevel()).toBeNull();
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain('Show all levels');
+
+      component.toggleShowAllLevels(true);
+      fixture.detectChanges();
+      expect(component.purchaseOptions().length).toBeGreaterThan(0);
+    });
+
+    it('hides the "Show all levels" toggle when the member has no achieved levels', async () => {
+      userSignal.set({
+        ...sampleUser,
+        member: {
+          ...sampleMember,
+          studentLevel: StudentLevel.None,
+          applicationLevel: ApplicationLevel.None,
+        },
+      });
+      await createComponent();
+
+      expect(component.hasAchievedLevels()).toBe(false);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).not.toContain('Show all levels');
+    });
+  });
 });

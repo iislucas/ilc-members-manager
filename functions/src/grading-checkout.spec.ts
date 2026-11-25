@@ -160,6 +160,71 @@ describe('checkLevelsArePurchasable', () => {
       HttpsError,
     );
   });
+
+  describe('retrospective payments (allowPastLevels = true)', () => {
+    const student2Member: Member = {
+      ...initMember(),
+      docId: 'm2',
+      studentLevel: StudentLevel.Level2,
+      applicationLevel: ApplicationLevel.None,
+    };
+
+    it('rejects already-achieved levels unless allowPastLevels is true', () => {
+      expect(() =>
+        checkLevelsArePurchasable(student2Member, [], [GradingLevel.Student2]),
+      ).toThrow(HttpsError);
+      expect(() =>
+        checkLevelsArePurchasable(student2Member, [], [GradingLevel.Student2], true),
+      ).not.toThrow();
+    });
+
+    it('allows picking any unpaid older level individually or together with upcoming levels', () => {
+      expect(() =>
+        checkLevelsArePurchasable(student2Member, [], [GradingLevel.Student1], true),
+      ).not.toThrow();
+      expect(() =>
+        checkLevelsArePurchasable(
+          student2Member,
+          [],
+          [GradingLevel.Student1, GradingLevel.Student2, GradingLevel.Student3],
+          true,
+        ),
+      ).not.toThrow();
+    });
+
+    it('rejects an older level that already has a paid grading record', () => {
+      const paidS1 = grading({
+        level: GradingLevel.Student1,
+        status: GradingStatus.Passed,
+        paymentStatus: PaymentStatus.PaidByStripe,
+      });
+      expect(() =>
+        checkLevelsArePurchasable(student2Member, [paidS1], [GradingLevel.Student1], true),
+      ).toThrow(/already paid/i);
+      expect(() =>
+        checkLevelsArePurchasable(student2Member, [paidS1], [GradingLevel.Student2], true),
+      ).not.toThrow();
+    });
+
+    it('rejects out-of-order selections and skipping unachieved future levels', () => {
+      expect(() =>
+        checkLevelsArePurchasable(
+          student2Member,
+          [],
+          [GradingLevel.Student2, GradingLevel.Student1],
+          true,
+        ),
+      ).toThrow(/progression order/i);
+      expect(() =>
+        checkLevelsArePurchasable(
+          student2Member,
+          [],
+          [GradingLevel.Student2, GradingLevel.Application1],
+          true,
+        ),
+      ).toThrow(/in order/i);
+    });
+  });
 });
 
 describe('pricesForLevels', () => {
