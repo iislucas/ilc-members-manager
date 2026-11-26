@@ -114,6 +114,7 @@ export class VideoViewComponent implements OnInit {
   isPurchasing = signal(false);
   initialPositionSeconds = signal(0);
   errorMessage = signal<string | null>(null);
+  purchaseError = signal<string | null>(null);
 
   // Gifting State
   isGiftPurchase = signal<boolean>(false);
@@ -305,6 +306,7 @@ export class VideoViewComponent implements OnInit {
   async loadVideo(id: string): Promise<void> {
     this.isLoading.set(true);
     this.errorMessage.set(null);
+    this.purchaseError.set(null);
     this.trailerVideo.set(null);
     this.trailerSessionState.set(null);
     this.initialPositionSeconds.set(0);
@@ -462,9 +464,12 @@ export class VideoViewComponent implements OnInit {
   }
 
   async startPurchase(asGift = false): Promise<void> {
+    if (this.isPurchasing()) return;
+    this.purchaseError.set(null);
+
     const v = this.video();
     if (!v || (!this.isBuyable(v) && !(v.priceCents && v.priceCents > 0))) {
-      alert('This video is not currently available for individual purchase.');
+      this.purchaseError.set('This video is not currently available for individual purchase.');
       return;
     }
 
@@ -500,14 +505,21 @@ export class VideoViewComponent implements OnInit {
       if (checkout.checkoutUrl) {
         window.location.href = checkout.checkoutUrl;
       } else {
-        alert('Could not initialize checkout. Please try again.');
+        const msg = 'Could not initialize checkout. Please try again.';
+        if (isGiftEffective) {
+          this.giftValidationError.set(msg);
+        } else {
+          this.purchaseError.set(msg);
+        }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Purchase error:', err);
+      const message =
+        err instanceof Error && err.message ? err.message : 'Payment initiation failed.';
       if (isGiftEffective) {
-        this.giftValidationError.set(err.message || 'Payment initiation failed.');
+        this.giftValidationError.set(message);
       } else {
-        alert(err.message || 'Payment initiation failed.');
+        this.purchaseError.set(message);
       }
     } finally {
       this.isPurchasing.set(false);
@@ -515,10 +527,13 @@ export class VideoViewComponent implements OnInit {
   }
 
   async startSeriesPurchase(asGift = false): Promise<void> {
+    if (this.isPurchasing()) return;
+    this.purchaseError.set(null);
+
     const s = this.series();
     const v = this.video();
     if (!s || (!s.priceCents && !(v?.seriesPriceCents && v.seriesPriceCents > 0))) {
-      alert('This series is not currently available for purchase.');
+      this.purchaseError.set('This series is not currently available for purchase.');
       return;
     }
 
@@ -555,14 +570,21 @@ export class VideoViewComponent implements OnInit {
       if (checkout.checkoutUrl) {
         window.location.href = checkout.checkoutUrl;
       } else {
-        alert('Could not initialize checkout. Please try again.');
+        const msg = 'Could not initialize checkout. Please try again.';
+        if (isGiftEffective) {
+          this.giftValidationError.set(msg);
+        } else {
+          this.purchaseError.set(msg);
+        }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Series purchase error:', err);
+      const message =
+        err instanceof Error && err.message ? err.message : 'Payment initiation failed.';
       if (isGiftEffective) {
-        this.giftValidationError.set(err.message || 'Payment initiation failed.');
+        this.giftValidationError.set(message);
       } else {
-        alert(err.message || 'Payment initiation failed.');
+        this.purchaseError.set(message);
       }
     } finally {
       this.isPurchasing.set(false);

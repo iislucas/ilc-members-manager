@@ -344,6 +344,142 @@ describe('VideoViewComponent', () => {
     );
   });
 
+  it('should display inline purchaseError without calling window.alert when series checkout fails', async () => {
+    await component.ngOnInit();
+    await fixture.whenStable();
+
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const ep1: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v100',
+      title: 'Episode 1',
+      seriesId: 'series-1',
+      seriesTitle: 'Complete Series',
+      seriesPriceCents: 4999,
+      isPublished: true,
+    };
+    const ep2: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v101',
+      title: 'Episode 2',
+      seriesId: 'series-1',
+      seriesTitle: 'Complete Series',
+      seriesPriceCents: 4999,
+      isPublished: true,
+    };
+
+    mockDataService.videos.entries.set([ep1, ep2]);
+    component.video.set(ep1);
+    component.sessionState.set({ authorized: false, reason: 'purchase_required' });
+    component.isLoading.set(false);
+
+    mockStripeService.createVodCheckoutSession.mockRejectedValueOnce(
+      new Error('This series is not currently available for direct purchase.'),
+    );
+
+    await component.startSeriesPurchase();
+    fixture.detectChanges();
+
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(component.isPurchasing()).toBe(false);
+    expect(component.purchaseError()).toBe(
+      'This series is not currently available for direct purchase.',
+    );
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const inlineErr = compiled.querySelector('.purchase-inline-error');
+    expect(inlineErr).toBeTruthy();
+    expect(inlineErr?.textContent).toContain(
+      'This series is not currently available for direct purchase.',
+    );
+
+    const dismissBtn = inlineErr?.querySelector('button') as HTMLButtonElement;
+    dismissBtn.click();
+    fixture.detectChanges();
+    expect(component.purchaseError()).toBeNull();
+
+    alertSpy.mockRestore();
+  });
+
+  it('should display inline purchaseError without calling window.alert when single video checkout fails', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const v: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v100',
+      title: 'Standalone Video',
+      isBuyable: true,
+      priceCents: 1999,
+      isPublished: true,
+    };
+    component.video.set(v);
+    component.isLoading.set(false);
+
+    mockStripeService.createVodCheckoutSession.mockRejectedValueOnce(
+      new Error('Checkout failed.'),
+    );
+
+    await component.startPurchase();
+
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(component.isPurchasing()).toBe(false);
+    expect(component.purchaseError()).toBe('Checkout failed.');
+
+    alertSpy.mockRestore();
+  });
+
+  it('should replace sidebar Buy Full Series button with spinner and ignore duplicate clicks while purchasing', async () => {
+    await component.ngOnInit();
+    await fixture.whenStable();
+
+    const ep1: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v100',
+      title: 'Episode 1',
+      seriesId: 'series-1',
+      seriesTitle: 'Complete Series',
+      seriesPriceCents: 4999,
+      isPublished: true,
+    };
+    const ep2: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v101',
+      title: 'Episode 2',
+      seriesId: 'series-1',
+      seriesTitle: 'Complete Series',
+      seriesPriceCents: 4999,
+      isPublished: true,
+    };
+
+    mockDataService.videos.entries.set([ep1, ep2]);
+    component.video.set(ep1);
+    component.sessionState.set({ authorized: false, reason: 'purchase_required' });
+    component.isLoading.set(false);
+
+    let resolveCheckout!: (val: { checkoutUrl: string; sessionId: string }) => void;
+    mockStripeService.createVodCheckoutSession.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        resolveCheckout = resolve;
+      }),
+    );
+
+    const firstCall = component.startSeriesPurchase();
+    fixture.detectChanges();
+
+    expect(component.isPurchasing()).toBe(true);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.series-playlist-buy .series-buy-pill-btn')).toBeNull();
+    expect(compiled.querySelector('.series-playlist-buy app-spinner')).toBeTruthy();
+
+    // Duplicate click while in flight should be ignored
+    await component.startSeriesPurchase();
+    expect(mockStripeService.createVodCheckoutSession).toHaveBeenCalledTimes(1);
+
+    resolveCheckout({ checkoutUrl: '', sessionId: 'sess_1' });
+    await firstCall;
+    expect(component.isPurchasing()).toBe(false);
+    expect(component.purchaseError()).toBe('Could not initialize checkout. Please try again.');
+  });
+
   it('should reload video when videoId signal changes', async () => {
     mockDataService.getVideoById.mockImplementation(async (id: string) => ({
       ...initVideoItem(),

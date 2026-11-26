@@ -285,6 +285,118 @@ describe('createVodCheckoutSession', () => {
     );
   });
 
+  it('ignores trailer docs sharing the same seriesId when resolving series price and metadata', async () => {
+    // Trailers share seriesId with the series, have isTrailer: true, no seriesPartIndex, and null/undefined price
+    mockVideos['vid_series_trailer'] = {
+      ...initVideoItem(),
+      docId: 'vid_series_trailer',
+      title: 'Complete Tai Chi Series Trailer',
+      description: 'Preview trailer description',
+      seriesId: 'series_123',
+      seriesTitle: 'Complete Tai Chi Series',
+      seriesPartIndex: undefined,
+      seriesPriceCents: undefined,
+      priceCents: null,
+      currency: null,
+      isTrailer: true,
+      isBuyable: false,
+      accessTier: VodAccessTier.Public,
+      isPublished: true,
+      vodStatus: VodStatus.Ready,
+    };
+
+    const req: any = {
+      data: {
+        origin: 'https://app.iliqchuan.com',
+        seriesId: 'series_123',
+        videoId: 'vid_series_p1',
+      },
+    };
+
+    const res = await (createVodCheckoutSession as any).run(req);
+    expect(res).toEqual({
+      checkoutUrl: 'https://checkout.stripe.com/pay/cs_vod_test_session',
+      sessionId: 'cs_vod_test_session',
+    });
+
+    expect(mockStripeCheckoutSessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          expect.objectContaining({
+            price_data: expect.objectContaining({
+              currency: 'usd',
+              unit_amount: 4999,
+              product_data: expect.objectContaining({
+                name: 'Complete Tai Chi Series (Full Series)',
+              }),
+            }),
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('sorts parts missing seriesPartIndex after numbered parts and resolves series price across parts', async () => {
+    mockVideos['vid_series_p1'].seriesPriceCents = undefined;
+    mockVideos['vid_series_p1'].priceCents = undefined;
+    mockVideos['vid_series_unnumbered'] = {
+      ...initVideoItem(),
+      docId: 'vid_series_unnumbered',
+      title: 'Bonus Clip',
+      seriesId: 'series_123',
+      seriesTitle: 'Complete Tai Chi Series',
+      seriesPartIndex: undefined,
+      seriesPriceCents: undefined,
+      priceCents: undefined,
+      isPublished: true,
+      vodStatus: VodStatus.Ready,
+    };
+
+    const req: any = {
+      data: {
+        origin: 'https://app.iliqchuan.com',
+        seriesId: 'series_123',
+      },
+    };
+
+    await (createVodCheckoutSession as any).run(req);
+
+    expect(mockStripeCheckoutSessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          expect.objectContaining({
+            price_data: expect.objectContaining({
+              unit_amount: 4999,
+            }),
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('rejects series when only a trailer document exists', async () => {
+    delete mockVideos['vid_series_p1'];
+    delete mockVideos['vid_series_p2'];
+    mockVideos['vid_series_trailer'] = {
+      ...initVideoItem(),
+      docId: 'vid_series_trailer',
+      seriesId: 'series_123',
+      isTrailer: true,
+      isPublished: true,
+    };
+
+    const req: any = {
+      data: {
+        origin: 'https://app.iliqchuan.com',
+        seriesId: 'series_123',
+      },
+    };
+
+    await expect((createVodCheckoutSession as any).run(req)).rejects.toThrowError(
+      /Video series not found/,
+    );
+  });
+
   it('rejects series when series price is zero or negative', async () => {
     mockVideos['vid_series_p1'].seriesPriceCents = 0;
     mockVideos['vid_series_p1'].priceCents = 0;
