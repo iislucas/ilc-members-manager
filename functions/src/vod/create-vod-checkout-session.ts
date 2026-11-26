@@ -87,21 +87,37 @@ export const createVodCheckoutSession = onCall<
       throw new HttpsError('not-found', 'Video series not found.');
     }
 
-    const seriesVideos: VideoItem[] = seriesSnap.docs
-      .map((doc) => firestoreDocToVideoItem(doc))
-      .sort((a, b) => (a.seriesPartIndex || 0) - (b.seriesPartIndex || 0));
+    const allSeriesDocs: VideoItem[] = seriesSnap.docs.map((doc) =>
+      firestoreDocToVideoItem(doc),
+    );
+    const nonTrailerVideos = allSeriesDocs
+      .filter((v) => !v.isTrailer)
+      .sort(
+        (a, b) =>
+          (typeof a.seriesPartIndex === 'number' ? a.seriesPartIndex : 9999) -
+          (typeof b.seriesPartIndex === 'number' ? b.seriesPartIndex : 9999),
+      );
 
-    // Must have at least one published video
-    const hasPublished = seriesVideos.some((v) => v.isPublished !== false);
-    if (!hasPublished) {
+    if (nonTrailerVideos.length === 0) {
+      throw new HttpsError('not-found', 'Video series not found.');
+    }
+
+    // Must have at least one published non-trailer video
+    const publishedVideos = nonTrailerVideos.filter((v) => v.isPublished !== false);
+    if (publishedVideos.length === 0) {
       throw new HttpsError(
         'failed-precondition',
         'This series is not currently published.',
       );
     }
 
-    const firstVid = seriesVideos[0];
-    const seriesPrice = firstVid.seriesPriceCents ?? firstVid.priceCents ?? 0;
+    const firstVid = publishedVideos[0];
+    const seriesPrice =
+      publishedVideos.find((v) => typeof v.seriesPriceCents === 'number')
+        ?.seriesPriceCents ??
+      publishedVideos.find((v) => typeof v.priceCents === 'number')
+        ?.priceCents ??
+      0;
     if (seriesPrice <= 0) {
       throw new HttpsError(
         'failed-precondition',
@@ -111,12 +127,22 @@ export const createVodCheckoutSession = onCall<
 
     unitAmountCents = Math.round(seriesPrice);
     currency = (firstVid.currency || 'usd').toLowerCase();
-    productName = `${firstVid.seriesTitle || firstVid.forVodSeriesTitle || firstVid.title || 'Video Series'} (Full Series)`;
+    const resolvedSeriesTitle =
+      publishedVideos.find((v) => v.seriesTitle)?.seriesTitle ||
+      publishedVideos.find((v) => v.forVodSeriesTitle)?.forVodSeriesTitle ||
+      firstVid.title ||
+      'Video Series';
+    productName = `${resolvedSeriesTitle} (Full Series)`;
     productDescription =
-      firstVid.seriesDescription ||
+      publishedVideos.find((v) => v.seriesDescription)?.seriesDescription ||
+      allSeriesDocs.find((v) => v.seriesDescription)?.seriesDescription ||
       firstVid.description ||
-      `Full access to all parts in the ${firstVid.seriesTitle || 'series'} series.`;
-    thumbnailUrl = firstVid.thumbnailUrl || undefined;
+      allSeriesDocs.find((v) => v.isTrailer && v.description)?.description ||
+      `Full access to all parts in the ${resolvedSeriesTitle} series.`;
+    thumbnailUrl =
+      publishedVideos.find((v) => v.thumbnailUrl)?.thumbnailUrl ||
+      allSeriesDocs.find((v) => v.thumbnailUrl)?.thumbnailUrl ||
+      undefined;
   } else if (videoId) {
     // 1b. Query individual video
     const videoDoc = await db

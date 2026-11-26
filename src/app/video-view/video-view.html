@@ -169,6 +169,20 @@
               }
             </div>
           </div>
+          @if (purchaseError(); as err) {
+            <div class="inline-error purchase-inline-error" role="alert">
+              <span>{{ err }}</span>
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="purchaseError.set(null)"
+                title="Dismiss"
+                aria-label="Dismiss error"
+              >
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
         }
       } @else {
         <!-- Locked Video Gating Screen (when no trailer is playable) -->
@@ -317,6 +331,20 @@
                       </button>
                     }
                   </div>
+                  @if (purchaseError(); as err) {
+                    <div class="inline-error purchase-inline-error" role="alert">
+                      <span>{{ err }}</span>
+                      <button
+                        type="button"
+                        class="icon-only-button"
+                        (click)="purchaseError.set(null)"
+                        title="Dismiss"
+                        aria-label="Dismiss error"
+                      >
+                        <app-icon name="close"></app-icon>
+                      </button>
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -736,14 +764,36 @@
               <h4 class="playlist-series-title">{{ s.title }}</h4>
               @if (s.priceCents && s.priceCents > 0 && !sessionState()?.authorized) {
                 <div class="series-playlist-buy">
-                  <button
-                    type="button"
-                    class="primary-btn series-buy-pill-btn"
-                    (click)="startSeriesPurchase()"
-                  >
-                    <app-icon name="shopping_cart"></app-icon>
-                    <span>Buy Full Series (${{ (s.priceCents / 100).toFixed(2) }})</span>
-                  </button>
+                  @if (isPurchasing()) {
+                    <div class="purchasing-spinner-wrapper">
+                      <app-spinner>
+                        <span>Processing...</span>
+                      </app-spinner>
+                    </div>
+                  } @else {
+                    <button
+                      type="button"
+                      class="primary-btn series-buy-pill-btn"
+                      (click)="startSeriesPurchase()"
+                    >
+                      <app-icon name="shopping_cart"></app-icon>
+                      <span>Buy Full Series (${{ (s.priceCents / 100).toFixed(2) }})</span>
+                    </button>
+                  }
+                  @if (purchaseError(); as err) {
+                    <div class="inline-error purchase-inline-error" role="alert">
+                      <span>{{ err }}</span>
+                      <button
+                        type="button"
+                        class="icon-only-button"
+                        (click)="purchaseError.set(null)"
+                        title="Dismiss"
+                        aria-label="Dismiss error"
+                      >
+                        <app-icon name="close"></app-icon>
+                      </button>
+                    </div>
+                  }
                 </div>
               }
             </div>

@@ -1493,6 +1493,16 @@
 
     .series-playlist-buy {
       margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      .purchasing-spinner-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 8px;
+      }
 
       .series-buy-pill-btn {
         width: 100%;
