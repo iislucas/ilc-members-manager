@@ -1,0 +1,386 @@
+/*
+Unit tests for AnalyticsService and its pure analytics/error-classification helpers.
+*/
+import { TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { deleteApp, FirebaseApp, initializeApp } from 'firebase/app';
+import {
+  Analytics,
+  initializeAnalytics,
+  isSupported,
+  logEvent,
+} from 'firebase/analytics';
+import { FIREBASE_APP } from './app.config';
+import {
+  AnalyticsService,
+  classifyClientError,
+  ClientErrorCategory,
+  ERROR_DEDUP_WINDOW_MS,
+  formatViewTitle,
+  MAX_ERROR_EVENTS_PER_SESSION,
+  NavigationSource,
+  sanitizeErrorMessage,
+  sanitizePagePath,
+  shouldEnableAnalytics,
+} from './analytics.service';
+
+vi.mock('firebase/analytics', () => ({
+  initializeAnalytics: vi.fn(),
+  isSupported: vi.fn().mockResolvedValue(false),
+  logEvent: vi.fn(),
+}));
+
+describe('Analytics helpers', () => {
+  describe('shouldEnableAnalytics', () => {
+    it('returns true only in production builds with a real measurementId and no emulator', () => {
+      expect(
+        shouldEnableAnalytics(false, {
+          useEmulator: false,
+          firebase: { measurementId: 'G-QKCXJJGZKW' },
+        }),
+      ).toBe(true);
+
+      expect(
+        shouldEnableAnalytics(true, {
+          useEmulator: false,
+          firebase: { measurementId: 'G-QKCXJJGZKW' },
+        }),
+      ).toBe(false);
+
+      expect(
+        shouldEnableAnalytics(false, {
+          useEmulator: true,
+          firebase: { measurementId: 'G-QKCXJJGZKW' },
+        }),
+      ).toBe(false);
+
+      expect(
+        shouldEnableAnalytics(false, {
+          useEmulator: false,
+          firebase: { measurementId: '' },
+        }),
+      ).toBe(false);
+
+      expect(
+        shouldEnableAnalytics(false, {
+          useEmulator: false,
+          firebase: { measurementId: 'YOUR_MEASUREMENT_ID_FROM_FIREBASE' },
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe('sanitizePagePath', () => {
+    it('strips query strings and fragments and normalizes slashes', () => {
+      expect(sanitizePagePath('/auth/complete?mode=signIn&oobCode=secret#top')).toBe(
+        '/auth/complete',
+      );
+      expect(sanitizePagePath('events//ev123?session_id=cs_live_123')).toBe(
+        '/events/ev123',
+      );
+      expect(sanitizePagePath('')).toBe('/');
+    });
+
+    it('redacts email-like path segments', () => {
+      expect(sanitizePagePath('/members/alice@example.com/profile')).toBe(
+        '/members/[email]/profile',
+      );
+    });
+  });
+
+  describe('formatViewTitle', () => {
+    it('formats camelCase and snake_case view IDs into readable titles', () => {
+      expect(formatViewTitle('eventsCalendar')).toBe('Events Calendar');
+      expect(formatViewTitle('manageVodVideo')).toBe('Manage Vod Video');
+      expect(formatViewTitle('not_found')).toBe('Not Found');
+      expect(formatViewTitle('')).toBe('Portal');
+    });
+  });
+
+  describe('sanitizeErrorMessage', () => {
+    it('scrubs emails, URL query strings, and long opaque tokens', () => {
+      const raw =
+        'Failed for user alice.smith@example.com at https://app.iliqchuan.com/auth/complete?oobCode=secret123 token abcdefghijklmnopqrstuvwxyz123456';
+      expect(sanitizeErrorMessage(raw)).toBe(
+        'Failed for user [email] at https://app.iliqchuan.com/auth/complete token [id]',
+      );
+    });
+  });
+
+  describe('classifyClientError', () => {
+    it('filters benign browser noise', () => {
+      const abortErr = new Error('User cancelled');
+      abortErr.name = 'AbortError';
+      expect(classifyClientError(abortErr)).toBeNull();
+
+      expect(
+        classifyClientError(
+          new Error('ResizeObserver loop completed with undelivered notifications.'),
+        ),
+      ).toBeNull();
+    });
+
+    it('classifies chunk load failures', () => {
+      const result = classifyClientError(
+        new TypeError('Failed to fetch dynamically imported module: https://app.iliqchuan.com/chunk-ABC.js'),
+      );
+      expect(result?.category).toBe(ClientErrorCategory.ChunkLoad);
+    });
+
+    it('classifies Firebase Auth, Functions, Storage, and Firestore errors', () => {
+      const authErr = Object.assign(new Error('Network failed'), {
+        name: 'FirebaseError',
+        code: 'auth/network-request-failed',
+      });
+      expect(classifyClientError(authErr)).toEqual(
+        expect.objectContaining({
+          category: ClientErrorCategory.FirebaseAuth,
+          code: 'auth/network-request-failed',
+        }),
+      );
+
+      const fnErr = Object.assign(new Error('Unavailable'), {
+        name: 'FirebaseError',
+        code: 'functions/unavailable',
+      });
+      expect(classifyClientError(fnErr)?.category).toBe(
+        ClientErrorCategory.FirebaseFunctions,
+      );
+
+      const storageErr = Object.assign(new Error('Unauthorized'), {
+        name: 'FirebaseError',
+        code: 'storage/unauthorized',
+      });
+      expect(classifyClientError(storageErr)?.category).toBe(
+        ClientErrorCategory.FirebaseStorage,
+      );
+
+      const firestoreErr = Object.assign(
+        new Error('Missing or insufficient permissions'),
+        {
+          name: 'FirebaseError',
+          code: 'permission-denied',
+        },
+      );
+      expect(classifyClientError(firestoreErr)?.category).toBe(
+        ClientErrorCategory.FirebaseFirestore,
+      );
+    });
+
+    it('classifies Angular HttpErrorResponse and network TypeErrors', () => {
+      const httpErr = {
+        name: 'HttpErrorResponse',
+        status: 503,
+        message: 'Http failure response for https://example.com/api?token=abc: 503',
+      };
+      const classified = classifyClientError(httpErr);
+      expect(classified).toEqual(
+        expect.objectContaining({
+          category: ClientErrorCategory.Network,
+          code: 'http_503',
+        }),
+      );
+      expect(classified?.description).not.toContain('token=abc');
+
+      expect(classifyClientError(new TypeError('Failed to fetch'))?.category).toBe(
+        ClientErrorCategory.Network,
+      );
+    });
+
+    it('classifies storage quota and standard runtime errors', () => {
+      const quotaErr = new Error('Storage limit');
+      quotaErr.name = 'QuotaExceededError';
+      expect(classifyClientError(quotaErr)?.category).toBe(
+        ClientErrorCategory.Storage,
+      );
+
+      expect(
+        classifyClientError(new TypeError("Cannot read properties of undefined"))?.category,
+      ).toBe(ClientErrorCategory.Runtime);
+    });
+
+    it('unwraps Promise rejection wrappers and truncates description to 100 chars', () => {
+      const inner = new RangeError('x'.repeat(200));
+      const wrapped = { rejection: inner };
+      const classified = classifyClientError(wrapped);
+      expect(classified?.category).toBe(ClientErrorCategory.Runtime);
+      expect(classified?.name).toBe('RangeError');
+      expect(classified?.description.length).toBeLessThanOrEqual(100);
+    });
+  });
+});
+
+describe('AnalyticsService', () => {
+  let service: AnalyticsService;
+  let app: FirebaseApp;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isSupported).mockResolvedValue(false);
+    app = initializeApp(
+      {
+        apiKey: 'test-api-key',
+        authDomain: 'test.firebaseapp.com',
+        projectId: 'test-project',
+        storageBucket: 'test.appspot.com',
+        messagingSenderId: '123456',
+        appId: '1:123456:web:abcdef',
+        measurementId: 'G-QKCXJJGZKW',
+      },
+      `analytics-test-${Math.random()}`,
+    );
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: FIREBASE_APP, useValue: app },
+      ],
+    });
+    service = TestBed.inject(AnalyticsService);
+  });
+
+  afterEach(async () => {
+    await deleteApp(app);
+  });
+
+  it('initializes Firebase Analytics with send_page_view disabled in production when supported', async () => {
+    const fakeAnalytics = { app } as Analytics;
+    vi.mocked(isSupported).mockResolvedValue(true);
+    vi.mocked(initializeAnalytics).mockReturnValue(fakeAnalytics);
+
+    await service.initAnalytics(false, {
+      useEmulator: false,
+      firebase: { measurementId: 'G-QKCXJJGZKW' },
+    });
+
+    expect(isSupported).toHaveBeenCalledTimes(1);
+    expect(initializeAnalytics).toHaveBeenCalledWith(app, {
+      config: { send_page_view: false },
+    });
+    expect(service.analytics).toBe(fakeAnalytics);
+  });
+
+  it('skips initializeAnalytics when browser does not support Analytics', async () => {
+    vi.mocked(isSupported).mockResolvedValue(false);
+
+    await service.initAnalytics(false, {
+      useEmulator: false,
+      firebase: { measurementId: 'G-QKCXJJGZKW' },
+    });
+
+    expect(initializeAnalytics).not.toHaveBeenCalled();
+    expect(service.analytics).toBeUndefined();
+  });
+
+  it('handles isSupported rejection gracefully without throwing', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(isSupported).mockRejectedValue(new Error('IndexedDB blocked'));
+
+    await expect(
+      service.initAnalytics(false, {
+        useEmulator: false,
+        firebase: { measurementId: 'G-QKCXJJGZKW' },
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(initializeAnalytics).not.toHaveBeenCalled();
+    expect(service.analytics).toBeUndefined();
+    warnSpy.mockRestore();
+  });
+
+  it('queues events emitted before initialization resolves and flushes them once ready', async () => {
+    const fakeAnalytics = { app } as Analytics;
+    let resolveSupported!: (value: boolean) => void;
+    vi.mocked(isSupported).mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        resolveSupported = resolve;
+      }),
+    );
+    vi.mocked(initializeAnalytics).mockReturnValue(fakeAnalytics);
+
+    // Reset initialized flag to simulate startup before initAnalytics finishes.
+    (service as unknown as { initialized: boolean }).initialized = false;
+    const initPromise = service.initAnalytics(false, {
+      useEmulator: false,
+      firebase: { measurementId: 'G-QKCXJJGZKW' },
+    });
+
+    service.logPageView({
+      pagePath: '/events/ev1?q=secret',
+      routePattern: '/events/:eventId',
+      viewId: 'eventView',
+      pageTitle: 'Event View',
+      navigationSource: NavigationSource.Initial,
+    });
+
+    expect(logEvent).not.toHaveBeenCalled();
+
+    resolveSupported(true);
+    await initPromise;
+
+    expect(logEvent).toHaveBeenCalledTimes(1);
+    expect(logEvent).toHaveBeenCalledWith(
+      fakeAnalytics,
+      'page_view',
+      expect.objectContaining({
+        page_path: '/events/ev1',
+        route_pattern: '/events/:eventId',
+        view_id: 'eventView',
+        page_title: 'Event View',
+        navigation_source: NavigationSource.Initial,
+      }),
+    );
+  });
+
+  it('logs sanitized exception events, deduplicates within cooldown, and enforces session cap', async () => {
+    const fakeAnalytics = { app } as Analytics;
+    vi.mocked(isSupported).mockResolvedValue(true);
+    vi.mocked(initializeAnalytics).mockReturnValue(fakeAnalytics);
+
+    await service.initAnalytics(false, {
+      useEmulator: false,
+      firebase: { measurementId: 'G-QKCXJJGZKW' },
+    });
+
+    const err = new TypeError('Cannot read title for alice@example.com');
+    const ctx = { routePattern: '/videos/:videoId', viewId: 'videoView' };
+
+    expect(service.logClientError(err, ctx, 1_000)).toBe(true);
+    // Duplicate within cooldown window is suppressed.
+    expect(service.logClientError(err, ctx, 1_000 + ERROR_DEDUP_WINDOW_MS - 1)).toBe(false);
+    // Allowed again once cooldown expires.
+    expect(service.logClientError(err, ctx, 1_000 + ERROR_DEDUP_WINDOW_MS)).toBe(true);
+
+    expect(logEvent).toHaveBeenCalledTimes(2);
+    expect(logEvent).toHaveBeenCalledWith(
+      fakeAnalytics,
+      'exception',
+      expect.objectContaining({
+        error_category: ClientErrorCategory.Runtime,
+        error_name: 'TypeError',
+        error_code: '',
+        route_pattern: '/videos/:videoId',
+        view_id: 'videoView',
+        fatal: false,
+      }),
+    );
+    const loggedParams = vi.mocked(logEvent).mock.calls[0][2] as Record<string, unknown>;
+    expect(String(loggedParams['description'])).toContain('[email]');
+    expect(String(loggedParams['description'])).not.toContain('alice@example.com');
+
+    // Fill up to the per-session cap with distinct routes, then verify further errors are dropped.
+    let logged = 2;
+    for (let i = 0; i < MAX_ERROR_EVENTS_PER_SESSION; i++) {
+      const accepted = service.logClientError(
+        new Error(`Failure ${i}`),
+        { routePattern: `/route-${i}`, viewId: `view${i}` },
+        500_000 + i,
+      );
+      if (accepted) {
+        logged += 1;
+      }
+    }
+    expect(logged).toBe(MAX_ERROR_EVENTS_PER_SESSION);
+    expect(logEvent).toHaveBeenCalledTimes(MAX_ERROR_EVENTS_PER_SESSION);
+  });
+});

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { RoutingService, RoutingConfig } from './routing.service';
+import { AnalyticsService, NavigationSource } from './analytics.service';
 import {
   Views,
   ROUTING_CONFIG,
@@ -573,6 +574,152 @@ describe('RoutingService', () => {
       await new Promise((r) => requestAnimationFrame(r));
 
       expect(scrollToSpy).not.toHaveBeenCalledWith(expect.objectContaining({ top: 900 }));
+    });
+  });
+
+  describe('analytics page_view tracking', () => {
+    let logPageViewSpy: ReturnType<typeof vi.fn>;
+
+    async function configureWithAnalyticsSpy(initialUrl = '/') {
+      window.history.replaceState(null, '', initialUrl);
+      logPageViewSpy = vi.fn();
+      await TestBed.configureTestingModule({
+        imports: [TestRouterComponent],
+        providers: [
+          provideZonelessChangeDetection(),
+          RoutingService,
+          {
+            provide: ROUTING_CONFIG,
+            useValue: testConfig,
+          },
+          {
+            provide: AnalyticsService,
+            useValue: {
+              logPageView: logPageViewSpy,
+              logClientError: vi.fn(),
+            } as never as AnalyticsService,
+          },
+        ],
+      }).compileComponents();
+
+      fixture = TestBed.createComponent(TestRouterComponent);
+      service = fixture.componentInstance.routingService;
+      await fixture.whenStable();
+    }
+
+    it('logs initial page_view once with sanitized path and strips query params', async () => {
+      await configureWithAnalyticsSpy(
+        '/auth/complete?mode=signIn&oobCode=secret-token&apiKey=abc',
+      );
+
+      expect(logPageViewSpy).toHaveBeenCalledTimes(1);
+      expect(logPageViewSpy).toHaveBeenCalledWith({
+        pagePath: '/auth/complete',
+        routePattern: '/auth/complete',
+        viewId: Views.AuthComplete,
+        pageTitle: 'Auth Complete',
+        navigationSource: NavigationSource.Initial,
+        tab: undefined,
+      });
+    });
+
+    it('logs navigate, back, replace, and popstate transitions with route patterns', async () => {
+      await configureWithAnalyticsSpy('/');
+      logPageViewSpy.mockClear();
+
+      service.navigateTo('/events/ev-1');
+      expect(logPageViewSpy).toHaveBeenLastCalledWith({
+        pagePath: '/events/ev-1',
+        routePattern: '/events/:eventId',
+        viewId: Views.EventView,
+        pageTitle: 'Event View',
+        navigationSource: NavigationSource.Navigate,
+        tab: undefined,
+      });
+
+      // Navigating to another item under the same pattern still logs a new page_view.
+      service.navigateTo('/events/ev-2');
+      expect(logPageViewSpy).toHaveBeenLastCalledWith({
+        pagePath: '/events/ev-2',
+        routePattern: '/events/:eventId',
+        viewId: Views.EventView,
+        pageTitle: 'Event View',
+        navigationSource: NavigationSource.Navigate,
+        tab: undefined,
+      });
+
+      service.navigateTo('/events', { isBackNavigation: true });
+      expect(logPageViewSpy).toHaveBeenLastCalledWith({
+        pagePath: '/events',
+        routePattern: '/events',
+        viewId: Views.EventsCalendar,
+        pageTitle: 'Events Calendar',
+        navigationSource: NavigationSource.Back,
+        tab: undefined,
+      });
+
+      service.navigateTo('/videos', { replaceState: true });
+      expect(logPageViewSpy).toHaveBeenLastCalledWith({
+        pagePath: '/videos',
+        routePattern: '/videos',
+        viewId: Views.Videos,
+        pageTitle: 'Videos',
+        navigationSource: NavigationSource.Replace,
+        tab: 'all',
+      });
+
+      setUrl('/find-an-instructor');
+      expect(logPageViewSpy).toHaveBeenLastCalledWith({
+        pagePath: '/find-an-instructor',
+        routePattern: '/find-an-instructor',
+        viewId: Views.FindAnInstructor,
+        pageTitle: 'Find An Instructor',
+        navigationSource: NavigationSource.PopState,
+        tab: undefined,
+      });
+
+      expect(logPageViewSpy).toHaveBeenCalledTimes(5);
+    });
+
+    it('does not log duplicate page_view on search/sort query changes but logs tab changes', async () => {
+      await configureWithAnalyticsSpy('/members');
+      logPageViewSpy.mockClear();
+
+      service.signals[Views.ManageMembers].urlParams.q.set('alice@example.com');
+      service.signals[Views.ManageMembers].urlParams.sortBy.set('name');
+      await fixture.whenStable();
+      expect(logPageViewSpy).not.toHaveBeenCalled();
+
+      service.navigateTo('/settings');
+      logPageViewSpy.mockClear();
+
+      service.signals[Views.Settings].urlParams.tab.set('backups');
+      await fixture.whenStable();
+      expect(logPageViewSpy).toHaveBeenCalledTimes(1);
+      expect(logPageViewSpy).toHaveBeenCalledWith({
+        pagePath: '/settings',
+        routePattern: '/settings',
+        viewId: Views.Settings,
+        pageTitle: 'Settings',
+        navigationSource: NavigationSource.TabChange,
+        tab: 'backups',
+      });
+    });
+
+    it('logs not_found for unmatched URLs', async () => {
+      await configureWithAnalyticsSpy('/');
+      logPageViewSpy.mockClear();
+
+      service.navigateTo('/does-not-exist?q=secret');
+      expect(logPageViewSpy).toHaveBeenCalledTimes(1);
+      expect(logPageViewSpy).toHaveBeenCalledWith({
+        pagePath: '/does-not-exist',
+        routePattern: '/not-found',
+        viewId: 'not_found',
+        pageTitle: 'Not Found',
+        navigationSource: NavigationSource.Navigate,
+        tab: undefined,
+      });
     });
   });
 });
