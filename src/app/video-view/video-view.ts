@@ -115,6 +115,14 @@ export class VideoViewComponent implements OnInit {
   initialPositionSeconds = signal(0);
   errorMessage = signal<string | null>(null);
   purchaseError = signal<string | null>(null);
+  purchaseSuccessDismissed = signal<boolean>(false);
+
+  isSignedIn = computed(() => Boolean(this.firebaseState.user()));
+  showPurchaseSuccessBanner = computed(
+    () =>
+      !this.purchaseSuccessDismissed() &&
+      this.viewSignals.urlParams?.purchase_success?.() === 'true',
+  );
 
   // Gifting State
   isGiftPurchase = signal<boolean>(false);
@@ -674,7 +682,10 @@ export class VideoViewComponent implements OnInit {
   }
 
   getLoginHref(): string {
-    return this.routingService.hrefForView(Views.Login, {});
+    const id = this.videoId();
+    return id
+      ? this.routingService.hrefForView(Views.Login, { returnUrl: `/videos/${id}` })
+      : this.routingService.hrefForView(Views.Login);
   }
 
   getMembershipHref(): string {

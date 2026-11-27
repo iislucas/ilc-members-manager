@@ -47,6 +47,55 @@
       </div>
     }
 
+    <!-- Post-Purchase Confirmation Banner -->
+    @if (showPurchaseSuccessBanner()) {
+      <div class="purchase-success-banner" role="status">
+        <div class="purchase-success-content">
+          <app-icon name="download_done"></app-icon>
+          <div class="purchase-success-text">
+            @if (!isSignedIn()) {
+              <strong>Thank you for your purchase!</strong>
+              <span>
+                We've linked this video to the email address you used at checkout. Sign in with that
+                email address to start watching.
+              </span>
+            } @else if (!sessionState()?.authorized) {
+              <strong>Thank you for your purchase!</strong>
+              <span>
+                Your access is being activated — if the video hasn't unlocked yet, click below to
+                check again.
+              </span>
+            } @else {
+              <strong>Thank you for your purchase!</strong>
+              <span>Your video is unlocked and ready to watch.</span>
+            }
+          </div>
+        </div>
+        <div class="purchase-success-actions">
+          @if (!isSignedIn()) {
+            <a class="primary-btn" [href]="getLoginHref()">
+              <app-icon name="person"></app-icon>
+              <span>Sign In to Watch</span>
+            </a>
+          } @else if (!sessionState()?.authorized) {
+            <button type="button" class="primary-btn" (click)="loadVideo(v.docId)">
+              <app-icon name="play_arrow"></app-icon>
+              <span>Check Access</span>
+            </button>
+          }
+          <button
+            type="button"
+            class="icon-only-button"
+            (click)="purchaseSuccessDismissed.set(true)"
+            title="Dismiss"
+            aria-label="Dismiss notice"
+          >
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+      </div>
+    }
+
     <!-- Main Player Area -->
     <div class="player-theater-wrapper">
       @if (canStreamActiveVideo()) {

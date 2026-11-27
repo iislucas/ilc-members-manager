@@ -42,8 +42,10 @@ import {
   stripeWebhookSecret,
 } from './stripe-common';
 import {
+  createGuestMemberForStripeOrder,
   fulfillStripeOrder,
   fulfillEventRegistration,
+  isVodStripeOrder,
   mirrorOrderToMemberSubcollection,
   resolveMemberForStripeOrder,
   syncSubscriptionStatusToMember,
@@ -311,11 +313,20 @@ export async function upsertStripeOrder(
 
   // Mirror to member subcollection and fulfill products
   try {
-    const member = await resolveMemberForStripeOrder(db, order);
+    let member = await resolveMemberForStripeOrder(db, order);
     if (order.metadata?.['orderType'] === 'event_registration') {
       if (!wasAlreadyProcessed) {
         await fulfillEventRegistration(db, order, orderDocId, member);
       }
+    }
+    if (
+      !member &&
+      order.stripeOrderType === StripeOrderType.Checkout &&
+      (order.paymentStatus === StripePaymentStatus.Paid ||
+        order.paymentStatus === StripePaymentStatus.NoPaymentRequired) &&
+      isVodStripeOrder(order)
+    ) {
+      member = await createGuestMemberForStripeOrder(db, order);
     }
     if (member) {
       let alreadyMirroredForMember = false;
