@@ -1,11 +1,13 @@
 import {
   ApplicationConfig,
+  ErrorHandler,
   InjectionToken,
   isDevMode,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
 import { provideServiceWorker } from '@angular/service-worker';
+import { AnalyticsErrorHandler } from './analytics-error-handler';
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import {
   browserLocalPersistence,
@@ -376,6 +378,7 @@ export const FIREBASE_APP = new InjectionToken<FirebaseApp>('firebase.app');
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: ErrorHandler, useClass: AnalyticsErrorHandler },
     provideZonelessChangeDetection(),
     provideHttpClient(),
     {

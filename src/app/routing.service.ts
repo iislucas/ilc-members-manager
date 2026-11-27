@@ -82,6 +82,7 @@ import {
   signal,
   WritableSignal,
   Inject,
+  inject,
   computed,
   effect,
 } from '@angular/core';
@@ -94,6 +95,12 @@ import {
   PathVarNames,
 } from './routing.utils';
 import { ROUTING_CONFIG } from './app.config';
+import {
+  AnalyticsService,
+  formatViewTitle,
+  NavigationSource,
+  sanitizePagePath,
+} from './analytics.service';
 
 // We use this type in the router, and this type check will ensure we didn't
 // mess up the type: if it says never, then initPathPatterns is badly typed, and
@@ -110,6 +117,13 @@ export interface ScrollState {
   targetUrl?: string;
 }
 
+export interface RouteAnalyticsContext {
+  pagePath: string;
+  routePattern: string;
+  viewId: string;
+  tab: string;
+}
+
 // This Service manages two way binding between the URL and a set of siganls
 // derived from a PathPatterns routing configuration. You can call navigate, or
 // you can update the current signals; either way around the URL and the signals
@@ -118,6 +132,7 @@ export interface ScrollState {
   providedIn: 'root',
 })
 export class RoutingService<T extends PathPatterns> {
+  private analytics = inject(AnalyticsService);
   private currentPath: WritableSignal<string>;
   private currentQuery: WritableSignal<string>;
   public matchedPatternId: WritableSignal<keyof T | null> = signal(null);
@@ -145,6 +160,7 @@ export class RoutingService<T extends PathPatterns> {
   private isBackNavigation = false;
   private isPopStateNavigation = false;
   private cancelPendingRestore: (() => void) | null = null;
+  private lastTrackedPageKey: string | null = null;
 
   constructor(@Inject(ROUTING_CONFIG) private config: RoutingConfig<T>) {
     this.currentPath = signal('');
@@ -177,7 +193,7 @@ export class RoutingService<T extends PathPatterns> {
     window.addEventListener('popstate', () => {
       this.isPopStateNavigation = true;
       try {
-        this.handleUrlChange();
+        this.handleUrlChange(NavigationSource.PopState);
       } finally {
         this.isPopStateNavigation = false;
       }
@@ -190,7 +206,7 @@ export class RoutingService<T extends PathPatterns> {
     }
 
     // Seed the signals from the initial URL.
-    this.handleUrlChange();
+    this.handleUrlChange(NavigationSource.Initial);
 
     // Sync signal state back into the URL. This fires when a component mutates a
     // URL-param signal (e.g. a search box); we use replaceState so those in-page
@@ -212,7 +228,62 @@ export class RoutingService<T extends PathPatterns> {
         if (typeof window !== 'undefined') {
           this.currentUrl.set(window.location.href);
         }
+        const prevPath = this.lastTrackedPageKey?.split('|', 1)[0];
+        const ctx = this.currentRouteContext();
+        const source =
+          prevPath === ctx.pagePath
+            ? NavigationSource.TabChange
+            : NavigationSource.Replace;
+        this.trackCurrentRoute(source);
       }
+    });
+  }
+
+  // Returns sanitized, low-cardinality route metadata for analytics and error reporting.
+  currentRouteContext(): RouteAnalyticsContext {
+    const patternId = this.matchedPatternId();
+    const viewId = patternId ? String(patternId) : 'not_found';
+    const rawPattern = patternId
+      ? `/${this.config.validPathPatterns[patternId].pathParts.join('/')}`
+      : '/not-found';
+    const routePattern = rawPattern.replace(/\/+/g, '/') || '/';
+    const rawPath =
+      typeof window !== 'undefined' ? window.location.pathname : '/';
+    const pagePath = sanitizePagePath(rawPath);
+
+    let tab = '';
+    if (patternId) {
+      const urlParams = this.signals[patternId].urlParams as Record<
+        string,
+        WritableSignal<string> | undefined
+      >;
+      const tabVal = urlParams['tab']?.().trim() ?? '';
+      const subtabVal = urlParams['subtab']?.().trim() ?? '';
+      if (tabVal && subtabVal) {
+        tab = `${tabVal}/${subtabVal}`;
+      } else {
+        tab = tabVal || subtabVal;
+      }
+    }
+
+    return { pagePath, routePattern, viewId, tab };
+  }
+
+  // Emits a `page_view` event when the sanitized path or active tab changes.
+  private trackCurrentRoute(source: NavigationSource): void {
+    const ctx = this.currentRouteContext();
+    const pageKey = `${ctx.pagePath}|${ctx.tab}`;
+    if (pageKey === this.lastTrackedPageKey) {
+      return;
+    }
+    this.lastTrackedPageKey = pageKey;
+    this.analytics.logPageView({
+      pagePath: ctx.pagePath,
+      routePattern: ctx.routePattern,
+      viewId: ctx.viewId,
+      pageTitle: formatViewTitle(ctx.viewId),
+      navigationSource: source,
+      tab: ctx.tab || undefined,
     });
   }
 
@@ -486,7 +557,7 @@ export class RoutingService<T extends PathPatterns> {
   // within the same page.
   private previousPatternId: keyof T | null = null;
 
-  private handleUrlChange() {
+  private handleUrlChange(source: NavigationSource = NavigationSource.Navigate) {
     let path = window.location.pathname;
     if (path.startsWith('/')) {
       path = path.substring(1);
@@ -547,6 +618,7 @@ export class RoutingService<T extends PathPatterns> {
       if (typeof window !== 'undefined') {
         this.currentUrl.set(window.location.href);
       }
+      this.trackCurrentRoute(source);
     };
 
     performUpdate();
@@ -567,6 +639,11 @@ export class RoutingService<T extends PathPatterns> {
     const clearUrlParams = options?.clearUrlParams ?? false;
     const resolved = clearUrlParams ? pathAndParams : this.resolveUrlWithParams(pathAndParams);
     const url = resolved.startsWith('/') ? resolved : `/${resolved}`;
+    const source = options?.isBackNavigation
+      ? NavigationSource.Back
+      : options?.replaceState
+        ? NavigationSource.Replace
+        : NavigationSource.Navigate;
     // pushState/replaceState updates the URL without emitting a popstate event,
     // so we manually re-derive the signal state from the new URL.
     try {
@@ -575,7 +652,7 @@ export class RoutingService<T extends PathPatterns> {
       } else {
         window.history.pushState(null, '', url);
       }
-      this.handleUrlChange();
+      this.handleUrlChange(source);
     } finally {
       this.isBackNavigation = false;
     }

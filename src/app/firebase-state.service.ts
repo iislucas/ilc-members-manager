@@ -1,4 +1,4 @@
-import { ApplicationRef, inject, Injectable, isDevMode, signal, WritableSignal } from '@angular/core';
+import { ApplicationRef, inject, Injectable, signal, WritableSignal } from '@angular/core';
 import { FirebaseApp } from 'firebase/app';
 import {
   Auth,
@@ -22,7 +22,6 @@ import {
 } from 'firebase/auth';
 import { environment } from '../environments/environment';
 import { FIREBASE_APP } from './app.config';
-import { Analytics, getAnalytics, isSupported } from 'firebase/analytics';
 import { Functions, getFunctions, httpsCallable } from 'firebase/functions';
 import {
   doc,
@@ -112,30 +111,11 @@ export const LAST_ACTIVE_USER_UID_KEY = 'ilc_last_active_user_uid';
 // link on the same device finishes sign-in without retyping it.
 export const EMAIL_FOR_SIGN_IN_KEY = 'ilc-email-for-sign-in';
 
-// Returns true when Firebase Analytics should be initialized (production Angular
-// build, not connected to emulators, and configured with a real Measurement ID).
-// Note: `environment.local.ts` backs both `development` and `production` build
-// targets in `angular.json` with `production: false`, so we check Angular's
-// `!isDevMode()` rather than `environment.production`.
-export function shouldEnableAnalytics(
-  devMode: boolean,
-  env: { useEmulator: boolean; firebase: { measurementId?: string } },
-): boolean {
-  const measurementId = env.firebase.measurementId?.trim() ?? '';
-  return (
-    !devMode &&
-    !env.useEmulator &&
-    measurementId.length > 0 &&
-    !measurementId.startsWith('YOUR_')
-  );
-}
-
 @Injectable({
   providedIn: 'root',
 })
 export class FirebaseStateService {
   public app = inject(FIREBASE_APP);
-  public analytics?: Analytics;
   public functions: Functions;
   private auth: Auth;
   private idb = inject(IdbStorageService);
@@ -209,7 +189,6 @@ export class FirebaseStateService {
     this.db = getFirestore(this.app);
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app);
-    void this.initAnalytics(isDevMode(), environment);
 
     // Note: without this, the user will be signed out when the app is reloaded,
     // and also, I've seen some strange issues where the user is logged out after 
@@ -370,23 +349,6 @@ export class FirebaseStateService {
 
       await this.fetchUserDetails(user);
     });
-  }
-
-  // Initializes Firebase Analytics if enabled for this build and supported by the browser.
-  public async initAnalytics(
-    devMode: boolean,
-    env: { useEmulator: boolean; firebase: { measurementId?: string } },
-  ): Promise<void> {
-    if (!shouldEnableAnalytics(devMode, env)) {
-      return;
-    }
-    try {
-      if (await isSupported()) {
-        this.analytics = getAnalytics(this.app);
-      }
-    } catch (e) {
-      console.warn('FirebaseStateService: Failed to initialize Analytics', e);
-    }
   }
 
   public async fetchUserDetails(
