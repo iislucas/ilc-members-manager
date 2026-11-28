@@ -319,6 +319,8 @@ Thank you for purchasing **${videoTitle}** (${amount}).
 You have instant access to watch this video in your account:
 [Watch Video Now](${videoUrl})
 
+If you are not signed in yet, sign in at [app.iliqchuan.com](${appBase}/login) using the email address you entered at checkout. You can find all of your videos anytime under [My Videos](${appBase}/videos?tab=my-videos).
+
 ${footer}`;
 }
 

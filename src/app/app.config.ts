@@ -331,7 +331,9 @@ export const initPathPatterns = {
     { name: 'sortBy', default: 'recordedDate' },
     { name: 'sortDir', default: 'desc' },
   ]),
-  [Views.VideoView]: addUrlParams(pathPattern`videos/${pv('videoId')}`, []),
+  [Views.VideoView]: addUrlParams(pathPattern`videos/${pv('videoId')}`, [
+    { name: 'purchase_success', ephemeral: true },
+  ]),
   [Views.ManageVod]: addUrlParams(pathPattern`manage-vod`, [
     'q', 'status', 'featured', 'accessTier', 'listing', 'year', 'instructorId', 'videoId',
     { name: 'tab', default: 'series_collections' },

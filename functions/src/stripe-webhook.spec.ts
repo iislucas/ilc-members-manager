@@ -320,6 +320,213 @@ describe('upsertStripeOrder idempotency', () => {
     expect(memberUpdateSpy).not.toHaveBeenCalled();
     expect(mirroredOrderSetSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('auto-creates a guest member account and fulfills a paid guest VOD checkout order', async () => {
+    const batchSetSpy = vi.fn();
+    const batchCommitSpy = vi.fn().mockResolvedValue({});
+    const memberUpdateSpy = vi.fn().mockResolvedValue({});
+    const memberVideoGrantSetSpy = vi.fn().mockResolvedValue({});
+    const globalVideoGrantSetSpy = vi.fn().mockResolvedValue({});
+    const mirroredOrderSetSpy = vi.fn().mockResolvedValue({});
+    const mailAddSpy = vi.fn().mockResolvedValue({ id: 'mail_vod_1' });
+
+    const newGuestRef = {
+      id: 'mem_guest_ottavio',
+      update: memberUpdateSpy,
+      collection: vi.fn((subCol: string) => {
+        if (subCol === 'videoGrants') {
+          return {
+            doc: vi.fn().mockReturnValue({ set: memberVideoGrantSetSpy }),
+          };
+        }
+        if (subCol === 'orders') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({ exists: false }),
+              set: mirroredOrderSetSpy,
+            }),
+          };
+        }
+        return {};
+      }),
+    };
+
+    const mockDb: any = {
+      batch: vi.fn(() => ({ set: batchSetSpy, update: vi.fn(), commit: batchCommitSpy })),
+      collection: vi.fn((colName: string) => {
+        if (colName === 'orders') {
+          return {
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              }),
+            }),
+            add: vi.fn().mockResolvedValue({ id: 'order_vod_guest_1' }),
+          };
+        }
+        if (colName === 'members') {
+          return {
+            doc: vi.fn((id?: string) => (id ? newGuestRef : newGuestRef)),
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              }),
+            }),
+          };
+        }
+        if (colName === 'acl') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({ exists: false }),
+            }),
+          };
+        }
+        if (colName === 'video_grants') {
+          return {
+            doc: vi.fn().mockReturnValue({ set: globalVideoGrantSetSpy }),
+          };
+        }
+        if (colName === 'system') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({ exists: false }),
+            }),
+          };
+        }
+        if (colName === 'mail') {
+          return { add: mailAddSpy };
+        }
+        return {};
+      }),
+    };
+
+    const guestVodSession = {
+      ...session,
+      id: 'cs_guest_vod_1',
+      customer: null,
+      client_reference_id: null,
+      amount_total: 2000,
+      metadata: {
+        category: 'vod',
+        orderType: 'vod',
+        targetType: 'video',
+        videoId: 'vimeo_123806394',
+      },
+      customer_details: {
+        email: 'ottavio.lazzarotti@gmail.com',
+        name: 'Ottavio Lazzarotti',
+        address: {
+          line1: null,
+          line2: null,
+          city: null,
+          state: null,
+          postal_code: null,
+          country: 'FR',
+        },
+      },
+      line_items: {
+        object: 'list',
+        data: [
+          {
+            id: 'li_vod_1',
+            description: 'San Da Vol. 5 - Timing And Spacing',
+            quantity: 1,
+            amount_total: 2000,
+            currency: 'usd',
+            price: { id: 'price_vod_1', product: 'prod_vod_sanda5' },
+          },
+        ],
+      },
+    } as unknown as Stripe.Checkout.Session;
+
+    const order = sessionToStripeOrder(guestVodSession);
+    const orderDocId = await upsertStripeOrder(mockDb, order);
+
+    expect(orderDocId).toBe('order_vod_guest_1');
+    // Guest member + ACL created atomically
+    expect(batchCommitSpy).toHaveBeenCalledTimes(1);
+    expect(batchSetSpy).toHaveBeenCalledWith(
+      newGuestRef,
+      expect.objectContaining({
+        name: 'Ottavio Lazzarotti',
+        emails: ['ottavio.lazzarotti@gmail.com'],
+        membershipType: 'NotYetAMember',
+        country: 'France',
+      }),
+    );
+    // Video grant provisioned in both member subcollection and global /video_grants
+    expect(memberVideoGrantSetSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        docId: 'vimeo_123806394',
+        videoId: 'vimeo_123806394',
+        memberDocId: 'mem_guest_ottavio',
+        memberEmail: 'ottavio.lazzarotti@gmail.com',
+        amountPaidCents: 2000,
+      }),
+    );
+    expect(globalVideoGrantSetSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoId: 'vimeo_123806394',
+        memberDocId: 'mem_guest_ottavio',
+        memberEmail: 'ottavio.lazzarotti@gmail.com',
+      }),
+    );
+    // Order mirrored to guest member's orders subcollection
+    expect(mirroredOrderSetSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not auto-create a guest member for unmapped non-VOD checkout orders', async () => {
+    const batchSpy = vi.fn();
+    const mockDb: any = {
+      batch: batchSpy,
+      collection: vi.fn((colName: string) => {
+        if (colName === 'orders') {
+          return {
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              }),
+            }),
+            add: vi.fn().mockResolvedValue({ id: 'order_unknown_non_vod' }),
+          };
+        }
+        if (colName === 'members') {
+          return {
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+              }),
+            }),
+          };
+        }
+        if (colName === 'acl') {
+          return {
+            doc: vi.fn().mockReturnValue({
+              get: vi.fn().mockResolvedValue({ exists: false }),
+            }),
+          };
+        }
+        return {};
+      }),
+    };
+
+    const nonVodSession = {
+      ...session,
+      id: 'cs_unknown_non_vod',
+      customer: null,
+      client_reference_id: null,
+      metadata: {},
+      customer_details: {
+        email: 'mystery@example.com',
+        name: 'Mystery Buyer',
+        address: null,
+      },
+    } as unknown as Stripe.Checkout.Session;
+
+    const orderDocId = await upsertStripeOrder(mockDb, sessionToStripeOrder(nonVodSession));
+    expect(orderDocId).toBe('order_unknown_non_vod');
+    expect(batchSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('handleCheckoutSession setup mode', () => {

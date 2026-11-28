@@ -41,6 +41,9 @@ describe('VideoViewComponent', () => {
         pathVars: {
           videoId: WritableSignal<string>;
         };
+        urlParams: {
+          purchase_success: WritableSignal<string>;
+        };
       };
     };
     hrefForView: ReturnType<typeof vi.fn>;
@@ -99,9 +102,15 @@ describe('VideoViewComponent', () => {
           pathVars: {
             videoId: signal('v100'),
           },
+          urlParams: {
+            purchase_success: signal(''),
+          },
         },
       },
       hrefForView: vi.fn((view: string, params?: Record<string, string>) => {
+        if (view === Views.Login && params?.['returnUrl']) {
+          return `/login?returnUrl=${encodeURIComponent(params['returnUrl'])}`;
+        }
         if (view === Views.ManageVodVideo && params?.['videoId']) return `/manage-vod/video/${params['videoId']}`;
         if (view === Views.ManageVodSeries && params?.['seriesId']) return `/manage-vod/series/${params['seriesId']}`;
         if (params && params['videoId']) return `/videos/${params['videoId']}`;
@@ -966,6 +975,69 @@ describe('VideoViewComponent', () => {
       const el = fixture.nativeElement as HTMLElement;
       expect(el.querySelector('.series-nav-bar')).toBeTruthy();
       expect(el.querySelector('.series-nav-controls .admin-button')).toBeNull();
+    });
+  });
+
+  describe('Post-Purchase Confirmation Banner (?purchase_success=true)', () => {
+    it('prompts signed-out buyers to sign in with their checkout email and preserves returnUrl', async () => {
+      mockRoutingService.signals.videoView.urlParams.purchase_success.set('true');
+      mockFirebaseState.user.set(null);
+      mockDataService.getVideoPlaybackSession.mockResolvedValue({
+        authorized: false,
+        reason: 'unauthenticated',
+      });
+
+      await component.ngOnInit();
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const banner = el.querySelector('.purchase-success-banner');
+      expect(banner).toBeTruthy();
+      expect(banner?.textContent).toContain('Thank you for your purchase!');
+      expect(banner?.textContent).toContain('Sign in with that email address');
+      const signInLink = banner?.querySelector('a.primary-btn') as HTMLAnchorElement | null;
+      expect(signInLink?.getAttribute('href')).toBe('/login?returnUrl=%2Fvideos%2Fv100');
+    });
+
+    it('shows unlocked confirmation for signed-in authorized buyers and can be dismissed', async () => {
+      mockRoutingService.signals.videoView.urlParams.purchase_success.set('true');
+      mockFirebaseState.user.set({ isAdmin: false, member: { docId: 'm1' } });
+
+      await component.ngOnInit();
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const banner = el.querySelector('.purchase-success-banner');
+      expect(banner).toBeTruthy();
+      expect(banner?.textContent).toContain('Your video is unlocked and ready to watch.');
+
+      const dismissBtn = banner?.querySelector('button[aria-label="Dismiss notice"]') as HTMLButtonElement;
+      dismissBtn.click();
+      fixture.detectChanges();
+      expect(el.querySelector('.purchase-success-banner')).toBeNull();
+    });
+
+    it('offers a Check Access button when signed in but webhook fulfillment has not unlocked yet', async () => {
+      mockRoutingService.signals.videoView.urlParams.purchase_success.set('true');
+      mockFirebaseState.user.set({ isAdmin: false, member: { docId: 'm1' } });
+      mockDataService.getVideoPlaybackSession.mockResolvedValue({
+        authorized: false,
+        reason: 'purchase_required',
+      });
+
+      await component.ngOnInit();
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const banner = el.querySelector('.purchase-success-banner');
+      expect(banner?.textContent).toContain('Your access is being activated');
+      const checkBtn = banner?.querySelector('button.primary-btn') as HTMLButtonElement;
+      expect(checkBtn?.textContent).toContain('Check Access');
+
+      mockDataService.getVideoPlaybackSession.mockClear();
+      checkBtn.click();
+      await fixture.whenStable();
+      expect(mockDataService.getVideoPlaybackSession).toHaveBeenCalledWith('v100');
     });
   });
 });

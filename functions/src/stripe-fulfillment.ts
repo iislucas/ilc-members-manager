@@ -41,6 +41,7 @@ import { Member, MemberUpdates, MemberSubscriptionItem, MembershipType, firestor
 import { NotificationKind } from './data-model/notifications';
 import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderType, StripeOrderLineItem, StripeCheckoutMode, OrderStatus, OrderKind } from './data-model/orders';
 import { initSchool, School } from './data-model/schools';
+import { ACL } from './data-model/system';
 import { VideoGrant, VideoGrantKind, firestoreDocToVideoItem } from './data-model/vod';
 import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
@@ -153,6 +154,100 @@ export async function resolveMemberForStripeOrder(
   }
 
   return null;
+}
+
+/**
+ * Returns true if the Stripe order contains a Video on Demand (VOD) purchase
+ * (individual recording or series bundle).
+ */
+export function isVodStripeOrder(order: StripeOrder): boolean {
+  if (
+    order.metadata?.['orderType'] === 'vod' ||
+    Boolean(order.metadata?.['videoId']) ||
+    Boolean(order.metadata?.['seriesId'])
+  ) {
+    return true;
+  }
+  return (order.lineItems || []).some(
+    (item) => categorizeLineItem(item, order.metadata) === OrderItemCategory.Vod,
+  );
+}
+
+/**
+ * Creates a guest (NotYetAMember) profile in `/members` and links `/acl/{email}`
+ * when a guest completes a Stripe VOD purchase without an existing member record.
+ * Mirrors the guest profile schema created on first login by `getUserDetails`.
+ */
+export async function createGuestMemberForStripeOrder(
+  db: admin.firestore.Firestore,
+  order: StripeOrder,
+): Promise<Member | null> {
+  const email = normalizeEmail(order.customerEmail);
+  if (!email || !email.includes('@')) {
+    return null;
+  }
+
+  const countryInput = (order.billingAddress?.country || '').trim();
+  const countryCode = countryInput ? resolveCountryCode(countryInput) : undefined;
+  const country = countryCode ? resolveCountryName(countryCode) : countryInput;
+
+  const memberRef = db.collection(FirestoreCollection.Members).doc();
+  const memberDocId = memberRef.id;
+  const nowIso = new Date().toISOString();
+
+  const guestMember: Member = {
+    ...initMember(),
+    docId: memberDocId,
+    name: (order.customerName || '').trim(),
+    emails: [email],
+    country,
+    stripeCustomerId: order.stripeCustomerId || '',
+    membershipType: MembershipType.NotYetAMember,
+    lastUpdated: nowIso,
+  };
+
+  const { docId: _docId, lastUpdated: _lastUpdated, ...dbData } = guestMember;
+  const memberFirestoreData = {
+    ...dbData,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const aclRef = db.collection(FirestoreCollection.Acl).doc(email);
+  const aclSnap = await aclRef.get();
+  const existingAcl = aclSnap.exists ? (aclSnap.data() as Partial<ACL>) : null;
+
+  const batch = db.batch();
+  batch.set(memberRef, memberFirestoreData);
+  if (existingAcl) {
+    const existingIds = Array.isArray(existingAcl.memberDocIds)
+      ? existingAcl.memberDocIds
+      : [];
+    const nextIds = existingIds.includes(memberDocId)
+      ? existingIds
+      : [...existingIds, memberDocId];
+    const aclUpdate: Partial<ACL> = {
+      memberDocIds: nextIds,
+      ...(existingIds.length === 0 ? { notYetLinkedToMember: true } : {}),
+    };
+    batch.update(aclRef, aclUpdate);
+  } else {
+    const aclData: Partial<ACL> = {
+      memberDocIds: [memberDocId],
+      instructorIds: [],
+      isAdmin: false,
+      notYetLinkedToMember: true,
+    };
+    batch.set(aclRef, aclData);
+  }
+  await batch.commit();
+
+  logger.info('Created guest member profile for Stripe order', {
+    memberDocId,
+    email,
+    stripeObjectId: order.stripeObjectId,
+  });
+
+  return guestMember;
 }
 
 /**
@@ -1598,6 +1693,7 @@ export async function fulfillStripeOrder(
     schoolId: string;
     schoolName: string;
   } | null = null;
+  let primaryVodWatchVideoId = '';
 
   for (const item of order.lineItems) {
     const category = categorizeLineItem(item, order.metadata);
@@ -1979,6 +2075,9 @@ export async function fulfillStripeOrder(
       const grantTargetIds = new Set<string>();
       if (videoId) {
         grantTargetIds.add(videoId);
+        if (!primaryVodWatchVideoId) {
+          primaryVodWatchVideoId = videoId;
+        }
       }
       if (seriesId) {
         grantTargetIds.add(seriesId);
@@ -1987,8 +2086,20 @@ export async function fulfillStripeOrder(
             db.collection(FirestoreCollection.Videos).where('seriesId', '==', seriesId).get(),
             db.collection(FirestoreCollection.Videos).where('forVodPageId', '==', seriesId).get(),
           ]);
-          for (const doc of [...bySeriesId.docs, ...byVodPageId.docs]) {
+          const seriesDocs = [...bySeriesId.docs, ...byVodPageId.docs];
+          for (const doc of seriesDocs) {
             grantTargetIds.add(doc.id);
+          }
+          if (!primaryVodWatchVideoId && seriesDocs.length > 0) {
+            const firstEpisode = seriesDocs
+              .map((doc) => ({ id: doc.id, data: doc.data() as { isTrailer?: boolean; seriesPartIndex?: number } }))
+              .filter((d) => !d.data?.isTrailer)
+              .sort(
+                (a, b) =>
+                  (typeof a.data?.seriesPartIndex === 'number' ? a.data.seriesPartIndex : 9999) -
+                  (typeof b.data?.seriesPartIndex === 'number' ? b.data.seriesPartIndex : 9999),
+              )[0];
+            primaryVodWatchVideoId = firstEpisode?.id || seriesDocs[0].id;
           }
         } catch (err) {
           logger.warn('Failed to expand series episodes for seriesId:', { seriesId, err });
@@ -2309,7 +2420,7 @@ export async function fulfillStripeOrder(
           order.metadata?.['videoTitle'] ||
           order.lineItems[0]?.description ||
           'Video on Demand';
-        const videoId = order.metadata?.['videoId'] || '';
+        const videoId = order.metadata?.['videoId'] || primaryVodWatchVideoId || '';
         const isGiftOrder = order.metadata?.['isGift'] === 'true';
         const giftRecipient = order.metadata?.['recipientName'] || order.metadata?.['recipientEmail'] || '';
         const displayTitle = isGiftOrder && giftRecipient ? `${videoTitle} (Gift for ${giftRecipient})` : videoTitle;
@@ -2320,7 +2431,7 @@ export async function fulfillStripeOrder(
           replacements: {
             name: member.name || order.customerName || 'ILC Member',
             videoTitle: displayTitle,
-            videoUrl: videoId ? `${appBase}/videos/${videoId}` : `${appBase}/videos`,
+            videoUrl: videoId ? `${appBase}/videos/${videoId}` : `${appBase}/videos?tab=my-videos`,
             amount: `${totalAmount} ${currency}`,
             receiptUrl: '',
             appBase,

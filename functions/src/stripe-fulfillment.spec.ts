@@ -10,8 +10,10 @@ import {
   RegistrationQuestionKind,
 } from './data-model/events';
 import {
+  createGuestMemberForStripeOrder,
   fulfillStripeOrder,
   fulfillSpouseLifeMembership,
+  isVodStripeOrder,
   mirrorOrderToMemberSubcollection,
   resolveMemberForStripeOrder,
   extendDateByYears,
@@ -2115,6 +2117,207 @@ describe('stripe-fulfillment', () => {
             amountPaidCents: 0,
           }),
         );
+        // Confirmation email links directly to the first episode instead of bare /videos
+        expect(sendTransactionalEmail).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            to: 'sam@example.com',
+            templateKey: TransactionalEmailKey.VodPurchaseConfirmation,
+            replacements: expect.objectContaining({
+              videoUrl: expect.stringMatching(/\/videos\/ep_1$/),
+            }),
+          }),
+        );
+      });
+    });
+
+    describe('isVodStripeOrder & createGuestMemberForStripeOrder', () => {
+      it('identifies VOD orders from metadata or line items and excludes non-VOD orders', () => {
+        const baseOrder: StripeOrder = {
+          docId: 'o1',
+          lastUpdated: '2026-11-22T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_1',
+          mode: StripeCheckoutMode.Payment,
+          paymentStatus: StripePaymentStatus.Paid,
+          amountTotal: 2000,
+          currency: 'usd',
+          created: '2026-11-22T00:00:00Z',
+          lineItems: [],
+        };
+
+        expect(isVodStripeOrder({ ...baseOrder, metadata: { orderType: 'vod' } })).toBe(true);
+        expect(isVodStripeOrder({ ...baseOrder, metadata: { videoId: 'vimeo_123' } })).toBe(true);
+        expect(isVodStripeOrder({ ...baseOrder, metadata: { seriesId: '35962' } })).toBe(true);
+        expect(
+          isVodStripeOrder({
+            ...baseOrder,
+            lineItems: [
+              {
+                description: 'San Da Vol. 5 Video On Demand',
+                productId: 'prod_1',
+                priceId: 'price_1',
+                quantity: 1,
+                amountTotal: 2000,
+                currency: 'usd',
+              },
+            ],
+          }),
+        ).toBe(true);
+        expect(
+          isVodStripeOrder({
+            ...baseOrder,
+            metadata: { orderType: 'membership' },
+            lineItems: [
+              {
+                description: 'Annual Membership',
+                productId: 'prod_mem',
+                priceId: 'price_mem',
+                quantity: 1,
+                amountTotal: 5500,
+                currency: 'usd',
+              },
+            ],
+          }),
+        ).toBe(false);
+      });
+
+      it('creates a NotYetAMember profile and ACL doc for a guest VOD buyer', async () => {
+        const batchSet = vi.fn();
+        const batchUpdate = vi.fn();
+        const batchCommit = vi.fn().mockResolvedValue(undefined);
+        const newMemberRef = { id: 'guest_mem_001' };
+        const aclDocRef = {
+          id: 'ottavio@example.com',
+          get: vi.fn().mockResolvedValue({ exists: false }),
+        };
+
+        const db: any = {
+          batch: vi.fn(() => ({ set: batchSet, update: batchUpdate, commit: batchCommit })),
+          collection: vi.fn((colName: string) => {
+            if (colName === 'members') {
+              return { doc: vi.fn(() => newMemberRef) };
+            }
+            if (colName === 'acl') {
+              return { doc: vi.fn(() => aclDocRef) };
+            }
+            return {};
+          }),
+        };
+
+        const order: StripeOrder = {
+          docId: 'order_guest_1',
+          lastUpdated: '2026-11-22T12:54:24.000Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_guest_1',
+          stripeCustomerId: 'cus_guest_1',
+          mode: StripeCheckoutMode.Payment,
+          paymentStatus: StripePaymentStatus.Paid,
+          customerEmail: '  Ottavio@Example.com ',
+          customerName: 'Ottavio Lazzarotti',
+          billingAddress: { country: 'FR' },
+          amountTotal: 2000,
+          currency: 'usd',
+          created: '2026-11-22T12:54:24.000Z',
+          metadata: { orderType: 'vod', videoId: 'vimeo_123806394' },
+          lineItems: [],
+        };
+
+        const created = await createGuestMemberForStripeOrder(db, order);
+        expect(created).not.toBeNull();
+        expect(created?.docId).toBe('guest_mem_001');
+        expect(created?.name).toBe('Ottavio Lazzarotti');
+        expect(created?.emails).toEqual(['ottavio@example.com']);
+        expect(created?.membershipType).toBe(MembershipType.NotYetAMember);
+        expect(created?.memberId).toBe('');
+        expect(created?.stripeCustomerId).toBe('cus_guest_1');
+        expect(created?.country).toBe('France');
+
+        expect(batchSet).toHaveBeenCalledWith(
+          newMemberRef,
+          expect.objectContaining({
+            name: 'Ottavio Lazzarotti',
+            emails: ['ottavio@example.com'],
+            membershipType: MembershipType.NotYetAMember,
+            stripeCustomerId: 'cus_guest_1',
+          }),
+        );
+        expect(batchSet).toHaveBeenCalledWith(aclDocRef, {
+          memberDocIds: ['guest_mem_001'],
+          instructorIds: [],
+          isAdmin: false,
+          notYetLinkedToMember: true,
+        });
+        expect(batchCommit).toHaveBeenCalledTimes(1);
+      });
+
+      it('preserves existing ACL fields (e.g. isAdmin) when linking a newly created guest member', async () => {
+        const batchSet = vi.fn();
+        const batchUpdate = vi.fn();
+        const batchCommit = vi.fn().mockResolvedValue(undefined);
+        const newMemberRef = { id: 'guest_mem_002' };
+        const aclDocRef = {
+          id: 'admin-no-member@example.com',
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({ memberDocIds: [], isAdmin: true }),
+          }),
+        };
+
+        const db: any = {
+          batch: vi.fn(() => ({ set: batchSet, update: batchUpdate, commit: batchCommit })),
+          collection: vi.fn((colName: string) => {
+            if (colName === 'members') return { doc: vi.fn(() => newMemberRef) };
+            if (colName === 'acl') return { doc: vi.fn(() => aclDocRef) };
+            return {};
+          }),
+        };
+
+        const order: StripeOrder = {
+          docId: 'order_guest_2',
+          lastUpdated: '2026-11-22T12:54:24.000Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_guest_2',
+          mode: StripeCheckoutMode.Payment,
+          paymentStatus: StripePaymentStatus.Paid,
+          customerEmail: 'admin-no-member@example.com',
+          amountTotal: 2000,
+          currency: 'usd',
+          created: '2026-11-22T12:54:24.000Z',
+          metadata: { orderType: 'vod', videoId: 'vimeo_1' },
+          lineItems: [],
+        };
+
+        const created = await createGuestMemberForStripeOrder(db, order);
+        expect(created?.docId).toBe('guest_mem_002');
+        expect(batchUpdate).toHaveBeenCalledWith(aclDocRef, {
+          memberDocIds: ['guest_mem_002'],
+          notYetLinkedToMember: true,
+        });
+      });
+
+      it('returns null when customerEmail is missing or invalid', async () => {
+        const db: any = { batch: vi.fn(), collection: vi.fn() };
+        const order: StripeOrder = {
+          docId: 'order_no_email',
+          lastUpdated: '2026-11-22T12:54:24.000Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_no_email',
+          mode: StripeCheckoutMode.Payment,
+          paymentStatus: StripePaymentStatus.Paid,
+          amountTotal: 2000,
+          currency: 'usd',
+          created: '2026-11-22T12:54:24.000Z',
+          metadata: { orderType: 'vod', videoId: 'vimeo_1' },
+          lineItems: [],
+        };
+
+        expect(await createGuestMemberForStripeOrder(db, order)).toBeNull();
+        expect(db.batch).not.toHaveBeenCalled();
       });
     });
   });
