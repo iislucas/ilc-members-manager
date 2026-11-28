@@ -80,6 +80,7 @@ import { ActionQueueDialogComponent } from './action-queue-dialog/action-queue-d
 import { ActionQueueService } from './action-queue.service';
 import { PasswordSetupComponent } from './inline-auth/password-setup.component';
 import { AuthCompleteComponent } from './auth-complete/auth-complete';
+import { AnalyticsService } from './analytics.service';
 import { environment } from '../environments/environment';
 
 /**
@@ -198,6 +199,7 @@ export class App {
   protected readonly appVersion = APP_VERSION;
   protected readonly links = environment.links;
   public updateService = inject(AppUpdateService);
+  private analyticsService = inject(AnalyticsService);
   public firebaseService = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   public findInstructorsService = inject(FindInstructorsService);
@@ -364,6 +366,8 @@ export class App {
   });
 
   constructor() {
+    this.analyticsService.setAppVersion(this.appVersion);
+
     effect(() => {
       const isLoggedOut =
         this.firebaseService.loginStatus() === LoginStatus.SignedOut;

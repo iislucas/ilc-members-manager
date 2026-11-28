@@ -23,6 +23,7 @@ import {
   initializeAnalytics,
   isSupported,
   logEvent,
+  setDefaultEventParameters,
   setUserProperties,
 } from 'firebase/analytics';
 import {
@@ -452,6 +453,8 @@ export class AnalyticsService {
   private pendingEvents: PendingAnalyticsEvent[] = [];
   private pendingUserProperties: MemberAnalyticsUserProperties | null = null;
   private lastUserPropertiesKey: string | null = null;
+  private pendingAppVersion: string | null = null;
+  private lastAppVersion: string | null = null;
   private recentErrorTimestamps = new Map<string, number>();
   private errorEventsLogged = 0;
 
@@ -470,6 +473,7 @@ export class AnalyticsService {
       this.initialized = true;
       this.pendingEvents = [];
       this.pendingUserProperties = null;
+      this.pendingAppVersion = null;
       return;
     }
     try {
@@ -484,6 +488,26 @@ export class AnalyticsService {
       this.initialized = true;
       this.flushPendingEvents();
     }
+  }
+
+  // Records the running web app build version as both a GA4 user property and
+  // a default event parameter (`web_app_version`, avoiding collision with GA4's
+  // mobile-only built-in `app_version` dimension).
+  public setAppVersion(version: string): void {
+    const sanitized = version.trim().slice(0, MAX_USER_PROPERTY_VALUE_LENGTH);
+    if (!sanitized || sanitized === this.lastAppVersion) {
+      return;
+    }
+    this.lastAppVersion = sanitized;
+
+    if (!this.initialized) {
+      this.pendingAppVersion = sanitized;
+      return;
+    }
+    if (!this.analytics) {
+      return;
+    }
+    this.dispatchAppVersion(this.analytics, sanitized);
   }
 
   // Sets (or clears when signed out) non-PII GA4 user properties derived from
@@ -586,6 +610,8 @@ export class AnalyticsService {
   }
 
   private flushPendingEvents(): void {
+    const appVersion = this.pendingAppVersion;
+    this.pendingAppVersion = null;
     const userProps = this.pendingUserProperties;
     this.pendingUserProperties = null;
     const events = this.pendingEvents;
@@ -593,13 +619,25 @@ export class AnalyticsService {
     if (!this.analytics) {
       return;
     }
-    // Apply pending user properties before queued events so initial page_view
-    // events carry the member attributes when already known at startup.
+    // Apply app version and pending user properties before queued events so
+    // initial page_view events carry both when already known at startup.
+    if (appVersion) {
+      this.dispatchAppVersion(this.analytics, appVersion);
+    }
     if (userProps) {
       this.dispatchUserProperties(this.analytics, userProps);
     }
     for (const event of events) {
       this.dispatchEvent(this.analytics, event);
+    }
+  }
+
+  private dispatchAppVersion(analytics: Analytics, appVersion: string): void {
+    try {
+      setUserProperties(analytics, { web_app_version: appVersion });
+      setDefaultEventParameters({ web_app_version: appVersion });
+    } catch (e) {
+      console.warn('AnalyticsService: Failed to set app version', e);
     }
   }
 

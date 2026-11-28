@@ -9,6 +9,7 @@ import {
   initializeAnalytics,
   isSupported,
   logEvent,
+  setDefaultEventParameters,
   setUserProperties,
 } from 'firebase/analytics';
 import {
@@ -42,6 +43,7 @@ vi.mock('firebase/analytics', () => ({
   initializeAnalytics: vi.fn(),
   isSupported: vi.fn().mockResolvedValue(false),
   logEvent: vi.fn(),
+  setDefaultEventParameters: vi.fn(),
   setUserProperties: vi.fn(),
 }));
 
@@ -617,6 +619,79 @@ describe('AnalyticsService', () => {
           registered_country: null,
         }),
       );
+    });
+  });
+
+  describe('app version tracking', () => {
+    it('queues app version before init, flushes as user property and default event param before page_view, and deduplicates', async () => {
+      const fakeAnalytics = { app } as Analytics;
+      let resolveSupported!: (value: boolean) => void;
+      vi.mocked(isSupported).mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          resolveSupported = resolve;
+        }),
+      );
+      vi.mocked(initializeAnalytics).mockReturnValue(fakeAnalytics);
+
+      const callOrder: string[] = [];
+      vi.mocked(setUserProperties).mockImplementation(() => {
+        callOrder.push('setUserProperties');
+      });
+      vi.mocked(setDefaultEventParameters).mockImplementation(() => {
+        callOrder.push('setDefaultEventParameters');
+      });
+      vi.mocked(logEvent).mockImplementation(() => {
+        callOrder.push('logEvent');
+      });
+
+      (service as unknown as { initialized: boolean }).initialized = false;
+      const initPromise = service.initAnalytics(false, {
+        useEmulator: false,
+        firebase: { measurementId: 'G-QKCXJJGZKW' },
+      });
+
+      service.logPageView({
+        pagePath: '/',
+        routePattern: '/',
+        viewId: 'home',
+        pageTitle: 'Home',
+        navigationSource: NavigationSource.Initial,
+      });
+      service.setAppVersion('  0.0.1+2026-11-28T11:52  ');
+
+      expect(setUserProperties).not.toHaveBeenCalled();
+      expect(setDefaultEventParameters).not.toHaveBeenCalled();
+
+      resolveSupported(true);
+      await initPromise;
+
+      expect(callOrder).toEqual([
+        'setUserProperties',
+        'setDefaultEventParameters',
+        'logEvent',
+      ]);
+      expect(setUserProperties).toHaveBeenCalledWith(fakeAnalytics, {
+        web_app_version: '0.0.1+2026-11-28T11:52',
+      });
+      expect(setDefaultEventParameters).toHaveBeenCalledWith({
+        web_app_version: '0.0.1+2026-11-28T11:52',
+      });
+
+      // Duplicate and empty values are ignored.
+      service.setAppVersion('0.0.1+2026-11-28T11:52');
+      service.setAppVersion('   ');
+      expect(setUserProperties).toHaveBeenCalledTimes(1);
+      expect(setDefaultEventParameters).toHaveBeenCalledTimes(1);
+
+      // Values longer than 36 chars are truncated to fit GA4 user property limits.
+      const longVersion = '1.2.3+2026-11-28T11:52:00-extra-build-metadata';
+      service.setAppVersion(longVersion);
+      expect(setUserProperties).toHaveBeenLastCalledWith(fakeAnalytics, {
+        web_app_version: longVersion.slice(0, 36),
+      });
+      expect(setDefaultEventParameters).toHaveBeenLastCalledWith({
+        web_app_version: longVersion.slice(0, 36),
+      });
     });
   });
 });
