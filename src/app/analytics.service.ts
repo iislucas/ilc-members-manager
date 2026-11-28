@@ -1,5 +1,6 @@
 /*
-AnalyticsService: Centralized Firebase Analytics (GA4) lifecycle and event logging.
+AnalyticsService: Centralized Firebase Analytics (GA4) lifecycle, event logging,
+and member user-property reporting.
 
 Initializes Firebase Analytics in production builds (`!isDevMode()` and
 `!environment.useEmulator`) with `send_page_view: false` so that every page view
@@ -7,9 +8,14 @@ Initializes Firebase Analytics in production builds (`!isDevMode()` and
 path via `RoutingService`, preventing sensitive query parameters (`oobCode`,
 `session_id`, search queries) from being sent to Google Analytics.
 
-Also provides structured, low-cardinality client-side error logging via standard
-GA4 `exception` events with PII scrubbing, benign-noise filtering, per-fingerprint
-deduplication, and a per-session cap.
+Also provides:
+- Structured, low-cardinality client-side error logging via standard GA4
+  `exception` events with PII scrubbing, benign-noise filtering, per-fingerprint
+  deduplication, and a per-session cap.
+- Non-PII GA4 user properties describing the signed-in member's status
+  (instructor ID presence, active membership, class video library subscription,
+  active instructor status, student/instructor/master levels, and registered
+  country).
 */
 import { inject, Injectable, isDevMode } from '@angular/core';
 import {
@@ -17,9 +23,22 @@ import {
   initializeAnalytics,
   isSupported,
   logEvent,
+  setDefaultEventParameters,
+  setUserProperties,
 } from 'firebase/analytics';
+import {
+  highestMasterLevel,
+  toApplicationLevel,
+  toStudentLevel,
+} from '../../functions/src/data-model/curriculum';
+import {
+  hasActiveMembership,
+  isActiveInstructor,
+  Member,
+} from '../../functions/src/data-model/members';
 import { environment } from '../environments/environment';
 import { FIREBASE_APP } from './app.config';
+import { countryCodeList } from './country-codes';
 
 export enum NavigationSource {
   Initial = 'initial',
@@ -314,6 +333,115 @@ export function classifyClientError(error: unknown): ClassifiedClientError | nul
   };
 }
 
+const MAX_USER_PROPERTY_VALUE_LENGTH = 36;
+
+const COUNTRY_NAME_BY_CODE: ReadonlyMap<string, string> = new Map(
+  countryCodeList.map((entry) => [entry.id.toUpperCase(), entry.name]),
+);
+
+const COUNTRY_NAME_BY_LOWER: ReadonlyMap<string, string> = new Map(
+  countryCodeList.map((entry) => [entry.name.toLowerCase(), entry.name]),
+);
+
+export interface MemberAnalyticsUserProperties {
+  is_signed_in: 'true' | 'false';
+  has_instructor_id: 'true' | 'false' | null;
+  has_active_membership: 'true' | 'false' | null;
+  has_class_subscription: 'true' | 'false' | null;
+  has_active_instructor: 'true' | 'false' | null;
+  student_level: string | null;
+  instructor_level: string | null;
+  master_level: string | null;
+  registered_country: string | null;
+  [key: string]: string | null;
+}
+
+// Whether the member currently has an active Class Video Library subscription.
+// Matches the portal's access rule: enabled flag plus either no expiration date
+// (never expires) or an expiration date on or after `today` (YYYY-MM-DD).
+export function hasActiveClassSubscription(
+  member: Pick<
+    Member,
+    'classVideoLibrarySubscription' | 'classVideoLibraryExpirationDate'
+  >,
+  today: string = new Date().toISOString().split('T')[0],
+): boolean {
+  if (!member.classVideoLibrarySubscription) {
+    return false;
+  }
+  const expires = member.classVideoLibraryExpirationDate?.trim() ?? '';
+  return !expires || expires >= today;
+}
+
+// Resolves a member's registered country to a clean, GA4-safe string (max 36 chars).
+// Prefers `member.country` normalized against `countryCodeList`, and falls back to
+// the leading country code prefix of `member.memberId` (e.g. `US402` -> `United States`).
+export function resolveRegisteredCountry(
+  member: Pick<Member, 'country' | 'memberId'>,
+): string {
+  const rawCountry = member.country?.trim() ?? '';
+  if (rawCountry) {
+    const byCode = COUNTRY_NAME_BY_CODE.get(rawCountry.toUpperCase());
+    if (byCode) {
+      return byCode.slice(0, MAX_USER_PROPERTY_VALUE_LENGTH);
+    }
+    const byName = COUNTRY_NAME_BY_LOWER.get(rawCountry.toLowerCase());
+    if (byName) {
+      return byName.slice(0, MAX_USER_PROPERTY_VALUE_LENGTH);
+    }
+    return rawCountry.slice(0, MAX_USER_PROPERTY_VALUE_LENGTH);
+  }
+
+  const rawMemberId = member.memberId?.trim() ?? '';
+  const codeMatch = /^([A-Za-z]{2,3})(?=\d)/.exec(rawMemberId);
+  if (codeMatch) {
+    const code = codeMatch[1].toUpperCase();
+    const resolved = COUNTRY_NAME_BY_CODE.get(code) ?? code;
+    return resolved.slice(0, MAX_USER_PROPERTY_VALUE_LENGTH);
+  }
+
+  return 'unknown';
+}
+
+// Maps the active signed-in `Member` (or `null` when signed out) into non-PII
+// GA4 user properties within GA4's 24-char key and 36-char value limits.
+export function buildMemberUserProperties(
+  member: Member | null,
+  today: string = new Date().toISOString().split('T')[0],
+): MemberAnalyticsUserProperties {
+  if (!member) {
+    return {
+      is_signed_in: 'false',
+      has_instructor_id: null,
+      has_active_membership: null,
+      has_class_subscription: null,
+      has_active_instructor: null,
+      student_level: null,
+      instructor_level: null,
+      master_level: null,
+      registered_country: null,
+    };
+  }
+
+  const studentLevel = toStudentLevel(member.studentLevel);
+  const instructorLevel = toApplicationLevel(member.applicationLevel);
+  const masterLevel = highestMasterLevel(member.mastersLevels);
+
+  return {
+    is_signed_in: 'true',
+    has_instructor_id: member.instructorId.trim() ? 'true' : 'false',
+    has_active_membership: hasActiveMembership(member, today) ? 'true' : 'false',
+    has_class_subscription: hasActiveClassSubscription(member, today)
+      ? 'true'
+      : 'false',
+    has_active_instructor: isActiveInstructor(member, today) ? 'true' : 'false',
+    student_level: studentLevel || 'none',
+    instructor_level: instructorLevel || 'none',
+    master_level: masterLevel || 'none',
+    registered_country: resolveRegisteredCountry(member),
+  };
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -323,6 +451,10 @@ export class AnalyticsService {
 
   private initialized = false;
   private pendingEvents: PendingAnalyticsEvent[] = [];
+  private pendingUserProperties: MemberAnalyticsUserProperties | null = null;
+  private lastUserPropertiesKey: string | null = null;
+  private pendingAppVersion: string | null = null;
+  private lastAppVersion: string | null = null;
   private recentErrorTimestamps = new Map<string, number>();
   private errorEventsLogged = 0;
 
@@ -340,6 +472,8 @@ export class AnalyticsService {
     if (!this.app || !shouldEnableAnalytics(devMode, env)) {
       this.initialized = true;
       this.pendingEvents = [];
+      this.pendingUserProperties = null;
+      this.pendingAppVersion = null;
       return;
     }
     try {
@@ -354,6 +488,50 @@ export class AnalyticsService {
       this.initialized = true;
       this.flushPendingEvents();
     }
+  }
+
+  // Records the running web app build version as both a GA4 user property and
+  // a default event parameter (`web_app_version`, avoiding collision with GA4's
+  // mobile-only built-in `app_version` dimension).
+  public setAppVersion(version: string): void {
+    const sanitized = version.trim().slice(0, MAX_USER_PROPERTY_VALUE_LENGTH);
+    if (!sanitized || sanitized === this.lastAppVersion) {
+      return;
+    }
+    this.lastAppVersion = sanitized;
+
+    if (!this.initialized) {
+      this.pendingAppVersion = sanitized;
+      return;
+    }
+    if (!this.analytics) {
+      return;
+    }
+    this.dispatchAppVersion(this.analytics, sanitized);
+  }
+
+  // Sets (or clears when signed out) non-PII GA4 user properties derived from
+  // the active member profile. Deduplicates unchanged snapshots and queues
+  // updates emitted before Analytics finishes async initialization.
+  public setMemberUserProperties(
+    member: Member | null,
+    today: string = new Date().toISOString().split('T')[0],
+  ): void {
+    const props = buildMemberUserProperties(member, today);
+    const key = JSON.stringify(props);
+    if (key === this.lastUserPropertiesKey) {
+      return;
+    }
+    this.lastUserPropertiesKey = key;
+
+    if (!this.initialized) {
+      this.pendingUserProperties = props;
+      return;
+    }
+    if (!this.analytics) {
+      return;
+    }
+    this.dispatchUserProperties(this.analytics, props);
   }
 
   // Logs a sanitized GA4 `page_view` event for initial load or in-app navigation.
@@ -432,13 +610,45 @@ export class AnalyticsService {
   }
 
   private flushPendingEvents(): void {
+    const appVersion = this.pendingAppVersion;
+    this.pendingAppVersion = null;
+    const userProps = this.pendingUserProperties;
+    this.pendingUserProperties = null;
     const events = this.pendingEvents;
     this.pendingEvents = [];
     if (!this.analytics) {
       return;
     }
+    // Apply app version and pending user properties before queued events so
+    // initial page_view events carry both when already known at startup.
+    if (appVersion) {
+      this.dispatchAppVersion(this.analytics, appVersion);
+    }
+    if (userProps) {
+      this.dispatchUserProperties(this.analytics, userProps);
+    }
     for (const event of events) {
       this.dispatchEvent(this.analytics, event);
+    }
+  }
+
+  private dispatchAppVersion(analytics: Analytics, appVersion: string): void {
+    try {
+      setUserProperties(analytics, { web_app_version: appVersion });
+      setDefaultEventParameters({ web_app_version: appVersion });
+    } catch (e) {
+      console.warn('AnalyticsService: Failed to set app version', e);
+    }
+  }
+
+  private dispatchUserProperties(
+    analytics: Analytics,
+    properties: MemberAnalyticsUserProperties,
+  ): void {
+    try {
+      setUserProperties(analytics, properties);
+    } catch (e) {
+      console.warn('AnalyticsService: Failed to set user properties', e);
     }
   }
 

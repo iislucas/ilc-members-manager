@@ -1,4 +1,4 @@
-import { ApplicationRef, inject, Injectable, signal, WritableSignal } from '@angular/core';
+import { ApplicationRef, effect, inject, Injectable, signal, WritableSignal } from '@angular/core';
 import { FirebaseApp } from 'firebase/app';
 import {
   Auth,
@@ -22,6 +22,7 @@ import {
 } from 'firebase/auth';
 import { environment } from '../environments/environment';
 import { FIREBASE_APP } from './app.config';
+import { AnalyticsService } from './analytics.service';
 import { Functions, getFunctions, httpsCallable } from 'firebase/functions';
 import {
   doc,
@@ -120,6 +121,7 @@ export class FirebaseStateService {
   private auth: Auth;
   private idb = inject(IdbStorageService);
   private networkState = inject(NetworkStateService);
+  private analytics = inject(AnalyticsService);
   private routingService = inject(RoutingService, { optional: true });
   private appRef = inject(ApplicationRef, { optional: true });
 
@@ -189,6 +191,17 @@ export class FirebaseStateService {
     this.db = getFirestore(this.app);
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app);
+
+    // Keep GA4 user properties synchronized with the active member profile
+    // (login, profile switch, real-time Firestore snapshot updates, and logout).
+    effect(() => {
+      const userDetails = this.user();
+      if (userDetails) {
+        this.analytics.setMemberUserProperties(userDetails.member);
+      } else if (this.loginStatus() === LoginStatus.SignedOut) {
+        this.analytics.setMemberUserProperties(null);
+      }
+    });
 
     // Note: without this, the user will be signed out when the app is reloaded,
     // and also, I've seen some strange issues where the user is logged out after 

@@ -11,6 +11,7 @@ import { FIREBASE_APP } from './app.config';
 import { deleteApp, FirebaseApp, initializeApp } from 'firebase/app';
 import { IdbStorageService } from './idb-storage.service';
 import { REMEMBERED_LOGIN_KEY } from './inline-auth/remembered-login';
+import { AnalyticsService } from './analytics.service';
 
 describe('FirebaseStateService', () => {
   let service: FirebaseStateService;
@@ -208,5 +209,30 @@ describe('FirebaseStateService', () => {
     expect(await idb.get('product_draft:u123:event_ev1')).toBeUndefined();
     expect(await idb.get('product_draft:u123:event_ev2')).toBeUndefined();
     expect(await idb.get('product_draft:other_uid:event_ev9')).toEqual({ docId: 'event_ev9' });
+  });
+
+  it('syncs member user properties to AnalyticsService on user updates and clears on sign-out', () => {
+    const analytics = TestBed.inject(AnalyticsService);
+    const setPropsSpy = vi.spyOn(analytics, 'setMemberUserProperties');
+
+    const fakeMember = { docId: 'm1', instructorId: '42', country: 'France' } as never;
+    service.user.set({
+      firebaseUser: { uid: 'u1', email: 'test@example.com' } as User,
+      member: fakeMember,
+      memberProfiles: [fakeMember],
+      isAdmin: false,
+      schoolsManaged: [],
+    });
+    service.loginStatus.set(LoginStatus.SignedIn);
+    TestBed.flushEffects();
+
+    expect(setPropsSpy).toHaveBeenCalledWith(fakeMember);
+
+    setPropsSpy.mockClear();
+    service.user.set(null);
+    service.loginStatus.set(LoginStatus.SignedOut);
+    TestBed.flushEffects();
+
+    expect(setPropsSpy).toHaveBeenCalledWith(null);
   });
 });
