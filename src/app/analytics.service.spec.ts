@@ -9,16 +9,30 @@ import {
   initializeAnalytics,
   isSupported,
   logEvent,
+  setUserProperties,
 } from 'firebase/analytics';
+import {
+  ApplicationLevel,
+  InstructorLicenseType,
+  MasterLevel,
+  StudentLevel,
+} from '../../functions/src/data-model/curriculum';
+import {
+  initMember,
+  MembershipType,
+} from '../../functions/src/data-model/members';
 import { FIREBASE_APP } from './app.config';
 import {
   AnalyticsService,
+  buildMemberUserProperties,
   classifyClientError,
   ClientErrorCategory,
   ERROR_DEDUP_WINDOW_MS,
   formatViewTitle,
+  hasActiveClassSubscription,
   MAX_ERROR_EVENTS_PER_SESSION,
   NavigationSource,
+  resolveRegisteredCountry,
   sanitizeErrorMessage,
   sanitizePagePath,
   shouldEnableAnalytics,
@@ -28,6 +42,7 @@ vi.mock('firebase/analytics', () => ({
   initializeAnalytics: vi.fn(),
   isSupported: vi.fn().mockResolvedValue(false),
   logEvent: vi.fn(),
+  setUserProperties: vi.fn(),
 }));
 
 describe('Analytics helpers', () => {
@@ -382,5 +397,226 @@ describe('AnalyticsService', () => {
     }
     expect(logged).toBe(MAX_ERROR_EVENTS_PER_SESSION);
     expect(logEvent).toHaveBeenCalledTimes(MAX_ERROR_EVENTS_PER_SESSION);
+  });
+
+  describe('member user properties', () => {
+    it('evaluates hasActiveClassSubscription using flag and expiration date', () => {
+      const base = initMember();
+      expect(hasActiveClassSubscription(base, '2026-11-28')).toBe(false);
+
+      expect(
+        hasActiveClassSubscription(
+          {
+            classVideoLibrarySubscription: true,
+            classVideoLibraryExpirationDate: '',
+          },
+          '2026-11-28',
+        ),
+      ).toBe(true);
+
+      expect(
+        hasActiveClassSubscription(
+          {
+            classVideoLibrarySubscription: true,
+            classVideoLibraryExpirationDate: '2026-11-28',
+          },
+          '2026-11-28',
+        ),
+      ).toBe(true);
+
+      expect(
+        hasActiveClassSubscription(
+          {
+            classVideoLibrarySubscription: true,
+            classVideoLibraryExpirationDate: '2026-11-27',
+          },
+          '2026-11-28',
+        ),
+      ).toBe(false);
+    });
+
+    it('resolves registered country from member.country, code, or memberId prefix within 36 chars', () => {
+      expect(
+        resolveRegisteredCountry({ country: 'france', memberId: '' }),
+      ).toBe('France');
+      expect(resolveRegisteredCountry({ country: 'US', memberId: '' })).toBe(
+        'United States',
+      );
+      expect(resolveRegisteredCountry({ country: '', memberId: 'US402' })).toBe(
+        'United States',
+      );
+      expect(resolveRegisteredCountry({ country: '', memberId: 'AUS12' })).toBe(
+        'Australia',
+      );
+      expect(resolveRegisteredCountry({ country: '', memberId: '' })).toBe(
+        'unknown',
+      );
+      expect(
+        resolveRegisteredCountry({
+          country: 'Congo, the Democratic Republic of the',
+          memberId: '',
+        }).length,
+      ).toBeLessThanOrEqual(36);
+    });
+
+    it('maps an active instructor member and enforces GA4 key/value limits', () => {
+      const member = {
+        ...initMember(),
+        memberId: 'FR104',
+        country: 'France',
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2027-06-01',
+        instructorId: '42',
+        instructorLicenseType: InstructorLicenseType.Annual,
+        instructorLicenseExpires: '2027-06-01',
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '2027-01-15',
+        studentLevel: StudentLevel.Level7,
+        applicationLevel: ApplicationLevel.Level3,
+        mastersLevels: [MasterLevel.Good, MasterLevel.Wonder],
+      };
+
+      const props = buildMemberUserProperties(member, '2026-11-28');
+      expect(props).toEqual({
+        is_signed_in: 'true',
+        has_instructor_id: 'true',
+        has_active_membership: 'true',
+        has_class_subscription: 'true',
+        has_active_instructor: 'true',
+        student_level: '7',
+        instructor_level: '3',
+        master_level: 'Wonder Hands',
+        registered_country: 'France',
+      });
+
+      for (const [k, v] of Object.entries(props)) {
+        expect(k.length).toBeLessThanOrEqual(24);
+        if (v !== null) {
+          expect(v.length).toBeLessThanOrEqual(36);
+        }
+      }
+    });
+
+    it('marks has_active_instructor false when instructor license is valid but membership is expired', () => {
+      const member = {
+        ...initMember(),
+        memberId: 'US402',
+        country: '',
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2025-01-01',
+        instructorId: '88',
+        instructorLicenseType: InstructorLicenseType.Life,
+        instructorLicenseExpires: 'life',
+        studentLevel: StudentLevel.Entry,
+        applicationLevel: ApplicationLevel.None,
+        mastersLevels: [],
+      };
+
+      const props = buildMemberUserProperties(member, '2026-11-28');
+      expect(props).toEqual({
+        is_signed_in: 'true',
+        has_instructor_id: 'true',
+        has_active_membership: 'false',
+        has_class_subscription: 'false',
+        has_active_instructor: 'false',
+        student_level: 'Entry',
+        instructor_level: 'none',
+        master_level: 'none',
+        registered_country: 'United States',
+      });
+    });
+
+    it('clears member attributes when signed out', () => {
+      expect(buildMemberUserProperties(null, '2026-11-28')).toEqual({
+        is_signed_in: 'false',
+        has_instructor_id: null,
+        has_active_membership: null,
+        has_class_subscription: null,
+        has_active_instructor: null,
+        student_level: null,
+        instructor_level: null,
+        master_level: null,
+        registered_country: null,
+      });
+    });
+
+    it('flushes queued user properties before queued page_view events and deduplicates unchanged updates', async () => {
+      const fakeAnalytics = { app } as Analytics;
+      let resolveSupported!: (value: boolean) => void;
+      vi.mocked(isSupported).mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          resolveSupported = resolve;
+        }),
+      );
+      vi.mocked(initializeAnalytics).mockReturnValue(fakeAnalytics);
+
+      const callOrder: string[] = [];
+      vi.mocked(setUserProperties).mockImplementation(() => {
+        callOrder.push('setUserProperties');
+      });
+      vi.mocked(logEvent).mockImplementation(() => {
+        callOrder.push('logEvent');
+      });
+
+      (service as unknown as { initialized: boolean }).initialized = false;
+      const initPromise = service.initAnalytics(false, {
+        useEmulator: false,
+        firebase: { measurementId: 'G-QKCXJJGZKW' },
+      });
+
+      const member = {
+        ...initMember(),
+        country: 'Poland',
+        membershipType: MembershipType.Life,
+        studentLevel: StudentLevel.Level4,
+      };
+
+      service.logPageView({
+        pagePath: '/videos',
+        routePattern: '/videos',
+        viewId: 'videos',
+        pageTitle: 'Videos',
+        navigationSource: NavigationSource.Initial,
+      });
+      service.setMemberUserProperties(member, '2026-11-28');
+
+      resolveSupported(true);
+      await initPromise;
+
+      expect(callOrder).toEqual(['setUserProperties', 'logEvent']);
+      expect(setUserProperties).toHaveBeenCalledTimes(1);
+
+      // Identical snapshot is deduplicated.
+      service.setMemberUserProperties({ ...member }, '2026-11-28');
+      expect(setUserProperties).toHaveBeenCalledTimes(1);
+
+      // Updating an attribute dispatches a new setUserProperties call.
+      service.setMemberUserProperties(
+        { ...member, classVideoLibrarySubscription: true },
+        '2026-11-28',
+      );
+      expect(setUserProperties).toHaveBeenCalledTimes(2);
+      expect(setUserProperties).toHaveBeenLastCalledWith(
+        fakeAnalytics,
+        expect.objectContaining({
+          has_class_subscription: 'true',
+          has_active_membership: 'true',
+          student_level: '4',
+          registered_country: 'Poland',
+        }),
+      );
+
+      // Signing out clears member properties.
+      service.setMemberUserProperties(null, '2026-11-28');
+      expect(setUserProperties).toHaveBeenCalledTimes(3);
+      expect(setUserProperties).toHaveBeenLastCalledWith(
+        fakeAnalytics,
+        expect.objectContaining({
+          is_signed_in: 'false',
+          has_active_membership: null,
+          registered_country: null,
+        }),
+      );
+    });
   });
 });
